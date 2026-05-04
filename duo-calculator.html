@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Beleggingen vs. DUO-schuld Calculator</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/recharts@2.12.7/umd/Recharts.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <style>
+    body { margin: 0; background: #030712; }
+    input[type=range] { accent-color: #3b82f6; }
+    input[type=number]::-webkit-inner-spin-button,
+    input[type=number]::-webkit-outer-spin-button { opacity: 1; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useState, useMemo } = React;
+    const {
+      LineChart, Line, BarChart, Bar,
+      XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+    } = Recharts;
+
+    // ── Formatters ────────────────────────────────────────────────────────────
+    const fmtEur = (val) => {
+      if (val == null || isNaN(val)) return '€0';
+      return new Intl.NumberFormat('nl-NL', {
+        style: 'currency', currency: 'EUR',
+        minimumFractionDigits: 0, maximumFractionDigits: 0,
+      }).format(val);
+    };
+    const fmtEurK = (val) => {
+      if (val == null || isNaN(val)) return '€0';
+      if (Math.abs(val) >= 1000)
+        return `€${(val / 1000).toLocaleString('nl-NL', { maximumFractionDigits: 0 })}k`;
+      return fmtEur(val);
+    };
+
+    // ── Simulation ────────────────────────────────────────────────────────────
+    function runSimulation(inp) {
+      const {
+        portfolio_start, monthly_inleg, annual_return, inflation_rate,
+        duo_debt_start, duo_rate, extra_duo_monthly, duo_remaining_years,
+        heffingsvrij, box3_system, mortgage_weging, horizon_years,
+      } = inp;
+
+      const r_port   = annual_return / 100 / 12;
+      const r_duo    = duo_rate / 100 / 12;
+      const infl     = inflation_rate / 100;
+      const n_duo    = Math.round(duo_remaining_years * 12);
+
+      let min_duo_payment;
+      if (r_duo === 0 || n_duo === 0) {
+        min_duo_payment = n_duo > 0 ? duo_debt_start / n_duo : 0;
+      } else {
+        min_duo_payment =
+          duo_debt_start * (r_duo * Math.pow(1 + r_duo, n_duo)) /
+          (Math.pow(1 + r_duo, n_duo) - 1);
+      }
+
+      let a_port = portfolio_start, a_duo = duo_debt_start, a_paid_year = null;
+      let b_port = portfolio_start, b_duo = duo_debt_start, b_paid_year = null;
+      const rows = [];
+
+      for (let yr = 1; yr <= horizon_years; yr++) {
+        // — Scenario A —
+        let a_port_start = a_port;
+        for (let m = 0; m < 12; m++) {
+          a_port = a_port * (1 + r_port) + monthly_inleg;
+          if (a_duo > 0) {
+            a_duo = Math.max(0, a_duo + a_duo * r_duo - min_duo_payment);
+            if (a_duo === 0 && !a_paid_year) a_paid_year = yr;
+          }
+        }
+        const a_taxable = Math.max(0, a_port - heffingsvrij);
+        let a_box3 = 0;
+        if (box3_system === 'forfaitair') {
+          a_box3 = a_taxable * 0.0216;
+        } else {
+          const ret = a_port_start > 0
+            ? (a_port - a_port_start - monthly_inleg * 12) / a_port_start
+            : annual_return / 100;
+          a_box3 = a_taxable * Math.max(0, ret) * 0.36;
+        }
+        a_port = Math.max(0, a_port - a_box3);
+
+        // — Scenario B —
+        let b_port_start = b_port;
+        let b_extra_yr = 0;
+        for (let m = 0; m < 12; m++) {
+          b_port = b_port * (1 + r_port) + monthly_inleg;
+          if (b_duo > 0) {
+            const owed = b_duo + b_duo * r_duo;
+            b_duo = Math.max(0, owed - Math.min(owed, min_duo_payment + extra_duo_monthly));
+            if (b_duo === 0 && !b_paid_year) b_paid_year = yr;
+          }
+        }
+        if (b_duo > 0 && b_port > heffingsvrij) {
+          const transfer = Math.min(b_port - heffingsvrij, b_duo);
+          b_port -= transfer; b_duo -= transfer; b_extra_yr = transfer;
+          if (b_duo <= 0) { b_duo = 0; if (!b_paid_year) b_paid_year = yr; }
+        }
+        const b_taxable = Math.max(0, b_port - heffingsvrij);
+        let b_box3 = 0;
+        if (box3_system === 'forfaitair') {
+          b_box3 = b_taxable * 0.0216;
+        } else {
+          const ret = b_port_start > 0
+            ? (b_port - b_port_start - monthly_inleg * 12) / b_port_start
+            : annual_return / 100;
+          b_box3 = b_taxable * Math.max(0, ret) * 0.36;
+        }
+        b_port = Math.max(0, b_port - b_box3);
+
+        const infl_f = Math.pow(1 + infl, yr);
+        const wf     = mortgage_weging / 100;
+        rows.push({
+          year: yr,
+          a_portfolio: a_port, a_duo, a_box3,
+          a_net_nom: a_port - a_duo, a_net_real: (a_port - a_duo) / infl_f,
+          a_hyp_impact: a_duo * wf * 110,
+          b_portfolio: b_port, b_duo, b_box3,
+          b_net_nom: b_port - b_duo, b_net_real: (b_port - b_duo) / infl_f,
+          b_hyp_impact: b_duo * wf * 110,
+          b_extra_yr,
+        });
+      }
+      return { rows, a_paid_year, b_paid_year, min_duo_payment };
+    }
+
+    // ── Tooltip ───────────────────────────────────────────────────────────────
+    function ChartTooltip({ active, payload, label }) {
+      if (!active || !payload?.length) return null;
+      return (
+        <div style={{ background:'#111827', border:'1px solid #374151', borderRadius:8, padding:'10px 14px', fontSize:12 }}>
+          <p style={{ color:'#9ca3af', marginBottom:6, fontWeight:600 }}>Jaar {label}</p>
+          {payload.map((p, i) => (
+            <p key={i} style={{ color: p.color, margin:'2px 0' }}>{p.name}: {fmtEur(p.value)}</p>
+          ))}
+        </div>
+      );
+    }
+
+    // ── Input field ───────────────────────────────────────────────────────────
+    function NumInput({ label, value, onChange, prefix, suffix, min=0, max, step=1, hint }) {
+      return (
+        <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+          <label style={{ fontSize:11, color:'#9ca3af' }}>{label}</label>
+          <div style={{ display:'flex', alignItems:'center', background:'#1f2937', border:'1px solid #374151', borderRadius:8, overflow:'hidden' }}>
+            {prefix && <span style={{ padding:'0 6px 0 10px', color:'#6b7280', fontSize:13, userSelect:'none' }}>{prefix}</span>}
+            <input
+              type="number" value={value}
+              onChange={e => onChange(parseFloat(e.target.value) || 0)}
+              min={min} max={max} step={step}
+              style={{ flex:1, background:'transparent', border:'none', outline:'none', color:'#fff', fontSize:13, padding:'8px 10px', minWidth:0 }}
+            />
+            {suffix && <span style={{ padding:'0 10px 0 4px', color:'#6b7280', fontSize:13, userSelect:'none' }}>{suffix}</span>}
+          </div>
+          {hint && <p style={{ fontSize:11, color:'#4b5563', margin:0 }}>{hint}</p>}
+        </div>
+      );
+    }
+
+    // ── Main ──────────────────────────────────────────────────────────────────
+    function DutchDebtCalculator() {
+      const [portfolio,      setPortfolio]      = useState(50000);
+      const [monthlyInleg,   setMonthlyInleg]   = useState(500);
+      const [annualReturn,   setAnnualReturn]   = useState(7);
+      const [inflation,      setInflation]      = useState(2.5);
+      const [duoDebt,        setDuoDebt]        = useState(30000);
+      const [duoRate,        setDuoRate]        = useState(2.33);
+      const [extraDuo,       setExtraDuo]       = useState(0);
+      const [duoYears,       setDuoYears]       = useState(35);
+      const [heffingsvrij,   setHeffingsvrij]   = useState(59357);
+      const [box3System,     setBox3System]     = useState('forfaitair');
+      const [mortgageWish,   setMortgageWish]   = useState(300000);
+      const [mortgageRate,   setMortgageRate]   = useState(4.0);
+      const [mortgageWeging, setMortgageWeging] = useState(0.75);
+      const [horizon,        setHorizon]        = useState(20);
+      const [showReal,       setShowReal]       = useState(false);
+      const [activeTab,      setActiveTab]      = useState(0);
+      const [tableExpanded,  setTableExpanded]  = useState(false);
+
+      const sim = useMemo(() => runSimulation({
+        portfolio_start: portfolio, monthly_inleg: monthlyInleg,
+        annual_return: annualReturn, inflation_rate: inflation,
+        duo_debt_start: duoDebt, duo_rate: duoRate,
+        extra_duo_monthly: extraDuo, duo_remaining_years: duoYears,
+        heffingsvrij, box3_system: box3System,
+        mortgage_weging: mortgageWeging, horizon_years: horizon,
+      }), [portfolio, monthlyInleg, annualReturn, inflation, duoDebt, duoRate,
+           extraDuo, duoYears, heffingsvrij, box3System, mortgageWeging, horizon]);
+
+      const { rows, a_paid_year, b_paid_year, min_duo_payment } = sim;
+      const last    = rows[rows.length - 1];
+      const a_final = last ? (showReal ? last.a_net_real : last.a_net_nom) : 0;
+      const b_final = last ? (showReal ? last.b_net_real : last.b_net_nom) : 0;
+      const winner  = a_final >= b_final ? 'A' : 'B';
+      const diff    = Math.abs(a_final - b_final);
+      const totalA_box3 = rows.reduce((s, r) => s + r.a_box3, 0);
+      const totalB_box3 = rows.reduce((s, r) => s + r.b_box3, 0);
+
+      const box3Label = box3System === 'forfaitair'
+        ? 'Forfaitair (2026–2027) · 6% × 36% = 2,16% eff.'
+        : `Reëel (vanaf 2028) · ${String(annualReturn).replace('.',',')}% × 36% = ${(annualReturn*0.36).toFixed(2).replace('.',',')}% eff.`;
+
+      const panelStyle = { background:'#111827', border:'1px solid #1f2937', borderRadius:16, padding:16 };
+      const sectionTitle = (color) => ({ fontSize:11, fontWeight:700, color, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:12 });
+      const tabs = ['Grafiek', 'Hypotheek', 'Box 3', 'Jaar-overzicht'];
+
+      return (
+        <div style={{ minHeight:'100vh', background:'#030712', color:'#fff', padding:'24px 16px', fontFamily:'system-ui,sans-serif' }}>
+          <div style={{ maxWidth:1280, margin:'0 auto' }}>
+
+            {/* Header */}
+            <div style={{ marginBottom:24 }}>
+              <h1 style={{ margin:0, fontSize:20, fontWeight:700, letterSpacing:'-0.3px' }}>Beleggingen vs. DUO-schuld Calculator</h1>
+              <p style={{ margin:'4px 0 0', fontSize:13, color:'#6b7280' }}>
+                Scenario A = alles beleggen + minimum DUO &nbsp;·&nbsp; Scenario B = surplus boven heffingsvrij naar DUO
+              </p>
+            </div>
+
+            {/* Input grid */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(260px,1fr))', gap:16, marginBottom:20 }}>
+
+              <div style={panelStyle}>
+                <div style={sectionTitle('#60a5fa')}>Beleggingen</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  <NumInput label="Huidige portefeuille"    value={portfolio}    onChange={setPortfolio}    prefix="€" step={1000} />
+                  <NumInput label="Maandelijkse inleg"      value={monthlyInleg} onChange={setMonthlyInleg} prefix="€" step={50} />
+                  <NumInput label="Verwacht jaarrendement"  value={annualReturn} onChange={setAnnualReturn} suffix="%" step={0.1} max={30} />
+                  <NumInput label="Verwachte inflatie"      value={inflation}    onChange={setInflation}    suffix="%" step={0.1} max={10} hint="Standaard 2,5%" />
+                </div>
+              </div>
+
+              <div style={panelStyle}>
+                <div style={sectionTitle('#4ade80')}>DUO-schuld</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  <NumInput label="Huidige DUO-schuld"          value={duoDebt}  onChange={setDuoDebt}  prefix="€" step={1000} />
+                  <NumInput label="DUO rentepercentage"         value={duoRate}  onChange={setDuoRate}  suffix="%" step={0.01} max={10} hint="Standaard 2,33%" />
+                  <NumInput label="Extra maandlast DUO (sc. B)" value={extraDuo} onChange={setExtraDuo} prefix="€" step={50} />
+                  <NumInput label="Resterende aflostermijn"     value={duoYears} onChange={setDuoYears} suffix="jaar" step={1} max={35} hint="Standaard 35 jaar" />
+                </div>
+              </div>
+
+              <div style={panelStyle}>
+                <div style={sectionTitle('#facc15')}>Box 3</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  <NumInput label="Heffingsvrij vermogen" value={heffingsvrij} onChange={setHeffingsvrij} prefix="€" step={1000} hint="2025: €57.000 p.p." />
+                  <div>
+                    <label style={{ fontSize:11, color:'#9ca3af', display:'block', marginBottom:4 }}>Belastingstelsel</label>
+                    <div style={{ display:'flex', border:'1px solid #374151', borderRadius:8, overflow:'hidden' }}>
+                      {['forfaitair','reeel'].map(s => (
+                        <button key={s} onClick={() => setBox3System(s)}
+                          style={{ flex:1, padding:'8px 4px', fontSize:12, fontWeight:600, cursor:'pointer', border:'none',
+                            background: box3System===s ? '#eab308' : '#1f2937',
+                            color:      box3System===s ? '#111'    : '#9ca3af' }}>
+                          {s==='forfaitair' ? 'Forfaitair' : 'Reëel'}
+                        </button>
+                      ))}
+                    </div>
+                    <p style={{ fontSize:11, color:'#4b5563', margin:'4px 0 0' }}>{box3Label}</p>
+                  </div>
+                </div>
+              </div>
+
+              <div style={panelStyle}>
+                <div style={sectionTitle('#c084fc')}>Hypotheek</div>
+                <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
+                  <NumInput label="Gewenste hypotheek"       value={mortgageWish}   onChange={setMortgageWish}   prefix="€" step={10000} />
+                  <NumInput label="Hypotheekrente"           value={mortgageRate}   onChange={setMortgageRate}   suffix="%" step={0.1} hint="Standaard 4,0%" />
+                  <NumInput label="Weging DUO op hypotheek" value={mortgageWeging} onChange={setMortgageWeging} suffix="%" step={0.01} max={2} hint="0,75% = standaard (NHG)" />
+                </div>
+              </div>
+            </div>
+
+            {/* Horizon slider */}
+            <div style={{ ...panelStyle, marginBottom:20 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
+                <span style={{ fontSize:13, color:'#d1d5db' }}>Tijdshorizon</span>
+                <span style={{ fontSize:18, fontWeight:700 }}>{horizon} jaar</span>
+              </div>
+              <input type="range" min={1} max={35} value={horizon}
+                onChange={e => setHorizon(Number(e.target.value))}
+                style={{ width:'100%', cursor:'pointer' }} />
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#4b5563', marginTop:4 }}>
+                <span>1 jaar</span><span>35 jaar</span>
+              </div>
+            </div>
+
+            {/* Summary */}
+            {last && (
+              <div style={{
+                ...panelStyle,
+                background: winner==='A' ? 'rgba(30,58,138,0.4)' : 'rgba(20,83,45,0.4)',
+                borderColor: winner==='A' ? '#1d4ed8' : '#15803d',
+                marginBottom: 20,
+              }}>
+                <div style={{ display:'flex', flexWrap:'wrap', gap:24, alignItems:'flex-start', justifyContent:'space-between' }}>
+                  <div>
+                    <p style={{ fontSize:11, color:'#9ca3af', textTransform:'uppercase', letterSpacing:'0.1em', margin:'0 0 4px' }}>
+                      Winnend scenario na {horizon} jaar
+                    </p>
+                    <p style={{ fontSize:22, fontWeight:700, color: winner==='A' ? '#60a5fa' : '#4ade80', margin:'0 0 6px' }}>
+                      Scenario {winner} — {winner==='A' ? 'Alles beleggen' : 'DUO aflossen'}
+                    </p>
+                    <p style={{ fontSize:13, color:'#d1d5db', margin:'0 0 8px' }}>
+                      <strong style={{ color:'#fff' }}>{fmtEur(diff)}</strong> meer netto vermogen ({showReal ? 'reëel' : 'nominaal'})
+                    </p>
+                    <p style={{ fontSize:11, color:'#6b7280', margin:0 }}>
+                      Min. DUO-maandlast (annuïteit): <span style={{ color:'#9ca3af' }}>{fmtEur(min_duo_payment)}/mnd</span>
+                    </p>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                    {[
+                      { label:'Netto vermogen A', val: fmtEur(showReal ? last.a_net_real : last.a_net_nom), color:'#60a5fa' },
+                      { label:'Netto vermogen B', val: fmtEur(showReal ? last.b_net_real : last.b_net_nom), color:'#4ade80' },
+                      { label:'DUO vrij (A)', val: a_paid_year ? `Jaar ${a_paid_year}` : `>${horizon}jr`, color:'#e5e7eb' },
+                      { label:'DUO vrij (B)', val: b_paid_year ? `Jaar ${b_paid_year}` : `>${horizon}jr`, color:'#e5e7eb' },
+                    ].map(({ label, val, color }) => (
+                      <div key={label} style={{ background:'rgba(0,0,0,0.3)', borderRadius:12, padding:'10px 14px', minWidth:110 }}>
+                        <p style={{ fontSize:11, color:'#6b7280', margin:'0 0 2px' }}>{label}</p>
+                        <p style={{ fontSize:15, fontWeight:700, color, margin:0 }}>{val}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Nominal/Real toggle */}
+            <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:16 }}>
+              <span style={{ fontSize:12, color:'#6b7280' }}>Weergave:</span>
+              {[
+                { key:false, label:'Nominaal' },
+                { key:true,  label:`Reëel (−${String(inflation).replace('.',',')}% inflatie/jr)` },
+              ].map(({ key, label }) => (
+                <button key={String(key)} onClick={() => setShowReal(key)}
+                  style={{ padding:'6px 12px', borderRadius:8, fontSize:12, fontWeight:500, cursor:'pointer', border:'none',
+                    background: showReal===key ? '#374151' : 'transparent',
+                    color:      showReal===key ? '#fff'    : '#6b7280' }}>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tabs */}
+            <div style={{ ...panelStyle, padding:0 }}>
+              <div style={{ display:'flex', borderBottom:'1px solid #1f2937', overflowX:'auto' }}>
+                {tabs.map((t, i) => (
+                  <button key={t} onClick={() => setActiveTab(i)}
+                    style={{ flex:1, padding:'12px 8px', fontSize:13, fontWeight:500, cursor:'pointer', border:'none',
+                      borderBottom: activeTab===i ? '2px solid #3b82f6' : '2px solid transparent',
+                      background:'transparent', color: activeTab===i ? '#fff' : '#6b7280',
+                      whiteSpace:'nowrap' }}>
+                    {t}
+                  </button>
+                ))}
+              </div>
+
+              <div style={{ padding:20 }}>
+
+                {/* ── Grafiek ── */}
+                {activeTab===0 && (
+                  <div>
+                    <p style={{ fontSize:12, color:'#6b7280', marginBottom:16 }}>
+                      Netto vermogen = portefeuille − DUO-restschuld · {showReal ? 'Reëel (inflatie-gecorrigeerd)' : 'Nominaal'}
+                    </p>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={rows} margin={{ top:5, right:20, left:10, bottom:5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                        <XAxis dataKey="year" stroke="#374151" tick={{ fill:'#6b7280', fontSize:11 }} />
+                        <YAxis stroke="#374151" tick={{ fill:'#6b7280', fontSize:11 }} tickFormatter={fmtEurK} width={72} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ color:'#9ca3af', fontSize:12, paddingTop:8 }} />
+                        <Line type="monotone" dataKey={showReal ? 'a_net_real' : 'a_net_nom'}
+                          name="Scenario A — Beleggen" stroke="#3b82f6" strokeWidth={2.5} dot={false} />
+                        <Line type="monotone" dataKey={showReal ? 'b_net_real' : 'b_net_nom'}
+                          name="Scenario B — DUO aflossen" stroke="#22c55e" strokeWidth={2.5} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:24 }}>
+                      {[
+                        { title:'Scenario A — Portefeuille & DUO', color:'#60a5fa', pk:'a_portfolio', dk:'a_duo', pc:'#60a5fa', dc:'#f87171' },
+                        { title:'Scenario B — Portefeuille & DUO', color:'#4ade80', pk:'b_portfolio', dk:'b_duo', pc:'#4ade80', dc:'#f87171' },
+                      ].map(({ title, color, pk, dk, pc, dc }) => (
+                        <div key={title}>
+                          <p style={{ fontSize:11, fontWeight:700, color, textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>{title}</p>
+                          <ResponsiveContainer width="100%" height={180}>
+                            <LineChart data={rows} margin={{ top:5, right:10, left:5, bottom:5 }}>
+                              <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                              <XAxis dataKey="year" stroke="#374151" tick={{ fill:'#6b7280', fontSize:10 }} />
+                              <YAxis stroke="#374151" tick={{ fill:'#6b7280', fontSize:10 }} tickFormatter={fmtEurK} width={60} />
+                              <Tooltip content={<ChartTooltip />} />
+                              <Line type="monotone" dataKey={pk} name="Portefeuille" stroke={pc} strokeWidth={1.5} dot={false} />
+                              <Line type="monotone" dataKey={dk} name="DUO-schuld"  stroke={dc} strokeWidth={1.5} strokeDasharray="4 4" dot={false} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Hypotheek ── */}
+                {activeTab===1 && (
+                  <div>
+                    <p style={{ fontSize:12, color:'#6b7280', marginBottom:4 }}>
+                      Vuistregel: restschuld × {String(mortgageWeging).replace('.',',')}% = maandlast → maandlast × 110 = hypotheekvermindering
+                    </p>
+                    <p style={{ fontSize:11, color:'#4b5563', marginBottom:16 }}>
+                      Bij {fmtEur(rows[0]?.a_duo)} schuld: {fmtEur(rows[0]?.a_duo * (mortgageWeging/100))}/mnd maandlast → {fmtEur(rows[0]?.a_hyp_impact)} minder hypotheekruimte
+                    </p>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <LineChart data={rows} margin={{ top:5, right:20, left:10, bottom:5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                        <XAxis dataKey="year" stroke="#374151" tick={{ fill:'#6b7280', fontSize:11 }} />
+                        <YAxis stroke="#374151" tick={{ fill:'#6b7280', fontSize:11 }} tickFormatter={fmtEurK} width={72} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ color:'#9ca3af', fontSize:12, paddingTop:8 }} />
+                        <Line type="monotone" dataKey="a_hyp_impact" name="Hypotheekvermindering A" stroke="#3b82f6" strokeWidth={2.5} dot={false} />
+                        <Line type="monotone" dataKey="b_hyp_impact" name="Hypotheekvermindering B" stroke="#22c55e" strokeWidth={2.5} dot={false} />
+                      </LineChart>
+                    </ResponsiveContainer>
+
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginTop:20 }}>
+                      {[
+                        { label:'Scenario A', color:'#60a5fa', bg:'rgba(30,58,138,0.3)', paid:a_paid_year, now:rows[0]?.a_hyp_impact, fin:last?.a_hyp_impact },
+                        { label:'Scenario B', color:'#4ade80', bg:'rgba(20,83,45,0.3)',  paid:b_paid_year, now:rows[0]?.b_hyp_impact, fin:last?.b_hyp_impact },
+                      ].map(({ label, color, bg, paid, now, fin }) => (
+                        <div key={label} style={{ background:bg, border:`1px solid ${color}33`, borderRadius:12, padding:16 }}>
+                          <p style={{ fontSize:11, fontWeight:700, color, margin:'0 0 8px' }}>{label}</p>
+                          <p style={{ fontSize:13, color:'#d1d5db', margin:'0 0 4px' }}>
+                            DUO-vrij: <strong style={{ color:'#fff' }}>{paid ? `Jaar ${paid}` : `>${horizon} jaar`}</strong>
+                          </p>
+                          <p style={{ fontSize:11, color:'#6b7280', margin:'2px 0' }}>Nu: {fmtEur(now)} minder hypotheekruimte</p>
+                          <p style={{ fontSize:11, color:'#6b7280', margin:0 }}>Na {horizon} jaar: {fmtEur(fin)} minder</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    {last && (
+                      <div style={{ background:'#1f2937', borderRadius:12, padding:16, marginTop:16 }}>
+                        <p style={{ fontSize:11, color:'#9ca3af', margin:'0 0 4px' }}>Verschil hypotheekruimte A vs. B na {horizon} jaar</p>
+                        <p style={{ fontSize:18, fontWeight:700, color:'#fff', margin:0 }}>
+                          {fmtEur(Math.abs(last.a_hyp_impact - last.b_hyp_impact))}{' '}
+                          <span style={{ fontSize:13, fontWeight:400, color:'#9ca3af' }}>
+                            ({last.b_hyp_impact < last.a_hyp_impact ? 'B heeft meer ruimte' : 'A heeft meer ruimte'})
+                          </span>
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Box 3 ── */}
+                {activeTab===2 && (
+                  <div>
+                    <p style={{ fontSize:12, color:'#6b7280', marginBottom:4 }}>
+                      Stelsel: <span style={{ color:'#facc15' }}>{box3System==='forfaitair' ? 'Forfaitair (2026–2027)' : 'Reëel (vanaf 2028)'}</span>
+                      {' · '}Heffingsvrij: {fmtEur(heffingsvrij)}
+                    </p>
+                    <p style={{ fontSize:11, color:'#4b5563', marginBottom:16 }}>
+                      In scenario B gaat surplus boven heffingsvrij naar DUO → weinig/geen box 3
+                    </p>
+                    <ResponsiveContainer width="100%" height={260}>
+                      <BarChart data={rows} margin={{ top:5, right:20, left:10, bottom:5 }} barCategoryGap="25%">
+                        <CartesianGrid strokeDasharray="3 3" stroke="#1f2937" />
+                        <XAxis dataKey="year" stroke="#374151" tick={{ fill:'#6b7280', fontSize:11 }} />
+                        <YAxis stroke="#374151" tick={{ fill:'#6b7280', fontSize:11 }} tickFormatter={fmtEurK} width={72} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ color:'#9ca3af', fontSize:12, paddingTop:8 }} />
+                        <Bar dataKey="a_box3" name="Box 3 belasting A" fill="#3b82f6" opacity={0.85} radius={[3,3,0,0]} />
+                        <Bar dataKey="b_box3" name="Box 3 belasting B" fill="#22c55e" opacity={0.85} radius={[3,3,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+
+                    <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16, marginTop:20 }}>
+                      {[
+                        { label:'Totaal belasting A', val:fmtEur(totalA_box3), color:'#60a5fa' },
+                        { label:'Totaal belasting B', val:fmtEur(totalB_box3), color:'#4ade80' },
+                        { label:'Belastingvoordeel B', val:fmtEur(Math.max(0,totalA_box3-totalB_box3)), color:'#facc15',
+                          sub: totalA_box3 > totalB_box3 ? 'B betaalt minder box 3' : 'A betaalt minder box 3' },
+                      ].map(({ label, val, color, sub }) => (
+                        <div key={label} style={{ background:'#1f2937', borderRadius:12, padding:16 }}>
+                          <p style={{ fontSize:11, fontWeight:700, color, textTransform:'uppercase', margin:'0 0 4px' }}>{label}</p>
+                          <p style={{ fontSize:18, fontWeight:700, color:'#fff', margin:0 }}>{val}</p>
+                          {sub && <p style={{ fontSize:11, color:'#6b7280', margin:'4px 0 0' }}>{sub}</p>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* ── Jaar-overzicht ── */}
+                {activeTab===3 && (
+                  <div>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                      <p style={{ fontSize:12, color:'#6b7280', margin:0 }}>
+                        Alle bedragen {showReal ? 'reëel (koopkrachtequivalent huidig)' : 'nominaal'}
+                      </p>
+                      <button onClick={() => setTableExpanded(!tableExpanded)}
+                        style={{ fontSize:12, color:'#60a5fa', background:'none', border:'none', cursor:'pointer' }}>
+                        {tableExpanded ? '▲ Inklappen' : `▼ Toon alle ${rows.length} jaar`}
+                      </button>
+                    </div>
+                    <div style={{ overflowX:'auto', borderRadius:12, border:'1px solid #1f2937' }}>
+                      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:11, minWidth:900 }}>
+                        <thead>
+                          <tr style={{ background:'#1f2937' }}>
+                            <th style={{ textAlign:'left', padding:'10px 12px', color:'#9ca3af', fontWeight:500 }} rowSpan={2}>Jaar</th>
+                            <th style={{ textAlign:'center', padding:'8px', color:'#60a5fa', fontWeight:600, borderRight:'1px solid #374151' }} colSpan={5}>Scenario A — Beleggen</th>
+                            <th style={{ textAlign:'center', padding:'8px', color:'#4ade80', fontWeight:600 }} colSpan={5}>Scenario B — DUO aflossen</th>
+                          </tr>
+                          <tr style={{ background:'rgba(31,41,55,0.5)' }}>
+                            {['Portfolio','DUO-schuld','Box 3','Netto','Hyp.verlies','Portfolio','DUO-schuld','Box 3','Netto','Hyp.verlies'].map((h,i) => (
+                              <th key={i} style={{ textAlign:'right', padding:'6px 12px', color:'#6b7280', fontWeight:400,
+                                borderRight: i===4 ? '1px solid #374151' : 'none' }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(tableExpanded ? rows : rows.slice(0,5)).map((d, idx) => (
+                            <tr key={d.year} style={{ borderBottom:'1px solid rgba(31,41,55,0.7)', background: idx%2===0 ? 'transparent' : 'rgba(31,41,55,0.2)' }}>
+                              <td style={{ padding:'7px 12px', color:'#9ca3af', fontWeight:500 }}>{d.year}</td>
+                              <td style={{ textAlign:'right', padding:'7px 12px', color:'#93c5fd' }}>{fmtEur(d.a_portfolio)}</td>
+                              <td style={{ textAlign:'right', padding:'7px 12px', color: d.a_duo>0 ? '#f87171' : '#4ade80' }}>
+                                {d.a_duo>0 ? fmtEur(d.a_duo) : '✓ vrij'}
+                              </td>
+                              <td style={{ textAlign:'right', padding:'7px 12px', color:'#fbbf24' }}>{fmtEur(d.a_box3)}</td>
+                              <td style={{ textAlign:'right', padding:'7px 12px', color:'#fff', fontWeight:600 }}>{fmtEur(showReal ? d.a_net_real : d.a_net_nom)}</td>
+                              <td style={{ textAlign:'right', padding:'7px 12px', color:'#c084fc', borderRight:'1px solid #374151' }}>{fmtEur(d.a_hyp_impact)}</td>
+                              <td style={{ textAlign:'right', padding:'7px 12px', color:'#86efac' }}>{fmtEur(d.b_portfolio)}</td>
+                              <td style={{ textAlign:'right', padding:'7px 12px', color: d.b_duo>0 ? '#f87171' : '#4ade80' }}>
+                                {d.b_duo>0 ? fmtEur(d.b_duo) : '✓ vrij'}
+                              </td>
+                              <td style={{ textAlign:'right', padding:'7px 12px', color:'#fbbf24' }}>{fmtEur(d.b_box3)}</td>
+                              <td style={{ textAlign:'right', padding:'7px 12px', color:'#fff', fontWeight:600 }}>{fmtEur(showReal ? d.b_net_real : d.b_net_nom)}</td>
+                              <td style={{ textAlign:'right', padding:'7px 12px', color:'#c084fc' }}>{fmtEur(d.b_hyp_impact)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    {!tableExpanded && rows.length > 5 && (
+                      <p style={{ textAlign:'center', fontSize:11, color:'#4b5563', marginTop:8 }}>
+                        {rows.length-5} jaar verborgen ·{' '}
+                        <button onClick={() => setTableExpanded(true)}
+                          style={{ color:'#60a5fa', background:'none', border:'none', cursor:'pointer', fontSize:11 }}>
+                          Alles tonen
+                        </button>
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Footer */}
+            <p style={{ textAlign:'center', fontSize:11, color:'#374151', marginTop:20 }}>
+              Indicatieve berekening — geen financieel advies · DUO-maandlast (annuïteit): {fmtEur(min_duo_payment)}/mnd ·
+              Box 3 forfaitair = 6% rendement × 36% = 2,16% eff. over vermogen boven {fmtEur(heffingsvrij)}
+            </p>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<DutchDebtCalculator />);
+  </script>
+</body>
+</html>
