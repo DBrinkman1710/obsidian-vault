@@ -3,11 +3,11 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, Form, HTTPException, Request, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser
-from app.config import load_tenant_config
+from app.core.tenant import resolve_tenant_uuid
 from app.database import get_db
 from app.modules.inbox import service
 from app.modules.inbox.models import DraftStatus
@@ -50,12 +50,12 @@ async def review_draft(draft_id: uuid.UUID, body: DraftReview, current_user: Cur
 
 @router.post("/webhooks/email", status_code=status.HTTP_200_OK)
 async def mailgun_webhook(request: Request, db: DB):
-    """Mailgun inbound email webhook. Mailgun sends form data."""
+    """Mailgun inbound email webhook."""
     form = await request.form()
-    tenant_cfg = load_tenant_config()
+    tenant_id = await resolve_tenant_uuid(db)
     await service.ingest_email(
         db=db,
-        tenant_id=uuid.UUID(tenant_cfg.tenant_id) if _is_valid_uuid(tenant_cfg.tenant_id) else uuid.uuid4(),
+        tenant_id=tenant_id,
         sender=str(form.get("sender", "")),
         subject=str(form.get("subject", "")) or None,
         body=str(form.get("body-plain", form.get("body-html", ""))),
@@ -66,22 +66,14 @@ async def mailgun_webhook(request: Request, db: DB):
 
 @router.post("/webhooks/whatsapp", status_code=status.HTTP_200_OK)
 async def twilio_webhook(request: Request, db: DB):
-    """Twilio WhatsApp inbound webhook. Twilio sends form data."""
+    """Twilio WhatsApp inbound webhook."""
     form = await request.form()
-    tenant_cfg = load_tenant_config()
+    tenant_id = await resolve_tenant_uuid(db)
     await service.ingest_whatsapp(
         db=db,
-        tenant_id=uuid.UUID(tenant_cfg.tenant_id) if _is_valid_uuid(tenant_cfg.tenant_id) else uuid.uuid4(),
+        tenant_id=tenant_id,
         sender=str(form.get("From", "")),
         body=str(form.get("Body", "")),
         sender_name=str(form.get("ProfileName", "")) or None,
     )
     return {"status": "ok"}
-
-
-def _is_valid_uuid(val: str) -> bool:
-    try:
-        uuid.UUID(val)
-        return True
-    except ValueError:
-        return False

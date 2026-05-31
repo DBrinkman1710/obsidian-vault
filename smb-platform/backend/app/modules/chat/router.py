@@ -8,6 +8,7 @@ from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from sqlalchemy import select
 
 from app.config import load_tenant_config
+from app.core.tenant import resolve_tenant_uuid
 from app.database import db_session
 from app.modules.chat.manager import manager
 from app.modules.chat.models import ChatMessage, ChatSession
@@ -23,21 +24,24 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
     session_id is generated client-side on first connect, then reused.
     """
     tenant_cfg = load_tenant_config()
-    if tenant_cfg.tenant_id != tenant_slug and tenant_slug != tenant_cfg.tenant_id:
+    if tenant_cfg.tenant_id != tenant_slug:
         await websocket.close(code=4004)
         return
 
-    tenant_id = tenant_cfg.tenant_id
-    await manager.connect(websocket, tenant_id, session_id)
+    await manager.connect(websocket, tenant_slug, session_id)
 
     async with db_session() as db:
+        tenant_id = await resolve_tenant_uuid(db)
         result = await db.execute(
-            select(ChatSession).where(ChatSession.session_id_str == session_id)
+            select(ChatSession).where(
+                ChatSession.visitor_id == session_id,
+                ChatSession.tenant_id == tenant_id,
+            )
         )
         session = result.scalar_one_or_none()
         if not session:
             session = ChatSession(
-                tenant_id=uuid.uuid4(),  # resolved below properly
+                tenant_id=tenant_id,
                 visitor_id=session_id,
                 is_open=True,
             )
@@ -68,7 +72,7 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
                 await db.commit()
 
             await manager.broadcast_to_session(
-                tenant_id,
+                tenant_slug,
                 session_id,
                 {
                     "event": "message",
@@ -80,4 +84,4 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
                 },
             )
     except WebSocketDisconnect:
-        manager.disconnect(websocket, tenant_id, session_id)
+        manager.disconnect(websocket, tenant_slug, session_id)
