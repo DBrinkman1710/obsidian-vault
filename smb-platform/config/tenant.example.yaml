@@ -1,0 +1,28 @@
+tenant_id: "acme-corp"
+tenant_name: "Acme Corp"
+
+# Remove any module from this list to disable it for this client
+enabled_modules:
+  - contacts
+  - tickets
+  - billing
+  - activity
+  - inbox
+  - chat
+
+branding:
+  primary_color: "#2563EB"
+  logo_url: null
+
+features:
+  max_users: 25
+  max_contacts: 10000
+  auto_close_days: 7   # tickets in "waiting" auto-close after this many days
+
+inbox:
+  inbound_email: "support@acme.smb-platform.com"
+  whatsapp_number: "+31600000000"
+  mailgun_domain: "mg.acme.com"
+  mailgun_api_key: ""
+  twilio_account_sid: ""
+  twilio_auth_token: ""

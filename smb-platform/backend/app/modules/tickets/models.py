@@ -1,0 +1,77 @@
+from __future__ import annotations
+
+import enum
+import uuid
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import func
+
+from app.database import Base
+
+
+class TicketStatus(str, enum.Enum):
+    open = "open"
+    in_progress = "in_progress"
+    waiting = "waiting"
+    resolved = "resolved"
+    closed = "closed"
+
+
+class TicketPriority(str, enum.Enum):
+    low = "low"
+    medium = "medium"
+    high = "high"
+    urgent = "urgent"
+
+
+class MessageSource(str, enum.Enum):
+    manual = "manual"
+    email = "email"
+    whatsapp = "whatsapp"
+    chat = "chat"
+    portal = "portal"
+
+
+class Ticket(Base):
+    __tablename__ = "tickets"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
+    subject: Mapped[str] = mapped_column(String(500), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[TicketStatus] = mapped_column(Enum(TicketStatus), nullable=False, default=TicketStatus.open)
+    priority: Mapped[TicketPriority] = mapped_column(Enum(TicketPriority), nullable=False, default=TicketPriority.medium)
+    source: Mapped[MessageSource] = mapped_column(Enum(MessageSource), nullable=False, default=MessageSource.manual)
+    assigned_to: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    sla_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+
+class TicketComment(Base):
+    __tablename__ = "ticket_comments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    ticket_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=False)
+    author_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    is_internal: Mapped[bool] = mapped_column(Boolean, default=False)
+    source: Mapped[MessageSource] = mapped_column(Enum(MessageSource), nullable=False, default=MessageSource.manual)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ResponseTemplate(Base):
+    __tablename__ = "response_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

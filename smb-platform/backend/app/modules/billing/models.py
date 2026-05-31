@@ -1,0 +1,82 @@
+from __future__ import annotations
+
+import enum
+import uuid
+from datetime import date, datetime
+
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import func
+
+from app.database import Base
+
+
+class SubscriptionStatus(str, enum.Enum):
+    trial = "trial"
+    active = "active"
+    paused = "paused"
+    cancelled = "cancelled"
+
+
+class BillingCycle(str, enum.Enum):
+    monthly = "monthly"
+    annual = "annual"
+    one_time = "one_time"
+
+
+class InvoiceStatus(str, enum.Enum):
+    draft = "draft"
+    sent = "sent"
+    paid = "paid"
+    overdue = "overdue"
+    void = "void"
+
+
+class Subscription(Base):
+    __tablename__ = "subscriptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    contact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=False)
+    plan_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    status: Mapped[SubscriptionStatus] = mapped_column(Enum(SubscriptionStatus), nullable=False, default=SubscriptionStatus.active)
+    billing_cycle: Mapped[BillingCycle] = mapped_column(Enum(BillingCycle), nullable=False)
+    amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    next_billing_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class Invoice(Base):
+    __tablename__ = "invoices"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    contact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=False)
+    subscription_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("subscriptions.id"), nullable=True)
+    invoice_number: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    status: Mapped[InvoiceStatus] = mapped_column(Enum(InvoiceStatus), nullable=False, default=InvoiceStatus.draft)
+    line_items: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    subtotal_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    tax_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
+    due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class Payment(Base):
+    __tablename__ = "payments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    invoice_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("invoices.id"), nullable=False)
+    amount_cents: Mapped[int] = mapped_column(Integer, nullable=False)
+    currency: Mapped[str] = mapped_column(String(3), nullable=False, default="EUR")
+    method: Mapped[str] = mapped_column(String(50), nullable=False)
+    reference: Mapped[str | None] = mapped_column(Text, nullable=True)
+    paid_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -1,0 +1,95 @@
+from __future__ import annotations
+
+import uuid
+from typing import Annotated, Optional
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.auth.dependencies import CurrentUser
+from app.database import get_db
+from app.modules.tickets import service
+from app.modules.tickets.models import TicketStatus
+from app.modules.tickets.schemas import (
+    CommentCreate,
+    CommentOut,
+    TemplateCreate,
+    TemplateOut,
+    TicketCreate,
+    TicketList,
+    TicketOut,
+    TicketStatusUpdate,
+    TicketUpdate,
+)
+
+router = APIRouter(prefix="/tickets", tags=["tickets"])
+DB = Annotated[AsyncSession, Depends(get_db)]
+
+
+@router.get("", response_model=TicketList)
+async def list_tickets(
+    current_user: CurrentUser,
+    db: DB,
+    status: Optional[TicketStatus] = Query(None),
+    assigned_to: Optional[uuid.UUID] = Query(None),
+    contact_id: Optional[uuid.UUID] = Query(None),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=200),
+):
+    items, total = await service.list_tickets(db, current_user.tenant_id, status, assigned_to, contact_id, skip, limit)
+    return TicketList(items=items, total=total)
+
+
+@router.post("", response_model=TicketOut, status_code=status.HTTP_201_CREATED)
+async def create_ticket(body: TicketCreate, current_user: CurrentUser, db: DB):
+    return await service.create_ticket(db, current_user.tenant_id, current_user.id, body)
+
+
+@router.get("/{ticket_id}", response_model=TicketOut)
+async def get_ticket(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    ticket = await service.get_ticket(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return ticket
+
+
+@router.patch("/{ticket_id}", response_model=TicketOut)
+async def update_ticket(ticket_id: uuid.UUID, body: TicketUpdate, current_user: CurrentUser, db: DB):
+    ticket = await service.get_ticket(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return await service.update_ticket(db, ticket, body)
+
+
+@router.patch("/{ticket_id}/status", response_model=TicketOut)
+async def change_status(ticket_id: uuid.UUID, body: TicketStatusUpdate, current_user: CurrentUser, db: DB):
+    ticket = await service.get_ticket(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return await service.change_status(db, ticket, body.status)
+
+
+@router.get("/{ticket_id}/comments", response_model=list[CommentOut])
+async def list_comments(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    ticket = await service.get_ticket(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return await service.list_comments(db, current_user.tenant_id, ticket_id)
+
+
+@router.post("/{ticket_id}/comments", response_model=CommentOut, status_code=status.HTTP_201_CREATED)
+async def add_comment(ticket_id: uuid.UUID, body: CommentCreate, current_user: CurrentUser, db: DB):
+    ticket = await service.get_ticket(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return await service.add_comment(db, current_user.tenant_id, ticket, current_user.id, body)
+
+
+@router.get("/templates", response_model=list[TemplateOut])
+async def list_templates(current_user: CurrentUser, db: DB):
+    return await service.list_templates(db, current_user.tenant_id)
+
+
+@router.post("/templates", response_model=TemplateOut, status_code=status.HTTP_201_CREATED)
+async def create_template(body: TemplateCreate, current_user: CurrentUser, db: DB):
+    return await service.create_template(db, current_user.tenant_id, body)
