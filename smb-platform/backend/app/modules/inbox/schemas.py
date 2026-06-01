@@ -38,6 +38,8 @@ class DraftTicketOut(BaseModel):
     assigned_to: Optional[uuid.UUID]
     contact_id: Optional[uuid.UUID]
     approved_ticket_id: Optional[uuid.UUID]
+    reviewed_at: Optional[datetime]
+    follow_up_at: Optional[datetime]
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -111,6 +113,7 @@ class DraftReview(BaseModel):
     priority: Optional[str] = None
     assigned_to: Optional[uuid.UUID] = None
     contact_id: Optional[uuid.UUID] = None
+    follow_up_days: Optional[int] = None
 
 
 class EmailWebhookPayload(BaseModel):

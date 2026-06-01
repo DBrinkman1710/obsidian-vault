@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.contacts.models import Contact
@@ -254,7 +254,17 @@ async def list_drafts(
     db: AsyncSession, tenant_id: uuid.UUID, status: Optional[DraftStatus] = DraftStatus.pending
 ) -> list[DraftTicket]:
     q = select(DraftTicket).where(DraftTicket.tenant_id == tenant_id)
-    if status:
+    if status == DraftStatus.pending:
+        now = datetime.now(timezone.utc)
+        q = q.where(
+            or_(
+                DraftTicket.status == DraftStatus.pending,
+                (DraftTicket.status == DraftStatus.approved)
+                & DraftTicket.follow_up_at.isnot(None)
+                & (DraftTicket.follow_up_at <= now),
+            )
+        )
+    elif status:
         q = q.where(DraftTicket.status == status)
     result = await db.execute(q.order_by(DraftTicket.created_at.desc()))
     return result.scalars().all()
@@ -301,6 +311,8 @@ async def review_draft(
         )
         ticket = await ticket_service.create_ticket(db, tenant_id, reviewer_id, ticket_data)
         draft.approved_ticket_id = ticket.id
+        if review.follow_up_days:
+            draft.follow_up_at = datetime.now(timezone.utc) + timedelta(days=review.follow_up_days)
     else:
         draft.status = DraftStatus.rejected
 

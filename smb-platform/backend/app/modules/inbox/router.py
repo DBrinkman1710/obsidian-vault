@@ -87,6 +87,17 @@ async def improve_reply(draft_id: uuid.UUID, body: ImproveReplyRequest, current_
     return {"suggestions": suggestions}
 
 
+@router.post("/drafts/{draft_id}/clear-followup", response_model=DraftTicketOut)
+async def clear_followup(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    draft = await service.get_draft(db, current_user.tenant_id, draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    draft.follow_up_at = None
+    await db.commit()
+    await db.refresh(draft)
+    return draft
+
+
 # --- Webhook endpoints (called by Mailgun / Twilio, no auth token) ---
 
 @router.post("/webhooks/email", status_code=status.HTTP_200_OK)
