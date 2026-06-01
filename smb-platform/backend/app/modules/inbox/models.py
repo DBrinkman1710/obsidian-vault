@@ -45,7 +45,13 @@ class DraftTicket(Base):
     inbound_message_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("inbound_messages.id"), nullable=False)
     status: Mapped[DraftStatus] = mapped_column(Enum(DraftStatus), nullable=False, default=DraftStatus.pending)
 
-    # AI-suggested fields (editable before approval)
+    # Auto-matched contact (from sender email lookup)
+    matched_contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
+
+    # AI-generated customer briefing shown in the context window
+    context_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # AI-suggested ticket fields (editable before approval)
     ai_suggested_subject: Mapped[str] = mapped_column(String(500), nullable=False)
     ai_suggested_description: Mapped[str] = mapped_column(Text, nullable=False)
     ai_suggested_priority: Mapped[str] = mapped_column(String(20), nullable=False, default="medium")

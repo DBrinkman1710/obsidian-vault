@@ -11,7 +11,7 @@ from app.core.tenant import resolve_tenant_uuid
 from app.database import get_db
 from app.modules.inbox import service
 from app.modules.inbox.models import DraftStatus
-from app.modules.inbox.schemas import DraftReview, DraftTicketOut
+from app.modules.inbox.schemas import DraftReview, DraftTicketOut, DraftWithContextOut
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
 DB = Annotated[AsyncSession, Depends(get_db)]
@@ -26,12 +26,12 @@ async def list_drafts(
     return await service.list_drafts(db, current_user.tenant_id, status)
 
 
-@router.get("/drafts/{draft_id}", response_model=DraftTicketOut)
+@router.get("/drafts/{draft_id}", response_model=DraftWithContextOut)
 async def get_draft(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
-    draft = await service.get_draft(db, current_user.tenant_id, draft_id)
-    if not draft:
+    ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
+    if not ctx:
         raise HTTPException(status_code=404, detail="Draft not found")
-    return draft
+    return ctx
 
 
 @router.post("/drafts/{draft_id}/review", response_model=DraftTicketOut)

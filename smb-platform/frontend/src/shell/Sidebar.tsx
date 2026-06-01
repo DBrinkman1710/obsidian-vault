@@ -2,11 +2,12 @@ import { NavLink } from 'react-router-dom'
 import { useTenantConfig } from '../App'
 
 const MODULE_NAV = [
-  { module: 'contacts', label: 'Contacts', path: '/contacts', icon: '👥' },
-  { module: 'tickets',  label: 'Tickets',  path: '/tickets',  icon: '🎫' },
-  { module: 'inbox',    label: 'Inbox',    path: '/inbox',    icon: '📬' },
-  { module: 'billing',  label: 'Billing',  path: '/billing',  icon: '💳' },
-  { module: 'activity', label: 'Activity', path: '/activity', icon: '📋' },
+  { module: 'contacts', label: 'Contacts',  path: '/contacts', icon: '👥' },
+  { module: 'tickets',  label: 'Tickets',   path: '/tickets',  icon: '🎫' },
+  { module: 'inbox',    label: 'Inbox',     path: '/inbox',    icon: '📬' },
+  { module: 'chat',     label: 'Live Chat', path: '/chat',     icon: '💬' },
+  { module: 'billing',  label: 'Billing',   path: '/billing',  icon: '💳' },
+  { module: 'activity', label: 'Activity',  path: '/activity', icon: '📋' },
 ]
 
 export function Sidebar() {

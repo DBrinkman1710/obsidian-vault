@@ -13,6 +13,7 @@ const TicketDetail  = lazy(() => import('./modules/tickets/pages/TicketDetail'))
 const TicketNew     = lazy(() => import('./modules/tickets/pages/TicketNew'))
 const InboxQueue    = lazy(() => import('./modules/inbox/pages/InboxQueue'))
 const DraftReview   = lazy(() => import('./modules/inbox/pages/DraftReview'))
+const ChatPage      = lazy(() => import('./modules/chat/pages/ChatPage'))
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
 const LoginPage     = lazy(() => import('./auth/LoginPage'))
@@ -73,6 +74,10 @@ export default function App() {
               } />
               <Route path="/inbox/drafts/:id" element={
                 <ModuleGate module="inbox"><DraftReview /></ModuleGate>
+              } />
+
+              <Route path="/chat" element={
+                <ModuleGate module="chat"><ChatPage /></ModuleGate>
               } />
 
               <Route path="/billing" element={

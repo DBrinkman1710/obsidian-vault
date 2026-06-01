@@ -26,6 +26,8 @@ class DraftTicketOut(BaseModel):
     tenant_id: uuid.UUID
     inbound_message_id: uuid.UUID
     status: DraftStatus
+    matched_contact_id: Optional[uuid.UUID]
+    context_summary: Optional[str]
     ai_suggested_subject: str
     ai_suggested_description: str
     ai_suggested_priority: str
@@ -39,6 +41,45 @@ class DraftTicketOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class ContactBrief(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: Optional[str]
+    phone: Optional[str]
+    company: Optional[str]
+    tags: Optional[list[str]]
+
+    model_config = {"from_attributes": True}
+
+
+class TicketBrief(BaseModel):
+    id: uuid.UUID
+    subject: str
+    status: str
+    priority: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class SubscriptionBrief(BaseModel):
+    plan_name: str
+    status: str
+    billing_cycle: str
+    amount_cents: int
+    currency: str
+
+    model_config = {"from_attributes": True}
+
+
+class DraftWithContextOut(BaseModel):
+    draft: DraftTicketOut
+    inbound_message: InboundMessageOut
+    contact: Optional[ContactBrief]
+    recent_tickets: list[TicketBrief]
+    billing: Optional[SubscriptionBrief]
 
 
 class DraftReview(BaseModel):
