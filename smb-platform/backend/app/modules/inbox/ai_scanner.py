@@ -114,3 +114,64 @@ Write a professional briefing paragraph (3-4 sentences). Cover: who this custome
     )
 
     return message.content[0].text.strip()
+
+
+async def generate_reply_draft(
+    subject: str,
+    description: str,
+    context_summary: Optional[str],
+    contact_name: Optional[str],
+) -> str:
+    settings = get_settings()
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+    context_block = f"\n\nCustomer context: {context_summary}" if context_summary else ""
+    greeting = f"Dear {contact_name}" if contact_name else "Dear Customer"
+
+    prompt = f"""Write a professional, empathetic reply to this customer support request. Sign off as "Support Team". Max 200 words. Return plain text only, no JSON, no markdown.
+
+Support request subject: {subject}
+Issue: {description}{context_block}
+
+Begin with: {greeting},"""
+
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=400,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text.strip()
+
+
+async def generate_reply_improvements(
+    current_text: str,
+    context_summary: Optional[str],
+    subject: str,
+) -> list[dict]:
+    settings = get_settings()
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+
+    context_block = f"\nCustomer context: {context_summary}" if context_summary else ""
+
+    prompt = f"""You are a customer service writing coach. Suggest up to 3 concrete improvements to this support reply. Return ONLY a JSON array, no other text.
+
+Subject: {subject}{context_block}
+
+Current reply:
+{current_text}
+
+Return a JSON array of up to 3 objects:
+[{{"label": "short description e.g. More empathetic tone", "revised_text": "complete rewrite of the reply"}}]"""
+
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=1200,
+        messages=[{"role": "user", "content": prompt}],
+    )
+
+    text = message.content[0].text.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        inner = "\n".join(lines[1:])
+        text = inner[:inner.rfind("```")].strip() if "```" in inner else inner.strip()
+    return json.loads(text)[:3]

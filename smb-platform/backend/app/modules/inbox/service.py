@@ -218,6 +218,38 @@ async def get_draft_with_context(
     }
 
 
+async def link_contact_to_draft(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    draft_id: uuid.UUID,
+    contact_id: uuid.UUID,
+) -> Optional[dict]:
+    draft = await get_draft(db, tenant_id, draft_id)
+    if not draft:
+        return None
+
+    contact_result = await db.execute(
+        select(Contact).where(Contact.tenant_id == tenant_id, Contact.id == contact_id)
+    )
+    contact = contact_result.scalar_one_or_none()
+    if not contact:
+        return None
+
+    msg_result = await db.execute(
+        select(InboundMessage).where(InboundMessage.id == draft.inbound_message_id)
+    )
+    msg = msg_result.scalar_one_or_none()
+
+    context_summary = await _build_context(db, tenant_id, contact, msg.sender, msg.raw_body)
+    draft.matched_contact_id = contact_id
+    draft.contact_id = contact_id
+    draft.context_summary = context_summary
+    await db.commit()
+    await db.refresh(draft)
+
+    return await get_draft_with_context(db, tenant_id, draft_id)
+
+
 async def list_drafts(
     db: AsyncSession, tenant_id: uuid.UUID, status: Optional[DraftStatus] = DraftStatus.pending
 ) -> list[DraftTicket]:

@@ -82,6 +82,27 @@ class DraftWithContextOut(BaseModel):
     billing: Optional[SubscriptionBrief]
 
 
+class LinkContactRequest(BaseModel):
+    contact_id: uuid.UUID
+
+
+class SuggestReplyResponse(BaseModel):
+    suggestion: str
+
+
+class ImproveReplyRequest(BaseModel):
+    current_text: str
+
+
+class ImproveSuggestion(BaseModel):
+    label: str
+    revised_text: str
+
+
+class ImproveReplyResponse(BaseModel):
+    suggestions: list[ImproveSuggestion]
+
+
 class DraftReview(BaseModel):
     """Agent submits this to approve or reject a draft."""
     action: str  # "approve" or "reject"

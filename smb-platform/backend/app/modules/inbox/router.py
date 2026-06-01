@@ -9,9 +9,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import CurrentUser
 from app.core.tenant import resolve_tenant_uuid
 from app.database import get_db
-from app.modules.inbox import service
+from app.modules.inbox import service, ai_scanner
 from app.modules.inbox.models import DraftStatus
-from app.modules.inbox.schemas import DraftReview, DraftTicketOut, DraftWithContextOut
+from app.modules.inbox.schemas import (
+    DraftReview, DraftTicketOut, DraftWithContextOut,
+    LinkContactRequest, ImproveReplyRequest,
+)
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
 DB = Annotated[AsyncSession, Depends(get_db)]
@@ -44,6 +47,44 @@ async def review_draft(draft_id: uuid.UUID, body: DraftReview, current_user: Cur
     if draft.status != DraftStatus.pending:
         raise HTTPException(status_code=409, detail="Draft already reviewed")
     return await service.review_draft(db, current_user.tenant_id, draft, current_user.id, body)
+
+
+@router.post("/drafts/{draft_id}/link-contact", response_model=DraftWithContextOut)
+async def link_contact(draft_id: uuid.UUID, body: LinkContactRequest, current_user: CurrentUser, db: DB):
+    result = await service.link_contact_to_draft(db, current_user.tenant_id, draft_id, body.contact_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Draft or contact not found")
+    return result
+
+
+@router.post("/drafts/{draft_id}/suggest-reply")
+async def suggest_reply(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    draft = ctx["draft"]
+    contact = ctx["contact"]
+    suggestion = await ai_scanner.generate_reply_draft(
+        subject=draft.ai_suggested_subject,
+        description=draft.ai_suggested_description,
+        context_summary=draft.context_summary,
+        contact_name=contact.full_name if contact else None,
+    )
+    return {"suggestion": suggestion}
+
+
+@router.post("/drafts/{draft_id}/improve-reply")
+async def improve_reply(draft_id: uuid.UUID, body: ImproveReplyRequest, current_user: CurrentUser, db: DB):
+    ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    draft = ctx["draft"]
+    suggestions = await ai_scanner.generate_reply_improvements(
+        current_text=body.current_text,
+        context_summary=draft.context_summary,
+        subject=draft.ai_suggested_subject,
+    )
+    return {"suggestions": suggestions}
 
 
 # --- Webhook endpoints (called by Mailgun / Twilio, no auth token) ---
