@@ -53,10 +53,6 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 async def set_tenant_context(session: AsyncSession, tenant_id: str) -> None:
     """Sets the PostgreSQL session variable used by RLS policies."""
-    await session.execute(
-        # Using text() would require importing it; use raw execute via connection
-        __import__("sqlalchemy", fromlist=["text"]).text(
-            "SET LOCAL app.current_tenant_id = :tid"
-        ),
-        {"tid": str(tenant_id)},
-    )
+    from sqlalchemy import text
+    # SET LOCAL does not support parameterized placeholders; UUID is safe to inline
+    await session.execute(text(f"SET LOCAL \"app.current_tenant_id\" = '{str(tenant_id)}'"))
