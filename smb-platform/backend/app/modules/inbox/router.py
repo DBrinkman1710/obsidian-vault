@@ -5,22 +5,30 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
+from pydantic import BaseModel
 
 from app.auth.dependencies import CurrentUser
+from app.core.mailer import MailgunNotConfiguredError, send_email
 from app.core.tenant import resolve_tenant_uuid
 from app.database import get_db
-from app.modules.inbox import service, ai_scanner
-from app.modules.inbox.models import DraftStatus
+from app.modules.activity import service as activity_service
 from app.modules.departments import service as dept_service
 from app.modules.departments.schemas import DepartmentOut
+from app.modules.inbox import service, ai_scanner
+from app.modules.inbox.models import DraftStatus
 from app.modules.inbox.schemas import (
     DraftReview, DraftTicketOut, DraftWithContextOut,
     LinkContactRequest, ImproveReplyRequest,
 )
-from pydantic import BaseModel
+
 
 class ForwardRequest(BaseModel):
     department_id: uuid.UUID
+
+
+class SendReplyRequest(BaseModel):
+    reply_text: str
+
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
 DB = Annotated[AsyncSession, Depends(get_db)]
@@ -93,30 +101,109 @@ async def improve_reply(draft_id: uuid.UUID, body: ImproveReplyRequest, current_
     return {"suggestions": suggestions}
 
 
+@router.post("/drafts/{draft_id}/send-reply")
+async def send_reply(draft_id: uuid.UUID, body: SendReplyRequest, current_user: CurrentUser, db: DB):
+    ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Draft not found")
+
+    draft = ctx["draft"]
+    msg = ctx["inbound_message"]
+    contact = ctx["contact"]
+
+    subject = f"Re: {draft.final_subject or draft.ai_suggested_subject}"
+
+    try:
+        await send_email(to=msg.sender, subject=subject, body=body.reply_text)
+    except MailgunNotConfiguredError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    await activity_service.log_event(
+        db=db,
+        tenant_id=current_user.tenant_id,
+        module="inbox",
+        event_type="email.replied",
+        entity_type="draft_ticket",
+        entity_id=draft.id,
+        contact_id=contact.id if contact else None,
+        actor_id=current_user.id,
+        payload={
+            "subject": subject,
+            "to": msg.sender,
+            "preview": body.reply_text[:120],
+        },
+    )
+    await db.commit()
+
+    return {"sent": True, "to": msg.sender, "subject": subject}
+
+
 @router.post("/drafts/{draft_id}/forward")
 async def forward_draft(draft_id: uuid.UUID, body: ForwardRequest, current_user: CurrentUser, db: DB):
-    draft = await service.get_draft(db, current_user.tenant_id, draft_id)
-    if not draft:
+    ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
+    if not ctx:
         raise HTTPException(status_code=404, detail="Draft not found")
+
+    draft = ctx["draft"]
+    msg = ctx["inbound_message"]
+    contact = ctx["contact"]
+
     dept = await dept_service.get_department(db, current_user.tenant_id, body.department_id)
     if not dept:
         raise HTTPException(status_code=404, detail="Department not found")
 
+    # Build customer auto-reply text
     if dept.reply_template:
-        suggestion = dept.reply_template.replace("{name}", dept.name).replace("{sla}", str(dept.sla_working_days))
+        customer_reply = dept.reply_template.replace("{name}", dept.name).replace("{sla}", str(dept.sla_working_days))
     else:
-        suggestion = (
+        customer_reply = (
             f"Thank you for your message. I'm sorry to hear about your situation. "
             f"I have informed my colleagues at {dept.name} about your inquiry. "
             f"You can expect a response within {dept.sla_working_days} working days. "
             f"We apologise for any inconvenience this may cause."
         )
 
+    original_subject = draft.final_subject or draft.ai_suggested_subject
+
+    # Send forwarding email to department
+    dept_body = (
+        f"A customer inquiry has been forwarded to {dept.name}.\n\n"
+        f"From: {msg.sender}\n"
+        f"Subject: {original_subject}\n\n"
+        f"--- Original message ---\n{msg.raw_body}"
+    )
+    try:
+        await send_email(
+            to=dept.email,
+            subject=f"FWD: {original_subject}",
+            body=dept_body,
+            reply_to=msg.sender,
+        )
+    except MailgunNotConfiguredError:
+        pass  # Email not configured — still mark as forwarded
+
     draft.forwarded_to_department_id = dept.id
     draft.status = DraftStatus.forwarded
+
+    await activity_service.log_event(
+        db=db,
+        tenant_id=current_user.tenant_id,
+        module="inbox",
+        event_type="email.forwarded",
+        entity_type="draft_ticket",
+        entity_id=draft.id,
+        contact_id=contact.id if contact else None,
+        actor_id=current_user.id,
+        payload={
+            "department": dept.name,
+            "dept_email": dept.email,
+            "subject": original_subject,
+        },
+    )
     await db.commit()
     await db.refresh(draft)
-    return {"suggestion": suggestion, "department": DepartmentOut.model_validate(dept)}
+
+    return {"suggestion": customer_reply, "department": DepartmentOut.model_validate(dept)}
 
 
 @router.post("/drafts/{draft_id}/clear-followup", response_model=DraftTicketOut)

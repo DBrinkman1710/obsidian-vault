@@ -201,6 +201,9 @@ export default function DraftReview() {
   const [improveLoading, setImproveLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<Array<{ label: string; revised_text: string }>>([])
   const [copied, setCopied] = useState(false)
+  const [sending, setSending] = useState(false)
+  const [sentTo, setSentTo] = useState('')
+  const [sendError, setSendError] = useState('')
 
   const showContactModal = !isLoading && !!ctx && !ctx.contact && !modalDismissed && !isProcessed
 
@@ -274,6 +277,23 @@ export default function DraftReview() {
     navigator.clipboard.writeText(replyText)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleSendReply() {
+    if (!replyText.trim()) return
+    setSending(true)
+    setSendError('')
+    try {
+      const res = await api.post(`/inbox/drafts/${id}/send-reply`, { reply_text: replyText })
+      setSentTo(res.data.to)
+      qc.invalidateQueries({ queryKey: ['contact-activity'] })
+      qc.invalidateQueries({ queryKey: ['contact-moments'] })
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail
+      setSendError(detail || 'Failed to send — check Mailgun configuration.')
+    } finally {
+      setSending(false)
+    }
   }
 
   if (isLoading || !draft) return <p style={{ padding: 32 }}>Loading...</p>
@@ -663,19 +683,46 @@ export default function DraftReview() {
             />
 
             {replyText && (
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 6 }}>
-                <button
-                  onClick={handleCopy}
-                  style={{
-                    padding: '5px 12px',
-                    background: copied ? '#f0fdf4' : '#f8fafc',
-                    color: copied ? '#16a34a' : '#475569',
-                    border: `1px solid ${copied ? '#bbf7d0' : '#e2e8f0'}`,
-                    borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                  }}
-                >
-                  {copied ? '✓ Copied' : 'Copy'}
-                </button>
+              <div style={{ marginTop: 8 }}>
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                  <button
+                    onClick={handleCopy}
+                    style={{
+                      padding: '5px 12px',
+                      background: copied ? '#f0fdf4' : '#f8fafc',
+                      color: copied ? '#16a34a' : '#475569',
+                      border: `1px solid ${copied ? '#bbf7d0' : '#e2e8f0'}`,
+                      borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                    }}
+                  >
+                    {copied ? '✓ Copied' : 'Copy'}
+                  </button>
+                  <button
+                    onClick={handleSendReply}
+                    disabled={sending || !!sentTo}
+                    style={{
+                      padding: '5px 16px',
+                      background: sentTo ? '#f0fdf4' : sending ? '#93c5fd' : '#2563eb',
+                      color: sentTo ? '#16a34a' : '#fff',
+                      border: sentTo ? '1px solid #bbf7d0' : 'none',
+                      borderRadius: 5,
+                      cursor: (sending || !!sentTo) ? 'not-allowed' : 'pointer',
+                      fontSize: 12, fontWeight: 600,
+                    }}
+                  >
+                    {sentTo ? '✓ Sent' : sending ? 'Sending…' : '↑ Send to Customer'}
+                  </button>
+                </div>
+                {sentTo && (
+                  <p style={{ fontSize: 11, color: '#16a34a', textAlign: 'right', margin: '4px 0 0' }}>
+                    Email sent to {sentTo}
+                  </p>
+                )}
+                {sendError && (
+                  <p style={{ fontSize: 11, color: '#dc2626', textAlign: 'right', margin: '4px 0 0' }}>
+                    {sendError}
+                  </p>
+                )}
               </div>
             )}
 
