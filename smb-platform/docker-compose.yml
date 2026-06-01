@@ -27,6 +27,9 @@ services:
       ENVIRONMENT: development
       TENANT_CONFIG_PATH: /app/config/tenant.yaml
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
+      MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-}
+      MAILGUN_FROM: ${MAILGUN_FROM:-}
     ports:
       - "8000:8000"
     depends_on:
