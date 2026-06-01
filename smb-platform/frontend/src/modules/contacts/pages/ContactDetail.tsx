@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../../api/client'
 
@@ -16,9 +16,19 @@ export default function ContactDetail() {
   if (isLoading) return <p>Loading...</p>
   if (!contact) return <p>Contact not found</p>
 
+  const newTicketUrl = `/tickets/new?contact_id=${id}&contact_name=${encodeURIComponent(contact.full_name)}`
+
   return (
     <div style={{ maxWidth: 720 }}>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>{contact.full_name}</h1>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
+        <h1 style={{ fontSize: 22, fontWeight: 700 }}>{contact.full_name}</h1>
+        <Link to={newTicketUrl} style={{
+          padding: '7px 16px', background: '#2563eb', color: '#fff',
+          borderRadius: 6, textDecoration: 'none', fontSize: 13, fontWeight: 600,
+        }}>
+          + New Ticket
+        </Link>
+      </div>
       {contact.company && <p style={{ color: '#64748b', marginBottom: 24 }}>{contact.company}</p>}
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>

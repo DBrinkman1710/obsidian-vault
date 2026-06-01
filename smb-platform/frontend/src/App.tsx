@@ -7,8 +7,10 @@ import { Sidebar } from './shell/Sidebar'
 
 const ContactList   = lazy(() => import('./modules/contacts/pages/ContactList'))
 const ContactDetail = lazy(() => import('./modules/contacts/pages/ContactDetail'))
+const ContactNew    = lazy(() => import('./modules/contacts/pages/ContactNew'))
 const TicketList    = lazy(() => import('./modules/tickets/pages/TicketList'))
 const TicketDetail  = lazy(() => import('./modules/tickets/pages/TicketDetail'))
+const TicketNew     = lazy(() => import('./modules/tickets/pages/TicketNew'))
 const InboxQueue    = lazy(() => import('./modules/inbox/pages/InboxQueue'))
 const DraftReview   = lazy(() => import('./modules/inbox/pages/DraftReview'))
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
@@ -49,12 +51,18 @@ export default function App() {
               <Route path="/contacts" element={
                 <ModuleGate module="contacts"><ContactList /></ModuleGate>
               } />
+              <Route path="/contacts/new" element={
+                <ModuleGate module="contacts"><ContactNew /></ModuleGate>
+              } />
               <Route path="/contacts/:id" element={
                 <ModuleGate module="contacts"><ContactDetail /></ModuleGate>
               } />
 
               <Route path="/tickets" element={
                 <ModuleGate module="tickets"><TicketList /></ModuleGate>
+              } />
+              <Route path="/tickets/new" element={
+                <ModuleGate module="tickets"><TicketNew /></ModuleGate>
               } />
               <Route path="/tickets/:id" element={
                 <ModuleGate module="tickets"><TicketDetail /></ModuleGate>
