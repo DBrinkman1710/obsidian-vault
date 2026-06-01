@@ -16,7 +16,8 @@ const DraftReview   = lazy(() => import('./modules/inbox/pages/DraftReview'))
 const ChatPage      = lazy(() => import('./modules/chat/pages/ChatPage'))
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
-const LoginPage     = lazy(() => import('./auth/LoginPage'))
+const LoginPage       = lazy(() => import('./auth/LoginPage'))
+const DepartmentsPage = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -87,6 +88,8 @@ export default function App() {
               <Route path="/activity" element={
                 <ModuleGate module="activity"><ActivityFeed /></ModuleGate>
               } />
+
+              <Route path="/settings/departments" element={<DepartmentsPage />} />
             </Routes>
           </Suspense>
         </main>

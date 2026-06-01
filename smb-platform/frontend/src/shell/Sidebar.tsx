@@ -1,5 +1,6 @@
 import { NavLink } from 'react-router-dom'
 import { useTenantConfig } from '../App'
+import { useAuth } from '../auth/useAuth'
 
 const MODULE_NAV = [
   { module: 'contacts', label: 'Contacts',  path: '/contacts', icon: '👥' },
@@ -12,9 +13,18 @@ const MODULE_NAV = [
 
 export function Sidebar() {
   const config = useTenantConfig()
+  const { user } = useAuth()
   if (!config) return null
 
   const enabled = new Set(config.enabled_modules)
+
+  const navLinkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
+    display: 'flex', alignItems: 'center', gap: 10,
+    padding: '10px 20px', textDecoration: 'none',
+    color: isActive ? '#fff' : '#94a3b8',
+    background: isActive ? '#334155' : 'transparent',
+    borderLeft: isActive ? `3px solid ${config.branding.primary_color}` : '3px solid transparent',
+  })
 
   return (
     <aside style={{
@@ -24,24 +34,24 @@ export function Sidebar() {
       <div style={{ padding: '0 20px 24px', fontWeight: 700, fontSize: 16 }}>
         {config.tenant_name}
       </div>
-      <nav>
+
+      <nav style={{ flex: 1 }}>
         {MODULE_NAV.filter(n => enabled.has(n.module)).map(({ module, label, path, icon }) => (
-          <NavLink
-            key={module}
-            to={path}
-            style={({ isActive }) => ({
-              display: 'flex', alignItems: 'center', gap: 10,
-              padding: '10px 20px', textDecoration: 'none',
-              color: isActive ? '#fff' : '#94a3b8',
-              background: isActive ? '#334155' : 'transparent',
-              borderLeft: isActive ? `3px solid ${config.branding.primary_color}` : '3px solid transparent',
-            })}
-          >
+          <NavLink key={module} to={path} style={navLinkStyle}>
             <span>{icon}</span>
             <span>{label}</span>
           </NavLink>
         ))}
       </nav>
+
+      {user?.role === 'admin' && (
+        <div style={{ borderTop: '1px solid #334155', paddingTop: 8 }}>
+          <NavLink to="/settings/departments" style={navLinkStyle}>
+            <span>⚙️</span>
+            <span>Settings</span>
+          </NavLink>
+        </div>
+      )}
     </aside>
   )
 }

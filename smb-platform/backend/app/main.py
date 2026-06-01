@@ -10,6 +10,7 @@ from app.auth.router import router as auth_router
 from app.config import load_tenant_config
 from app.core.schemas import TenantConfigOut
 from app.modules import MODULES
+from app.modules.departments.router import router as departments_router
 from app.modules.tickets.automation.sla_escalation import start_scheduler
 
 
@@ -53,6 +54,7 @@ def create_app() -> FastAPI:
 
     # Core routes — always present
     app.include_router(auth_router, prefix="/api/v1")
+    app.include_router(departments_router, prefix="/api/v1")
 
     @app.get("/api/v1/tenant/config", response_model=TenantConfigOut, tags=["tenant"])
     async def tenant_config():

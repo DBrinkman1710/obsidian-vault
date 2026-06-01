@@ -32,7 +32,13 @@ export default function InboxQueue() {
     enabled: activeTab === 'processed',
   })
 
-  const processedDrafts = [...(approvedDrafts ?? []), ...(rejectedDrafts ?? [])]
+  const { data: forwardedDrafts } = useQuery({
+    queryKey: ['drafts', 'forwarded'],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'forwarded' } }).then(r => r.data),
+    enabled: activeTab === 'processed',
+  })
+
+  const processedDrafts = [...(approvedDrafts ?? []), ...(rejectedDrafts ?? []), ...(forwardedDrafts ?? [])]
     .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   const drafts = activeTab === 'pending' ? pendingDrafts : processedDrafts
@@ -93,14 +99,21 @@ export default function InboxQueue() {
                     {d.ai_suggested_category}
                   </span>
                 )}
-                {statusColor && (
+                {d.status === 'forwarded' ? (
+                  <span style={{
+                    fontSize: 12, fontWeight: 600, padding: '1px 8px', borderRadius: 12,
+                    background: '#f5f3ff', color: '#7c3aed',
+                  }}>
+                    Forwarded
+                  </span>
+                ) : statusColor ? (
                   <span style={{
                     fontSize: 12, fontWeight: 600, padding: '1px 8px', borderRadius: 12,
                     background: statusColor + '20', color: statusColor, textTransform: 'capitalize',
                   }}>
                     {d.status}
                   </span>
-                )}
+                ) : null}
                 {isFollowUp && (
                   <span style={{
                     fontSize: 12, fontWeight: 600, padding: '1px 8px', borderRadius: 12,

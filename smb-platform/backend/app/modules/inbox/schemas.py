@@ -40,6 +40,7 @@ class DraftTicketOut(BaseModel):
     approved_ticket_id: Optional[uuid.UUID]
     reviewed_at: Optional[datetime]
     follow_up_at: Optional[datetime]
+    forwarded_to_department_id: Optional[uuid.UUID]
     created_at: datetime
 
     model_config = {"from_attributes": True}

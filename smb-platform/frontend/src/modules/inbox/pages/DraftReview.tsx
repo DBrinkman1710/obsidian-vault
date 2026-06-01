@@ -179,12 +179,22 @@ export default function DraftReview() {
 
   const isProcessed = draft?.status !== 'pending'
   const isFollowUp = draft?.status === 'approved' && !!draft?.follow_up_at
+  const isForwarded = draft?.status === 'forwarded'
   const isResolved = linkedTicket?.status === 'closed' || linkedTicket?.status === 'resolved'
+
+  const { data: departments } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => api.get('/departments').then(r => r.data),
+    enabled: !isProcessed,
+  })
 
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('')
   const [followUpDays, setFollowUpDays] = useState('')
+  const [selectedDeptId, setSelectedDeptId] = useState('')
+  const [forwardLoading, setForwardLoading] = useState(false)
+  const [forwardedToName, setForwardedToName] = useState('')
   const [modalDismissed, setModalDismissed] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [replyLoading, setReplyLoading] = useState(false)
@@ -222,6 +232,21 @@ export default function DraftReview() {
       navigate('/inbox')
     },
   })
+
+  async function handleForward() {
+    if (!selectedDeptId) return
+    setForwardLoading(true)
+    try {
+      const res = await api.post(`/inbox/drafts/${id}/forward`, { department_id: selectedDeptId })
+      setReplyText(res.data.suggestion)
+      setForwardedToName(res.data.department.name)
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+      qc.invalidateQueries({ queryKey: ['draft', id] })
+      setSuggestions([])
+    } finally {
+      setForwardLoading(false)
+    }
+  }
 
   async function handleGenerateReply() {
     setReplyLoading(true)
@@ -378,16 +403,15 @@ export default function DraftReview() {
               {!isFollowUp && (
                 <div style={{
                   display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
-                  background: draft.status === 'approved' ? '#f0fdf4' : '#fef2f2',
-                  border: `1px solid ${draft.status === 'approved' ? '#bbf7d0' : '#fecaca'}`,
+                  background: isForwarded ? '#f5f3ff' : draft.status === 'approved' ? '#f0fdf4' : '#fef2f2',
+                  border: `1px solid ${isForwarded ? '#ddd6fe' : draft.status === 'approved' ? '#bbf7d0' : '#fecaca'}`,
                   borderRadius: 8, padding: 14,
                 }}>
                   <span style={{
-                    fontSize: 13, fontWeight: 700,
-                    color: draft.status === 'approved' ? '#16a34a' : '#dc2626',
-                    textTransform: 'capitalize',
+                    fontSize: 13, fontWeight: 700, textTransform: 'capitalize',
+                    color: isForwarded ? '#7c3aed' : draft.status === 'approved' ? '#16a34a' : '#dc2626',
                   }}>
-                    {draft.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
+                    {isForwarded ? '→ Forwarded to department' : draft.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
                   </span>
                   {draft.reviewed_at && (
                     <span style={{ fontSize: 12, color: '#94a3b8' }}>
@@ -527,6 +551,50 @@ export default function DraftReview() {
                   Back
                 </button>
               </div>
+
+              {/* Forward to Department */}
+              {departments && departments.length > 0 && (
+                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, marginBottom: 16 }}>
+                  <p style={{ fontSize: 12, fontWeight: 600, color: '#475569', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    Forward to Department
+                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                    <select
+                      value={selectedDeptId}
+                      onChange={e => setSelectedDeptId(e.target.value)}
+                      style={{
+                        flex: 1, padding: '7px 10px', borderRadius: 6,
+                        border: '1px solid #cbd5e1', fontSize: 14, color: '#1e293b', background: '#fff',
+                      }}
+                    >
+                      <option value="">Select department…</option>
+                      {departments.map((d: any) => (
+                        <option key={d.id} value={d.id}>{d.name} ({d.sla_working_days}d SLA)</option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={handleForward}
+                      disabled={!selectedDeptId || forwardLoading}
+                      style={{
+                        padding: '7px 16px', background: (!selectedDeptId || forwardLoading) ? '#c4b5fd' : '#7c3aed',
+                        color: '#fff', border: 'none', borderRadius: 6,
+                        cursor: (!selectedDeptId || forwardLoading) ? 'not-allowed' : 'pointer',
+                        fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {forwardLoading ? 'Forwarding…' : 'Forward'}
+                    </button>
+                  </div>
+                  {forwardedToName && (
+                    <p style={{ fontSize: 12, color: '#16a34a', margin: 0, fontWeight: 500 }}>
+                      ✓ Forwarded to {forwardedToName} — reply template loaded below
+                    </p>
+                  )}
+                  <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0' }}>
+                    Forwarding will load a ready-to-send reply into the Draft Reply box below.
+                  </p>
+                </div>
+              )}
 
               {/* Follow-up scheduling */}
               <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, marginBottom: 28 }}>

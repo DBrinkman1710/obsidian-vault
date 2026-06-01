@@ -11,10 +11,16 @@ from app.core.tenant import resolve_tenant_uuid
 from app.database import get_db
 from app.modules.inbox import service, ai_scanner
 from app.modules.inbox.models import DraftStatus
+from app.modules.departments import service as dept_service
+from app.modules.departments.schemas import DepartmentOut
 from app.modules.inbox.schemas import (
     DraftReview, DraftTicketOut, DraftWithContextOut,
     LinkContactRequest, ImproveReplyRequest,
 )
+from pydantic import BaseModel
+
+class ForwardRequest(BaseModel):
+    department_id: uuid.UUID
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
 DB = Annotated[AsyncSession, Depends(get_db)]
@@ -85,6 +91,32 @@ async def improve_reply(draft_id: uuid.UUID, body: ImproveReplyRequest, current_
         subject=draft.ai_suggested_subject,
     )
     return {"suggestions": suggestions}
+
+
+@router.post("/drafts/{draft_id}/forward")
+async def forward_draft(draft_id: uuid.UUID, body: ForwardRequest, current_user: CurrentUser, db: DB):
+    draft = await service.get_draft(db, current_user.tenant_id, draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    dept = await dept_service.get_department(db, current_user.tenant_id, body.department_id)
+    if not dept:
+        raise HTTPException(status_code=404, detail="Department not found")
+
+    if dept.reply_template:
+        suggestion = dept.reply_template.replace("{name}", dept.name).replace("{sla}", str(dept.sla_working_days))
+    else:
+        suggestion = (
+            f"Thank you for your message. I'm sorry to hear about your situation. "
+            f"I have informed my colleagues at {dept.name} about your inquiry. "
+            f"You can expect a response within {dept.sla_working_days} working days. "
+            f"We apologise for any inconvenience this may cause."
+        )
+
+    draft.forwarded_to_department_id = dept.id
+    draft.status = DraftStatus.forwarded
+    await db.commit()
+    await db.refresh(draft)
+    return {"suggestion": suggestion, "department": DepartmentOut.model_validate(dept)}
 
 
 @router.post("/drafts/{draft_id}/clear-followup", response_model=DraftTicketOut)
