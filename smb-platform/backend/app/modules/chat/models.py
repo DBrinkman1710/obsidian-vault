@@ -16,9 +16,11 @@ class ChatSession(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    source: Mapped[str] = mapped_column(String(20), nullable=False, default="websocket")  # "websocket" | "whatsapp"
     visitor_id: Mapped[str] = mapped_column(String(255), nullable=False)
     visitor_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     visitor_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    whatsapp_phone: Mapped[str | None] = mapped_column(String(50), nullable=True)  # E.164 phone for WhatsApp sessions
     contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
     ticket_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("tickets.id"), nullable=True)
     is_open: Mapped[bool] = mapped_column(Boolean, default=True)

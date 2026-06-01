@@ -22,11 +22,16 @@ class FeaturesConfig(BaseModel):
 
 class InboxConfig(BaseModel):
     inbound_email: Optional[str] = None
-    whatsapp_number: Optional[str] = None
     mailgun_domain: Optional[str] = None
     mailgun_api_key: Optional[str] = None
-    twilio_account_sid: Optional[str] = None
-    twilio_auth_token: Optional[str] = None
+
+
+class WhatsAppConfig(BaseModel):
+    """Meta Cloud API credentials for WhatsApp Business."""
+    phone_number_id: Optional[str] = None   # From Meta Developer Console
+    access_token: Optional[str] = None       # Permanent system user token
+    verify_token: Optional[str] = None       # Any secret string you choose for webhook verification
+    display_phone: Optional[str] = None      # e.g. "+31612345678" (shown in UI)
 
 
 ALL_MODULES = {"contacts", "tickets", "billing", "activity", "inbox", "chat"}
@@ -39,6 +44,7 @@ class TenantConfig(BaseModel):
     branding: BrandingConfig = BrandingConfig()
     features: FeaturesConfig = FeaturesConfig()
     inbox: InboxConfig = InboxConfig()
+    whatsapp: WhatsAppConfig = WhatsAppConfig()
 
     def is_module_enabled(self, name: str) -> bool:
         return name in self.enabled_modules

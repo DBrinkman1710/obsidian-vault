@@ -21,8 +21,13 @@ features:
 
 inbox:
   inbound_email: "support@acme.smb-platform.com"
-  whatsapp_number: "+31600000000"
   mailgun_domain: "mg.acme.com"
   mailgun_api_key: ""
-  twilio_account_sid: ""
-  twilio_auth_token: ""
+
+# WhatsApp Business via Meta Cloud API
+# Set up at: https://developers.facebook.com/apps/ → WhatsApp → API Setup
+whatsapp:
+  phone_number_id: ""       # From Meta Developer Console → WhatsApp → API Setup
+  access_token: ""          # Permanent system user token from Meta Business Manager
+  verify_token: "my-secret-verify-token"  # Any string you choose (set same in Meta webhook settings)
+  display_phone: "+31600000000"           # Your WhatsApp Business number (shown in UI)
