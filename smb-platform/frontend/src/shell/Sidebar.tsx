@@ -13,7 +13,7 @@ const MODULE_NAV = [
 
 export function Sidebar() {
   const config = useTenantConfig()
-  const { user } = useAuth()
+  const { user, logout } = useAuth()
   if (!config) return null
 
   const enabled = new Set(config.enabled_modules)
@@ -44,14 +44,30 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {user?.role === 'admin' && (
-        <div style={{ borderTop: '1px solid #334155', paddingTop: 8 }}>
+      <div style={{ borderTop: '1px solid #334155', paddingTop: 8 }}>
+        {user?.role === 'admin' && (
           <NavLink to="/settings/departments" style={navLinkStyle}>
             <span>⚙️</span>
             <span>Settings</span>
           </NavLink>
+        )}
+        <div style={{ padding: '0 12px 8px' }}>
+          <p style={{ fontSize: 11, color: '#64748b', margin: '8px 8px 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {user?.email}
+          </p>
+          <button
+            onClick={logout}
+            style={{
+              width: '100%', padding: '8px 12px', borderRadius: 6,
+              background: 'transparent', color: '#94a3b8',
+              border: '1px solid #334155', cursor: 'pointer',
+              fontSize: 13, fontWeight: 500, textAlign: 'left',
+            }}
+          >
+            Sign out
+          </button>
         </div>
-      )}
+      </div>
     </aside>
   )
 }
