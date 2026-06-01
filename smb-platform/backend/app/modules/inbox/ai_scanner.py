@@ -48,7 +48,12 @@ Priority guidance:
         messages=[{"role": "user", "content": prompt}],
     )
 
-    data = json.loads(message.content[0].text.strip())
+    text = message.content[0].text.strip()
+    if text.startswith("```"):
+        lines = text.split("\n")
+        inner = "\n".join(lines[1:])
+        text = inner[:inner.rfind("```")].strip() if "```" in inner else inner.strip()
+    data = json.loads(text)
     return AIScanResult(
         subject=data.get("subject", "New message"),
         description=data.get("description", raw_body[:1000]),
