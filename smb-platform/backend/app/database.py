@@ -27,10 +27,8 @@ _SSL_MODES = {'require', 'verify-ca', 'verify-full'}
 
 def _prepare_db_url(raw: str) -> tuple[str, bool]:
     """Normalize DATABASE_URL for asyncpg: fix scheme and strip libpq SSL params."""
-    import os
-    pg_ssl_env = {k: v for k, v in os.environ.items()
-                  if k.upper().startswith('PG') or 'SSL' in k.upper()}
-    print(f"[DB] PG/SSL env vars: {pg_ssl_env}", file=sys.stderr, flush=True)
+    safe = re.sub(r':([^@:]+)@', ':***@', raw)
+    print(f"[DB] RAW_URL={safe!r}", file=sys.stderr, flush=True)
 
     url = re.sub(r'^postgres(?:ql)?(?!\+)://', 'postgresql+asyncpg://', raw)
     parsed = urlparse(url)
