@@ -5,6 +5,7 @@
     "dockerfilePath": "Dockerfile.railway"
   },
   "deploy": {
+    "startCommand": "alembic upgrade head && python create_admin.py && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}",
     "healthcheckPath": "/api/v1/tenant/config",
     "restartPolicyType": "ON_FAILURE"
   }
