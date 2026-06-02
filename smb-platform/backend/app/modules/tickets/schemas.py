@@ -16,6 +16,7 @@ class TicketCreate(BaseModel):
     priority: TicketPriority = TicketPriority.medium
     assigned_to: Optional[uuid.UUID] = None
     source: MessageSource = MessageSource.manual
+    department_id: Optional[uuid.UUID] = None
 
 
 class TicketStatusUpdate(BaseModel):
@@ -28,6 +29,7 @@ class TicketUpdate(BaseModel):
     priority: Optional[TicketPriority] = None
     assigned_to: Optional[uuid.UUID] = None
     contact_id: Optional[uuid.UUID] = None
+    department_id: Optional[uuid.UUID] = None
 
 
 class TicketOut(BaseModel):
@@ -40,6 +42,10 @@ class TicketOut(BaseModel):
     priority: TicketPriority
     source: MessageSource
     assigned_to: Optional[uuid.UUID]
+    department_id: Optional[uuid.UUID] = None
+    department_name: Optional[str] = None
+    last_comment: Optional[str] = None
+    last_comment_at: Optional[datetime] = None
     sla_due_at: Optional[datetime]
     resolved_at: Optional[datetime]
     created_at: datetime

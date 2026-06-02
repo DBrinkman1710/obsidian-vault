@@ -44,8 +44,9 @@ export function Sidebar() {
 
   return (
     <aside style={{
-      width: 220, minHeight: '100vh', background: '#1e293b', color: '#f1f5f9',
+      width: 220, height: '100vh', background: '#1e293b', color: '#f1f5f9',
       display: 'flex', flexDirection: 'column', padding: '24px 0',
+      position: 'sticky', top: 0, flexShrink: 0, overflowY: 'auto',
     }}>
       <div style={{ padding: '0 20px 24px', fontWeight: 700, fontSize: 16 }}>
         {config.tenant_name}

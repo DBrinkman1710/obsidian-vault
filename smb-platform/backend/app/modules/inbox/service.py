@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.modules.contacts.models import Contact
 from app.modules.billing.models import Invoice, InvoiceStatus, Subscription
 from app.modules.tickets.models import Ticket
-from app.modules.inbox.ai_scanner import generate_context_summary, scan_message
+from app.modules.inbox.ai_scanner import generate_context_summary, generate_reply_draft, generate_reply_improvements, scan_message
 from app.modules.inbox.models import DraftStatus, DraftTicket, InboundMessage, MessageSource
 from app.modules.inbox.schemas import DraftReview
 from app.modules.tickets.models import MessageSource as TicketSource, TicketPriority
@@ -156,6 +156,7 @@ async def _create_draft(
         ai_suggested_description=scan.description,
         ai_suggested_priority=scan.priority,
         ai_suggested_category=scan.category,
+        detected_language=scan.language,
         # Pre-fill contact_id from match so agent doesn't have to search
         contact_id=contact.id if contact else None,
     )

@@ -33,10 +33,13 @@ async def list_tickets(
     status: Optional[TicketStatus] = Query(None),
     assigned_to: Optional[uuid.UUID] = Query(None),
     contact_id: Optional[uuid.UUID] = Query(None),
+    department_id: Optional[uuid.UUID] = Query(None),
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
 ):
-    items, total = await service.list_tickets(db, current_user.tenant_id, status, assigned_to, contact_id, skip, limit)
+    items, total = await service.list_tickets(
+        db, current_user.tenant_id, status, assigned_to, contact_id, department_id, skip, limit
+    )
     return TicketList(items=items, total=total)
 
 

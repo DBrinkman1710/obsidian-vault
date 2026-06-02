@@ -83,6 +83,7 @@ async def suggest_reply(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
         description=draft.ai_suggested_description,
         context_summary=draft.context_summary,
         contact_name=contact.full_name if contact else None,
+        language=draft.detected_language or "en",
     )
     return {"suggestion": suggestion}
 
@@ -97,6 +98,7 @@ async def improve_reply(draft_id: uuid.UUID, body: ImproveReplyRequest, current_
         current_text=body.current_text,
         context_summary=draft.context_summary,
         subject=draft.ai_suggested_subject,
+        language=draft.detected_language or "en",
     )
     return {"suggestions": suggestions}
 

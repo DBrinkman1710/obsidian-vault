@@ -12,6 +12,16 @@ const PRIORITY_COLORS: Record<string, string> = {
   low: '#6b7280', medium: '#2563eb', high: '#d97706', urgent: '#dc2626',
 }
 
+function timeAgo(dateStr: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const m = Math.floor(diff / 60000)
+  if (m < 1) return 'just now'
+  if (m < 60) return `${m}m ago`
+  const h = Math.floor(m / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
 export default function TicketList() {
   const [statusFilter, setStatusFilter] = useState('')
   const { data, isLoading } = useQuery({
@@ -46,12 +56,31 @@ export default function TicketList() {
           marginBottom: 12, background: '#fff',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <Link to={`/tickets/${t.id}`} style={{ color: '#1e293b', textDecoration: 'none', fontWeight: 600, fontSize: 15 }}>
-              {t.subject}
-            </Link>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <Link to={`/tickets/${t.id}`} style={{ color: '#1e293b', textDecoration: 'none', fontWeight: 600, fontSize: 15 }}>
+                  {t.subject}
+                </Link>
+                {t.department_name && (
+                  <span style={{
+                    padding: '1px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
+                    background: '#f1f5f9', color: '#64748b',
+                  }}>
+                    {t.department_name}
+                  </span>
+                )}
+              </div>
+              {t.last_comment && (
+                <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                  💬 {t.last_comment.slice(0, 90)}{t.last_comment.length > 90 ? '…' : ''}
+                  {t.last_comment_at && <span style={{ marginLeft: 6 }}>· {timeAgo(t.last_comment_at)}</span>}
+                </p>
+              )}
+            </div>
             <span style={{
               padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600,
               background: STATUS_COLORS[t.status] + '20', color: STATUS_COLORS[t.status],
+              marginLeft: 12, flexShrink: 0,
             }}>
               {t.status.replace('_', ' ')}
             </span>

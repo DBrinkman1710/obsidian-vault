@@ -123,7 +123,13 @@ export default function TicketNew() {
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('medium')
   const [contact, setContact] = useState<{ id: string; label: string } | null>(null)
+  const [departmentId, setDepartmentId] = useState('')
   const [errors, setErrors] = useState<{ subject?: string }>({})
+
+  const { data: departments } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => api.get('/departments').then(r => r.data),
+  })
 
   // Pre-fill contact if navigated from a contact page: /tickets/new?contact_id=...&contact_name=...
   useEffect(() => {
@@ -146,6 +152,7 @@ export default function TicketNew() {
         description: description.trim() || null,
         priority,
         contact_id: contact?.id ?? null,
+        department_id: departmentId || null,
         source: 'manual',
       }),
     onSuccess: (res) => {
@@ -207,6 +214,20 @@ export default function TicketNew() {
               )
             })}
           </div>
+        </div>
+
+        <div style={field}>
+          <label style={labelStyle}>Department <span style={{ fontWeight: 400, textTransform: 'none', color: '#94a3b8' }}>(optional)</span></label>
+          <select
+            value={departmentId}
+            onChange={e => setDepartmentId(e.target.value)}
+            style={{ ...inputStyle, background: '#fff' }}
+          >
+            <option value="">No department</option>
+            {departments?.map((d: any) => (
+              <option key={d.id} value={d.id}>{d.name} ({d.sla_working_days}d SLA)</option>
+            ))}
+          </select>
         </div>
 
         <div style={field}>
