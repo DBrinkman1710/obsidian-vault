@@ -46,6 +46,8 @@ def _make_engine(url: str, needs_ssl: bool, **kw):
     connect_args = {}
     if needs_ssl:
         ctx = _ssl_module.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = _ssl_module.CERT_NONE
         connect_args["ssl"] = ctx
     return create_async_engine(url, connect_args=connect_args, **kw)
 
