@@ -21,7 +21,7 @@ _engine = None
 _session_factory = None
 
 
-_SSL_PARAMS = {'sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'sslpassword'}
+_SSL_PARAMS = {'ssl', 'sslmode', 'sslrootcert', 'sslcert', 'sslkey', 'sslpassword'}
 _SSL_MODES = {'require', 'verify-ca', 'verify-full'}
 
 
