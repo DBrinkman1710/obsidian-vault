@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import re
+import ssl as _ssl_module
+import sys
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
@@ -25,7 +27,6 @@ _SSL_MODES = {'require', 'verify-ca', 'verify-full'}
 
 def _prepare_db_url(raw: str) -> tuple[str, bool]:
     """Normalize DATABASE_URL for asyncpg: fix scheme and strip libpq SSL params."""
-    # Fix scheme before parsing so urlparse sees a valid URL
     url = re.sub(r'^postgres(?:ql)?(?!\+)://', 'postgresql+asyncpg://', raw)
     parsed = urlparse(url)
     params = parse_qsl(parsed.query, keep_blank_values=True)
@@ -34,7 +35,16 @@ def _prepare_db_url(raw: str) -> tuple[str, bool]:
     clean_params = [(k, v) for k, v in params if k not in _SSL_PARAMS]
     clean_query = urlencode(clean_params)
     url = urlunparse(parsed._replace(query=clean_query))
+    print(f"[DB] scheme={url.split('://')[0]!r} needs_ssl={needs_ssl} sslmode_left={'sslmode' in url}", file=sys.stderr, flush=True)
     return url, needs_ssl
+
+
+def _make_engine(url: str, needs_ssl: bool, **kw):
+    connect_args = {}
+    if needs_ssl:
+        ctx = _ssl_module.create_default_context()
+        connect_args["ssl"] = ctx
+    return create_async_engine(url, connect_args=connect_args, **kw)
 
 
 def get_engine():
@@ -42,11 +52,10 @@ def get_engine():
     if _engine is None:
         settings = get_settings()
         url, needs_ssl = _prepare_db_url(settings.database_url)
-        _engine = create_async_engine(
-            url,
+        _engine = _make_engine(
+            url, needs_ssl,
             echo=settings.environment == "development",
             pool_pre_ping=True,
-            **({"connect_args": {"ssl": True}} if needs_ssl else {}),
         )
     return _engine
 

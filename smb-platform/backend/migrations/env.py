@@ -44,13 +44,10 @@ def do_run_migrations(connection):
 
 
 async def run_async_migrations() -> None:
-    from app.database import _prepare_db_url
+    from app.database import _prepare_db_url, _make_engine
     settings = get_settings()
     url, needs_ssl = _prepare_db_url(settings.database_url)
-    engine = create_async_engine(
-        url,
-        **({"connect_args": {"ssl": True}} if needs_ssl else {}),
-    )
+    engine = _make_engine(url, needs_ssl)
     async with engine.begin() as conn:
         await conn.run_sync(do_run_migrations)
     await engine.dispose()
