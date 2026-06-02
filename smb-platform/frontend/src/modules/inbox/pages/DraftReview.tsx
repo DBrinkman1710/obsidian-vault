@@ -312,19 +312,10 @@ export default function DraftReview() {
       <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', minHeight: 0 }}>
 
         {/* LEFT — Context window (same in all modes) */}
-        <div style={{ width: 340, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <h2 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
             Context Window
           </h2>
-
-          {draft.context_summary && (
-            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 14 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                AI Briefing
-              </p>
-              <p style={{ fontSize: 13, color: '#1e3a5f', lineHeight: 1.6, margin: 0 }}>{draft.context_summary}</p>
-            </div>
-          )}
 
           {contact ? (
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
@@ -355,6 +346,15 @@ export default function DraftReview() {
             </div>
           )}
 
+          {draft.context_summary && (
+            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 14 }}>
+              <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                AI Briefing
+              </p>
+              <p style={{ fontSize: 13, color: '#1e3a5f', lineHeight: 1.6, margin: 0 }}>{draft.context_summary}</p>
+            </div>
+          )}
+
           {billing && (
             <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
               <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Subscription</p>
@@ -382,19 +382,10 @@ export default function DraftReview() {
               </div>
             </div>
           )}
-
-          <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
-            <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              Original Message
-              {msg?.source && <span style={{ marginLeft: 8, color: '#94a3b8', fontWeight: 400, textTransform: 'none' }}>via {msg.source}</span>}
-            </p>
-            {msg?.subject && <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 6 }}>{msg.subject}</p>}
-            <p style={{ fontSize: 13, color: '#475569', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.5 }}>{msg?.raw_body}</p>
-          </div>
         </div>
 
         {/* RIGHT — varies by mode */}
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           {isProcessed ? (
             /* ── PROCESSED MODE ─────────────────────────────── */
             <>
@@ -504,247 +495,317 @@ export default function DraftReview() {
           ) : (
             /* ── PENDING MODE ────────────────────────────────── */
             <>
-              <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>Review Draft</h1>
-              <p style={{ color: '#64748b', marginBottom: 24 }}>Edit the AI-suggested fields, then approve or reject.</p>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 24 }}>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Subject</label>
-                  <input
-                    value={subject || draft.ai_suggested_subject}
-                    onChange={e => setSubject(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 14, boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Description</label>
-                  <textarea
-                    rows={6}
-                    value={description || draft.ai_suggested_description}
-                    onChange={e => setDescription(e.target.value)}
-                    style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 14, resize: 'vertical', boxSizing: 'border-box' }}
-                  />
-                </div>
-                <div>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 8 }}>Priority</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
-                      const active = (priority || draft.ai_suggested_priority) === p
-                      return (
-                        <button key={p} onClick={() => setPriority(p)} style={{
-                          padding: '6px 16px', borderRadius: 6, fontSize: 13, fontWeight: 600,
-                          cursor: 'pointer', textTransform: 'capitalize',
-                          background: active ? PRIORITY_COLORS[p] : '#f1f5f9',
-                          color: active ? '#fff' : '#475569',
-                          border: active ? `2px solid ${PRIORITY_COLORS[p]}` : '2px solid transparent',
-                        }}>
-                          {p}
-                        </button>
-                      )
-                    })}
-                  </div>
-                  {draft.ai_suggested_category && (
-                    <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>AI category: <strong>{draft.ai_suggested_category}</strong></p>
-                  )}
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-                <button
-                  onClick={() => reviewMutation.mutate('approve')}
-                  disabled={reviewMutation.isPending}
-                  style={{ padding: '10px 28px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
-                >
-                  Approve & Create Ticket
-                </button>
-                <button
-                  onClick={() => reviewMutation.mutate('reject')}
-                  disabled={reviewMutation.isPending}
-                  style={{ padding: '10px 24px', background: '#fff', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 14 }}
-                >
-                  Reject
-                </button>
-                <button
-                  onClick={() => navigate('/inbox')}
-                  style={{ padding: '10px 20px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14 }}
-                >
-                  Back
-                </button>
-              </div>
-
-              {/* Forward to Department */}
-              {departments && departments.length > 0 && (
-                <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, marginBottom: 16 }}>
-                  <p style={{ fontSize: 12, fontWeight: 600, color: '#475569', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                    Forward to Department
-                  </p>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                    <select
-                      value={selectedDeptId}
-                      onChange={e => setSelectedDeptId(e.target.value)}
-                      style={{
-                        flex: 1, padding: '7px 10px', borderRadius: 6,
-                        border: '1px solid #cbd5e1', fontSize: 14, color: '#1e293b', background: '#fff',
-                      }}
-                    >
-                      <option value="">Select department…</option>
-                      {departments.map((d: any) => (
-                        <option key={d.id} value={d.id}>{d.name} ({d.sla_working_days}d SLA)</option>
-                      ))}
-                    </select>
-                    <button
-                      onClick={handleForward}
-                      disabled={!selectedDeptId || forwardLoading}
-                      style={{
-                        padding: '7px 16px', background: (!selectedDeptId || forwardLoading) ? '#c4b5fd' : '#7c3aed',
-                        color: '#fff', border: 'none', borderRadius: 6,
-                        cursor: (!selectedDeptId || forwardLoading) ? 'not-allowed' : 'pointer',
-                        fontWeight: 600, fontSize: 13, whiteSpace: 'nowrap',
-                      }}
-                    >
-                      {forwardLoading ? 'Forwarding…' : 'Forward'}
-                    </button>
-                  </div>
-                  {forwardedToName && (
-                    <p style={{ fontSize: 12, color: '#16a34a', margin: 0, fontWeight: 500 }}>
-                      ✓ Forwarded to {forwardedToName} — reply template loaded below
-                    </p>
-                  )}
-                  <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0' }}>
-                    Forwarding will load a ready-to-send reply into the Draft Reply box below.
-                  </p>
-                </div>
-              )}
-
-              {/* Follow-up scheduling */}
-              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14, marginBottom: 28 }}>
-                <p style={{ fontSize: 12, fontWeight: 600, color: '#475569', margin: '0 0 8px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  Schedule Follow-up
+              {/* Original Message — top of right column */}
+              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginBottom: 16 }}>
+                <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Original Message
+                  {msg?.source && <span style={{ marginLeft: 8, color: '#94a3b8', fontWeight: 400, textTransform: 'none' }}>via {msg.source}</span>}
                 </p>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: 13, color: '#64748b' }}>Follow up in</span>
-                  <input
-                    type="number"
-                    min={1}
-                    max={365}
-                    value={followUpDays}
-                    onChange={e => setFollowUpDays(e.target.value)}
-                    placeholder="—"
+                {msg?.subject && <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 6 }}>{msg.subject}</p>}
+                <p style={{ fontSize: 13, color: '#475569', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.5 }}>{msg?.raw_body}</p>
+              </div>
+
+              {/* Two-column area: Draft Reply | Draft Ticket + Workflow */}
+              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+
+                {/* Left: Draft Reply */}
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                    <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: 0 }}>Draft Reply</h2>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={handleGenerateReply}
+                        disabled={replyLoading}
+                        style={{
+                          padding: '6px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6,
+                          cursor: replyLoading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: replyLoading ? 0.7 : 1,
+                        }}
+                      >
+                        {replyLoading ? 'Generating…' : 'Generate Reply'}
+                      </button>
+                      <button
+                        onClick={handleImproveReply}
+                        disabled={improveLoading || !replyText.trim()}
+                        style={{
+                          padding: '6px 14px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6,
+                          cursor: (improveLoading || !replyText.trim()) ? 'not-allowed' : 'pointer',
+                          fontSize: 13, fontWeight: 600, opacity: (improveLoading || !replyText.trim()) ? 0.6 : 1,
+                        }}
+                      >
+                        {improveLoading ? 'Improving…' : 'Improve'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <textarea
+                    rows={8}
+                    value={replyText}
+                    onChange={e => { setReplyText(e.target.value); setSuggestions([]) }}
+                    placeholder="Click 'Generate Reply' to draft an AI reply, or write your own…"
                     style={{
-                      width: 64, padding: '6px 10px', borderRadius: 6,
-                      border: '1px solid #cbd5e1', fontSize: 14, textAlign: 'center',
+                      width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #cbd5e1',
+                      fontSize: 14, resize: 'vertical', boxSizing: 'border-box', minHeight: 140, fontFamily: 'inherit',
                     }}
                   />
-                  <span style={{ fontSize: 13, color: '#64748b' }}>days</span>
+
+                  {replyText && (
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                        <button
+                          onClick={handleCopy}
+                          style={{
+                            padding: '5px 12px',
+                            background: copied ? '#f0fdf4' : '#f8fafc',
+                            color: copied ? '#16a34a' : '#475569',
+                            border: `1px solid ${copied ? '#bbf7d0' : '#e2e8f0'}`,
+                            borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                          }}
+                        >
+                          {copied ? '✓ Copied' : 'Copy'}
+                        </button>
+                        <button
+                          onClick={handleSendReply}
+                          disabled={sending || !!sentTo}
+                          style={{
+                            padding: '5px 16px',
+                            background: sentTo ? '#f0fdf4' : sending ? '#93c5fd' : '#2563eb',
+                            color: sentTo ? '#16a34a' : '#fff',
+                            border: sentTo ? '1px solid #bbf7d0' : 'none',
+                            borderRadius: 5,
+                            cursor: (sending || !!sentTo) ? 'not-allowed' : 'pointer',
+                            fontSize: 12, fontWeight: 600,
+                          }}
+                        >
+                          {sentTo ? '✓ Sent' : sending ? 'Sending…' : '↑ Send to Customer'}
+                        </button>
+                      </div>
+                      {sentTo && <p style={{ fontSize: 11, color: '#16a34a', textAlign: 'right', margin: '4px 0 0' }}>Email sent to {sentTo}</p>}
+                      {sendError && <p style={{ fontSize: 11, color: '#dc2626', textAlign: 'right', margin: '4px 0 0' }}>{sendError}</p>}
+                    </div>
+                  )}
+
+                  {suggestions.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+                      {suggestions.map((s, i) => (
+                        <div key={i} style={{
+                          background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,
+                          padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+                        }}>
+                          <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>{s.label}</span>
+                          <button
+                            onClick={() => { setReplyText(s.revised_text); setSuggestions([]) }}
+                            style={{ padding: '4px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600, flexShrink: 0 }}
+                          >
+                            Apply
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <p style={{ fontSize: 11, color: '#94a3b8', margin: '6px 0 0' }}>Leave blank for no follow-up.</p>
+
+                {/* Right: Draft Ticket + Suggested Workflow */}
+                <div style={{ width: 300, flexShrink: 0 }}>
+
+                  {/* Draft Ticket card */}
+                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
+                    <h2 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '0 0 14px' }}>Draft Ticket</h2>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Subject</label>
+                        <input
+                          value={subject || draft.ai_suggested_subject}
+                          onChange={e => setSubject(e.target.value)}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Description</label>
+                        <textarea
+                          rows={4}
+                          value={description || draft.ai_suggested_description}
+                          onChange={e => setDescription(e.target.value)}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 6 }}>Priority</label>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
+                            const active = (priority || draft.ai_suggested_priority) === p
+                            return (
+                              <button key={p} onClick={() => setPriority(p)} style={{
+                                padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
+                                cursor: 'pointer', textTransform: 'capitalize',
+                                background: active ? PRIORITY_COLORS[p] : '#f1f5f9',
+                                color: active ? '#fff' : '#475569',
+                                border: active ? `2px solid ${PRIORITY_COLORS[p]}` : '2px solid transparent',
+                              }}>
+                                {p}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {draft.ai_suggested_category && (
+                          <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>AI category: <strong>{draft.ai_suggested_category}</strong></p>
+                        )}
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
+                      <button
+                        onClick={() => reviewMutation.mutate('approve')}
+                        disabled={reviewMutation.isPending}
+                        style={{ padding: '9px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13, width: '100%' }}
+                      >
+                        Approve & Create Ticket
+                      </button>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button
+                          onClick={() => reviewMutation.mutate('reject')}
+                          disabled={reviewMutation.isPending}
+                          style={{ flex: 1, padding: '8px 12px', background: '#fff', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
+                        >
+                          Reject
+                        </button>
+                        <button
+                          onClick={() => navigate('/inbox')}
+                          style={{ flex: 1, padding: '8px 12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
+                        >
+                          Back
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Suggested Workflow card */}
+                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginTop: 12 }}>
+                    <h2 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '0 0 14px' }}>Suggested Workflow</h2>
+
+                    {departments && departments.length > 0 && (
+                      <div style={{ marginBottom: 14 }}>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: '#475569', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          Forward to Department
+                        </p>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                          <select
+                            value={selectedDeptId}
+                            onChange={e => setSelectedDeptId(e.target.value)}
+                            style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, color: '#1e293b', background: '#fff' }}
+                          >
+                            <option value="">Select…</option>
+                            {departments.map((d: any) => (
+                              <option key={d.id} value={d.id}>{d.name}</option>
+                            ))}
+                          </select>
+                          <button
+                            onClick={handleForward}
+                            disabled={!selectedDeptId || forwardLoading}
+                            style={{
+                              padding: '6px 12px', background: (!selectedDeptId || forwardLoading) ? '#c4b5fd' : '#7c3aed',
+                              color: '#fff', border: 'none', borderRadius: 6,
+                              cursor: (!selectedDeptId || forwardLoading) ? 'not-allowed' : 'pointer',
+                              fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {forwardLoading ? '…' : 'Forward'}
+                          </button>
+                        </div>
+                        {forwardedToName && <p style={{ fontSize: 11, color: '#16a34a', margin: 0 }}>✓ Forwarded to {forwardedToName}</p>}
+                      </div>
+                    )}
+
+                    <div>
+                      <p style={{ fontSize: 12, fontWeight: 600, color: '#475569', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Schedule Follow-up
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ fontSize: 13, color: '#64748b' }}>In</span>
+                        <input
+                          type="number"
+                          min={1}
+                          max={365}
+                          value={followUpDays}
+                          onChange={e => setFollowUpDays(e.target.value)}
+                          placeholder="—"
+                          style={{ width: 56, padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, textAlign: 'center' }}
+                        />
+                        <span style={{ fontSize: 13, color: '#64748b' }}>days</span>
+                      </div>
+                      <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0' }}>Leave blank for no follow-up.</p>
+                    </div>
+                  </div>
+
+                </div>
               </div>
             </>
           )}
 
-          {/* Draft Reply — shown in both modes */}
-          <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 24 }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: 0 }}>Draft Reply</h2>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button
-                  onClick={handleGenerateReply}
-                  disabled={replyLoading}
-                  style={{
-                    padding: '6px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6,
-                    cursor: replyLoading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: replyLoading ? 0.7 : 1,
-                  }}
-                >
-                  {replyLoading ? 'Generating…' : 'Generate Reply'}
-                </button>
-                <button
-                  onClick={handleImproveReply}
-                  disabled={improveLoading || !replyText.trim()}
-                  style={{
-                    padding: '6px 14px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6,
-                    cursor: (improveLoading || !replyText.trim()) ? 'not-allowed' : 'pointer',
-                    fontSize: 13, fontWeight: 600, opacity: (improveLoading || !replyText.trim()) ? 0.6 : 1,
-                  }}
-                >
-                  {improveLoading ? 'Improving…' : 'Improve'}
-                </button>
-              </div>
-            </div>
-
-            <textarea
-              rows={6}
-              value={replyText}
-              onChange={e => { setReplyText(e.target.value); setSuggestions([]) }}
-              placeholder="Click 'Generate Reply' to draft an AI reply, or write your own…"
-              style={{
-                width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #cbd5e1',
-                fontSize: 14, resize: 'vertical', boxSizing: 'border-box', minHeight: 120, fontFamily: 'inherit',
-              }}
-            />
-
-            {replyText && (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+          {/* Draft Reply in processed mode */}
+          {isProcessed && (
+            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 24 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: 0 }}>Draft Reply</h2>
+                <div style={{ display: 'flex', gap: 8 }}>
                   <button
-                    onClick={handleCopy}
+                    onClick={handleGenerateReply}
+                    disabled={replyLoading}
                     style={{
-                      padding: '5px 12px',
-                      background: copied ? '#f0fdf4' : '#f8fafc',
-                      color: copied ? '#16a34a' : '#475569',
-                      border: `1px solid ${copied ? '#bbf7d0' : '#e2e8f0'}`,
-                      borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                      padding: '6px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6,
+                      cursor: replyLoading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: replyLoading ? 0.7 : 1,
                     }}
                   >
-                    {copied ? '✓ Copied' : 'Copy'}
+                    {replyLoading ? 'Generating…' : 'Generate Reply'}
                   </button>
                   <button
-                    onClick={handleSendReply}
-                    disabled={sending || !!sentTo}
+                    onClick={handleImproveReply}
+                    disabled={improveLoading || !replyText.trim()}
                     style={{
-                      padding: '5px 16px',
-                      background: sentTo ? '#f0fdf4' : sending ? '#93c5fd' : '#2563eb',
-                      color: sentTo ? '#16a34a' : '#fff',
-                      border: sentTo ? '1px solid #bbf7d0' : 'none',
-                      borderRadius: 5,
-                      cursor: (sending || !!sentTo) ? 'not-allowed' : 'pointer',
-                      fontSize: 12, fontWeight: 600,
+                      padding: '6px 14px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6,
+                      cursor: (improveLoading || !replyText.trim()) ? 'not-allowed' : 'pointer',
+                      fontSize: 13, fontWeight: 600, opacity: (improveLoading || !replyText.trim()) ? 0.6 : 1,
                     }}
                   >
-                    {sentTo ? '✓ Sent' : sending ? 'Sending…' : '↑ Send to Customer'}
+                    {improveLoading ? 'Improving…' : 'Improve'}
                   </button>
                 </div>
-                {sentTo && (
-                  <p style={{ fontSize: 11, color: '#16a34a', textAlign: 'right', margin: '4px 0 0' }}>
-                    Email sent to {sentTo}
-                  </p>
-                )}
-                {sendError && (
-                  <p style={{ fontSize: 11, color: '#dc2626', textAlign: 'right', margin: '4px 0 0' }}>
-                    {sendError}
-                  </p>
-                )}
               </div>
-            )}
-
-            {suggestions.length > 0 && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-                {suggestions.map((s, i) => (
-                  <div key={i} style={{
-                    background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,
-                    padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                  }}>
-                    <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>{s.label}</span>
-                    <button
-                      onClick={() => { setReplyText(s.revised_text); setSuggestions([]) }}
-                      style={{ padding: '4px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600, flexShrink: 0 }}
-                    >
-                      Apply
+              <textarea
+                rows={6}
+                value={replyText}
+                onChange={e => { setReplyText(e.target.value); setSuggestions([]) }}
+                placeholder="Click 'Generate Reply' to draft an AI reply, or write your own…"
+                style={{
+                  width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #cbd5e1',
+                  fontSize: 14, resize: 'vertical', boxSizing: 'border-box', minHeight: 120, fontFamily: 'inherit',
+                }}
+              />
+              {replyText && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    <button onClick={handleCopy} style={{ padding: '5px 12px', background: copied ? '#f0fdf4' : '#f8fafc', color: copied ? '#16a34a' : '#475569', border: `1px solid ${copied ? '#bbf7d0' : '#e2e8f0'}`, borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
+                      {copied ? '✓ Copied' : 'Copy'}
+                    </button>
+                    <button onClick={handleSendReply} disabled={sending || !!sentTo} style={{ padding: '5px 16px', background: sentTo ? '#f0fdf4' : sending ? '#93c5fd' : '#2563eb', color: sentTo ? '#16a34a' : '#fff', border: sentTo ? '1px solid #bbf7d0' : 'none', borderRadius: 5, cursor: (sending || !!sentTo) ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600 }}>
+                      {sentTo ? '✓ Sent' : sending ? 'Sending…' : '↑ Send to Customer'}
                     </button>
                   </div>
-                ))}
-              </div>
-            )}
-          </div>
+                  {sentTo && <p style={{ fontSize: 11, color: '#16a34a', textAlign: 'right', margin: '4px 0 0' }}>Email sent to {sentTo}</p>}
+                  {sendError && <p style={{ fontSize: 11, color: '#dc2626', textAlign: 'right', margin: '4px 0 0' }}>{sendError}</p>}
+                </div>
+              )}
+              {suggestions.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+                  {suggestions.map((s, i) => (
+                    <div key={i} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                      <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>{s.label}</span>
+                      <button onClick={() => { setReplyText(s.revised_text); setSuggestions([]) }} style={{ padding: '4px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>Apply</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </>

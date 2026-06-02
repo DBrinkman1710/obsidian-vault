@@ -48,7 +48,7 @@ export default function App() {
         <main style={{ flex: 1, padding: 32 }}>
           <Suspense fallback={<div>Loading...</div>}>
             <Routes>
-              <Route path="/" element={<Navigate to="/contacts" replace />} />
+              <Route path="/" element={<Navigate to="/inbox" replace />} />
 
               <Route path="/contacts" element={
                 <ModuleGate module="contacts"><ContactList /></ModuleGate>

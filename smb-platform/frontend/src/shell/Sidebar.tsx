@@ -1,19 +1,35 @@
 import { NavLink } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { useTenantConfig } from '../App'
 import { useAuth } from '../auth/useAuth'
+import { api } from '../api/client'
 
-const MODULE_NAV = [
-  { module: 'contacts', label: 'Contacts',  path: '/contacts', icon: '👥' },
-  { module: 'tickets',  label: 'Tickets',   path: '/tickets',  icon: '🎫' },
+const ALWAYS_NAV = [
   { module: 'inbox',    label: 'Inbox',     path: '/inbox',    icon: '📬' },
-  { module: 'chat',     label: 'Live Chat', path: '/chat',     icon: '💬' },
-  { module: 'billing',  label: 'Billing',   path: '/billing',  icon: '💳' },
+  { module: 'contacts', label: 'Contacts',  path: '/contacts', icon: '👥' },
+]
+
+const MODULAR_NAV = [
+  { module: 'tickets',  label: 'Tickets',   path: '/tickets',  icon: '🎫' },
   { module: 'activity', label: 'Activity',  path: '/activity', icon: '📋' },
+  { module: 'billing',  label: 'Billing',   path: '/billing',  icon: '💳' },
+  { module: 'chat',     label: 'Live Chat', path: '/chat',     icon: '💬' },
 ]
 
 export function Sidebar() {
   const config = useTenantConfig()
   const { user, logout } = useAuth()
+
+  const { data: pendingDrafts } = useQuery({
+    queryKey: ['drafts', 'pending'],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending' } }).then(r => r.data),
+    refetchInterval: 30_000,
+    enabled: !!config,
+  })
+
+  const pendingCount: number = pendingDrafts?.length ?? 0
+  const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
+
   if (!config) return null
 
   const enabled = new Set(config.enabled_modules)
@@ -36,7 +52,23 @@ export function Sidebar() {
       </div>
 
       <nav style={{ flex: 1 }}>
-        {MODULE_NAV.filter(n => enabled.has(n.module)).map(({ module, label, path, icon }) => (
+        {ALWAYS_NAV.map(({ module, label, path, icon }) => (
+          <NavLink key={module} to={path} style={navLinkStyle}>
+            <span>{icon}</span>
+            <span style={{ flex: 1 }}>{label}</span>
+            {module === 'inbox' && badgeLabel && (
+              <span style={{
+                background: '#ef4444', color: '#fff', borderRadius: 999,
+                fontSize: 10, fontWeight: 700, minWidth: 16, height: 16,
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                padding: '0 4px',
+              }}>
+                {badgeLabel}
+              </span>
+            )}
+          </NavLink>
+        ))}
+        {MODULAR_NAV.filter(n => enabled.has(n.module)).map(({ module, label, path, icon }) => (
           <NavLink key={module} to={path} style={navLinkStyle}>
             <span>{icon}</span>
             <span>{label}</span>
