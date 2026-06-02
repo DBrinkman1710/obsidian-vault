@@ -1,0 +1,30 @@
+tenant_id: "default"
+tenant_name: "SMB Platform"
+
+enabled_modules:
+  - contacts
+  - tickets
+  - billing
+  - activity
+  - inbox
+  - chat
+
+branding:
+  primary_color: "#2563EB"
+  logo_url: null
+
+features:
+  max_users: 25
+  max_contacts: 10000
+  auto_close_days: 7
+
+inbox:
+  inbound_email: ""
+  mailgun_domain: ""
+  mailgun_api_key: ""
+
+whatsapp:
+  phone_number_id: ""
+  access_token: ""
+  verify_token: "change-me"
+  display_phone: ""
