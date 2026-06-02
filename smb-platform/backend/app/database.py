@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
@@ -17,14 +18,24 @@ _engine = None
 _session_factory = None
 
 
+def _prepare_db_url(raw: str) -> tuple[str, bool]:
+    """Normalize DATABASE_URL for asyncpg: fix scheme and strip sslmode."""
+    needs_ssl = bool(re.search(r'sslmode=(require|verify-ca|verify-full)', raw))
+    url = re.sub(r'^postgres(?:ql)?://', 'postgresql+asyncpg://', raw)
+    url = re.sub(r'[?&]sslmode=\w+', '', url).rstrip('?').rstrip('&')
+    return url, needs_ssl
+
+
 def get_engine():
     global _engine
     if _engine is None:
         settings = get_settings()
+        url, needs_ssl = _prepare_db_url(settings.database_url)
         _engine = create_async_engine(
-            settings.database_url,
+            url,
             echo=settings.environment == "development",
             pool_pre_ping=True,
+            **({"connect_args": {"ssl": True}} if needs_ssl else {}),
         )
     return _engine
 
