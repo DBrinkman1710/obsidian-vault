@@ -58,7 +58,7 @@ async def get_ticket(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
 
 @router.patch("/{ticket_id}", response_model=TicketOut)
 async def update_ticket(ticket_id: uuid.UUID, body: TicketUpdate, current_user: CurrentUser, db: DB):
-    ticket = await service.get_ticket(db, current_user.tenant_id, ticket_id)
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     return await service.update_ticket(db, ticket, body)
@@ -66,7 +66,7 @@ async def update_ticket(ticket_id: uuid.UUID, body: TicketUpdate, current_user: 
 
 @router.patch("/{ticket_id}/status", response_model=TicketOut)
 async def change_status(ticket_id: uuid.UUID, body: TicketStatusUpdate, current_user: CurrentUser, db: DB):
-    ticket = await service.get_ticket(db, current_user.tenant_id, ticket_id)
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     return await service.change_status(db, ticket, body.status)
@@ -74,7 +74,7 @@ async def change_status(ticket_id: uuid.UUID, body: TicketStatusUpdate, current_
 
 @router.get("/{ticket_id}/comments", response_model=list[CommentOut])
 async def list_comments(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
-    ticket = await service.get_ticket(db, current_user.tenant_id, ticket_id)
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     return await service.list_comments(db, current_user.tenant_id, ticket_id)
@@ -82,7 +82,7 @@ async def list_comments(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB)
 
 @router.post("/{ticket_id}/comments", response_model=CommentOut, status_code=status.HTTP_201_CREATED)
 async def add_comment(ticket_id: uuid.UUID, body: CommentCreate, current_user: CurrentUser, db: DB):
-    ticket = await service.get_ticket(db, current_user.tenant_id, ticket_id)
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     return await service.add_comment(db, current_user.tenant_id, ticket, current_user.id, body)

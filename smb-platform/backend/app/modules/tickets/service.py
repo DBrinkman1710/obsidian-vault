@@ -100,11 +100,16 @@ async def list_tickets(
     return _enrich_tickets(tickets, dept_names, last_comments), total or 0
 
 
-async def get_ticket(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid.UUID) -> Optional[TicketOut]:
+async def get_ticket_orm(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid.UUID) -> Optional[Ticket]:
+    """Return the raw ORM Ticket — needed for update/status/comment mutations."""
     result = await db.execute(
         select(Ticket).where(Ticket.tenant_id == tenant_id, Ticket.id == ticket_id)
     )
-    ticket = result.scalar_one_or_none()
+    return result.scalar_one_or_none()
+
+
+async def get_ticket(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid.UUID) -> Optional[TicketOut]:
+    ticket = await get_ticket_orm(db, tenant_id, ticket_id)
     if not ticket:
         return None
     dept_names = await _fetch_dept_names(db, [ticket])
