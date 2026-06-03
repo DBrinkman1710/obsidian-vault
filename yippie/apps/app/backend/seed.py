@@ -34,9 +34,9 @@ async def main():
         user = User(
             tenant_id=tenant.id,
             email=admin_email,
-            full_name="Admin",
+            full_name="Superadmin",
             hashed_password=pwd_context.hash(admin_password),
-            role=UserRole.admin,
+            role=UserRole.superadmin,
         )
         db.add(user)
         await db.commit()

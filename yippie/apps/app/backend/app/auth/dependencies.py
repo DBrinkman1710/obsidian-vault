@@ -44,10 +44,17 @@ async def get_current_user(
 
 
 async def require_admin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
-    if current_user.role != UserRole.admin:
+    if current_user.role not in (UserRole.admin, UserRole.superadmin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    return current_user
+
+
+async def require_superadmin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+    if current_user.role != UserRole.superadmin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Superadmin access required")
     return current_user
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
 AdminUser = Annotated[User, Depends(require_admin)]
+SuperAdminUser = Annotated[User, Depends(require_superadmin)]

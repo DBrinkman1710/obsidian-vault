@@ -13,6 +13,7 @@ from app.database import Base
 
 
 class UserRole(str, enum.Enum):
+    superadmin = "superadmin"
     admin = "admin"
     agent = "agent"
     viewer = "viewer"

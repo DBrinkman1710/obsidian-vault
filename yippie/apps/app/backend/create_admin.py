@@ -26,12 +26,12 @@ async def main():
             db.add(User(
                 tenant_id=tenant.id,
                 email=EMAIL,
-                full_name="Admin",
+                full_name="Superadmin",
                 hashed_password=pwd.hash(PASSWORD),
-                role=UserRole.admin,
+                role=UserRole.superadmin,
             ))
             await db.commit()
-            print(f"Created admin user '{EMAIL}'.")
+            print(f"Created superadmin user '{EMAIL}'.")
 
     await get_engine().dispose()
 
