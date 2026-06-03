@@ -39,7 +39,7 @@ export function Sidebar() {
     padding: '10px 20px', textDecoration: 'none',
     color: isActive ? '#fff' : '#94a3b8',
     background: isActive ? '#334155' : 'transparent',
-    borderLeft: isActive ? `3px solid ${config.branding.primary_color}` : '3px solid transparent',
+    borderLeft: isActive ? '3px solid #5BB8E8' : '3px solid transparent',
   })
 
   return (
@@ -48,8 +48,9 @@ export function Sidebar() {
       display: 'flex', flexDirection: 'column', padding: '24px 0',
       position: 'sticky', top: 0, flexShrink: 0, overflowY: 'auto',
     }}>
-      <div style={{ padding: '0 20px 24px', fontWeight: 700, fontSize: 16 }}>
-        {config.tenant_name}
+      <div style={{ padding: '0 20px 24px' }}>
+        <img src="/logo.svg" alt="Yippie" style={{ height: 36, width: 'auto', display: 'block', marginBottom: 10 }} />
+        <span style={{ fontWeight: 600, fontSize: 13, color: '#94a3b8' }}>{config.tenant_name}</span>
       </div>
 
       <nav style={{ flex: 1 }}>

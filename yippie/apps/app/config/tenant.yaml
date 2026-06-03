@@ -1,5 +1,5 @@
 tenant_id: "default"
-tenant_name: "SMB Platform"
+tenant_name: "Yippie"
 
 enabled_modules:
   - contacts
@@ -10,7 +10,7 @@ enabled_modules:
   - chat
 
 branding:
-  primary_color: "#2563EB"
+  primary_color: "#5BB8E8"
   logo_url: null
 
 features:

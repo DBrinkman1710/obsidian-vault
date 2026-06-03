@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile.railway"
   },
   "deploy": {
-    "startCommand": "sh -c 'alembic upgrade head && python create_admin.py && ADMIN_EMAIL=admin@diederik.com ADMIN_PASSWORD=password python create_admin.py && uvicorn app.main:app --host 0.0.0.0 --port 8000'",
+    "startCommand": "sh -c 'alembic upgrade head && python seed.py && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}'",
     "healthcheckPath": "/api/v1/tenant/config",
     "restartPolicyType": "ON_FAILURE"
   }
