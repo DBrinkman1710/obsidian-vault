@@ -88,18 +88,21 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def set_tenant_context(session: AsyncSession, tenant_id: str) -> None:
-    """Sets tenant context and drops to app_user for the transaction.
+    """Sets tenant context for the current transaction.
 
-    Two things happen here, both scoped to the current transaction (SET LOCAL):
-      1. app.current_tenant_id — read by RLS policies via app_tenant_id()
-      2. ROLE app_user — switches away from the superuser so RLS is not bypassed
-
-    Using SET LOCAL means both revert automatically when the transaction
-    ends, making this safe in connection pools.
+    Sets app.current_tenant_id (read by RLS policies) and, when app_user
+    role exists, switches to it so RLS is enforced even when connecting as
+    a superuser.  Both are SET LOCAL — they revert when the transaction ends,
+    making this safe in connection pools.
     """
     from sqlalchemy import text
     # UUID value is safe to inline; SET LOCAL does not accept bind parameters
     await session.execute(text(f"SET LOCAL \"app.current_tenant_id\" = '{str(tenant_id)}'"))
-    # Switch to non-superuser role so RLS policies are enforced.
-    # Falls back silently if app_user role does not yet exist (e.g. before the RLS migration).
-    await session.execute(text("DO $$ BEGIN SET LOCAL ROLE app_user; EXCEPTION WHEN undefined_object THEN NULL; END $$"))
+    # Use a SAVEPOINT so a missing role never aborts the outer transaction.
+    await session.execute(text("SAVEPOINT _role_switch"))
+    try:
+        await session.execute(text("SET LOCAL ROLE app_user"))
+        await session.execute(text("RELEASE SAVEPOINT _role_switch"))
+    except Exception:
+        await session.execute(text("ROLLBACK TO SAVEPOINT _role_switch"))
+        await session.execute(text("RELEASE SAVEPOINT _role_switch"))
