@@ -5,7 +5,7 @@
     "buildCommand": "cd ../../ && pnpm install --frozen-lockfile && pnpm turbo run build --filter=@yippie/app && cp -r apps/app/public apps/app/.next/standalone/public 2>/dev/null || true && cp -r apps/app/.next/static apps/app/.next/standalone/.next/static"
   },
   "deploy": {
-    "startCommand": "node apps/app/.next/standalone/server.js",
+    "startCommand": "(cd apps/app && npx prisma migrate deploy) && node apps/app/.next/standalone/server.js",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
