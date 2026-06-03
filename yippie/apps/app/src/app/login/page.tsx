@@ -32,7 +32,8 @@ export default function LoginPage() {
   return (
     <main style={styles.main}>
       <div style={styles.card}>
-        <h1 style={styles.title}>Yippie</h1>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Yippie" style={{ height: 44, width: "auto", marginBottom: "1.5rem" }} />
         <form onSubmit={handleSubmit} style={styles.form}>
           <label style={styles.label}>
             Email

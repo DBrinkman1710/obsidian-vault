@@ -29,13 +29,15 @@ export function Sidebar() {
 
   return (
     <aside className="w-56 shrink-0 flex flex-col bg-white border-r border-gray-100 min-h-screen">
-      {/* Company name */}
-      <div className="px-5 py-6 border-b border-gray-100">
-        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-1">
+      {/* Logo + company name */}
+      <div className="px-4 py-5 border-b border-gray-100">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.svg" alt="Yippie" className="h-9 w-auto mb-3" />
+        <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-0.5">
           Workspace
         </p>
-        <p className="text-sm font-semibold text-navy-900 truncate">
-          {session?.user?.companyName ?? "Yippie"}
+        <p className="text-sm font-semibold text-gray-800 truncate">
+          {session?.user?.companyName ?? "—"}
         </p>
       </div>
 
@@ -88,7 +90,7 @@ function NavLink({
       className={clsx(
         "flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors",
         active
-          ? "bg-blue-50 text-blue-700 border-l-2 border-blue-600"
+          ? "bg-brand-50 text-brand-700 border-l-2 border-brand-500"
           : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
       )}
     >
