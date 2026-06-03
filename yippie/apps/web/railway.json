@@ -2,10 +2,10 @@
   "$schema": "https://railway.app/railway-schema.json",
   "build": {
     "builder": "NIXPACKS",
-    "buildCommand": "npm install -g pnpm@9.15.4 && cd ../../ && pnpm install --frozen-lockfile && pnpm turbo run build --filter=@yippie/web && cp -r apps/web/public apps/web/.next/standalone/public 2>/dev/null || true && cp -r apps/web/.next/static apps/web/.next/standalone/.next/static"
+    "buildCommand": "npm run build && cp -r public .next/standalone/public 2>/dev/null || true && cp -r .next/static .next/standalone/.next/static"
   },
   "deploy": {
-    "startCommand": "node apps/web/.next/standalone/server.js",
+    "startCommand": "node .next/standalone/server.js",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
