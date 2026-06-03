@@ -1,7 +1,5 @@
-import type { NextConfig } from "next";
-
-const nextConfig: NextConfig = {
-  // Required for Railway (Docker) deployments
+/** @type {import('next').NextConfig} */
+const nextConfig = {
   output: "standalone",
 
   env: {
