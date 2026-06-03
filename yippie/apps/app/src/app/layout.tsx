@@ -1,4 +1,12 @@
 import type { Metadata } from "next";
+import { Open_Sans } from "next/font/google";
+import { Providers } from "@/components/providers";
+import "./globals.css";
+
+const openSans = Open_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: "Yippie App",
@@ -11,8 +19,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body style={{ margin: 0 }}>{children}</body>
+    <html lang="en" className={openSans.variable}>
+      <body>
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }
