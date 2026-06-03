@@ -1,14 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 110">
-  <!-- Blue background -->
   <rect width="340" height="110" fill="#5BB8E8" rx="10"/>
-
-  <!-- Smiley icon: eye (oval) -->
   <ellipse cx="34" cy="24" rx="8" ry="10" fill="white"/>
-
-  <!-- Smiley icon: smile arc (thick U shape) -->
   <path d="M 12 42 C 12 96 58 96 58 42 L 44 50 C 44 80 26 80 26 50 Z" fill="white"/>
-
-  <!-- "yippie" wordmark -->
   <text
     x="74"
     y="82"

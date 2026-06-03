@@ -1,6 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 70 110">
-  <!-- Eye -->
-  <ellipse cx="44" cy="18" rx="10" ry="13" fill="#5BB8E8"/>
-  <!-- Smile arc -->
-  <path d="M 5 40 C 5 108 65 108 65 40 L 47 51 C 47 88 23 88 23 51 Z" fill="#5BB8E8"/>
-</svg>
