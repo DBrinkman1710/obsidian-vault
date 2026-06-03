@@ -47,13 +47,16 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     jwt({ token, user }) {
       if (user) {
-        token.role = (user as { role: string }).role;
-        token.companyId = (user as { companyId: string }).companyId;
-        token.companyName = (user as { companyName: string }).companyName;
+        const u = user as unknown as { id: string; role: string; companyId: string; companyName: string };
+        token.id = u.id;
+        token.role = u.role;
+        token.companyId = u.companyId;
+        token.companyName = u.companyName;
       }
       return token;
     },
     session({ session, token }) {
+      session.user.id = token.id;
       session.user.role = token.role;
       session.user.companyId = token.companyId;
       session.user.companyName = token.companyName;

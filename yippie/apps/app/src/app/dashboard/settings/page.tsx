@@ -1,18 +1,24 @@
-export default function SettingsPage() {
-  return <ComingSoon title="Settings" icon="⚙" description="Configure departments, templates, and integrations." />;
-}
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { redirect } from "next/navigation";
+import { ProfileSection } from "./ProfileSection";
+import { TeamSection } from "./TeamSection";
 
-function ComingSoon({ title, icon, description }: { title: string; icon: string; description: string }) {
+export default async function SettingsPage() {
+  const session = await getServerSession(authOptions);
+  if (!session) redirect("/login");
+
+  const isAdmin =
+    session.user.role === "ADMIN" || session.user.role === "SUPER_ADMIN";
+
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-1 flex items-center gap-2">
-        <span>{icon}</span> {title}
-      </h1>
-      <p className="text-gray-500 text-sm">{description}</p>
-      <div className="mt-8 bg-white rounded-xl border border-gray-100 shadow-sm p-12 text-center">
-        <p className="text-4xl mb-3">{icon}</p>
-        <p className="text-gray-400 text-sm">Coming soon</p>
-      </div>
+    <div className="p-8 max-w-3xl mx-auto space-y-8">
+      <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+      <ProfileSection
+        initialName={session.user.name ?? ""}
+        email={session.user.email ?? ""}
+      />
+      {isAdmin && <TeamSection currentUserId={session.user.id} />}
     </div>
   );
 }
