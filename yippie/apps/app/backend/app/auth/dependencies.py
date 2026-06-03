@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.models import User, UserRole
+from app.core.models import Tenant, User, UserRole
 from app.database import get_db, set_tenant_context
 
 bearer_scheme = HTTPBearer()
@@ -53,6 +53,21 @@ async def require_superadmin(current_user: Annotated[User, Depends(get_current_u
     if current_user.role != UserRole.superadmin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Superadmin access required")
     return current_user
+
+
+def require_module(module_name: str):
+    """Dependency factory — returns 403 if the current user's tenant doesn't have module enabled."""
+    async def _check(
+        current_user: Annotated[User, Depends(get_current_user)],
+        db: Annotated[AsyncSession, Depends(get_db)],
+    ) -> None:
+        tenant = await db.get(Tenant, current_user.tenant_id)
+        if not tenant or module_name not in (tenant.enabled_modules or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": "module_disabled", "module": module_name},
+            )
+    return _check
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]

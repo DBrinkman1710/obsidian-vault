@@ -1,15 +1,20 @@
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from typing import Annotated
 
-from fastapi import FastAPI, Request, status
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import CurrentUser, require_module
 from app.auth.router import router as auth_router
 from app.config import load_tenant_config
+from app.core.models import Tenant
 from app.core.schemas import TenantConfigOut
+from app.database import get_db
 from app.modules import MODULES
+from app.modules.admin.router import router as admin_router
 from app.modules.departments.router import router as departments_router
 from app.modules.tickets.automation.sla_escalation import start_scheduler
 
@@ -24,7 +29,7 @@ def create_app() -> FastAPI:
     cfg = load_tenant_config()
 
     app = FastAPI(
-        title=f"{cfg.tenant_name} — Customer Platform",
+        title="Yippie — Customer Platform",
         version="1.0.0",
         docs_url="/api/docs",
         redoc_url="/api/redoc",
@@ -39,36 +44,32 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # Module-disabled guard middleware
-    @app.middleware("http")
-    async def module_guard(request: Request, call_next):
-        path = request.url.path
-        if path.startswith("/api/v1/"):
-            segment = path.removeprefix("/api/v1/").split("/")[0]
-            if segment in MODULES and segment not in cfg.enabled_modules:
-                return JSONResponse(
-                    status_code=status.HTTP_403_FORBIDDEN,
-                    content={"error": "module_disabled", "module": segment},
-                )
-        return await call_next(request)
-
-    # Core routes — always present
+    # Core routes — always present, no module gating
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(departments_router, prefix="/api/v1")
+    app.include_router(admin_router, prefix="/api/v1")
 
+    # Tenant config — dynamic per logged-in user's tenant
     @app.get("/api/v1/tenant/config", response_model=TenantConfigOut, tags=["tenant"])
-    async def tenant_config():
+    async def tenant_config(
+        current_user: CurrentUser,
+        db: Annotated[AsyncSession, Depends(get_db)],
+    ):
+        tenant = await db.get(Tenant, current_user.tenant_id)
         return TenantConfigOut(
-            tenant_id=cfg.tenant_id,
-            tenant_name=cfg.tenant_name,
-            enabled_modules=cfg.enabled_modules,
-            branding=cfg.branding.model_dump(),
+            tenant_id=tenant.slug,
+            tenant_name=tenant.name,
+            enabled_modules=tenant.enabled_modules or [],
+            branding={"primary_color": tenant.primary_color, "logo_url": tenant.logo_url},
         )
 
-    # Module routes — conditionally registered
+    # Module routes — all mounted, each gated per-request by tenant's enabled_modules
     for name, module_router in MODULES.items():
-        if name in cfg.enabled_modules:
-            app.include_router(module_router, prefix="/api/v1")
+        app.include_router(
+            module_router,
+            prefix="/api/v1",
+            dependencies=[Depends(require_module(name))],
+        )
 
     return app
 

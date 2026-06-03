@@ -1,7 +1,6 @@
 """
-Bootstrap script: creates the tenant record and first admin user.
-Run once after `alembic upgrade head`:
-  docker compose run backend python seed.py
+Bootstrap script: creates the tenant record and first superadmin user.
+Run once after `alembic upgrade head`.
 """
 import asyncio
 import os
@@ -27,7 +26,13 @@ async def main():
             print(f"Tenant '{cfg.tenant_id}' already exists — skipping.")
             return
 
-        tenant = Tenant(slug=cfg.tenant_id, name=cfg.tenant_name)
+        tenant = Tenant(
+            slug=cfg.tenant_id,
+            name=cfg.tenant_name,
+            enabled_modules=cfg.enabled_modules,
+            primary_color=cfg.branding.primary_color,
+            logo_url=cfg.branding.logo_url,
+        )
         db.add(tenant)
         await db.flush()
 
@@ -40,7 +45,7 @@ async def main():
         )
         db.add(user)
         await db.commit()
-        print(f"Created tenant '{cfg.tenant_name}' and admin user '{admin_email}'.")
+        print(f"Created tenant '{cfg.tenant_name}' and superadmin '{admin_email}'.")
 
     await get_engine().dispose()
 

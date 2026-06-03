@@ -5,7 +5,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
@@ -19,12 +19,20 @@ class UserRole(str, enum.Enum):
     viewer = "viewer"
 
 
+_ALL_MODULES = ["contacts", "tickets", "billing", "activity", "inbox", "chat"]
+
+
 class Tenant(Base):
     __tablename__ = "tenants"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
+    enabled_modules: Mapped[list[str]] = mapped_column(
+        ARRAY(String), nullable=False, default=lambda: list(_ALL_MODULES)
+    )
+    primary_color: Mapped[str] = mapped_column(String(20), nullable=False, default="#5BB8E8")
+    logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     users: Mapped[list[User]] = relationship("User", back_populates="tenant")
