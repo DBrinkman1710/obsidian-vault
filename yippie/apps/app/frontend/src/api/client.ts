@@ -1,7 +1,7 @@
 import axios from 'axios'
 
 export const api = axios.create({
-  baseURL: 'https://obsidian-vault-production-061e.up.railway.app/api/v1',
+  baseURL: '/api/v1',
   headers: { 'Content-Type': 'application/json' },
 })
 
