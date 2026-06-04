@@ -12,28 +12,31 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Environment architecture — IMPORTANT
 
-Environments come in **pairs** that share one Postgres DB:
+Two fully isolated pairs. **Sandbox DB ≠ Production DB. Never cross them.**
 
 ```
-Staging pair:                        Production pair:
-  devsandbox.getyippie.com ──┐         dev.getyippie.com ──┐
-                              ├─ DB                          ├─ DB
-  sandbox.getyippie.com ──────┘         app.getyippie.com ──┘
+Staging pair (test only, no real data):      Production pair (live):
+  devsandbox.getyippie.com ──┐                 dev.getyippie.com ──┐
+                              ├─ Sandbox DB                          ├─ Production DB
+  sandbox.getyippie.com ──────┘                 app.getyippie.com ──┘
 ```
 
-| URL | Role |
+Within each pair: **same code, same Postgres DB**, different URLs, different who logs in.
+
+| URL | Who uses it |
 |---|---|
-| devsandbox.getyippie.com | Staging superadmin control plane |
-| sandbox.getyippie.com | Staging client-facing app |
-| dev.getyippie.com | Production superadmin control plane |
-| app.getyippie.com | Production client-facing app |
+| dev.getyippie.com | Diederik (superadmin) — sees all client tenants, manages them, runs his own Yippie instance |
+| app.getyippie.com | Client companies — each sees only their own isolated tenant |
+| devsandbox.getyippie.com | Diederik (superadmin, staging) — same as dev but for testing |
+| sandbox.getyippie.com | Test clients — staging version of app |
 
 **Key rules:**
-- Superadmin logs into the **control plane** (devsandbox or dev) to create and manage client tenants
-- Client tenants created by superadmin appear in the **client-facing app** (sandbox or app) because they share the same DB
-- **devsandbox and sandbox must point to the same DATABASE_URL** in Railway — this is what makes the interaction work
-- Promotion flow: build+test in devsandbox↔sandbox → when stable → deploy to dev↔app (live)
-- Never change DATABASE_URL of sandbox without also updating devsandbox (they must stay in sync)
+- `dev` and `app` share one Production DB — clients Diederik creates in dev appear in app automatically
+- `devsandbox` and `sandbox` share one Sandbox DB — completely separate from production
+- Clients can only see their own data — tenant isolation via `tenant_id` + `set_tenant_context()` on every request
+- **devsandbox and sandbox must share the same `DATABASE_URL`** in Railway
+- **Never point devsandbox or sandbox at the production DB**
+- Promotion flow: build + test in devsandbox↔sandbox → deploy code to dev↔app (live)
 
 ## apps/app — Yippie customer service platform
 
