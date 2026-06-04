@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app.auth.dependencies import CurrentUser
+from app.config import get_settings
 from app.core.mailer import ResendNotConfiguredError, send_email
 from app.core.tenant import resolve_tenant_uuid
 from app.database import get_db
@@ -217,6 +218,81 @@ async def clear_followup(draft_id: uuid.UUID, current_user: CurrentUser, db: DB)
     await db.commit()
     await db.refresh(draft)
     return draft
+
+
+# --- Compose (outbound, direct send) ---
+
+class ComposeRequest(BaseModel):
+    to: list[str]          # list of email addresses
+    subject: str
+    body: str
+
+
+class ComposeSuggestRequest(BaseModel):
+    prompt: str            # agent's brief describing the email to write
+
+
+@router.post("/compose", status_code=status.HTTP_200_OK)
+async def compose_send(body: ComposeRequest, current_user: CurrentUser, db: DB):
+    """Send a new outbound email to one or more recipients (BCC when multiple)."""
+    if not body.to:
+        raise HTTPException(status_code=400, detail="At least one recipient is required")
+    if not body.subject.strip() or not body.body.strip():
+        raise HTTPException(status_code=400, detail="Subject and body are required")
+
+    failed: list[str] = []
+    for recipient in body.to:
+        try:
+            await send_email(to=recipient, subject=body.subject, body=body.body)
+        except ResendNotConfiguredError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        except Exception:
+            failed.append(recipient)
+
+    await activity_service.log_event(
+        db=db,
+        tenant_id=current_user.tenant_id,
+        module="inbox",
+        event_type="email.composed",
+        entity_type="outbound_email",
+        entity_id=None,
+        contact_id=None,
+        actor_id=current_user.id,
+        payload={"subject": body.subject, "recipients": len(body.to), "failed": failed},
+    )
+    await db.commit()
+    return {"sent": len(body.to) - len(failed), "failed": failed}
+
+
+@router.post("/compose/suggest", status_code=status.HTTP_200_OK)
+async def compose_suggest(body: ComposeSuggestRequest, current_user: CurrentUser):
+    """Use AI to suggest a subject and body for a new outbound email."""
+    settings = get_settings()
+    import anthropic
+    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
+    message = client.messages.create(
+        model="claude-haiku-4-5-20251001",
+        max_tokens=512,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Write a professional customer service email based on this brief:\n\n{body.prompt}\n\n"
+                "Return JSON only: {\"subject\": \"...\", \"body\": \"...\"}\n"
+                "Keep the body concise and friendly. Sign off as 'The Support Team'."
+            ),
+        }],
+    )
+    import json as _json
+    try:
+        text = message.content[0].text.strip()
+        if text.startswith("```"):
+            text = text.split("```")[1]
+            if text.startswith("json"):
+                text = text[4:]
+        result = _json.loads(text)
+        return {"subject": result.get("subject", ""), "body": result.get("body", "")}
+    except Exception:
+        return {"subject": "", "body": message.content[0].text}
 
 
 # --- Webhook endpoints (called by Resend / Twilio, no auth token) ---
