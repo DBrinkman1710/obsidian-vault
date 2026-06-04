@@ -35,14 +35,6 @@ function guessNameFromEmail(email: string): string {
   return prefix.replace(/[._\-+]/g, ' ').trim().replace(/\b\w/g, c => c.toUpperCase())
 }
 
-const inputStyle: React.CSSProperties = {
-  padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1',
-  fontSize: 14, color: '#1e293b', width: '100%', boxSizing: 'border-box',
-}
-const labelStyle: React.CSSProperties = {
-  fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4,
-}
-
 interface NewContactModalProps {
   senderEmail: string
   draftId: string
@@ -90,61 +82,71 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100,
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 12, padding: 28, width: 480,
-        boxShadow: '0 20px 60px rgba(0,0,0,0.2)', maxHeight: '90vh', overflowY: 'auto',
-      }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Unknown Sender</h2>
-        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>
-          No contact found for <strong>{senderEmail}</strong>. Add them to continue.
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-7 w-[480px] shadow-2xl max-h-[90vh] overflow-y-auto">
+        <h2 className="text-lg font-bold text-slate-900 mb-1">Unknown Sender</h2>
+        <p className="text-sm text-slate-500 mb-5">
+          No contact found for <strong className="text-slate-700">{senderEmail}</strong>. Add them to continue.
         </p>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           <div>
-            <label style={labelStyle}>Full name *</label>
-            <input style={inputStyle} value={form.full_name} onChange={set('full_name')} autoFocus />
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={labelStyle}>Email</label>
-              <input style={inputStyle} type="email" value={form.email} onChange={set('email')} />
-            </div>
-            <div>
-              <label style={labelStyle}>Phone</label>
-              <input style={inputStyle} value={form.phone} onChange={set('phone')} placeholder="+31 6 00000000" />
-            </div>
-          </div>
-          <div>
-            <label style={labelStyle}>Company</label>
-            <input style={inputStyle} value={form.company} onChange={set('company')} placeholder="Acme BV" />
-          </div>
-          <div>
-            <label style={labelStyle}>Tags <span style={{ fontWeight: 400, color: '#94a3b8' }}>(comma-separated)</span></label>
-            <input style={inputStyle} value={form.tags} onChange={set('tags')} placeholder="vip, enterprise" />
-          </div>
-          <div>
-            <label style={labelStyle}>Notes</label>
-            <textarea
-              style={{ ...inputStyle, resize: 'vertical', minHeight: 72, fontFamily: 'inherit' }}
-              value={form.notes} onChange={set('notes')} placeholder="Any context about this contact..."
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Full name *</label>
+            <input
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+              value={form.full_name} onChange={set('full_name')} autoFocus
             />
           </div>
-          {error && <p style={{ fontSize: 13, color: '#dc2626', margin: 0 }}>{error}</p>}
-          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
-            <button type="submit" disabled={mutation.isPending} style={{
-              padding: '9px 20px', background: mutation.isPending ? '#93c5fd' : '#2563eb',
-              color: '#fff', border: 'none', borderRadius: 6,
-              cursor: mutation.isPending ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: 14,
-            }}>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email</label>
+              <input
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+                type="email" value={form.email} onChange={set('email')}
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Phone</label>
+              <input
+                className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+                value={form.phone} onChange={set('phone')} placeholder="+31 6 00000000"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Company</label>
+            <input
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+              value={form.company} onChange={set('company')} placeholder="Acme BV"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Tags <span className="font-normal text-slate-400">(comma-separated)</span></label>
+            <input
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+              value={form.tags} onChange={set('tags')} placeholder="vip, enterprise"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Notes</label>
+            <textarea
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl resize-none focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie font-sans"
+              rows={3} value={form.notes} onChange={set('notes')} placeholder="Any context about this contact..."
+            />
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex gap-2 mt-1">
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+            >
               {mutation.isPending ? 'Saving…' : 'Create & Link Contact'}
             </button>
-            <button type="button" onClick={onDismiss} style={{
-              padding: '9px 16px', background: '#f1f5f9', color: '#475569',
-              border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14,
-            }}>
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="px-4 py-2 bg-slate-100 text-slate-600 text-sm rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
+            >
               Skip for now
             </button>
           </div>
@@ -216,10 +218,9 @@ export default function DraftReview() {
         priority: priority || draft?.ai_suggested_priority,
         follow_up_days: followUpDays ? parseInt(followUpDays) : undefined,
       }),
-    onSuccess: (_, action) => {
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drafts'] })
-      if (action === 'approve') navigate('/inbox')
-      else navigate('/inbox')
+      navigate('/inbox')
     },
   })
 
@@ -296,7 +297,20 @@ export default function DraftReview() {
     }
   }
 
-  if (isLoading || !draft) return <p style={{ padding: 32 }}>Loading...</p>
+  if (isLoading || !draft) {
+    return (
+      <div className="flex-1 flex items-center justify-center text-slate-400">
+        Loading…
+      </div>
+    )
+  }
+
+  const initials = contact?.full_name
+    ?.split(' ')
+    .map((n: string) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase() ?? '?'
 
   return (
     <>
@@ -309,503 +323,400 @@ export default function DraftReview() {
         />
       )}
 
-      <div style={{ display: 'flex', gap: 24, alignItems: 'flex-start', minHeight: 0 }}>
+      <div className="flex flex-col h-full overflow-hidden bg-slate-50 p-3 gap-3">
+        <div className="grid grid-cols-[320px_1fr] grid-rows-[1fr_1fr_auto] gap-3 flex-1 min-h-0">
 
-        {/* LEFT — Context window (same in all modes) */}
-        <div style={{ width: 280, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <h2 style={{ fontSize: 13, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em', margin: 0 }}>
-            Context Window
-          </h2>
-
-          {contact ? (
-            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Customer</p>
-              <p style={{ fontWeight: 700, fontSize: 15, color: '#1e293b', marginBottom: 4 }}>{contact.full_name}</p>
-              {contact.company && <p style={{ fontSize: 13, color: '#475569', marginBottom: 2 }}>{contact.company}</p>}
-              {contact.email && <p style={{ fontSize: 13, color: '#64748b', marginBottom: 2 }}>{contact.email}</p>}
-              {contact.phone && <p style={{ fontSize: 13, color: '#64748b', marginBottom: 2 }}>{contact.phone}</p>}
-              {contact.tags && contact.tags.length > 0 && (
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 8 }}>
-                  {contact.tags.map((t: string) => (
-                    <span key={t} style={{ background: '#f1f5f9', color: '#475569', fontSize: 11, padding: '2px 8px', borderRadius: 10 }}>{t}</span>
-                  ))}
-                </div>
-              )}
+          {/* ── TOP-LEFT: Customer info ── */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 shrink-0">
+              <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</span>
             </div>
-          ) : (
-            <div style={{ background: '#fef9c3', border: '1px solid #fde047', borderRadius: 8, padding: 12 }}>
-              <p style={{ fontSize: 13, color: '#78350f', margin: '0 0 8px' }}>Unknown sender — no matching contact found.</p>
-              {!isProcessed && (
-                <button onClick={() => setModalDismissed(false)} style={{
-                  fontSize: 12, fontWeight: 600, color: '#92400e', background: '#fde68a',
-                  border: '1px solid #fcd34d', borderRadius: 4, padding: '4px 10px', cursor: 'pointer',
-                }}>
-                  + Add to Contacts
-                </button>
-              )}
-            </div>
-          )}
-
-          {draft.context_summary && (
-            <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: 14 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#3b82f6', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                AI Briefing
-              </p>
-              <p style={{ fontSize: 13, color: '#1e3a5f', lineHeight: 1.6, margin: 0 }}>{draft.context_summary}</p>
-            </div>
-          )}
-
-          {billing && (
-            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Subscription</p>
-              <p style={{ fontSize: 14, fontWeight: 600, color: '#1e293b', marginBottom: 4 }}>{billing.plan_name}</p>
-              <p style={{ fontSize: 13, color: '#475569', marginBottom: 2 }}>{(billing.amount_cents / 100).toFixed(2)} {billing.currency} / {billing.billing_cycle}</p>
-              <p style={{ fontSize: 13, color: '#475569' }}>
-                Status: <strong style={{ color: billing.status === 'active' ? '#16a34a' : '#ef4444' }}>{billing.status}</strong>
-              </p>
-            </div>
-          )}
-
-          {recentTickets.length > 0 && (
-            <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 14 }}>
-              <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Recent Tickets</p>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {recentTickets.map((t: any) => (
-                  <div key={t.id} style={{ borderBottom: '1px solid #f1f5f9', paddingBottom: 8 }}>
-                    <p style={{ fontSize: 13, color: '#1e293b', margin: '0 0 4px', fontWeight: 500, lineHeight: 1.3 }}>{t.subject}</p>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <Badge label={t.status} color={STATUS_COLORS[t.status] ?? '#64748b'} />
-                      <Badge label={t.priority} color={PRIORITY_COLORS[t.priority] ?? '#64748b'} />
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {contact ? (
+                <>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-yippie/15 flex items-center justify-center shrink-0">
+                      <span className="text-sm font-bold text-yippie">{initials}</span>
                     </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* RIGHT — varies by mode */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          {isProcessed ? (
-            /* ── PROCESSED MODE ─────────────────────────────── */
-            <>
-              {/* Follow-up banner */}
-              {isFollowUp && (
-                <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: 14, marginBottom: 20, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <p style={{ fontWeight: 700, color: '#92400e', margin: '0 0 2px' }}>Follow-up due</p>
-                    <p style={{ fontSize: 13, color: '#78350f', margin: 0 }}>This message was snoozed and is back for your attention.</p>
-                  </div>
-                  <button
-                    onClick={() => clearFollowUpMutation.mutate()}
-                    disabled={clearFollowUpMutation.isPending}
-                    style={{
-                      padding: '6px 14px', background: '#d97706', color: '#fff',
-                      border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13,
-                      flexShrink: 0, marginLeft: 16,
-                    }}
-                  >
-                    Mark as Handled
-                  </button>
-                </div>
-              )}
-
-              {/* Status banner for non-follow-up processed */}
-              {!isFollowUp && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20,
-                  background: isForwarded ? '#f5f3ff' : draft.status === 'approved' ? '#f0fdf4' : '#fef2f2',
-                  border: `1px solid ${isForwarded ? '#ddd6fe' : draft.status === 'approved' ? '#bbf7d0' : '#fecaca'}`,
-                  borderRadius: 8, padding: 14,
-                }}>
-                  <span style={{
-                    fontSize: 13, fontWeight: 700, textTransform: 'capitalize',
-                    color: isForwarded ? '#7c3aed' : draft.status === 'approved' ? '#16a34a' : '#dc2626',
-                  }}>
-                    {isForwarded ? '→ Forwarded to department' : draft.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
-                  </span>
-                  {draft.reviewed_at && (
-                    <span style={{ fontSize: 12, color: '#94a3b8' }}>
-                      {new Date(draft.reviewed_at).toLocaleString()}
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Linked ticket */}
-              {linkedTicket && (
-                <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginBottom: 20 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    Created Ticket
-                  </p>
-
-                  {isResolved && (
-                    <div style={{
-                      background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6,
-                      padding: '10px 14px', marginBottom: 12,
-                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                    }}>
-                      <p style={{ fontSize: 13, color: '#1e40af', margin: 0, fontWeight: 500 }}>
-                        This contact has been resolved.
-                      </p>
-                      <button
-                        onClick={() => reopenMutation.mutate()}
-                        disabled={reopenMutation.isPending}
-                        style={{
-                          padding: '5px 12px', background: '#2563eb', color: '#fff',
-                          border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                          flexShrink: 0, marginLeft: 12,
-                        }}
-                      >
-                        {reopenMutation.isPending ? 'Reopening…' : 'Reopen Ticket'}
-                      </button>
-                    </div>
-                  )}
-
-                  <Link to={`/tickets/${linkedTicket.id}`} style={{ textDecoration: 'none' }}>
-                    <p style={{ fontWeight: 600, fontSize: 14, color: '#1e293b', marginBottom: 8 }}>{linkedTicket.subject}</p>
-                  </Link>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <Badge label={linkedTicket.status} color={STATUS_COLORS[linkedTicket.status] ?? '#64748b'} />
-                    <Badge label={linkedTicket.priority} color={PRIORITY_COLORS[linkedTicket.priority] ?? '#64748b'} />
-                  </div>
-                </div>
-              )}
-
-              {/* AI Insights panel */}
-              {draft.context_summary && (
-                <div style={{ background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 8, padding: 14, marginBottom: 20 }}>
-                  <p style={{ fontSize: 11, fontWeight: 700, color: '#0369a1', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                    AI Insights
-                  </p>
-                  <p style={{ fontSize: 13, color: '#0c4a6e', lineHeight: 1.6, margin: 0 }}>{draft.context_summary}</p>
-                </div>
-              )}
-
-              {/* Navigation */}
-              <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
-                <button onClick={() => navigate('/inbox')} style={{
-                  padding: '8px 20px', background: '#f1f5f9', color: '#475569',
-                  border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14,
-                }}>
-                  ← Back to Inbox
-                </button>
-              </div>
-            </>
-          ) : (
-            /* ── PENDING MODE ────────────────────────────────── */
-            <>
-              {/* Original Message — top of right column */}
-              <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginBottom: 16 }}>
-                <p style={{ fontSize: 11, fontWeight: 700, color: '#64748b', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  Original Message
-                  {msg?.source && <span style={{ marginLeft: 8, color: '#94a3b8', fontWeight: 400, textTransform: 'none' }}>via {msg.source}</span>}
-                </p>
-                {msg?.subject && <p style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 6 }}>{msg.subject}</p>}
-                <p style={{ fontSize: 13, color: '#475569', whiteSpace: 'pre-wrap', margin: 0, lineHeight: 1.5 }}>{msg?.raw_body}</p>
-              </div>
-
-              {/* Two-column area: Draft Reply | Draft Ticket + Workflow */}
-              <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-
-                {/* Left: Draft Reply */}
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                    <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: 0 }}>Draft Reply</h2>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        onClick={handleGenerateReply}
-                        disabled={replyLoading}
-                        style={{
-                          padding: '6px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6,
-                          cursor: replyLoading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: replyLoading ? 0.7 : 1,
-                        }}
-                      >
-                        {replyLoading ? 'Generating…' : 'Generate Reply'}
-                      </button>
-                      <button
-                        onClick={handleImproveReply}
-                        disabled={improveLoading || !replyText.trim()}
-                        style={{
-                          padding: '6px 14px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6,
-                          cursor: (improveLoading || !replyText.trim()) ? 'not-allowed' : 'pointer',
-                          fontSize: 13, fontWeight: 600, opacity: (improveLoading || !replyText.trim()) ? 0.6 : 1,
-                        }}
-                      >
-                        {improveLoading ? 'Improving…' : 'Improve'}
-                      </button>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-slate-900 text-sm truncate">{contact.full_name}</p>
+                      {contact.company && <p className="text-xs text-slate-500 truncate">{contact.company}</p>}
                     </div>
                   </div>
 
-                  <textarea
-                    rows={8}
-                    value={replyText}
-                    onChange={e => { setReplyText(e.target.value); setSuggestions([]) }}
-                    placeholder="Click 'Generate Reply' to draft an AI reply, or write your own…"
-                    style={{
-                      width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #cbd5e1',
-                      fontSize: 14, resize: 'vertical', boxSizing: 'border-box', minHeight: 140, fontFamily: 'inherit',
-                    }}
-                  />
+                  <div className="space-y-1.5">
+                    {contact.email && (
+                      <p className="text-xs text-slate-600 truncate">{contact.email}</p>
+                    )}
+                    {contact.phone && (
+                      <p className="text-xs text-slate-600">{contact.phone}</p>
+                    )}
+                  </div>
 
-                  {replyText && (
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                        <button
-                          onClick={handleCopy}
-                          style={{
-                            padding: '5px 12px',
-                            background: copied ? '#f0fdf4' : '#f8fafc',
-                            color: copied ? '#16a34a' : '#475569',
-                            border: `1px solid ${copied ? '#bbf7d0' : '#e2e8f0'}`,
-                            borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600,
-                          }}
-                        >
-                          {copied ? '✓ Copied' : 'Copy'}
-                        </button>
-                        <button
-                          onClick={handleSendReply}
-                          disabled={sending || !!sentTo}
-                          style={{
-                            padding: '5px 16px',
-                            background: sentTo ? '#f0fdf4' : sending ? '#93c5fd' : '#2563eb',
-                            color: sentTo ? '#16a34a' : '#fff',
-                            border: sentTo ? '1px solid #bbf7d0' : 'none',
-                            borderRadius: 5,
-                            cursor: (sending || !!sentTo) ? 'not-allowed' : 'pointer',
-                            fontSize: 12, fontWeight: 600,
-                          }}
-                        >
-                          {sentTo ? '✓ Sent' : sending ? 'Sending…' : '↑ Send to Customer'}
-                        </button>
-                      </div>
-                      {sentTo && <p style={{ fontSize: 11, color: '#16a34a', textAlign: 'right', margin: '4px 0 0' }}>Email sent to {sentTo}</p>}
-                      {sendError && <p style={{ fontSize: 11, color: '#dc2626', textAlign: 'right', margin: '4px 0 0' }}>{sendError}</p>}
-                    </div>
-                  )}
-
-                  {suggestions.length > 0 && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
-                      {suggestions.map((s, i) => (
-                        <div key={i} style={{
-                          background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,
-                          padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
-                        }}>
-                          <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>{s.label}</span>
-                          <button
-                            onClick={() => { setReplyText(s.revised_text); setSuggestions([]) }}
-                            style={{ padding: '4px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600, flexShrink: 0 }}
-                          >
-                            Apply
-                          </button>
-                        </div>
+                  {contact.tags && contact.tags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {contact.tags.map((t: string) => (
+                        <span key={t} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] rounded-full">{t}</span>
                       ))}
                     </div>
                   )}
-                </div>
-
-                {/* Right: Draft Ticket + Suggested Workflow */}
-                <div style={{ width: 300, flexShrink: 0 }}>
-
-                  {/* Draft Ticket card */}
-                  <div style={{ background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16 }}>
-                    <h2 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '0 0 14px' }}>Draft Ticket</h2>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Subject</label>
-                        <input
-                          value={subject || draft.ai_suggested_subject}
-                          onChange={e => setSubject(e.target.value)}
-                          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, boxSizing: 'border-box' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4 }}>Description</label>
-                        <textarea
-                          rows={4}
-                          value={description || draft.ai_suggested_description}
-                          onChange={e => setDescription(e.target.value)}
-                          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 6 }}>Priority</label>
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                          {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
-                            const active = (priority || draft.ai_suggested_priority) === p
-                            return (
-                              <button key={p} onClick={() => setPriority(p)} style={{
-                                padding: '5px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
-                                cursor: 'pointer', textTransform: 'capitalize',
-                                background: active ? PRIORITY_COLORS[p] : '#f1f5f9',
-                                color: active ? '#fff' : '#475569',
-                                border: active ? `2px solid ${PRIORITY_COLORS[p]}` : '2px solid transparent',
-                              }}>
-                                {p}
-                              </button>
-                            )
-                          })}
-                        </div>
-                        {draft.ai_suggested_category && (
-                          <p style={{ fontSize: 11, color: '#94a3b8', marginTop: 4 }}>AI category: <strong>{draft.ai_suggested_category}</strong></p>
-                        )}
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 16 }}>
-                      <button
-                        onClick={() => reviewMutation.mutate('approve')}
-                        disabled={reviewMutation.isPending}
-                        style={{ padding: '9px 16px', background: '#16a34a', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13, width: '100%' }}
-                      >
-                        Approve & Create Ticket
-                      </button>
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <button
-                          onClick={() => reviewMutation.mutate('reject')}
-                          disabled={reviewMutation.isPending}
-                          style={{ flex: 1, padding: '8px 12px', background: '#fff', color: '#ef4444', border: '1px solid #fca5a5', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 13 }}
-                        >
-                          Reject
-                        </button>
-                        <button
-                          onClick={() => navigate('/inbox')}
-                          style={{ flex: 1, padding: '8px 12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 13 }}
-                        >
-                          Back
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Suggested Workflow card */}
-                  <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: 16, marginTop: 12 }}>
-                    <h2 style={{ fontSize: 14, fontWeight: 700, color: '#1e293b', margin: '0 0 14px' }}>Suggested Workflow</h2>
-
-                    {departments && departments.length > 0 && (
-                      <div style={{ marginBottom: 14 }}>
-                        <p style={{ fontSize: 12, fontWeight: 600, color: '#475569', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                          Forward to Department
-                        </p>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
-                          <select
-                            value={selectedDeptId}
-                            onChange={e => setSelectedDeptId(e.target.value)}
-                            style={{ flex: 1, padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, color: '#1e293b', background: '#fff' }}
-                          >
-                            <option value="">Select…</option>
-                            {departments.map((d: any) => (
-                              <option key={d.id} value={d.id}>{d.name}</option>
-                            ))}
-                          </select>
-                          <button
-                            onClick={handleForward}
-                            disabled={!selectedDeptId || forwardLoading}
-                            style={{
-                              padding: '6px 12px', background: (!selectedDeptId || forwardLoading) ? '#c4b5fd' : '#7c3aed',
-                              color: '#fff', border: 'none', borderRadius: 6,
-                              cursor: (!selectedDeptId || forwardLoading) ? 'not-allowed' : 'pointer',
-                              fontWeight: 600, fontSize: 12, whiteSpace: 'nowrap',
-                            }}
-                          >
-                            {forwardLoading ? '…' : 'Forward'}
-                          </button>
-                        </div>
-                        {forwardedToName && <p style={{ fontSize: 11, color: '#16a34a', margin: 0 }}>✓ Forwarded to {forwardedToName}</p>}
-                      </div>
-                    )}
-
-                    <div>
-                      <p style={{ fontSize: 12, fontWeight: 600, color: '#475569', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                        Schedule Follow-up
-                      </p>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <span style={{ fontSize: 13, color: '#64748b' }}>In</span>
-                        <input
-                          type="number"
-                          min={1}
-                          max={365}
-                          value={followUpDays}
-                          onChange={e => setFollowUpDays(e.target.value)}
-                          placeholder="—"
-                          style={{ width: 56, padding: '6px 8px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, textAlign: 'center' }}
-                        />
-                        <span style={{ fontSize: 13, color: '#64748b' }}>days</span>
-                      </div>
-                      <p style={{ fontSize: 11, color: '#94a3b8', margin: '4px 0 0' }}>Leave blank for no follow-up.</p>
-                    </div>
-                  </div>
-
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Draft Reply in processed mode */}
-          {isProcessed && (
-            <div style={{ borderTop: '1px solid #e2e8f0', paddingTop: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <h2 style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', margin: 0 }}>Draft Reply</h2>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button
-                    onClick={handleGenerateReply}
-                    disabled={replyLoading}
-                    style={{
-                      padding: '6px 14px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6,
-                      cursor: replyLoading ? 'not-allowed' : 'pointer', fontSize: 13, fontWeight: 600, opacity: replyLoading ? 0.7 : 1,
-                    }}
-                  >
-                    {replyLoading ? 'Generating…' : 'Generate Reply'}
-                  </button>
-                  <button
-                    onClick={handleImproveReply}
-                    disabled={improveLoading || !replyText.trim()}
-                    style={{
-                      padding: '6px 14px', background: '#f1f5f9', color: '#475569', border: '1px solid #cbd5e1', borderRadius: 6,
-                      cursor: (improveLoading || !replyText.trim()) ? 'not-allowed' : 'pointer',
-                      fontSize: 13, fontWeight: 600, opacity: (improveLoading || !replyText.trim()) ? 0.6 : 1,
-                    }}
-                  >
-                    {improveLoading ? 'Improving…' : 'Improve'}
-                  </button>
-                </div>
-              </div>
-              <textarea
-                rows={6}
-                value={replyText}
-                onChange={e => { setReplyText(e.target.value); setSuggestions([]) }}
-                placeholder="Click 'Generate Reply' to draft an AI reply, or write your own…"
-                style={{
-                  width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #cbd5e1',
-                  fontSize: 14, resize: 'vertical', boxSizing: 'border-box', minHeight: 120, fontFamily: 'inherit',
-                }}
-              />
-              {replyText && (
-                <div style={{ marginTop: 8 }}>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-                    <button onClick={handleCopy} style={{ padding: '5px 12px', background: copied ? '#f0fdf4' : '#f8fafc', color: copied ? '#16a34a' : '#475569', border: `1px solid ${copied ? '#bbf7d0' : '#e2e8f0'}`, borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600 }}>
-                      {copied ? '✓ Copied' : 'Copy'}
+                </>
+              ) : (
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
+                  <p className="text-xs text-amber-800 mb-2">Unknown sender — no matching contact.</p>
+                  {!isProcessed && (
+                    <button
+                      onClick={() => setModalDismissed(false)}
+                      className="text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-200 transition-colors cursor-pointer"
+                    >
+                      + Add to Contacts
                     </button>
-                    <button onClick={handleSendReply} disabled={sending || !!sentTo} style={{ padding: '5px 16px', background: sentTo ? '#f0fdf4' : sending ? '#93c5fd' : '#2563eb', color: sentTo ? '#16a34a' : '#fff', border: sentTo ? '1px solid #bbf7d0' : 'none', borderRadius: 5, cursor: (sending || !!sentTo) ? 'not-allowed' : 'pointer', fontSize: 12, fontWeight: 600 }}>
-                      {sentTo ? '✓ Sent' : sending ? 'Sending…' : '↑ Send to Customer'}
-                    </button>
-                  </div>
-                  {sentTo && <p style={{ fontSize: 11, color: '#16a34a', textAlign: 'right', margin: '4px 0 0' }}>Email sent to {sentTo}</p>}
-                  {sendError && <p style={{ fontSize: 11, color: '#dc2626', textAlign: 'right', margin: '4px 0 0' }}>{sendError}</p>}
+                  )}
                 </div>
               )}
+
+              {draft.context_summary && (
+                <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
+                  <p className="text-[10px] font-bold tracking-widest text-blue-400 uppercase mb-2">AI Briefing</p>
+                  <p className="text-xs text-blue-900 leading-relaxed">{draft.context_summary}</p>
+                </div>
+              )}
+
+              {billing && (
+                <div>
+                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">Subscription</p>
+                  <div className="text-xs text-slate-600 space-y-1">
+                    <p className="font-semibold text-slate-800">{billing.plan_name}</p>
+                    <p>{(billing.amount_cents / 100).toFixed(2)} {billing.currency} / {billing.billing_cycle}</p>
+                    <p>Status: <span className={billing.status === 'active' ? 'text-emerald-600 font-semibold' : 'text-red-500 font-semibold'}>{billing.status}</span></p>
+                  </div>
+                </div>
+              )}
+
+              {recentTickets.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">Recent Tickets</p>
+                  <div className="space-y-2">
+                    {recentTickets.map((t: any) => (
+                      <div key={t.id} className="border-b border-slate-100 pb-2 last:border-0 last:pb-0">
+                        <p className="text-xs text-slate-800 font-medium leading-snug mb-1">{t.subject}</p>
+                        <div className="flex gap-1.5 flex-wrap">
+                          <Badge label={t.status} color={STATUS_COLORS[t.status] ?? '#64748b'} />
+                          <Badge label={t.priority} color={PRIORITY_COLORS[t.priority] ?? '#64748b'} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── TOP-RIGHT: Customer email ── */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
+              <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer Email</span>
+              <div className="flex items-center gap-2">
+                {msg?.source && (
+                  <span className="text-[11px] font-medium text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full capitalize">
+                    via {msg.source}
+                  </span>
+                )}
+                {msg?.received_at && (
+                  <span className="text-[11px] text-slate-400">
+                    {new Date(msg.received_at).toLocaleString()}
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              {msg?.subject && (
+                <p className="text-sm font-semibold text-slate-900 mb-3">{msg.subject}</p>
+              )}
+              <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{msg?.raw_body}</p>
+            </div>
+          </div>
+
+          {/* ── BOTTOM-LEFT: Ticket form (pending) or Status/linked ticket (processed) ── */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
+            {isProcessed ? (
+              <>
+                <div className="px-4 py-3 border-b border-slate-100 shrink-0">
+                  <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Review Status</span>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {isFollowUp ? (
+                    <div className="rounded-xl bg-amber-50 border border-amber-200 p-3 flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-amber-800 text-sm">Follow-up due</p>
+                        <p className="text-xs text-amber-700 mt-0.5">This message was snoozed and is back for your attention.</p>
+                      </div>
+                      <button
+                        onClick={() => clearFollowUpMutation.mutate()}
+                        disabled={clearFollowUpMutation.isPending}
+                        className="shrink-0 text-xs font-semibold px-3 py-1.5 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        Mark Handled
+                      </button>
+                    </div>
+                  ) : (
+                    <div className={`rounded-xl p-3 border text-sm font-semibold flex items-center gap-2 ${
+                      isForwarded ? 'bg-violet-50 border-violet-200 text-violet-700'
+                      : draft.status === 'approved' ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                      : 'bg-red-50 border-red-200 text-red-600'
+                    }`}>
+                      {isForwarded ? '→ Forwarded' : draft.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
+                      {draft.reviewed_at && (
+                        <span className="text-xs font-normal text-slate-400 ml-1">
+                          {new Date(draft.reviewed_at).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {linkedTicket && (
+                    <div>
+                      <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">Created Ticket</p>
+                      {isResolved && (
+                        <div className="rounded-xl bg-blue-50 border border-blue-100 p-3 mb-3 flex items-center justify-between gap-3">
+                          <p className="text-xs text-blue-800 font-medium">This ticket has been resolved.</p>
+                          <button
+                            onClick={() => reopenMutation.mutate()}
+                            disabled={reopenMutation.isPending}
+                            className="shrink-0 text-xs font-semibold px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 cursor-pointer"
+                          >
+                            {reopenMutation.isPending ? 'Reopening…' : 'Reopen'}
+                          </button>
+                        </div>
+                      )}
+                      <Link to={`/tickets/${linkedTicket.id}`} className="no-underline block mb-2">
+                        <p className="text-sm font-semibold text-slate-800 hover:text-yippie transition-colors">{linkedTicket.subject}</p>
+                      </Link>
+                      <div className="flex gap-1.5 flex-wrap">
+                        <Badge label={linkedTicket.status} color={STATUS_COLORS[linkedTicket.status] ?? '#64748b'} />
+                        <Badge label={linkedTicket.priority} color={PRIORITY_COLORS[linkedTicket.priority] ?? '#64748b'} />
+                      </div>
+                    </div>
+                  )}
+
+                  {draft.context_summary && !draft.approved_ticket_id && (
+                    <div className="rounded-xl bg-sky-50 border border-sky-100 p-3">
+                      <p className="text-[10px] font-bold tracking-widest text-sky-400 uppercase mb-2">AI Insights</p>
+                      <p className="text-xs text-sky-900 leading-relaxed">{draft.context_summary}</p>
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => navigate('/inbox')}
+                    className="w-full text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors rounded-xl px-4 py-2.5 text-left cursor-pointer"
+                  >
+                    ← Back to Inbox
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="px-4 py-3 border-b border-slate-100 shrink-0">
+                  <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Ticket</span>
+                </div>
+                <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Subject</label>
+                    <input
+                      value={subject || draft.ai_suggested_subject || ''}
+                      onChange={e => setSubject(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Description</label>
+                    <textarea
+                      rows={5}
+                      value={description || draft.ai_suggested_description || ''}
+                      onChange={e => setDescription(e.target.value)}
+                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie transition-colors font-sans"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Priority</label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
+                        const active = (priority || draft.ai_suggested_priority) === p
+                        return (
+                          <button
+                            key={p}
+                            onClick={() => setPriority(p)}
+                            className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize cursor-pointer transition-all ${
+                              active ? 'text-white shadow-sm scale-105' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                            }`}
+                            style={active ? { background: PRIORITY_COLORS[p] } : {}}
+                          >
+                            {p}
+                          </button>
+                        )
+                      })}
+                    </div>
+                    {draft.ai_suggested_category && (
+                      <p className="text-[11px] text-slate-400 mt-2">
+                        AI category: <strong className="text-slate-500">{draft.ai_suggested_category}</strong>
+                      </p>
+                    )}
+                  </div>
+                </div>
+                <div className="p-3 border-t border-slate-100 shrink-0 space-y-2">
+                  <button
+                    onClick={() => reviewMutation.mutate('approve')}
+                    disabled={reviewMutation.isPending}
+                    className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                  >
+                    {reviewMutation.isPending ? 'Creating…' : 'Approve & Create Ticket'}
+                  </button>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => reviewMutation.mutate('reject')}
+                      disabled={reviewMutation.isPending}
+                      className="flex-1 py-2 text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Reject
+                    </button>
+                    <button
+                      onClick={() => navigate('/inbox')}
+                      className="flex-1 py-2 text-sm font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
+                    >
+                      Back
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* ── BOTTOM-RIGHT: Draft reply ── */}
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
+            <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
+              <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Reply</span>
+              <div className="flex gap-2">
+                <button
+                  onClick={handleGenerateReply}
+                  disabled={replyLoading}
+                  className="px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+                >
+                  {replyLoading ? 'Generating…' : 'Generate'}
+                </button>
+                <button
+                  onClick={handleImproveReply}
+                  disabled={improveLoading || !replyText.trim()}
+                  className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg hover:bg-slate-200 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  {improveLoading ? 'Improving…' : 'Improve'}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-hidden flex flex-col p-3 gap-2 min-h-0">
+              <textarea
+                value={replyText}
+                onChange={e => { setReplyText(e.target.value); setSuggestions([]) }}
+                placeholder="Click 'Generate' to draft an AI reply, or write your own…"
+                className="flex-1 w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie focus:bg-white transition-colors font-sans placeholder:text-slate-400 min-h-0"
+              />
+
               {suggestions.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 12 }}>
+                <div className="space-y-1.5 max-h-28 overflow-y-auto shrink-0">
                   {suggestions.map((s, i) => (
-                    <div key={i} style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, padding: '10px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-                      <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>{s.label}</span>
-                      <button onClick={() => { setReplyText(s.revised_text); setSuggestions([]) }} style={{ padding: '4px 12px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 12, fontWeight: 600, flexShrink: 0 }}>Apply</button>
+                    <div key={i} className="flex items-center justify-between gap-3 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+                      <span className="text-xs text-slate-600 font-medium">{s.label}</span>
+                      <button
+                        onClick={() => { setReplyText(s.revised_text); setSuggestions([]) }}
+                        className="shrink-0 text-xs font-semibold px-2.5 py-1 bg-yippie text-white rounded-lg hover:opacity-90 cursor-pointer"
+                      >
+                        Apply
+                      </button>
                     </div>
                   ))}
                 </div>
               )}
             </div>
+
+            <div className="px-3 py-2.5 border-t border-slate-100 shrink-0 flex items-center justify-between gap-2">
+              <div className="text-xs">
+                {sentTo && <span className="text-emerald-600">Sent to {sentTo}</span>}
+                {sendError && <span className="text-red-500">{sendError}</span>}
+              </div>
+              <div className="flex gap-2">
+                {replyText && (
+                  <button
+                    onClick={handleCopy}
+                    className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                      copied
+                        ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                    }`}
+                  >
+                    {copied ? '✓ Copied' : 'Copy'}
+                  </button>
+                )}
+                <button
+                  onClick={handleSendReply}
+                  disabled={sending || !!sentTo || !replyText.trim()}
+                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                    sentTo
+                      ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                      : 'bg-yippie text-white hover:opacity-90 disabled:opacity-40'
+                  }`}
+                >
+                  {sentTo ? '✓ Sent' : sending ? 'Sending…' : 'Send to Customer'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* ── ROUTING STRIP (pending mode only) ── */}
+          {!isProcessed && (
+            <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 flex items-center gap-4">
+              <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase shrink-0">Route</span>
+
+              {departments && departments.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <select
+                    value={selectedDeptId}
+                    onChange={e => setSelectedDeptId(e.target.value)}
+                    className="text-sm border border-slate-200 rounded-xl px-3 py-1.5 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+                  >
+                    <option value="">Select department…</option>
+                    {departments.map((d: any) => (
+                      <option key={d.id} value={d.id}>{d.name}</option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={handleForward}
+                    disabled={!selectedDeptId || forwardLoading}
+                    className="px-3 py-1.5 text-xs font-semibold bg-violet-500 text-white rounded-xl hover:bg-violet-600 disabled:opacity-40 transition-colors cursor-pointer"
+                  >
+                    {forwardLoading ? '…' : 'Forward'}
+                  </button>
+                  {forwardedToName && (
+                    <span className="text-xs text-emerald-600 font-medium">✓ Forwarded to {forwardedToName}</span>
+                  )}
+                </div>
+              )}
+
+              <div className="flex items-center gap-2 ml-auto">
+                <span className="text-xs text-slate-500">Follow-up in</span>
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={followUpDays}
+                  onChange={e => setFollowUpDays(e.target.value)}
+                  placeholder="—"
+                  className="w-14 text-center text-sm border border-slate-200 rounded-xl px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+                />
+                <span className="text-xs text-slate-500">days</span>
+              </div>
+            </div>
           )}
+
         </div>
       </div>
     </>

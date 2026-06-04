@@ -1,6 +1,6 @@
 """
 Bootstrap script: creates the tenant record and first superadmin user.
-Run once after `alembic upgrade head`.
+Run once after `alembic upgrade head`. Safe to run on every deploy — fully idempotent.
 """
 import asyncio
 import os
@@ -21,9 +21,22 @@ async def main():
     admin_password = os.getenv("ADMIN_PASSWORD", "changeme123")
 
     async with db_session() as db:
-        existing = await db.scalar(select(Tenant).where(Tenant.slug == cfg.tenant_id))
-        if existing:
+        # Guard 1: tenant already exists by slug → nothing to do
+        existing_tenant = await db.scalar(select(Tenant).where(Tenant.slug == cfg.tenant_id))
+        if existing_tenant:
             print(f"Tenant '{cfg.tenant_id}' already exists — skipping.")
+            return
+
+        # Guard 2: user with this email already exists anywhere in the system
+        existing_user = await db.scalar(select(User).where(User.email == admin_email))
+        if existing_user:
+            print(f"User '{admin_email}' already exists — preserving credentials, skipping.")
+            return
+
+        # Guard 3: any superadmin exists — never create a second one via automation
+        existing_superadmin = await db.scalar(select(User).where(User.role == UserRole.superadmin))
+        if existing_superadmin:
+            print("A superadmin already exists — skipping superadmin creation.")
             return
 
         tenant = Tenant(

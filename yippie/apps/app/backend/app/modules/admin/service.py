@@ -11,6 +11,8 @@ from app.modules.admin.schemas import TenantCreate, TenantUpdate
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+TENANT_SAFE_FIELDS = {"name", "enabled_modules", "primary_color", "logo_url"}
+
 
 async def list_tenants(db: AsyncSession) -> list[dict]:
     result = await db.execute(
@@ -27,6 +29,11 @@ async def list_tenants(db: AsyncSession) -> list[dict]:
 
 
 async def create_tenant(db: AsyncSession, data: TenantCreate) -> Tenant:
+    # Never silently overwrite an existing user's credentials
+    existing_user = await db.scalar(select(User).where(User.email == data.admin_email))
+    if existing_user:
+        raise ValueError(f"A user with email '{data.admin_email}' already exists.")
+
     tenant = Tenant(
         slug=data.slug,
         name=data.name,
@@ -54,6 +61,8 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
     if tenant is None:
         return None
     for field, value in data.model_dump(exclude_none=True).items():
+        if field not in TENANT_SAFE_FIELDS:
+            continue  # explicit safelist — never write unexpected fields to the Tenant model
         setattr(tenant, field, value)
     await db.commit()
     await db.refresh(tenant)

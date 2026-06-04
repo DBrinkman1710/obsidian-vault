@@ -22,7 +22,10 @@ async def list_tenants(_: SuperAdminUser, db: DB):
 
 @router.post("/tenants", response_model=schemas.TenantOut, status_code=status.HTTP_201_CREATED)
 async def create_tenant(_: SuperAdminUser, db: DB, data: schemas.TenantCreate):
-    return await service.create_tenant(db, data)
+    try:
+        return await service.create_tenant(db, data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
 
 
 @router.patch("/tenants/{tenant_id}", response_model=schemas.TenantOut)

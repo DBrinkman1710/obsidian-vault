@@ -23,6 +23,10 @@ const SuperAdminPage  = lazy(() => import('./modules/admin/pages/SuperAdminPage'
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
 
+function PagePad({ children }: { children: React.ReactNode }) {
+  return <div className="flex-1 h-full overflow-auto p-8">{children}</div>
+}
+
 export default function App() {
   const { token } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
@@ -44,54 +48,55 @@ export default function App() {
 
   return (
     <TenantConfigContext.Provider value={config}>
-      <div style={{ display: 'flex', minHeight: '100vh' }}>
+      <div className="flex h-screen overflow-hidden bg-slate-50">
         <Sidebar />
-        <main style={{ flex: 1, padding: 32 }}>
-          <Suspense fallback={<div>Loading...</div>}>
+        <main className="flex-1 overflow-hidden flex flex-col">
+          <Suspense fallback={<div className="p-8 text-slate-400">Loading…</div>}>
             <Routes>
               <Route path="/" element={<Navigate to="/inbox" replace />} />
 
               <Route path="/contacts" element={
-                <ModuleGate module="contacts"><ContactList /></ModuleGate>
+                <ModuleGate module="contacts"><PagePad><ContactList /></PagePad></ModuleGate>
               } />
               <Route path="/contacts/new" element={
-                <ModuleGate module="contacts"><ContactNew /></ModuleGate>
+                <ModuleGate module="contacts"><PagePad><ContactNew /></PagePad></ModuleGate>
               } />
               <Route path="/contacts/:id" element={
-                <ModuleGate module="contacts"><ContactDetail /></ModuleGate>
+                <ModuleGate module="contacts"><PagePad><ContactDetail /></PagePad></ModuleGate>
               } />
 
               <Route path="/tickets" element={
-                <ModuleGate module="tickets"><TicketList /></ModuleGate>
+                <ModuleGate module="tickets"><PagePad><TicketList /></PagePad></ModuleGate>
               } />
               <Route path="/tickets/new" element={
-                <ModuleGate module="tickets"><TicketNew /></ModuleGate>
+                <ModuleGate module="tickets"><PagePad><TicketNew /></PagePad></ModuleGate>
               } />
               <Route path="/tickets/:id" element={
-                <ModuleGate module="tickets"><TicketDetail /></ModuleGate>
+                <ModuleGate module="tickets"><PagePad><TicketDetail /></PagePad></ModuleGate>
               } />
 
               <Route path="/inbox" element={
-                <ModuleGate module="inbox"><InboxQueue /></ModuleGate>
+                <ModuleGate module="inbox"><PagePad><InboxQueue /></PagePad></ModuleGate>
               } />
+              {/* DraftReview fills full height — no padding wrapper */}
               <Route path="/inbox/drafts/:id" element={
                 <ModuleGate module="inbox"><DraftReview /></ModuleGate>
               } />
 
               <Route path="/chat" element={
-                <ModuleGate module="chat"><ChatPage /></ModuleGate>
+                <ModuleGate module="chat"><PagePad><ChatPage /></PagePad></ModuleGate>
               } />
 
               <Route path="/billing" element={
-                <ModuleGate module="billing"><InvoiceList /></ModuleGate>
+                <ModuleGate module="billing"><PagePad><InvoiceList /></PagePad></ModuleGate>
               } />
 
               <Route path="/activity" element={
-                <ModuleGate module="activity"><ActivityFeed /></ModuleGate>
+                <ModuleGate module="activity"><PagePad><ActivityFeed /></PagePad></ModuleGate>
               } />
 
-              <Route path="/settings/departments" element={<DepartmentsPage />} />
-              <Route path="/superadmin/clients" element={<SuperAdminPage />} />
+              <Route path="/settings/departments" element={<PagePad><DepartmentsPage /></PagePad>} />
+              <Route path="/superadmin/clients" element={<PagePad><SuperAdminPage /></PagePad>} />
             </Routes>
           </Suspense>
         </main>
@@ -99,4 +104,3 @@ export default function App() {
     </TenantConfigContext.Provider>
   )
 }
-

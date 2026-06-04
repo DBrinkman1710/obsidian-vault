@@ -1,19 +1,23 @@
 import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import {
+  Inbox, Users, ClipboardList, Activity, CreditCard,
+  MessageSquare, Settings, LogOut, Building2,
+} from 'lucide-react'
 import { useTenantConfig } from '../App'
 import { useAuth } from '../auth/useAuth'
 import { api } from '../api/client'
 
 const ALWAYS_NAV = [
-  { module: 'inbox',    label: 'Inbox',     path: '/inbox',    icon: '📬' },
-  { module: 'contacts', label: 'Contacts',  path: '/contacts', icon: '👥' },
+  { module: 'inbox',    label: 'Inbox',     path: '/inbox',    Icon: Inbox },
+  { module: 'contacts', label: 'Contacts',  path: '/contacts', Icon: Users },
 ]
 
 const MODULAR_NAV = [
-  { module: 'tickets',  label: 'Tickets',   path: '/tickets',  icon: '🎫' },
-  { module: 'activity', label: 'Activity',  path: '/activity', icon: '📋' },
-  { module: 'billing',  label: 'Billing',   path: '/billing',  icon: '💳' },
-  { module: 'chat',     label: 'Live Chat', path: '/chat',     icon: '💬' },
+  { module: 'tickets',  label: 'Tickets',   path: '/tickets',  Icon: ClipboardList },
+  { module: 'activity', label: 'Activity',  path: '/activity', Icon: Activity },
+  { module: 'billing',  label: 'Billing',   path: '/billing',  Icon: CreditCard },
+  { module: 'chat',     label: 'Live Chat', path: '/chat',     Icon: MessageSquare },
 ]
 
 export function Sidebar() {
@@ -34,76 +38,102 @@ export function Sidebar() {
 
   const enabled = new Set(config.enabled_modules)
 
-  const navLinkStyle = ({ isActive }: { isActive: boolean }): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', gap: 10,
-    padding: '10px 20px', textDecoration: 'none',
-    color: isActive ? '#fff' : '#94a3b8',
-    background: isActive ? '#334155' : 'transparent',
-    borderLeft: isActive ? '3px solid #5BB8E8' : '3px solid transparent',
-  })
-
   return (
-    <aside style={{
-      width: 220, height: '100vh', background: '#1e293b', color: '#f1f5f9',
-      display: 'flex', flexDirection: 'column', padding: '24px 0',
-      position: 'sticky', top: 0, flexShrink: 0, overflowY: 'auto',
-    }}>
-      <div style={{ padding: '0 20px 24px' }}>
-        <img src="/logo.svg" alt="Yippie" style={{ height: 36, width: 'auto', display: 'block', marginBottom: 10 }} />
-        <span style={{ fontWeight: 600, fontSize: 13, color: '#94a3b8' }}>{config.tenant_name}</span>
+    <aside className="flex flex-col w-56 h-screen bg-yippie text-white shrink-0 overflow-y-auto">
+
+      {/* Logo + tenant */}
+      <div className="px-5 pt-6 pb-5">
+        <div className="flex items-center gap-2 mb-1">
+          {/* Smiley mark from the logo */}
+          <svg viewBox="0 0 36 36" className="w-7 h-7 shrink-0" fill="white">
+            <circle cx="10" cy="8" r="4" />
+            <path d="M4 28 Q10 36 18 30" strokeWidth="3.5" stroke="white" fill="none" strokeLinecap="round"/>
+            <circle cx="21" cy="5" r="2.5" />
+          </svg>
+          <span className="text-white font-bold text-xl tracking-tight">yippie</span>
+        </div>
+        <p className="text-white/60 text-xs font-medium pl-0.5 truncate">{config.tenant_name}</p>
       </div>
 
-      <nav style={{ flex: 1 }}>
-        {ALWAYS_NAV.map(({ module, label, path, icon }) => (
-          <NavLink key={module} to={path} style={navLinkStyle}>
-            <span>{icon}</span>
-            <span style={{ flex: 1 }}>{label}</span>
+      {/* Nav */}
+      <nav className="flex-1 px-3 space-y-0.5">
+        {ALWAYS_NAV.map(({ module, label, path, Icon }) => (
+          <NavLink
+            key={module}
+            to={path}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isActive
+                  ? 'bg-white/20 text-white font-semibold'
+                  : 'text-white/75 hover:bg-white/10 hover:text-white'
+              }`
+            }
+          >
+            <Icon size={16} strokeWidth={2} className="shrink-0" />
+            <span className="flex-1">{label}</span>
             {module === 'inbox' && badgeLabel && (
-              <span style={{
-                background: '#ef4444', color: '#fff', borderRadius: 999,
-                fontSize: 10, fontWeight: 700, minWidth: 16, height: 16,
-                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                padding: '0 4px',
-              }}>
+              <span className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
                 {badgeLabel}
               </span>
             )}
           </NavLink>
         ))}
-        {MODULAR_NAV.filter(n => enabled.has(n.module)).map(({ module, label, path, icon }) => (
-          <NavLink key={module} to={path} style={navLinkStyle}>
-            <span>{icon}</span>
+
+        {MODULAR_NAV.filter(n => enabled.has(n.module)).map(({ module, label, path, Icon }) => (
+          <NavLink
+            key={module}
+            to={path}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isActive
+                  ? 'bg-white/20 text-white font-semibold'
+                  : 'text-white/75 hover:bg-white/10 hover:text-white'
+              }`
+            }
+          >
+            <Icon size={16} strokeWidth={2} className="shrink-0" />
             <span>{label}</span>
           </NavLink>
         ))}
       </nav>
 
-      <div style={{ borderTop: '1px solid #334155', paddingTop: 8 }}>
+      {/* Bottom section */}
+      <div className="border-t border-white/15 px-3 py-3 space-y-0.5">
         {user?.role === 'superadmin' && (
-          <NavLink to="/superadmin/clients" style={navLinkStyle}>
-            <span>🏢</span>
+          <NavLink
+            to="/superadmin/clients"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+              }`
+            }
+          >
+            <Building2 size={16} strokeWidth={2} />
             <span>Clients</span>
           </NavLink>
         )}
+
         {(user?.role === 'admin' || user?.role === 'superadmin') && (
-          <NavLink to="/settings/departments" style={navLinkStyle}>
-            <span>⚙️</span>
+          <NavLink
+            to="/settings/departments"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+              }`
+            }
+          >
+            <Settings size={16} strokeWidth={2} />
             <span>Settings</span>
           </NavLink>
         )}
-        <div style={{ padding: '0 12px 8px' }}>
-          <p style={{ fontSize: 11, color: '#64748b', margin: '8px 8px 4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {user?.email}
-          </p>
+
+        <div className="px-3 pt-2 pb-1">
+          <p className="text-white/50 text-[11px] truncate mb-2">{user?.email}</p>
           <button
             onClick={logout}
-            style={{
-              width: '100%', padding: '8px 12px', borderRadius: 6,
-              background: 'transparent', color: '#94a3b8',
-              border: '1px solid #334155', cursor: 'pointer',
-              fontSize: 13, fontWeight: 500, textAlign: 'left',
-            }}
+            className="flex items-center gap-2 w-full text-white/70 hover:text-white text-sm font-medium transition-colors cursor-pointer"
           >
+            <LogOut size={14} strokeWidth={2} />
             Sign out
           </button>
         </div>
