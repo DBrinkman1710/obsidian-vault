@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import uuid
+
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant
@@ -11,3 +14,16 @@ async def get_tenant(db: AsyncSession, tenant_id) -> Tenant:
     if tenant is None:
         raise RuntimeError(f"Tenant {tenant_id} not found")
     return tenant
+
+
+async def resolve_tenant_uuid(db: AsyncSession) -> uuid.UUID:
+    """Return the first tenant's UUID. Used by unauthenticated webhook endpoints.
+
+    TODO: replace with per-tenant webhook URLs (/{tenant_slug}/webhooks/...) once
+    multiple clients are onboarded.
+    """
+    result = await db.execute(select(Tenant.id).limit(1))
+    tenant_id = result.scalar_one_or_none()
+    if tenant_id is None:
+        raise RuntimeError("No tenant found in database")
+    return tenant_id
