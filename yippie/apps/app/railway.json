@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile.railway"
   },
   "deploy": {
-    "startCommand": "sh -c 'alembic upgrade heads && python seed.py && envsubst \"\\$PORT\" < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && uvicorn app.main:app --host 0.0.0.0 --port 8001 & nginx -g \"daemon off;\"'",
+    "startCommand": "sh -c 'alembic upgrade heads && python seed.py && sed s/NGINX_LISTEN_PORT/${PORT:-8080}/ /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && uvicorn app.main:app --host 0.0.0.0 --port 8001 & nginx -g \"daemon off;\"'",
     "healthcheckPath": "/api/v1/health",
     "restartPolicyType": "ON_FAILURE"
   }
