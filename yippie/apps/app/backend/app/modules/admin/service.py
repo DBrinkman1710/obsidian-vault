@@ -56,7 +56,7 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
     return {**{c.name: getattr(tenant, c.name) for c in Tenant.__table__.columns}, "user_count": 1}
 
 
-async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpdate) -> Tenant:
+async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpdate) -> dict | None:
     tenant = await db.get(Tenant, tenant_id)
     if tenant is None:
         return None
@@ -66,7 +66,8 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
         setattr(tenant, field, value)
     await db.commit()
     await db.refresh(tenant)
-    return tenant
+    user_count = await db.scalar(select(func.count(User.id)).where(User.tenant_id == tenant.id))
+    return {**{c.name: getattr(tenant, c.name) for c in Tenant.__table__.columns}, "user_count": user_count or 0}
 
 
 async def get_tenant_users(db: AsyncSession, tenant_id: uuid.UUID) -> list[User]:
