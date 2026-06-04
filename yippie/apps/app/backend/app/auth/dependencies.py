@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -49,9 +49,14 @@ async def require_admin(current_user: Annotated[User, Depends(get_current_user)]
     return current_user
 
 
-async def require_superadmin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+async def require_superadmin(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
     if current_user.role != UserRole.superadmin:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Superadmin access required")
+    # Reset app_user role switch so superadmin can write to all tables (tenants, etc.)
+    await db.execute(text("RESET ROLE"))
     return current_user
 
 
