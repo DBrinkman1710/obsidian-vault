@@ -6,81 +6,86 @@ const features = [
   {
     icon: "📬",
     title: "Smart Inbox",
-    desc: "Emails and WhatsApp messages are automatically scanned and turned into draft tickets. Review and approve in one click — no manual write-up needed.",
+    desc: "Emails and WhatsApp auto-scan into draft tickets. Review and approve in one click — no manual write-up.",
   },
   {
     icon: "🎫",
     title: "Ticket Management",
-    desc: "Track, assign, and close support requests in one place. SLA alerts make sure nothing falls through the cracks.",
+    desc: "Track, assign, and close requests in one place. SLA alerts fire before anything slips through.",
   },
   {
     icon: "💬",
     title: "Live Chat",
-    desc: "Add a chat widget to your website with one line of code. All conversations land in a single dashboard.",
+    desc: "Embed a chat widget with one line of code. Every conversation lands in a single dashboard.",
   },
   {
     icon: "👥",
     title: "Contact Management",
-    desc: "See every customer's full history at a glance — emails, tickets, invoices. No more digging through inboxes.",
+    desc: "Full customer history — emails, tickets, invoices — visible at a glance. No inbox digging.",
   },
   {
     icon: "📊",
     title: "Activity Feed",
-    desc: "A real-time log of everything happening in your business. Always know who did what and when.",
+    desc: "Real-time log of everything in your business. Always know who did what and when.",
   },
   {
     icon: "💳",
     title: "Billing",
-    desc: "Send and track invoices without leaving the platform. Keep your financials and your support in sync.",
+    desc: "Send and track invoices without leaving the platform. Support and financials, in sync.",
   },
 ];
 
 const steps = [
   {
-    number: "01",
+    n: "01",
     title: "Customer sends a message",
     desc: "An email or WhatsApp message lands in your Yippie inbox automatically.",
   },
   {
-    number: "02",
+    n: "02",
     title: "AI drafts the ticket",
-    desc: "Yippie reads the message and suggests a subject, priority, and description.",
+    desc: "Yippie reads the message and suggests subject, priority, and description.",
   },
   {
-    number: "03",
+    n: "03",
     title: "You approve in one click",
-    desc: "Edit if you want, then approve — it becomes a real ticket instantly.",
+    desc: "Edit if you want, approve — it becomes a real ticket instantly.",
   },
 ];
 
 const plans = [
   {
-    name: "Starter",
+    tier: "Starter",
     price: "€29",
-    desc: "Perfect for solo founders getting started",
+    desc: "For solo founders getting started",
     features: ["1 user", "500 contacts", "Inbox + Tickets", "Live chat widget", "Email support"],
     cta: "Get started",
     featured: false,
   },
   {
-    name: "Growth",
+    tier: "Growth",
     price: "€79",
-    desc: "For growing teams handling more volume",
+    desc: "For teams handling more volume",
     features: ["5 users", "5,000 contacts", "All modules", "Activity feed", "Priority support"],
     cta: "Get started",
     featured: true,
   },
   {
-    name: "Pro",
+    tier: "Pro",
     price: "€199",
-    desc: "For established businesses at scale",
+    desc: "For businesses at scale",
     features: ["Unlimited users", "Unlimited contacts", "All modules", "API access", "Dedicated support"],
     cta: "Contact us",
     featured: false,
   },
 ];
 
-const companies = ["Acme BV", "Bloom Agency", "Vantage Group", "Nordex", "Creato Studio"];
+const inboxItems = [
+  { sender: "Acme BV", subject: "Invoice INV-0421 question", dot: "", badge: "review" },
+  { sender: "TechCorp", subject: "Login issue — account locked", dot: "amber", badge: "review" },
+  { sender: "Nordex", subject: "Pricing plan upgrade", dot: "green", badge: "done" },
+  { sender: "Bloom Agency", subject: "Onboarding call request", dot: "", badge: "review" },
+];
 
 export default function HomePage() {
   return (
@@ -93,84 +98,103 @@ export default function HomePage() {
           <li><a href="#features">Features</a></li>
           <li><a href="#how-it-works">How it works</a></li>
           <li><a href="#pricing">Pricing</a></li>
-          <li><a href={APP_URL} className={styles.navLogin}>Log in →</a></li>
+          <li>
+            <a href={APP_URL} className={styles.navCta}>Log in →</a>
+          </li>
         </ul>
       </nav>
 
       {/* Hero */}
       <section className={styles.hero}>
         <div>
-          <span className={styles.heroTag}>Customer support tool for SMBs</span>
+          <div className={styles.heroTag}>
+            <span className={styles.heroTagDot} />
+            Customer service platform for SMBs
+          </div>
           <h1 className={styles.heroTitle}>
-            Give yourself back the time that <span>matters most</span>
+            Give yourself back<br />the time that matters
           </h1>
           <p className={styles.heroSub}>
-            Yippie handles your inbox, tickets, and live chat automatically — so you can focus on running your business, not answering the same emails.
+            Yippie handles your inbox, tickets, and live chat automatically — so you can focus on growing your business, not answering the same emails over and over.
           </p>
           <div className={styles.heroActions}>
             <a href={APP_URL} className={styles.btnPrimary}>Start for free →</a>
-            <a href="#how-it-works" className={styles.btnSecondary}>See how it works</a>
+            <a href="#how-it-works" className={styles.btnGhost}>See how it works</a>
           </div>
         </div>
 
         {/* App mockup */}
         <div className={styles.mockup}>
           <div className={styles.mockupSidebar}>
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className={styles.mockupDot} />
+            {[true, false, false, false, false, false].map((active, i) => (
+              <div key={i} className={`${styles.mockupNavItem} ${active ? styles.active : ""}`}>
+                <div className={`${styles.mockupNavDot} ${active ? styles.blue : ""}`} />
+              </div>
             ))}
           </div>
           <div className={styles.mockupMain}>
-            <div className={styles.mockupHeader}>Dashboard</div>
-            <div className={styles.mockupCards}>
-              <div className={styles.mockupCard}>
-                <div className={styles.mockupCardLabel}>Open tickets</div>
-                <div className={`${styles.mockupCardValue} ${styles.blue}`}>12</div>
+            <div className={styles.mockupTopBar}>
+              <span className={styles.mockupTopLabel}>Inbox</span>
+              <div className={styles.mockupAvatar} />
+            </div>
+            <div className={styles.mockupStats}>
+              <div className={styles.mockupStat}>
+                <div className={styles.mockupStatLabel}>Open tickets</div>
+                <div className={`${styles.mockupStatValue} ${styles.blue}`}>12</div>
               </div>
-              <div className={styles.mockupCard}>
-                <div className={styles.mockupCardLabel}>Pending inbox</div>
-                <div className={`${styles.mockupCardValue} ${styles.amber}`}>4</div>
+              <div className={styles.mockupStat}>
+                <div className={styles.mockupStatLabel}>Pending</div>
+                <div className={`${styles.mockupStatValue} ${styles.amber}`}>4</div>
               </div>
-              <div className={styles.mockupCard}>
-                <div className={styles.mockupCardLabel}>Contacts</div>
-                <div className={styles.mockupCardValue}>248</div>
-              </div>
-              <div className={styles.mockupCard}>
-                <div className={styles.mockupCardLabel}>Active chats</div>
-                <div className={`${styles.mockupCardValue} ${styles.green}`}>3</div>
+              <div className={styles.mockupStat}>
+                <div className={styles.mockupStatLabel}>Resolved</div>
+                <div className={`${styles.mockupStatValue} ${styles.green}`}>31</div>
               </div>
             </div>
-            {["New email from Acme BV — invoice question", "Ticket #42 escalated — SLA breach", "Jan approved draft ticket"].map((text, i) => (
-              <div key={i} className={styles.mockupRow}>
-                <div className={`${styles.mockupRowDot} ${i === 1 ? styles.amber : ""}`} />
-                <span>{text}</span>
-              </div>
-            ))}
+            <div className={styles.mockupList}>
+              <div className={styles.mockupListHeader}>Recent messages</div>
+              {inboxItems.map((item) => (
+                <div key={item.sender} className={styles.mockupItem}>
+                  <div className={`${styles.mockupItemDot} ${item.dot === "amber" ? styles.amber : item.dot === "green" ? styles.green : ""}`} />
+                  <div className={styles.mockupItemText}>
+                    <div className={styles.mockupItemSender}>{item.sender}</div>
+                    <div className={styles.mockupItemSubject}>{item.subject}</div>
+                  </div>
+                  <span className={`${styles.mockupBadge} ${item.badge === "done" ? styles.done : styles.review}`}>
+                    {item.badge}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Social proof */}
-      <div className={styles.companies}>
-        <p className={styles.companiesLabel}>Trusted by growing businesses</p>
-        <div className={styles.companiesList}>
-          {companies.map((name) => (
-            <span key={name} className={styles.companyBadge}>{name}</span>
-          ))}
-        </div>
+      {/* Stats */}
+      <div className={styles.statsBar}>
+        {[
+          { value: "10h+", label: "saved per week on average" },
+          { value: "< 2min", label: "average ticket response time" },
+          { value: "6", label: "modules, one platform" },
+        ].map((s) => (
+          <div key={s.label} className={styles.stat}>
+            <div className={styles.statValue}>{s.value}</div>
+            <div className={styles.statLabel}>{s.label}</div>
+          </div>
+        ))}
       </div>
 
       {/* Features */}
       <section id="features" className={styles.section}>
-        <p className={styles.sectionLabel}>Features</p>
+        <p className={styles.eyebrow}>Features</p>
         <h2 className={styles.sectionTitle}>Everything your support team needs</h2>
         <p className={styles.sectionSub}>
-          One platform for inbox, tickets, live chat, contacts, billing, and activity. No more juggling tools.
+          One platform for inbox, tickets, live chat, contacts, billing, and activity. Stop juggling tools.
         </p>
         <div className={styles.featuresGrid}>
           {features.map((f) => (
             <div key={f.title} className={styles.featureCard}>
-              <span className={styles.featureIcon}>{f.icon}</span>
+              <div className={styles.featureIconWrap}>{f.icon}</div>
               <h3 className={styles.featureTitle}>{f.title}</h3>
               <p className={styles.featureDesc}>{f.desc}</p>
             </div>
@@ -179,16 +203,16 @@ export default function HomePage() {
       </section>
 
       {/* How it works */}
-      <section id="how-it-works" className={styles.sectionAlt}>
-        <p className={styles.sectionLabel}>How it works</p>
+      <section id="how-it-works" className={styles.sectionLight}>
+        <p className={styles.eyebrow}>How it works</p>
         <h2 className={styles.sectionTitle}>From email to resolved — in seconds</h2>
         <p className={styles.sectionSub}>
           Yippie&apos;s AI reads every incoming message and does the write-up for you.
         </p>
         <div className={styles.steps}>
           {steps.map((s) => (
-            <div key={s.number} className={styles.step}>
-              <div className={styles.stepNumber}>{s.number}</div>
+            <div key={s.n} className={styles.step}>
+              <div className={styles.stepCircle}>{s.n}</div>
               <h3 className={styles.stepTitle}>{s.title}</h3>
               <p className={styles.stepDesc}>{s.desc}</p>
             </div>
@@ -198,20 +222,25 @@ export default function HomePage() {
 
       {/* Pricing */}
       <section id="pricing" className={styles.section}>
-        <p className={styles.sectionLabel}>Pricing</p>
+        <p className={styles.eyebrow}>Pricing</p>
         <h2 className={styles.sectionTitle}>Simple, honest pricing</h2>
         <p className={styles.sectionSub}>
-          No hidden fees. Cancel anytime. Start free and upgrade when you need to.
+          No hidden fees. Cancel anytime. Start free and upgrade when you grow.
         </p>
         <div className={styles.pricingGrid}>
           {plans.map((plan) => (
-            <div key={plan.name} className={`${styles.pricingCard} ${plan.featured ? styles.featured : ""}`}>
-              {plan.featured && <span className={styles.featuredBadge}>Most popular</span>}
-              <p className={styles.planName}>{plan.name}</p>
-              <p className={styles.planPrice}>{plan.price}<span>/mo</span></p>
+            <div key={plan.tier} className={`${styles.pricingCard} ${plan.featured ? styles.featured : ""}`}>
+              {plan.featured && <span className={styles.popularBadge}>Most popular</span>}
+              <p className={styles.planTier}>{plan.tier}</p>
+              <p className={styles.planPrice}>{plan.price}<sub>/mo</sub></p>
               <p className={styles.planDesc}>{plan.desc}</p>
               <ul className={styles.planFeatures}>
-                {plan.features.map((f) => <li key={f}>{f}</li>)}
+                {plan.features.map((f) => (
+                  <li key={f}>
+                    <span className={styles.planCheck}>✓</span>
+                    {f}
+                  </li>
+                ))}
               </ul>
               <a href={APP_URL} className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}>
                 {plan.cta}
@@ -221,10 +250,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* CTA banner */}
-      <section className={styles.ctaBanner}>
+      {/* Dark CTA */}
+      <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Ready to win back your time?</h2>
-        <p className={styles.ctaSub}>Join businesses that handle support in half the time with Yippie.</p>
+        <p className={styles.ctaSub}>
+          Join businesses that handle customer support in half the time with Yippie.
+        </p>
         <a href={APP_URL} className={styles.btnPrimary}>Log in to Yippie →</a>
       </section>
 
@@ -232,7 +263,12 @@ export default function HomePage() {
       <footer className={styles.footer}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="Yippie" className={styles.footerLogo} />
-        <p className={styles.footerCopy}>© {new Date().getFullYear()} Yippie. All rights reserved.</p>
+        <div className={styles.footerRight}>
+          <a href="#features" className={styles.footerLink}>Features</a>
+          <a href="#pricing" className={styles.footerLink}>Pricing</a>
+          <a href={APP_URL} className={styles.footerLink}>Log in</a>
+          <span className={styles.footerCopy}>© {new Date().getFullYear()} Yippie</span>
+        </div>
       </footer>
     </>
   );
