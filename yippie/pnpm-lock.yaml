@@ -17,18 +17,27 @@ importers:
 
   apps/web:
     dependencies:
+      autoprefixer:
+        specifier: ^10.5.0
+        version: 10.5.0(postcss@8.5.15)
       lucide-react:
         specifier: ^1.17.0
         version: 1.17.0(react@18.3.1)
       next:
         specifier: 14.2.35
         version: 14.2.35(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
+      postcss:
+        specifier: ^8.5.15
+        version: 8.5.15
       react:
         specifier: ^18.3.1
         version: 18.3.1
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
+      tailwindcss:
+        specifier: '3'
+        version: 3.4.19
     devDependencies:
       '@types/node':
         specifier: ^20.17.10
@@ -39,15 +48,6 @@ importers:
       '@types/react-dom':
         specifier: ^18.3.5
         version: 18.3.7(@types/react@18.3.30)
-      autoprefixer:
-        specifier: ^10.5.0
-        version: 10.5.0(postcss@8.5.15)
-      postcss:
-        specifier: ^8.5.15
-        version: 8.5.15
-      tailwindcss:
-        specifier: '3'
-        version: 3.4.19
       typescript:
         specifier: ^5.7.3
         version: 5.9.3
