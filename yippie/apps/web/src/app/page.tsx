@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, FormEvent } from "react";
 import {
   Inbox,
   Ticket,
@@ -160,6 +160,7 @@ function statusClass(s: string) {
 
 export default function HomePage() {
   const [annual, setAnnual] = useState(false);
+  const [showSignUp, setShowSignUp] = useState(false);
   const prices = annual ? annualPrices : monthlyPrices;
 
   const featuresRef = useFadeOnScroll();
@@ -181,6 +182,12 @@ export default function HomePage() {
             <a href="#features"     className="text-sm text-slate-600 hover:text-slate-900 transition-colors">Features</a>
             <a href="#how-it-works" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">How it works</a>
             <a href="#pricing"      className="text-sm text-slate-600 hover:text-slate-900 transition-colors">Pricing</a>
+            <button
+              onClick={() => setShowSignUp(true)}
+              className="text-sm font-semibold px-4 py-2 rounded-xl bg-yippie text-white hover:opacity-90 transition-opacity"
+            >
+              Sign up
+            </button>
             <a
               href={APP_URL}
               className="text-sm font-semibold px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:border-slate-400 transition-colors"
@@ -548,11 +555,111 @@ export default function HomePage() {
         </div>
       </footer>
 
+      {/* ── Sign-up modal ──────────────────────────────────────── */}
+      {showSignUp && <SignUpModal onClose={() => setShowSignUp(false)} />}
+
       <style jsx global>{`
         @keyframes heroFadeUp {
           to { opacity: 1; transform: translateY(0); }
         }
       `}</style>
     </>
+  );
+}
+
+// ── Sign-up modal ─────────────────────────────────────────────────────────────
+
+function SignUpModal({ onClose }: { onClose: () => void }) {
+  const [form, setForm] = useState({ name: "", email: "", company: "", phone: "" });
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [errorMsg, setErrorMsg] = useState("");
+
+  async function handleSubmit(e: FormEvent) {
+    e.preventDefault();
+    setStatus("loading");
+    try {
+      const res = await fetch("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Something went wrong.");
+      setStatus("success");
+    } catch (err: unknown) {
+      setErrorMsg(err instanceof Error ? err.message : "Something went wrong.");
+      setStatus("error");
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(15,24,36,0.55)", backdropFilter: "blur(4px)" }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 relative">
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 text-xl leading-none"
+          aria-label="Close"
+        >
+          ×
+        </button>
+
+        {status === "success" ? (
+          <div className="text-center py-6">
+            <div className="w-12 h-12 rounded-full bg-yippie/10 flex items-center justify-center mx-auto mb-4">
+              <span className="text-yippie text-xl font-bold">✓</span>
+            </div>
+            <h3 className="text-lg font-bold text-slate-900 mb-2">You&apos;re on the list</h3>
+            <p className="text-sm text-slate-500">We&apos;ll be in touch shortly.</p>
+            <button
+              onClick={onClose}
+              className="mt-6 px-6 py-2.5 rounded-xl bg-yippie text-white text-sm font-semibold hover:opacity-90 transition-opacity"
+            >
+              Close
+            </button>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-xl font-bold text-slate-900 mb-1">Get started with Yippie</h2>
+            <p className="text-sm text-slate-500 mb-6">We&apos;ll reach out to set up your account.</p>
+
+            <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+              {[
+                { key: "name",    label: "Full name",    type: "text",  required: true },
+                { key: "email",   label: "Work email",   type: "email", required: true },
+                { key: "company", label: "Company",      type: "text",  required: false },
+                { key: "phone",   label: "Phone number", type: "tel",   required: false },
+              ].map(({ key, label, type, required }) => (
+                <div key={key}>
+                  <label className="block text-xs font-semibold text-slate-600 mb-1.5">{label}{required && " *"}</label>
+                  <input
+                    type={type}
+                    required={required}
+                    value={form[key as keyof typeof form]}
+                    onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-sm text-slate-900 placeholder-slate-300 focus:outline-none focus:border-yippie transition-colors"
+                  />
+                </div>
+              ))}
+
+              {status === "error" && (
+                <p className="text-xs text-red-500">{errorMsg}</p>
+              )}
+
+              <button
+                type="submit"
+                disabled={status === "loading"}
+                className="mt-2 py-3 rounded-xl bg-yippie text-white font-semibold text-sm hover:opacity-90 transition-opacity disabled:opacity-60"
+              >
+                {status === "loading" ? "Submitting…" : "Request access →"}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
   );
 }
