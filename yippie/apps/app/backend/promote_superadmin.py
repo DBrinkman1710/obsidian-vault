@@ -23,8 +23,8 @@ async def main():
             await db.commit()
             print(f"[promote] Promoted '{EMAIL}' to superadmin.")
     except Exception as e:
-        print(f"[promote] ERROR: {e}")
-        raise
+        print(f"[promote] ERROR (non-fatal): {e}")
+        # Never block startup — log and continue
     finally:
         await get_engine().dispose()
 
