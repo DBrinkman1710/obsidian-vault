@@ -28,7 +28,7 @@ async def list_tenants(db: AsyncSession) -> list[dict]:
     ]
 
 
-async def create_tenant(db: AsyncSession, data: TenantCreate) -> Tenant:
+async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
     # Never silently overwrite an existing user's credentials
     existing_user = await db.scalar(select(User).where(User.email == data.admin_email))
     if existing_user:
@@ -53,7 +53,7 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> Tenant:
     ))
     await db.commit()
     await db.refresh(tenant)
-    return tenant
+    return {**{c.name: getattr(tenant, c.name) for c in Tenant.__table__.columns}, "user_count": 1}
 
 
 async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpdate) -> Tenant:
