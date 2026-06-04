@@ -1,7 +1,114 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-04 (session 5)**
+**Last updated:** 2026-06-04 (session 6)**
 **Branch:** `sandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 6 — 2026-06-04 (bug fixes + next steps)
+
+### What was done
+
+#### 1. `require_admin` RESET ROLE fix (`auth/dependencies.py`)
+Settings page (Departments) was broken because `app_user` (the restricted Postgres role set by `set_tenant_context`) lacked GRANT on the `departments` table. Extended the same RESET ROLE fix already applied to `require_superadmin` to also apply to `require_admin`. Now ALL admin+ routes run with the privileged connection user, not `app_user`. Commit: `7739e86`.
+
+#### 2. `create_tenant` response serialization fix (`admin/service.py`)
+Creating a client showed "Failed to create client" even though the client WAS created. Root cause: `TenantOut` schema requires `user_count: int` but `create_tenant` returned a plain `Tenant` ORM object (no `user_count` column). FastAPI threw a 500 during response serialization — AFTER the commit had already succeeded. Fixed by returning a dict with `user_count: 1`. Commit: `9c05af4`.
+
+### State right now (end of session 6)
+- `sandbox` branch is deploying commits `9c05af4` + `7739e86`
+- Login: `diederik1710@gmail.com` / `password` (change this — see below)
+- Creating clients works (no false error after fix)
+- Settings (Departments) page works after redeploy lands
+
+---
+
+## Instructions for tomorrow
+
+### 1. First thing: verify everything works on devsandbox
+```
+devsandbox.getyippie.com — log in as diederik1710@gmail.com
+```
+Check:
+- [ ] Clients nav visible in sidebar ✓
+- [ ] Settings nav visible in sidebar ✓
+- [ ] Create a test client — should succeed without error, client appears in list immediately
+- [ ] Click Settings → Departments page loads (may be empty, that's fine)
+- [ ] Create a department in Settings → should save without error
+
+### 2. Change your password (important)
+The shared Sandbox DB was seeded with `ADMIN_PASSWORD=password` — that's the current password. Change it via Railway dashboard before doing anything else:
+- Railway → Sandbox environment → Variables → set `ADMIN_PASSWORD` to something strong
+- Railway → Dev Sandbox → Variables → set `ADMIN_PASSWORD` to the same strong value
+- Then reset your password in the shared DB (run in terminal):
+```bash
+cd /Users/diederik/yippie/yippie/apps/app && railway run --environment "Sandbox" python -c "
+import asyncio
+from passlib.context import CryptContext
+from sqlalchemy import update
+from app.core.models import User
+from app.database import db_session, get_engine
+
+async def r():
+    async with db_session() as db:
+        await db.execute(update(User).where(User.email == 'diederik1710@gmail.com').values(hashed_password=CryptContext(schemes=['bcrypt']).hash('YOURNEWPASSWORD')))
+        await db.commit()
+    await get_engine().dispose()
+
+asyncio.run(r())
+"
+```
+
+### 3. Test the email system (Resend)
+Before starting Phase 2 features, confirm inbound + outbound email works end to end:
+
+**Test outbound (reply from inbox):**
+1. Send a real email to your Resend inbound address (sandbox pair)
+2. It should appear in the Inbox of `sandbox.getyippie.com`
+3. Open the draft → click "Generate reply" → click "Send"
+4. Check that the reply lands in your email inbox
+5. Confirm it comes from `support@getyippie.com`
+
+**Test inbound isolation:**
+1. Send email to your devsandbox Resend inbound address
+2. Should appear ONLY in `devsandbox.getyippie.com` inbox, NOT in `sandbox.getyippie.com`
+3. Confirms the two Resend routes are correctly isolated per environment pair
+
+**If outbound fails:** Check that `RESEND_API_KEY` and `RESEND_FROM=support@getyippie.com` are set in both Sandbox and Dev Sandbox Railway Variables.
+
+### 4. Phase 2 — Superadmin Power Tools (start here after verification)
+
+**Work in `sandbox` branch, test on devsandbox↔sandbox pair.**
+
+Items in order:
+
+**a) Make client inactive** — `is_active` flag on Tenant
+- Backend: add `is_active: bool = True` to `Tenant` model in `core/models.py`
+- Migration: `alembic revision --autogenerate -m "add is_active to tenants"`
+- Backend: add `is_active` to `TENANT_SAFE_FIELDS` in `admin/service.py`
+- Frontend: add active/inactive toggle to each client row in `SuperAdminPage.tsx`
+
+**b) Multiple admin users per client**
+- Backend: `POST /api/v1/admin/tenants/{id}/users` → creates an additional admin for a tenant
+- Frontend: "Add admin" button in client detail in `SuperAdminPage.tsx`
+
+**c) Demo/offline mode per client**
+- Backend: add `is_demo: bool = True` and `go_live_at: datetime | None` to `Tenant` model
+- Frontend: superadmin can toggle "go live" per client; clients in demo mode see a banner
+
+**d) Promote more superadmins**
+- Backend: `POST /api/v1/admin/promote-superadmin` protected by `require_superadmin`, re-verifies with Diederik's password
+- Frontend: form in SuperAdminPage
+
+### Key files to touch in Phase 2
+| File | What to change |
+|---|---|
+| `apps/app/backend/app/core/models.py` | Add `is_active`, `is_demo`, `go_live_at` to `Tenant` |
+| `apps/app/backend/app/modules/admin/service.py` | Extend `TENANT_SAFE_FIELDS`, add create_user function |
+| `apps/app/backend/app/modules/admin/router.py` | Add new endpoints |
+| `apps/app/backend/app/modules/admin/schemas.py` | Add new fields to `TenantOut`, `TenantUpdate` |
+| `apps/app/frontend/src/modules/admin/SuperAdminPage.tsx` | Add toggles, modals, buttons |
+| `apps/app/backend/migrations/versions/` | New Alembic migration after model changes |
 
 ---
 
