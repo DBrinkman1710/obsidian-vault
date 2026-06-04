@@ -99,7 +99,7 @@ export function Sidebar() {
 
       {/* Bottom section */}
       <div className="border-t border-white/15 px-3 py-3 space-y-0.5">
-        {user?.role === 'superadmin' && (
+        {user?.role === 'superadmin' && ['dev', 'devsandbox'].includes(config?.environment ?? '') && (
           <NavLink
             to="/superadmin/clients"
             className={({ isActive }) =>

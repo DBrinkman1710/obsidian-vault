@@ -25,3 +25,4 @@ class TenantConfigOut(BaseModel):
     tenant_name: str
     enabled_modules: list[str]
     branding: dict
+    environment: str = "production"

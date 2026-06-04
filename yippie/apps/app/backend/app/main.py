@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, require_module
 from app.auth.router import router as auth_router
-from app.config import load_tenant_config
+from app.config import get_settings, load_tenant_config
 from app.core.models import Tenant
 from app.core.schemas import TenantConfigOut
 from app.database import get_db
@@ -60,11 +60,13 @@ def create_app() -> FastAPI:
         db: Annotated[AsyncSession, Depends(get_db)],
     ):
         tenant = await db.get(Tenant, current_user.tenant_id)
+        settings = get_settings()
         return TenantConfigOut(
             tenant_id=tenant.slug,
             tenant_name=tenant.name,
             enabled_modules=tenant.enabled_modules or [],
             branding={"primary_color": tenant.primary_color, "logo_url": tenant.logo_url},
+            environment=settings.environment,
         )
 
     # Module routes — all mounted, each gated per-request by tenant's enabled_modules
