@@ -1,9 +1,84 @@
 # Yippie — Handoff Document
-**Date:** 2026-06-04  
-**Branch:** `claude/modular-account-management-design-XrQwj` (production/dev/commercial)  
-**Sandbox branch:** `sandbox`  
-**Dev sandbox branch:** `devsandbox`  
+**Last updated:** 2026-06-04 (session 2)
+**Branch:** `sandbox` (main working branch going forward — devsandbox merged in)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 2 — 2026-06-04 (today)
+
+### What was done
+
+#### 1. Inbox UI redesign (apps/app/frontend)
+Complete visual overhaul of the DraftReview page (mail detail view) and Sidebar.
+
+**Tailwind CSS v3 added** to the frontend:
+- `tailwind.config.js`, `postcss.config.js`, `src/index.css` created
+- `lucide-react` installed for SVG icons (replacing emoji throughout)
+- `main.tsx` imports the CSS; `index.html` global style stripped
+
+**Sidebar** (`src/shell/Sidebar.tsx`):
+- Yippie blue (`#5BA4F5`) background, white text
+- Lucide-react icons for all nav items (Inbox, Contacts, Tickets, Activity, Billing, Live Chat, Settings, Sign out)
+- Active nav item: `bg-white/20`; pending badge is white circle with blue text
+- Company name + logo mark at top; user email + sign out at bottom
+
+**DraftReview** (`src/modules/inbox/pages/DraftReview.tsx`):
+- 2×2 card grid that fills `h-screen` — zero outer scroll
+- **Top-left:** Customer card (avatar initials, contact info, AI briefing, subscription, recent tickets)
+- **Top-right:** Customer email (source badge, timestamp, subject, scrollable body)
+- **Bottom-left:** Draft ticket form (subject, description, priority pills) with pinned Approve/Reject/Back; OR processed status + linked ticket
+- **Bottom-right:** Draft reply textarea (fills available space) + Generate / Improve / Copy / Send
+- **Bottom strip** (col-span-2): Department routing + follow-up days — hidden in processed mode
+- All existing logic (useState, mutations, queries) preserved — layout only changed
+
+**App.tsx** updated to `flex h-screen overflow-hidden`; `<PagePad>` wrapper added for all non-DraftReview routes so they keep the original 32px padding.
+
+#### 2. Credential protection hardening
+Root cause of the password change: `railway.json` runs `python seed.py` (yippie) or `python create_admin.py` (smb-platform) on **every deploy**. If the tenant slug changed or DB was recreated, it would create a new admin with default/env password.
+
+**Fixed in both repos** (`yippie/apps/app/backend/` AND `obsidian-vault/smb-platform/backend/`):
+
+`seed.py` — three guards added before any user creation:
+1. Tenant slug already exists → skip
+2. User with that email already exists → skip
+3. **Any admin/superadmin exists in the system → skip** ← new
+
+`create_admin.py` — same role-existence guard added first.
+
+`admin/service.py` (yippie only):
+- `create_tenant`: checks duplicate email before insert → raises `ValueError` → HTTP 409
+- `update_tenant`: explicit `TENANT_SAFE_FIELDS` safelist so `setattr` loop can never write unexpected fields
+
+**Result:** As long as your admin account is alive in the DB, every future deploy is a credential no-op. Only a completely empty DB triggers creation (correct first-run behaviour).
+
+#### 3. sandbox / devsandbox merged
+`devsandbox` was one commit ahead of `sandbox` (the superadmin client UI + promote script). They were separate branches pointing at separate Railway environments that couldn't share state.
+
+Fix: committed all session changes to `devsandbox`, then fast-forward merged into `sandbox` and pushed to `origin/sandbox`. Now one unified branch with everything.
+
+**Current branch state:**
+- `sandbox` = all features, pushed to origin ← use this going forward
+- `devsandbox` = same as sandbox (can be deleted or kept as a local working branch)
+
+#### 4. Commercial website UI prompt
+Wrote a detailed design brief for the getyippie.com redesign.
+File: `apps/web/UI_PROMPT.txt`
+
+Covers:
+- Brand system (colours, typography, buttons, cards)
+- 10-section page structure (Nav → Hero → Stats → Features → How it works → Product Moment → Pricing → CTA → Footer)
+- Strong anti-generic direction (what NOT to do)
+- Inspiration references: linear.app, vercel.com, cal.com, superhuman.com
+- Skills to use: `/frontend-design`, `/ui-ux-pro-max`, `/tailwind-css-patterns`
+- Quality checklist (must pass before shipping)
+
+The redesign is **not yet built** — the prompt is ready for a new session to execute it.
+
+### Commit
+`a003edf` — "UI redesign + credential protection hardening" — on `sandbox` branch
+
+---
 
 ---
 
