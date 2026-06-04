@@ -49,6 +49,10 @@ def create_app() -> FastAPI:
     app.include_router(departments_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
 
+    @app.get("/api/v1/health", tags=["health"], include_in_schema=False)
+    async def health():
+        return {"status": "ok"}
+
     # Tenant config — dynamic per logged-in user's tenant
     @app.get("/api/v1/tenant/config", response_model=TenantConfigOut, tags=["tenant"])
     async def tenant_config(
