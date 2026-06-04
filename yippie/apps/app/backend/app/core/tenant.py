@@ -22,7 +22,7 @@ async def resolve_tenant_uuid(db: AsyncSession) -> uuid.UUID:
     TODO: replace with per-tenant webhook URLs (/{tenant_slug}/webhooks/...) once
     multiple clients are onboarded.
     """
-    result = await db.execute(select(Tenant.id).limit(1))
+    result = await db.execute(select(Tenant.id).order_by(Tenant.created_at).limit(1))
     tenant_id = result.scalar_one_or_none()
     if tenant_id is None:
         raise RuntimeError("No tenant found in database")
