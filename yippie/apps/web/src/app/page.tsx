@@ -171,8 +171,11 @@ export default function HomePage() {
       <nav className="sticky top-0 z-50 bg-white border-b border-slate-100">
         <div className="max-w-6xl mx-auto px-6 md:px-8 h-16 flex items-center justify-between">
           {/* Logo */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo.svg" alt="Yippie" className="h-8 w-auto" />
+          <div className="flex items-center gap-3">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/logo.svg" alt="Yippie" className="h-8 w-auto" />
+            <span className="hidden sm:block text-sm text-slate-400">Customer support, made easy</span>
+          </div>
 
           <div className="hidden md:flex items-center gap-8">
             <a href="#features"     className="text-sm text-slate-600 hover:text-slate-900 transition-colors">Features</a>
