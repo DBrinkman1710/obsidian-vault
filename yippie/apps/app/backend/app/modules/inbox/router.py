@@ -295,11 +295,16 @@ async def compose_suggest(body: ComposeSuggestRequest, current_user: CurrentUser
         return {"subject": "", "body": message.content[0].text}
 
 
-# --- Webhook endpoints (called by Resend / Twilio, no auth token) ---
+# --- Webhook endpoints — public router, no auth, mounted separately in main.py ---
+# Must NOT be inside the module-gated router or Resend/Twilio calls will get 403.
 
-@router.post("/webhooks/email", status_code=status.HTTP_200_OK)
-async def email_webhook(request: Request, db: DB):
-    """Resend inbound email webhook."""
+webhook_router = APIRouter(prefix="/inbox", tags=["inbox-webhooks"])
+WDB = Annotated[AsyncSession, Depends(get_db)]
+
+
+@webhook_router.post("/webhooks/email", status_code=status.HTTP_200_OK)
+async def email_webhook(request: Request, db: WDB):
+    """Resend inbound email webhook — no auth required."""
     payload = await request.json()
     tenant_id = await resolve_tenant_uuid(db)
     await service.ingest_email(
@@ -313,9 +318,9 @@ async def email_webhook(request: Request, db: DB):
     return {"status": "ok"}
 
 
-@router.post("/webhooks/whatsapp", status_code=status.HTTP_200_OK)
-async def twilio_webhook(request: Request, db: DB):
-    """Twilio WhatsApp inbound webhook."""
+@webhook_router.post("/webhooks/whatsapp", status_code=status.HTTP_200_OK)
+async def twilio_webhook(request: Request, db: WDB):
+    """Twilio WhatsApp inbound webhook — no auth required."""
     form = await request.form()
     tenant_id = await resolve_tenant_uuid(db)
     await service.ingest_whatsapp(
