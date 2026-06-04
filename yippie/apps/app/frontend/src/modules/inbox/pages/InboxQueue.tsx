@@ -373,11 +373,15 @@ export default function InboxQueue() {
         {drafts?.map((d: any) => {
           const isFollowUp = d.status === 'approved' && d.follow_up_at
           return (
-            <div key={d.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-4">
+            <Link
+              key={d.id}
+              to={`/inbox/drafts/${d.id}`}
+              className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-4 hover:border-blue-300 hover:shadow-md transition-all group"
+            >
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1.5">
                   {SOURCE_ICON[d.source] ?? <Mail size={13} className="text-slate-400" />}
-                  <span className="text-sm font-semibold text-slate-900">{d.ai_suggested_subject}</span>
+                  <span className="text-sm font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">{d.ai_suggested_subject}</span>
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${PRIORITY_STYLES[d.ai_suggested_priority]}`}>
                     {d.ai_suggested_priority}
                   </span>
@@ -402,14 +406,8 @@ export default function InboxQueue() {
                 </p>
                 <p className="text-xs text-slate-400">{new Date(d.created_at).toLocaleString()}</p>
               </div>
-              <Link
-                to={`/inbox/drafts/${d.id}`}
-                className="inline-flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors whitespace-nowrap flex-shrink-0"
-              >
-                {activeTab === 'processed' ? 'Open' : 'Review'}
-                <ArrowRight size={12} />
-              </Link>
-            </div>
+              <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0 mt-0.5" />
+            </Link>
           )
         })}
       </div>
