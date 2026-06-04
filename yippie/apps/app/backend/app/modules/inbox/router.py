@@ -304,16 +304,23 @@ WDB = Annotated[AsyncSession, Depends(get_db)]
 
 @webhook_router.post("/webhooks/email", status_code=status.HTTP_200_OK)
 async def email_webhook(request: Request, db: WDB):
-    """Resend inbound email webhook — no auth required."""
+    """Resend inbound email webhook — no auth required.
+
+    Resend wraps email fields inside a 'data' object:
+    { "type": "email.received", "data": { "from": ..., "subject": ..., ... } }
+    Fall back to top-level keys for other providers.
+    """
     payload = await request.json()
+    # Resend nests fields under "data"; fall back to top-level for other providers
+    email = payload.get("data", payload)
     tenant_id = await resolve_tenant_uuid(db)
     await service.ingest_email(
         db=db,
         tenant_id=tenant_id,
-        sender=str(payload.get("from", "")),
-        subject=str(payload.get("subject", "")) or None,
-        body=str(payload.get("text", payload.get("html", ""))),
-        headers=str(payload.get("headers", "")) or None,
+        sender=str(email.get("from", "")),
+        subject=str(email.get("subject", "")) or None,
+        body=str(email.get("text", email.get("html", ""))),
+        headers=str(email.get("headers", "")) or None,
     )
     return {"status": "ok"}
 
