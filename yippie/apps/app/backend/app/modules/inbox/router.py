@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app.auth.dependencies import CurrentUser
-from app.core.mailer import MailgunNotConfiguredError, send_email
+from app.core.mailer import ResendNotConfiguredError, send_email
 from app.core.tenant import resolve_tenant_uuid
 from app.database import get_db
 from app.modules.activity import service as activity_service
@@ -117,7 +117,7 @@ async def send_reply(draft_id: uuid.UUID, body: SendReplyRequest, current_user: 
 
     try:
         await send_email(to=msg.sender, subject=subject, body=body.reply_text)
-    except MailgunNotConfiguredError as e:
+    except ResendNotConfiguredError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
     await activity_service.log_event(
@@ -181,7 +181,7 @@ async def forward_draft(draft_id: uuid.UUID, body: ForwardRequest, current_user:
             body=dept_body,
             reply_to=msg.sender,
         )
-    except MailgunNotConfiguredError:
+    except ResendNotConfiguredError:
         pass  # Email not configured — still mark as forwarded
 
     draft.forwarded_to_department_id = dept.id
@@ -219,20 +219,20 @@ async def clear_followup(draft_id: uuid.UUID, current_user: CurrentUser, db: DB)
     return draft
 
 
-# --- Webhook endpoints (called by Mailgun / Twilio, no auth token) ---
+# --- Webhook endpoints (called by Resend / Twilio, no auth token) ---
 
 @router.post("/webhooks/email", status_code=status.HTTP_200_OK)
-async def mailgun_webhook(request: Request, db: DB):
-    """Mailgun inbound email webhook."""
-    form = await request.form()
+async def email_webhook(request: Request, db: DB):
+    """Resend inbound email webhook."""
+    payload = await request.json()
     tenant_id = await resolve_tenant_uuid(db)
     await service.ingest_email(
         db=db,
         tenant_id=tenant_id,
-        sender=str(form.get("sender", "")),
-        subject=str(form.get("subject", "")) or None,
-        body=str(form.get("body-plain", form.get("body-html", ""))),
-        headers=str(form.get("message-headers", "")) or None,
+        sender=str(payload.get("from", "")),
+        subject=str(payload.get("subject", "")) or None,
+        body=str(payload.get("text", payload.get("html", ""))),
+        headers=str(payload.get("headers", "")) or None,
     )
     return {"status": "ok"}
 

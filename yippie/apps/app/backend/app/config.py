@@ -22,8 +22,6 @@ class FeaturesConfig(BaseModel):
 
 class InboxConfig(BaseModel):
     inbound_email: Optional[str] = None
-    mailgun_domain: Optional[str] = None
-    mailgun_api_key: Optional[str] = None
 
 
 class WhatsAppConfig(BaseModel):
@@ -58,9 +56,8 @@ class Settings(BaseSettings):
     tenant_config_path: str = "/app/config/tenant.yaml"
     anthropic_api_key: str = ""
     environment: str = "development"
-    mailgun_api_key: str = ""
-    mailgun_domain: str = ""
-    mailgun_from: str = ""
+    resend_api_key: str = ""
+    resend_from: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

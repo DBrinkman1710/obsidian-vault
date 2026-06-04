@@ -7,7 +7,7 @@ import httpx
 from app.config import get_settings
 
 
-class MailgunNotConfiguredError(Exception):
+class ResendNotConfiguredError(Exception):
     pass
 
 
@@ -19,27 +19,27 @@ async def send_email(
 ) -> None:
     settings = get_settings()
 
-    if not settings.mailgun_api_key or not settings.mailgun_domain:
-        raise MailgunNotConfiguredError(
-            "MAILGUN_API_KEY and MAILGUN_DOMAIN must be set to send emails."
+    if not settings.resend_api_key:
+        raise ResendNotConfiguredError(
+            "RESEND_API_KEY must be set to send emails."
         )
 
-    from_addr = settings.mailgun_from or f"support@{settings.mailgun_domain}"
+    from_addr = settings.resend_from or "support@getyippie.com"
 
-    data: dict = {
+    payload: dict = {
         "from": from_addr,
-        "to": to,
+        "to": [to],
         "subject": subject,
         "text": body,
     }
     if reply_to:
-        data["h:Reply-To"] = reply_to
+        payload["reply_to"] = [reply_to]
 
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            f"https://api.mailgun.net/v3/{settings.mailgun_domain}/messages",
-            auth=("api", settings.mailgun_api_key),
-            data=data,
+            "https://api.resend.com/emails",
+            headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+            json=payload,
             timeout=10,
         )
         response.raise_for_status()
