@@ -1,7 +1,72 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-04 (session 3)**
+**Last updated:** 2026-06-04 (session 4)**
 **Branch:** `sandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 4 — 2026-06-04 (Phase 1 continued + Resend migration)
+
+### What was done
+
+#### 1. ENVIRONMENT env vars set in Railway (CLI)
+All four environments now have the correct `ENVIRONMENT` value:
+- Dev Sandbox → `devsandbox`
+- Sandbox → `sandbox`
+- Development → `dev`
+- production → `production`
+
+#### 2. Resend migration (code — committed to `sandbox` branch)
+**`apps/app/backend/app/core/mailer.py`** — completely rewritten:
+- Calls `POST https://api.resend.com/emails` with `Authorization: Bearer {RESEND_API_KEY}`
+- JSON body: `{"from": ..., "to": [...], "subject": ..., "text": ..., "reply_to": [...]}`
+- Error class renamed: `MailgunNotConfiguredError` → `ResendNotConfiguredError`
+
+**`apps/app/backend/app/config.py`**:
+- Removed: `mailgun_api_key`, `mailgun_domain`, `mailgun_from` (from `Settings` and `InboxConfig`)
+- Added: `resend_api_key: str = ""`, `resend_from: str = ""`
+- Fallback from address in mailer: `support@getyippie.com`
+
+**`apps/app/backend/app/modules/inbox/router.py`**:
+- Import updated: `ResendNotConfiguredError`
+- Inbound webhook renamed `email_webhook`, now parses **JSON** (Resend format) instead of form-encoded (Mailgun format)
+- Field mapping: `from` → sender, `subject` → subject, `text`/`html` → body
+
+#### 3. Resend dashboard setup (done by user)
+- Domain: `getyippie.com` verified (not `yippie.com` — DNS didn't connect)
+- Tracking subdomain: `links.getyippie.com` (click tracking only, open tracking skipped)
+- Inbound webhooks configured:
+  - Production: `https://app.getyippie.com/api/v1/inbox/webhooks/email`
+  - Sandbox: `https://sandbox.getyippie.com/api/v1/inbox/webhooks/email`
+
+#### 4. CLAUDE.md + ROADMAP.md updated
+Architecture documentation updated with correct pair model and Resend decisions.
+
+### Still outstanding before Phase 1 is complete
+
+#### A. Share Sandbox DB between devsandbox and sandbox (YOU do this — Railway dashboard)
+In Railway → Dev Sandbox environment → Variables:
+- Copy the `DATABASE_URL` value from the **Sandbox** environment
+- Paste it as `DATABASE_URL` in the **Dev Sandbox** environment (overwriting the separate DB it currently has)
+- Redeploy Dev Sandbox
+
+**This is the critical step** — without it, clients created in devsandbox don't appear in sandbox.
+
+#### B. Set Resend credentials in Railway Variables (YOU do this)
+For every environment (Sandbox, Dev Sandbox, Development, production):
+```
+RESEND_API_KEY = re_xxxxxxxxx
+RESEND_FROM    = support@getyippie.com
+```
+
+#### C. Remove web from sandbox/dev Railway deploys (YOU do this — Railway dashboard)
+Railway → Commercial service → Settings → Source → set watched branch to `main` or production branch only.
+Stops `apps/web` rebuilding every time you push to sandbox/devsandbox.
+
+### Phase 1 verification (after A + B above)
+1. Log into devsandbox — confirm you see Clients nav (superadmin) after page load
+2. Create a test client in devsandbox → confirm it appears in sandbox
+3. Send a test email to your Resend inbound address → confirm it appears in devsandbox inbox (not production)
 
 ---
 
