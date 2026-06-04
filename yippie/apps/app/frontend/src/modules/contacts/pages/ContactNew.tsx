@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft } from 'lucide-react'
 import { api } from '../../../api/client'
 
 interface FormState {
@@ -14,20 +15,6 @@ interface FormState {
 
 const EMPTY: FormState = {
   full_name: '', email: '', phone: '', company: '', notes: '', tags: '',
-}
-
-const field: React.CSSProperties = {
-  display: 'flex', flexDirection: 'column', gap: 4,
-}
-const label: React.CSSProperties = {
-  fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase',
-}
-const input: React.CSSProperties = {
-  padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1',
-  fontSize: 14, color: '#1e293b', width: '100%',
-}
-const errorStyle: React.CSSProperties = {
-  fontSize: 13, color: '#dc2626', marginTop: 2,
 }
 
 export default function ContactNew() {
@@ -70,83 +57,81 @@ export default function ContactNew() {
     if (validate()) mutation.mutate()
   }
 
+  const inputClass = (hasError?: boolean) =>
+    `w-full px-3 py-2 border rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${hasError ? 'border-red-400' : 'border-slate-300'}`
+
   return (
-    <div style={{ maxWidth: 600 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-        <Link to="/contacts" style={{ color: '#64748b', textDecoration: 'none', fontSize: 14 }}>
-          ← Contacts
+    <div className="max-w-xl">
+      <div className="flex items-center gap-3 mb-7">
+        <Link to="/contacts" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+          <ChevronLeft size={16} />
+          Contacts
         </Link>
-        <h1 style={{ fontSize: 22, fontWeight: 700 }}>New Contact</h1>
+        <span className="text-slate-300">/</span>
+        <h1 className="text-2xl font-bold text-slate-900">New Contact</h1>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={field}>
-          <label style={label}>Full name *</label>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Full name *</label>
           <input
-            style={{ ...input, borderColor: errors.full_name ? '#dc2626' : '#cbd5e1' }}
+            className={inputClass(!!errors.full_name)}
             value={form.full_name} onChange={set('full_name')}
             placeholder="Jan de Vries" autoFocus
           />
-          {errors.full_name && <span style={errorStyle}>{errors.full_name}</span>}
+          {errors.full_name && <p className="text-xs text-red-500 mt-1">{errors.full_name}</p>}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-          <div style={field}>
-            <label style={label}>Email</label>
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Email</label>
             <input
-              style={{ ...input, borderColor: errors.email ? '#dc2626' : '#cbd5e1' }}
+              className={inputClass(!!errors.email)}
               type="email" value={form.email} onChange={set('email')}
               placeholder="jan@example.nl"
             />
-            {errors.email && <span style={errorStyle}>{errors.email}</span>}
+            {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
           </div>
-          <div style={field}>
-            <label style={label}>Phone</label>
-            <input style={input} value={form.phone} onChange={set('phone')} placeholder="+31 6 00000000" />
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Phone</label>
+            <input className={inputClass()} value={form.phone} onChange={set('phone')} placeholder="+31 6 00000000" />
           </div>
         </div>
 
-        <div style={field}>
-          <label style={label}>Company</label>
-          <input style={input} value={form.company} onChange={set('company')} placeholder="Acme BV" />
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Company</label>
+          <input className={inputClass()} value={form.company} onChange={set('company')} placeholder="Acme BV" />
         </div>
 
-        <div style={field}>
-          <label style={label}>Tags <span style={{ fontWeight: 400, textTransform: 'none', color: '#94a3b8' }}>(comma-separated)</span></label>
-          <input style={input} value={form.tags} onChange={set('tags')} placeholder="vip, enterprise, nl" />
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+            Tags <span className="font-normal text-slate-400 normal-case">(comma-separated)</span>
+          </label>
+          <input className={inputClass()} value={form.tags} onChange={set('tags')} placeholder="vip, enterprise, nl" />
         </div>
 
-        <div style={field}>
-          <label style={label}>Notes</label>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Notes</label>
           <textarea
-            style={{ ...input, resize: 'vertical', minHeight: 100, fontFamily: 'inherit' }}
+            className={`${inputClass()} resize-vertical min-h-[100px] font-[inherit]`}
             value={form.notes} onChange={set('notes')}
-            placeholder="Any context about this contact..."
+            placeholder="Any context about this contact…"
           />
         </div>
 
         {mutation.isError && (
-          <p style={{ color: '#dc2626', fontSize: 14 }}>
-            Something went wrong — check the console and try again.
-          </p>
+          <p className="text-sm text-red-500">Something went wrong — try again.</p>
         )}
 
-        <div style={{ display: 'flex', gap: 12 }}>
+        <div className="flex gap-3 items-center">
           <button
-            type="submit" disabled={mutation.isPending}
-            style={{
-              padding: '10px 24px', background: mutation.isPending ? '#93c5fd' : '#2563eb',
-              color: '#fff', border: 'none', borderRadius: 6,
-              cursor: mutation.isPending ? 'not-allowed' : 'pointer',
-              fontWeight: 600, fontSize: 14,
-            }}
+            type="submit"
+            disabled={mutation.isPending}
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
           >
             {mutation.isPending ? 'Saving…' : 'Create contact'}
           </button>
-          <Link to="/contacts" style={{
-            padding: '10px 20px', color: '#64748b', textDecoration: 'none',
-            fontSize: 14, display: 'flex', alignItems: 'center',
-          }}>
+          <Link to="/contacts" className="px-4 py-2.5 text-sm text-slate-500 hover:text-slate-700 transition-colors">
             Cancel
           </Link>
         </div>

@@ -1,11 +1,10 @@
 import { Link, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { Plus, Clock } from 'lucide-react'
 import { api } from '../../../api/client'
 
 function formatEventType(s: string): string {
-  return s
-    .replace(/[._]/g, ' ')
-    .replace(/\b\w/g, c => c.toUpperCase())
+  return s.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
 }
 
 function timeAgo(iso: string): string {
@@ -47,28 +46,27 @@ export default function ContactDetail() {
     queryFn: () => api.get(`/activity`, { params: { contact_id: id, limit: 3 } }).then(r => r.data),
   })
 
-  if (isLoading) return <p>Loading...</p>
-  if (!contact) return <p>Contact not found</p>
+  if (isLoading) return <p className="text-sm text-slate-400">Loading…</p>
+  if (!contact) return <p className="text-sm text-red-500">Contact not found</p>
 
   const newTicketUrl = `/tickets/new?contact_id=${id}&contact_name=${encodeURIComponent(contact.full_name)}`
 
   return (
-    <div style={{ display: 'flex', gap: 32, alignItems: 'flex-start' }}>
-
-      {/* LEFT — contact info */}
-      <div style={{ flex: 1, minWidth: 0, maxWidth: 720 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 }}>
-          <h1 style={{ fontSize: 22, fontWeight: 700 }}>{contact.full_name}</h1>
-          <Link to={newTicketUrl} style={{
-            padding: '7px 16px', background: '#2563eb', color: '#fff',
-            borderRadius: 6, textDecoration: 'none', fontSize: 13, fontWeight: 600,
-          }}>
-            + New Ticket
+    <div className="flex gap-8 items-start">
+      <div className="flex-1 min-w-0 max-w-2xl">
+        <div className="flex items-start justify-between mb-1">
+          <h1 className="text-2xl font-bold text-slate-900">{contact.full_name}</h1>
+          <Link
+            to={newTicketUrl}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors flex-shrink-0"
+          >
+            <Plus size={14} strokeWidth={2.5} />
+            New Ticket
           </Link>
         </div>
-        {contact.company && <p style={{ color: '#64748b', marginBottom: 24 }}>{contact.company}</p>}
+        {contact.company && <p className="text-sm text-slate-500 mb-6">{contact.company}</p>}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 32 }}>
+        <div className="grid grid-cols-2 gap-4 mb-8">
           <Field label="Email" value={contact.email} />
           <Field label="Phone" value={contact.phone} />
           <Field label="Company" value={contact.company} />
@@ -76,68 +74,50 @@ export default function ContactDetail() {
         </div>
 
         {contact.notes && (
-          <div style={{ marginBottom: 32 }}>
-            <h3 style={{ fontWeight: 600, marginBottom: 8 }}>Notes</h3>
-            <p style={{ color: '#475569', whiteSpace: 'pre-wrap' }}>{contact.notes}</p>
+          <div className="mb-8">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Notes</h3>
+            <p className="text-sm text-slate-600 whitespace-pre-wrap bg-slate-50 rounded-lg p-4 border border-slate-200">{contact.notes}</p>
           </div>
         )}
 
-        <h3 style={{ fontWeight: 600, marginBottom: 12 }}>Activity</h3>
-        {activity?.map((ev: any) => (
-          <div key={ev.id} style={{ borderLeft: '2px solid #e2e8f0', paddingLeft: 12, marginBottom: 12 }}>
-            <p style={{ fontSize: 13, color: '#64748b' }}>
-              <strong>{ev.event_type}</strong> · {new Date(ev.created_at).toLocaleString()}
-            </p>
-          </div>
-        ))}
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Activity</h3>
+        <div className="flex flex-col gap-2">
+          {activity?.map((ev: any) => (
+            <div key={ev.id} className="border-l-2 border-slate-200 pl-4 py-1">
+              <p className="text-xs text-slate-600">
+                <span className="font-semibold">{ev.event_type}</span>
+                <span className="text-slate-400 ml-2">· {new Date(ev.created_at).toLocaleString()}</span>
+              </p>
+            </div>
+          ))}
+          {(!activity || activity.length === 0) && (
+            <p className="text-sm text-slate-400">No activity yet.</p>
+          )}
+        </div>
       </div>
 
-      {/* RIGHT — contact moments panel */}
-      <div style={{ width: 280, flexShrink: 0 }}>
-        <p style={{
-          fontSize: 11, fontWeight: 700, color: '#64748b',
-          textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12,
-        }}>
-          Recent Contact Moments
-        </p>
-
+      <div className="w-64 flex-shrink-0">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Recent Moments</p>
         {!recentMoments || recentMoments.length === 0 ? (
-          <p style={{ fontSize: 13, color: '#94a3b8' }}>No activity yet.</p>
+          <p className="text-sm text-slate-400">No activity yet.</p>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div className="flex flex-col gap-3">
             {recentMoments.map((ev: any) => {
               const summary = payloadSummary(ev.payload)
               return (
-                <div key={ev.id} style={{
-                  background: '#fff', border: '1px solid #e2e8f0',
-                  borderRadius: 8, padding: 12,
-                }}>
-                  <div style={{
-                    display: 'flex', justifyContent: 'space-between',
-                    alignItems: 'flex-start', gap: 8, marginBottom: 6,
-                  }}>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', lineHeight: 1.3 }}>
-                      {formatEventType(ev.event_type)}
-                    </span>
-                    <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap', flexShrink: 0 }}>
+                <div key={ev.id} className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className="text-xs font-semibold text-slate-900 leading-snug">{formatEventType(ev.event_type)}</span>
+                    <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0 flex items-center gap-1">
+                      <Clock size={10} />
                       {timeAgo(ev.created_at)}
                     </span>
                   </div>
-
-                  <span style={{
-                    display: 'inline-block', fontSize: 10, fontWeight: 600,
-                    color: '#475569', background: '#f1f5f9',
-                    padding: '2px 7px', borderRadius: 10,
-                    textTransform: 'uppercase', letterSpacing: '0.04em',
-                    marginBottom: summary ? 6 : 0,
-                  }}>
+                  <span className="inline-block text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full uppercase tracking-wide">
                     {ev.module}
                   </span>
-
                   {summary && (
-                    <p style={{ fontSize: 12, color: '#64748b', margin: 0, lineHeight: 1.4, fontStyle: 'italic' }}>
-                      {summary}
-                    </p>
+                    <p className="text-xs text-slate-500 mt-2 leading-snug italic">{summary}</p>
                   )}
                 </div>
               )
@@ -145,7 +125,6 @@ export default function ContactDetail() {
           </div>
         )}
       </div>
-
     </div>
   )
 }
@@ -153,8 +132,8 @@ export default function ContactDetail() {
 function Field({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div>
-      <p style={{ fontSize: 12, fontWeight: 600, color: '#94a3b8', textTransform: 'uppercase', marginBottom: 2 }}>{label}</p>
-      <p style={{ color: '#1e293b' }}>{value || '—'}</p>
+      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</p>
+      <p className="text-sm text-slate-900">{value || '—'}</p>
     </div>
   )
 }

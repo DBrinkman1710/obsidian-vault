@@ -1,18 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Pencil, Trash2, Building } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
-
-const DEFAULT_TEMPLATE_HINT =
-  'Leave blank to use the default: "I\'m sorry to hear about your situation. I have informed my colleagues at {name} about your inquiry. You can expect a response within {sla} working days."'
-
-const inputStyle: React.CSSProperties = {
-  padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1',
-  fontSize: 14, color: '#1e293b', width: '100%', boxSizing: 'border-box',
-}
-const labelStyle: React.CSSProperties = {
-  fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4,
-}
 
 interface Dept {
   id: string
@@ -32,12 +22,13 @@ interface FormState {
 
 const EMPTY: FormState = { name: '', email: '', reply_template: '', sla_working_days: '3' }
 
-function DeptForm({
-  initial,
-  onSave,
-  onCancel,
-  isPending,
-}: {
+const DEFAULT_TEMPLATE_HINT =
+  'Leave blank to use the default: "I\'m sorry to hear about your situation. I have informed my colleagues at {name} about your inquiry. You can expect a response within {sla} working days."'
+
+const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
+
+function DeptForm({ initial, onSave, onCancel, isPending }: {
   initial: FormState
   onSave: (f: FormState) => void
   onCancel: () => void
@@ -45,10 +36,8 @@ function DeptForm({
 }) {
   const [form, setForm] = useState<FormState>(initial)
   const [error, setError] = useState('')
-
-  const set = (field: keyof FormState) =>
-    (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
-      setForm(prev => ({ ...prev, [field]: e.target.value }))
+  const set = (field: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+    setForm(prev => ({ ...prev, [field]: e.target.value }))
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -59,67 +48,50 @@ function DeptForm({
   }
 
   return (
-    <form onSubmit={handleSubmit} style={{
-      background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8,
-      padding: 20, display: 'flex', flexDirection: 'column', gap: 14,
-    }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+    <form onSubmit={handleSubmit} className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <div>
-          <label style={labelStyle}>Department name *</label>
-          <input style={inputStyle} value={form.name} onChange={set('name')} placeholder="Finance" autoFocus />
+          <label className={labelCls}>Department name *</label>
+          <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Finance" autoFocus />
         </div>
         <div>
-          <label style={labelStyle}>Email address *</label>
-          <input style={inputStyle} type="email" value={form.email} onChange={set('email')} placeholder="finance@company.nl" />
+          <label className={labelCls}>Email address *</label>
+          <input className={inputCls} type="email" value={form.email} onChange={set('email')} placeholder="finance@company.nl" />
         </div>
       </div>
-
       <div>
-        <label style={labelStyle}>SLA (working days)</label>
+        <label className={labelCls}>SLA (working days)</label>
         <input
-          style={{ ...inputStyle, width: 80 }}
+          className={`${inputCls} w-20`}
           type="number" min={1} max={90}
-          value={form.sla_working_days}
-          onChange={set('sla_working_days')}
+          value={form.sla_working_days} onChange={set('sla_working_days')}
         />
       </div>
-
       <div>
-        <label style={labelStyle}>
+        <label className={labelCls}>
           Reply template{' '}
-          <span style={{ fontWeight: 400, color: '#94a3b8' }}>
-            — use <code style={{ fontSize: 11 }}>{'{name}'}</code> and <code style={{ fontSize: 11 }}>{'{sla}'}</code> as placeholders
+          <span className="font-normal text-slate-400 normal-case">
+            — use <code className="text-xs bg-slate-200 px-1 rounded">{'{name}'}</code> and{' '}
+            <code className="text-xs bg-slate-200 px-1 rounded">{'{sla}'}</code> as placeholders
           </span>
         </label>
         <textarea
-          style={{ ...inputStyle, resize: 'vertical', minHeight: 88, fontFamily: 'inherit' }}
-          value={form.reply_template}
-          onChange={set('reply_template')}
+          className={`${inputCls} resize-vertical min-h-[88px] font-[inherit]`}
+          value={form.reply_template} onChange={set('reply_template')}
           placeholder={DEFAULT_TEMPLATE_HINT}
         />
       </div>
-
-      {error && <p style={{ fontSize: 13, color: '#dc2626', margin: 0 }}>{error}</p>}
-
-      <div style={{ display: 'flex', gap: 10 }}>
+      {error && <p className="text-sm text-red-500">{error}</p>}
+      <div className="flex gap-3">
         <button
-          type="submit"
-          disabled={isPending}
-          style={{
-            padding: '8px 20px', background: isPending ? '#93c5fd' : '#2563eb',
-            color: '#fff', border: 'none', borderRadius: 6,
-            cursor: isPending ? 'not-allowed' : 'pointer', fontWeight: 600, fontSize: 14,
-          }}
+          type="submit" disabled={isPending}
+          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
         >
           {isPending ? 'Saving…' : 'Save'}
         </button>
         <button
-          type="button"
-          onClick={onCancel}
-          style={{
-            padding: '8px 16px', background: '#f1f5f9', color: '#475569',
-            border: 'none', borderRadius: 6, cursor: 'pointer', fontSize: 14,
-          }}
+          type="button" onClick={onCancel}
+          className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
         >
           Cancel
         </button>
@@ -140,31 +112,21 @@ export default function DepartmentsPage() {
   })
 
   const createMutation = useMutation({
-    mutationFn: (f: FormState) =>
-      api.post('/departments', {
-        name: f.name.trim(),
-        email: f.email.trim(),
-        reply_template: f.reply_template.trim() || null,
-        sla_working_days: parseInt(f.sla_working_days) || 3,
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['departments'] })
-      setShowCreate(false)
-    },
+    mutationFn: (f: FormState) => api.post('/departments', {
+      name: f.name.trim(), email: f.email.trim(),
+      reply_template: f.reply_template.trim() || null,
+      sla_working_days: parseInt(f.sla_working_days) || 3,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); setShowCreate(false) },
   })
 
   const updateMutation = useMutation({
-    mutationFn: ({ id, f }: { id: string; f: FormState }) =>
-      api.patch(`/departments/${id}`, {
-        name: f.name.trim(),
-        email: f.email.trim(),
-        reply_template: f.reply_template.trim() || null,
-        sla_working_days: parseInt(f.sla_working_days) || 3,
-      }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['departments'] })
-      setEditingId(null)
-    },
+    mutationFn: ({ id, f }: { id: string; f: FormState }) => api.patch(`/departments/${id}`, {
+      name: f.name.trim(), email: f.email.trim(),
+      reply_template: f.reply_template.trim() || null,
+      sla_working_days: parseInt(f.sla_working_days) || 3,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); setEditingId(null) },
   })
 
   const deleteMutation = useMutation({
@@ -172,36 +134,33 @@ export default function DepartmentsPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['departments'] }),
   })
 
-  if (user?.role !== 'admin') {
-    return <p style={{ color: '#ef4444', padding: 32 }}>Access denied — admin only.</p>
+  if (user?.role !== 'admin' && user?.role !== 'superadmin') {
+    return <p className="text-sm text-red-500 p-8">Access denied — admin only.</p>
   }
 
   return (
-    <div style={{ maxWidth: 860 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 8 }}>
+    <div className="max-w-3xl">
+      <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 4 }}>Departments</h1>
-          <p style={{ color: '#64748b', fontSize: 14 }}>
-            Route inbox messages to specialist departments. Each department gets its own reply template.
+          <h1 className="text-2xl font-bold text-slate-900 mb-1">Departments</h1>
+          <p className="text-sm text-slate-500">
+            Route inbox messages to specialist departments. Each gets its own reply template.
           </p>
         </div>
         {!showCreate && (
           <button
             onClick={() => setShowCreate(true)}
-            style={{
-              padding: '8px 18px', background: '#2563eb', color: '#fff',
-              border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 14,
-              whiteSpace: 'nowrap',
-            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
           >
-            + New Department
+            <Plus size={15} strokeWidth={2.5} />
+            New Department
           </button>
         )}
       </div>
 
       {showCreate && (
-        <div style={{ marginBottom: 20 }}>
-          <p style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8 }}>New Department</p>
+        <div className="mb-5">
+          <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">New Department</p>
           <DeptForm
             initial={EMPTY}
             onSave={f => createMutation.mutate(f)}
@@ -211,22 +170,25 @@ export default function DepartmentsPage() {
         </div>
       )}
 
-      {isLoading && <p style={{ color: '#94a3b8' }}>Loading…</p>}
+      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
 
       {!isLoading && departments?.length === 0 && !showCreate && (
-        <p style={{ color: '#94a3b8', marginTop: 24 }}>No departments yet. Create one to start routing inbox messages.</p>
+        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-200">
+          <Building size={32} className="text-slate-300 mx-auto mb-3" />
+          <p className="text-sm text-slate-400 font-medium">No departments yet</p>
+          <p className="text-xs text-slate-400 mt-1">Create one to start routing inbox messages.</p>
+        </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginTop: 8 }}>
+      <div className="flex flex-col gap-3">
         {departments?.map(dept => (
           <div key={dept.id}>
             {editingId === dept.id ? (
               <div>
-                <p style={{ fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 8 }}>Edit {dept.name}</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Edit {dept.name}</p>
                 <DeptForm
                   initial={{
-                    name: dept.name,
-                    email: dept.email,
+                    name: dept.name, email: dept.email,
                     reply_template: dept.reply_template ?? '',
                     sla_working_days: String(dept.sla_working_days),
                   }}
@@ -236,48 +198,32 @@ export default function DepartmentsPage() {
                 />
               </div>
             ) : (
-              <div style={{
-                background: '#fff', border: '1px solid #e2e8f0', borderRadius: 8,
-                padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-              }}>
+              <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start justify-between shadow-sm">
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-                    <span style={{ fontWeight: 700, fontSize: 15, color: '#1e293b' }}>{dept.name}</span>
-                    <span style={{
-                      fontSize: 11, fontWeight: 600, color: '#7c3aed',
-                      background: '#f5f3ff', padding: '2px 8px', borderRadius: 10,
-                    }}>
+                  <div className="flex items-center gap-3 mb-1">
+                    <span className="text-sm font-bold text-slate-900">{dept.name}</span>
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">
                       {dept.sla_working_days}d SLA
                     </span>
                   </div>
-                  <p style={{ fontSize: 13, color: '#64748b', margin: '0 0 4px' }}>{dept.email}</p>
-                  {dept.reply_template ? (
-                    <p style={{ fontSize: 12, color: '#94a3b8', margin: 0, fontStyle: 'italic' }}>
-                      Custom template set
-                    </p>
-                  ) : (
-                    <p style={{ fontSize: 12, color: '#cbd5e1', margin: 0 }}>Using default template</p>
-                  )}
+                  <p className="text-sm text-slate-500 mb-0.5">{dept.email}</p>
+                  <p className="text-xs text-slate-400 italic">
+                    {dept.reply_template ? 'Custom template set' : 'Using default template'}
+                  </p>
                 </div>
-                <div style={{ display: 'flex', gap: 8, flexShrink: 0, marginLeft: 16 }}>
+                <div className="flex gap-2 flex-shrink-0 ml-4">
                   <button
                     onClick={() => setEditingId(dept.id)}
-                    style={{
-                      padding: '5px 14px', background: '#f1f5f9', color: '#475569',
-                      border: 'none', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 500,
-                    }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
                   >
+                    <Pencil size={11} />
                     Edit
                   </button>
                   <button
-                    onClick={() => {
-                      if (confirm(`Delete "${dept.name}"?`)) deleteMutation.mutate(dept.id)
-                    }}
-                    style={{
-                      padding: '5px 14px', background: '#fff', color: '#ef4444',
-                      border: '1px solid #fca5a5', borderRadius: 5, cursor: 'pointer', fontSize: 13, fontWeight: 500,
-                    }}
+                    onClick={() => { if (confirm(`Delete "${dept.name}"?`)) deleteMutation.mutate(dept.id) }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors"
                   >
+                    <Trash2 size={11} />
                     Delete
                   </button>
                 </div>

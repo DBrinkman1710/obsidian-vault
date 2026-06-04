@@ -1,16 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Users, X, Building2 } from 'lucide-react'
 import { api } from '../../../api/client'
 
 const ALL_MODULES = ['contacts', 'tickets', 'billing', 'activity', 'inbox', 'chat']
-
-const inputStyle: React.CSSProperties = {
-  padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1',
-  fontSize: 14, color: '#1e293b', width: '100%', boxSizing: 'border-box',
-}
-const labelStyle: React.CSSProperties = {
-  fontSize: 12, fontWeight: 600, color: '#475569', display: 'block', marginBottom: 4,
-}
 
 interface Tenant {
   id: string
@@ -49,6 +42,20 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 }
 
+const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
+
+function ModuleToggle({ mod, active, onClick }: { mod: string; active: boolean; onClick: () => void }) {
+  return (
+    <button
+      type="button" onClick={onClick}
+      className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${active ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
+    >
+      {mod}
+    </button>
+  )
+}
+
 function CreateClientModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM)
@@ -57,11 +64,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   const set = (field: keyof CreateForm) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value
-      setForm(prev => ({
-        ...prev,
-        [field]: val,
-        ...(field === 'name' ? { slug: slugify(val) } : {}),
-      }))
+      setForm(prev => ({ ...prev, [field]: val, ...(field === 'name' ? { slug: slugify(val) } : {}) }))
     }
 
   const toggleModule = (mod: string) =>
@@ -74,96 +77,63 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
 
   const mutation = useMutation({
     mutationFn: (data: CreateForm) => api.post('/admin/tenants', data).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
-      onClose()
-    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to create client'),
   })
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.name.trim() || !form.slug.trim() || !form.admin_email.trim() || !form.admin_password.trim()) {
-      setError('All fields are required')
-      return
+      setError('All fields are required'); return
     }
     setError('')
     mutation.mutate(form)
   }
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 10, padding: 28,
-        width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-      }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 20 }}>Create client environment</h2>
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={labelStyle}>Company name *</label>
-              <input style={inputStyle} value={form.name} onChange={set('name')} placeholder="Acme BV" autoFocus />
-            </div>
-            <div>
-              <label style={labelStyle}>Slug (URL identifier) *</label>
-              <input style={inputStyle} value={form.slug} onChange={set('slug')} placeholder="acme-bv" />
-            </div>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Create client environment</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={labelCls}>Company name *</label>
+              <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme BV" autoFocus /></div>
+            <div><label className={labelCls}>Slug *</label>
+              <input className={inputCls} value={form.slug} onChange={set('slug')} placeholder="acme-bv" /></div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-            <div>
-              <label style={labelStyle}>Admin email *</label>
-              <input style={inputStyle} type="email" value={form.admin_email} onChange={set('admin_email')} placeholder="admin@acme.nl" />
-            </div>
-            <div>
-              <label style={labelStyle}>Admin password *</label>
-              <input style={inputStyle} type="password" value={form.admin_password} onChange={set('admin_password')} placeholder="••••••••" />
-            </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className={labelCls}>Admin email *</label>
+              <input className={inputCls} type="email" value={form.admin_email} onChange={set('admin_email')} placeholder="admin@acme.nl" /></div>
+            <div><label className={labelCls}>Admin password *</label>
+              <input className={inputCls} type="password" value={form.admin_password} onChange={set('admin_password')} placeholder="••••••••" /></div>
           </div>
           <div>
-            <label style={labelStyle}>Brand color</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label className={labelCls}>Brand color</label>
+            <div className="flex items-center gap-3">
               <input type="color" value={form.primary_color}
                 onChange={e => setForm(p => ({ ...p, primary_color: e.target.value }))}
-                style={{ width: 36, height: 36, borderRadius: 6, border: '1px solid #cbd5e1', cursor: 'pointer', padding: 2 }}
+                className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer p-0.5"
               />
-              <span style={{ fontSize: 13, color: '#64748b' }}>{form.primary_color}</span>
+              <span className="text-sm text-slate-500 font-mono">{form.primary_color}</span>
             </div>
           </div>
           <div>
-            <label style={labelStyle}>Enabled modules</label>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
+            <label className={labelCls}>Enabled modules</label>
+            <div className="flex flex-wrap gap-2 mt-1">
               {ALL_MODULES.map(mod => (
-                <button
-                  key={mod} type="button"
-                  onClick={() => toggleModule(mod)}
-                  style={{
-                    padding: '4px 12px', borderRadius: 999, fontSize: 12, fontWeight: 600,
-                    border: '1px solid',
-                    cursor: 'pointer',
-                    background: form.enabled_modules.includes(mod) ? '#eff6ff' : '#f8fafc',
-                    borderColor: form.enabled_modules.includes(mod) ? '#93c5fd' : '#e2e8f0',
-                    color: form.enabled_modules.includes(mod) ? '#2563eb' : '#94a3b8',
-                  }}
-                >
-                  {mod}
-                </button>
+                <ModuleToggle key={mod} mod={mod} active={form.enabled_modules.includes(mod)} onClick={() => toggleModule(mod)} />
               ))}
             </div>
           </div>
-          {error && <p style={{ color: '#ef4444', fontSize: 13, margin: 0 }}>{error}</p>}
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 4 }}>
-            <button type="button" onClick={onClose} style={{
-              padding: '8px 16px', borderRadius: 6, border: '1px solid #e2e8f0',
-              background: '#fff', fontSize: 14, cursor: 'pointer', color: '#475569',
-            }}>Cancel</button>
-            <button type="submit" disabled={mutation.isPending} style={{
-              padding: '8px 20px', borderRadius: 6, border: 'none',
-              background: '#2563eb', color: '#fff', fontSize: 14, fontWeight: 600,
-              cursor: mutation.isPending ? 'not-allowed' : 'pointer', opacity: mutation.isPending ? 0.7 : 1,
-            }}>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <div className="flex gap-3 justify-end pt-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
               {mutation.isPending ? 'Creating…' : 'Create client'}
             </button>
           </div>
@@ -177,60 +147,34 @@ function EditModulesModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
   const qc = useQueryClient()
   const [modules, setModules] = useState<string[]>(tenant.enabled_modules)
   const [error, setError] = useState('')
-
-  const toggle = (mod: string) =>
-    setModules(prev => prev.includes(mod) ? prev.filter(m => m !== mod) : [...prev, mod])
-
+  const toggle = (mod: string) => setModules(prev => prev.includes(mod) ? prev.filter(m => m !== mod) : [...prev, mod])
   const mutation = useMutation({
-    mutationFn: (enabled_modules: string[]) =>
-      api.patch(`/admin/tenants/${tenant.id}`, { enabled_modules }).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
-      onClose()
-    },
+    mutationFn: (enabled_modules: string[]) => api.patch(`/admin/tenants/${tenant.id}`, { enabled_modules }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
     onError: () => setError('Failed to update modules'),
   })
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 10, padding: 28,
-        width: '100%', maxWidth: 420, boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-      }}>
-        <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 6 }}>Edit modules</h2>
-        <p style={{ fontSize: 13, color: '#64748b', marginBottom: 20 }}>{tenant.name}</p>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 20 }}>
-          {ALL_MODULES.map(mod => (
-            <button
-              key={mod} type="button" onClick={() => toggle(mod)}
-              style={{
-                padding: '6px 14px', borderRadius: 999, fontSize: 13, fontWeight: 600,
-                border: '1px solid', cursor: 'pointer',
-                background: modules.includes(mod) ? '#eff6ff' : '#f8fafc',
-                borderColor: modules.includes(mod) ? '#93c5fd' : '#e2e8f0',
-                color: modules.includes(mod) ? '#2563eb' : '#94a3b8',
-              }}
-            >
-              {mod}
-            </button>
-          ))}
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Edit modules</h2>
+            <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
         </div>
-        {error && <p style={{ color: '#ef4444', fontSize: 13, marginBottom: 12 }}>{error}</p>}
-        <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-          <button onClick={onClose} style={{
-            padding: '8px 16px', borderRadius: 6, border: '1px solid #e2e8f0',
-            background: '#fff', fontSize: 14, cursor: 'pointer', color: '#475569',
-          }}>Cancel</button>
-          <button onClick={() => mutation.mutate(modules)} disabled={mutation.isPending} style={{
-            padding: '8px 20px', borderRadius: 6, border: 'none',
-            background: '#2563eb', color: '#fff', fontSize: 14, fontWeight: 600,
-            cursor: mutation.isPending ? 'not-allowed' : 'pointer', opacity: mutation.isPending ? 0.7 : 1,
-          }}>
-            {mutation.isPending ? 'Saving…' : 'Save'}
-          </button>
+        <div className="p-6 flex flex-col gap-4">
+          <div className="flex flex-wrap gap-2">
+            {ALL_MODULES.map(mod => <ModuleToggle key={mod} mod={mod} active={modules.includes(mod)} onClick={() => toggle(mod)} />)}
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <div className="flex gap-3 justify-end">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button onClick={() => mutation.mutate(modules)} disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
+              {mutation.isPending ? 'Saving…' : 'Save'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -243,55 +187,49 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
     queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then(r => r.data),
   })
 
+  const ROLE_STYLES: Record<string, string> = {
+    superadmin: 'bg-amber-100 text-amber-800',
+    admin: 'bg-blue-100 text-blue-700',
+    agent: 'bg-slate-100 text-slate-600',
+    viewer: 'bg-slate-100 text-slate-500',
+  }
+
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)',
-      display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50,
-    }}>
-      <div style={{
-        background: '#fff', borderRadius: 10, padding: 28,
-        width: '100%', maxWidth: 520, boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-        maxHeight: '80vh', overflowY: 'auto',
-      }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
-            <h2 style={{ fontSize: 18, fontWeight: 700, margin: 0 }}>Users</h2>
-            <p style={{ fontSize: 13, color: '#64748b', margin: '2px 0 0' }}>{tenant.name}</p>
+            <h2 className="text-lg font-bold text-slate-900">Users</h2>
+            <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
           </div>
-          <button onClick={onClose} style={{
-            background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: '#94a3b8',
-          }}>×</button>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
         </div>
-        {isLoading && <p style={{ color: '#94a3b8' }}>Loading…</p>}
-        {data && data.length === 0 && <p style={{ color: '#94a3b8', fontSize: 14 }}>No users yet.</p>}
-        {data && data.length > 0 && (
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-                <th style={{ padding: '6px 8px', fontSize: 12, fontWeight: 600, color: '#475569' }}>Name</th>
-                <th style={{ padding: '6px 8px', fontSize: 12, fontWeight: 600, color: '#475569' }}>Email</th>
-                <th style={{ padding: '6px 8px', fontSize: 12, fontWeight: 600, color: '#475569' }}>Role</th>
-              </tr>
-            </thead>
-            <tbody>
-              {data.map(u => (
-                <tr key={u.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                  <td style={{ padding: '8px 8px', fontSize: 14 }}>{u.full_name}</td>
-                  <td style={{ padding: '8px 8px', fontSize: 14, color: '#64748b' }}>{u.email}</td>
-                  <td style={{ padding: '8px 8px' }}>
-                    <span style={{
-                      padding: '2px 8px', borderRadius: 999, fontSize: 11, fontWeight: 600,
-                      background: u.role === 'superadmin' ? '#fef3c7' : u.role === 'admin' ? '#eff6ff' : '#f1f5f9',
-                      color: u.role === 'superadmin' ? '#92400e' : u.role === 'admin' ? '#1d4ed8' : '#475569',
-                    }}>
-                      {u.role}
-                    </span>
-                  </td>
+        <div className="overflow-y-auto flex-1">
+          {isLoading && <p className="text-sm text-slate-400 p-6">Loading…</p>}
+          {data && data.length === 0 && <p className="text-sm text-slate-400 p-6">No users yet.</p>}
+          {data && data.length > 0 && (
+            <table className="w-full">
+              <thead className="bg-slate-50 border-b border-slate-200">
+                <tr>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Role</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {data.map(u => (
+                  <tr key={u.id} className="hover:bg-slate-50">
+                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{u.full_name}</td>
+                    <td className="px-4 py-3 text-sm text-slate-500">{u.email}</td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${ROLE_STYLES[u.role] ?? ROLE_STYLES.viewer}`}>{u.role}</span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -309,97 +247,85 @@ export default function SuperAdminPage() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, margin: 0 }}>Client environments</h1>
-          <p style={{ fontSize: 13, color: '#94a3b8', marginTop: 4 }}>Manage all tenant environments</p>
+          <h1 className="text-2xl font-bold text-slate-900">Client environments</h1>
+          <p className="text-sm text-slate-400 mt-0.5">Manage all tenant environments</p>
         </div>
         <button
           onClick={() => setShowCreate(true)}
-          style={{
-            padding: '8px 16px', background: '#2563eb', color: '#fff',
-            borderRadius: 6, border: 'none', fontSize: 14, fontWeight: 600, cursor: 'pointer',
-          }}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
         >
-          + New client
+          <Plus size={15} strokeWidth={2.5} />
+          New client
         </button>
       </div>
 
-      {isLoading && <p style={{ color: '#94a3b8' }}>Loading…</p>}
-      {tenants && tenants.length === 0 && (
-        <div style={{
-          textAlign: 'center', padding: '48px 24px', background: '#f8fafc',
-          borderRadius: 8, border: '1px dashed #e2e8f0',
-        }}>
-          <p style={{ color: '#94a3b8', fontSize: 15 }}>No clients yet. Create the first one.</p>
+      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+
+      {!isLoading && (!tenants || tenants.length === 0) && (
+        <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-200">
+          <Building2 size={32} className="text-slate-300 mx-auto mb-3" />
+          <p className="text-sm text-slate-400 font-medium">No clients yet. Create the first one.</p>
         </div>
       )}
 
       {tenants && tenants.length > 0 && (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-              <th style={{ padding: '8px 12px', fontSize: 12, fontWeight: 600, color: '#475569' }}>Client</th>
-              <th style={{ padding: '8px 12px', fontSize: 12, fontWeight: 600, color: '#475569' }}>Modules</th>
-              <th style={{ padding: '8px 12px', fontSize: 12, fontWeight: 600, color: '#475569' }}>Users</th>
-              <th style={{ padding: '8px 12px', fontSize: 12, fontWeight: 600, color: '#475569' }}>Created</th>
-              <th style={{ padding: '8px 12px', fontSize: 12, fontWeight: 600, color: '#475569' }}></th>
-            </tr>
-          </thead>
-          <tbody>
-            {tenants.map(t => (
-              <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td style={{ padding: '12px 12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 10, height: 10, borderRadius: '50%', flexShrink: 0,
-                      background: t.primary_color,
-                    }} />
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: 14 }}>{t.name}</div>
-                      <div style={{ fontSize: 12, color: '#94a3b8' }}>{t.slug}</div>
-                    </div>
-                  </div>
-                </td>
-                <td style={{ padding: '12px 12px' }}>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                    {t.enabled_modules.map(m => (
-                      <span key={m} style={{
-                        padding: '2px 6px', borderRadius: 999, fontSize: 11, fontWeight: 500,
-                        background: '#eff6ff', color: '#2563eb',
-                      }}>{m}</span>
-                    ))}
-                  </div>
-                </td>
-                <td style={{ padding: '12px 12px' }}>
-                  <button
-                    onClick={() => setViewingUsers(t)}
-                    style={{
-                      background: 'none', border: 'none', cursor: 'pointer',
-                      fontSize: 14, color: '#2563eb', fontWeight: 500, padding: 0,
-                    }}
-                  >
-                    {t.user_count} {t.user_count === 1 ? 'user' : 'users'}
-                  </button>
-                </td>
-                <td style={{ padding: '12px 12px', color: '#94a3b8', fontSize: 13 }}>
-                  {new Date(t.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </td>
-                <td style={{ padding: '12px 12px', textAlign: 'right' }}>
-                  <button
-                    onClick={() => setEditingTenant(t)}
-                    style={{
-                      padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 600,
-                      border: '1px solid #e2e8f0', background: '#fff', cursor: 'pointer', color: '#475569',
-                    }}
-                  >
-                    Edit modules
-                  </button>
-                </td>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Client</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Modules</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Users</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Created</th>
+                <th className="px-4 py-3"></th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {tenants.map(t => (
+                <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.primary_color }} />
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">{t.name}</div>
+                        <div className="text-xs text-slate-400">{t.slug}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex flex-wrap gap-1">
+                      {t.enabled_modules.map(m => (
+                        <span key={m} className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">{m}</span>
+                      ))}
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <button
+                      onClick={() => setViewingUsers(t)}
+                      className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
+                    >
+                      <Users size={13} />
+                      {t.user_count} {t.user_count === 1 ? 'user' : 'users'}
+                    </button>
+                  </td>
+                  <td className="px-4 py-3 text-xs text-slate-400">
+                    {new Date(t.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      onClick={() => setEditingTenant(t)}
+                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      Edit modules
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}

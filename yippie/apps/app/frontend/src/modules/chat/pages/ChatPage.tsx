@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { MessageSquare, Send, X } from 'lucide-react'
 import { api } from '../../../api/client'
 
 function timeAgo(dt: string) {
@@ -36,8 +37,7 @@ export default function ChatPage() {
   })
 
   const replyMutation = useMutation({
-    mutationFn: (body: string) =>
-      api.post(`/chat/sessions/${selectedId}/reply`, { body }),
+    mutationFn: (body: string) => api.post(`/chat/sessions/${selectedId}/reply`, { body }),
     onSuccess: () => {
       setReplyText('')
       qc.invalidateQueries({ queryKey: ['chat-messages', selectedId] })
@@ -45,8 +45,7 @@ export default function ChatPage() {
   })
 
   const closeMutation = useMutation({
-    mutationFn: (sessionId: string) =>
-      api.post(`/chat/sessions/${sessionId}/close`),
+    mutationFn: (sessionId: string) => api.post(`/chat/sessions/${sessionId}/close`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
       qc.invalidateQueries({ queryKey: ['chat-messages', selectedId] })
@@ -60,33 +59,23 @@ export default function ChatPage() {
   const selectedSession = sessions.find((s: any) => s.id === selectedId)
 
   return (
-    <div style={{ display: 'flex', height: 'calc(100vh - 64px)', gap: 0 }}>
-
+    <div className="-m-8 flex h-[calc(100vh-0px)]" style={{ height: 'calc(100vh - 0px)' }}>
       {/* LEFT — Session list */}
-      <div style={{
-        width: 300, flexShrink: 0, borderRight: '1px solid #e2e8f0',
-        display: 'flex', flexDirection: 'column', overflow: 'hidden',
-      }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid #e2e8f0' }}>
-          <h1 style={{ fontSize: 16, fontWeight: 700, margin: 0 }}>Live Chat</h1>
-          <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0' }}>
-            WhatsApp conversations
-          </p>
+      <div className="w-72 flex-shrink-0 border-r border-slate-200 flex flex-col bg-white">
+        <div className="px-5 py-4 border-b border-slate-200">
+          <h1 className="text-base font-bold text-slate-900">Live Chat</h1>
+          <p className="text-xs text-slate-400 mt-0.5">WhatsApp conversations</p>
         </div>
 
-        <div style={{ flex: 1, overflowY: 'auto' }}>
-          {sessionsLoading && (
-            <p style={{ padding: 20, color: '#94a3b8', fontSize: 13 }}>Loading...</p>
-          )}
+        <div className="flex-1 overflow-y-auto">
+          {sessionsLoading && <p className="p-5 text-sm text-slate-400">Loading…</p>}
 
           {!sessionsLoading && sessions.length === 0 && (
-            <div style={{ padding: 24, textAlign: 'center' }}>
-              <p style={{ fontSize: 28, marginBottom: 8 }}>💬</p>
-              <p style={{ fontSize: 13, color: '#64748b', fontWeight: 600, marginBottom: 4 }}>
-                No sessions yet
-              </p>
-              <p style={{ fontSize: 12, color: '#94a3b8', lineHeight: 1.5 }}>
-                WhatsApp messages will appear here when customers reach out.
+            <div className="p-8 text-center">
+              <MessageSquare size={28} className="text-slate-300 mx-auto mb-3" />
+              <p className="text-sm font-semibold text-slate-600 mb-1">No sessions yet</p>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                WhatsApp messages appear here when customers reach out.
               </p>
             </div>
           )}
@@ -95,40 +84,21 @@ export default function ChatPage() {
             <button
               key={s.id}
               onClick={() => setSelectedId(s.id)}
-              style={{
-                width: '100%', textAlign: 'left', padding: '14px 20px',
-                background: selectedId === s.id ? '#eff6ff' : 'transparent',
-                border: 'none', borderBottom: '1px solid #f1f5f9',
-                cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 4,
-              }}
+              className={`w-full text-left px-5 py-3.5 border-b border-slate-100 flex flex-col gap-1.5 transition-colors ${selectedId === s.id ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ fontWeight: 600, fontSize: 13, color: '#1e293b' }}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-slate-900 truncate">
                   {s.visitor_name || s.whatsapp_phone || 'Unknown'}
                 </span>
-                <span style={{ fontSize: 11, color: '#94a3b8' }}>
-                  {timeAgo(s.started_at)}
-                </span>
+                <span className="text-xs text-slate-400 flex-shrink-0 ml-2">{timeAgo(s.started_at)}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div className="flex items-center gap-1.5 flex-wrap">
                 {s.source === 'whatsapp' && (
-                  <span style={{
-                    fontSize: 10, fontWeight: 700, color: '#16a34a', background: '#f0fdf4',
-                    border: '1px solid #bbf7d0', borderRadius: 10, padding: '1px 6px',
-                  }}>
-                    WhatsApp
-                  </span>
+                  <span className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">WhatsApp</span>
                 )}
-                <span style={{
-                  fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 10,
-                  background: s.is_open ? '#dbeafe' : '#f1f5f9',
-                  color: s.is_open ? '#2563eb' : '#64748b',
-                }}>
+                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full ${s.is_open ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'}`}>
                   {s.is_open ? 'Open' : 'Closed'}
                 </span>
-                {s.whatsapp_phone && s.visitor_name && (
-                  <span style={{ fontSize: 11, color: '#94a3b8' }}>{s.whatsapp_phone}</span>
-                )}
               </div>
             </button>
           ))}
@@ -137,82 +107,44 @@ export default function ChatPage() {
 
       {/* RIGHT — Conversation */}
       {!selectedSession ? (
-        <div style={{
-          flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center',
-          flexDirection: 'column', gap: 12, color: '#94a3b8',
-        }}>
-          <p style={{ fontSize: 32 }}>💬</p>
-          <p style={{ fontSize: 14, fontWeight: 500 }}>Select a conversation</p>
+        <div className="flex-1 flex items-center justify-center flex-col gap-3 text-slate-400 bg-slate-50">
+          <MessageSquare size={36} className="text-slate-300" />
+          <p className="text-sm font-medium">Select a conversation</p>
         </div>
       ) : (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-
-          {/* Header */}
-          <div style={{
-            padding: '14px 24px', borderBottom: '1px solid #e2e8f0',
-            display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-            background: '#fff',
-          }}>
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <div className="px-6 py-3.5 border-b border-slate-200 flex items-center justify-between bg-white">
             <div>
-              <p style={{ fontWeight: 700, fontSize: 15, color: '#1e293b', margin: 0 }}>
+              <p className="font-bold text-sm text-slate-900">
                 {selectedSession.visitor_name || selectedSession.whatsapp_phone || 'Unknown visitor'}
               </p>
-              <p style={{ fontSize: 12, color: '#94a3b8', margin: '2px 0 0' }}>
+              <p className="text-xs text-slate-400 mt-0.5">
                 {selectedSession.whatsapp_phone}
                 {' · '}
-                Started {new Date(selectedSession.started_at).toLocaleString('en-GB', {
-                  dateStyle: 'short', timeStyle: 'short'
-                })}
+                Started {new Date(selectedSession.started_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
               </p>
             </div>
             {selectedSession.is_open && (
               <button
                 onClick={() => closeMutation.mutate(selectedSession.id)}
                 disabled={closeMutation.isPending}
-                style={{
-                  padding: '6px 14px', background: '#f1f5f9', color: '#475569',
-                  border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer',
-                  fontSize: 12, fontWeight: 600,
-                }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors"
               >
+                <X size={12} />
                 Close session
               </button>
             )}
           </div>
 
-          {/* Messages */}
-          <div style={{
-            flex: 1, overflowY: 'auto', padding: '20px 24px',
-            display: 'flex', flexDirection: 'column', gap: 12,
-            background: '#f8fafc',
-          }}>
-            {msgsLoading && <p style={{ color: '#94a3b8', fontSize: 13 }}>Loading messages...</p>}
-
+          <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-3 bg-slate-50">
+            {msgsLoading && <p className="text-sm text-slate-400">Loading messages…</p>}
             {messages.map((m: any) => {
               const isAgent = m.sender_type === 'agent'
               return (
-                <div
-                  key={m.id}
-                  style={{
-                    display: 'flex',
-                    justifyContent: isAgent ? 'flex-end' : 'flex-start',
-                  }}
-                >
-                  <div style={{
-                    maxWidth: '70%', padding: '10px 14px', borderRadius: 12,
-                    background: isAgent ? '#2563eb' : '#fff',
-                    color: isAgent ? '#fff' : '#1e293b',
-                    border: isAgent ? 'none' : '1px solid #e2e8f0',
-                    boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-                  }}>
-                    <p style={{ fontSize: 14, margin: '0 0 4px', lineHeight: 1.5, whiteSpace: 'pre-wrap' }}>
-                      {m.body}
-                    </p>
-                    <p style={{
-                      fontSize: 11, margin: 0,
-                      color: isAgent ? 'rgba(255,255,255,0.7)' : '#94a3b8',
-                      textAlign: 'right',
-                    }}>
+                <div key={m.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
+                  <div className={`max-w-[70%] px-4 py-2.5 rounded-2xl shadow-sm ${isAgent ? 'bg-blue-600 text-white' : 'bg-white text-slate-900 border border-slate-200'}`}>
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.body}</p>
+                    <p className={`text-xs mt-1 text-right ${isAgent ? 'text-blue-200' : 'text-slate-400'}`}>
                       {formatTime(m.created_at)}
                     </p>
                   </div>
@@ -222,12 +154,8 @@ export default function ChatPage() {
             <div ref={bottomRef} />
           </div>
 
-          {/* Reply box */}
           {selectedSession.is_open ? (
-            <div style={{
-              padding: '16px 24px', borderTop: '1px solid #e2e8f0', background: '#fff',
-              display: 'flex', gap: 12, alignItems: 'flex-end',
-            }}>
+            <div className="px-6 py-4 border-t border-slate-200 bg-white flex gap-3 items-end">
               <textarea
                 value={replyText}
                 onChange={e => setReplyText(e.target.value)}
@@ -239,29 +167,19 @@ export default function ChatPage() {
                 }}
                 placeholder="Type a reply… (Enter to send, Shift+Enter for new line)"
                 rows={3}
-                style={{
-                  flex: 1, padding: '10px 14px', borderRadius: 8,
-                  border: '1px solid #cbd5e1', fontSize: 14, resize: 'none',
-                  fontFamily: 'inherit',
-                }}
+                className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm resize-none font-[inherit] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button
                 onClick={() => { if (replyText.trim()) replyMutation.mutate(replyText.trim()) }}
                 disabled={replyMutation.isPending || !replyText.trim()}
-                style={{
-                  padding: '10px 20px', background: '#25d366', color: '#fff',
-                  border: 'none', borderRadius: 8, cursor: 'pointer',
-                  fontWeight: 700, fontSize: 14, whiteSpace: 'nowrap',
-                }}
+                className="px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-sm rounded-xl transition-colors flex items-center gap-1.5"
               >
-                Send ↑
+                <Send size={14} />
+                Send
               </button>
             </div>
           ) : (
-            <div style={{
-              padding: '14px 24px', borderTop: '1px solid #e2e8f0', background: '#f8fafc',
-              textAlign: 'center', color: '#94a3b8', fontSize: 13,
-            }}>
+            <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 text-center text-sm text-slate-400">
               This session is closed.
             </div>
           )}

@@ -1,7 +1,20 @@
 import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Send, Lock } from 'lucide-react'
 import { api } from '../../../api/client'
+
+const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'resolved', 'closed']
+
+const STATUS_STYLES: Record<string, string> = {
+  open:        'bg-blue-600 text-white border-blue-600',
+  in_progress: 'bg-amber-500 text-white border-amber-500',
+  waiting:     'bg-violet-600 text-white border-violet-600',
+  resolved:    'bg-green-600 text-white border-green-600',
+  closed:      'bg-slate-500 text-white border-slate-500',
+}
+
+const STATUS_INACTIVE = 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
 
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>()
@@ -31,65 +44,81 @@ export default function TicketDetail() {
     },
   })
 
-  if (!ticket) return <p>Loading...</p>
+  if (!ticket) return <p className="text-sm text-slate-400">Loading…</p>
 
   return (
-    <div style={{ maxWidth: 720 }}>
-      <h1 style={{ fontSize: 20, fontWeight: 700, marginBottom: 4 }}>{ticket.subject}</h1>
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, fontSize: 13 }}>
-        <span>Status: <strong>{ticket.status}</strong></span>
-        <span>Priority: <strong>{ticket.priority}</strong></span>
-        <span>Source: <strong>{ticket.source}</strong></span>
+    <div className="max-w-2xl">
+      <h1 className="text-xl font-bold text-slate-900 mb-2">{ticket.subject}</h1>
+
+      <div className="flex gap-3 mb-6 text-sm text-slate-600">
+        <span>Status: <strong className="text-slate-900">{ticket.status}</strong></span>
+        <span>Priority: <strong className="text-slate-900">{ticket.priority}</strong></span>
+        <span>Source: <strong className="text-slate-900">{ticket.source}</strong></span>
       </div>
 
       {ticket.description && (
-        <p style={{ color: '#475569', marginBottom: 24, whiteSpace: 'pre-wrap' }}>{ticket.description}</p>
+        <p className="text-sm text-slate-600 mb-6 whitespace-pre-wrap bg-slate-50 rounded-lg p-4 border border-slate-200">
+          {ticket.description}
+        </p>
       )}
 
-      <div style={{ display: 'flex', gap: 8, marginBottom: 32 }}>
-        {['open', 'in_progress', 'waiting', 'resolved', 'closed'].map(s => (
-          <button key={s} onClick={() => statusMutation.mutate(s)}
-            style={{
-              padding: '4px 12px', borderRadius: 16, border: '1px solid #cbd5e1',
-              background: ticket.status === s ? '#2563eb' : '#f8fafc',
-              color: ticket.status === s ? '#fff' : '#475569',
-              cursor: 'pointer', fontSize: 13,
-            }}>
+      <div className="flex gap-2 mb-8 flex-wrap">
+        {STATUS_OPTIONS.map(s => (
+          <button
+            key={s}
+            onClick={() => statusMutation.mutate(s)}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors capitalize ${ticket.status === s ? STATUS_STYLES[s] : STATUS_INACTIVE}`}
+          >
             {s.replace('_', ' ')}
           </button>
         ))}
       </div>
 
-      <h3 style={{ fontWeight: 600, marginBottom: 12 }}>Comments</h3>
-      {comments?.map((c: any) => (
-        <div key={c.id} style={{
-          background: c.is_internal ? '#fefce8' : '#f8fafc',
-          border: `1px solid ${c.is_internal ? '#fef08a' : '#e2e8f0'}`,
-          borderRadius: 8, padding: '12px 16px', marginBottom: 10,
-        }}>
-          {c.is_internal && <p style={{ fontSize: 11, color: '#ca8a04', fontWeight: 600, marginBottom: 4 }}>INTERNAL NOTE</p>}
-          <p style={{ color: '#1e293b', whiteSpace: 'pre-wrap' }}>{c.body}</p>
-          <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 6 }}>{new Date(c.created_at).toLocaleString()}</p>
-        </div>
-      ))}
+      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Comments</h3>
 
-      <div style={{ marginTop: 20 }}>
+      <div className="flex flex-col gap-3 mb-6">
+        {comments?.map((c: any) => (
+          <div key={c.id} className={`rounded-xl border p-4 ${c.is_internal ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+            {c.is_internal && (
+              <div className="flex items-center gap-1.5 mb-2">
+                <Lock size={11} className="text-amber-600" />
+                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Internal note</p>
+              </div>
+            )}
+            <p className="text-sm text-slate-900 whitespace-pre-wrap">{c.body}</p>
+            <p className="text-xs text-slate-400 mt-2">{new Date(c.created_at).toLocaleString()}</p>
+          </div>
+        ))}
+        {(!comments || comments.length === 0) && (
+          <p className="text-sm text-slate-400">No comments yet.</p>
+        )}
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
         <textarea
-          value={comment} onChange={e => setComment(e.target.value)}
-          placeholder="Write a reply or note..."
+          value={comment}
+          onChange={e => setComment(e.target.value)}
+          placeholder="Write a reply or note…"
           rows={4}
-          style={{ width: '100%', padding: '10px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 14, resize: 'vertical' }}
+          className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400"
         />
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginTop: 8 }}>
-          <label style={{ fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input type="checkbox" checked={isInternal} onChange={e => setIsInternal(e.target.checked)} />
-            Internal note (not visible to customer)
+        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={isInternal}
+              onChange={e => setIsInternal(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            <Lock size={12} className="text-slate-400" />
+            Internal note
           </label>
-          <button onClick={() => commentMutation.mutate()} disabled={!comment.trim()}
-            style={{
-              padding: '8px 20px', background: '#2563eb', color: '#fff',
-              border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 14,
-            }}>
+          <button
+            onClick={() => commentMutation.mutate()}
+            disabled={!comment.trim() || commentMutation.isPending}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+          >
+            <Send size={13} />
             Send
           </button>
         </div>
