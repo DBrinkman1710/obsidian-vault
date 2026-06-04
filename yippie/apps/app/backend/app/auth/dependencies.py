@@ -43,9 +43,13 @@ async def get_current_user(
     return user
 
 
-async def require_admin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
+async def require_admin(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
     if current_user.role not in (UserRole.admin, UserRole.superadmin):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
+    await db.execute(text("RESET ROLE"))
     return current_user
 
 
