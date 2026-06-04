@@ -1,7 +1,61 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-04 (session 6)**
+**Last updated:** 2026-06-04 (session 7)**
 **Branch:** `sandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 7 — 2026-06-04 (UI overhaul + email system + bug fixes)
+
+### What was done
+
+#### 1. Full Tailwind UI conversion (13 pages)
+Every page now uses the consistent Tailwind design system matching the Sidebar/DraftReview. Commit `078795e`.
+- LoginPage, ContactList, ContactDetail, ContactNew
+- TicketList, TicketDetail, TicketNew
+- InboxQueue, ActivityFeed, InvoiceList
+- ChatPage, DepartmentsPage, SuperAdminPage
+
+#### 2. Environment-aware Clients tab (`dc42746`)
+Clients management tab now only shows on `dev` and `devsandbox` environments. On `sandbox` and `production` (client-facing URLs) it's hidden even for superadmin. `environment` field added to `GET /api/v1/tenant/config` response → `Sidebar.tsx` uses it.
+
+#### 3. Superadmin response serialization fixes (`9c05af4`, `528946f`)
+Both `create_tenant` and `update_tenant` now return a dict with `user_count` instead of a plain ORM object. This fixed the false "Failed to create client" / "Failed to update modules" errors — operations were succeeding but FastAPI 500'd on response serialization.
+
+#### 4. Compose email feature (`509e7df`)
+New "Compose" button top-right on InboxQueue. Full modal with:
+- Multi-contact picker (search contacts, free-email entry, "All contacts" shortcut)
+- BCC send for multiple recipients
+- AI suggestion panel (describe email in plain text → Claude Haiku writes subject + body)
+- Direct send via Resend, no draft review step
+- Backend: `POST /api/v1/inbox/compose` + `POST /api/v1/inbox/compose/suggest`
+
+#### 5. Email inbound fixes
+- **Webhook 403 fix** (`7ed5004`): Webhook endpoints moved to `webhook_router` mounted without auth in `main.py`. Resend was getting 403 because the router required a Bearer token.
+- **AI scan fallback** (`f5e482e`): If `scan_message` fails (no `ANTHROPIC_API_KEY`, API error), draft now uses the raw email subject/body instead of NULL → no more NOT NULL constraint crash.
+- **Tenant routing fix** (`3929e09`): `resolve_tenant_uuid` now uses `ORDER BY created_at` to always pick the first-seeded (Yippie) tenant, not a random one.
+- **Resend payload fix** (`9936773`): Resend wraps inbound email fields inside `data` object. Was reading from top level so sender/subject came in empty. Now reads `payload["data"]` with fallback.
+
+#### 6. Inbox UX (`e02824f`)
+Entire draft card is now clickable (wrapped in `Link`), not just the Review button. Hover highlights border blue.
+
+#### 7. resolve_tenant_uuid note
+Current behaviour: all inbound emails land in the first-created (Yippie) tenant. **Phase 2 fix**: add `inbound_email` to Tenant model → webhook looks up tenant by `to` field from email payload → each client's customers email their own address and land in the right inbox.
+
+### State right now
+- All deploys pushed to `sandbox` branch, Railway deploying
+- Email system: Resend receives at `support@getyippie.com` → sandbox webhook → Yippie inbox (after replay in Resend dashboard)
+- Hit **Replay** in Resend for the two pending events once sandbox finishes deploying
+
+### Next session: start Phase 2
+All pre-Phase 2 items are done. Phase 2 starts with one Alembic migration adding 4 fields to `Tenant`:
+```python
+is_active: bool = True
+is_demo: bool = False
+go_live_at: datetime | None
+inbound_email: str | None
+```
+See ROADMAP.md Phase 2 section for full list of items.
 
 ---
 
