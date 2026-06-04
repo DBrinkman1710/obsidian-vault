@@ -176,8 +176,8 @@ export default function HomePage() {
 
           <div className="hidden md:flex items-center gap-8">
             <a href="#features"     className="text-sm text-slate-600 hover:text-slate-900 transition-colors">Features</a>
-            <a href="#pricing"      className="text-sm text-slate-600 hover:text-slate-900 transition-colors">Pricing</a>
             <a href="#how-it-works" className="text-sm text-slate-600 hover:text-slate-900 transition-colors">How it works</a>
+            <a href="#pricing"      className="text-sm text-slate-600 hover:text-slate-900 transition-colors">Pricing</a>
             <a
               href={APP_URL}
               className="text-sm font-semibold px-4 py-2 rounded-xl border border-slate-200 text-slate-700 hover:border-slate-400 transition-colors"
