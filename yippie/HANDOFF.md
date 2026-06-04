@@ -1,7 +1,36 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-04 (session 4)**
+**Last updated:** 2026-06-04 (session 5)**
 **Branch:** `sandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 5 — 2026-06-04 (Phase 1 complete + deployment debugging)
+
+### What was done
+
+#### 1. Environment isolation fully working
+- Dev Sandbox now uses Sandbox's **public** Postgres URL (`acela.proxy.rlwy.net:26574`) in `DATABASE_URL`. Internal Railway hostnames (`*.railway.internal`) only resolve within their own environment's network — copying them across environments connects to the wrong Postgres with the wrong credentials.
+- `PORT` env var was deleted from Dev Sandbox — it was overriding Railway's default port routing and preventing nginx from starting.
+- Both `sandbox.getyippie.com` and `devsandbox.getyippie.com` now share one Postgres DB and deploy cleanly.
+
+#### 2. Startup chain fixed
+- `promote_superadmin.py` now catches all exceptions internally (never exits non-zero) — startup chain can't be broken by it.
+- `require_superadmin` in `auth/dependencies.py` now calls `RESET ROLE` after the superadmin check — this fixes the `POST /api/v1/admin/tenants` "Failed to create client" error caused by `app_user` not having INSERT on the tenants table.
+
+#### 3. Credentials note
+- Login: `diederik1710@gmail.com` / `password` (the initial seed password — weak, will be changed in Phase 3 settings page)
+- **Action needed:** Update `ADMIN_PASSWORD` in Railway Variables for both Sandbox and Dev Sandbox to a strong value so fresh reseeds never use "password" again.
+- Password change in the app UI is a Phase 3 feature (settings/profile page).
+
+### Phase 1 status: COMPLETE
+All Phase 1 items are done. Both sandbox and devsandbox are running, healthy, and sharing the same database. Ready to start Phase 2.
+
+### Next session: Phase 2 — Superadmin Power Tools
+1. Make client inactive (`is_active` on Tenant model + migration + UI toggle)
+2. Multiple admin users per client (`POST /admin/tenants/{id}/users`)
+3. Make more superadmins from dev (protected endpoint + UI)
+4. Demo/offline mode per client (`is_demo` + `go_live_at` on Tenant)
 
 ---
 
