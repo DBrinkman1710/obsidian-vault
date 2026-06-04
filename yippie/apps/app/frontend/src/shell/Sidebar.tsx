@@ -79,7 +79,13 @@ export function Sidebar() {
       </nav>
 
       <div style={{ borderTop: '1px solid #334155', paddingTop: 8 }}>
-        {user?.role === 'admin' && (
+        {user?.role === 'superadmin' && (
+          <NavLink to="/superadmin/clients" style={navLinkStyle}>
+            <span>🏢</span>
+            <span>Clients</span>
+          </NavLink>
+        )}
+        {(user?.role === 'admin' || user?.role === 'superadmin') && (
           <NavLink to="/settings/departments" style={navLinkStyle}>
             <span>⚙️</span>
             <span>Settings</span>

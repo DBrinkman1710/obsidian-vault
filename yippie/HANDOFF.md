@@ -1,7 +1,8 @@
 # Yippie — Handoff Document
-**Date:** 2026-06-03  
+**Date:** 2026-06-04  
 **Branch:** `claude/modular-account-management-design-XrQwj` (production/dev/commercial)  
 **Sandbox branch:** `sandbox`  
+**Dev sandbox branch:** `devsandbox`  
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 
 ---
@@ -16,12 +17,25 @@ A multi-tenant SaaS customer service platform for SMB clients. One shared deploy
 
 ## Railway environments
 
-| Environment | URL | Branch | Status (2026-06-03) | Purpose |
+| Environment | URL | Branch | Status (2026-06-04) | Purpose |
 |---|---|---|---|---|
-| production | app.getyippie.com | claude/modular-account-management-design-XrQwj | Deploying (multi-tenant commit) | Main client-facing app |
-| Development | dev.getyippie.com | same | Deploying | Superadmin-only management |
-| Commercial | getyippie.com (see note) | same | SUCCESS | Next.js marketing site |
-| Sandbox | sandbox.getyippie.com | sandbox | FAILED (needs Railway setup) | Test before production |
+| production | app.getyippie.com | claude/modular-account-management-design-XrQwj | Active | Main client-facing app |
+| Development | dev.getyippie.com | same | Active | Superadmin-only management |
+| Commercial | getyippie.com (see note) | same | Active | Next.js marketing site |
+| Sandbox | sandbox.getyippie.com | sandbox | Needs Railway setup | Staging before production |
+| Dev sandbox | devsandbox.getyippie.com | devsandbox | Needs Railway branch link | Feature development & testing |
+
+### Promotion workflow
+
+```
+devsandbox  →  sandbox  →  production (app + dev)
+```
+
+Use `scripts/promote.sh` to promote between environments:
+```bash
+./scripts/promote.sh devsandbox→sandbox      # promotes to sandbox.getyippie.com
+./scripts/promote.sh sandbox→production      # promotes to app.getyippie.com + dev.getyippie.com
+```
 
 **Commercial DNS note:** getyippie.com CNAME was recently changed in Cloudflare to the correct Railway target (`qikek5qn.up.railway.app`). But Railway routing is still returning 502 — the domain may need Cloudflare proxy temporarily turned OFF so Railway can verify the CNAME. See "Outstanding issues" below.
 
@@ -146,16 +160,20 @@ f2e3d4c5b6a7  add enabled_modules, primary_color, logo_url to tenants  ← NEW
 
 Also check Railway dashboard → Commercial → obsidian-vault → Custom Domains → getyippie.com — if it shows a NEW `_railway-verify` token, update the TXT record in Cloudflare too before toggling proxy.
 
-### 2. Sandbox Railway environment — not set up
-**Status:** `sandbox` git branch exists and is pushed. Railway environment "Sandbox" does NOT exist yet.
+### 2. Sandbox + Dev Sandbox Railway environments — not set up
+**Status:** `sandbox` and `devsandbox` git branches exist and are pushed. Railway environments need to be created manually.
 
-**Fix:** Railway dashboard → Yippie project → New Environment → "Sandbox" → copy from production → connect to `sandbox` branch → add Postgres → add `sandbox.getyippie.com` custom domain → set `ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars.
+**Fix (sandbox):** Railway dashboard → Yippie project → New Environment → "Sandbox" → copy from production → connect to `sandbox` branch → add Postgres → add `sandbox.getyippie.com` custom domain → set `ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars.
 
-### 3. Frontend not yet rebuilt for multi-tenant
-The Vite/React frontend currently shows a static layout. It needs a UI for:
-- Superadmin dashboard (list clients, create client, edit modules)
-- The module sidebar already calls `/api/v1/tenant/config` to determine which nav items to show — this now works dynamically per tenant ✓
-- But there's no admin panel UI yet
+**Fix (devsandbox):** Railway dashboard → Yippie project → New Environment → "Dev Sandbox" → copy from sandbox → connect to `devsandbox` branch → add Postgres → add `devsandbox.getyippie.com` custom domain → set `ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars.
+
+### 3. Frontend superadmin UI — DONE
+Built `SuperAdminPage.tsx` at `/superadmin/clients`:
+- List all client tenants (name, slug, modules, user count, created date)
+- Create new client environment (modal with form — name, slug, admin credentials, modules, brand color)
+- Edit enabled modules per client
+- View all users for a client
+- Only visible in sidebar for `superadmin` role
 
 ### 4. Password change on production
 Default `ADMIN_PASSWORD` env var should be changed from `password` to something secure. Set in Railway dashboard → production → obsidian-vault → Variables.
@@ -188,11 +206,10 @@ curl -X POST https://app.getyippie.com/api/v1/admin/tenants \
 Then log in as `client@test.com` and verify data isolation.
 
 ### Next features to build
-1. **Superadmin UI** — admin panel in the React frontend to manage clients visually
+1. **Set up Railway environments** — create Sandbox + Dev Sandbox environments in Railway dashboard (see issue #2 above)
 2. **getyippie.com fix** — turn off Cloudflare proxy temporarily to activate Railway routing
-3. **Sandbox environment** — create in Railway dashboard
-4. **Email notification on client creation** — send welcome email via Mailgun/Resend when `POST /api/v1/admin/tenants` is called
-5. **Per-tenant custom domain** — optional: give big clients their own URL (e.g., `acme.getyippie.com`) pointing to the same Railway service
+3. **Email notification on client creation** — send welcome email via Mailgun/Resend when `POST /api/v1/admin/tenants` is called
+4. **Per-tenant custom domain** — optional: give big clients their own URL (e.g., `acme.getyippie.com`) pointing to the same Railway service
 
 ---
 

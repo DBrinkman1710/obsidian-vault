@@ -18,6 +18,7 @@ const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
 const LoginPage       = lazy(() => import('./auth/LoginPage'))
 const DepartmentsPage = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
+const SuperAdminPage  = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -90,6 +91,7 @@ export default function App() {
               } />
 
               <Route path="/settings/departments" element={<DepartmentsPage />} />
+              <Route path="/superadmin/clients" element={<SuperAdminPage />} />
             </Routes>
           </Suspense>
         </main>
