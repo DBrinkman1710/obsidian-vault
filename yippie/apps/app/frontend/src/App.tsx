@@ -28,11 +28,14 @@ function PagePad({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { token } = useAuth()
+  const { token, refreshUser } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
 
   useEffect(() => {
-    if (token) fetchTenantConfig().then(setConfig)
+    if (token) {
+      refreshUser()
+      fetchTenantConfig().then(setConfig)
+    }
   }, [token])
 
   if (!token) {

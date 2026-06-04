@@ -1,7 +1,60 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-04 (session 2)
-**Branch:** `sandbox` (main working branch going forward — devsandbox merged in)
+**Last updated:** 2026-06-04 (session 3)**
+**Branch:** `sandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 3 — 2026-06-04 (Phase 1: Environment Isolation)
+
+### What was done
+
+#### 1. Auth role refresh on app load (`useAuth.ts` + `App.tsx`)
+
+**Problem:** `useAuth` stored the user object in `localStorage` at login time. If `promote_superadmin.py` was run on the server after login, the cached role (`admin`) never updated — so the Clients nav link stayed hidden even after the DB was updated.
+
+**Fix:**
+- Added `refreshUser()` to `useAuth.ts` — calls `GET /api/v1/auth/me` and updates localStorage + Zustand state
+- `App.tsx` now calls `refreshUser()` on every mount (alongside `fetchTenantConfig()`)
+- Result: role is always fresh from the DB. After running `promote_superadmin.py`, a page reload picks up `superadmin` automatically — no logout/login required.
+
+#### 2. ROADMAP.md added to repo root
+Full phased development plan committed to `sandbox` branch.
+
+### Manual steps still required (Phase 1)
+
+#### Fix dev settings access (you need to do this)
+Your account in the **dev** Railway environment DB is still `admin`, not `superadmin`. The code fix above will pick up the new role after you run this once:
+```bash
+railway link                          # link to the dev environment
+railway run python apps/app/backend/promote_superadmin.py
+```
+Then refresh the page at dev.getyippie.com — Clients nav should appear immediately (no logout needed).
+
+#### Fix devsandbox ↔ app email isolation (you need to do this)
+The webhook URL is already env-specific (`devsandbox.getyippie.com/api/v1/inbox/webhooks/email` vs `app.getyippie.com/api/v1/inbox/webhooks/email`). The issue is that your email provider routes ALL inbound mail to one URL.
+
+**Fix in Mailgun (or whichever inbound provider):**
+1. Create a separate receiving address for devsandbox, e.g. `support-dev@mg.getyippie.com`
+2. Create a Mailgun route: match `support-dev@mg.getyippie.com` → forward to `https://devsandbox.getyippie.com/api/v1/inbox/webhooks/email`
+3. Keep the production route (`support@mg.getyippie.com`) pointing to `https://app.getyippie.com/api/v1/inbox/webhooks/email`
+4. Set `INBOUND_EMAIL=support-dev@mg.getyippie.com` in the devsandbox Railway env vars
+
+Test: send an email to `support-dev@mg.getyippie.com` → should appear in devsandbox inbox only.
+
+#### Set up Sandbox Railway environment (you need to do this)
+Railway dashboard → Yippie project → New Environment:
+1. Name: `Sandbox`, copy from production
+2. Connect to `sandbox` branch
+3. Add Postgres plugin
+4. Add custom domain: `sandbox.getyippie.com` (DNS-only CNAME initially)
+5. Set env vars: `ADMIN_EMAIL=diederik1710@gmail.com`, `ADMIN_PASSWORD=<secure>`, `ENVIRONMENT=sandbox`
+6. Deploy and run `railway run python apps/app/backend/promote_superadmin.py`
+
+#### Remove web from sandbox/dev Railway deploys (you need to do this)
+No code change needed. In Railway dashboard:
+- Find the **Commercial** (web) service → Settings → Source → change the watched branch to `main` or the production branch only
+- This stops `apps/web` from rebuilding every time you push to sandbox/devsandbox
 
 ---
 
