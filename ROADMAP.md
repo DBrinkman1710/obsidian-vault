@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-05 (session 10)
+**Updated:** 2026-06-05 (session 13)
 
 ---
 
@@ -19,11 +19,14 @@
 
 | Role | Access |
 |---|---|
-| Superadmin | dev.getyippie.com + all client apps |
+| Root owner | diederik1710@gmail.com only — can see Superadmins panel in dev, can promote/deactivate superadmins |
+| Superadmin | dev.getyippie.com + all client apps — full access but cannot manage other superadmins |
 | Admin | Own client app only (can edit settings) |
 | User | Own client app only (cannot edit settings) |
 
 **Environments:** live = `app.getyippie.com` + `dev.getyippie.com`; sandbox = `sandbox.getyippie.com` + `devsandbox.getyippie.com`
+
+> **TODO (future):** Formally implement the root-owner distinction as a DB role above superadmin. For now, gate the Superadmins panel behind `email === "diederik1710@gmail.com"` check.
 
 ---
 
@@ -63,6 +66,9 @@ Items build on what was shipped in session 9.
 - Deactivation requires own password confirmation; own account protected
 - Scope note shown in UI: sandbox superadmins ≠ live superadmins
 - TODO (Phase 6): "Add superadmin" button with password-verify popup → invite email flow
+
+### 8c. Status column labels (pending)
+- Clients tab status column should show "Active" / "Inactive" / "Demo" as text labels clearly — verify pill text is readable and consistent across all views
 
 ---
 
@@ -106,11 +112,21 @@ Items build on what was shipped in session 9.
 - Compose modal: attach files (drag-and-drop or file picker)
 - Reply modal: attach files to outbound replies
 
+### 17. Undo send
+- Send confirmation popup title: **"Yippie"** (large); "email sent" as smaller grey subtext below
+- A progress bar fills up over ~5 seconds
+- **Undo** button visible during fill — clicking it cancels the send before Resend dispatch
+- After bar completes, email is actually sent via Resend (delayed dispatch pattern)
+
+### 18. Modules order matches sidebar
+- In the Clients tab (dev), the enabled_modules toggle list must follow the same order as the sidebar nav in client apps
+- Sidebar order is the source of truth
+
 ---
 
 ## Phase 4 — Contact management
 
-### 15. Multi-select contacts
+### 19. Multi-select contacts
 - Checkbox per contact row
 - Action bar when ≥1 selected:
   - **Compose** → pre-fills Compose modal with all selected emails
@@ -121,25 +137,27 @@ Items build on what was shipped in session 9.
 
 ## Phase 5 — Client onboarding control plane
 
-### 16. Client onboarding wizard
+### 20. Client onboarding wizard
 Guided multi-step flow in SuperAdminPage when creating a new client:
-1. Basic info (name, slug, admin credentials)
+1. Company name + contact name + admin email
 2. Modules toggle
 3. Branding (color, logo)
 4. Add additional admin users
 5. Status: start as demo or go live immediately
+- Admin email is promoted to admin role (not superadmin)
+- After creation: invite email sent via Resend so admin can set their own password
 
-### 17. Client environment management from dev
+### 21. Client environment management from dev
 - From dev.getyippie.com, Diederik sees all client tenants
 - Can activate / deactivate / set to demo from the list
 - Clients created in dev automatically appear in app.getyippie.com (shared DB — already works)
 - The "client app" is their isolated tenant in the shared deployment — no separate Railway env per client
 
-### 18. Access all client environments from dev
+### 22. Access all client environments from dev
 - From SuperAdminPage, "Impersonate" button per client → logs in as their admin (generates short-lived token)
 - Lets Diederik test/debug a client's environment without knowing their password
 
-### 19. Delete client with password protection
+### 23. Delete client with password protection
 - Deleting a client + their environment requires password confirmation (diederik1710@gmail.com)
 - Wipes all tenant data after confirmation; irreversible
 
@@ -147,37 +165,42 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 
 ## Phase 6 — User management
 
-### 19. Repair settings page
-- `/settings/profile` — update name, email, password
+### 24. Repair settings page
+- `/settings/profile` — update name, email, **change own password** (important)
 - `/settings/team` — invite/manage users for this tenant (admin only)
 - `/settings/departments` — already exists
 - Sidebar: admin sees Profile + Team + Departments; superadmin also sees Superadmins link
 
-### 20. User registration / invite
+### 25. User registration / invite
 - Admin creates invite → signed token emailed via Resend
 - `/register?token=xxx` → user sets password, gets assigned role
 - Backend: `POST /admin/invite`, `POST /auth/register` (token-gated)
 
-### 21. Forgot password
+### 26. Forgot password
 - `/forgot-password` → enters email → receives reset link via Resend
 - `/reset-password?token=xxx` → sets new password
 - Backend: `POST /auth/forgot-password`, `POST /auth/reset-password`
+
+### 27. Superadmin invite flow (from dev)
+- "Create superadmin" panel in dev (below "Create client")
+- Flow: password-verification popup (root owner confirms) → new window: name + email → invite email sent via Resend → new superadmin sets password via link
+- Sandbox superadmins only have superadmin access in sandbox DBs, not live
 
 ---
 
 ## Phase 7 — Data & communications
 
-### 22. Klantenbestand migratiesysteem (contact CSV import)
+### 28. Klantenbestand migratiesysteem (contact CSV import)
 - `POST /contacts/import` — multipart CSV upload
 - Backend: validate, deduplicate by email, bulk insert
 - Frontend: upload widget + results summary (imported / skipped / errors)
 
-### 23. Mail-all system
+### 29. Mail-all system
 - `POST /admin/tenants/{id}/broadcast` — superadmin only
 - Sends to all contacts of a tenant via Resend batch
 - Needs rate limiting + opt-out tracking
 
-### 24. Demo environments (template data)
+### 30. Demo environments (template data)
 - Seed a template dataset per tenant in demo mode
 - Superadmin can "Reset to demo" — wipes real data, restores template seed
 - Protected with extra confirmation
@@ -232,11 +255,25 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 
 ---
 
+## Open questions (investigate, not yet actionable)
+
+- **Superadmin without password** — second superadmin was created but never set a password, yet can log in. Investigate how promote-superadmin sets credentials; likely auto-generates a password. Document and fix so invite-email flow is the only path.
+- **Sandbox email routing** — sending from diederik_test sends via `sb-support@getyippie.com`; replies go to sandbox connected to diederik1710@gmail.com. Document how the Resend routing/webhook is wired so this is intentional and not a side effect.
+
+---
+
+## Deploy workflow (app repo)
+
+```
+git push origin devsandbox   # → deploys devsandbox.getyippie.com
+git push origin sandbox      # → deploys sandbox.getyippie.com (keep in sync, shared DB)
+```
+
 ## Monday review workflow
 
 1. Build in `devsandbox` branch
-2. Sunday: PR `devsandbox → sandbox`
-3. Monday: `/code-review ultra` + `/security-review` + `/verify`
+2. Push to `sandbox` to sync both Railway envs
+3. `/code-review ultra` + `/security-review` + `/verify`
 4. If approved: merge `sandbox → production`
 
 | Skill | When |
