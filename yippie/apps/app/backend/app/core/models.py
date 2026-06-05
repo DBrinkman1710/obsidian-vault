@@ -19,7 +19,7 @@ class UserRole(str, enum.Enum):
     viewer = "viewer"
 
 
-_ALL_MODULES = ["contacts", "tickets", "billing", "activity", "inbox", "chat"]
+_ALL_MODULES = ["contacts", "tickets", "billing", "activity", "inbox", "chat", "aitools"]
 
 
 class Tenant(Base):

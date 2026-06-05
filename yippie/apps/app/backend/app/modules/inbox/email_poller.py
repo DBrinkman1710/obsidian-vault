@@ -14,6 +14,7 @@ import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.config import get_settings
+from app.core.models import Tenant
 from app.core.tenant import resolve_tenant_uuid
 from app.database import db_session
 from app.modules.inbox import service
@@ -101,6 +102,8 @@ async def poll_inbound_emails() -> None:
             # so the expensive work (HTTP + AI) doesn't hold a connection open needlessly
             async with db_session() as db:
                 tenant_id = await resolve_tenant_uuid(db)
+                tenant = await db.get(Tenant, tenant_id)
+                ai_scan = tenant is not None and "aitools" in (tenant.enabled_modules or [])
 
                 # Separate into "needs fresh ingest" vs "needs body update"
                 to_ingest: list[dict] = []
@@ -139,8 +142,8 @@ async def poll_inbound_emails() -> None:
                     body = body_map.get(meta["id"])
                     if not body:
                         continue
-                    log.info("Ingesting %s from=%s subject=%r body_len=%d",
-                             meta["id"], meta.get("from"), meta.get("subject"), len(body))
+                    log.info("Ingesting %s from=%s subject=%r body_len=%d ai_scan=%s",
+                             meta["id"], meta.get("from"), meta.get("subject"), len(body), ai_scan)
                     await service.ingest_email(
                         db=db,
                         tenant_id=tenant_id,
@@ -148,14 +151,15 @@ async def poll_inbound_emails() -> None:
                         subject=meta.get("subject") or None,
                         body=body,
                         resend_email_id=meta["id"],
+                        ai_scan=ai_scan,
                     )
 
                 for existing, meta in to_update:
                     body = body_map.get(meta["id"])
                     if not body:
                         continue
-                    log.info("Updating body for %s (was empty)", meta["id"])
-                    await service.update_message_body(db, tenant_id, existing, body)
+                    log.info("Updating body for %s (was empty) ai_scan=%s", meta["id"], ai_scan)
+                    await service.update_message_body(db, tenant_id, existing, body, ai_scan=ai_scan)
 
     except Exception:
         log.exception("email_poll failed")

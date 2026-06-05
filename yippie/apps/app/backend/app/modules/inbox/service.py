@@ -110,6 +110,7 @@ async def update_message_body(
     tenant_id: uuid.UUID,
     msg: InboundMessage,
     body: str,
+    ai_scan: bool = True,
 ) -> None:
     """Update an existing message's body and re-run AI scan on the pending draft."""
     msg.raw_body = body
@@ -121,19 +122,23 @@ async def update_message_body(
         )
     )
     if draft:
-        contact = await _match_contact(db, tenant_id, msg.sender)
-        context_summary = await _build_context(db, tenant_id, contact, msg.sender, body)
-        try:
-            scan = await scan_message(msg.sender, body, msg.source.value)
-            draft.ai_suggested_subject = scan.subject or msg.subject or "(no subject)"
-            draft.ai_suggested_description = scan.description or body[:500]
-            draft.ai_suggested_priority = scan.priority or "medium"
-            draft.ai_suggested_category = scan.category
-            draft.detected_language = scan.language
-        except Exception:
+        if ai_scan:
+            contact = await _match_contact(db, tenant_id, msg.sender)
+            context_summary = await _build_context(db, tenant_id, contact, msg.sender, body)
+            try:
+                scan = await scan_message(msg.sender, body, msg.source.value)
+                draft.ai_suggested_subject = scan.subject or msg.subject or "(no subject)"
+                draft.ai_suggested_description = scan.description or body[:500]
+                draft.ai_suggested_priority = scan.priority or "medium"
+                draft.ai_suggested_category = scan.category
+                draft.detected_language = scan.language
+            except Exception:
+                draft.ai_suggested_subject = msg.subject or "(no subject)"
+                draft.ai_suggested_description = body[:500]
+            draft.context_summary = context_summary
+        else:
             draft.ai_suggested_subject = msg.subject or "(no subject)"
             draft.ai_suggested_description = body[:500]
-        draft.context_summary = context_summary
 
     await db.commit()
 
@@ -146,6 +151,7 @@ async def ingest_email(
     body: str,
     headers: Optional[str] = None,
     resend_email_id: Optional[str] = None,
+    ai_scan: bool = True,
 ) -> DraftTicket:
     msg = InboundMessage(
         tenant_id=tenant_id,
@@ -158,7 +164,7 @@ async def ingest_email(
     )
     db.add(msg)
     await db.flush()
-    return await _create_draft(db, tenant_id, msg)
+    return await _create_draft(db, tenant_id, msg, ai_scan=ai_scan)
 
 
 async def ingest_whatsapp(
@@ -167,6 +173,7 @@ async def ingest_whatsapp(
     sender: str,
     body: str,
     sender_name: Optional[str] = None,
+    ai_scan: bool = True,
 ) -> DraftTicket:
     msg = InboundMessage(
         tenant_id=tenant_id,
@@ -177,21 +184,28 @@ async def ingest_whatsapp(
     )
     db.add(msg)
     await db.flush()
-    return await _create_draft(db, tenant_id, msg)
+    return await _create_draft(db, tenant_id, msg, ai_scan=ai_scan)
 
 
 async def _create_draft(
-    db: AsyncSession, tenant_id: uuid.UUID, msg: InboundMessage
+    db: AsyncSession, tenant_id: uuid.UUID, msg: InboundMessage, ai_scan: bool = True
 ) -> DraftTicket:
-    # Run AI scan — fall back to raw message fields if scan fails (e.g. no API key)
-    try:
-        scan = await scan_message(msg.sender, msg.raw_body, msg.source.value)
-        suggested_subject = scan.subject or msg.subject or "(no subject)"
-        suggested_description = scan.description or msg.raw_body[:500]
-        suggested_priority = scan.priority or "medium"
-        suggested_category = scan.category
-        detected_language = scan.language
-    except Exception:
+    if ai_scan:
+        # Run AI scan — fall back to raw message fields if scan fails (e.g. no API key)
+        try:
+            scan = await scan_message(msg.sender, msg.raw_body, msg.source.value)
+            suggested_subject = scan.subject or msg.subject or "(no subject)"
+            suggested_description = scan.description or msg.raw_body[:500]
+            suggested_priority = scan.priority or "medium"
+            suggested_category = scan.category
+            detected_language = scan.language
+        except Exception:
+            suggested_subject = msg.subject or "(no subject)"
+            suggested_description = msg.raw_body[:500]
+            suggested_priority = "medium"
+            suggested_category = None
+            detected_language = "en"
+    else:
         suggested_subject = msg.subject or "(no subject)"
         suggested_description = msg.raw_body[:500]
         suggested_priority = "medium"
@@ -199,7 +213,7 @@ async def _create_draft(
         detected_language = "en"
 
     contact = await _match_contact(db, tenant_id, msg.sender)
-    context_summary = await _build_context(db, tenant_id, contact, msg.sender, msg.raw_body)
+    context_summary = await _build_context(db, tenant_id, contact, msg.sender, msg.raw_body) if ai_scan else None
 
     draft = DraftTicket(
         tenant_id=tenant_id,

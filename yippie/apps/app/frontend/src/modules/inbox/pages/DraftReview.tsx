@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../../api/client'
+import { useTenantConfig } from '../../../App'
 
 const PRIORITY_COLORS: Record<string, string> = {
   urgent: '#ef4444',
@@ -160,6 +161,8 @@ export default function DraftReview() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const config = useTenantConfig()
+  const aiEnabled = config?.enabled_modules?.includes('aitools') ?? true
 
   const { data: ctx, isLoading } = useQuery({
     queryKey: ['draft', id],
@@ -595,22 +598,24 @@ export default function DraftReview() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
               <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Reply</span>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleGenerateReply}
-                  disabled={replyLoading}
-                  className="px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
-                >
-                  {replyLoading ? 'Generating…' : 'Generate'}
-                </button>
-                <button
-                  onClick={handleImproveReply}
-                  disabled={improveLoading || !replyText.trim()}
-                  className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg hover:bg-slate-200 disabled:opacity-40 transition-colors cursor-pointer"
-                >
-                  {improveLoading ? 'Improving…' : 'Improve'}
-                </button>
-              </div>
+              {aiEnabled && (
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleGenerateReply}
+                    disabled={replyLoading}
+                    className="px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+                  >
+                    {replyLoading ? 'Generating…' : 'Generate'}
+                  </button>
+                  <button
+                    onClick={handleImproveReply}
+                    disabled={improveLoading || !replyText.trim()}
+                    className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg hover:bg-slate-200 disabled:opacity-40 transition-colors cursor-pointer"
+                  >
+                    {improveLoading ? 'Improving…' : 'Improve'}
+                  </button>
+                </div>
+              )}
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col p-3 gap-2 min-h-0">

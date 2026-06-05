@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus } from 'lucide-react'
 import { api } from '../../../api/client'
+import { useTenantConfig } from '../../../App'
 
 const SOURCE_ICON: Record<string, React.ReactNode> = {
   email: <Mail size={13} className="text-slate-400" />,
@@ -130,7 +131,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
   )
 }
 
-function ComposeModal({ onClose }: { onClose: () => void }) {
+function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: boolean }) {
   const [recipients, setRecipients] = useState<{ email: string; label: string }[]>([])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
@@ -216,36 +217,38 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
             )}
           </div>
 
-          {/* AI suggestion */}
-          <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-            <button
-              type="button"
-              onClick={() => setShowAiPrompt(!showAiPrompt)}
-              className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-blue-600 transition-colors"
-            >
-              <Sparkles size={13} className="text-blue-500" />
-              {showAiPrompt ? 'Hide AI suggestion' : 'Use AI to write this email'}
-            </button>
-            {showAiPrompt && (
-              <div className="mt-3 flex gap-2">
-                <input
-                  className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={aiPrompt}
-                  onChange={e => setAiPrompt(e.target.value)}
-                  placeholder="e.g. Follow up with clients about their overdue invoices, polite tone"
-                  onKeyDown={e => { if (e.key === 'Enter') suggestMutation.mutate() }}
-                />
-                <button
-                  type="button"
-                  onClick={() => suggestMutation.mutate()}
-                  disabled={!aiPrompt.trim() || suggestMutation.isPending}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
-                >
-                  {suggestMutation.isPending ? 'Writing…' : 'Suggest'}
-                </button>
-              </div>
-            )}
-          </div>
+          {/* AI suggestion — only when aitools module is enabled */}
+          {aiEnabled && (
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
+              <button
+                type="button"
+                onClick={() => setShowAiPrompt(!showAiPrompt)}
+                className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-blue-600 transition-colors"
+              >
+                <Sparkles size={13} className="text-blue-500" />
+                {showAiPrompt ? 'Hide AI suggestion' : 'Use AI to write this email'}
+              </button>
+              {showAiPrompt && (
+                <div className="mt-3 flex gap-2">
+                  <input
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    value={aiPrompt}
+                    onChange={e => setAiPrompt(e.target.value)}
+                    placeholder="e.g. Follow up with clients about their overdue invoices, polite tone"
+                    onKeyDown={e => { if (e.key === 'Enter') suggestMutation.mutate() }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => suggestMutation.mutate()}
+                    disabled={!aiPrompt.trim() || suggestMutation.isPending}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+                  >
+                    {suggestMutation.isPending ? 'Writing…' : 'Suggest'}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Subject */}
           <div>
@@ -296,6 +299,8 @@ function ComposeModal({ onClose }: { onClose: () => void }) {
 export default function InboxQueue() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [showCompose, setShowCompose] = useState(false)
+  const config = useTenantConfig()
+  const aiEnabled = config?.enabled_modules?.includes('aitools') ?? true
 
   const { data: pendingDrafts, isLoading: pendingLoading, isFetching } = useQuery({
     queryKey: ['drafts', 'pending'],
@@ -417,7 +422,7 @@ export default function InboxQueue() {
         })}
       </div>
 
-      {showCompose && <ComposeModal onClose={() => setShowCompose(false)} />}
+      {showCompose && <ComposeModal onClose={() => setShowCompose(false)} aiEnabled={aiEnabled} />}
     </div>
   )
 }
