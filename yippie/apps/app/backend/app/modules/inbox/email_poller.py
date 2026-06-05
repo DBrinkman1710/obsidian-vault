@@ -100,15 +100,27 @@ async def poll_inbound_emails() -> None:
 
             # Filter by inbound address so each environment only picks up its own mail.
             # INBOUND_EMAIL env var (e.g. dev-support@getyippie.com) must match the `to` field.
+            # Resend may return `to` as a plain string, a list of strings, or a list of objects.
+            # We use substring matching to handle angle-bracket formats like "<addr@domain>".
             filter_addr = (settings.inbound_email or "").lower().strip()
             if filter_addr:
-                def _to_addrs(m: dict) -> list[str]:
+                def _to_text(m: dict) -> str:
                     raw = m.get("to") or []
                     if isinstance(raw, str):
-                        return [raw.lower()]
-                    return [t.lower() for t in raw]
+                        return raw.lower()
+                    parts = []
+                    for t in raw:
+                        if isinstance(t, dict):
+                            parts.append(t.get("email", "").lower())
+                            parts.append(t.get("name", "").lower())
+                        else:
+                            parts.append(str(t).lower())
+                    return " ".join(parts)
 
-                emails = [m for m in emails if filter_addr in _to_addrs(m)]
+                total_before = len(emails)
+                emails = [m for m in emails if filter_addr in _to_text(m)]
+                log.info("email_poll: INBOUND_EMAIL=%s matched %d/%d emails",
+                         filter_addr, len(emails), total_before)
                 if not emails:
                     return
 
