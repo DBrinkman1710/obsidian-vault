@@ -37,11 +37,9 @@ Changes made:
 - `inbox/models.py`: `resend_email_id` column on `InboundMessage`
 - `main.py`: starts email poller scheduler on lifespan alongside SLA scheduler
 
-**Status: body STILL empty.** The diagnostic endpoint `GET /api/v1/admin/resend-check` was added and wired into SuperAdminPage as a "Run check" button. **Next step: run the diagnostic to see what Resend actually returns.** Most likely causes: (a) API key lacks receive permissions → will show 403, or (b) Resend returns null text+html for some reason.
+**Status: WORKING ✓** — emails appear in inbox with full body within ~30 seconds of being sent.
 
-### Pending manual steps
-- Run the Resend diagnostic button on devsandbox SuperAdminPage to see raw API response
-- Based on result: if 403 → regenerate Resend API key with full access in Resend dashboard; if null body → investigate email format
+Root cause found via diagnostic: Resend's API was returning the body correctly (`text` field populated), but the APScheduler job was blocking itself. The 10s interval fired while the previous run was still processing (AI scan ≈ 3–5s × N emails > 10s), triggering "max instances reached (1)" on every subsequent fire. Fixed with parallel body fetches + 30s interval + `coalesce=True`.
 
 ### Key reminder
 **Claude can deploy to Railway via CLI** — use `railway link` + `railway up`, don't ask Diederik to deploy.
