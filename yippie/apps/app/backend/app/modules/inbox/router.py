@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app.auth.dependencies import CurrentUser, require_module
+from app.config import get_settings
 from app.core.mailer import ResendNotConfiguredError, send_email
 from app.core.tenant import resolve_tenant_uuid
 from app.database import get_db
@@ -41,7 +42,8 @@ async def list_drafts(
     db: DB,
     status: Optional[DraftStatus] = DraftStatus.pending,
 ):
-    return await service.list_drafts(db, current_user.tenant_id, status)
+    inbound_email = get_settings().inbound_email or None
+    return await service.list_drafts(db, current_user.tenant_id, status, inbound_email)
 
 
 @router.get("/drafts/{draft_id}", response_model=DraftWithContextOut)

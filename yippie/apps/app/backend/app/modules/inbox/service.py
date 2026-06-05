@@ -151,6 +151,7 @@ async def ingest_email(
     body: str,
     headers: Optional[str] = None,
     resend_email_id: Optional[str] = None,
+    inbound_to: Optional[str] = None,
     ai_scan: bool = True,
 ) -> DraftTicket:
     msg = InboundMessage(
@@ -161,6 +162,7 @@ async def ingest_email(
         raw_body=body,
         raw_headers=headers,
         resend_email_id=resend_email_id,
+        inbound_to=inbound_to.lower() if inbound_to else None,
     )
     db.add(msg)
     await db.flush()
@@ -320,9 +322,27 @@ async def link_contact_to_draft(
 
 
 async def list_drafts(
-    db: AsyncSession, tenant_id: uuid.UUID, status: Optional[DraftStatus] = DraftStatus.pending
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    status: Optional[DraftStatus] = DraftStatus.pending,
+    inbound_email: Optional[str] = None,
 ) -> list[DraftTicket]:
-    q = select(DraftTicket).where(DraftTicket.tenant_id == tenant_id)
+    if inbound_email:
+        # JOIN with InboundMessage to show only emails addressed to this environment's inbound address.
+        q = (
+            select(DraftTicket)
+            .join(InboundMessage, DraftTicket.inbound_message_id == InboundMessage.id)
+            .where(
+                DraftTicket.tenant_id == tenant_id,
+                or_(
+                    InboundMessage.inbound_to == inbound_email.lower(),
+                    InboundMessage.inbound_to.is_(None),  # legacy rows without inbound_to still visible
+                ),
+            )
+        )
+    else:
+        q = select(DraftTicket).where(DraftTicket.tenant_id == tenant_id)
+
     if status == DraftStatus.pending:
         now = datetime.now(timezone.utc)
         q = q.where(

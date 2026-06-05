@@ -170,6 +170,8 @@ async def poll_inbound_emails() -> None:
                         continue
                     log.info("Ingesting %s from=%s subject=%r body_len=%d ai_scan=%s",
                              meta["id"], meta.get("from"), meta.get("subject"), len(body), ai_scan)
+                    to_list = meta.get("to") or []
+                    inbound_to = to_list[0] if to_list else None
                     await service.ingest_email(
                         db=db,
                         tenant_id=tenant_id,
@@ -177,6 +179,7 @@ async def poll_inbound_emails() -> None:
                         subject=meta.get("subject") or None,
                         body=body,
                         resend_email_id=meta["id"],
+                        inbound_to=inbound_to,
                         ai_scan=ai_scan,
                     )
 
