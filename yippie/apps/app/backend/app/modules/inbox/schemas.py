@@ -41,6 +41,7 @@ class DraftTicketOut(BaseModel):
     reviewed_at: Optional[datetime]
     follow_up_at: Optional[datetime]
     forwarded_to_department_id: Optional[uuid.UUID]
+    detected_language: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -80,6 +81,7 @@ class SubscriptionBrief(BaseModel):
 class DraftWithContextOut(BaseModel):
     draft: DraftTicketOut
     inbound_message: InboundMessageOut
+    attachments: list[dict] = []
     contact: Optional[ContactBrief]
     recent_tickets: list[TicketBrief]
     billing: Optional[SubscriptionBrief]

@@ -1,9 +1,15 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+import { X, Paperclip } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
+
+const LANGUAGE_NAMES: Record<string, string> = {
+  en: 'English', nl: 'Dutch', fr: 'French', de: 'German', es: 'Spanish',
+  pt: 'Portuguese', it: 'Italian', ar: 'Arabic', zh: 'Chinese', ja: 'Japanese',
+  ko: 'Korean', ru: 'Russian', pl: 'Polish', tr: 'Turkish',
+}
 
 const PRIORITY_COLORS: Record<string, string> = {
   urgent: '#ef4444',
@@ -249,6 +255,11 @@ export default function DraftReview() {
   const [sending, setSending] = useState(false)
   const [sentTo, setSentTo] = useState('')
   const [sendError, setSendError] = useState('')
+  const [undoUntil, setUndoUntil] = useState<Date | null>(null)
+  const [undoProgress, setUndoProgress] = useState(0)
+  const [undoCancelled, setUndoCancelled] = useState(false)
+  const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const [replyFiles, setReplyFiles] = useState<File[]>([])
 
   const showContactModal = !isLoading && !!ctx && !ctx.contact && !modalDismissed && !isProcessed
 
@@ -328,18 +339,54 @@ export default function DraftReview() {
     if (!replyText.trim()) return
     setSending(true)
     setSendError('')
+    setUndoCancelled(false)
     try {
-      const res = await api.post(`/inbox/drafts/${id}/send-reply`, { reply_text: replyText })
-      setSentTo(res.data.to)
-      qc.invalidateQueries({ queryKey: ['contact-activity'] })
-      qc.invalidateQueries({ queryKey: ['contact-moments'] })
+      const form = new FormData()
+      form.append('reply_text', replyText)
+      replyFiles.forEach(f => form.append('attachments', f))
+      const res = await api.post(`/inbox/drafts/${id}/send-reply`, form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      const until = new Date(res.data.undo_until)
+      setUndoUntil(until)
+      setUndoProgress(0)
+      const start = Date.now()
+      const duration = until.getTime() - start
+      if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
+      undoIntervalRef.current = setInterval(() => {
+        const pct = Math.min(100, ((Date.now() - start) / duration) * 100)
+        setUndoProgress(pct)
+        if (pct >= 100) {
+          clearInterval(undoIntervalRef.current!)
+          undoIntervalRef.current = null
+          setUndoUntil(null)
+          setSentTo(res.data.to)
+          qc.invalidateQueries({ queryKey: ['contact-activity'] })
+          qc.invalidateQueries({ queryKey: ['contact-moments'] })
+        }
+      }, 100)
     } catch (err: any) {
       const detail = err?.response?.data?.detail
-      setSendError(detail || 'Failed to send — check Mailgun configuration.')
+      setSendError(detail || 'Failed to send — check Resend configuration.')
     } finally {
       setSending(false)
     }
   }
+
+  async function handleUndoSend() {
+    try {
+      await api.post(`/inbox/drafts/${id}/undo-send`)
+      if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
+      setUndoUntil(null)
+      setUndoProgress(0)
+      setUndoCancelled(true)
+    } catch {
+      setSendError('Could not undo — email may already be sent.')
+      setUndoUntil(null)
+    }
+  }
+
+  useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
   if (isLoading || !draft) {
     return (
@@ -494,6 +541,29 @@ export default function DraftReview() {
                 <p className="text-sm font-semibold text-slate-900 mb-3">{msg.subject}</p>
               )}
               <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{msg?.raw_body}</p>
+              {ctx?.attachments && ctx.attachments.length > 0 && (
+                <div className="mt-4 pt-3 border-t border-slate-100">
+                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">Attachments</p>
+                  <div className="space-y-1">
+                    {ctx.attachments.map((att: { id: string; filename: string; content_type: string }) => (
+                      <button
+                        key={att.id}
+                        onClick={async () => {
+                          const res = await api.get(`/inbox/drafts/${id}/attachments/${att.id}/download`, { responseType: 'blob' })
+                          const url = URL.createObjectURL(res.data)
+                          const a = document.createElement('a')
+                          a.href = url; a.download = att.filename; a.click()
+                          URL.revokeObjectURL(url)
+                        }}
+                        className="flex items-center gap-2 text-xs text-slate-600 hover:text-yippie transition-colors cursor-pointer w-full text-left"
+                      >
+                        <Paperclip size={12} className="shrink-0" />
+                        <span className="truncate">{att.filename}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -654,7 +724,14 @@ export default function DraftReview() {
           {/* ── BOTTOM-RIGHT: Draft reply ── */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
-              <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Reply</span>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Reply</span>
+                {draft.detected_language && draft.detected_language !== 'en' && (
+                  <span className="text-[10px] px-2 py-0.5 bg-blue-50 text-blue-600 border border-blue-100 rounded-full font-medium">
+                    Reply in {LANGUAGE_NAMES[draft.detected_language] ?? draft.detected_language}
+                  </span>
+                )}
+              </div>
               {aiEnabled && (
                 <div className="flex gap-2">
                   <button
@@ -698,12 +775,44 @@ export default function DraftReview() {
                   ))}
                 </div>
               )}
+
+              {/* Attached files */}
+              {replyFiles.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 shrink-0">
+                  {replyFiles.map((f, i) => (
+                    <div key={i} className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded-lg text-xs text-slate-600">
+                      <Paperclip size={10} />
+                      <span className="max-w-[120px] truncate">{f.name}</span>
+                      <button onClick={() => setReplyFiles(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                        <X size={10} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             <div className="px-3 py-2.5 border-t border-slate-100 shrink-0 flex items-center justify-between gap-2">
-              <div className="text-xs">
-                {sentTo && <span className="text-emerald-600">Sent to {sentTo}</span>}
-                {sendError && <span className="text-red-500">{sendError}</span>}
+              <div className="flex items-center gap-2">
+                {/* Attach files */}
+                <label className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 cursor-pointer transition-colors">
+                  <Paperclip size={13} />
+                  <span>Attach</span>
+                  <input
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={e => {
+                      if (e.target.files) setReplyFiles(prev => [...prev, ...Array.from(e.target.files!)])
+                      e.target.value = ''
+                    }}
+                  />
+                </label>
+                <div className="text-xs">
+                  {undoCancelled && <span className="text-slate-400">Send cancelled</span>}
+                  {sentTo && !undoCancelled && <span className="text-emerald-600">Sent to {sentTo}</span>}
+                  {sendError && <span className="text-red-500">{sendError}</span>}
+                </div>
               </div>
               <div className="flex gap-2">
                 {replyText && (
@@ -720,14 +829,16 @@ export default function DraftReview() {
                 )}
                 <button
                   onClick={handleSendReply}
-                  disabled={sending || !!sentTo || !replyText.trim()}
+                  disabled={sending || !!undoUntil || !!sentTo || !replyText.trim()}
                   className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
                     sentTo
                       ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                      : undoUntil
+                      ? 'bg-slate-100 text-slate-500'
                       : 'bg-yippie text-white hover:opacity-90 disabled:opacity-40'
                   }`}
                 >
-                  {sentTo ? '✓ Sent' : sending ? 'Sending…' : 'Send to Customer'}
+                  {sentTo ? '✓ Sent' : sending ? 'Sending…' : undoUntil ? 'Queued…' : 'Send to Customer'}
                 </button>
               </div>
             </div>
@@ -781,6 +892,30 @@ export default function DraftReview() {
 
         </div>
       </div>
+
+      {/* Undo send floating bar */}
+      {undoUntil && (
+        <div className="fixed bottom-5 right-5 z-50 bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 w-72">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="font-bold text-slate-900 text-sm">Yippie</p>
+              <p className="text-xs text-slate-400">email sent</p>
+            </div>
+            <button
+              onClick={handleUndoSend}
+              className="px-3 py-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+            >
+              Undo
+            </button>
+          </div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-yippie rounded-full"
+              style={{ width: `${undoProgress}%`, transition: 'width 0.1s linear' }}
+            />
+          </div>
+        </div>
+      )}
     </>
   )
 }

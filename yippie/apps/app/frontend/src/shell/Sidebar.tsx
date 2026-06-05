@@ -1,3 +1,4 @@
+import React from 'react'
 import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
@@ -8,17 +9,14 @@ import { useTenantConfig } from '../App'
 import { useAuth } from '../auth/useAuth'
 import { api } from '../api/client'
 
-const ALWAYS_NAV = [
-  { module: 'inbox',    label: 'Inbox',     path: '/inbox',    Icon: Inbox },
-  { module: 'contacts', label: 'Contacts',  path: '/contacts', Icon: Users },
-]
-
-const MODULAR_NAV = [
-  { module: 'tickets',  label: 'Tickets',   path: '/tickets',  Icon: ClipboardList },
-  { module: 'activity', label: 'Activity',  path: '/activity', Icon: Activity },
-  { module: 'billing',  label: 'Billing',   path: '/billing',  Icon: CreditCard },
-  { module: 'chat',     label: 'Live Chat', path: '/chat',     Icon: MessageSquare },
-]
+const MODULE_MAP: Record<string, { label: string; Icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>; path: string }> = {
+  inbox:    { label: 'Inbox',     Icon: Inbox,         path: '/inbox' },
+  contacts: { label: 'Contacts',  Icon: Users,         path: '/contacts' },
+  tickets:  { label: 'Tickets',   Icon: ClipboardList, path: '/tickets' },
+  activity: { label: 'Activity',  Icon: Activity,      path: '/activity' },
+  billing:  { label: 'Billing',   Icon: CreditCard,    path: '/billing' },
+  chat:     { label: 'Live Chat', Icon: MessageSquare, path: '/chat' },
+}
 
 export function Sidebar() {
   const config = useTenantConfig()
@@ -35,8 +33,6 @@ export function Sidebar() {
   const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
 
   if (!config) return null
-
-  const enabled = new Set(config.enabled_modules)
 
   return (
     <aside className="flex flex-col w-56 h-screen bg-yippie text-white shrink-0 overflow-y-auto">
@@ -55,54 +51,43 @@ export function Sidebar() {
         <p className="text-white/60 text-xs font-medium pl-0.5 truncate">{config.tenant_name}</p>
       </div>
 
-      {/* Nav */}
+      {/* Nav — ordered by config.enabled_modules (set by superadmin) */}
       <nav className="flex-1 px-3 space-y-0.5">
-        {ALWAYS_NAV.map(({ module, label, path, Icon }) => (
-          <NavLink
-            key={module}
-            to={path}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-white/20 text-white font-semibold'
-                  : 'text-white/75 hover:bg-white/10 hover:text-white'
-              }`
-            }
-          >
-            <Icon size={16} strokeWidth={2} className="shrink-0" />
-            <span className="flex-1">{label}</span>
-            {module === 'inbox' && (
-              <div className="flex items-center gap-1.5">
-                <span
-                  className={`w-2 h-2 rounded-full shrink-0 ${inboxFetching ? 'bg-blue-300 animate-pulse' : 'bg-emerald-400'}`}
-                  title={inboxFetching ? 'Refreshing…' : 'Live'}
-                />
-                {badgeLabel && (
-                  <span className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
-                    {badgeLabel}
-                  </span>
+        {config.enabled_modules
+          .filter(mod => MODULE_MAP[mod])
+          .map(mod => {
+            const { label, Icon, path } = MODULE_MAP[mod]
+            return (
+              <NavLink
+                key={mod}
+                to={path}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                    isActive
+                      ? 'bg-white/20 text-white font-semibold'
+                      : 'text-white/75 hover:bg-white/10 hover:text-white'
+                  }`
+                }
+              >
+                <Icon size={16} strokeWidth={2} className="shrink-0" />
+                <span className="flex-1">{label}</span>
+                {mod === 'inbox' && (
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${inboxFetching ? 'bg-blue-300 animate-pulse' : 'bg-emerald-400'}`}
+                      title={inboxFetching ? 'Refreshing…' : 'Live'}
+                    />
+                    {badgeLabel && (
+                      <span className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                        {badgeLabel}
+                      </span>
+                    )}
+                  </div>
                 )}
-              </div>
-            )}
-          </NavLink>
-        ))}
-
-        {MODULAR_NAV.filter(n => enabled.has(n.module)).map(({ module, label, path, Icon }) => (
-          <NavLink
-            key={module}
-            to={path}
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isActive
-                  ? 'bg-white/20 text-white font-semibold'
-                  : 'text-white/75 hover:bg-white/10 hover:text-white'
-              }`
-            }
-          >
-            <Icon size={16} strokeWidth={2} className="shrink-0" />
-            <span>{label}</span>
-          </NavLink>
-        ))}
+              </NavLink>
+            )
+          })
+        }
       </nav>
 
       {/* Bottom section */}

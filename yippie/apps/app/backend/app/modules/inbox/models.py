@@ -39,6 +39,7 @@ class InboundMessage(Base):
     raw_headers: Mapped[str | None] = mapped_column(Text, nullable=True)
     resend_email_id: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, index=True)
     inbound_to: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    attachments_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -75,4 +76,19 @@ class DraftTicket(Base):
     forwarded_to_department_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True)
     detected_language: Mapped[str | None] = mapped_column(String(10), nullable=True, default="en")
     follow_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class PendingSend(Base):
+    __tablename__ = "pending_sends"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    draft_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    to_email: Mapped[str] = mapped_column(String(255), nullable=False)
+    subject: Mapped[str] = mapped_column(String(500), nullable=False)
+    reply_text: Mapped[str] = mapped_column(Text, nullable=False)
+    send_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -7,7 +7,7 @@ import {
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
 
-const ALL_MODULES = ['contacts', 'tickets', 'billing', 'activity', 'inbox', 'chat', 'ai']
+const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'activity', 'billing', 'chat', 'ai']
 
 const MODULE_LABELS: Record<string, string> = { ai: 'AI' }
 const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod

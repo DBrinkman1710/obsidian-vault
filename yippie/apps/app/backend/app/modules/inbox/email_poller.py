@@ -48,31 +48,46 @@ def _html_to_text(html: str) -> str:
     return "\n".join(s._parts)
 
 
-async def _fetch_body(client: httpx.AsyncClient, auth: dict, email_id: str) -> str:
-    """Fetch plain-text body for a received email. Returns '' on any failure."""
+async def _fetch_email_data(client: httpx.AsyncClient, auth: dict, email_id: str) -> tuple[str, str | None]:
+    """Fetch body + attachment metadata for a received email.
+
+    Returns (body_text, attachments_json | None). body_text is '' on failure.
+    attachments_json is a JSON string of [{id, filename, content_type}] or None.
+    """
+    import json as _json
     resp = await client.get(
         f"https://api.resend.com/emails/receiving/{email_id}",
         headers=auth,
     )
     if resp.status_code != 200:
         log.warning("Body fetch %s → HTTP %s: %s", email_id, resp.status_code, resp.text[:300])
-        return ""
+        return "", None
 
     full = resp.json()
     text = full.get("text")
     html = full.get("html")
 
-    # Always log the full response so we can see exactly what Resend returns
     log.info("Body fetch %s → fields: text=%r html_len=%s", email_id, (text or "")[:80], len(html or ""))
 
     if not text and not html:
         log.warning("Body fetch %s → 200 but both text and html null. Full response: %s", email_id, resp.text[:500])
-        return ""
+        return "", None
 
     body = (text or "").strip() or _html_to_text(html or "").strip()
     if not body:
-        log.warning("Body fetch %s → 200 but extracted body is empty whitespace. text=%r html=%r", email_id, text, (html or "")[:200])
-    return body
+        log.warning("Body fetch %s → empty body. text=%r html=%r", email_id, text, (html or "")[:200])
+
+    # Extract attachment metadata (no content — download on demand via proxy endpoint)
+    attachments_json: str | None = None
+    raw_atts = full.get("attachments") or []
+    parsed = [
+        {"id": a["id"], "filename": a.get("filename", "attachment"), "content_type": a.get("content_type", "application/octet-stream")}
+        for a in raw_atts if a.get("id")
+    ]
+    if parsed:
+        attachments_json = _json.dumps(parsed)
+
+    return body, attachments_json
 
 
 @scheduler.scheduled_job("interval", seconds=30, id="email_poll", max_instances=1, coalesce=True)
@@ -129,7 +144,7 @@ async def poll_inbound_emails() -> None:
             async with db_session() as db:
                 tenant_id = await resolve_tenant_uuid(db)
                 tenant = await db.get(Tenant, tenant_id)
-                ai_scan = tenant is not None and "aitools" in (tenant.enabled_modules or [])
+                ai_scan = tenant is not None and "ai" in (tenant.enabled_modules or [])
 
                 # Separate into "needs fresh ingest" vs "needs body update"
                 to_ingest: list[dict] = []
@@ -148,17 +163,21 @@ async def poll_inbound_emails() -> None:
             if not to_ingest and not to_update:
                 return
 
-            # Fetch all bodies in parallel
+            # Fetch all bodies + attachment metadata in parallel
             import asyncio as _asyncio
             ids_needed = [m["id"] for m in to_ingest] + [m["id"] for _, m in to_update]
-            bodies = await _asyncio.gather(
-                *[_fetch_body(client, auth, eid) for eid in ids_needed],
+            fetch_results = await _asyncio.gather(
+                *[_fetch_email_data(client, auth, eid) for eid in ids_needed],
                 return_exceptions=True,
             )
-            body_map: dict[str, str] = {
-                eid: b for eid, b in zip(ids_needed, bodies)
-                if isinstance(b, str) and b
-            }
+            body_map: dict[str, str] = {}
+            att_map: dict[str, str | None] = {}
+            for eid, result in zip(ids_needed, fetch_results):
+                if isinstance(result, tuple):
+                    body, atts = result
+                    if body:
+                        body_map[eid] = body
+                        att_map[eid] = atts
 
             # Now process with a fresh DB session
             async with db_session() as db:
@@ -180,6 +199,7 @@ async def poll_inbound_emails() -> None:
                         body=body,
                         resend_email_id=meta["id"],
                         inbound_to=inbound_to,
+                        attachments_json=att_map.get(meta["id"]),
                         ai_scan=ai_scan,
                     )
 
@@ -188,10 +208,21 @@ async def poll_inbound_emails() -> None:
                     if not body:
                         continue
                     log.info("Updating body for %s (was empty) ai_scan=%s", meta["id"], ai_scan)
+                    # Update attachments too if we got them
+                    atts = att_map.get(meta["id"])
+                    if atts is not None:
+                        existing.attachments_json = atts
                     await service.update_message_body(db, tenant_id, existing, body, ai_scan=ai_scan)
 
     except Exception:
         log.exception("email_poll failed")
+
+
+@scheduler.scheduled_job("interval", seconds=1, id="flush_pending_sends", max_instances=1, coalesce=True)
+async def flush_pending_sends_job() -> None:
+    """Dispatch queued emails whose undo window has expired."""
+    async with db_session() as db:
+        await service.flush_pending_sends(db)
 
 
 def start_scheduler() -> None:

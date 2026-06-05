@@ -32,7 +32,7 @@ class WhatsAppConfig(BaseModel):
     display_phone: Optional[str] = None      # e.g. "+31612345678" (shown in UI)
 
 
-ALL_MODULES = {"contacts", "tickets", "billing", "activity", "inbox", "chat"}
+ALL_MODULES = ['inbox', 'contacts', 'tickets', 'activity', 'billing', 'chat']
 
 
 class TenantConfig(BaseModel):

@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import logging
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -11,11 +13,13 @@ from app.modules.contacts.models import Contact
 from app.modules.billing.models import Invoice, InvoiceStatus, Subscription
 from app.modules.tickets.models import Ticket
 from app.modules.inbox.ai_scanner import generate_context_summary, generate_reply_draft, generate_reply_improvements, scan_message
-from app.modules.inbox.models import DraftStatus, DraftTicket, InboundMessage, MessageSource
+from app.modules.inbox.models import DraftStatus, DraftTicket, InboundMessage, MessageSource, PendingSend
 from app.modules.inbox.schemas import DraftReview
 from app.modules.tickets.models import MessageSource as TicketSource, TicketPriority
 from app.modules.tickets.schemas import TicketCreate
 from app.modules.tickets import service as ticket_service
+
+log = logging.getLogger(__name__)
 
 
 async def _match_contact(db: AsyncSession, tenant_id: uuid.UUID, sender: str) -> Optional[Contact]:
@@ -152,6 +156,7 @@ async def ingest_email(
     headers: Optional[str] = None,
     resend_email_id: Optional[str] = None,
     inbound_to: Optional[str] = None,
+    attachments_json: Optional[str] = None,
     ai_scan: bool = True,
 ) -> DraftTicket:
     msg = InboundMessage(
@@ -163,6 +168,7 @@ async def ingest_email(
         raw_headers=headers,
         resend_email_id=resend_email_id,
         inbound_to=inbound_to.lower() if inbound_to else None,
+        attachments_json=attachments_json,
     )
     db.add(msg)
     await db.flush()
@@ -280,9 +286,17 @@ async def get_draft_with_context(
             )
             billing = sub_result.scalar_one_or_none()
 
+    attachments: list[dict] = []
+    if msg and msg.attachments_json:
+        try:
+            attachments = json.loads(msg.attachments_json)
+        except Exception:
+            pass
+
     return {
         "draft": draft,
         "inbound_message": msg,
+        "attachments": attachments,
         "contact": contact,
         "recent_tickets": recent_tickets,
         "billing": billing,
@@ -422,3 +436,82 @@ async def bulk_update_drafts(
     )
     await db.commit()
     return result.rowcount
+
+
+# --- Undo-send queue ---
+
+async def queue_send(
+    db: AsyncSession,
+    draft_id: uuid.UUID,
+    tenant_id: uuid.UUID,
+    to_email: str,
+    subject: str,
+    reply_text: str,
+    send_at: datetime,
+    actor_id: Optional[uuid.UUID] = None,
+    contact_id: Optional[uuid.UUID] = None,
+) -> PendingSend:
+    pending = PendingSend(
+        draft_id=draft_id,
+        tenant_id=tenant_id,
+        to_email=to_email,
+        subject=subject,
+        reply_text=reply_text,
+        send_at=send_at,
+        actor_id=actor_id,
+        contact_id=contact_id,
+    )
+    db.add(pending)
+    await db.commit()
+    return pending
+
+
+async def cancel_send(db: AsyncSession, draft_id: uuid.UUID, tenant_id: uuid.UUID) -> bool:
+    """Cancel a queued send if still within the undo window. Returns True if cancelled."""
+    now = datetime.now(timezone.utc)
+    result = await db.execute(
+        select(PendingSend).where(
+            PendingSend.draft_id == draft_id,
+            PendingSend.tenant_id == tenant_id,
+            PendingSend.send_at > now,
+        )
+    )
+    pending = result.scalar_one_or_none()
+    if not pending:
+        return False
+    await db.delete(pending)
+    await db.commit()
+    return True
+
+
+async def flush_pending_sends(db: AsyncSession) -> None:
+    """Dispatch all queued sends whose send_at has passed. Called by background scheduler."""
+    from app.core.mailer import send_email, ResendNotConfiguredError
+    from app.modules.activity import service as activity_service
+
+    now = datetime.now(timezone.utc)
+    result = await db.execute(select(PendingSend).where(PendingSend.send_at <= now))
+    pending_list = result.scalars().all()
+
+    for p in pending_list:
+        try:
+            await send_email(to=p.to_email, subject=p.subject, body=p.reply_text)
+            await activity_service.log_event(
+                db=db,
+                tenant_id=p.tenant_id,
+                module="inbox",
+                event_type="email.replied",
+                entity_type="draft_ticket",
+                entity_id=p.draft_id,
+                contact_id=p.contact_id,
+                actor_id=p.actor_id,
+                payload={"subject": p.subject, "to": p.to_email, "preview": p.reply_text[:120]},
+            )
+        except ResendNotConfiguredError:
+            log.warning("Resend not configured — skipping pending send %s", p.id)
+        except Exception:
+            log.exception("Failed to dispatch pending send %s", p.id)
+        await db.delete(p)
+
+    if pending_list:
+        await db.commit()

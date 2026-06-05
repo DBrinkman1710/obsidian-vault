@@ -16,7 +16,12 @@ async def send_email(
     subject: str,
     body: str,
     reply_to: Optional[str] = None,
+    attachments: Optional[list[dict]] = None,
 ) -> None:
+    """Send an email via Resend.
+
+    attachments: list of {"filename": str, "content": base64_str, "content_type": str}
+    """
     settings = get_settings()
 
     if not settings.resend_api_key:
@@ -34,6 +39,8 @@ async def send_email(
     }
     if reply_to:
         payload["reply_to"] = [reply_to]
+    if attachments:
+        payload["attachments"] = attachments
 
     async with httpx.AsyncClient() as client:
         response = await client.post(

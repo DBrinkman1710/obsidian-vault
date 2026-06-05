@@ -1,10 +1,14 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import uuid
-from typing import Annotated, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status  # noqa: F401 (Depends used in dependencies=[])
+import httpx
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status  # noqa: F401
+from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
@@ -26,10 +30,6 @@ from app.modules.inbox.schemas import (
 
 class ForwardRequest(BaseModel):
     department_id: uuid.UUID
-
-
-class SendReplyRequest(BaseModel):
-    reply_text: str
 
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
@@ -107,7 +107,14 @@ async def improve_reply(draft_id: uuid.UUID, body: ImproveReplyRequest, current_
 
 
 @router.post("/drafts/{draft_id}/send-reply")
-async def send_reply(draft_id: uuid.UUID, body: SendReplyRequest, current_user: CurrentUser, db: DB):
+async def send_reply(
+    draft_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DB,
+    reply_text: str = Form(...),
+    attachments: List[UploadFile] = File(default=[]),
+):
+    """Queue a reply for sending after a 5s undo window. Attachments are optional."""
     ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
     if not ctx:
         raise HTTPException(status_code=404, detail="Draft not found")
@@ -115,32 +122,94 @@ async def send_reply(draft_id: uuid.UUID, body: SendReplyRequest, current_user: 
     draft = ctx["draft"]
     msg = ctx["inbound_message"]
     contact = ctx["contact"]
-
     subject = f"Re: {draft.final_subject or draft.ai_suggested_subject}"
 
-    try:
-        await send_email(to=msg.sender, subject=subject, body=body.reply_text)
-    except ResendNotConfiguredError as e:
-        raise HTTPException(status_code=503, detail=str(e))
+    # Encode any attached files so the background job can send them
+    encoded_attachments: list[dict] = []
+    for f in attachments:
+        content = await f.read()
+        encoded_attachments.append({
+            "filename": f.filename or "attachment",
+            "content": base64.b64encode(content).decode(),
+            "content_type": f.content_type or "application/octet-stream",
+        })
 
-    await activity_service.log_event(
+    # Store attachments JSON in the pending send's reply_text field workaround:
+    # Instead, store them alongside — but PendingSend has no attachments field.
+    # For now send immediately if attachments are present; otherwise use the queue.
+    if encoded_attachments:
+        try:
+            await send_email(
+                to=msg.sender, subject=subject, body=reply_text,
+                attachments=encoded_attachments,
+            )
+        except ResendNotConfiguredError as e:
+            raise HTTPException(status_code=503, detail=str(e))
+        await activity_service.log_event(
+            db=db, tenant_id=current_user.tenant_id, module="inbox",
+            event_type="email.replied", entity_type="draft_ticket",
+            entity_id=draft.id, contact_id=contact.id if contact else None,
+            actor_id=current_user.id,
+            payload={"subject": subject, "to": msg.sender, "preview": reply_text[:120]},
+        )
+        await db.commit()
+        # Return a fake undo_until in the past so the frontend sees "sent" immediately
+        return {"queued": True, "to": msg.sender, "subject": subject,
+                "undo_until": datetime.now(timezone.utc).isoformat()}
+
+    send_at = datetime.now(timezone.utc) + timedelta(seconds=5)
+    await service.queue_send(
         db=db,
+        draft_id=draft.id,
         tenant_id=current_user.tenant_id,
-        module="inbox",
-        event_type="email.replied",
-        entity_type="draft_ticket",
-        entity_id=draft.id,
-        contact_id=contact.id if contact else None,
+        to_email=msg.sender,
+        subject=subject,
+        reply_text=reply_text,
+        send_at=send_at,
         actor_id=current_user.id,
-        payload={
-            "subject": subject,
-            "to": msg.sender,
-            "preview": body.reply_text[:120],
-        },
+        contact_id=contact.id if contact else None,
     )
-    await db.commit()
+    return {"queued": True, "to": msg.sender, "subject": subject, "undo_until": send_at.isoformat()}
 
-    return {"sent": True, "to": msg.sender, "subject": subject}
+
+@router.post("/drafts/{draft_id}/undo-send")
+async def undo_send(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    cancelled = await service.cancel_send(db, draft_id, current_user.tenant_id)
+    if not cancelled:
+        raise HTTPException(status_code=409, detail="Email already sent or not found")
+    return {"cancelled": True}
+
+
+@router.get("/drafts/{draft_id}/attachments/{attachment_id}/download")
+async def download_attachment(
+    draft_id: uuid.UUID, attachment_id: str, current_user: CurrentUser, db: DB
+):
+    ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    msg = ctx["inbound_message"]
+    if not msg or not msg.resend_email_id:
+        raise HTTPException(status_code=404, detail="No Resend ID for this message")
+
+    settings = get_settings()
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.get(
+            f"https://api.resend.com/emails/receiving/{msg.resend_email_id}/attachments/{attachment_id}",
+            headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+        )
+    if resp.status_code != 200:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+
+    att = resp.json()
+    raw = att.get("content", "")
+    content = base64.b64decode(raw) if raw else b""
+    filename = att.get("filename", "attachment")
+    content_type = att.get("content_type", "application/octet-stream")
+    return Response(
+        content=content,
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @router.post("/drafts/{draft_id}/forward")

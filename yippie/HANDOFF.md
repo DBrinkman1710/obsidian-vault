@@ -1,7 +1,59 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-05 (session 13)**
+**Last updated:** 2026-06-05 (session 14)**
 **Branch:** `sandbox` / `devsandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 14 — 2026-06-05 (Phase 3 items 15–18)
+
+### What was done
+
+#### Item 18 — Modules order matches sidebar
+- `config.py`: `ALL_MODULES` changed from `set` to `list` with canonical order: `['inbox', 'contacts', 'tickets', 'activity', 'billing', 'chat']`
+- `SuperAdminPage.tsx`: `ALL_MODULES` synced to same order (+ `ai` at end)
+- `Sidebar.tsx`: Replaced hardcoded `ALWAYS_NAV` + `MODULAR_NAV` arrays with a single `MODULE_MAP`. Nav items now built dynamically from `config.enabled_modules` order — whatever order superadmin sets in the Clients tab is what the sidebar shows.
+
+#### Item 15 — Language badge in reply panel
+- `schemas.py`: Added `detected_language: Optional[str]` to `DraftTicketOut` (was missing from API response)
+- `DraftReview.tsx`: When detected language is not English, a blue badge appears in the Draft Reply header: "Reply in Dutch" (or whichever language). Frontend has `LANGUAGE_NAMES` map for all major ISO codes.
+
+#### Item 17 — Undo send
+- Migration `b8c9d0e1f2a3`: creates `pending_sends` table (`id, draft_id, tenant_id, to_email, subject, reply_text, send_at, actor_id, contact_id, created_at`)
+- `models.py`: `PendingSend` ORM model
+- `service.py`: `queue_send`, `cancel_send`, `flush_pending_sends`
+- `router.py`: `send-reply` now accepts `multipart/form-data` (`reply_text` form field + optional `attachments` files). Returns `{queued: true, undo_until: ISO}` instead of sending immediately. New `POST /inbox/drafts/{id}/undo-send` endpoint.
+- `email_poller.py`: Added `flush_pending_sends_job` to the APScheduler (runs every 1s) — dispatches emails whose `send_at` has passed.
+- `DraftReview.tsx`: After clicking "Send to Customer", a floating bar appears at bottom-right with bold "Yippie" title, grey "email sent" subtext, progress bar filling over 5s, and red "Undo" button. Clicking Undo calls the undo endpoint and cancels. On bar complete, shows "Sent" state.
+
+#### Item 16 — Attachments
+- Migration `b8c9d0e1f2a3` (same): adds `attachments_json TEXT` column to `inbound_messages`
+- `models.py`: `attachments_json: Mapped[str | None]` on `InboundMessage`
+- `email_poller.py`: `_fetch_body` renamed to `_fetch_email_data` — now returns `(body, attachments_json)`. Extracts `{id, filename, content_type}` for each attachment from the Resend response. Stored as JSON.
+- `service.py`: `ingest_email` accepts `attachments_json`. `get_draft_with_context` parses it and returns `attachments: list[dict]` in the context dict.
+- `schemas.py`: `DraftWithContextOut` has `attachments: list[dict] = []`
+- `router.py`: New `GET /inbox/drafts/{draft_id}/attachments/{attachment_id}/download` endpoint — proxies download from Resend API (no S3 needed). `send-reply` encodes uploaded files as base64 for Resend.
+- `mailer.py`: `send_email` accepts optional `attachments` list
+- `DraftReview.tsx`: Received attachments shown in Customer Email panel (click to download). File picker in reply panel ("Attach" button) — selected files shown as chips. FormData used for send-reply call.
+
+#### Bug fix
+- `email_poller.py`: Fixed `ai_scan` check from `"aitools"` to `"ai"` — AI scanning was broken for all tenants since session 11's rename.
+
+### State right now
+- Code pushed to `devsandbox` and `sandbox`; Railway auto-deploying
+- Migration `b8c9d0e1f2a3` will apply on deploy (adds `pending_sends` table + `attachments_json` column)
+
+### Verify after deploy
+1. Sidebar order matches module toggle order in SuperAdminPage
+2. Send email in Dutch to `sb-support@getyippie.com` → open draft → "Reply in Dutch" badge appears in reply panel → Generate reply → reply text should be in Dutch
+3. Click "Send to Customer" → "Yippie" bar appears at bottom-right with 5s countdown → click Undo → bar disappears, no email sent
+4. Let bar complete → email arrives at sender's inbox
+5. Send email with attachment → open draft → attachment shows in Customer Email panel → click it → file downloads
+
+### Next
+- Phase 4: Multi-select contacts (compose/export CSV/delete)
+- Phase 5: Client onboarding wizard (create client with company/name/email → admin invite email)
+- Phase 6: Forgot password + change own password in settings
 
 ---
 
