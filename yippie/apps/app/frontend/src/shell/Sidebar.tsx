@@ -4,12 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard,
   MessageSquare, Settings, LogOut, Building2, ShieldCheck,
+  type LucideIcon,
 } from 'lucide-react'
 import { useTenantConfig } from '../App'
 import { useAuth } from '../auth/useAuth'
 import { api } from '../api/client'
 
-const MODULE_MAP: Record<string, { label: string; Icon: React.ComponentType<{ size?: number; strokeWidth?: number; className?: string }>; path: string }> = {
+const MODULE_MAP: Record<string, { label: string; Icon: LucideIcon; path: string }> = {
   inbox:    { label: 'Inbox',     Icon: Inbox,         path: '/inbox' },
   contacts: { label: 'Contacts',  Icon: Users,         path: '/contacts' },
   tickets:  { label: 'Tickets',   Icon: ClipboardList, path: '/tickets' },
