@@ -297,10 +297,11 @@ export default function InboxQueue() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [showCompose, setShowCompose] = useState(false)
 
-  const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
+  const { data: pendingDrafts, isLoading: pendingLoading, isFetching } = useQuery({
     queryKey: ['drafts', 'pending'],
     queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending' } }).then(r => r.data),
-    refetchInterval: 15_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
     enabled: activeTab === 'pending',
   })
 
@@ -333,7 +334,10 @@ export default function InboxQueue() {
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Inbox</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Review AI-generated drafts from email and WhatsApp</p>
+          <div className="flex items-center gap-2 mt-0.5">
+            <p className="text-sm text-slate-500">Review AI-generated drafts from email and WhatsApp</p>
+            <span className={`inline-block w-1.5 h-1.5 rounded-full ${isFetching ? 'bg-blue-400 animate-pulse' : 'bg-emerald-400'}`} title={isFetching ? 'Refreshing…' : 'Live'} />
+          </div>
         </div>
         <button
           onClick={() => setShowCompose(true)}

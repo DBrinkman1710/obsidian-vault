@@ -7,11 +7,11 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant, User, UserRole
-from app.modules.admin.schemas import TenantCreate, TenantUpdate
+from app.modules.admin.schemas import AddAdminRequest, TenantCreate, TenantUpdate
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-TENANT_SAFE_FIELDS = {"name", "enabled_modules", "primary_color", "logo_url"}
+TENANT_SAFE_FIELDS = {"name", "enabled_modules", "primary_color", "logo_url", "is_active", "is_demo", "go_live_at", "inbound_email"}
 
 
 def _tenant_to_dict(tenant: Tenant, user_count: int) -> dict:
@@ -74,3 +74,40 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
 async def get_tenant_users(db: AsyncSession, tenant_id: uuid.UUID) -> list[User]:
     result = await db.execute(select(User).where(User.tenant_id == tenant_id).order_by(User.created_at))
     return result.scalars().all()
+
+
+async def add_tenant_user(db: AsyncSession, tenant_id: uuid.UUID, data: AddAdminRequest) -> User | None:
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        return None
+    existing = await db.scalar(select(User).where(User.email == data.email))
+    if existing:
+        raise ValueError(f"A user with email '{data.email}' already exists.")
+    user = User(
+        tenant_id=tenant_id,
+        email=data.email,
+        full_name=data.full_name,
+        hashed_password=pwd_context.hash(data.password),
+        role=UserRole.admin,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def promote_superadmin(
+    db: AsyncSession,
+    current_user: User,
+    target_email: str,
+    current_password: str,
+) -> User | None:
+    if not pwd_context.verify(current_password, current_user.hashed_password):
+        raise ValueError("Incorrect password.")
+    target = await db.scalar(select(User).where(User.email == target_email))
+    if target is None:
+        raise LookupError(f"No user found with email '{target_email}'.")
+    target.role = UserRole.superadmin
+    await db.commit()
+    await db.refresh(target)
+    return target

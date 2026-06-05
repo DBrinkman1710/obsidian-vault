@@ -22,6 +22,10 @@ class TenantUpdate(BaseModel):
     enabled_modules: Optional[list[str]] = None
     primary_color: Optional[str] = None
     logo_url: Optional[str] = None
+    is_active: Optional[bool] = None
+    is_demo: Optional[bool] = None
+    go_live_at: Optional[datetime] = None
+    inbound_email: Optional[str] = None
 
 
 class TenantOut(BaseModel):
@@ -31,6 +35,10 @@ class TenantOut(BaseModel):
     enabled_modules: list[str]
     primary_color: str
     logo_url: Optional[str]
+    is_active: bool
+    is_demo: bool
+    go_live_at: Optional[datetime]
+    inbound_email: Optional[str]
     user_count: int
     created_at: datetime
 
@@ -45,3 +53,14 @@ class TenantUserOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class AddAdminRequest(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str = "Admin"
+
+
+class PromoteSuperadminRequest(BaseModel):
+    target_email: EmailStr
+    current_password: str

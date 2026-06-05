@@ -35,6 +35,7 @@ class InboundMessage(Base):
     subject: Mapped[str | None] = mapped_column(String(500), nullable=True)
     raw_body: Mapped[str] = mapped_column(Text, nullable=False)
     raw_headers: Mapped[str | None] = mapped_column(Text, nullable=True)
+    resend_email_id: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, index=True)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

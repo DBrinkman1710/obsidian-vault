@@ -6,6 +6,8 @@ export interface TenantConfig {
   enabled_modules: string[]
   branding: { primary_color: string; logo_url: string | null }
   environment: string
+  is_demo: boolean
+  is_active: boolean
 }
 
 export async function fetchTenantConfig(): Promise<TenantConfig> {

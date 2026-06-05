@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Users, X, Building2 } from 'lucide-react'
+import { Plus, Users, X, Building2, UserPlus, ShieldCheck, ToggleLeft, ToggleRight, Rocket, FlaskConical } from 'lucide-react'
 import { api } from '../../../api/client'
 
 const ALL_MODULES = ['contacts', 'tickets', 'billing', 'activity', 'inbox', 'chat']
@@ -12,6 +12,10 @@ interface Tenant {
   enabled_modules: string[]
   primary_color: string
   logo_url: string | null
+  is_active: boolean
+  is_demo: boolean
+  go_live_at: string | null
+  inbound_email: string | null
   user_count: number
   created_at: string
 }
@@ -181,7 +185,66 @@ function EditModulesModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
   )
 }
 
+function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState({ email: '', password: '', full_name: 'Admin' })
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: () => api.post(`/admin/tenants/${tenant.id}/users`, form).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
+      qc.invalidateQueries({ queryKey: ['tenant-users', tenant.id] })
+      onClose()
+    },
+    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to add admin'),
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.email.trim() || !form.password.trim()) { setError('Email and password required'); return }
+    setError('')
+    mutation.mutate()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Add admin</h2>
+            <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+          <div>
+            <label className={labelCls}>Full name</label>
+            <input className={inputCls} value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Admin" />
+          </div>
+          <div>
+            <label className={labelCls}>Email *</label>
+            <input className={inputCls} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="admin@company.nl" autoFocus />
+          </div>
+          <div>
+            <label className={labelCls}>Password *</label>
+            <input className={inputCls} type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="••••••••" />
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <div className="flex gap-3 justify-end pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
+              {mutation.isPending ? 'Adding…' : 'Add admin'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const [showAddAdmin, setShowAddAdmin] = useState(false)
   const { data, isLoading } = useQuery<TenantUser[]>({
     queryKey: ['tenant-users', tenant.id],
     queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then(r => r.data),
@@ -195,47 +258,158 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Users</h2>
-            <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
+    <>
+      {showAddAdmin && <AddAdminModal tenant={tenant} onClose={() => setShowAddAdmin(false)} />}
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
+          <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+            <div>
+              <h2 className="text-lg font-bold text-slate-900">Users</h2>
+              <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowAddAdmin(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <UserPlus size={12} />
+                Add admin
+              </button>
+              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+            </div>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
-        </div>
-        <div className="overflow-y-auto flex-1">
-          {isLoading && <p className="text-sm text-slate-400 p-6">Loading…</p>}
-          {data && data.length === 0 && <p className="text-sm text-slate-400 p-6">No users yet.</p>}
-          {data && data.length > 0 && (
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Role</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {data.map(u => (
-                  <tr key={u.id} className="hover:bg-slate-50">
-                    <td className="px-4 py-3 text-sm font-medium text-slate-900">{u.full_name}</td>
-                    <td className="px-4 py-3 text-sm text-slate-500">{u.email}</td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${ROLE_STYLES[u.role] ?? ROLE_STYLES.viewer}`}>{u.role}</span>
-                    </td>
+          <div className="overflow-y-auto flex-1">
+            {isLoading && <p className="text-sm text-slate-400 p-6">Loading…</p>}
+            {data && data.length === 0 && <p className="text-sm text-slate-400 p-6">No users yet.</p>}
+            {data && data.length > 0 && (
+              <table className="w-full">
+                <thead className="bg-slate-50 border-b border-slate-200">
+                  <tr>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
+                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Role</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {data.map(u => (
+                    <tr key={u.id} className="hover:bg-slate-50">
+                      <td className="px-4 py-3 text-sm font-medium text-slate-900">{u.full_name}</td>
+                      <td className="px-4 py-3 text-sm text-slate-500">{u.email}</td>
+                      <td className="px-4 py-3">
+                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${ROLE_STYLES[u.role] ?? ROLE_STYLES.viewer}`}>{u.role}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
         </div>
       </div>
+    </>
+  )
+}
+
+function PromoteSuperadminPanel() {
+  const [form, setForm] = useState({ target_email: '', current_password: '' })
+  const [result, setResult] = useState<{ email: string; role: string } | null>(null)
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: () => api.post('/admin/promote-superadmin', form).then(r => r.data),
+    onSuccess: (data) => { setResult(data); setForm({ target_email: '', current_password: '' }) },
+    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to promote'),
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.target_email.trim() || !form.current_password.trim()) { setError('All fields required'); return }
+    setError('')
+    setResult(null)
+    mutation.mutate()
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+      <div className="flex items-center gap-2 mb-4">
+        <ShieldCheck size={18} className="text-amber-500" />
+        <h2 className="text-base font-bold text-slate-900">Promote to superadmin</h2>
+      </div>
+      <p className="text-sm text-slate-500 mb-4">Requires your own password to confirm.</p>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-md">
+        <div>
+          <label className={labelCls}>Target email</label>
+          <input className={inputCls} type="email" value={form.target_email}
+            onChange={e => setForm(p => ({ ...p, target_email: e.target.value }))}
+            placeholder="user@company.nl"
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Your password</label>
+          <input className={inputCls} type="password" value={form.current_password}
+            onChange={e => setForm(p => ({ ...p, current_password: e.target.value }))}
+            placeholder="Confirm with your password"
+          />
+        </div>
+        {error && <p className="text-sm text-red-500">{error}</p>}
+        {result && (
+          <p className="text-sm text-emerald-600 font-medium">
+            ✓ {result.email} is now <strong>{result.role}</strong>
+          </p>
+        )}
+        <div className="pt-1">
+          <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
+            {mutation.isPending ? 'Promoting…' : 'Promote to superadmin'}
+          </button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function ResendDiagnosticPanel() {
+  const [result, setResult] = useState<any>(null)
+  const [open, setOpen] = useState(false)
+
+  const mutation = useMutation({
+    mutationFn: () => api.get('/admin/resend-check').then(r => r.data),
+    onSuccess: (data) => { setResult(data); setOpen(true) },
+  })
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <FlaskConical size={16} className="text-slate-400" />
+          <h2 className="text-base font-bold text-slate-900">Resend API diagnostic</h2>
+        </div>
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+          className="px-4 py-2 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          {mutation.isPending ? 'Checking…' : 'Run check'}
+        </button>
+      </div>
+      <p className="text-sm text-slate-500">Calls the Resend receiving API and shows the raw response — use this to verify the API key has receive permissions and to see exactly what fields are returned.</p>
+
+      {open && result && (
+        <div className="mt-4">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Raw response</span>
+            <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
+          </div>
+          <pre className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-700 overflow-auto max-h-96 whitespace-pre-wrap">
+            {JSON.stringify(result, null, 2)}
+          </pre>
+        </div>
+      )}
     </div>
   )
 }
 
 export default function SuperAdminPage() {
+  const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
   const [viewingUsers, setViewingUsers] = useState<Tenant | null>(null)
@@ -245,9 +419,27 @@ export default function SuperAdminPage() {
     queryFn: () => api.get('/admin/tenants').then(r => r.data),
   })
 
+  const toggleActiveMutation = useMutation({
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
+      api.patch(`/admin/tenants/${id}`, { is_active }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
+  })
+
+  const toggleDemoMutation = useMutation({
+    mutationFn: ({ id, is_demo }: { id: string; is_demo: boolean }) =>
+      api.patch(`/admin/tenants/${id}`, { is_demo }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
+  })
+
+  const goLiveMutation = useMutation({
+    mutationFn: (id: string) =>
+      api.patch(`/admin/tenants/${id}`, { is_demo: false, go_live_at: new Date().toISOString() }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
+  })
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col gap-8">
+      <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Client environments</h1>
           <p className="text-sm text-slate-400 mt-0.5">Manage all tenant environments</p>
@@ -276,6 +468,7 @@ export default function SuperAdminPage() {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Client</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Status</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Modules</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Users</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Created</th>
@@ -284,7 +477,7 @@ export default function SuperAdminPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {tenants.map(t => (
-                <tr key={t.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={t.id} className={`hover:bg-slate-50 transition-colors ${!t.is_active ? 'opacity-60' : ''}`}>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
                       <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.primary_color }} />
@@ -292,6 +485,27 @@ export default function SuperAdminPage() {
                         <div className="text-sm font-semibold text-slate-900">{t.name}</div>
                         <div className="text-xs text-slate-400">{t.slug}</div>
                       </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => toggleActiveMutation.mutate({ id: t.id, is_active: !t.is_active })}
+                        disabled={toggleActiveMutation.isPending}
+                        className="flex items-center gap-1 text-xs font-semibold transition-colors"
+                        title={t.is_active ? 'Click to deactivate' : 'Click to activate'}
+                      >
+                        {t.is_active
+                          ? <ToggleRight size={18} className="text-emerald-500" />
+                          : <ToggleLeft size={18} className="text-slate-400" />
+                        }
+                        <span className={t.is_active ? 'text-emerald-600' : 'text-slate-400'}>
+                          {t.is_active ? 'Active' : 'Inactive'}
+                        </span>
+                      </button>
+                      {t.is_demo && (
+                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">Demo</span>
+                      )}
                     </div>
                   </td>
                   <td className="px-4 py-3">
@@ -314,12 +528,35 @@ export default function SuperAdminPage() {
                     {new Date(t.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => setEditingTenant(t)}
-                      className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                    >
-                      Edit modules
-                    </button>
+                    <div className="flex items-center gap-2 justify-end">
+                      {t.is_demo && (
+                        <button
+                          onClick={() => goLiveMutation.mutate(t.id)}
+                          disabled={goLiveMutation.isPending}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                          title="Mark as live (removes demo mode)"
+                        >
+                          <Rocket size={11} />
+                          Go live
+                        </button>
+                      )}
+                      {!t.is_demo && t.is_active && (
+                        <button
+                          onClick={() => toggleDemoMutation.mutate({ id: t.id, is_demo: true })}
+                          disabled={toggleDemoMutation.isPending}
+                          className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                          title="Switch back to demo mode"
+                        >
+                          Set demo
+                        </button>
+                      )}
+                      <button
+                        onClick={() => setEditingTenant(t)}
+                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                      >
+                        Edit modules
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -327,6 +564,9 @@ export default function SuperAdminPage() {
           </table>
         </div>
       )}
+
+      <PromoteSuperadminPanel />
+      <ResendDiagnosticPanel />
 
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}
       {editingTenant && <EditModulesModal tenant={editingTenant} onClose={() => setEditingTenant(null)} />}

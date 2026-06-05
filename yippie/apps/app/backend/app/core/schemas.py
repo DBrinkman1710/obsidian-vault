@@ -26,3 +26,5 @@ class TenantConfigOut(BaseModel):
     enabled_modules: list[str]
     branding: dict
     environment: str = "production"
+    is_demo: bool = False
+    is_active: bool = True

@@ -17,12 +17,14 @@ from app.modules import MODULES
 from app.modules.admin.router import router as admin_router
 from app.modules.departments.router import router as departments_router
 from app.modules.inbox.router import webhook_router as inbox_webhook_router
-from app.modules.tickets.automation.sla_escalation import start_scheduler
+from app.modules.inbox.email_poller import start_scheduler as start_email_poller
+from app.modules.tickets.automation.sla_escalation import start_scheduler as start_sla_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    start_scheduler()
+    start_sla_scheduler()
+    start_email_poller()
     yield
 
 
@@ -70,6 +72,8 @@ def create_app() -> FastAPI:
             enabled_modules=tenant.enabled_modules or [],
             branding={"primary_color": tenant.primary_color, "logo_url": tenant.logo_url},
             environment=settings.environment,
+            is_demo=tenant.is_demo,
+            is_active=tenant.is_active,
         )
 
     # Module routes — all mounted, each gated per-request by tenant's enabled_modules

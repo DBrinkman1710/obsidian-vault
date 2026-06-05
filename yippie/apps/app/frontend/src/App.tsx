@@ -54,6 +54,11 @@ export default function App() {
       <div className="flex h-screen overflow-hidden bg-slate-50">
         <Sidebar />
         <main className="flex-1 overflow-hidden flex flex-col">
+          {config?.is_demo && (
+            <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4">
+              Demo environment — data may be reset at any time. Contact support to go live.
+            </div>
+          )}
           <Suspense fallback={<div className="p-8 text-slate-400">Loading…</div>}>
             <Routes>
               <Route path="/" element={<Navigate to="/inbox" replace />} />

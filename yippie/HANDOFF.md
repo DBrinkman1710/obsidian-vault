@@ -1,7 +1,55 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-04 (session 7)**
+**Last updated:** 2026-06-05 (session 9)**
 **Branch:** `sandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 9 — 2026-06-05 (Phase 2 + email body debugging)
+
+### What was done
+
+#### Phase 2 — Superadmin Power Tools (fully implemented)
+
+**Backend:**
+- `Tenant` model: added `is_active`, `is_demo`, `go_live_at`, `inbound_email` fields
+- Migration `a9b8c7d6e5f4` — adds those 4 columns with server defaults
+- Migration `b1c2d3e4f5a6` — adds `resend_email_id` (unique, indexed) to `inbound_messages`
+- `admin/schemas.py`: `TenantUpdate` + `TenantOut` include new fields; added `AddAdminRequest`, `PromoteSuperadminRequest`
+- `admin/service.py`: extended `TENANT_SAFE_FIELDS`; added `add_tenant_user()`, `promote_superadmin()`
+- `admin/router.py`: `POST /admin/tenants/{id}/users`, `POST /admin/promote-superadmin`, `GET /admin/resend-check`
+- `core/schemas.py` + `main.py`: `TenantConfigOut` now includes `is_demo`, `is_active`
+
+**Frontend:**
+- `SuperAdminPage.tsx`: active/inactive toggle per row, demo/go-live buttons, "Add admin" in users modal, Promote Superadmin panel, Resend diagnostic panel
+- `App.tsx`: amber demo-mode banner shown to all users when `config.is_demo === true`
+- `api/tenant.ts`: `TenantConfig` interface has `is_demo`, `is_active`
+- `InboxQueue.tsx`: `refetchInterval` → 10 s, `refetchIntervalInBackground: true`, live-pulse dot
+
+#### Email body investigation
+
+Root cause found: **Resend's `email.received` webhook intentionally omits the body** — only metadata (from, subject, email_id) is sent. Body must be fetched separately via `GET https://api.resend.com/emails/receiving/{id}`.
+
+Changes made:
+- `inbox/router.py`: webhook now just acknowledges (returns 200, no ingestion) to avoid race condition where body isn't ready yet
+- `inbox/email_poller.py`: APScheduler job runs every 10 s; fetches Resend list → for each email, fetches body → ingests (new) or updates body + re-runs AI scan (existing empty-body records)
+- `inbox/service.py`: `find_by_resend_id()`, `update_message_body()` added; `ingest_email()` accepts `resend_email_id`
+- `inbox/models.py`: `resend_email_id` column on `InboundMessage`
+- `main.py`: starts email poller scheduler on lifespan alongside SLA scheduler
+
+**Status: body STILL empty.** The diagnostic endpoint `GET /api/v1/admin/resend-check` was added and wired into SuperAdminPage as a "Run check" button. **Next step: run the diagnostic to see what Resend actually returns.** Most likely causes: (a) API key lacks receive permissions → will show 403, or (b) Resend returns null text+html for some reason.
+
+### Pending manual steps
+- Run the Resend diagnostic button on devsandbox SuperAdminPage to see raw API response
+- Based on result: if 403 → regenerate Resend API key with full access in Resend dashboard; if null body → investigate email format
+
+### Key reminder
+**Claude can deploy to Railway via CLI** — use `railway link` + `railway up`, don't ask Diederik to deploy.
+
+### Next session
+1. Check Resend diagnostic result → fix email body (likely API key permissions)
+2. Continue Phase 2 remaining items per ROADMAP.md
+3. Confirm all migrations ran on devsandbox (`alembic upgrade head` runs automatically on deploy)
 
 ---
 

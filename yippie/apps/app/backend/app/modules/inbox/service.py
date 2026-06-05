@@ -99,6 +99,45 @@ async def _build_context(
     )
 
 
+async def find_by_resend_id(db: AsyncSession, resend_email_id: str) -> Optional[InboundMessage]:
+    return await db.scalar(
+        select(InboundMessage).where(InboundMessage.resend_email_id == resend_email_id)
+    )
+
+
+async def update_message_body(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    msg: InboundMessage,
+    body: str,
+) -> None:
+    """Update an existing message's body and re-run AI scan on the pending draft."""
+    msg.raw_body = body
+
+    draft = await db.scalar(
+        select(DraftTicket).where(
+            DraftTicket.inbound_message_id == msg.id,
+            DraftTicket.status == DraftStatus.pending,
+        )
+    )
+    if draft:
+        contact = await _match_contact(db, tenant_id, msg.sender)
+        context_summary = await _build_context(db, tenant_id, contact, msg.sender, body)
+        try:
+            scan = await scan_message(msg.sender, body, msg.source.value)
+            draft.ai_suggested_subject = scan.subject or msg.subject or "(no subject)"
+            draft.ai_suggested_description = scan.description or body[:500]
+            draft.ai_suggested_priority = scan.priority or "medium"
+            draft.ai_suggested_category = scan.category
+            draft.detected_language = scan.language
+        except Exception:
+            draft.ai_suggested_subject = msg.subject or "(no subject)"
+            draft.ai_suggested_description = body[:500]
+        draft.context_summary = context_summary
+
+    await db.commit()
+
+
 async def ingest_email(
     db: AsyncSession,
     tenant_id: uuid.UUID,
@@ -106,6 +145,7 @@ async def ingest_email(
     subject: Optional[str],
     body: str,
     headers: Optional[str] = None,
+    resend_email_id: Optional[str] = None,
 ) -> DraftTicket:
     msg = InboundMessage(
         tenant_id=tenant_id,
@@ -114,6 +154,7 @@ async def ingest_email(
         subject=subject,
         raw_body=body,
         raw_headers=headers,
+        resend_email_id=resend_email_id,
     )
     db.add(msg)
     await db.flush()
