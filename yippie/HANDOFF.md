@@ -1,7 +1,55 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-05 (session 10)**
+**Last updated:** 2026-06-05 (session 11)**
 **Branch:** `sandbox` / `devsandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 11 — 2026-06-05 (AI module + migration fixes)
+
+### What was done
+
+#### AI modularisation
+- New `ai` module added to `_ALL_MODULES` — toggleable per tenant from Clients → Edit modules in dev
+- `email_poller.py`: checks `tenant.enabled_modules` for `'ai'` before running AI scan on inbound emails; passes `ai_scan=False` when disabled (drafts use raw email subject/body, no Anthropic calls)
+- `inbox/router.py`: `suggest-reply`, `improve-reply`, `compose/suggest` endpoints gated by `require_module("ai")` — returns 403 when disabled
+- `inbox/service.py`: `_create_draft`, `ingest_email`, `ingest_whatsapp`, `update_message_body` all accept `ai_scan` flag
+- `DraftReview.tsx`: Generate + Improve reply buttons hidden when `ai` not in `enabled_modules`
+- `InboxQueue.tsx`: AI suggestion panel in ComposeModal hidden when `ai` disabled
+- `SuperAdminPage.tsx`: `ai` added to `ALL_MODULES` toggle list; `MODULE_LABELS` map renders it as **"AI"** in pills and toggles
+
+#### Migration fixes (three attempts, now clean)
+Root cause: `is_active` column already existed in the DB from a previous uncommitted model change; the old `c2d3e4f5a6b7` migration used `op.add_column` (not idempotent) and failed. Old files were deleted from disk but not from git index, causing "revision present more than once" errors.
+
+Final state — single migration `d3e4f5a6b7c8` (chains from `b1c2d3e4f5a6`):
+```python
+op.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE")
+op.execute("UPDATE tenants SET enabled_modules = array_append(enabled_modules, 'ai') WHERE NOT ('ai' = ANY(enabled_modules))")
+```
+Both operations are idempotent; migration will succeed regardless of prior DB state.
+
+### State right now
+- Code pushed to `sandbox` and `devsandbox`; Railway auto-deploying from `devsandbox`
+- DB is at `b1c2d3e4f5a6`; next deploy will apply `d3e4f5a6b7c8` cleanly
+- All existing clients will get `ai` module enabled after migration runs
+
+### Verify after deploy
+1. Log in at devsandbox.getyippie.com
+2. Go to Clients → Edit modules for any client → confirm **AI** toggle is visible
+3. Disable AI for a test client → open that client's inbox → confirm Generate/Improve buttons are gone
+4. Re-enable AI → buttons return
+5. Check alembic log — should show single clean "Running upgrade b1c2d3e4f5a6 -> d3e4f5a6b7c8"
+
+### Next: Phase 3 — Inbox UX
+Items in order (see ROADMAP.md):
+1. Scroll-only email list (header + tabs fixed, list scrolls); larger compose modal
+2. Stay in email window after approve/reject
+3. Department reminder popup on approve without route
+4. Select + delete / spam mails → new Bin status
+5. Filter processed mails by status pill
+6. Glowing green dot in sidebar next to Inbox
+7. Language-matching replies
+8. Attachments in inbox
 
 ---
 
