@@ -1,4 +1,4 @@
-"""add is_active to users and aitools module to tenants
+"""add is_active to users and ai module to tenants
 
 Revision ID: d3e4f5a6b7c8
 Revises: b1c2d3e4f5a6
@@ -22,15 +22,15 @@ def upgrade() -> None:
         "ALTER TABLE users ADD COLUMN IF NOT EXISTS "
         "is_active BOOLEAN NOT NULL DEFAULT TRUE"
     )
-    # Backfill aitools into all existing tenants
+    # Backfill 'ai' module into all existing tenants
     op.execute(
-        "UPDATE tenants SET enabled_modules = array_append(enabled_modules, 'aitools') "
-        "WHERE NOT ('aitools' = ANY(enabled_modules))"
+        "UPDATE tenants SET enabled_modules = array_append(enabled_modules, 'ai') "
+        "WHERE NOT ('ai' = ANY(enabled_modules))"
     )
 
 
 def downgrade() -> None:
     op.execute(
-        "UPDATE tenants SET enabled_modules = array_remove(enabled_modules, 'aitools')"
+        "UPDATE tenants SET enabled_modules = array_remove(enabled_modules, 'ai')"
     )
     op.execute("ALTER TABLE users DROP COLUMN IF EXISTS is_active")

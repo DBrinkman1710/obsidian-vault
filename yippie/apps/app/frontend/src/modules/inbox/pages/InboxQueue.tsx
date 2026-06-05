@@ -217,7 +217,7 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
             )}
           </div>
 
-          {/* AI suggestion — only when aitools module is enabled */}
+          {/* AI suggestion — only when ai module is enabled */}
           {aiEnabled && (
             <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
               <button
@@ -300,7 +300,7 @@ export default function InboxQueue() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [showCompose, setShowCompose] = useState(false)
   const config = useTenantConfig()
-  const aiEnabled = config?.enabled_modules?.includes('aitools') ?? true
+  const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
 
   const { data: pendingDrafts, isLoading: pendingLoading, isFetching } = useQuery({
     queryKey: ['drafts', 'pending'],

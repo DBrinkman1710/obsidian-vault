@@ -7,7 +7,10 @@ import {
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
 
-const ALL_MODULES = ['contacts', 'tickets', 'billing', 'activity', 'inbox', 'chat']
+const ALL_MODULES = ['contacts', 'tickets', 'billing', 'activity', 'inbox', 'chat', 'ai']
+
+const MODULE_LABELS: Record<string, string> = { ai: 'AI' }
+const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod
 
 type FilterStatus = 'all' | 'active' | 'demo' | 'inactive'
 
@@ -74,7 +77,7 @@ function ModuleToggle({ mod, active, onClick }: { mod: string; active: boolean; 
       type="button" onClick={onClick}
       className={`px-3 py-1 rounded-full text-xs font-semibold border transition-colors ${active ? 'bg-blue-50 border-blue-300 text-blue-700' : 'bg-slate-50 border-slate-200 text-slate-400'}`}
     >
-      {mod}
+      {moduleLabel(mod)}
     </button>
   )
 }
@@ -647,7 +650,7 @@ export default function SuperAdminPage() {
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
                         {t.enabled_modules.map(m => (
-                          <span key={m} className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">{m}</span>
+                          <span key={m} className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">{moduleLabel(m)}</span>
                         ))}
                       </div>
                     </td>

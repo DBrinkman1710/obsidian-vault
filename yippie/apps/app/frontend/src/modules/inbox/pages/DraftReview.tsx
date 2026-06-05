@@ -162,7 +162,7 @@ export default function DraftReview() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const config = useTenantConfig()
-  const aiEnabled = config?.enabled_modules?.includes('aitools') ?? true
+  const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
 
   const { data: ctx, isLoading } = useQuery({
     queryKey: ['draft', id],

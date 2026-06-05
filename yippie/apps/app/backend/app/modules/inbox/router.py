@@ -72,7 +72,7 @@ async def link_contact(draft_id: uuid.UUID, body: LinkContactRequest, current_us
     return result
 
 
-@router.post("/drafts/{draft_id}/suggest-reply", dependencies=[Depends(require_module("aitools"))])
+@router.post("/drafts/{draft_id}/suggest-reply", dependencies=[Depends(require_module("ai"))])
 async def suggest_reply(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
     ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
     if not ctx:
@@ -89,7 +89,7 @@ async def suggest_reply(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
     return {"suggestion": suggestion}
 
 
-@router.post("/drafts/{draft_id}/improve-reply", dependencies=[Depends(require_module("aitools"))])
+@router.post("/drafts/{draft_id}/improve-reply", dependencies=[Depends(require_module("ai"))])
 async def improve_reply(draft_id: uuid.UUID, body: ImproveReplyRequest, current_user: CurrentUser, db: DB):
     ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
     if not ctx:
@@ -265,7 +265,7 @@ async def compose_send(body: ComposeRequest, current_user: CurrentUser, db: DB):
     return {"sent": len(body.to) - len(failed), "failed": failed}
 
 
-@router.post("/compose/suggest", status_code=status.HTTP_200_OK, dependencies=[Depends(require_module("aitools"))])
+@router.post("/compose/suggest", status_code=status.HTTP_200_OK, dependencies=[Depends(require_module("ai"))])
 async def compose_suggest(body: ComposeSuggestRequest, current_user: CurrentUser):
     """Use AI to suggest a subject and body for a new outbound email."""
     return await ai_scanner.generate_compose_suggestion(body.prompt)
