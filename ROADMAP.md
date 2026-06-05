@@ -49,7 +49,13 @@ Items build on what was shipped in session 9.
 - Action bar appears when ≥1 selected: set Active / Demo / Inactive
 - `PATCH` each in parallel
 
-### 7. Hide own environment + account
+### 7. Company name in sidebar
+- Each client environment shows their company name in the sidebar beneath the Yippie logo
+- Data already available: `GET /api/v1/tenant/config` returns `tenant_name`
+- Frontend: read `config.tenant_name` from `useTenantConfig()` in `Sidebar.tsx`, render it below the logo mark
+- Superadmin can rename the tenant at any time via `PATCH /admin/tenants/{id}` (already implemented) — change takes effect on next page load
+
+### 8. Hide own environment + account
 - Filter out the Yippie tenant (slug = `yippie` or the seeded slug) from the client list
 - Filter out own email from the superadmin list so neither can be made inactive by accident
 
