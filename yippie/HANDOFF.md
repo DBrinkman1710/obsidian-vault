@@ -5,6 +5,31 @@
 
 ---
 
+## Session 8 — 2026-06-05 (code quality pass)
+
+### What was done
+
+#### Code simplification pass (`201b0b4`)
+Reviewed entire diff with 4 agents (reuse, simplification, efficiency, altitude). Applied all clear wins:
+
+- **`config.py`**: `ai_model` setting added — was hardcoded as `"claude-haiku-4-5-20251001"` in 5 places
+- **`ai_scanner.py`**: Switched to `AsyncAnthropic` everywhere (was blocking the event loop). Extracted `_client()`, `_model()`, `_strip_fences()` helpers. Added `generate_compose_suggestion()` so all AI calls live in one file.
+- **`auth/dependencies.py`**: `_require_role()` factory replaces the duplicate bodies of `require_admin` and `require_superadmin`
+- **`admin/service.py`**: `_tenant_to_dict()` helper replaces 3 copies of the `Tenant.__table__.columns` comprehension
+- **`inbox/router.py`**: `asyncio.gather` sends all compose emails in parallel (was sequential); `compose_suggest` delegates to `ai_scanner`; removed `get_settings` import (no longer needed here); `asyncio` import moved to top
+- **`ChatPage.tsx`**: Removed redundant `style=` attribute (same value as `className`)
+- **`InboxQueue.tsx`**: `allContacts` query gated on `enabled: open` — was fetching 1000 contacts on every page load, now only loads when compose modal is open
+
+#### Skipped (debated/too invasive)
+- Refactoring `set_tenant_context` to skip role switch for admin users — correct fix but risky for Phase 1
+- Switching `admin/service.py` to return `TenantOut` Pydantic models instead of dicts — Phase 2 item
+- `resolve_tenant_uuid` per-tenant routing — Phase 2 item (already in roadmap)
+
+### Next session: Phase 2
+Start with the Alembic migration adding 4 fields to Tenant model. See ROADMAP.md.
+
+---
+
 ## Session 7 — 2026-06-04 (UI overhaul + email system + bug fixes)
 
 ### What was done
