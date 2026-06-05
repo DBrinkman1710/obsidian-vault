@@ -74,7 +74,7 @@ async def _fetch_body(client: httpx.AsyncClient, auth: dict, email_id: str) -> s
     return body
 
 
-@scheduler.scheduled_job("interval", seconds=10, id="email_poll")
+@scheduler.scheduled_job("interval", seconds=30, id="email_poll", max_instances=1, coalesce=True)
 async def poll_inbound_emails() -> None:
     settings = get_settings()
     if not settings.resend_api_key:
@@ -97,37 +97,65 @@ async def poll_inbound_emails() -> None:
             if not emails:
                 return
 
+            # Determine which emails need processing before opening the DB session
+            # so the expensive work (HTTP + AI) doesn't hold a connection open needlessly
             async with db_session() as db:
                 tenant_id = await resolve_tenant_uuid(db)
+
+                # Separate into "needs fresh ingest" vs "needs body update"
+                to_ingest: list[dict] = []
+                to_update: list[tuple] = []  # (existing_msg, meta)
 
                 for meta in emails:
                     email_id: str = meta["id"]
                     existing = await service.find_by_resend_id(db, email_id)
-
                     if existing and existing.raw_body:
-                        continue  # Already fully ingested
-
-                    body = await _fetch_body(client, auth, email_id)
-                    if not body:
-                        continue  # Can't get body yet — will retry next poll
-
+                        continue
                     if existing:
-                        # Had resend_email_id set but empty body — update in place
-                        log.info("Updating body for %s (was empty)", email_id)
-                        await service.update_message_body(db, tenant_id, existing, body)
+                        to_update.append((existing, meta))
                     else:
-                        log.info(
-                            "Ingesting %s from=%s subject=%r body_len=%d",
-                            email_id, meta.get("from"), meta.get("subject"), len(body),
-                        )
-                        await service.ingest_email(
-                            db=db,
-                            tenant_id=tenant_id,
-                            sender=meta.get("from") or "",
-                            subject=meta.get("subject") or None,
-                            body=body,
-                            resend_email_id=email_id,
-                        )
+                        to_ingest.append(meta)
+
+            if not to_ingest and not to_update:
+                return
+
+            # Fetch all bodies in parallel
+            import asyncio as _asyncio
+            ids_needed = [m["id"] for m in to_ingest] + [m["id"] for _, m in to_update]
+            bodies = await _asyncio.gather(
+                *[_fetch_body(client, auth, eid) for eid in ids_needed],
+                return_exceptions=True,
+            )
+            body_map: dict[str, str] = {
+                eid: b for eid, b in zip(ids_needed, bodies)
+                if isinstance(b, str) and b
+            }
+
+            # Now process with a fresh DB session
+            async with db_session() as db:
+                tenant_id = await resolve_tenant_uuid(db)
+
+                for meta in to_ingest:
+                    body = body_map.get(meta["id"])
+                    if not body:
+                        continue
+                    log.info("Ingesting %s from=%s subject=%r body_len=%d",
+                             meta["id"], meta.get("from"), meta.get("subject"), len(body))
+                    await service.ingest_email(
+                        db=db,
+                        tenant_id=tenant_id,
+                        sender=meta.get("from") or "",
+                        subject=meta.get("subject") or None,
+                        body=body,
+                        resend_email_id=meta["id"],
+                    )
+
+                for existing, meta in to_update:
+                    body = body_map.get(meta["id"])
+                    if not body:
+                        continue
+                    log.info("Updating body for %s (was empty)", meta["id"])
+                    await service.update_message_body(db, tenant_id, existing, body)
 
     except Exception:
         log.exception("email_poll failed")
