@@ -22,6 +22,8 @@ class DraftStatus(str, enum.Enum):
     approved = "approved"
     rejected = "rejected"
     forwarded = "forwarded"
+    bin = "bin"
+    spam = "spam"
 
 
 class InboundMessage(Base):

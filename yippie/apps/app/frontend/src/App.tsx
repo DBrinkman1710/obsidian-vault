@@ -84,8 +84,9 @@ export default function App() {
                 <ModuleGate module="tickets"><PagePad><TicketDetail /></PagePad></ModuleGate>
               } />
 
+              {/* InboxQueue manages its own scroll layout — no PagePad wrapper */}
               <Route path="/inbox" element={
-                <ModuleGate module="inbox"><PagePad><InboxQueue /></PagePad></ModuleGate>
+                <ModuleGate module="inbox"><InboxQueue /></ModuleGate>
               } />
               {/* DraftReview fills full height — no padding wrapper */}
               <Route path="/inbox/drafts/:id" element={

@@ -388,3 +388,17 @@ async def review_draft(
     await db.commit()
     await db.refresh(draft)
     return draft
+
+
+async def bulk_update_drafts(
+    db: AsyncSession, tenant_id: uuid.UUID, draft_ids: list[uuid.UUID], new_status: DraftStatus
+) -> int:
+    """Move multiple drafts to bin or spam. Returns count of updated rows."""
+    from sqlalchemy import update as sa_update
+    result = await db.execute(
+        sa_update(DraftTicket)
+        .where(DraftTicket.tenant_id == tenant_id, DraftTicket.id.in_(draft_ids))
+        .values(status=new_status)
+    )
+    await db.commit()
+    return result.rowcount

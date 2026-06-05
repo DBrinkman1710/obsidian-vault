@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
 
@@ -157,6 +158,44 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
   )
 }
 
+function DeptReminderModal({
+  onApproveAnyway,
+  onCancel,
+}: {
+  onApproveAnyway: () => void
+  onCancel: () => void
+}) {
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+      <div className="bg-white rounded-2xl p-7 w-[420px] shadow-2xl">
+        <div className="flex items-start justify-between mb-1">
+          <h2 className="text-base font-bold text-slate-900">No department selected</h2>
+          <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
+            <X size={16} />
+          </button>
+        </div>
+        <p className="text-sm text-slate-500 mb-6">
+          This ticket has no department assigned. You can approve anyway, or go back and set a department first.
+        </p>
+        <div className="flex flex-col gap-2">
+          <button
+            onClick={onApproveAnyway}
+            className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+          >
+            Approve without department
+          </button>
+          <button
+            onClick={onCancel}
+            className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+          >
+            Go back and set department
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function DraftReview() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
@@ -201,6 +240,7 @@ export default function DraftReview() {
   const [forwardLoading, setForwardLoading] = useState(false)
   const [forwardedToName, setForwardedToName] = useState('')
   const [modalDismissed, setModalDismissed] = useState(false)
+  const [showDeptReminder, setShowDeptReminder] = useState(false)
   const [replyText, setReplyText] = useState('')
   const [replyLoading, setReplyLoading] = useState(false)
   const [improveLoading, setImproveLoading] = useState(false)
@@ -223,7 +263,8 @@ export default function DraftReview() {
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drafts'] })
-      navigate('/inbox')
+      qc.invalidateQueries({ queryKey: ['draft', id] })
+      // Stay on this page — the processed view appears once the query refetches
     },
   })
 
@@ -315,6 +356,15 @@ export default function DraftReview() {
     .slice(0, 2)
     .toUpperCase() ?? '?'
 
+  function handleApprove() {
+    const hasDepts = departments && departments.length > 0
+    if (!selectedDeptId && hasDepts) {
+      setShowDeptReminder(true)
+    } else {
+      reviewMutation.mutate('approve')
+    }
+  }
+
   return (
     <>
       {showContactModal && msg && (
@@ -323,6 +373,13 @@ export default function DraftReview() {
           draftId={id!}
           onSuccess={() => setModalDismissed(true)}
           onDismiss={() => setModalDismissed(true)}
+        />
+      )}
+
+      {showDeptReminder && (
+        <DeptReminderModal
+          onApproveAnyway={() => { setShowDeptReminder(false); reviewMutation.mutate('approve') }}
+          onCancel={() => setShowDeptReminder(false)}
         />
       )}
 
@@ -568,7 +625,7 @@ export default function DraftReview() {
                 </div>
                 <div className="p-3 border-t border-slate-100 shrink-0 space-y-2">
                   <button
-                    onClick={() => reviewMutation.mutate('approve')}
+                    onClick={handleApprove}
                     disabled={reviewMutation.isPending}
                     className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
                   >

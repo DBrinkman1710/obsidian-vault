@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
 
@@ -21,9 +21,12 @@ const STATUS_STYLES: Record<string, string> = {
   approved:  'bg-green-100 text-green-700',
   rejected:  'bg-red-100 text-red-700',
   forwarded: 'bg-violet-100 text-violet-700',
+  bin:       'bg-slate-100 text-slate-500',
+  spam:      'bg-orange-100 text-orange-700',
 }
 
 type Tab = 'pending' | 'processed'
+type ProcessedFilter = 'all' | 'approved' | 'rejected' | 'forwarded' | 'bin'
 
 interface Contact {
   id: string
@@ -85,7 +88,6 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
 
       {open && (
         <div className="absolute top-full left-0 right-0 z-20 bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto">
-          {/* Free email entry */}
           <div className="px-3 py-2 border-b border-slate-100">
             <div className="flex gap-2">
               <input
@@ -187,7 +189,7 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl flex flex-col max-h-[90vh]">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style={{ maxHeight: '92vh' }}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <Pencil size={16} className="text-slate-400" />
@@ -217,7 +219,7 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
             )}
           </div>
 
-          {/* AI suggestion — only when ai module is enabled */}
+          {/* AI suggestion */}
           {aiEnabled && (
             <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
               <button
@@ -266,7 +268,7 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Message</label>
             <textarea
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-[inherit]"
-              rows={10}
+              rows={14}
               value={body}
               onChange={e => setBody(e.target.value)}
               placeholder="Write your message…"
@@ -296,13 +298,24 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
   )
 }
 
+const PROCESSED_FILTERS: { value: ProcessedFilter; label: string }[] = [
+  { value: 'all',       label: 'All' },
+  { value: 'approved',  label: 'Approved' },
+  { value: 'rejected',  label: 'Rejected' },
+  { value: 'forwarded', label: 'Forwarded' },
+  { value: 'bin',       label: 'Bin' },
+]
+
 export default function InboxQueue() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
+  const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all')
   const [showCompose, setShowCompose] = useState(false)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const qc = useQueryClient()
   const config = useTenantConfig()
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
 
-  const { data: pendingDrafts, isLoading: pendingLoading, isFetching } = useQuery({
+  const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
     queryKey: ['drafts', 'pending'],
     queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending' } }).then(r => r.data),
     refetchInterval: 10_000,
@@ -328,98 +341,225 @@ export default function InboxQueue() {
     enabled: activeTab === 'processed',
   })
 
-  const processedDrafts = [...(approvedDrafts ?? []), ...(rejectedDrafts ?? []), ...(forwardedDrafts ?? [])]
+  const { data: binDrafts } = useQuery({
+    queryKey: ['drafts', 'bin'],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'bin' } }).then(r => r.data),
+    enabled: activeTab === 'processed',
+  })
+
+  const allProcessed = [...(approvedDrafts ?? []), ...(rejectedDrafts ?? []), ...(forwardedDrafts ?? []), ...(binDrafts ?? [])]
     .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
-  const drafts = activeTab === 'pending' ? pendingDrafts : processedDrafts
+  const processedDrafts = processedFilter === 'all'
+    ? allProcessed
+    : allProcessed.filter((d: any) => d.status === processedFilter)
+
+  const drafts = activeTab === 'pending' ? (pendingDrafts ?? []) : processedDrafts
   const isLoading = activeTab === 'pending' ? pendingLoading : false
 
+  const bulkMutation = useMutation({
+    mutationFn: ({ ids, action }: { ids: string[]; action: 'bin' | 'spam' }) =>
+      api.post('/inbox/drafts/bulk-action', { ids, action }).then(r => r.data),
+    onSuccess: () => {
+      setSelected(new Set())
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+    },
+  })
+
+  function toggleSelect(id: string) {
+    setSelected(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
+  function toggleSelectAll() {
+    if (selected.size === drafts.length) {
+      setSelected(new Set())
+    } else {
+      setSelected(new Set(drafts.map((d: any) => d.id)))
+    }
+  }
+
+  // Clear selection when switching tabs
+  const handleTabSwitch = (tab: Tab) => {
+    setActiveTab(tab)
+    setSelected(new Set())
+    setProcessedFilter('all')
+  }
+
   return (
-    <div>
-      <div className="flex items-start justify-between mb-6">
-        <div>
+    <div className="flex flex-col h-full overflow-hidden">
+      {/* Fixed header */}
+      <div className="shrink-0 px-8 pt-8 pb-0 bg-slate-50">
+        <div className="flex items-start justify-between mb-5">
           <h1 className="text-2xl font-bold text-slate-900">Inbox</h1>
-          <div className="flex items-center gap-2 mt-0.5">
-            <p className="text-sm text-slate-500">Review AI-generated drafts from email and WhatsApp</p>
-            <span className={`inline-block w-1.5 h-1.5 rounded-full ${isFetching ? 'bg-blue-400 animate-pulse' : 'bg-emerald-400'}`} title={isFetching ? 'Refreshing…' : 'Live'} />
-          </div>
-        </div>
-        <button
-          onClick={() => setShowCompose(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-        >
-          <Pencil size={14} />
-          Compose
-        </button>
-      </div>
-
-      <div className="flex gap-2 mb-6">
-        {(['pending', 'processed'] as Tab[]).map(tab => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
-              activeTab === tab
-                ? 'bg-blue-600 text-white'
-                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-            }`}
+            onClick={() => setShowCompose(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
           >
-            {tab}
+            <Pencil size={14} />
+            Compose
           </button>
-        ))}
+        </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-0">
+          {(['pending', 'processed'] as Tab[]).map(tab => (
+            <button
+              key={tab}
+              onClick={() => handleTabSwitch(tab)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
+                activeTab === tab
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
+        </div>
+
+        {/* Processed filter pills */}
+        {activeTab === 'processed' && (
+          <div className="flex gap-1.5 mt-3">
+            {PROCESSED_FILTERS.map(f => (
+              <button
+                key={f.value}
+                onClick={() => setProcessedFilter(f.value)}
+                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
+                  processedFilter === f.value
+                    ? 'bg-slate-800 text-white'
+                    : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Bulk action bar */}
+        {selected.size > 0 && (
+          <div className="mt-3 flex items-center gap-3 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
+            <span className="text-sm font-semibold text-blue-800">{selected.size} selected</span>
+            <button
+              onClick={() => bulkMutation.mutate({ ids: Array.from(selected), action: 'bin' })}
+              disabled={bulkMutation.isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+            >
+              <Trash2 size={12} />
+              Move to Bin
+            </button>
+            <button
+              onClick={() => bulkMutation.mutate({ ids: Array.from(selected), action: 'spam' })}
+              disabled={bulkMutation.isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors disabled:opacity-50"
+            >
+              <AlertOctagon size={12} />
+              Mark as Spam
+            </button>
+            <button
+              onClick={() => setSelected(new Set())}
+              className="ml-auto text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        )}
+
+        <div className="h-4" />
       </div>
 
-      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
-      {!isLoading && (!drafts || drafts.length === 0) && (
-        <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
-          <Mail size={32} className="text-slate-300 mx-auto mb-3" />
-          <p className="text-sm text-slate-400 font-medium">
-            {activeTab === 'pending' ? 'No pending messages' : 'No processed messages yet'}
-          </p>
-        </div>
-      )}
+      {/* Scrollable list */}
+      <div className="flex-1 overflow-y-auto px-8 pb-8">
+        {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+        {!isLoading && drafts.length === 0 && (
+          <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
+            <Mail size={32} className="text-slate-300 mx-auto mb-3" />
+            <p className="text-sm text-slate-400 font-medium">
+              {activeTab === 'pending' ? 'No pending messages' : 'No processed messages yet'}
+            </p>
+          </div>
+        )}
 
-      <div className="flex flex-col gap-3">
-        {drafts?.map((d: any) => {
-          const isFollowUp = d.status === 'approved' && d.follow_up_at
-          return (
-            <Link
-              key={d.id}
-              to={`/inbox/drafts/${d.id}`}
-              className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-4 hover:border-blue-300 hover:shadow-md transition-all group"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                  {SOURCE_ICON[d.source] ?? <Mail size={13} className="text-slate-400" />}
-                  <span className="text-sm font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">{d.ai_suggested_subject}</span>
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${PRIORITY_STYLES[d.ai_suggested_priority]}`}>
-                    {d.ai_suggested_priority}
-                  </span>
-                  {d.ai_suggested_category && (
-                    <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
-                      {d.ai_suggested_category}
-                    </span>
-                  )}
-                  {d.status !== 'pending' && (
-                    <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_STYLES[d.status] ?? 'bg-slate-100 text-slate-600'}`}>
-                      {d.status}
-                    </span>
-                  )}
-                  {isFollowUp && (
-                    <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
-                      Follow-up
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-slate-500 mb-1 line-clamp-2">
-                  {d.ai_suggested_description?.slice(0, 120)}…
-                </p>
-                <p className="text-xs text-slate-400">{new Date(d.created_at).toLocaleString()}</p>
-              </div>
-              <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0 mt-0.5" />
-            </Link>
-          )
-        })}
+        {drafts.length > 0 && (
+          <>
+            {/* Select all row */}
+            <div className="flex items-center gap-2 mb-2">
+              <button
+                onClick={toggleSelectAll}
+                className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <CheckSquare size={14} className={selected.size === drafts.length && drafts.length > 0 ? 'text-blue-600' : ''} />
+                {selected.size === drafts.length && drafts.length > 0 ? 'Deselect all' : 'Select all'}
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              {drafts.map((d: any) => {
+                const isFollowUp = d.status === 'approved' && d.follow_up_at
+                const isSelected = selected.has(d.id)
+                return (
+                  <div
+                    key={d.id}
+                    className={`bg-white rounded-xl border shadow-sm p-4 flex items-start gap-3 transition-all ${
+                      isSelected ? 'border-blue-300 ring-1 ring-blue-200' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'
+                    }`}
+                  >
+                    {/* Checkbox */}
+                    <button
+                      onClick={e => { e.preventDefault(); toggleSelect(d.id) }}
+                      className={`shrink-0 mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
+                        isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 hover:border-blue-400'
+                      }`}
+                    >
+                      {isSelected && <span className="text-white text-[10px] font-bold">✓</span>}
+                    </button>
+
+                    {/* Card content — full click area links to draft */}
+                    <Link
+                      to={`/inbox/drafts/${d.id}`}
+                      className="flex-1 min-w-0 flex items-start gap-3 group"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                          {SOURCE_ICON[d.source] ?? <Mail size={13} className="text-slate-400" />}
+                          <span className="text-sm font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">{d.ai_suggested_subject}</span>
+                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${PRIORITY_STYLES[d.ai_suggested_priority]}`}>
+                            {d.ai_suggested_priority}
+                          </span>
+                          {d.ai_suggested_category && (
+                            <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
+                              {d.ai_suggested_category}
+                            </span>
+                          )}
+                          {d.status !== 'pending' && (
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_STYLES[d.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                              {d.status}
+                            </span>
+                          )}
+                          {isFollowUp && (
+                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
+                              Follow-up
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-slate-500 mb-1 line-clamp-2">
+                          {d.ai_suggested_description?.slice(0, 120)}…
+                        </p>
+                        <p className="text-xs text-slate-400">{new Date(d.created_at).toLocaleString()}</p>
+                      </div>
+                      <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0 mt-0.5" />
+                    </Link>
+                  </div>
+                )
+              })}
+            </div>
+          </>
+        )}
       </div>
 
       {showCompose && <ComposeModal onClose={() => setShowCompose(false)} aiEnabled={aiEnabled} />}

@@ -98,6 +98,20 @@ async def poll_inbound_emails() -> None:
             if not emails:
                 return
 
+            # Filter by inbound address so each environment only picks up its own mail.
+            # INBOUND_EMAIL env var (e.g. dev-support@getyippie.com) must match the `to` field.
+            filter_addr = (settings.inbound_email or "").lower().strip()
+            if filter_addr:
+                def _to_addrs(m: dict) -> list[str]:
+                    raw = m.get("to") or []
+                    if isinstance(raw, str):
+                        return [raw.lower()]
+                    return [t.lower() for t in raw]
+
+                emails = [m for m in emails if filter_addr in _to_addrs(m)]
+                if not emails:
+                    return
+
             # Determine which emails need processing before opening the DB session
             # so the expensive work (HTTP + AI) doesn't hold a connection open needlessly
             async with db_session() as db:

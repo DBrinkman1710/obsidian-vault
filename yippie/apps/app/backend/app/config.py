@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     resend_api_key: str = ""
     resend_from: str = ""
+    inbound_email: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

@@ -24,7 +24,7 @@ export function Sidebar() {
   const config = useTenantConfig()
   const { user, logout } = useAuth()
 
-  const { data: pendingDrafts } = useQuery({
+  const { data: pendingDrafts, isFetching: inboxFetching } = useQuery({
     queryKey: ['drafts', 'pending'],
     queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending' } }).then(r => r.data),
     refetchInterval: 30_000,
@@ -71,10 +71,18 @@ export function Sidebar() {
           >
             <Icon size={16} strokeWidth={2} className="shrink-0" />
             <span className="flex-1">{label}</span>
-            {module === 'inbox' && badgeLabel && (
-              <span className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
-                {badgeLabel}
-              </span>
+            {module === 'inbox' && (
+              <div className="flex items-center gap-1.5">
+                <span
+                  className={`w-2 h-2 rounded-full shrink-0 ${inboxFetching ? 'bg-blue-300 animate-pulse' : 'bg-emerald-400'}`}
+                  title={inboxFetching ? 'Refreshing…' : 'Live'}
+                />
+                {badgeLabel && (
+                  <span className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                    {badgeLabel}
+                  </span>
+                )}
+              </div>
             )}
           </NavLink>
         ))}

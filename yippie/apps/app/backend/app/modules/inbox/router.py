@@ -220,6 +220,25 @@ async def clear_followup(draft_id: uuid.UUID, current_user: CurrentUser, db: DB)
     return draft
 
 
+# --- Bulk actions ---
+
+class BulkActionRequest(BaseModel):
+    ids: list[uuid.UUID]
+    action: str  # "bin" | "spam"
+
+
+@router.post("/drafts/bulk-action")
+async def bulk_action_drafts(body: BulkActionRequest, current_user: CurrentUser, db: DB):
+    """Move multiple drafts to bin or spam."""
+    if body.action not in ("bin", "spam"):
+        raise HTTPException(status_code=400, detail="action must be 'bin' or 'spam'")
+    if not body.ids:
+        raise HTTPException(status_code=400, detail="ids must not be empty")
+    new_status = DraftStatus.bin if body.action == "bin" else DraftStatus.spam
+    count = await service.bulk_update_drafts(db, current_user.tenant_id, body.ids, new_status)
+    return {"updated": count}
+
+
 # --- Compose (outbound, direct send) ---
 
 class ComposeRequest(BaseModel):
