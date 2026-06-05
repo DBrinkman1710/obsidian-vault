@@ -1,7 +1,7 @@
 # Yippie — Handoff Document
-**Date:** 2026-06-03  
-**Branch:** `claude/modular-account-management-design-XrQwj` (production/dev/commercial)  
-**Sandbox branch:** `sandbox`  
+**Date:** 2026-06-05
+**Branch:** `claude/modular-account-management-design-XrQwj` (production/dev/commercial)
+**Sandbox branch:** `sandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 
 ---
@@ -16,16 +16,48 @@ A multi-tenant SaaS customer service platform for SMB clients. One shared deploy
 
 ## Railway environments
 
-| Environment | URL | Branch | Status (2026-06-03) | Purpose |
+| Environment | URL | Branch | Status (2026-06-05) | Purpose |
 |---|---|---|---|---|
-| production | app.getyippie.com | claude/modular-account-management-design-XrQwj | Deploying (multi-tenant commit) | Main client-facing app |
-| Development | dev.getyippie.com | same | Deploying | Superadmin-only management |
-| Commercial | getyippie.com (see note) | same | SUCCESS | Next.js marketing site |
+| production | app.getyippie.com | claude/modular-account-management-design-XrQwj | Live | Main client-facing app |
+| Development | dev.getyippie.com | same | Live | Superadmin-only management |
+| Commercial | getyippie.com + obsidian-vault-commercial.up.railway.app | same | Deployed — DNS pending | Next.js marketing site |
 | Sandbox | sandbox.getyippie.com | sandbox | FAILED (needs Railway setup) | Test before production |
 
-**Commercial DNS note:** getyippie.com CNAME was recently changed in Cloudflare to the correct Railway target (`qikek5qn.up.railway.app`). But Railway routing is still returning 502 — the domain may need Cloudflare proxy temporarily turned OFF so Railway can verify the CNAME. See "Outstanding issues" below.
+**Commercial DNS note:** getyippie.com CNAME points to the correct Railway target. Railway routing returns 502 because Cloudflare proxy hides the CNAME. Fix: in Cloudflare, temporarily toggle getyippie.com CNAME from Proxied → DNS only (grey cloud), wait 3 min, toggle back. Railway will verify and activate routing.
 
-**Sandbox note:** The `sandbox` branch was created and pushed. A "Sandbox" Railway environment still needs to be created manually in the Railway dashboard (copy from production, connect to `sandbox` branch, add fresh Postgres, add `sandbox.getyippie.com` custom domain with DNS-only CNAME initially).
+**Sandbox note:** `sandbox` git branch exists and is pushed. A "Sandbox" Railway environment still needs to be created manually in the Railway dashboard (copy from production, connect to `sandbox` branch, add fresh Postgres, add `sandbox.getyippie.com` custom domain).
+
+---
+
+## Commercial site (getyippie.com) — what was built this session
+
+Full redesign of `apps/web` (Next.js 14 marketing site):
+
+### Tech
+- Tailwind CSS v3 (replaced CSS Modules) — `tailwind.config.ts` with `yippie: '#5BA4F5'`
+- Inter font via `next/font/google`
+- `lucide-react` for icons (no emoji anywhere)
+- `tailwindcss`, `postcss`, `autoprefixer` in `dependencies` (not devDependencies) so Railway's `npm i` installs them
+
+### Sections
+Nav → Hero (browser mockup) → Logo bar → Stats → Features → How it works → Product Moment (dark inbox mockup) → Pricing (monthly/annual toggle) → CTA (solid bg-yippie) → Footer
+
+### Sign-up flow
+- "Sign up" button in nav opens a modal (Name, Email, Company, Phone)
+- POST `/api/signup` → GitHub API → appends row to `yippie/client-pipeline.md` in this repo
+- **Requires `GITHUB_TOKEN` env var in Railway Commercial** (GitHub PAT with `repo` scope)
+
+### Files changed
+```
+apps/web/src/app/page.tsx          ← full redesign + SignUpModal component
+apps/web/src/app/layout.tsx        ← Inter font
+apps/web/src/app/globals.css       ← Tailwind directives
+apps/web/tailwind.config.ts        ← new
+apps/web/postcss.config.mjs        ← updated for Tailwind v3
+apps/web/package.json              ← Tailwind/PostCSS moved to dependencies
+apps/web/src/app/api/signup/route.ts ← new API route
+apps/web/src/app/page.module.css   ← deleted
+```
 
 ---
 
@@ -34,6 +66,7 @@ A multi-tenant SaaS customer service platform for SMB clients. One shared deploy
 ```
 obsidian-vault/                     ← git repo root
   yippie/                           ← Turborepo monorepo
+    client-pipeline.md              ← auto-created on first signup (via /api/signup)
     apps/app/                       ← THE main platform (THIS IS WHAT MATTERS)
       backend/                      ← FastAPI Python API
         app/
@@ -59,15 +92,14 @@ obsidian-vault/                     ← git repo root
 
 ---
 
-## Architecture decisions made today
+## Architecture decisions
 
 ### Multi-tenant (MOST IMPORTANT)
 One Railway deployment serves all clients. Key points:
 - Every DB table has `tenant_id UUID NOT NULL` — all queries filter by it
 - `set_tenant_context(db, user.tenant_id)` runs `SET LOCAL app.current_tenant_id` per-request (PostgreSQL RLS)
-- **Module gating is per-request from DB:** `Tenant.enabled_modules` (ARRAY column) is read on each request, not from startup config. Different clients can have different modules.
-- `GET /api/v1/tenant/config` is now dynamic — returns the logged-in user's tenant config from DB (was static before)
-- `tenant.yaml` is now only used by `seed.py` to create the initial Yippie tenant on first deploy. Not used at runtime.
+- **Module gating is per-request from DB:** `Tenant.enabled_modules` (ARRAY column) is read on each request
+- `GET /api/v1/tenant/config` is dynamic — returns the logged-in user's tenant config from DB
 
 ### Role hierarchy
 ```
@@ -76,10 +108,9 @@ admin       → client company admins
 agent       → support staff
 viewer      → read-only
 ```
-`require_admin` allows both admin and superadmin. `require_superadmin` is superadmin-only.
 
 ### Deployment: frontend + backend in one container
-nginx (port 8080) serves Vite/React static files AND proxies `/api` and `/ws` to uvicorn (port 8000 internal). Railway routes all traffic to port 8080.
+nginx (port 8080) serves Vite/React static files AND proxies `/api` and `/ws` to uvicorn (port 8000 internal).
 
 ---
 
@@ -89,93 +120,61 @@ nginx (port 8080) serves Vite/React static files AND proxies `/api` and `/ws` to
 - `POST /api/v1/auth/token` — login (email + password → JWT)
 - `GET /api/v1/auth/me` — current user info
 
-### Tenant config (per logged-in user, dynamic)
+### Tenant config
 - `GET /api/v1/tenant/config` — returns tenant name, enabled modules, branding for current user's company
 
 ### Superadmin — client management
 - `GET /api/v1/admin/tenants` — list all client companies
-- `POST /api/v1/admin/tenants` — create new client (body: name, slug, admin_email, admin_password, enabled_modules)
-- `PATCH /api/v1/admin/tenants/{id}` — update client settings (modules, branding)
+- `POST /api/v1/admin/tenants` — create new client
+- `PATCH /api/v1/admin/tenants/{id}` — update client settings
 - `GET /api/v1/admin/tenants/{id}/users` — list users for a client
 
-### Modules (all require auth + module enabled for tenant)
-- `/api/v1/contacts`, `/api/v1/tickets`, `/api/v1/inbox`, `/api/v1/activity`, `/api/v1/billing`, `/api/v1/chat`
-
-Full API docs at: `https://app.getyippie.com/api/docs`
+Full API docs: `https://app.getyippie.com/api/docs`
 
 ---
 
 ## Superadmin credentials
 
-Set via Railway environment variables in each environment:
+Set via Railway environment variables:
 - `ADMIN_EMAIL` — your login email (default: `diederik1710@gmail.com`)
-- `ADMIN_PASSWORD` — your login password (default: `password` — **change this**)
-
-**Existing deployments (production + dev):** Your account was seeded as `admin` role. After the multi-tenant migration deploys, run `promote_superadmin.py` once to upgrade it:
-```bash
-railway run python promote_superadmin.py
-```
-(Must be linked to the right environment first via `railway link`)
-
-**New deployments (sandbox):** `seed.py` creates the user as `superadmin` automatically using `ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars.
-
----
-
-## Migrations in order
-
-```
-bfadac4990f3  initial schema
-ca081fe1f74d  add matched_contact_id + context fields
-ca4c445f94a2  add departments table
-f43013171b86  add context fields to draft_tickets
-a1b2c3d4e5f6  add department_id to tickets
-b2c3d4e5f6a7  add detected_language to draft_tickets
-40bd1ebcda20  add follow_up_at to draft_tickets
-e1f2a3b4c5d6  add superadmin role to userrole enum   ← NEW
-f2e3d4c5b6a7  add enabled_modules, primary_color, logo_url to tenants  ← NEW
-```
+- `ADMIN_PASSWORD` — your login password (**change this**)
 
 ---
 
 ## Outstanding issues
 
-### 1. getyippie.com (Commercial) — 502 routing
-**Status:** Next.js app is running fine on Railway. DNS CNAME updated to correct target (`qikek5qn.up.railway.app`). But Railway's edge returns 502/fallback — it can't verify the new CNAME because Cloudflare proxy hides it.
+### 1. getyippie.com — 502 routing (DNS only)
+The Next.js app builds and runs fine on Railway (`obsidian-vault-commercial.up.railway.app` works). The custom domain `getyippie.com` returns 502 because Cloudflare proxy prevents Railway from verifying the CNAME.
 
-**Fix:** In Cloudflare, temporarily toggle `getyippie.com` CNAME from Proxied → DNS only (grey cloud). Wait ~3 minutes. Toggle back to Proxied. Railway will verify and activate routing.
+**Fix:** Cloudflare → DNS → getyippie.com CNAME → toggle orange cloud → grey → wait 3 min → toggle back. Also check Railway dashboard for a new `_railway-verify` TXT record and update it in Cloudflare if needed.
 
-Also check Railway dashboard → Commercial → obsidian-vault → Custom Domains → getyippie.com — if it shows a NEW `_railway-verify` token, update the TXT record in Cloudflare too before toggling proxy.
+### 2. GITHUB_TOKEN missing in Railway Commercial
+Sign-up form submissions will return a 500 error until this is set.
 
-### 2. Sandbox Railway environment — not set up
-**Status:** `sandbox` git branch exists and is pushed. Railway environment "Sandbox" does NOT exist yet.
+**Fix:** Go to [github.com/settings/tokens](https://github.com/settings/tokens) → generate classic token with `repo` scope → Railway → Yippie → Commercial → Variables → `GITHUB_TOKEN` = your token → redeploy.
 
-**Fix:** Railway dashboard → Yippie project → New Environment → "Sandbox" → copy from production → connect to `sandbox` branch → add Postgres → add `sandbox.getyippie.com` custom domain → set `ADMIN_EMAIL`/`ADMIN_PASSWORD` env vars.
+### 3. Sandbox Railway environment — not set up
+`sandbox` git branch exists. Railway environment "Sandbox" does NOT exist yet.
 
-### 3. Frontend not yet rebuilt for multi-tenant
-The Vite/React frontend currently shows a static layout. It needs a UI for:
-- Superadmin dashboard (list clients, create client, edit modules)
-- The module sidebar already calls `/api/v1/tenant/config` to determine which nav items to show — this now works dynamically per tenant ✓
-- But there's no admin panel UI yet
+**Fix:** Railway dashboard → Yippie project → New Environment → "Sandbox" → copy from production → connect to `sandbox` branch → add Postgres → add `sandbox.getyippie.com` custom domain → set env vars.
 
-### 4. Password change on production
-Default `ADMIN_PASSWORD` env var should be changed from `password` to something secure. Set in Railway dashboard → production → obsidian-vault → Variables.
-
-### 5. promote_superadmin.py needs to be run
-Production and dev databases have your account as `admin` role. After the new deploy lands, run:
+### 4. Superadmin promotion on production
+Production and dev databases have your account as `admin` role. Run once per environment:
 ```bash
 railway run python promote_superadmin.py
 ```
-per environment (link to each env first).
+
+### 5. Superadmin UI (future)
+No admin panel UI yet for managing clients visually. Currently done via API.
 
 ---
 
-## How to continue tomorrow
+## How to continue
 
-### Verify multi-tenant deploy
-```bash
-railway status                    # check all environments green
-curl https://app.getyippie.com/api/v1/tenant/config -H "Authorization: Bearer <token>"
-# should return your tenant's config from DB (not static yaml)
+### Verify commercial site
+```
+https://obsidian-vault-commercial.up.railway.app   ← should show new design now
+https://getyippie.com                               ← needs Cloudflare DNS fix above
 ```
 
 ### Onboard first test client
@@ -185,14 +184,13 @@ curl -X POST https://app.getyippie.com/api/v1/admin/tenants \
   -H "Content-Type: application/json" \
   -d '{"name":"Test Client","slug":"testclient","admin_email":"client@test.com","admin_password":"pass123","enabled_modules":["contacts","tickets"]}'
 ```
-Then log in as `client@test.com` and verify data isolation.
 
 ### Next features to build
-1. **Superadmin UI** — admin panel in the React frontend to manage clients visually
-2. **getyippie.com fix** — turn off Cloudflare proxy temporarily to activate Railway routing
-3. **Sandbox environment** — create in Railway dashboard
-4. **Email notification on client creation** — send welcome email via Mailgun/Resend when `POST /api/v1/admin/tenants` is called
-5. **Per-tenant custom domain** — optional: give big clients their own URL (e.g., `acme.getyippie.com`) pointing to the same Railway service
+1. **Cloudflare DNS fix** — toggle proxy off/on to activate getyippie.com routing
+2. **GITHUB_TOKEN in Railway** — so sign-ups write to client-pipeline.md
+3. **Superadmin UI** — admin panel in the React frontend to manage clients visually
+4. **Email notification on signup** — send welcome email when someone fills the sign-up form
+5. **Sandbox environment** — create in Railway dashboard
 
 ---
 
@@ -205,4 +203,8 @@ docker compose up --build
 docker compose exec backend alembic upgrade head
 docker compose exec -e ADMIN_EMAIL=you@email.com -e ADMIN_PASSWORD=pass backend python seed.py
 # Frontend: http://localhost:5173  API: http://localhost:8000/api/docs
+
+# Marketing site:
+cd yippie/apps/web
+pnpm dev   # http://localhost:3000
 ```
