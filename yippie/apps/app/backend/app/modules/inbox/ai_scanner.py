@@ -24,11 +24,24 @@ class AIScanResult:
     language: str = field(default="en")
 
 
+def _client() -> anthropic.AsyncAnthropic:
+    return anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key)
+
+
+def _model() -> str:
+    return get_settings().ai_model
+
+
+def _strip_fences(text: str) -> str:
+    if text.startswith("```"):
+        lines = text.split("\n")
+        inner = "\n".join(lines[1:])
+        return inner[:inner.rfind("```")].strip() if "```" in inner else inner.strip()
+    return text
+
+
 async def scan_message(sender: str, raw_body: str, source: str) -> AIScanResult:
     """Classify an inbound message and extract structured ticket fields."""
-    settings = get_settings()
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-
     prompt = f"""You are a customer service assistant. Analyze the following inbound {source} message and extract key information.
 
 From: {sender}
@@ -50,18 +63,11 @@ Priority guidance:
 - medium: normal request or question
 - low: general inquiry, feedback"""
 
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=512,
+    message = await _client().messages.create(
+        model=_model(), max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
-
-    text = message.content[0].text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        inner = "\n".join(lines[1:])
-        text = inner[:inner.rfind("```")].strip() if "```" in inner else inner.strip()
-    data = json.loads(text)
+    data = json.loads(_strip_fences(message.content[0].text.strip()))
     return AIScanResult(
         subject=data.get("subject", "New message"),
         description=data.get("description", raw_body[:1000]),
@@ -78,14 +84,7 @@ async def generate_context_summary(
     recent_tickets: list[dict],
     billing: Optional[dict],
 ) -> str:
-    """
-    Generate a 3-4 sentence agent briefing about the customer before they review the draft.
-    Combines contact info, billing status, and communication history.
-    """
-    settings = get_settings()
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-
-    contact_block = "Unknown sender — no matching contact found in the system." if not contact else f"""
+    contact_block = "Unknown sender — no matching contact found." if not contact else f"""
 Name: {contact.get('full_name')}
 Company: {contact.get('company') or 'N/A'}
 Email: {contact.get('email')}
@@ -103,7 +102,7 @@ Outstanding invoices: {billing.get('outstanding_invoices', 0)}""".strip()
         for t in recent_tickets[:5]
     )
 
-    prompt = f"""You are a customer service briefing assistant. An agent is about to review an inbound message. Write a concise 3-4 sentence briefing that tells the agent everything relevant about this customer so they can respond confidently.
+    prompt = f"""You are a customer service briefing assistant. Write a concise 3-4 sentence briefing for an agent about to review an inbound message.
 
 INBOUND MESSAGE FROM: {sender}
 ---
@@ -119,14 +118,12 @@ BILLING STATUS:
 RECENT TICKET HISTORY (newest first):
 {tickets_block}
 
-Write a professional briefing paragraph (3-4 sentences). Cover: who this customer is, their current relationship/value, any relevant history, and anything the agent should know before responding. Be direct and factual. Do not use bullet points."""
+Write a professional briefing paragraph (3-4 sentences). Cover: who this customer is, their current relationship/value, any relevant history, and anything the agent should know before responding. Be direct and factual. No bullet points."""
 
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=300,
+    message = await _client().messages.create(
+        model=_model(), max_tokens=300,
         messages=[{"role": "user", "content": prompt}],
     )
-
     return message.content[0].text.strip()
 
 
@@ -137,9 +134,6 @@ async def generate_reply_draft(
     contact_name: Optional[str],
     language: str = "en",
 ) -> str:
-    settings = get_settings()
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-
     lang_name = LANGUAGE_NAMES.get(language, "English")
     context_block = f"\n\nCustomer context: {context_summary}" if context_summary else ""
     greeting = f"Dear {contact_name}" if contact_name else "Dear Customer"
@@ -153,9 +147,8 @@ Issue: {description}{context_block}
 
 Begin with: {greeting},"""
 
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=400,
+    message = await _client().messages.create(
+        model=_model(), max_tokens=400,
         messages=[{"role": "user", "content": prompt}],
     )
     return message.content[0].text.strip()
@@ -167,9 +160,6 @@ async def generate_reply_improvements(
     subject: str,
     language: str = "en",
 ) -> list[dict]:
-    settings = get_settings()
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-
     lang_name = LANGUAGE_NAMES.get(language, "English")
     context_block = f"\nCustomer context: {context_summary}" if context_summary else ""
 
@@ -185,15 +175,28 @@ Current reply:
 Return a JSON array of up to 3 objects:
 [{{"label": "short description e.g. More empathetic tone", "revised_text": "complete rewrite of the reply in {lang_name}"}}]"""
 
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=1200,
+    message = await _client().messages.create(
+        model=_model(), max_tokens=1200,
         messages=[{"role": "user", "content": prompt}],
     )
+    return json.loads(_strip_fences(message.content[0].text.strip()))[:3]
 
-    text = message.content[0].text.strip()
-    if text.startswith("```"):
-        lines = text.split("\n")
-        inner = "\n".join(lines[1:])
-        text = inner[:inner.rfind("```")].strip() if "```" in inner else inner.strip()
-    return json.loads(text)[:3]
+
+async def generate_compose_suggestion(prompt: str) -> dict:
+    """Generate email subject + body from a plain-text brief."""
+    message = await _client().messages.create(
+        model=_model(), max_tokens=512,
+        messages=[{
+            "role": "user",
+            "content": (
+                f"Write a professional customer service email based on this brief:\n\n{prompt}\n\n"
+                "Return JSON only: {\"subject\": \"...\", \"body\": \"...\"}\n"
+                "Keep the body concise and friendly. Sign off as 'The Support Team'."
+            ),
+        }],
+    )
+    try:
+        data = json.loads(_strip_fences(message.content[0].text.strip()))
+        return {"subject": data.get("subject", ""), "body": data.get("body", "")}
+    except Exception:
+        return {"subject": "", "body": message.content[0].text.strip()}

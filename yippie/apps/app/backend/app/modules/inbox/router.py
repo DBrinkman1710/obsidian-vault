@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Annotated, Optional
 
@@ -8,7 +9,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app.auth.dependencies import CurrentUser
-from app.config import get_settings
 from app.core.mailer import ResendNotConfiguredError, send_email
 from app.core.tenant import resolve_tenant_uuid
 from app.database import get_db
@@ -240,14 +240,15 @@ async def compose_send(body: ComposeRequest, current_user: CurrentUser, db: DB):
     if not body.subject.strip() or not body.body.strip():
         raise HTTPException(status_code=400, detail="Subject and body are required")
 
-    failed: list[str] = []
-    for recipient in body.to:
-        try:
-            await send_email(to=recipient, subject=body.subject, body=body.body)
-        except ResendNotConfiguredError as e:
-            raise HTTPException(status_code=503, detail=str(e))
-        except Exception:
-            failed.append(recipient)
+    # Check config before firing requests
+    results = await asyncio.gather(
+        *[send_email(to=r, subject=body.subject, body=body.body) for r in body.to],
+        return_exceptions=True,
+    )
+    for exc in results:
+        if isinstance(exc, ResendNotConfiguredError):
+            raise HTTPException(status_code=503, detail=str(exc))
+    failed = [body.to[i] for i, r in enumerate(results) if isinstance(r, Exception)]
 
     await activity_service.log_event(
         db=db,
@@ -267,32 +268,7 @@ async def compose_send(body: ComposeRequest, current_user: CurrentUser, db: DB):
 @router.post("/compose/suggest", status_code=status.HTTP_200_OK)
 async def compose_suggest(body: ComposeSuggestRequest, current_user: CurrentUser):
     """Use AI to suggest a subject and body for a new outbound email."""
-    settings = get_settings()
-    import anthropic
-    client = anthropic.Anthropic(api_key=settings.anthropic_api_key)
-    message = client.messages.create(
-        model="claude-haiku-4-5-20251001",
-        max_tokens=512,
-        messages=[{
-            "role": "user",
-            "content": (
-                f"Write a professional customer service email based on this brief:\n\n{body.prompt}\n\n"
-                "Return JSON only: {\"subject\": \"...\", \"body\": \"...\"}\n"
-                "Keep the body concise and friendly. Sign off as 'The Support Team'."
-            ),
-        }],
-    )
-    import json as _json
-    try:
-        text = message.content[0].text.strip()
-        if text.startswith("```"):
-            text = text.split("```")[1]
-            if text.startswith("json"):
-                text = text[4:]
-        result = _json.loads(text)
-        return {"subject": result.get("subject", ""), "body": result.get("body", "")}
-    except Exception:
-        return {"subject": "", "body": message.content[0].text}
+    return await ai_scanner.generate_compose_suggestion(body.prompt)
 
 
 # --- Webhook endpoints — public router, no auth, mounted separately in main.py ---

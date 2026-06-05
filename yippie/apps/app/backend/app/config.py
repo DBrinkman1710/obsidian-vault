@@ -55,6 +55,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 8
     tenant_config_path: str = "/app/config/tenant.yaml"
     anthropic_api_key: str = ""
+    ai_model: str = "claude-haiku-4-5-20251001"
     environment: str = "development"
     resend_api_key: str = ""
     resend_from: str = ""

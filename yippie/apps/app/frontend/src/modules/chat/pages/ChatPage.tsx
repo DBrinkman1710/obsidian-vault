@@ -59,7 +59,7 @@ export default function ChatPage() {
   const selectedSession = sessions.find((s: any) => s.id === selectedId)
 
   return (
-    <div className="-m-8 flex h-[calc(100vh-0px)]" style={{ height: 'calc(100vh - 0px)' }}>
+    <div className="-m-8 flex h-screen">
       {/* LEFT — Session list */}
       <div className="w-72 flex-shrink-0 border-r border-slate-200 flex flex-col bg-white">
         <div className="px-5 py-4 border-b border-slate-200">

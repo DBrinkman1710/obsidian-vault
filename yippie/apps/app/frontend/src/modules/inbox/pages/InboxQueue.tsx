@@ -46,6 +46,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
   const { data: allContacts } = useQuery({
     queryKey: ['contacts-compose-all'],
     queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', { params: { limit: 1000 } }).then(r => r.data),
+    enabled: open,
   })
 
   useEffect(() => {

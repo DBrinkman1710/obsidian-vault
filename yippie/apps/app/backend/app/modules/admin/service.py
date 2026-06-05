@@ -14,6 +14,10 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 TENANT_SAFE_FIELDS = {"name", "enabled_modules", "primary_color", "logo_url"}
 
 
+def _tenant_to_dict(tenant: Tenant, user_count: int) -> dict:
+    return {**{c.name: getattr(tenant, c.name) for c in Tenant.__table__.columns}, "user_count": user_count}
+
+
 async def list_tenants(db: AsyncSession) -> list[dict]:
     result = await db.execute(
         select(Tenant, func.count(User.id).label("user_count"))
@@ -22,10 +26,7 @@ async def list_tenants(db: AsyncSession) -> list[dict]:
         .order_by(Tenant.created_at)
     )
     rows = result.all()
-    return [
-        {**{c.name: getattr(row.Tenant, c.name) for c in Tenant.__table__.columns}, "user_count": row.user_count}
-        for row in rows
-    ]
+    return [_tenant_to_dict(row.Tenant, row.user_count) for row in rows]
 
 
 async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
@@ -53,7 +54,7 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
     ))
     await db.commit()
     await db.refresh(tenant)
-    return {**{c.name: getattr(tenant, c.name) for c in Tenant.__table__.columns}, "user_count": 1}
+    return _tenant_to_dict(tenant, 1)
 
 
 async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpdate) -> dict | None:
@@ -67,7 +68,7 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
     await db.commit()
     await db.refresh(tenant)
     user_count = await db.scalar(select(func.count(User.id)).where(User.tenant_id == tenant.id))
-    return {**{c.name: getattr(tenant, c.name) for c in Tenant.__table__.columns}, "user_count": user_count or 0}
+    return _tenant_to_dict(tenant, user_count or 0)
 
 
 async def get_tenant_users(db: AsyncSession, tenant_id: uuid.UUID) -> list[User]:
