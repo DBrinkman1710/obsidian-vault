@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { Search, Plus, User } from 'lucide-react'
 import { api } from '../../../api/client'
 
 interface Contact {
@@ -21,49 +22,71 @@ export default function ContactList() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700 }}>Contacts</h1>
-        <Link to="/contacts/new" style={{
-          padding: '8px 16px', background: '#2563eb', color: '#fff',
-          borderRadius: 6, textDecoration: 'none', fontSize: 14, fontWeight: 600,
-        }}>+ New Contact</Link>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-slate-900">Contacts</h1>
+          <p className="text-sm text-slate-500 mt-0.5">{data?.total ?? 0} total</p>
+        </div>
+        <Link
+          to="/contacts/new"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          <Plus size={15} strokeWidth={2.5} />
+          New Contact
+        </Link>
       </div>
 
-      <input
-        placeholder="Search by name, email, or company..."
-        value={search}
-        onChange={e => setSearch(e.target.value)}
-        style={{ width: '100%', maxWidth: 400, padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', marginBottom: 20, fontSize: 14 }}
-      />
+      <div className="relative mb-5 max-w-sm">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          placeholder="Search by name, email, or company…"
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
 
-      {isLoading && <p>Loading...</p>}
+      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+
       {data && (
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ borderBottom: '2px solid #e2e8f0', textAlign: 'left' }}>
-              <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>Name</th>
-              <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>Email</th>
-              <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>Company</th>
-              <th style={{ padding: '8px 12px', fontWeight: 600, color: '#475569' }}>Phone</th>
-            </tr>
-          </thead>
-          <tbody>
-            {data.items.map(c => (
-              <tr key={c.id} style={{ borderBottom: '1px solid #f1f5f9' }}>
-                <td style={{ padding: '10px 12px' }}>
-                  <Link to={`/contacts/${c.id}`} style={{ color: '#2563eb', textDecoration: 'none', fontWeight: 500 }}>
-                    {c.full_name}
-                  </Link>
-                </td>
-                <td style={{ padding: '10px 12px', color: '#64748b' }}>{c.email ?? '—'}</td>
-                <td style={{ padding: '10px 12px', color: '#64748b' }}>{c.company ?? '—'}</td>
-                <td style={{ padding: '10px 12px', color: '#64748b' }}>{c.phone ?? '—'}</td>
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Phone</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {data.items.map(c => (
+                <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                  <td className="px-4 py-3">
+                    <Link to={`/contacts/${c.id}`} className="flex items-center gap-2.5 group">
+                      <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
+                        <User size={13} className="text-blue-600" />
+                      </div>
+                      <span className="text-sm font-medium text-blue-600 group-hover:text-blue-700">
+                        {c.full_name}
+                      </span>
+                    </Link>
+                  </td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{c.email ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{c.company ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{c.phone ?? '—'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {data.items.length === 0 && (
+            <div className="py-12 text-center">
+              <User size={32} className="text-slate-300 mx-auto mb-3" />
+              <p className="text-sm text-slate-400 font-medium">No contacts found</p>
+            </div>
+          )}
+        </div>
       )}
-      {data && <p style={{ marginTop: 12, color: '#94a3b8', fontSize: 13 }}>{data.total} total</p>}
     </div>
   )
 }

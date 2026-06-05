@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { ChevronLeft, X } from 'lucide-react'
 import { api } from '../../../api/client'
 
 interface Contact {
@@ -10,19 +11,14 @@ interface Contact {
   company: string | null
 }
 
-const field: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 4 }
-const labelStyle: React.CSSProperties = {
-  fontSize: 12, fontWeight: 600, color: '#475569', textTransform: 'uppercase',
+const PRIORITY_STYLES: Record<string, { active: string; inactive: string }> = {
+  low:    { active: 'bg-slate-500 text-white border-slate-500',   inactive: 'border-slate-300 text-slate-500 hover:bg-slate-50' },
+  medium: { active: 'bg-blue-600 text-white border-blue-600',     inactive: 'border-blue-300 text-blue-600 hover:bg-blue-50' },
+  high:   { active: 'bg-amber-500 text-white border-amber-500',   inactive: 'border-amber-300 text-amber-600 hover:bg-amber-50' },
+  urgent: { active: 'bg-red-600 text-white border-red-600',       inactive: 'border-red-300 text-red-600 hover:bg-red-50' },
 }
-const inputStyle: React.CSSProperties = {
-  padding: '9px 12px', borderRadius: 6, border: '1px solid #cbd5e1',
-  fontSize: 14, color: '#1e293b', width: '100%',
-}
-const errorStyle: React.CSSProperties = { fontSize: 13, color: '#dc2626', marginTop: 2 }
 
-function ContactPicker({
-  value, onChange,
-}: {
+function ContactPicker({ value, onChange }: {
   value: { id: string; label: string } | null
   onChange: (c: { id: string; label: string } | null) => void
 }) {
@@ -32,10 +28,7 @@ function ContactPicker({
 
   const { data } = useQuery({
     queryKey: ['contacts-picker', search],
-    queryFn: () =>
-      api.get<{ items: Contact[] }>('/contacts', {
-        params: { search: search || undefined, limit: 8 },
-      }).then(r => r.data.items),
+    queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { search: search || undefined, limit: 8 } }).then(r => r.data.items),
     enabled: open,
   })
 
@@ -49,40 +42,28 @@ function ContactPicker({
 
   if (value) {
     return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{
-          padding: '6px 12px', background: '#eff6ff', color: '#1d4ed8',
-          borderRadius: 6, fontSize: 14, fontWeight: 500,
-        }}>
-          {value.label}
-        </span>
-        <button
-          type="button" onClick={() => onChange(null)}
-          style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: 16 }}
-        >
-          ×
+      <div className="flex items-center gap-2">
+        <span className="px-3 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-sm font-medium">{value.label}</span>
+        <button type="button" onClick={() => onChange(null)} className="text-slate-400 hover:text-slate-600 transition-colors">
+          <X size={16} />
         </button>
       </div>
     )
   }
 
   return (
-    <div ref={ref} style={{ position: 'relative' }}>
+    <div ref={ref} className="relative">
       <input
-        style={inputStyle}
+        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         value={search}
         onChange={e => { setSearch(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
         placeholder="Search contacts by name, email or company…"
       />
       {open && (
-        <div style={{
-          position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10,
-          background: '#fff', border: '1px solid #e2e8f0', borderRadius: 6,
-          boxShadow: '0 4px 12px rgba(0,0,0,.1)', marginTop: 2, maxHeight: 260, overflowY: 'auto',
-        }}>
+        <div className="absolute top-full left-0 right-0 z-10 bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
           {!data?.length && (
-            <div style={{ padding: '10px 14px', color: '#94a3b8', fontSize: 14 }}>
+            <div className="px-4 py-3 text-sm text-slate-400">
               {search ? 'No contacts found' : 'Start typing to search…'}
             </div>
           )}
@@ -94,18 +75,11 @@ function ContactPicker({
                 setOpen(false)
                 setSearch('')
               }}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '10px 14px', background: 'none', border: 'none',
-                cursor: 'pointer', fontSize: 14, color: '#1e293b',
-                borderBottom: '1px solid #f1f5f9',
-              }}
-              onMouseEnter={e => (e.currentTarget.style.background = '#f8fafc')}
-              onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+              className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors"
             >
-              <span style={{ fontWeight: 500 }}>{c.full_name}</span>
-              {c.company && <span style={{ color: '#64748b', marginLeft: 6 }}>{c.company}</span>}
-              {c.email && <span style={{ color: '#94a3b8', marginLeft: 6, fontSize: 13 }}>{c.email}</span>}
+              <span className="font-medium text-slate-900">{c.full_name}</span>
+              {c.company && <span className="text-slate-500 ml-2">{c.company}</span>}
+              {c.email && <span className="text-slate-400 ml-2 text-xs">{c.email}</span>}
             </button>
           ))}
         </div>
@@ -131,7 +105,6 @@ export default function TicketNew() {
     queryFn: () => api.get('/departments').then(r => r.data),
   })
 
-  // Pre-fill contact if navigated from a contact page: /tickets/new?contact_id=...&contact_name=...
   useEffect(() => {
     const id = searchParams.get('contact_id')
     const name = searchParams.get('contact_name')
@@ -167,61 +140,56 @@ export default function TicketNew() {
   }
 
   return (
-    <div style={{ maxWidth: 600 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 28 }}>
-        <Link to="/tickets" style={{ color: '#64748b', textDecoration: 'none', fontSize: 14 }}>
-          ← Tickets
+    <div className="max-w-xl">
+      <div className="flex items-center gap-3 mb-7">
+        <Link to="/tickets" className="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+          <ChevronLeft size={16} />
+          Tickets
         </Link>
-        <h1 style={{ fontSize: 22, fontWeight: 700 }}>New Ticket</h1>
+        <span className="text-slate-300">/</span>
+        <h1 className="text-2xl font-bold text-slate-900">New Ticket</h1>
       </div>
 
-      <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-        <div style={field}>
-          <label style={labelStyle}>Subject *</label>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-5">
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Subject *</label>
           <input
-            style={{ ...inputStyle, borderColor: errors.subject ? '#dc2626' : '#cbd5e1' }}
+            className={`w-full px-3 py-2 border rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.subject ? 'border-red-400' : 'border-slate-300'}`}
             value={subject} onChange={e => setSubject(e.target.value)}
             placeholder="Short description of the issue" autoFocus
           />
-          {errors.subject && <span style={errorStyle}>{errors.subject}</span>}
+          {errors.subject && <p className="text-xs text-red-500 mt-1">{errors.subject}</p>}
         </div>
 
-        <div style={field}>
-          <label style={labelStyle}>Contact <span style={{ fontWeight: 400, textTransform: 'none', color: '#94a3b8' }}>(optional)</span></label>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+            Contact <span className="font-normal text-slate-400 normal-case">(optional)</span>
+          </label>
           <ContactPicker value={contact} onChange={setContact} />
         </div>
 
-        <div style={field}>
-          <label style={labelStyle}>Priority</label>
-          <div style={{ display: 'flex', gap: 8 }}>
-            {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
-              const colors: Record<string, string> = {
-                low: '#6b7280', medium: '#2563eb', high: '#d97706', urgent: '#dc2626',
-              }
-              const selected = priority === p
-              return (
-                <button
-                  key={p} type="button" onClick={() => setPriority(p)}
-                  style={{
-                    padding: '6px 16px', borderRadius: 20, border: `1.5px solid ${colors[p]}`,
-                    background: selected ? colors[p] : 'transparent',
-                    color: selected ? '#fff' : colors[p],
-                    fontWeight: 600, fontSize: 13, cursor: 'pointer', textTransform: 'capitalize',
-                  }}
-                >
-                  {p}
-                </button>
-              )
-            })}
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Priority</label>
+          <div className="flex gap-2">
+            {(['low', 'medium', 'high', 'urgent'] as const).map(p => (
+              <button
+                key={p} type="button" onClick={() => setPriority(p)}
+                className={`px-4 py-1.5 rounded-full border text-xs font-semibold capitalize transition-colors ${priority === p ? PRIORITY_STYLES[p].active : PRIORITY_STYLES[p].inactive}`}
+              >
+                {p}
+              </button>
+            ))}
           </div>
         </div>
 
-        <div style={field}>
-          <label style={labelStyle}>Department <span style={{ fontWeight: 400, textTransform: 'none', color: '#94a3b8' }}>(optional)</span></label>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+            Department <span className="font-normal text-slate-400 normal-case">(optional)</span>
+          </label>
           <select
             value={departmentId}
             onChange={e => setDepartmentId(e.target.value)}
-            style={{ ...inputStyle, background: '#fff' }}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">No department</option>
             {departments?.map((d: any) => (
@@ -230,37 +198,27 @@ export default function TicketNew() {
           </select>
         </div>
 
-        <div style={field}>
-          <label style={labelStyle}>Description</label>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Description</label>
           <textarea
-            style={{ ...inputStyle, resize: 'vertical', minHeight: 120, fontFamily: 'inherit' }}
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical min-h-[120px] font-[inherit]"
             value={description} onChange={e => setDescription(e.target.value)}
             placeholder="What happened? Any relevant details, error messages, or steps to reproduce…"
           />
         </div>
 
         {mutation.isError && (
-          <p style={{ color: '#dc2626', fontSize: 14 }}>
-            Something went wrong — check the console and try again.
-          </p>
+          <p className="text-sm text-red-500">Something went wrong — try again.</p>
         )}
 
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+        <div className="flex gap-3 items-center">
           <button
             type="submit" disabled={mutation.isPending}
-            style={{
-              padding: '10px 24px',
-              background: mutation.isPending ? '#93c5fd' : '#2563eb',
-              color: '#fff', border: 'none', borderRadius: 6,
-              cursor: mutation.isPending ? 'not-allowed' : 'pointer',
-              fontWeight: 600, fontSize: 14,
-            }}
+            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
           >
             {mutation.isPending ? 'Creating…' : 'Create ticket'}
           </button>
-          <Link to="/tickets" style={{
-            padding: '10px 20px', color: '#64748b', textDecoration: 'none', fontSize: 14,
-          }}>
+          <Link to="/tickets" className="px-4 py-2.5 text-sm text-slate-500 hover:text-slate-700 transition-colors">
             Cancel
           </Link>
         </div>

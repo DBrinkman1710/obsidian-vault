@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
+import { Activity } from 'lucide-react'
 import { api } from '../../../api/client'
 
 const STAT_CARDS = [
-  { key: 'open',        label: 'Open',              color: '#2563eb', bg: '#eff6ff' },
-  { key: 'in_progress', label: 'Active',             color: '#7c3aed', bg: '#f5f3ff' },
-  { key: 'waiting',     label: 'Ready to inform',    color: '#d97706', bg: '#fffbeb' },
+  { key: 'open',        label: 'Open',           colorClass: 'text-blue-600',   bgClass: 'bg-blue-50 border-blue-100' },
+  { key: 'in_progress', label: 'Active',          colorClass: 'text-violet-600', bgClass: 'bg-violet-50 border-violet-100' },
+  { key: 'waiting',     label: 'Ready to inform', colorClass: 'text-amber-600',  bgClass: 'bg-amber-50 border-amber-100' },
 ]
 
 export default function ActivityFeed() {
@@ -22,50 +23,49 @@ export default function ActivityFeed() {
 
   return (
     <div>
-      <h1 style={{ fontSize: 22, fontWeight: 700, marginBottom: 24 }}>Activity</h1>
+      <h1 className="text-2xl font-bold text-slate-900 mb-6">Activity</h1>
 
-      {/* Stat cards */}
-      <div style={{ display: 'flex', gap: 16, marginBottom: 32 }}>
-        {STAT_CARDS.map(({ key, label, color, bg }) => (
-          <div key={key} style={{
-            flex: 1, background: bg, border: `1px solid ${color}30`,
-            borderRadius: 10, padding: '20px 24px',
-          }}>
-            <p style={{ fontSize: 36, fontWeight: 800, color, margin: 0, lineHeight: 1 }}>
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        {STAT_CARDS.map(({ key, label, colorClass, bgClass }) => (
+          <div key={key} className={`rounded-xl border p-6 ${bgClass}`}>
+            <p className={`text-4xl font-extrabold ${colorClass} leading-none mb-2`}>
               {stats?.[key] ?? '—'}
             </p>
-            <p style={{ fontSize: 13, fontWeight: 600, color, margin: '6px 0 0', opacity: 0.8 }}>
-              {label}
-            </p>
+            <p className={`text-sm font-semibold ${colorClass} opacity-80`}>{label}</p>
           </div>
         ))}
       </div>
 
-      {/* Event feed */}
-      <h2 style={{ fontSize: 14, fontWeight: 700, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12 }}>
-        Recent Events
-      </h2>
-      {isLoading && <p>Loading...</p>}
-      {events?.length === 0 && <p style={{ color: '#94a3b8' }}>No activity yet.</p>}
-      {events?.map((ev: any) => (
-        <div key={ev.id} style={{
-          display: 'flex', gap: 16, padding: '12px 0', borderBottom: '1px solid #f1f5f9',
-        }}>
-          <div style={{
-            width: 8, height: 8, borderRadius: '50%', background: '#2563eb',
-            marginTop: 6, flexShrink: 0,
-          }} />
-          <div>
-            <p style={{ fontSize: 14, color: '#1e293b' }}>
-              <strong>{ev.event_type}</strong> on {ev.entity_type}
-            </p>
-            <p style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-              {new Date(ev.created_at).toLocaleString()}
-              {ev.module && ` · ${ev.module}`}
-            </p>
+      <div className="flex items-center gap-2 mb-4">
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recent Events</p>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        {isLoading && (
+          <p className="text-sm text-slate-400 p-6">Loading…</p>
+        )}
+        {!isLoading && (!events || events.length === 0) && (
+          <div className="py-12 text-center">
+            <Activity size={32} className="text-slate-300 mx-auto mb-3" />
+            <p className="text-sm text-slate-400 font-medium">No activity yet</p>
           </div>
-        </div>
-      ))}
+        )}
+        {events?.map((ev: any, i: number) => (
+          <div key={ev.id} className={`flex gap-4 px-5 py-4 ${i < events.length - 1 ? 'border-b border-slate-100' : ''}`}>
+            <div className="w-2 h-2 rounded-full bg-blue-500 mt-1.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm text-slate-900">
+                <span className="font-semibold">{ev.event_type}</span>
+                <span className="text-slate-500"> on {ev.entity_type}</span>
+              </p>
+              <p className="text-xs text-slate-400 mt-1">
+                {new Date(ev.created_at).toLocaleString()}
+                {ev.module && <span className="ml-2 px-1.5 py-0.5 bg-slate-100 rounded text-slate-500">{ev.module}</span>}
+              </p>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   )
 }

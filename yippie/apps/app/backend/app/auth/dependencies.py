@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -43,16 +43,28 @@ async def get_current_user(
     return user
 
 
-async def require_admin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
-    if current_user.role not in (UserRole.admin, UserRole.superadmin):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Admin access required")
-    return current_user
+def _require_role(allowed: tuple[UserRole, ...], detail: str):
+    """Factory — returns a FastAPI dependency that enforces a role and resets the DB role."""
+    async def _check(
+        current_user: Annotated[User, Depends(get_current_user)],
+        db: Annotated[AsyncSession, Depends(get_db)],
+    ) -> User:
+        if current_user.role not in allowed:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
+        await db.execute(text("RESET ROLE"))
+        return current_user
+    return _check
 
 
-async def require_superadmin(current_user: Annotated[User, Depends(get_current_user)]) -> User:
-    if current_user.role != UserRole.superadmin:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Superadmin access required")
-    return current_user
+require_admin = _require_role(
+    (UserRole.admin, UserRole.superadmin),
+    "Admin access required",
+)
+
+require_superadmin = _require_role(
+    (UserRole.superadmin,),
+    "Superadmin access required",
+)
 
 
 def require_module(module_name: str):

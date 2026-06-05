@@ -9,19 +9,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, require_module
 from app.auth.router import router as auth_router
-from app.config import load_tenant_config
+from app.config import get_settings, load_tenant_config
 from app.core.models import Tenant
 from app.core.schemas import TenantConfigOut
 from app.database import get_db
 from app.modules import MODULES
 from app.modules.admin.router import router as admin_router
 from app.modules.departments.router import router as departments_router
-from app.modules.tickets.automation.sla_escalation import start_scheduler
+from app.modules.inbox.router import webhook_router as inbox_webhook_router
+from app.modules.inbox.email_poller import start_scheduler as start_email_poller
+from app.modules.tickets.automation.sla_escalation import start_scheduler as start_sla_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    start_scheduler()
+    start_sla_scheduler()
+    start_email_poller()
     yield
 
 
@@ -48,6 +51,8 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(departments_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
+    # Public webhooks — no auth, must be mounted before module-gated routes
+    app.include_router(inbox_webhook_router, prefix="/api/v1")
 
     @app.get("/api/v1/health", tags=["health"], include_in_schema=False)
     async def health():
@@ -60,11 +65,15 @@ def create_app() -> FastAPI:
         db: Annotated[AsyncSession, Depends(get_db)],
     ):
         tenant = await db.get(Tenant, current_user.tenant_id)
+        settings = get_settings()
         return TenantConfigOut(
             tenant_id=tenant.slug,
             tenant_name=tenant.name,
             enabled_modules=tenant.enabled_modules or [],
             branding={"primary_color": tenant.primary_color, "logo_url": tenant.logo_url},
+            environment=settings.environment,
+            is_demo=tenant.is_demo,
+            is_active=tenant.is_active,
         )
 
     # Module routes — all mounted, each gated per-request by tenant's enabled_modules

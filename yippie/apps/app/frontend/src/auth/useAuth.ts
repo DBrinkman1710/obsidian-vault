@@ -14,6 +14,7 @@ interface AuthState {
   token: string | null
   login: (email: string, password: string) => Promise<void>
   logout: () => void
+  refreshUser: () => Promise<void>
 }
 
 const storedUser = localStorage.getItem('auth_user')
@@ -33,5 +34,15 @@ export const useAuth = create<AuthState>((set) => ({
     localStorage.removeItem('access_token')
     localStorage.removeItem('auth_user')
     set({ token: null, user: null })
+  },
+
+  refreshUser: async () => {
+    try {
+      const { data } = await api.get('/auth/me')
+      localStorage.setItem('auth_user', JSON.stringify(data))
+      set({ user: data })
+    } catch {
+      // Silently fail — let the existing token/logout flow handle expired sessions
+    }
   },
 }))

@@ -1,0 +1,273 @@
+═══════════════════════════════════════════════════════════════
+YIPPIE — COMMERCIAL WEBSITE UI REDESIGN PROMPT
+File: apps/web/src/app/page.tsx  (Next.js 14, TypeScript)
+═══════════════════════════════════════════════════════════════
+
+── WHAT THIS IS ────────────────────────────────────────────────
+
+Yippie is an AI-powered customer service platform for small and medium
+businesses. The product handles inbox triage, tickets, live chat,
+contacts, billing, and an activity feed — all in one place. The core
+value: AI drafts your support tickets for you so you spend seconds
+instead of minutes on every message.
+
+The commercial website lives at getyippie.com (Next.js 14, TypeScript).
+This prompt is for a full visual redesign of apps/web/src/app/page.tsx.
+
+── THE BRAND ────────────────────────────────────────────────────
+
+Brand blue : #5BA4F5 (Yippie's logo colour — warm cornflower blue)
+White      : #FFFFFF (cards, nav, clean sections)
+Slate-50   : #F8FAFC (alternating section background)
+Text dark  : #0F172A (headings)
+Text mid   : #475569 (body copy)
+Text light : #94A3B8 (labels, captions)
+Border     : #E2E8F0 (card borders, dividers)
+
+The logo is the word "yippie" in white with a smiley-face mark to the
+left (an arc, two dots). It always sits on the Yippie blue.
+
+The product UI (the actual app) uses:
+  - Yippie blue sidebar with white text and lucide-react SVG icons
+  - White cards, rounded-2xl, shadow-sm, border border-slate-100
+  - A 2×2 grid layout for the mail detail view (no emoji anywhere)
+  - Inter / system-ui font, clean minimal spacing
+
+── THE DESIGN DIRECTION ────────────────────────────────────────
+
+IMPORTANT: This must NOT look like a generic AI-generated SaaS landing
+page. Avoid every template cliché:
+
+  ✗ No blue-to-purple gradient hero backgrounds
+  ✗ No glassmorphism blobs or background glow circles
+  ✗ No 3-column "icon + title + text" feature grid as the hero section
+  ✗ No oversized "coming soon" countdown widgets
+  ✗ No stock-photo-style mockup screenshots
+  ✗ No particle effects, animated gradients, or parallax everything
+  ✗ No "Trusted by 10,000+ teams" fake social proof banners
+  ✗ No emoji used as icons anywhere — not in features, not in the nav
+
+Look at these real sites for inspiration on what GOOD looks like:
+  - linear.app — clean dark hero, crisp product screenshots, editorial
+  - vercel.com — clear hierarchy, no noise, code speaks for itself
+  - cal.com — simple, confident, shows the actual product UI
+  - superhuman.com — single strong headline, premium feel, minimal
+
+The Yippie site should feel:
+  CONFIDENT — one strong headline, not three competing messages
+  EDITORIAL — sections breathe, whitespace is intentional
+  PRODUCT-FIRST — show the actual app, not a cartoon of it
+  FAST — the page should feel as fast as the product claims to be
+
+── VISUAL STYLE ─────────────────────────────────────────────────
+
+Typography:
+  Font      : Inter (via next/font/google)
+  H1        : text-5xl md:text-6xl lg:text-7xl, font-bold, tracking-tight
+  H2        : text-3xl md:text-4xl, font-bold, tracking-tight
+  Eyebrow   : text-xs font-semibold tracking-widest uppercase, text-yippie
+  Body      : text-base md:text-lg, leading-relaxed, text-slate-600
+  Caption   : text-sm, text-slate-400
+
+Buttons:
+  Primary   : bg-yippie text-white px-6 py-3 rounded-xl font-semibold
+               hover:opacity-90 transition-opacity — NO gradient, no glow
+  Ghost     : border border-slate-200 text-slate-700 px-6 py-3 rounded-xl
+               hover:border-slate-400 transition-colors
+
+Cards:
+  Background: white
+  Border    : border border-slate-100
+  Radius    : rounded-2xl
+  Shadow    : shadow-sm hover:shadow-md transition-shadow
+  NO glassmorphism, no frosted blur on cards
+
+Section rhythm:
+  - Sections alternate white / slate-50 backgrounds
+  - Max content width: max-w-6xl mx-auto
+  - Padding: px-6 md:px-8, py-20 md:py-32 per section
+  - Each section has ONE eyebrow, ONE headline, ONE sub-sentence
+
+── SECTIONS ─────────────────────────────────────────────────────
+
+1. NAV
+   Sticky. bg-white border-b border-slate-100.
+   Logo (the SVG smiley mark + "yippie" wordmark) on the left.
+   Three links: Features · Pricing · How it works
+   Right: "Log in →" as a ghost button.
+   No hamburger animation theatrics — simple, clean.
+
+2. HERO
+   White background. Two-column layout on desktop (text left, visual right).
+
+   LEFT column:
+     - Eyebrow tag: a small pill with Yippie blue dot — "AI customer service"
+     - H1: "Give yourself back the time that matters"
+     - Sub: 2 lines max. "Yippie auto-drafts every support ticket from
+       your inbox. Review, approve, done."
+     - Two buttons: "Start for free →" (primary) + "See how it works" (ghost)
+     - No bullet points, no feature list in the hero
+
+   RIGHT column:
+     - An HTML/CSS mockup of the actual product interface:
+       A browser chrome frame (rounded corners, three dots top-left)
+       containing the Yippie app layout:
+         - Left sidebar: Yippie blue (#5BA4F5), showing nav items as
+           small rounded rectangles with one active state
+         - Main area: 2×2 card grid (Customer | Email / Ticket | Reply)
+           Each card: white, rounded-xl, with a thin header line and
+           a few placeholder lines of content
+     - Give the frame a drop-shadow-2xl and slight rotate-1 tilt
+     - Behind it: a single soft Yippie-blue circle blur (opacity 15%,
+       blur-3xl) — one, not five
+
+3. LOGO BAR (social proof strip)
+   Thin section. Gray text: "Teams at these businesses use Yippie"
+   5 fictional SMB names in muted slate-400, no logos, no images.
+   This section is minimal — it exists only to say "real businesses use this".
+
+4. STATS
+   Three stats in a row, centered, white background, generous spacing.
+   Each stat: large number in #5BA4F5, small gray label below.
+   "10h+" / "saved per week per person"
+   "<2 min" / "average ticket response time"
+   "6" / "modules, one platform"
+   No borders between stats — use spacing alone to separate.
+
+5. FEATURES
+   Section heading: "Everything your support team needs"
+   Layout: 2 columns on desktop, each row is a feature.
+   Each feature row: lucide icon (20px, stroke 1.5) in a
+   bg-slate-50 rounded-xl square LEFT, text RIGHT.
+   Feature title bold, description gray. No card background — just
+   the icon block and text on the section background.
+
+   Features (icon from lucide-react):
+     Inbox          / Smart inbox auto-drafts tickets from email & WhatsApp
+     Ticket         / Track, assign, and close requests with SLA alerts
+     MessageSquare  / Live chat widget — one line of code to embed
+     Users          / Full customer history — emails, tickets, invoices
+     Activity       / Real-time activity feed across your whole business
+     CreditCard     / Send and track invoices without leaving the platform
+
+6. HOW IT WORKS
+   Slate-50 background.
+   Three numbered steps in a horizontal row (desktop) or stacked (mobile).
+   Large step number (01 / 02 / 03) in text-yippie/30, title, description.
+   Between each step: a thin arrow line connecting them (desktop only).
+   NO circular badges, no icons — the number IS the visual.
+
+7. PRODUCT MOMENT (the "wow" section)
+   Dark section: bg-slate-900. Full width.
+   Headline (white): "Everything in one place"
+   Sub (slate-400): one sentence about the unified platform.
+
+   Below: a wide, centered HTML mockup of the inbox list page.
+   Show the Yippie blue sidebar on the left (narrow, white nav items),
+   and a list of 4–5 email rows on the right. Each row shows:
+     sender name, subject, a small priority badge, a status pill.
+   This is crisp, not decorative. It looks like the real product.
+
+   NO neon glows, no floating elements, no confetti.
+
+8. PRICING
+   Section heading: "Simple, honest pricing"
+   Three-column card layout. Middle card (Growth) has a Yippie blue
+   border (border-2 border-yippie) and a small "Most popular" badge
+   (bg-yippie text-white text-xs px-2 py-0.5 rounded-full).
+
+   Show a monthly/annual toggle (annual = 20% off). Default monthly.
+
+   Plans:
+     Starter  €29/mo  1 user, 500 contacts, Inbox + Tickets, Live chat, Email support
+     Growth   €79/mo  5 users, 5,000 contacts, All modules, Activity feed, Priority support
+     Pro      €199/mo Unlimited users, Unlimited contacts, All modules, API access, Dedicated support
+
+   Checkmark list uses a simple ✓ in text-yippie, not a circle badge.
+   CTA button: primary for Growth, ghost for others.
+
+9. CTA SECTION
+   bg-yippie (solid brand blue — NOT a gradient).
+   White headline: "Ready to win back your time?"
+   White sub: "Join businesses that handle customer support in half the
+   time. Start for free, no credit card required."
+   One white button: "Start for free →" with bg-white text-yippie.
+
+   This section should feel calm and confident, not loud.
+
+10. FOOTER
+    White. Logo left. Three links right: Features · Pricing · Log in.
+    Bottom: © 2026 Yippie — muted gray, small.
+    No newsletter signup, no social icons (keep it minimal).
+
+── ANIMATIONS ───────────────────────────────────────────────────
+
+Keep animations purposeful and subtle:
+  - Hero text fades in (opacity 0→1, translateY 8px→0, 400ms ease-out)
+  - Feature rows animate in on scroll (Intersection Observer, stagger 80ms)
+  - Card hover: shadow-md + subtle translateY(-2px)
+  - Button hover: opacity-90 (no scale, no glow)
+  - Pricing toggle: smooth transition between monthly/annual prices
+
+Absolutely no:
+  - Typewriter effects
+  - Counter animations on stats (too gimmicky)
+  - Floating animated elements
+  - Scroll-jacked parallax
+
+── TECH STACK ───────────────────────────────────────────────────
+
+Framework : Next.js 14 (App Router, TypeScript)
+Styling   : Tailwind CSS v3 — REPLACE CSS Modules entirely
+Icons     : lucide-react (no emoji anywhere)
+Fonts     : Inter via next/font/google
+Animation : CSS transitions + Intersection Observer (no framer-motion)
+
+Files to change:
+  apps/web/src/app/page.tsx      ← main work
+  apps/web/src/app/layout.tsx    ← add Inter font
+  apps/web/src/app/globals.css   ← @tailwind directives
+  apps/web/tailwind.config.ts    ← extend with yippie: '#5BA4F5'
+  apps/web/src/app/page.module.css ← DELETE
+
+Setup:
+  cd apps/web
+  pnpm add -D tailwindcss@3 postcss autoprefixer
+  pnpm add lucide-react
+  npx tailwindcss init -p
+
+APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com"
+
+── SKILLS TO USE ────────────────────────────────────────────────
+
+1. /frontend-design  (already installed)
+   Use for generating the polished component code. Invoke this skill
+   when writing the Hero, Product Moment section, and Pricing cards.
+   It produces distinctive UI — not generic AI output.
+
+2. /ui-ux-pro-max  (already installed)
+   Use for design system validation, typography choices, spacing
+   decisions, and UX pattern checks. Run before finalising layout.
+
+3. /tailwind-css-patterns  (already installed)
+   Use for responsive layout utilities, grid patterns, hover states.
+
+Optional:
+   npx skills add kostja94/marketing-skills@landing-page-generator -g -y
+   Only install if you need help structuring conversion copy.
+
+── QUALITY BAR ──────────────────────────────────────────────────
+
+The finished page should pass this check:
+  ✓ A designer could show this to a client without embarrassment
+  ✓ It looks nothing like a ChatGPT-generated landing page template
+  ✓ The Yippie blue appears in exactly the right places — not everywhere
+  ✓ The product mockup looks like the real app, not a cartoon
+  ✓ No emoji used anywhere — not one
+  ✓ No gradient backgrounds except the bg-yippie CTA section (solid)
+  ✓ Runs `pnpm build` without errors
+  ✓ Looks correct on 375px mobile, 768px tablet, 1440px desktop
+
+═══════════════════════════════════════════════════════════════
+END OF PROMPT
+═══════════════════════════════════════════════════════════════

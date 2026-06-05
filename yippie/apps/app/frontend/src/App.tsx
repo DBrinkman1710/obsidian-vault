@@ -17,8 +17,9 @@ const ChatPage      = lazy(() => import('./modules/chat/pages/ChatPage'))
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
 const LoginPage       = lazy(() => import('./auth/LoginPage'))
-const DepartmentsPage = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
-const SuperAdminPage  = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
+const DepartmentsPage          = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
+const SuperAdminPage           = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
+const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/SuperadminsSettingsPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -28,11 +29,14 @@ function PagePad({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { token } = useAuth()
+  const { token, refreshUser } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
 
   useEffect(() => {
-    if (token) fetchTenantConfig().then(setConfig)
+    if (token) {
+      refreshUser()
+      fetchTenantConfig().then(setConfig)
+    }
   }, [token])
 
   if (!token) {
@@ -51,6 +55,11 @@ export default function App() {
       <div className="flex h-screen overflow-hidden bg-slate-50">
         <Sidebar />
         <main className="flex-1 overflow-hidden flex flex-col">
+          {config?.is_demo && (
+            <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4">
+              Demo environment — data may be reset at any time. Contact support to go live.
+            </div>
+          )}
           <Suspense fallback={<div className="p-8 text-slate-400">Loading…</div>}>
             <Routes>
               <Route path="/" element={<Navigate to="/inbox" replace />} />
@@ -96,6 +105,7 @@ export default function App() {
               } />
 
               <Route path="/settings/departments" element={<PagePad><DepartmentsPage /></PagePad>} />
+              <Route path="/settings/superadmins" element={<PagePad><SuperadminsSettingsPage /></PagePad>} />
               <Route path="/superadmin/clients" element={<PagePad><SuperAdminPage /></PagePad>} />
             </Routes>
           </Suspense>

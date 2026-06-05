@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard,
-  MessageSquare, Settings, LogOut, Building2,
+  MessageSquare, Settings, LogOut, Building2, ShieldCheck,
 } from 'lucide-react'
 import { useTenantConfig } from '../App'
 import { useAuth } from '../auth/useAuth'
@@ -99,7 +99,7 @@ export function Sidebar() {
 
       {/* Bottom section */}
       <div className="border-t border-white/15 px-3 py-3 space-y-0.5">
-        {user?.role === 'superadmin' && (
+        {user?.role === 'superadmin' && ['dev', 'devsandbox'].includes(config?.environment ?? '') && (
           <NavLink
             to="/superadmin/clients"
             className={({ isActive }) =>
@@ -124,6 +124,20 @@ export function Sidebar() {
           >
             <Settings size={16} strokeWidth={2} />
             <span>Settings</span>
+          </NavLink>
+        )}
+
+        {user?.role === 'superadmin' && (
+          <NavLink
+            to="/settings/superadmins"
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+              }`
+            }
+          >
+            <ShieldCheck size={16} strokeWidth={2} />
+            <span>Superadmins</span>
           </NavLink>
         )}
 

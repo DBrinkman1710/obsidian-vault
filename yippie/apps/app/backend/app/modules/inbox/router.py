@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import uuid
 from typing import Annotated, Optional
 
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
 from app.auth.dependencies import CurrentUser
-from app.core.mailer import MailgunNotConfiguredError, send_email
+from app.core.mailer import ResendNotConfiguredError, send_email
 from app.core.tenant import resolve_tenant_uuid
 from app.database import get_db
 from app.modules.activity import service as activity_service
@@ -117,7 +118,7 @@ async def send_reply(draft_id: uuid.UUID, body: SendReplyRequest, current_user: 
 
     try:
         await send_email(to=msg.sender, subject=subject, body=body.reply_text)
-    except MailgunNotConfiguredError as e:
+    except ResendNotConfiguredError as e:
         raise HTTPException(status_code=503, detail=str(e))
 
     await activity_service.log_event(
@@ -181,7 +182,7 @@ async def forward_draft(draft_id: uuid.UUID, body: ForwardRequest, current_user:
             body=dept_body,
             reply_to=msg.sender,
         )
-    except MailgunNotConfiguredError:
+    except ResendNotConfiguredError:
         pass  # Email not configured — still mark as forwarded
 
     draft.forwarded_to_department_id = dept.id
@@ -219,27 +220,75 @@ async def clear_followup(draft_id: uuid.UUID, current_user: CurrentUser, db: DB)
     return draft
 
 
-# --- Webhook endpoints (called by Mailgun / Twilio, no auth token) ---
+# --- Compose (outbound, direct send) ---
 
-@router.post("/webhooks/email", status_code=status.HTTP_200_OK)
-async def mailgun_webhook(request: Request, db: DB):
-    """Mailgun inbound email webhook."""
-    form = await request.form()
-    tenant_id = await resolve_tenant_uuid(db)
-    await service.ingest_email(
-        db=db,
-        tenant_id=tenant_id,
-        sender=str(form.get("sender", "")),
-        subject=str(form.get("subject", "")) or None,
-        body=str(form.get("body-plain", form.get("body-html", ""))),
-        headers=str(form.get("message-headers", "")) or None,
+class ComposeRequest(BaseModel):
+    to: list[str]          # list of email addresses
+    subject: str
+    body: str
+
+
+class ComposeSuggestRequest(BaseModel):
+    prompt: str            # agent's brief describing the email to write
+
+
+@router.post("/compose", status_code=status.HTTP_200_OK)
+async def compose_send(body: ComposeRequest, current_user: CurrentUser, db: DB):
+    """Send a new outbound email to one or more recipients (BCC when multiple)."""
+    if not body.to:
+        raise HTTPException(status_code=400, detail="At least one recipient is required")
+    if not body.subject.strip() or not body.body.strip():
+        raise HTTPException(status_code=400, detail="Subject and body are required")
+
+    # Check config before firing requests
+    results = await asyncio.gather(
+        *[send_email(to=r, subject=body.subject, body=body.body) for r in body.to],
+        return_exceptions=True,
     )
+    for exc in results:
+        if isinstance(exc, ResendNotConfiguredError):
+            raise HTTPException(status_code=503, detail=str(exc))
+    failed = [body.to[i] for i, r in enumerate(results) if isinstance(r, Exception)]
+
+    await activity_service.log_event(
+        db=db,
+        tenant_id=current_user.tenant_id,
+        module="inbox",
+        event_type="email.composed",
+        entity_type="outbound_email",
+        entity_id=None,
+        contact_id=None,
+        actor_id=current_user.id,
+        payload={"subject": body.subject, "recipients": len(body.to), "failed": failed},
+    )
+    await db.commit()
+    return {"sent": len(body.to) - len(failed), "failed": failed}
+
+
+@router.post("/compose/suggest", status_code=status.HTTP_200_OK)
+async def compose_suggest(body: ComposeSuggestRequest, current_user: CurrentUser):
+    """Use AI to suggest a subject and body for a new outbound email."""
+    return await ai_scanner.generate_compose_suggestion(body.prompt)
+
+
+# --- Webhook endpoints — public router, no auth, mounted separately in main.py ---
+# Must NOT be inside the module-gated router or Resend/Twilio calls will get 403.
+
+webhook_router = APIRouter(prefix="/inbox", tags=["inbox-webhooks"])
+WDB = Annotated[AsyncSession, Depends(get_db)]
+
+
+@webhook_router.post("/webhooks/email", status_code=status.HTTP_200_OK)
+async def email_webhook(request: Request):
+    """Acknowledge Resend webhook — the email poller (10 s) owns all ingestion.
+    Just returning 200 prevents Resend from retrying the delivery.
+    """
     return {"status": "ok"}
 
 
-@router.post("/webhooks/whatsapp", status_code=status.HTTP_200_OK)
-async def twilio_webhook(request: Request, db: DB):
-    """Twilio WhatsApp inbound webhook."""
+@webhook_router.post("/webhooks/whatsapp", status_code=status.HTTP_200_OK)
+async def twilio_webhook(request: Request, db: WDB):
+    """Twilio WhatsApp inbound webhook — no auth required."""
     form = await request.form()
     tenant_id = await resolve_tenant_uuid(db)
     await service.ingest_whatsapp(

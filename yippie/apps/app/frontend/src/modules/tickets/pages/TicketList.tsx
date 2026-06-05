@@ -1,15 +1,22 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { Plus, MessageSquare, Ticket } from 'lucide-react'
 import { api } from '../../../api/client'
 
-const STATUS_COLORS: Record<string, string> = {
-  open: '#2563eb', in_progress: '#d97706', waiting: '#7c3aed',
-  resolved: '#16a34a', closed: '#6b7280',
+const STATUS_STYLES: Record<string, string> = {
+  open:        'bg-blue-100 text-blue-700',
+  in_progress: 'bg-amber-100 text-amber-700',
+  waiting:     'bg-violet-100 text-violet-700',
+  resolved:    'bg-green-100 text-green-700',
+  closed:      'bg-slate-100 text-slate-600',
 }
 
-const PRIORITY_COLORS: Record<string, string> = {
-  low: '#6b7280', medium: '#2563eb', high: '#d97706', urgent: '#dc2626',
+const PRIORITY_STYLES: Record<string, string> = {
+  low:    'text-slate-500',
+  medium: 'text-blue-600',
+  high:   'text-amber-600',
+  urgent: 'text-red-600',
 }
 
 function timeAgo(dateStr: string): string {
@@ -31,16 +38,22 @@ export default function TicketList() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-        <h1 style={{ fontSize: 22, fontWeight: 700 }}>Tickets</h1>
-        <Link to="/tickets/new" style={{
-          padding: '8px 16px', background: '#2563eb', color: '#fff',
-          borderRadius: 6, textDecoration: 'none', fontSize: 14, fontWeight: 600,
-        }}>+ New Ticket</Link>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-slate-900">Tickets</h1>
+        <Link
+          to="/tickets/new"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          <Plus size={15} strokeWidth={2.5} />
+          New Ticket
+        </Link>
       </div>
 
-      <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
-        style={{ padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', marginBottom: 20, fontSize: 14 }}>
+      <select
+        value={statusFilter}
+        onChange={e => setStatusFilter(e.target.value)}
+        className="mb-5 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      >
         <option value="">All statuses</option>
         <option value="open">Open</option>
         <option value="in_progress">In progress</option>
@@ -49,49 +62,50 @@ export default function TicketList() {
         <option value="closed">Closed</option>
       </select>
 
-      {isLoading && <p>Loading...</p>}
-      {data?.items.map((t: any) => (
-        <div key={t.id} style={{
-          border: '1px solid #e2e8f0', borderRadius: 8, padding: '16px 20px',
-          marginBottom: 12, background: '#fff',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <Link to={`/tickets/${t.id}`} style={{ color: '#1e293b', textDecoration: 'none', fontWeight: 600, fontSize: 15 }}>
-                  {t.subject}
-                </Link>
-                {t.department_name && (
-                  <span style={{
-                    padding: '1px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600,
-                    background: '#f1f5f9', color: '#64748b',
-                  }}>
-                    {t.department_name}
-                  </span>
+      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+
+      <div className="flex flex-col gap-3">
+        {data?.items.map((t: any) => (
+          <div key={t.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:border-slate-300 transition-colors">
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1">
+                  <Link to={`/tickets/${t.id}`} className="text-sm font-semibold text-slate-900 hover:text-blue-600 transition-colors">
+                    {t.subject}
+                  </Link>
+                  {t.department_name && (
+                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                      {t.department_name}
+                    </span>
+                  )}
+                </div>
+                {t.last_comment && (
+                  <p className="text-xs text-slate-400 italic flex items-center gap-1.5 truncate">
+                    <MessageSquare size={11} />
+                    {t.last_comment.slice(0, 90)}{t.last_comment.length > 90 ? '…' : ''}
+                    {t.last_comment_at && <span className="ml-1">· {timeAgo(t.last_comment_at)}</span>}
+                  </p>
                 )}
               </div>
-              {t.last_comment && (
-                <p style={{ fontSize: 12, color: '#94a3b8', margin: '4px 0 0', fontStyle: 'italic', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  💬 {t.last_comment.slice(0, 90)}{t.last_comment.length > 90 ? '…' : ''}
-                  {t.last_comment_at && <span style={{ marginLeft: 6 }}>· {timeAgo(t.last_comment_at)}</span>}
-                </p>
-              )}
+              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 ${STATUS_STYLES[t.status]}`}>
+                {t.status.replace('_', ' ')}
+              </span>
             </div>
-            <span style={{
-              padding: '2px 8px', borderRadius: 12, fontSize: 12, fontWeight: 600,
-              background: STATUS_COLORS[t.status] + '20', color: STATUS_COLORS[t.status],
-              marginLeft: 12, flexShrink: 0,
-            }}>
-              {t.status.replace('_', ' ')}
-            </span>
+            <div className="flex gap-4 mt-2 text-xs text-slate-500">
+              <span className={`font-semibold capitalize ${PRIORITY_STYLES[t.priority]}`}>{t.priority}</span>
+              <span>{new Date(t.created_at).toLocaleDateString()}</span>
+              {t.sla_due_at && <span>SLA: {new Date(t.sla_due_at).toLocaleString()}</span>}
+            </div>
           </div>
-          <div style={{ display: 'flex', gap: 16, marginTop: 8, fontSize: 13, color: '#64748b' }}>
-            <span style={{ color: PRIORITY_COLORS[t.priority], fontWeight: 600 }}>{t.priority}</span>
-            <span>{new Date(t.created_at).toLocaleDateString()}</span>
-            {t.sla_due_at && <span>SLA: {new Date(t.sla_due_at).toLocaleString()}</span>}
-          </div>
+        ))}
+      </div>
+
+      {!isLoading && data?.items.length === 0 && (
+        <div className="py-12 text-center">
+          <Ticket size={32} className="text-slate-300 mx-auto mb-3" />
+          <p className="text-sm text-slate-400 font-medium">No tickets found</p>
         </div>
-      ))}
+      )}
     </div>
   )
 }

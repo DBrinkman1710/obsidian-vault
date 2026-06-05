@@ -99,6 +99,45 @@ async def _build_context(
     )
 
 
+async def find_by_resend_id(db: AsyncSession, resend_email_id: str) -> Optional[InboundMessage]:
+    return await db.scalar(
+        select(InboundMessage).where(InboundMessage.resend_email_id == resend_email_id)
+    )
+
+
+async def update_message_body(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    msg: InboundMessage,
+    body: str,
+) -> None:
+    """Update an existing message's body and re-run AI scan on the pending draft."""
+    msg.raw_body = body
+
+    draft = await db.scalar(
+        select(DraftTicket).where(
+            DraftTicket.inbound_message_id == msg.id,
+            DraftTicket.status == DraftStatus.pending,
+        )
+    )
+    if draft:
+        contact = await _match_contact(db, tenant_id, msg.sender)
+        context_summary = await _build_context(db, tenant_id, contact, msg.sender, body)
+        try:
+            scan = await scan_message(msg.sender, body, msg.source.value)
+            draft.ai_suggested_subject = scan.subject or msg.subject or "(no subject)"
+            draft.ai_suggested_description = scan.description or body[:500]
+            draft.ai_suggested_priority = scan.priority or "medium"
+            draft.ai_suggested_category = scan.category
+            draft.detected_language = scan.language
+        except Exception:
+            draft.ai_suggested_subject = msg.subject or "(no subject)"
+            draft.ai_suggested_description = body[:500]
+        draft.context_summary = context_summary
+
+    await db.commit()
+
+
 async def ingest_email(
     db: AsyncSession,
     tenant_id: uuid.UUID,
@@ -106,6 +145,7 @@ async def ingest_email(
     subject: Optional[str],
     body: str,
     headers: Optional[str] = None,
+    resend_email_id: Optional[str] = None,
 ) -> DraftTicket:
     msg = InboundMessage(
         tenant_id=tenant_id,
@@ -114,6 +154,7 @@ async def ingest_email(
         subject=subject,
         raw_body=body,
         raw_headers=headers,
+        resend_email_id=resend_email_id,
     )
     db.add(msg)
     await db.flush()
@@ -142,8 +183,21 @@ async def ingest_whatsapp(
 async def _create_draft(
     db: AsyncSession, tenant_id: uuid.UUID, msg: InboundMessage
 ) -> DraftTicket:
-    # Run ticket scan and contact match in parallel conceptually — both are needed
-    scan = await scan_message(msg.sender, msg.raw_body, msg.source.value)
+    # Run AI scan — fall back to raw message fields if scan fails (e.g. no API key)
+    try:
+        scan = await scan_message(msg.sender, msg.raw_body, msg.source.value)
+        suggested_subject = scan.subject or msg.subject or "(no subject)"
+        suggested_description = scan.description or msg.raw_body[:500]
+        suggested_priority = scan.priority or "medium"
+        suggested_category = scan.category
+        detected_language = scan.language
+    except Exception:
+        suggested_subject = msg.subject or "(no subject)"
+        suggested_description = msg.raw_body[:500]
+        suggested_priority = "medium"
+        suggested_category = None
+        detected_language = "en"
+
     contact = await _match_contact(db, tenant_id, msg.sender)
     context_summary = await _build_context(db, tenant_id, contact, msg.sender, msg.raw_body)
 
@@ -152,11 +206,11 @@ async def _create_draft(
         inbound_message_id=msg.id,
         matched_contact_id=contact.id if contact else None,
         context_summary=context_summary,
-        ai_suggested_subject=scan.subject,
-        ai_suggested_description=scan.description,
-        ai_suggested_priority=scan.priority,
-        ai_suggested_category=scan.category,
-        detected_language=scan.language,
+        ai_suggested_subject=suggested_subject,
+        ai_suggested_description=suggested_description,
+        ai_suggested_priority=suggested_priority,
+        ai_suggested_category=suggested_category,
+        detected_language=detected_language,
         # Pre-fill contact_id from match so agent doesn't have to search
         contact_id=contact.id if contact else None,
     )

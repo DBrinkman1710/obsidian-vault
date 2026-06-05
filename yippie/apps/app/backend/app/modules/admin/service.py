@@ -7,11 +7,15 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant, User, UserRole
-from app.modules.admin.schemas import TenantCreate, TenantUpdate
+from app.modules.admin.schemas import AddAdminRequest, TenantCreate, TenantUpdate
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-TENANT_SAFE_FIELDS = {"name", "enabled_modules", "primary_color", "logo_url"}
+TENANT_SAFE_FIELDS = {"name", "enabled_modules", "primary_color", "logo_url", "is_active", "is_demo", "go_live_at", "inbound_email"}
+
+
+def _tenant_to_dict(tenant: Tenant, user_count: int) -> dict:
+    return {**{c.name: getattr(tenant, c.name) for c in Tenant.__table__.columns}, "user_count": user_count}
 
 
 async def list_tenants(db: AsyncSession) -> list[dict]:
@@ -22,13 +26,10 @@ async def list_tenants(db: AsyncSession) -> list[dict]:
         .order_by(Tenant.created_at)
     )
     rows = result.all()
-    return [
-        {**{c.name: getattr(row.Tenant, c.name) for c in Tenant.__table__.columns}, "user_count": row.user_count}
-        for row in rows
-    ]
+    return [_tenant_to_dict(row.Tenant, row.user_count) for row in rows]
 
 
-async def create_tenant(db: AsyncSession, data: TenantCreate) -> Tenant:
+async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
     # Never silently overwrite an existing user's credentials
     existing_user = await db.scalar(select(User).where(User.email == data.admin_email))
     if existing_user:
@@ -40,6 +41,7 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> Tenant:
         enabled_modules=data.enabled_modules,
         primary_color=data.primary_color,
         logo_url=data.logo_url,
+        is_demo=data.is_demo,
     )
     db.add(tenant)
     await db.flush()
@@ -53,10 +55,10 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> Tenant:
     ))
     await db.commit()
     await db.refresh(tenant)
-    return tenant
+    return _tenant_to_dict(tenant, 1)
 
 
-async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpdate) -> Tenant:
+async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpdate) -> dict | None:
     tenant = await db.get(Tenant, tenant_id)
     if tenant is None:
         return None
@@ -66,9 +68,76 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
         setattr(tenant, field, value)
     await db.commit()
     await db.refresh(tenant)
-    return tenant
+    user_count = await db.scalar(select(func.count(User.id)).where(User.tenant_id == tenant.id))
+    return _tenant_to_dict(tenant, user_count or 0)
 
 
 async def get_tenant_users(db: AsyncSession, tenant_id: uuid.UUID) -> list[User]:
     result = await db.execute(select(User).where(User.tenant_id == tenant_id).order_by(User.created_at))
     return result.scalars().all()
+
+
+async def add_tenant_user(db: AsyncSession, tenant_id: uuid.UUID, data: AddAdminRequest) -> User | None:
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        return None
+    existing = await db.scalar(select(User).where(User.email == data.email))
+    if existing:
+        raise ValueError(f"A user with email '{data.email}' already exists.")
+    user = User(
+        tenant_id=tenant_id,
+        email=data.email,
+        full_name=data.full_name,
+        hashed_password=pwd_context.hash(data.password),
+        role=UserRole.admin,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
+async def list_superadmins(db: AsyncSession) -> list[User]:
+    result = await db.execute(
+        select(User).where(User.role == UserRole.superadmin).order_by(User.created_at)
+    )
+    return result.scalars().all()
+
+
+async def toggle_superadmin_active(
+    db: AsyncSession,
+    current_user: User,
+    target_id: uuid.UUID,
+    is_active: bool,
+    current_password: str,
+) -> User:
+    if not pwd_context.verify(current_password, current_user.hashed_password):
+        raise ValueError("Incorrect password.")
+    if target_id == current_user.id:
+        raise ValueError("You cannot deactivate your own account.")
+    target = await db.get(User, target_id)
+    if target is None:
+        raise LookupError("User not found.")
+    if target.role != UserRole.superadmin:
+        raise ValueError("User is not a superadmin.")
+    target.is_active = is_active
+    await db.commit()
+    await db.refresh(target)
+    return target
+
+
+async def promote_superadmin(
+    db: AsyncSession,
+    current_user: User,
+    target_email: str,
+    current_password: str,
+) -> User | None:
+    if not pwd_context.verify(current_password, current_user.hashed_password):
+        raise ValueError("Incorrect password.")
+    target = await db.scalar(select(User).where(User.email == target_email))
+    if target is None:
+        raise LookupError(f"No user found with email '{target_email}'.")
+    target.role = UserRole.superadmin
+    await db.commit()
+    await db.refresh(target)
+    return target
