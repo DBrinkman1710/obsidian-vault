@@ -202,6 +202,22 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 
 ---
 
+## Phase 10 — Additional modules
+
+### Email tracking module
+- New `emailtracking` module — tracks opens, clicks, and delivery events per outbound email sent via Resend
+- Webhook receives Resend tracking events (`email.opened`, `email.clicked`, `email.bounced`, `email.complained`)
+- Stores events in DB linked to the outbound message; shows per-email status in Inbox and Sent views
+- Superadmin can enable/disable per tenant from Clients tab in dev
+
+### AI tools module
+- New `aitools` module — exposes AI-powered utility tools to users inside the platform
+- Examples: summarise contact history, auto-categorise tickets, draft department responses
+- Superadmin can enable/disable per tenant via the Clients tab in dev (toggle in `enabled_modules`)
+- Extensible: add new AI tools without rebuilding core platform
+
+---
+
 ## Phase 8 — Polish & advanced
 
 - **Per-tenant custom domain** (`acme.getyippie.com` → shared Railway service)
