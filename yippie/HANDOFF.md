@@ -1,7 +1,71 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-05 (session 11)**
+**Last updated:** 2026-06-05 (session 12)**
 **Branch:** `sandbox` / `devsandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 12 — 2026-06-05 (Phase 3 Inbox UX + inbound email isolation)
+
+### What was done
+
+#### Inbound email isolation
+- `config.py`: added `INBOUND_EMAIL` setting
+- `email_poller.py`: filters Resend email list by `to` field matching `INBOUND_EMAIL` — each env only ingests mail sent to its address
+- **Still needed:** set `INBOUND_EMAIL=dev-support@getyippie.com` in Railway devsandbox, `INBOUND_EMAIL=sb-support@getyippie.com` in Railway sandbox, and register both as Resend inbound routes pointing to the correct webhook URLs
+
+#### Phase 3 — Inbox UX (items 9–14)
+
+**Item 9 — Scroll-only layout + larger compose modal**
+- InboxQueue: outer div is now `flex flex-col h-full overflow-hidden`; header + tabs are fixed; list section is `flex-1 overflow-y-auto`
+- Compose modal: `max-w-3xl` (was 2xl), textarea `rows=14` (was 10)
+- `App.tsx`: InboxQueue no longer wrapped in `<PagePad>` — manages its own padding
+
+**Item 10 — Stay in email window after approve/reject**
+- `reviewMutation.onSuccess` no longer calls `navigate('/inbox')`; instead it invalidates `['draft', id]` — query refetches and the processed view appears automatically
+- Agent stays on the page; existing "← Back to Inbox" button is their exit
+
+**Item 11 — Department reminder on approve**
+- New `DeptReminderModal` component: shown when agent clicks Approve without selecting a department (and departments exist for this tenant)
+- Options: "Approve without department" (proceeds) or "Go back and set department" (dismisses modal)
+
+**Item 12 — Select + bin/spam bulk actions**
+- Backend: `bin` and `spam` added to `DraftStatus` enum; migration `e4f5a6b7c8d9`; `bulk_update_drafts()` in service; `POST /inbox/drafts/bulk-action` endpoint
+- Frontend: checkbox per card; select-all row; bulk action bar (Move to Bin / Mark as Spam)
+
+**Item 13 — Filter pills on Processed tab**
+- Filter pills: All / Approved / Rejected / Forwarded / Bin
+- Bin drafts fetched via `?status=bin` query
+
+**Item 14 — Glowing green dot in sidebar**
+- Sidebar now exposes `isFetching` from the pending drafts query
+- Green dot next to Inbox: pulses blue when fetching, solid emerald when idle
+- Pulse indicator removed from InboxQueue header
+
+### State right now
+- Code pushed to `devsandbox` and `sandbox`; Railway auto-deploying from `devsandbox`
+- DB needs migration `e4f5a6b7c8d9` to run (ALTER TYPE draftstatus ADD VALUE 'bin'/'spam') — applied automatically on next deploy
+
+### Verify after deploy
+1. Log into devsandbox.getyippie.com
+2. Inbox page: header + tabs stay fixed while list scrolls
+3. Green dot in sidebar next to Inbox
+4. Open any draft → click Approve without selecting a department → reminder modal appears
+5. After approving/rejecting: stays on the draft page (shows processed state)
+6. Select multiple pending drafts → "Move to Bin" → they disappear from pending list
+7. Processed tab → Bin filter shows binned drafts
+
+### Next: remaining Phase 3 items + setup INBOUND_EMAIL in Railway
+
+**INBOUND_EMAIL setup (you do this in Railway dashboard):**
+1. In Resend: register `dev-support@getyippie.com` → webhook: `https://devsandbox.getyippie.com/api/v1/inbox/webhooks/email`
+2. In Resend: register `sb-support@getyippie.com` → webhook: `https://sandbox.getyippie.com/api/v1/inbox/webhooks/email`
+3. Railway → Dev Sandbox → Variables → `INBOUND_EMAIL=dev-support@getyippie.com`
+4. Railway → Sandbox → Variables → `INBOUND_EMAIL=sb-support@getyippie.com`
+
+**Remaining Phase 3 items:**
+- Item 15: Language-matching replies (detect inbound language, AI generates in same language)
+- Item 16: Attachments in inbox (display/download + attach to compose/reply)
 
 ---
 
