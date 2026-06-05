@@ -1,7 +1,54 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-05 (session 12)**
+**Last updated:** 2026-06-05 (session 13)**
 **Branch:** `sandbox` / `devsandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 13 — 2026-06-05 (inbox isolation fixes + aitools cleanup)
+
+### What was done
+
+#### aitools → ai cleanup
+- Migration `f5a6b7c8d9e0`: strips `aitools` from all tenant `enabled_modules` arrays (session 11 added `ai` but forgot to remove `aitools`)
+- After deploy + page refresh, the Clients list shows `AI` pill instead of `aitools`
+
+#### Inbound email isolation — proper fix
+Root cause: devsandbox and sandbox share one Postgres DB, so emails ingested by one poller's appeared in both environments regardless of `INBOUND_EMAIL` filtering.
+
+Fix:
+- `inbound_messages` table: new `inbound_to VARCHAR(255)` column (migration `a6b7c8d9e0f1`)
+- `ingest_email()`: now stores the Resend `to` address on each message
+- `list_drafts()`: JOINs `inbound_messages` and filters `WHERE inbound_to = INBOUND_EMAIL` when env var is set — each env only shows its own mail
+- Legacy rows (`inbound_to IS NULL`) remain visible in both envs to avoid data loss
+
+#### Robust INBOUND_EMAIL poller filter
+- Previous filter did exact list-element match; updated to substring match + handles `{email, name}` objects from Resend
+- Turned out not to be the root cause (data format was correct), but is still safer
+
+### State right now
+- Code pushed to `devsandbox` and `sandbox`; Railway auto-deploying
+- Migrations pending: `f5a6b7c8d9e0` (remove aitools) + `a6b7c8d9e0f1` (inbound_to column) — applied automatically on deploy
+
+### Verify after deploy
+1. Clients page: no more `aitools` pill — should show `AI`
+2. Send email to `sb-support@getyippie.com` → appears in `sandbox.getyippie.com` inbox only, NOT in `devsandbox`
+3. Send email to `dev-support@getyippie.com` → appears in `devsandbox.getyippie.com` inbox only, NOT in `sandbox`
+
+### Clean up existing mislabelled rows (optional, one-time)
+The two `sb-support` emails that already landed in the shared DB have `inbound_to = NULL`, so they still appear in devsandbox. Run this once in Railway Console (either env):
+```sql
+UPDATE inbound_messages
+SET inbound_to = 'sb-support@getyippie.com'
+WHERE resend_email_id IN (
+  'd5e4248a-0f43-4ab9-9890-132643bf382f',
+  '1a09a11d-b419-44c0-b2e2-a72fa7be8756'
+);
+```
+
+### Next
+- Remaining Phase 3 items: language-matching replies (item 15), attachments (item 16)
+- Production pair (`dev` + `app`) has no `INBOUND_EMAIL` set — all emails still visible there (correct behaviour for live)
 
 ---
 
