@@ -1,7 +1,56 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-05 (session 9)**
-**Branch:** `sandbox`
+**Last updated:** 2026-06-05 (session 10)**
+**Branch:** `sandbox` / `devsandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 10 — 2026-06-05 (Phase 2 complete)
+
+### What was done
+
+#### Phase 2 — Client management extensions (fully implemented)
+
+**Backend:**
+- `TenantCreate` schema: added `is_demo: bool = False` — create a client directly as demo
+- `admin/service.py`: `create_tenant()` sets `is_demo` on new tenants; added `list_superadmins()`, `toggle_superadmin_active()`
+- `admin/router.py`: `GET /admin/superadmins` + `PATCH /admin/superadmins/{id}` — list and toggle superadmin active status
+- `admin/schemas.py`: `SuperadminOut` + `ToggleSuperadminRequest`
+- Migration `c2d3e4f5a6b7`: adds `is_active` column to `users` table
+
+**Frontend:**
+- `SuperAdminPage.tsx`: completely rewritten with:
+  - Filter tabs (All / Active / Demo / Inactive) with per-tab counts
+  - Unified status pill per row (Active/Demo/Inactive) replacing toggle+badge
+  - "Start as demo" checkbox in CreateClientModal
+  - Own environment hidden (filtered by `config.tenant_id`)
+  - Bulk select checkboxes + action bar (Set Active / Set Demo / Set Inactive)
+- `SuperadminsSettingsPage.tsx` (new): `/settings/superadmins` page — lists all superadmins with active toggle, requires own password to deactivate, shows scope note (sandbox ≠ live)
+- `Sidebar.tsx`: Superadmins nav link visible to superadmin role only
+- `App.tsx`: `/settings/superadmins` route added
+
+**ROADMAP.md:** Phase 2 items 5, 6, 7, 8a, 8b all marked ✓ DONE
+
+### State right now
+- Code committed to `sandbox`, merged to `devsandbox`, pushed to both
+- Railway CLI timed out — **Railway should auto-deploy from `devsandbox` branch** (the push to origin/devsandbox triggers it)
+- If auto-deploy doesn't fire: log into Railway dashboard → Dev Sandbox → redeploy manually
+
+### Verify after deploy
+- Log in at devsandbox.getyippie.com as diederik1710@gmail.com
+- Check `/superadmin/clients` → filter tabs visible, own environment hidden, checkboxes work
+- Check `/settings/superadmins` → link in sidebar, page loads, deactivate requires password
+
+### Next: Phase 3 — Inbox UX
+Items in order from ROADMAP.md:
+1. **Item 9** — Scroll-only email list (header + tabs fixed, only list scrolls); larger compose modal
+2. **Item 10** — Stay in email window after approve/reject
+3. **Item 11** — Department reminder popup on approve without route
+4. **Item 12** — Select + delete / spam mails
+5. **Item 13** — Filter processed mails by status pill (All / Approved / Rejected / Forwarded / Bin)
+6. **Item 14** — Glowing green dot in sidebar next to Inbox
+7. **Item 15** — Language-matching replies
+8. **Item 16** — Attachments in inbox
 
 ---
 
