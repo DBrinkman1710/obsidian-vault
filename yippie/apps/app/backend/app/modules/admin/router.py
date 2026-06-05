@@ -65,6 +65,24 @@ async def promote_superadmin(current_user: SuperAdminUser, db: DB, data: schemas
     return user
 
 
+@router.get("/superadmins", response_model=list[schemas.SuperadminOut])
+async def list_superadmins(_: SuperAdminUser, db: DB):
+    return await service.list_superadmins(db)
+
+
+@router.patch("/superadmins/{user_id}", response_model=schemas.SuperadminOut)
+async def toggle_superadmin(
+    current_user: SuperAdminUser, db: DB, user_id: uuid.UUID,
+    data: schemas.ToggleSuperadminRequest,
+):
+    try:
+        return await service.toggle_superadmin_active(db, current_user, user_id, data.is_active, data.current_password)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 @router.get("/resend-check")
 async def resend_check(_: SuperAdminUser):
     """Diagnostic: shows exactly what the Resend receiving API returns for the most recent email."""

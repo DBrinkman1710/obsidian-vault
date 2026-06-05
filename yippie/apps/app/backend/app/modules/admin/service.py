@@ -41,6 +41,7 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
         enabled_modules=data.enabled_modules,
         primary_color=data.primary_color,
         logo_url=data.logo_url,
+        is_demo=data.is_demo,
     )
     db.add(tenant)
     await db.flush()
@@ -94,6 +95,35 @@ async def add_tenant_user(db: AsyncSession, tenant_id: uuid.UUID, data: AddAdmin
     await db.commit()
     await db.refresh(user)
     return user
+
+
+async def list_superadmins(db: AsyncSession) -> list[User]:
+    result = await db.execute(
+        select(User).where(User.role == UserRole.superadmin).order_by(User.created_at)
+    )
+    return result.scalars().all()
+
+
+async def toggle_superadmin_active(
+    db: AsyncSession,
+    current_user: User,
+    target_id: uuid.UUID,
+    is_active: bool,
+    current_password: str,
+) -> User:
+    if not pwd_context.verify(current_password, current_user.hashed_password):
+        raise ValueError("Incorrect password.")
+    if target_id == current_user.id:
+        raise ValueError("You cannot deactivate your own account.")
+    target = await db.get(User, target_id)
+    if target is None:
+        raise LookupError("User not found.")
+    if target.role != UserRole.superadmin:
+        raise ValueError("User is not a superadmin.")
+    target.is_active = is_active
+    await db.commit()
+    await db.refresh(target)
+    return target
 
 
 async def promote_superadmin(

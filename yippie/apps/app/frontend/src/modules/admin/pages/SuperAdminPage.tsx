@@ -1,9 +1,15 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Users, X, Building2, UserPlus, ShieldCheck, ToggleLeft, ToggleRight, Rocket, FlaskConical } from 'lucide-react'
+import {
+  Plus, Users, X, Building2, UserPlus, ShieldCheck,
+  ToggleLeft, ToggleRight, Rocket, FlaskConical, CheckSquare, Square,
+} from 'lucide-react'
 import { api } from '../../../api/client'
+import { useTenantConfig } from '../../../App'
 
 const ALL_MODULES = ['contacts', 'tickets', 'billing', 'activity', 'inbox', 'chat']
+
+type FilterStatus = 'all' | 'active' | 'demo' | 'inactive'
 
 interface Tenant {
   id: string
@@ -35,11 +41,12 @@ interface CreateForm {
   admin_password: string
   primary_color: string
   enabled_modules: string[]
+  is_demo: boolean
 }
 
 const EMPTY_FORM: CreateForm = {
   name: '', slug: '', admin_email: '', admin_password: '',
-  primary_color: '#5BB8E8', enabled_modules: [...ALL_MODULES],
+  primary_color: '#5BB8E8', enabled_modules: [...ALL_MODULES], is_demo: false,
 }
 
 function slugify(s: string) {
@@ -48,6 +55,18 @@ function slugify(s: string) {
 
 const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
+
+function statusOf(t: Tenant): 'active' | 'demo' | 'inactive' {
+  if (!t.is_active) return 'inactive'
+  if (t.is_demo) return 'demo'
+  return 'active'
+}
+
+const STATUS_PILL: Record<string, string> = {
+  active: 'bg-emerald-100 text-emerald-700',
+  demo: 'bg-amber-100 text-amber-700',
+  inactive: 'bg-slate-100 text-slate-400',
+}
 
 function ModuleToggle({ mod, active, onClick }: { mod: string; active: boolean; onClick: () => void }) {
   return (
@@ -134,6 +153,15 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               ))}
             </div>
           </div>
+          <label className="flex items-center gap-3 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={form.is_demo}
+              onChange={e => setForm(p => ({ ...p, is_demo: e.target.checked }))}
+              className="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-400"
+            />
+            <span className="text-sm text-slate-700 font-medium">Start as demo environment</span>
+          </label>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 justify-end pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
@@ -410,14 +438,29 @@ function ResendDiagnosticPanel() {
 
 export default function SuperAdminPage() {
   const qc = useQueryClient()
+  const config = useTenantConfig()
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
   const [viewingUsers, setViewingUsers] = useState<Tenant | null>(null)
+  const [filter, setFilter] = useState<FilterStatus>('all')
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
-  const { data: tenants, isLoading } = useQuery<Tenant[]>({
+  const { data: allTenants, isLoading } = useQuery<Tenant[]>({
     queryKey: ['superadmin-tenants'],
     queryFn: () => api.get('/admin/tenants').then(r => r.data),
   })
+
+  // Hide own environment
+  const tenants = (allTenants ?? []).filter(t => t.id !== config?.tenant_id)
+
+  const counts = {
+    all: tenants.length,
+    active: tenants.filter(t => statusOf(t) === 'active').length,
+    demo: tenants.filter(t => statusOf(t) === 'demo').length,
+    inactive: tenants.filter(t => statusOf(t) === 'inactive').length,
+  }
+
+  const visible = filter === 'all' ? tenants : tenants.filter(t => statusOf(t) === filter)
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
@@ -437,6 +480,42 @@ export default function SuperAdminPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
   })
 
+  const bulkMutation = useMutation({
+    mutationFn: async (patch: { is_active?: boolean; is_demo?: boolean }) => {
+      await Promise.all([...selectedIds].map(id => api.patch(`/admin/tenants/${id}`, patch)))
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
+      setSelectedIds(new Set())
+    },
+  })
+
+  function toggleRow(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  function toggleAll() {
+    if (selectedIds.size === visible.length) {
+      setSelectedIds(new Set())
+    } else {
+      setSelectedIds(new Set(visible.map(t => t.id)))
+    }
+  }
+
+  const allSelected = visible.length > 0 && selectedIds.size === visible.length
+  const someSelected = selectedIds.size > 0
+
+  const FILTER_TABS: { key: FilterStatus; label: string }[] = [
+    { key: 'all', label: 'All' },
+    { key: 'active', label: 'Active' },
+    { key: 'demo', label: 'Demo' },
+    { key: 'inactive', label: 'Inactive' },
+  ]
+
   return (
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
@@ -453,20 +532,82 @@ export default function SuperAdminPage() {
         </button>
       </div>
 
+      {/* Filter tabs */}
+      <div className="flex items-center gap-1 border-b border-slate-200 -mt-4">
+        {FILTER_TABS.map(({ key, label }) => (
+          <button
+            key={key}
+            onClick={() => { setFilter(key); setSelectedIds(new Set()) }}
+            className={`px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              filter === key
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {label}
+            <span className={`ml-2 px-1.5 py-0.5 rounded-full text-[11px] font-bold ${
+              filter === key ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-500'
+            }`}>
+              {counts[key]}
+            </span>
+          </button>
+        ))}
+      </div>
+
       {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
 
-      {!isLoading && (!tenants || tenants.length === 0) && (
+      {!isLoading && visible.length === 0 && (
         <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-200">
           <Building2 size={32} className="text-slate-300 mx-auto mb-3" />
-          <p className="text-sm text-slate-400 font-medium">No clients yet. Create the first one.</p>
+          <p className="text-sm text-slate-400 font-medium">
+            {filter === 'all' ? 'No clients yet. Create the first one.' : `No ${filter} clients.`}
+          </p>
         </div>
       )}
 
-      {tenants && tenants.length > 0 && (
+      {visible.length > 0 && (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          {/* Bulk action bar */}
+          {someSelected && (
+            <div className="flex items-center gap-3 px-4 py-2.5 bg-blue-50 border-b border-blue-200">
+              <span className="text-sm font-semibold text-blue-700">{selectedIds.size} selected</span>
+              <div className="flex items-center gap-2 ml-auto">
+                <button
+                  onClick={() => bulkMutation.mutate({ is_active: true, is_demo: false })}
+                  disabled={bulkMutation.isPending}
+                  className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors disabled:opacity-50"
+                >
+                  Set Active
+                </button>
+                <button
+                  onClick={() => bulkMutation.mutate({ is_demo: true, is_active: true })}
+                  disabled={bulkMutation.isPending}
+                  className="px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors disabled:opacity-50"
+                >
+                  Set Demo
+                </button>
+                <button
+                  onClick={() => bulkMutation.mutate({ is_active: false })}
+                  disabled={bulkMutation.isPending}
+                  className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50"
+                >
+                  Set Inactive
+                </button>
+                <button onClick={() => setSelectedIds(new Set())} className="text-slate-400 hover:text-slate-600 ml-1">
+                  <X size={14} />
+                </button>
+              </div>
+            </div>
+          )}
+
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
+                <th className="pl-4 pr-2 py-3 w-8">
+                  <button onClick={toggleAll} className="text-slate-400 hover:text-slate-600 transition-colors">
+                    {allSelected ? <CheckSquare size={15} className="text-blue-600" /> : <Square size={15} />}
+                  </button>
+                </th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Client</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Status</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Modules</th>
@@ -476,90 +617,103 @@ export default function SuperAdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {tenants.map(t => (
-                <tr key={t.id} className={`hover:bg-slate-50 transition-colors ${!t.is_active ? 'opacity-60' : ''}`}>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.primary_color }} />
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900">{t.name}</div>
-                        <div className="text-xs text-slate-400">{t.slug}</div>
+              {visible.map(t => {
+                const status = statusOf(t)
+                const isSelected = selectedIds.has(t.id)
+                return (
+                  <tr
+                    key={t.id}
+                    className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50/40' : ''} ${!t.is_active ? 'opacity-60' : ''}`}
+                  >
+                    <td className="pl-4 pr-2 py-3 w-8">
+                      <button onClick={() => toggleRow(t.id)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        {isSelected ? <CheckSquare size={15} className="text-blue-600" /> : <Square size={15} />}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.primary_color }} />
+                        <div>
+                          <div className="text-sm font-semibold text-slate-900">{t.name}</div>
+                          <div className="text-xs text-slate-400">{t.slug}</div>
+                        </div>
                       </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_PILL[status]}`}>
+                        {status}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-1">
+                        {t.enabled_modules.map(m => (
+                          <span key={m} className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">{m}</span>
+                        ))}
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
                       <button
-                        onClick={() => toggleActiveMutation.mutate({ id: t.id, is_active: !t.is_active })}
-                        disabled={toggleActiveMutation.isPending}
-                        className="flex items-center gap-1 text-xs font-semibold transition-colors"
-                        title={t.is_active ? 'Click to deactivate' : 'Click to activate'}
+                        onClick={() => setViewingUsers(t)}
+                        className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
                       >
-                        {t.is_active
-                          ? <ToggleRight size={18} className="text-emerald-500" />
-                          : <ToggleLeft size={18} className="text-slate-400" />
-                        }
-                        <span className={t.is_active ? 'text-emerald-600' : 'text-slate-400'}>
-                          {t.is_active ? 'Active' : 'Inactive'}
-                        </span>
+                        <Users size={13} />
+                        {t.user_count} {t.user_count === 1 ? 'user' : 'users'}
                       </button>
-                      {t.is_demo && (
-                        <span className="px-2 py-0.5 bg-amber-100 text-amber-700 text-xs font-semibold rounded-full">Demo</span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-1">
-                      {t.enabled_modules.map(m => (
-                        <span key={m} className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">{m}</span>
-                      ))}
-                    </div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <button
-                      onClick={() => setViewingUsers(t)}
-                      className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                    >
-                      <Users size={13} />
-                      {t.user_count} {t.user_count === 1 ? 'user' : 'users'}
-                    </button>
-                  </td>
-                  <td className="px-4 py-3 text-xs text-slate-400">
-                    {new Date(t.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex items-center gap-2 justify-end">
-                      {t.is_demo && (
+                    </td>
+                    <td className="px-4 py-3 text-xs text-slate-400">
+                      {new Date(t.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center gap-2 justify-end">
+                        {status === 'demo' && (
+                          <button
+                            onClick={() => goLiveMutation.mutate(t.id)}
+                            disabled={goLiveMutation.isPending}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                          >
+                            <Rocket size={11} />
+                            Go live
+                          </button>
+                        )}
+                        {status === 'active' && (
+                          <button
+                            onClick={() => toggleDemoMutation.mutate({ id: t.id, is_demo: true })}
+                            disabled={toggleDemoMutation.isPending}
+                            className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                          >
+                            Set demo
+                          </button>
+                        )}
+                        {status === 'inactive' && (
+                          <button
+                            onClick={() => toggleActiveMutation.mutate({ id: t.id, is_active: true })}
+                            disabled={toggleActiveMutation.isPending}
+                            className="px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                          >
+                            Activate
+                          </button>
+                        )}
+                        {status !== 'inactive' && (
+                          <button
+                            onClick={() => toggleActiveMutation.mutate({ id: t.id, is_active: !t.is_active })}
+                            disabled={toggleActiveMutation.isPending}
+                            className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                            title={t.is_active ? 'Deactivate' : 'Activate'}
+                          >
+                            {t.is_active ? <ToggleRight size={14} className="text-emerald-500" /> : <ToggleLeft size={14} className="text-slate-400" />}
+                          </button>
+                        )}
                         <button
-                          onClick={() => goLiveMutation.mutate(t.id)}
-                          disabled={goLiveMutation.isPending}
-                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
-                          title="Mark as live (removes demo mode)"
+                          onClick={() => setEditingTenant(t)}
+                          className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                         >
-                          <Rocket size={11} />
-                          Go live
+                          Edit modules
                         </button>
-                      )}
-                      {!t.is_demo && t.is_active && (
-                        <button
-                          onClick={() => toggleDemoMutation.mutate({ id: t.id, is_demo: true })}
-                          disabled={toggleDemoMutation.isPending}
-                          className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-                          title="Switch back to demo mode"
-                        >
-                          Set demo
-                        </button>
-                      )}
-                      <button
-                        onClick={() => setEditingTenant(t)}
-                        className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                      >
-                        Edit modules
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

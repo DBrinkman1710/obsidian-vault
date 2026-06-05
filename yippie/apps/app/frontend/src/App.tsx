@@ -17,8 +17,9 @@ const ChatPage      = lazy(() => import('./modules/chat/pages/ChatPage'))
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
 const LoginPage       = lazy(() => import('./auth/LoginPage'))
-const DepartmentsPage = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
-const SuperAdminPage  = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
+const DepartmentsPage          = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
+const SuperAdminPage           = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
+const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/SuperadminsSettingsPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -104,6 +105,7 @@ export default function App() {
               } />
 
               <Route path="/settings/departments" element={<PagePad><DepartmentsPage /></PagePad>} />
+              <Route path="/settings/superadmins" element={<PagePad><SuperadminsSettingsPage /></PagePad>} />
               <Route path="/superadmin/clients" element={<PagePad><SuperAdminPage /></PagePad>} />
             </Routes>
           </Suspense>

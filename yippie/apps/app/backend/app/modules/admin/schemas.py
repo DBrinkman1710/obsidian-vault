@@ -15,6 +15,7 @@ class TenantCreate(BaseModel):
     enabled_modules: list[str] = ["contacts", "tickets", "billing", "activity", "inbox", "chat"]
     primary_color: str = "#5BB8E8"
     logo_url: Optional[str] = None
+    is_demo: bool = False
 
 
 class TenantUpdate(BaseModel):
@@ -63,4 +64,19 @@ class AddAdminRequest(BaseModel):
 
 class PromoteSuperadminRequest(BaseModel):
     target_email: EmailStr
+    current_password: str
+
+
+class SuperadminOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    full_name: str
+    is_active: bool
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ToggleSuperadminRequest(BaseModel):
+    is_active: bool
     current_password: str

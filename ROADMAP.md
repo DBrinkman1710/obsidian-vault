@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-05 (session 9)
+**Updated:** 2026-06-05 (session 10)
 
 ---
 
@@ -15,23 +15,24 @@
 
 ---
 
-## Phase 1 — Critical bugs (do first, blocking everything)
+## Access roles
 
-### 1. devsandbox ↔ app isolation bug
-**Symptom:** Emails tested in devsandbox appear in app (production).
-**Cause:** `DATABASE_URL` in devsandbox points at the production DB instead of the sandbox DB.
-**Fix:** Railway → Dev Sandbox env → Variables → confirm `DATABASE_URL` = sandbox Postgres URL (not production). These must be different Postgres instances.
+| Role | Access |
+|---|---|
+| Superadmin | dev.getyippie.com + all client apps |
+| Admin | Own client app only (can edit settings) |
+| User | Own client app only (cannot edit settings) |
 
-### 2. Dev settings page broken
-**Symptom:** Superadmin at dev.getyippie.com can't reach settings.
-**Cause:** `require_admin` dependency may be running under `app_user` role (restricted PG role), or sidebar hides Settings for superadmin.
-**Fix:** Debug `Sidebar.tsx` settings visibility + `auth/dependencies.py` RESET ROLE path for superadmin.
+**Environments:** live = `app.getyippie.com` + `dev.getyippie.com`; sandbox = `sandbox.getyippie.com` + `devsandbox.getyippie.com`
 
-### 3. Activity tab broken
-**Fix:** Debug data loading in `ActivityFeed.tsx` + verify API response shape.
+---
 
-### 4. Remove web from sandbox + devsandbox builds
-**Fix:** In Railway dashboard → sandbox + devsandbox services → Settings → Watch Paths → exclude `apps/web`. Or configure `railway.json` in sandbox branch to only build `apps/app`.
+## Phase 1 — Critical bugs ✓ DONE
+
+- ✓ devsandbox ↔ app DB isolation fixed
+- ✓ Dev settings page access restored
+- ✓ Activity tab repaired
+- ✓ Web removed from sandbox/devsandbox builds
 
 ---
 
@@ -39,32 +40,29 @@
 
 Items build on what was shipped in session 9.
 
-### 5. Client list filter + demo tick in create modal
-- Filter bar in SuperAdminPage: All / Active / Demo / Inactive
-- Tick "Start as demo" in CreateClientModal (sets `is_demo = true` on create)
-- Status pill per row (Active / Demo / Inactive) — already have Active/Inactive toggle, add Demo
+### 5. Client list filter + demo tick in create modal ✓ DONE
+- Filter tabs (All/Active/Demo/Inactive) with per-tab counts
+- `is_demo` checkbox in CreateClientModal
+- Unified status pill per row (Active/Demo/Inactive)
+- TODO (Phase 6): switch from admin_password field to invite-email flow
 
-### 6. Bulk status change
-- Checkbox per client row + "Select all"
-- Action bar appears when ≥1 selected: set Active / Demo / Inactive
-- `PATCH` each in parallel
+### 6. Bulk status change ✓ DONE
+- Checkbox per row + select-all in header
+- Bulk action bar with Set Active / Set Demo / Set Inactive
+- `PATCH` each in parallel via `Promise.all`
 
-### 7. Company name in sidebar
-- Each client environment shows their company name in the sidebar beneath the Yippie logo
-- Data already available: `GET /api/v1/tenant/config` returns `tenant_name`
-- Frontend: read `config.tenant_name` from `useTenantConfig()` in `Sidebar.tsx`, render it below the logo mark
-- Superadmin can rename the tenant at any time via `PATCH /admin/tenants/{id}` (already implemented) — change takes effect on next page load
+### 7. Company name in sidebar ✓ DONE
+- `Sidebar.tsx` already renders `config.tenant_name` below the logo mark
 
-### 8. Hide own environment + account
-- Filter out the Yippie tenant (slug = `yippie` or the seeded slug) from the client list
-- Filter out own email from the superadmin list so neither can be made inactive by accident
+### 8a. Hide own environment ✓ DONE
+- Client list filters out the tenant whose `id === config.tenant_id`
 
-### 8. Scoped superadmin management in settings
-- `/settings/superadmins` page (superadmin only)
-- List: name, email, active toggle
-- Add new superadmin: name + email (invite or direct create)
-- **Scope:** superadmins added here are only superadmin in the DB they're in (devsandbox superadmins ≠ production superadmins — this is already how the DB works, just needs clear UI)
-- Protect deactivation with password confirmation
+### 8b. Scoped superadmin management in settings ✓ DONE
+- `/settings/superadmins` page (superadmin only) — lists all superadmins with active toggle
+- `GET /admin/superadmins` + `PATCH /admin/superadmins/{id}` endpoints
+- Deactivation requires own password confirmation; own account protected
+- Scope note shown in UI: sandbox superadmins ≠ live superadmins
+- TODO (Phase 6): "Add superadmin" button with password-verify popup → invite email flow
 
 ---
 
@@ -99,6 +97,15 @@ Items build on what was shipped in session 9.
 - Move the live-fetch indicator from the inbox page header into the Sidebar nav item next to "Inbox"
 - Pulse animation when `isFetching`; solid green when idle
 
+### 15. Language-matching replies
+- Reply subject and body must match the language of the received email
+- Remove current default-to-English behavior; detect inbound mail language and use it for AI-generated replies
+
+### 16. Attachments
+- Received mails: display + download any attachments inline
+- Compose modal: attach files (drag-and-drop or file picker)
+- Reply modal: attach files to outbound replies
+
 ---
 
 ## Phase 4 — Contact management
@@ -131,6 +138,10 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 ### 18. Access all client environments from dev
 - From SuperAdminPage, "Impersonate" button per client → logs in as their admin (generates short-lived token)
 - Lets Diederik test/debug a client's environment without knowing their password
+
+### 19. Delete client with password protection
+- Deleting a client + their environment requires password confirmation (diederik1710@gmail.com)
+- Wipes all tenant data after confirmation; irreversible
 
 ---
 
@@ -173,12 +184,35 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 
 ---
 
+## Phase 9 — Email templates
+
+### A. Resend email templates
+- Register reusable templates in Resend dashboard; backend references them by template ID
+- Fallback to inline HTML for templates not yet in Resend
+
+### B. Mail templates in settings
+- `/settings/templates` page — accessible to admins and superadmins
+- Fields: name, subject, body, tags
+- Full CRUD: create, edit, delete
+
+### C. Template insertion for users
+- "Insert template" button in compose modal and reply modal
+- AI recommends a template based on the content of the received email
+- User can edit the selected template or request AI improvement before sending
+
+---
+
 ## Phase 8 — Polish & advanced
 
 - **Per-tenant custom domain** (`acme.getyippie.com` → shared Railway service)
 - **PostgreSQL RLS** — row-level security policies as defense-in-depth
 - **getyippie.com 502 fix** — Cloudflare proxy toggle for Railway domain verification
 - **Billing/plans per client** — Tenant gets a `plan` field, gating advanced features
+- **Mobile web** — responsive layout for sandbox + devsandbox first, then promote to live
+- **diederik@getyippie.com** — Diederik's personal account for live environments (app + dev)
+- **Sandbox email address** — sandbox receives/sends from `sb-support@getyippie.com`; live uses `support@getyippie.com`
+- **Personalized user emails** *(architecture question)* — per-user domain email (e.g. `joost@klimaatexamen.nl`) linked to Resend; shared inbox (`support@domain.com`) + personal inbox per agent; needs routing + inbox filtering design
+- **Customer data + AI briefing** *(architecture decision)* — define where full contact history is stored (Contact model? Thread model?); AI briefing must pull complete history when a customer has many interactions
 
 ---
 
