@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
@@ -134,28 +135,7 @@ async def send_reply(
             "content_type": f.content_type or "application/octet-stream",
         })
 
-    # Store attachments JSON in the pending send's reply_text field workaround:
-    # Instead, store them alongside — but PendingSend has no attachments field.
-    # For now send immediately if attachments are present; otherwise use the queue.
-    if encoded_attachments:
-        try:
-            await send_email(
-                to=msg.sender, subject=subject, body=reply_text,
-                attachments=encoded_attachments,
-            )
-        except ResendNotConfiguredError as e:
-            raise HTTPException(status_code=503, detail=str(e))
-        await activity_service.log_event(
-            db=db, tenant_id=current_user.tenant_id, module="inbox",
-            event_type="email.replied", entity_type="draft_ticket",
-            entity_id=draft.id, contact_id=contact.id if contact else None,
-            actor_id=current_user.id,
-            payload={"subject": subject, "to": msg.sender, "preview": reply_text[:120]},
-        )
-        await db.commit()
-        # Return a fake undo_until in the past so the frontend sees "sent" immediately
-        return {"queued": True, "to": msg.sender, "subject": subject,
-                "undo_until": datetime.now(timezone.utc).isoformat()}
+    attachments_json = json.dumps(encoded_attachments) if encoded_attachments else None
 
     send_at = datetime.now(timezone.utc) + timedelta(seconds=5)
     await service.queue_send(
@@ -168,6 +148,7 @@ async def send_reply(
         send_at=send_at,
         actor_id=current_user.id,
         contact_id=contact.id if contact else None,
+        attachments_json=attachments_json,
     )
     return {"queued": True, "to": msg.sender, "subject": subject, "undo_until": send_at.isoformat()}
 
@@ -323,22 +304,39 @@ class ComposeSuggestRequest(BaseModel):
 
 
 @router.post("/compose", status_code=status.HTTP_200_OK)
-async def compose_send(body: ComposeRequest, current_user: CurrentUser, db: DB):
-    """Send a new outbound email to one or more recipients (BCC when multiple)."""
-    if not body.to:
+async def compose_send(
+    current_user: CurrentUser,
+    db: DB,
+    to: str = Form(...),
+    subject: str = Form(...),
+    body: str = Form(...),
+    attachments: List[UploadFile] = File(default=[]),
+):
+    """Send a new outbound email to one or more recipients (BCC when multiple). Supports optional file attachments."""
+    recipients: list[str] = json.loads(to)
+    if not recipients:
         raise HTTPException(status_code=400, detail="At least one recipient is required")
-    if not body.subject.strip() or not body.body.strip():
+    if not subject.strip() or not body.strip():
         raise HTTPException(status_code=400, detail="Subject and body are required")
 
-    # Check config before firing requests
+    encoded_attachments: list[dict] = []
+    for f in attachments:
+        content = await f.read()
+        encoded_attachments.append({
+            "filename": f.filename or "attachment",
+            "content": base64.b64encode(content).decode(),
+            "content_type": f.content_type or "application/octet-stream",
+        })
+    att_arg = encoded_attachments if encoded_attachments else None
+
     results = await asyncio.gather(
-        *[send_email(to=r, subject=body.subject, body=body.body) for r in body.to],
+        *[send_email(to=r, subject=subject, body=body, attachments=att_arg) for r in recipients],
         return_exceptions=True,
     )
     for exc in results:
         if isinstance(exc, ResendNotConfiguredError):
             raise HTTPException(status_code=503, detail=str(exc))
-    failed = [body.to[i] for i, r in enumerate(results) if isinstance(r, Exception)]
+    failed = [recipients[i] for i, r in enumerate(results) if isinstance(r, Exception)]
 
     await activity_service.log_event(
         db=db,
@@ -349,10 +347,10 @@ async def compose_send(body: ComposeRequest, current_user: CurrentUser, db: DB):
         entity_id=None,
         contact_id=None,
         actor_id=current_user.id,
-        payload={"subject": body.subject, "recipients": len(body.to), "failed": failed},
+        payload={"subject": subject, "recipients": len(recipients), "failed": failed},
     )
     await db.commit()
-    return {"sent": len(body.to) - len(failed), "failed": failed}
+    return {"sent": len(recipients) - len(failed), "failed": failed}
 
 
 @router.post("/compose/suggest", status_code=status.HTTP_200_OK, dependencies=[Depends(require_module("ai"))])
