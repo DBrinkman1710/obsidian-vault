@@ -344,7 +344,9 @@ export default function DraftReview() {
       const form = new FormData()
       form.append('reply_text', replyText)
       replyFiles.forEach(f => form.append('attachments', f))
-      const res = await api.post(`/inbox/drafts/${id}/send-reply`, form)
+      const res = await api.post(`/inbox/drafts/${id}/send-reply`, form, {
+        headers: { 'Content-Type': undefined },
+      })
       const until = new Date(res.data.undo_until)
       setUndoUntil(until)
       setUndoProgress(0)
@@ -365,7 +367,12 @@ export default function DraftReview() {
       }, 100)
     } catch (err: any) {
       const detail = err?.response?.data?.detail
-      setSendError(detail || 'Failed to send — check Resend configuration.')
+      const message = typeof detail === 'string'
+        ? detail
+        : Array.isArray(detail)
+        ? detail.map((d: any) => d?.msg).filter(Boolean).join(', ')
+        : ''
+      setSendError(message || 'Failed to send — check Resend configuration.')
     } finally {
       setSending(false)
     }
