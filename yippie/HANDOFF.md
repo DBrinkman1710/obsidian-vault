@@ -1,7 +1,97 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-08 (session 15)**
+**Last updated:** 2026-06-08 (session 15 follow-up)**
 **Branch:** `sandbox` / `devsandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 15 follow-up — 2026-06-08 (the reply fix needed 3 more rounds — here's what actually broke)
+
+### Context
+After the session-15 fixes deployed, Diederik reported the reply was now **white-screening**
+and the sidebar order was **still wrong**. Both turned out to need real further digging —
+the first-pass fixes were each necessary but not sufficient. This entry documents the full
+chain so nobody has to re-discover it.
+
+### Reply-to-email — the real chain of bugs (4 of them, now all fixed)
+
+1. **Manual `Content-Type: multipart/form-data` header** (session 15 fix #1) — overrode
+   axios's auto-`boundary=`. Removing it was correct but not enough, because:
+2. **The shared `api` axios instance has a default `Content-Type: application/json`**
+   (`api/client.ts:6`) that axios merges into *every* request, including this one, even
+   with no per-request override. So the request kept going out as JSON and FastAPI kept
+   422'ing (`POST .../send-reply → 422 Unprocessable Entity`, confirmed in Railway logs).
+   **Fix:** explicitly unset it — `headers: { 'Content-Type': undefined }` — so the
+   browser generates the correct multipart boundary itself.
+3. **The white screen itself** — FastAPI returns `detail` as an *array* of
+   validation-error objects on a 422. The old catch handler did `setSendError(detail)`
+   then rendered `{sendError}` directly in JSX. React throws "Objects are not valid as a
+   React child" and the whole tree unmounts — blank page, no error boundary. **This is
+   what "white screen when I try to reply" actually was**, and it's been silently
+   happening on every failed send, not just this latest round. **Fix:** stringify
+   array/string `detail` before storing it in `sendError`.
+4. **The actual root cause — missing DB grant on `pending_sends`.** Once the
+   Content-Type was finally right, the request reached the backend cleanly and returned
+   `500 permission denied for table pending_sends`
+   (`asyncpg.exceptions.InsufficientPrivilegeError`). The RLS migration (session 13,
+   `c3d4e5f6a7b8`) ran `GRANT ... ON ALL TABLES IN SCHEMA public TO app_user` — a
+   snapshot grant that only covers tables existing *at that moment*. `pending_sends` was
+   created in a *later* migration (session 14, `b8c9d0e1f2a3`) and never got the grant,
+   so `set_tenant_context`'s `SET LOCAL ROLE app_user` (`database.py:104`) leaves every
+   send-reply request unable to write to its own queue table. **Fix:** new migration
+   `c9d0e1f2a3b4` grants `app_user` access to `pending_sends` directly, plus
+   `ALTER DEFAULT PRIVILEGES` so future migrations' tables are auto-granted — this exact
+   bug class can't recur.
+
+All four fixes are pushed: `d39b56a` (axios + white-screen + sidebar-order-v2),
+`a6a58f2` (the `pending_sends` grant migration).
+
+### Sidebar order — the real fix (moved server-side)
+
+The session-14 toggle-order fix only normalizes a tenant's `enabled_modules` array
+*when someone re-saves it* — Diederik's existing tenant predates that fix and nobody
+had re-saved it, so his sidebar still showed the wrong order. **Real fix:**
+`/api/v1/tenant/config` (`main.py:69-77`) now sorts the returned `enabled_modules` by
+the canonical `ALL_MODULES` order server-side — `['inbox', 'contacts', 'tickets',
+'activity', 'billing', 'chat']` (Diederik confirmed this is the order he wants). This
+fixes **every** tenant's sidebar immediately, including ones with old arbitrarily-
+ordered arrays — **no per-tenant "Edit modules → Save" needed**, which supersedes the
+instruction in the session-15 entry below.
+
+### ⚠️ New deploy hazard discovered: concurrent migrations on shared DB
+
+`devsandbox` and `sandbox` deploy from the same shared Sandbox DB and both run
+`alembic upgrade heads` on container start. Pushing + fast-forwarding to both branches
+back-to-back (the normal workflow) caused Railway to start both deploys in the same
+second — and **both migration runs raced on the same `GRANT` statement**, throwing
+`asyncpg.exceptions.InternalServerError: tuple concurrently updated` (a Postgres
+catalog-level conflict from simultaneous DDL/ACL changes).
+
+Result: `sandbox`'s migration won the race and committed (deploy SUCCESS — the DB fix
+is live in the shared DB either way); `devsandbox`'s crashed mid-`GRANT` (deploy
+**FAILED**, container stuck serving the old build). Since the DB-side change already
+committed, `devsandbox` just needs a **manual redeploy** — alembic will see
+`c9d0e1f2a3b4` already applied and skip straight to starting the app cleanly. I
+couldn't trigger this myself (`railway redeploy` was blocked by the auto-mode
+classifier as a retry-after-unexplained-failure on shared infra) — **Diederik needs to
+click Redeploy on `Dev Sandbox → obsidian-vault` in the Railway dashboard, or tell me
+to run `railway redeploy -y` for that environment.**
+
+**Going forward:** when a push includes a migration with raw DDL/`GRANT`/`ALTER`
+statements, push to one branch, wait for that deploy to finish, *then* push to the
+other — don't fire them at once. Logged in `ROADMAP.md` under "Deploy workflow."
+
+### Verify after `devsandbox` redeploy
+1. Send a reply from a draft → should succeed (200), no white screen, undo bar appears
+   with 5s countdown and working Undo button
+2. Refresh the sidebar (any tenant, no action needed) → should show
+   Inbox, Contacts, Tickets, Activity, Billing, Live Chat
+
+### Next
+- Confirm `devsandbox` redeploy succeeded and reply/undo-send works end-to-end on both
+  environments — this was the highest-priority break
+- Then: department/SLA modal redesign (ROADMAP item 11), Compose-modal attachments
+  (item 18)
 
 ---
 
@@ -42,8 +132,11 @@ canonical `ALL_MODULES` list, and changed the "Edit modules" modal to normalize 
 — **so simply opening Edit modules for a tenant and clicking Save (even with no changes)
 now persists the correct order.**
 
-**Diederik: after this deploys, open "Edit modules" for your own tenant and click Save
-once — that will fix your sidebar order without needing a DB migration.**
+~~**Diederik: after this deploys, open "Edit modules" for your own tenant and click Save
+once — that will fix your sidebar order without needing a DB migration.**~~
+**SUPERSEDED — see "Session 15 follow-up" above: this didn't actually fix Diederik's
+existing tenant (its array predates the fix), so the order was moved server-side
+instead. No manual action needed now — every tenant's sidebar is just correct.**
 
 #### Attachments — partially built, real gap found
 Session 14 shipped attachments for the **reply** flow only (file picker + filename chip

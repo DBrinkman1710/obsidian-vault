@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-08 (session 14)
+**Updated:** 2026-06-08 (session 15 follow-up)
 
 ---
 
@@ -15,10 +15,19 @@
 - ✓ Phase 3 items 15/17/18/19 (language badge, undo send, attachments-in-reply, modules
   order) shipped in `7967bac` — see notes on items 16-19 below for bugs found & fixed
   in session 14 testing
-- ✓ Reply-to-email bug fixed — wrong `Content-Type` header on the FormData request was
-  silently breaking every reply send (and hiding the undo-send bar behind it)
-- ✓ Module order normalization — `enabled_modules` now always saved in canonical
-  `ALL_MODULES` order so the data-driven sidebar renders consistently
+- ✓ Reply-to-email — fully traced and fixed across **three stacked bugs** (the first
+  patch alone wasn't enough — see item 16 for the full chain): wrong `Content-Type`
+  override → shared axios instance's default `Content-Type: application/json` clobbering
+  FormData's auto-boundary → missing `app_user` DB grant on `pending_sends`
+  (migration `c9d0e1f2a3b4`)
+- ✓ White-screen-on-reply crash fixed — a 422 error response renders `detail` as an
+  array of objects; React throws "Objects are not valid as a React child" with no error
+  boundary → blank page. Hardened `DraftReview.tsx`'s send-reply error handler to
+  stringify array/string `detail` before rendering (see item 16)
+- ✓ Module order — fixed **at the source**: `/api/v1/tenant/config` now sorts
+  `enabled_modules` by canonical `ALL_MODULES` order server-side, so every tenant's
+  sidebar is correct immediately — no per-tenant "Edit modules → Save" needed (supersedes
+  the session-14 toggle-order fix, which only helped tenants saved *after* that fix)
 - ✓ "Back" buttons removed from Draft Ticket panel
 - ✓ AI Briefing rewritten to return short keywords instead of a paragraph — testing
   this format with Diederik
@@ -132,24 +141,62 @@ Items build on what was shipped in session 9.
   when `draft.detected_language` is set and ≠ English (`DraftReview.tsx`, ~line 729)
 - Verified the code path looks correct — no issues found
 
-### 16. Reply to email in inbox — was BROKEN, now FIXED (session 14)
-**Root cause found and fixed:** `handleSendReply()` (`DraftReview.tsx` ~line 347) built
-a `FormData` body for `POST /inbox/drafts/{id}/send-reply` but manually set
-`headers: { 'Content-Type': 'multipart/form-data' }`. Doing this with axios overrides
-its auto-generated `boundary=...` parameter, so the backend's FastAPI multipart parser
-couldn't read `reply_text`/`attachments` — every reply attempt failed before send.
-**Fix:** removed the manual header; axios sets `Content-Type` (with correct boundary)
-automatically for `FormData`. This was very likely also why the undo-send bar "didn't
-appear" (item 17) — the request never succeeded, so the success branch that shows the
-bar never ran. Both complaints traced to the same one-line bug.
+### 16. Reply to email in inbox — was BROKEN, now FIXED (session 15 follow-up — 3 stacked bugs)
+This took **three** rounds to fully fix — each fix uncovered the next layer:
 
-### 17. Undo send ✓ DONE — but verify after the item-16 fix lands
+**Bug 1 — manual `Content-Type` override.** `handleSendReply()` (`DraftReview.tsx`
+~line 347) built a `FormData` body but manually set
+`headers: { 'Content-Type': 'multipart/form-data' }`. With axios this overrides the
+auto-generated `boundary=...`, so FastAPI's multipart parser couldn't read the form
+fields. *Fix attempt 1: removed the header.* Didn't fully fix it —
+
+**Bug 2 — shared axios instance default header.** The `api` instance
+(`api/client.ts`) sets `headers: { 'Content-Type': 'application/json' }` as an
+**instance-level default**, which axios merges into every request — including this one
+— even with no per-request header. So the request was still going out as
+`application/json`, still breaking FastAPI's multipart parsing (confirmed via Railway
+logs: `POST .../send-reply → 422 Unprocessable Entity`). *Fix: explicitly unset it with
+`headers: { 'Content-Type': undefined }`* so the browser generates the correct
+`multipart/form-data; boundary=...` itself.
+
+**Bug 3 (the actual "white screen") — 422 error rendered as a React child.** FastAPI
+returns `detail` as an **array of validation-error objects** on a 422, and the old
+catch handler did `setSendError(detail)` then rendered `{sendError}` directly — React
+throws "Objects are not valid as a React child," and with no error boundary the whole
+tree unmounts to a blank page. This is what Diederik saw as "white screen when I try to
+reply." *Fix: hardened the handler to stringify array/string `detail` before storing it.*
+
+**Bug 4 — missing DB grant on `pending_sends` (the true root cause of the 422/500).**
+Once the Content-Type was finally correct, the request hit the backend cleanly but
+returned `500 permission denied for table pending_sends`
+(`asyncpg.exceptions.InsufficientPrivilegeError`). The RLS migration (`c3d4e5f6a7b8`,
+session 13) ran `GRANT ... ON ALL TABLES IN SCHEMA public TO app_user`, which only
+covers tables that existed *at that moment*. `pending_sends` was created in a **later**
+migration (`b8c9d0e1f2a3`, session 14) and never got the grant — so
+`set_tenant_context`'s `SET LOCAL ROLE app_user` (`database.py:104`) leaves every
+send-reply request unable to write to its own queue table. *Fix: new migration
+`c9d0e1f2a3b4`* grants `app_user` access to `pending_sends` directly, **and** adds
+`ALTER DEFAULT PRIVILEGES` so any table created by future migrations is auto-granted —
+preventing this whole class of bug from recurring.
+
+All four are now fixed and pushed (`d39b56a`, `a6a58f2`). ⚠️ See the new "Deploy hazard"
+note in the Deploy workflow section — the migration triggered a real concurrency issue
+between `devsandbox`/`sandbox` sharing one DB, and `devsandbox` needs a manual redeploy
+to pick up the fix (its own migration run crashed mid-race; `sandbox`'s won and committed
+the change to the shared DB, so the fix is live either way — `devsandbox`'s container
+just needs to restart to run the new code).
+
+### 17. Undo send ✓ DONE — should now actually work, needs final live confirmation
 Shipped in `7967bac`: floating "Yippie" bar with 5s progress + Undo button
 (`DraftReview.tsx` ~line 896), backed by a `pending_sends` queue
 (`queue_send`/`cancel_send`/`flush_pending_sends` in `service.py`, flushed every 1s by
-`email_poller.py`). This looked fully wired up in code — it almost certainly wasn't
-showing because every send was failing (see item 16). **Re-test in sandbox after the
-fix deploys** — if it now appears and works, mark this fully done.
+`email_poller.py`). The code was always correct — it never showed because **every**
+send was failing for the four stacked reasons in item 16, the last of which
+(`InsufficientPrivilegeError` on `pending_sends`) meant `queue_send` itself couldn't
+even insert a row. With migration `c9d0e1f2a3b4` granting `app_user` access, the queue
+should now work end-to-end. **Diederik: once `devsandbox` is redeployed (see Deploy
+hazard note), send a reply and confirm the bar appears + Undo works — then mark this
+fully done.**
 
 **Known secondary bug (not fixed yet):** replies **with attachments** bypass the undo
 queue entirely — `router.py` (~line 140) has a comment acknowledging `PendingSend` has
@@ -177,18 +224,26 @@ Shipped in `7967bac` for the **reply** flow only:
   `InboxQueue.tsx`, reusing the pattern already proven in `DraftReview.tsx` ~line 778-790,
   and wire it through the existing `send_email`/attachments backend support
 
-### 19. Modules order matches sidebar ✓ DONE — root cause of "wrong order" found & fixed
-Shipped in `7967bac`: `Sidebar.tsx` now renders nav items by iterating
+### 19. Modules order matches sidebar ✓ DONE — fixed at the source, no manual action needed
+Shipped in `7967bac`: `Sidebar.tsx` renders nav items by iterating
 `config.enabled_modules` in **DB order** (a deliberate "sidebar follows tenant config"
 design). The catch: `enabled_modules` was being saved in *toggle-click order*, not a
 canonical order — so each tenant's array (and thus its sidebar) ended up in a different,
 arbitrary sequence. That's why Diederik saw "Contacts, Tickets, Inbox, Live Chat,
 Billing, Activity" live instead of the `ALL_MODULES` order.
-**Fixed (session 14):** `SuperAdminPage.tsx` `toggleModule`/`toggle` now always rebuild
-the array by filtering the canonical `ALL_MODULES` list, so any save — including just
-opening "Edit modules" and clicking Save without changing anything — persists modules in
-the correct order. **Diederik: open Edit modules for your own tenant and click Save once
-to normalize its `enabled_modules` order; the sidebar will then match.**
+
+**First fix (session 14, insufficient on its own):** `SuperAdminPage.tsx`
+`toggleModule`/`toggle` now rebuild the array from canonical `ALL_MODULES` order on
+every save — but this only fixes a tenant's order *after* a manual "Edit modules → Save."
+Diederik reported the order was still wrong because his existing tenant's stored array
+predates the fix and nobody had re-saved it.
+
+**Real fix (session 15 follow-up):** moved the normalization **server-side** —
+`/api/v1/tenant/config` (`main.py:69-77`) now sorts the returned `enabled_modules` by
+the canonical `ALL_MODULES` order (`['inbox', 'contacts', 'tickets', 'activity',
+'billing', 'chat']`, confirmed correct with Diederik) before sending it to the frontend.
+This fixes every tenant's sidebar immediately — including ones with old, arbitrarily-
+ordered stored arrays — with **zero per-tenant action required**.
 
 ---
 
@@ -336,6 +391,26 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 git push origin devsandbox   # → deploys devsandbox.getyippie.com
 git push origin sandbox      # → deploys sandbox.getyippie.com (keep in sync, shared DB)
 ```
+
+### ⚠️ Deploy hazard discovered (session 15 follow-up): concurrent migrations on shared DB
+
+`devsandbox` and `sandbox` share **one** Sandbox DB and both run `alembic upgrade heads`
+on every container start. Pushing to both branches near-simultaneously (as the deploy
+workflow above recommends) causes Railway to start both deploys at virtually the same
+instant — and both migration runs raced on the same `GRANT` statement in migration
+`c9d0e1f2a3b4`, causing Postgres to throw `asyncpg.exceptions.InternalServerError:
+tuple concurrently updated` (a catalog-level conflict from simultaneous DDL/ACL changes).
+
+What happened: `sandbox`'s migration won the race and committed (deploy SUCCESS, fix is
+live in the shared DB); `devsandbox`'s crashed mid-`GRANT` (deploy FAILED, container
+stuck on the old build). Since the DB change is already committed, `devsandbox` just
+needs a manual redeploy/restart — alembic will see the migration already applied and
+skip straight to starting the app.
+
+**Going forward:** when a push includes a **new migration** (especially one with raw
+`GRANT`/`ALTER`/DDL statements), push to one branch, **wait for that deploy to finish**,
+then push to the other — don't fire-and-forget both at once. Plain code-only pushes are
+fine to batch since they don't touch the DB.
 
 ## Monday review workflow
 
