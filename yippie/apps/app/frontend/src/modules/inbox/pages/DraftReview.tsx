@@ -344,9 +344,7 @@ export default function DraftReview() {
       const form = new FormData()
       form.append('reply_text', replyText)
       replyFiles.forEach(f => form.append('attachments', f))
-      const res = await api.post(`/inbox/drafts/${id}/send-reply`, form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-      })
+      const res = await api.post(`/inbox/drafts/${id}/send-reply`, form)
       const until = new Date(res.data.undo_until)
       setUndoUntil(until)
       setUndoProgress(0)
@@ -635,13 +633,6 @@ export default function DraftReview() {
                       <p className="text-xs text-sky-900 leading-relaxed">{draft.context_summary}</p>
                     </div>
                   )}
-
-                  <button
-                    onClick={() => navigate('/inbox')}
-                    className="w-full text-sm font-medium text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors rounded-xl px-4 py-2.5 text-left cursor-pointer"
-                  >
-                    ← Back to Inbox
-                  </button>
                 </div>
               </>
             ) : (
@@ -701,21 +692,13 @@ export default function DraftReview() {
                   >
                     {reviewMutation.isPending ? 'Creating…' : 'Approve & Create Ticket'}
                   </button>
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => reviewMutation.mutate('reject')}
-                      disabled={reviewMutation.isPending}
-                      className="flex-1 py-2 text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors cursor-pointer"
-                    >
-                      Reject
-                    </button>
-                    <button
-                      onClick={() => navigate('/inbox')}
-                      className="flex-1 py-2 text-sm font-medium text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer"
-                    >
-                      Back
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => reviewMutation.mutate('reject')}
+                    disabled={reviewMutation.isPending}
+                    className="w-full py-2 text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors cursor-pointer"
+                  >
+                    Reject
+                  </button>
                 </div>
               </>
             )}

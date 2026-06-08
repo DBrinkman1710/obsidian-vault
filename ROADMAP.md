@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-05 (session 13)
+**Updated:** 2026-06-08 (session 14)
 
 ---
 
@@ -12,6 +12,16 @@
 - ✓ Promote superadmin (password-protected)
 - ✓ Demo banner for clients in demo mode
 - ✓ SuperAdminPage: toggles, add admin, go-live, demo, promote, diagnostic
+- ✓ Phase 3 items 15/17/18/19 (language badge, undo send, attachments-in-reply, modules
+  order) shipped in `7967bac` — see notes on items 16-19 below for bugs found & fixed
+  in session 14 testing
+- ✓ Reply-to-email bug fixed — wrong `Content-Type` header on the FormData request was
+  silently breaking every reply send (and hiding the undo-send bar behind it)
+- ✓ Module order normalization — `enabled_modules` now always saved in canonical
+  `ALL_MODULES` order so the data-driven sidebar renders consistently
+- ✓ "Back" buttons removed from Draft Ticket panel
+- ✓ AI Briefing rewritten to return short keywords instead of a paragraph — testing
+  this format with Diederik
 
 ---
 
@@ -78,17 +88,31 @@ Items build on what was shipped in session 9.
 - Email list column scrolls; header + tabs stay fixed
 - Compose modal: make wider/taller, textarea gets more space
 
-### 10. Stay in email window after approve/reject
-- After approve or reject: don't navigate away
+### 10. Stay in email window after approve/reject ✓ DONE (mostly)
+- After approve or reject: don't navigate away — shipped session 12
 - Show a confirmation state in the Draft Ticket panel ("✓ Approved — ticket #123 created")
-- Only auto-navigate back to inbox after BOTH the ticket action AND the reply are sent
-- New "Done — back to inbox" button the agent clicks when they're finished
+- "Back" / "← Back to Inbox" buttons removed from the panel entirely (session 14) —
+  Diederik felt they "didn't make sense" once the agent stays on the page after acting;
+  exit is via sidebar nav now
+- **Still open — new asks from Diederik:**
+  - Add a clear "✗ Rejected" overlay/state on the ticket panel mirroring the existing
+    "✓ Approved" treatment (`DraftReview.tsx` ~line 630, the `context_summary`/AI
+    Insights block in the processed view) — right now a denied draft has no equivalent
+    visual confirmation
+  - "Undo approve / reject" from the mail window — needs a backend endpoint to revert
+    `draft_ticket.status` (and the ticket it created, if approved) plus a button in the
+    processed view
 
-### 11. Department reminder on approve without route
-- When agent clicks Approve with no department selected: modal pops up
-- "No department set — add follow-up or approve anyway?"
-- Options: set department + SLA days now, or approve without route, or cancel
-- Also add "No SLA" option (no follow-up date)
+### 11. Department/SLA reminder on approve — needs redesign
+`DeptReminderModal` exists (`DraftReview.tsx`) and offers "Approve without department" /
+"Go back and set department". Diederik's new asks to fold into a redesign:
+- Let the agent pick **department AND SLA directly from the popup**, instead of bouncing
+  back to the form to set them
+- Add an explicit **"No department"** option and a **"No SLA"** option in the route
+  picker itself — currently you can leave both empty with no signal either way
+- **Also trigger this popup when a department IS picked but no SLA is set** — Diederik
+  hit this directly: "i was able to select a department without sla, without
+  notification. this should also open up the popup"
 
 ### 12. Select + delete / spam mails
 - Checkbox per draft card in InboxQueue
@@ -103,30 +127,74 @@ Items build on what was shipped in session 9.
 - Move the live-fetch indicator from the inbox page header into the Sidebar nav item next to "Inbox"
 - Pulse animation when `isFetching`; solid green when idle
 
-### 15. Language-matching replies
-- Reply subject and body must match the language of the received email
-- Remove current default-to-English behavior; detect inbound mail language and use it for AI-generated replies
+### 15. Language-matching replies ✓ DONE
+- Shipped in `7967bac`: badge in the reply panel header shows "Reply in {language}"
+  when `draft.detected_language` is set and ≠ English (`DraftReview.tsx`, ~line 729)
+- Verified the code path looks correct — no issues found
 
-### 16. Attachments
-- Received mails: display + download any attachments inline
-- Compose modal: attach files (drag-and-drop or file picker)
-- Reply modal: attach files to outbound replies
+### 16. Reply to email in inbox — was BROKEN, now FIXED (session 14)
+**Root cause found and fixed:** `handleSendReply()` (`DraftReview.tsx` ~line 347) built
+a `FormData` body for `POST /inbox/drafts/{id}/send-reply` but manually set
+`headers: { 'Content-Type': 'multipart/form-data' }`. Doing this with axios overrides
+its auto-generated `boundary=...` parameter, so the backend's FastAPI multipart parser
+couldn't read `reply_text`/`attachments` — every reply attempt failed before send.
+**Fix:** removed the manual header; axios sets `Content-Type` (with correct boundary)
+automatically for `FormData`. This was very likely also why the undo-send bar "didn't
+appear" (item 17) — the request never succeeded, so the success branch that shows the
+bar never ran. Both complaints traced to the same one-line bug.
 
-### 17. Undo send
-- Send confirmation popup title: **"Yippie"** (large); "email sent" as smaller grey subtext below
-- A progress bar fills up over ~5 seconds
-- **Undo** button visible during fill — clicking it cancels the send before Resend dispatch
-- After bar completes, email is actually sent via Resend (delayed dispatch pattern)
+### 17. Undo send ✓ DONE — but verify after the item-16 fix lands
+Shipped in `7967bac`: floating "Yippie" bar with 5s progress + Undo button
+(`DraftReview.tsx` ~line 896), backed by a `pending_sends` queue
+(`queue_send`/`cancel_send`/`flush_pending_sends` in `service.py`, flushed every 1s by
+`email_poller.py`). This looked fully wired up in code — it almost certainly wasn't
+showing because every send was failing (see item 16). **Re-test in sandbox after the
+fix deploys** — if it now appears and works, mark this fully done.
 
-### 18. Modules order matches sidebar
-- In the Clients tab (dev), the enabled_modules toggle list must follow the same order as the sidebar nav in client apps
-- Sidebar order is the source of truth
+**Known secondary bug (not fixed yet):** replies **with attachments** bypass the undo
+queue entirely — `router.py` (~line 140) has a comment acknowledging `PendingSend` has
+no `attachments` field, so attachment-replies send immediately and return a fake
+`undo_until` timestamp in the past. On the frontend this makes `duration` ≈ 0, so the
+progress-bar math (`(now - start) / duration`) produces `NaN`/`Infinity` — the bar can
+get stuck instead of completing cleanly. Proper fix: add an `attachments_json` column to
+`pending_sends` (migration), thread attachments through `queue_send`/`flush_pending_sends`
+so attachment-replies get the same 5s undo window as plain-text ones.
+
+### 18. Attachments — partially built; gaps found (session 14)
+Shipped in `7967bac` for the **reply** flow only:
+- Reply panel: file picker + chips showing filename + remove button
+  (`DraftReview.tsx` ~line 778 — "Attach" button + `{f.name}` shown next to it ✓)
+- Inbound messages: attachment list + download proxy via Resend
+- Backend: `attachments_json` column, `mailer.py` sends via Resend's attachment API
+
+**Gaps Diederik is hitting:**
+- **Compose modal has no attachment support at all** — `InboxQueue.tsx` has zero
+  attachment code (no Paperclip/Attach/FormData). This is very likely what "attachments
+  not working when i upload from yippie" refers to — the only place to attach a file
+  today is the *reply* panel inside an open draft, not the main Compose flow
+- The `pending_sends` gap from item 17 (attachment-replies skip the undo queue)
+- **Action:** add the same file-picker + filename-chip UI to the Compose modal in
+  `InboxQueue.tsx`, reusing the pattern already proven in `DraftReview.tsx` ~line 778-790,
+  and wire it through the existing `send_email`/attachments backend support
+
+### 19. Modules order matches sidebar ✓ DONE — root cause of "wrong order" found & fixed
+Shipped in `7967bac`: `Sidebar.tsx` now renders nav items by iterating
+`config.enabled_modules` in **DB order** (a deliberate "sidebar follows tenant config"
+design). The catch: `enabled_modules` was being saved in *toggle-click order*, not a
+canonical order — so each tenant's array (and thus its sidebar) ended up in a different,
+arbitrary sequence. That's why Diederik saw "Contacts, Tickets, Inbox, Live Chat,
+Billing, Activity" live instead of the `ALL_MODULES` order.
+**Fixed (session 14):** `SuperAdminPage.tsx` `toggleModule`/`toggle` now always rebuild
+the array by filtering the canonical `ALL_MODULES` list, so any save — including just
+opening "Edit modules" and clicking Save without changing anything — persists modules in
+the correct order. **Diederik: open Edit modules for your own tenant and click Save once
+to normalize its `enabled_modules` order; the sidebar will then match.**
 
 ---
 
 ## Phase 4 — Contact management
 
-### 19. Multi-select contacts
+### 20. Multi-select contacts
 - Checkbox per contact row
 - Action bar when ≥1 selected:
   - **Compose** → pre-fills Compose modal with all selected emails
@@ -137,7 +205,7 @@ Items build on what was shipped in session 9.
 
 ## Phase 5 — Client onboarding control plane
 
-### 20. Client onboarding wizard
+### 21. Client onboarding wizard
 Guided multi-step flow in SuperAdminPage when creating a new client:
 1. Company name + contact name + admin email
 2. Modules toggle
@@ -147,17 +215,17 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 - Admin email is promoted to admin role (not superadmin)
 - After creation: invite email sent via Resend so admin can set their own password
 
-### 21. Client environment management from dev
+### 22. Client environment management from dev
 - From dev.getyippie.com, Diederik sees all client tenants
 - Can activate / deactivate / set to demo from the list
 - Clients created in dev automatically appear in app.getyippie.com (shared DB — already works)
 - The "client app" is their isolated tenant in the shared deployment — no separate Railway env per client
 
-### 22. Access all client environments from dev
+### 23. Access all client environments from dev
 - From SuperAdminPage, "Impersonate" button per client → logs in as their admin (generates short-lived token)
 - Lets Diederik test/debug a client's environment without knowing their password
 
-### 23. Delete client with password protection
+### 24. Delete client with password protection
 - Deleting a client + their environment requires password confirmation (diederik1710@gmail.com)
 - Wipes all tenant data after confirmation; irreversible
 
@@ -165,23 +233,23 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 
 ## Phase 6 — User management
 
-### 24. Repair settings page
+### 25. Repair settings page
 - `/settings/profile` — update name, email, **change own password** (important)
 - `/settings/team` — invite/manage users for this tenant (admin only)
 - `/settings/departments` — already exists
 - Sidebar: admin sees Profile + Team + Departments; superadmin also sees Superadmins link
 
-### 25. User registration / invite
+### 26. User registration / invite
 - Admin creates invite → signed token emailed via Resend
 - `/register?token=xxx` → user sets password, gets assigned role
 - Backend: `POST /admin/invite`, `POST /auth/register` (token-gated)
 
-### 26. Forgot password
+### 27. Forgot password
 - `/forgot-password` → enters email → receives reset link via Resend
 - `/reset-password?token=xxx` → sets new password
 - Backend: `POST /auth/forgot-password`, `POST /auth/reset-password`
 
-### 27. Superadmin invite flow (from dev)
+### 28. Superadmin invite flow (from dev)
 - "Create superadmin" panel in dev (below "Create client")
 - Flow: password-verification popup (root owner confirms) → new window: name + email → invite email sent via Resend → new superadmin sets password via link
 - Sandbox superadmins only have superadmin access in sandbox DBs, not live
@@ -190,17 +258,17 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 
 ## Phase 7 — Data & communications
 
-### 28. Klantenbestand migratiesysteem (contact CSV import)
+### 29. Klantenbestand migratiesysteem (contact CSV import)
 - `POST /contacts/import` — multipart CSV upload
 - Backend: validate, deduplicate by email, bulk insert
 - Frontend: upload widget + results summary (imported / skipped / errors)
 
-### 29. Mail-all system
+### 30. Mail-all system
 - `POST /admin/tenants/{id}/broadcast` — superadmin only
 - Sends to all contacts of a tenant via Resend batch
 - Needs rate limiting + opt-out tracking
 
-### 30. Demo environments (template data)
+### 31. Demo environments (template data)
 - Seed a template dataset per tenant in demo mode
 - Superadmin can "Reset to demo" — wipes real data, restores template seed
 - Protected with extra confirmation

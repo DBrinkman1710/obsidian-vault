@@ -102,7 +102,7 @@ Outstanding invoices: {billing.get('outstanding_invoices', 0)}""".strip()
         for t in recent_tickets[:5]
     )
 
-    prompt = f"""You are a customer service briefing assistant. Write a concise 3-4 sentence briefing for an agent about to review an inbound message.
+    prompt = f"""You are a customer service briefing assistant. Produce a quick-scan briefing for an agent about to review an inbound message.
 
 INBOUND MESSAGE FROM: {sender}
 ---
@@ -118,10 +118,10 @@ BILLING STATUS:
 RECENT TICKET HISTORY (newest first):
 {tickets_block}
 
-Write a professional briefing paragraph (3-4 sentences). Cover: who this customer is, their current relationship/value, any relevant history, and anything the agent should know before responding. Be direct and factual. No bullet points."""
+Return 4-6 short keywords or phrases, comma-separated, capturing who this customer is and what matters most right now (e.g. "VIP customer, overdue invoice, 3rd complaint this month, prefers Dutch"). No full sentences, no bullet points, no labels — just the comma-separated list."""
 
     message = await _client().messages.create(
-        model=_model(), max_tokens=300,
+        model=_model(), max_tokens=80,
         messages=[{"role": "user", "content": prompt}],
     )
     return message.content[0].text.strip()

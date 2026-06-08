@@ -1,7 +1,107 @@
 # Yippie — Handoff Document
-**Last updated:** 2026-06-05 (session 14)**
+**Last updated:** 2026-06-08 (session 15)**
 **Branch:** `sandbox` / `devsandbox`
 **Repo:** github.com/DBrinkman1710/obsidian-vault
+
+---
+
+## Session 15 — 2026-06-08 (triage session-14 features + fix the real bugs)
+
+### Context
+Diederik tried out last week's build (session 14, items 15-18 below) and reported a
+batch of things as broken: reply-to-email broken, undo-send bar not appearing,
+attachments not working, sidebar/module order wrong, plus a separate batch of UX asks
+(department/SLA modal, deny overlay, undo approve/reject, remove Back button, AI
+briefing conciseness). This session traced each report back to the actual code (so
+ROADMAP item numbers below match items 15-19 from session 14) and fixed the ones with a
+clear, scoped root cause.
+
+### What was found & fixed
+
+#### Reply-to-email was genuinely broken — found and fixed
+`handleSendReply()` (`DraftReview.tsx`) builds a `FormData` for
+`POST /inbox/drafts/{id}/send-reply` but manually set
+`headers: { 'Content-Type': 'multipart/form-data' }`. With axios this **overrides the
+auto-generated `boundary=...`**, so FastAPI's multipart parser couldn't read the form
+fields — every reply attempt failed silently before send. Removed the manual header;
+axios now sets the correct `Content-Type` (with boundary) itself.
+
+**This is also why the undo-send bar "didn't appear"** — `handleSendReply` never reached
+the success branch that sets `undoUntil` and renders the bar, because the request always
+threw. One bug, two symptoms. Both should now work — please re-test in sandbox.
+
+#### Module/sidebar order — root cause found and fixed
+The sidebar (shipped session 14, item 18) now renders nav items by iterating
+`config.enabled_modules` in **DB order** — a deliberate "sidebar follows tenant config"
+design. But `SuperAdminPage.tsx`'s `toggleModule`/`toggle` functions were appending
+modules in **click order**, not canonical order, so each tenant ended up with a
+different, semi-random `enabled_modules` array — which is why the live sidebar showed
+"Contacts, Tickets, Inbox, Live Chat, Billing, Activity" instead of the order Diederik
+wants. Fixed both toggle functions to always rebuild the array by filtering the
+canonical `ALL_MODULES` list, and changed the "Edit modules" modal to normalize on open
+— **so simply opening Edit modules for a tenant and clicking Save (even with no changes)
+now persists the correct order.**
+
+**Diederik: after this deploys, open "Edit modules" for your own tenant and click Save
+once — that will fix your sidebar order without needing a DB migration.**
+
+#### Attachments — partially built, real gap found
+Session 14 shipped attachments for the **reply** flow only (file picker + filename chip
+in the Draft Reply panel, inbound attachment display/download). **The Compose modal
+(`InboxQueue.tsx`) has no attachment support at all** — that's almost certainly what
+"attachments not working when i upload from yippie" refers to: the only place to attach
+a file today is inside an open draft's reply panel, not the main Compose flow Diederik
+was testing. Logged as ROADMAP item 18 — needs the same file-picker + chip UI added to
+Compose, reusing the pattern already proven in the reply panel.
+
+Also found (not fixed): replies **with attachments** bypass the undo-send queue —
+`router.py` has a comment admitting `PendingSend` has no `attachments` column, so those
+sends go out immediately and return a fake `undo_until` in the past, which can make the
+progress bar compute `NaN`/get stuck. Needs a migration to add `attachments_json` to
+`pending_sends`. Logged in ROADMAP item 17.
+
+#### Quick fixes shipped
+- **Removed "Back" / "← Back to Inbox" buttons** from the Draft Ticket panel
+  (`DraftReview.tsx`) — Diederik: "does not make sense" now that agents stay on the
+  page after approve/reject; Reject button now spans the row alone
+- **AI Briefing rewritten to return keywords** instead of a 3-4 sentence paragraph
+  (`ai_scanner.py: generate_context_summary`) — Diederik wants to test this format;
+  if it's not useful in practice the prompt is the only thing to revert
+
+### State right now
+- All changes above are committed to `devsandbox` and `sandbox` (fast-forwarded, no
+  migrations needed for what shipped this session)
+- The two known-but-unfixed gaps (Compose attachments, attachment-replies skipping the
+  undo queue) are scoped and logged in ROADMAP items 17-18 for a focused future session
+
+### Verify after deploy
+1. Open a draft, write a reply, click Send → it should actually send now, AND the
+   "Yippie" undo bar should appear with its 5s countdown
+2. Open "Edit modules" for your own tenant in the Clients tab → click Save (no changes
+   needed) → refresh → sidebar should now show Inbox, Contacts, Tickets, Activity,
+   Billing, Live Chat
+3. Open any draft ticket → confirm there's no "Back" button anywhere in the panel
+4. Open a draft with a matched contact → "AI Briefing"/"AI Insights" box should now show
+   a short comma-separated keyword list — tell us if that's more useful than the old
+   paragraph format
+5. Try attaching a file from the **Compose** modal — confirm it's still missing (this is
+   the next thing to build, not yet fixed)
+
+### Logged in ROADMAP.md for a future session (needs real dev time)
+- **Department/SLA approval modal redesign** (item 11) — let the agent pick department +
+  SLA inline from the popup, add explicit "No department"/"No SLA" options, and trigger
+  the popup when a department is picked with no SLA
+- **"Rejected" overlay on the ticket panel** + **undo approve/reject from the mail
+  window** (item 10) — new UI state + a status-revert endpoint
+- **Compose-modal attachments** (item 18) — port the reply-panel file picker pattern
+- **Attachment-replies skipping the undo queue** (item 17) — needs a `pending_sends`
+  migration to add an `attachments` column
+
+### Next
+- Get Diederik's confirmation that reply + undo-send now work in sandbox — that was the
+  highest-priority break (agents couldn't respond to customers at all)
+- Pick up the department/SLA modal redesign next — it's the most-requested UX change
+- Then Compose-modal attachments (closes the attachment feature properly)
 
 ---
 

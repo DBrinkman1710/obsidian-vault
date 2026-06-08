@@ -94,12 +94,11 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
     }
 
   const toggleModule = (mod: string) =>
-    setForm(prev => ({
-      ...prev,
-      enabled_modules: prev.enabled_modules.includes(mod)
-        ? prev.enabled_modules.filter(m => m !== mod)
-        : [...prev.enabled_modules, mod],
-    }))
+    setForm(prev => {
+      const next = new Set(prev.enabled_modules)
+      next.has(mod) ? next.delete(mod) : next.add(mod)
+      return { ...prev, enabled_modules: ALL_MODULES.filter(m => next.has(m)) }
+    })
 
   const mutation = useMutation({
     mutationFn: (data: CreateForm) => api.post('/admin/tenants', data).then(r => r.data),
@@ -180,9 +179,13 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
 
 function EditModulesModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
   const qc = useQueryClient()
-  const [modules, setModules] = useState<string[]>(tenant.enabled_modules)
+  const [modules, setModules] = useState<string[]>(() => ALL_MODULES.filter(m => tenant.enabled_modules.includes(m)))
   const [error, setError] = useState('')
-  const toggle = (mod: string) => setModules(prev => prev.includes(mod) ? prev.filter(m => m !== mod) : [...prev, mod])
+  const toggle = (mod: string) => setModules(prev => {
+    const next = new Set(prev)
+    next.has(mod) ? next.delete(mod) : next.add(mod)
+    return ALL_MODULES.filter(m => next.has(m))
+  })
   const mutation = useMutation({
     mutationFn: (enabled_modules: string[]) => api.patch(`/admin/tenants/${tenant.id}`, { enabled_modules }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
