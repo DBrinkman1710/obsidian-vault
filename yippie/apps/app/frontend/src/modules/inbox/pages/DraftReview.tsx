@@ -164,39 +164,103 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
   )
 }
 
-function DeptReminderModal({
-  onApproveAnyway,
+function RouteAndApproveModal({
+  departments,
+  initialDeptId,
+  onApprove,
   onCancel,
 }: {
-  onApproveAnyway: () => void
+  departments: any[]
+  initialDeptId: string
+  onApprove: (deptId: string, followUpDays?: number) => void
   onCancel: () => void
 }) {
+  const [deptId, setDeptId] = useState(initialDeptId)
+  const [noSla, setNoSla] = useState(false)
+  const [customSla, setCustomSla] = useState('')
+
+  const selectedDept = departments.find((d: any) => d.id === deptId)
+  const autoSla: number | null = selectedDept?.sla_working_days > 0 ? selectedDept.sla_working_days : null
+
+  function handleApprove() {
+    let followUpDays: number | undefined
+    if (!noSla) {
+      if (autoSla) followUpDays = autoSla
+      else if (customSla.trim()) followUpDays = parseInt(customSla) || undefined
+    }
+    onApprove(deptId, followUpDays)
+  }
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-7 w-[420px] shadow-2xl">
+      <div className="bg-white rounded-2xl p-7 w-[440px] shadow-2xl">
         <div className="flex items-start justify-between mb-1">
-          <h2 className="text-base font-bold text-slate-900">No department selected</h2>
+          <h2 className="text-base font-bold text-slate-900">Route & Approve</h2>
           <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
             <X size={16} />
           </button>
         </div>
-        <p className="text-sm text-slate-500 mb-6">
-          This ticket has no department assigned. You can approve anyway, or go back and set a department first.
+        <p className="text-sm text-slate-500 mb-5">
+          Set a department and SLA before approving, or proceed without.
         </p>
-        <div className="flex flex-col gap-2">
-          <button
-            onClick={onApproveAnyway}
-            className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+
+        {/* Department picker */}
+        <div className="mb-4">
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Department</label>
+          <select
+            value={deptId}
+            onChange={e => { setDeptId(e.target.value); setNoSla(false); setCustomSla('') }}
+            className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           >
-            Approve without department
-          </button>
-          <button
-            onClick={onCancel}
-            className="w-full py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-sm font-semibold rounded-xl transition-colors cursor-pointer"
-          >
-            Go back and set department
-          </button>
+            <option value="">No department</option>
+            {departments.map((d: any) => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
         </div>
+
+        {/* SLA section */}
+        <div className="mb-6">
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Follow-up SLA</label>
+          {autoSla ? (
+            <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-xl">
+              <span className="text-sm text-emerald-700 font-medium">{autoSla} working days</span>
+              <span className="text-xs text-emerald-500">from department</span>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={365}
+                  value={noSla ? '' : customSla}
+                  onChange={e => setCustomSla(e.target.value)}
+                  disabled={noSla}
+                  placeholder="Days…"
+                  className="w-24 text-center text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-40"
+                />
+                <span className="text-xs text-slate-400">working days</span>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={noSla}
+                  onChange={e => { setNoSla(e.target.checked); setCustomSla('') }}
+                  className="rounded"
+                />
+                <span className="text-xs text-slate-500">No SLA / skip follow-up</span>
+              </label>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={handleApprove}
+          className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors cursor-pointer"
+        >
+          Approve & Create Ticket
+        </button>
       </div>
     </div>
   )
@@ -410,7 +474,13 @@ export default function DraftReview() {
 
   function handleApprove() {
     const hasDepts = departments && departments.length > 0
-    if (!selectedDeptId && hasDepts) {
+    if (!hasDepts) {
+      reviewMutation.mutate('approve')
+      return
+    }
+    const selectedDept = departments.find((d: any) => d.id === selectedDeptId)
+    // Show modal when: no dept selected, or dept has no SLA configured
+    if (!selectedDeptId || !selectedDept?.sla_working_days) {
       setShowDeptReminder(true)
     } else {
       reviewMutation.mutate('approve')
@@ -429,8 +499,15 @@ export default function DraftReview() {
       )}
 
       {showDeptReminder && (
-        <DeptReminderModal
-          onApproveAnyway={() => { setShowDeptReminder(false); reviewMutation.mutate('approve') }}
+        <RouteAndApproveModal
+          departments={departments ?? []}
+          initialDeptId={selectedDeptId}
+          onApprove={(deptId, followUpDays) => {
+            setShowDeptReminder(false)
+            if (deptId) setSelectedDeptId(deptId)
+            if (followUpDays) setFollowUpDays(String(followUpDays))
+            reviewMutation.mutate('approve')
+          }}
           onCancel={() => setShowDeptReminder(false)}
         />
       )}

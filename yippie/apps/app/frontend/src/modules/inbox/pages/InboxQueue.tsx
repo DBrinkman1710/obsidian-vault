@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
 
@@ -139,6 +139,7 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
   const [body, setBody] = useState('')
   const [aiPrompt, setAiPrompt] = useState('')
   const [showAiPrompt, setShowAiPrompt] = useState(false)
+  const [composeFiles, setComposeFiles] = useState<File[]>([])
   const [result, setResult] = useState<{ sent: number; failed: string[] } | null>(null)
 
   const addRecipient = (email: string, label: string) => {
@@ -159,11 +160,14 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
   })
 
   const sendMutation = useMutation({
-    mutationFn: () => api.post('/inbox/compose', {
-      to: recipients.map(r => r.email),
-      subject,
-      body,
-    }).then(r => r.data),
+    mutationFn: () => {
+      const fd = new FormData()
+      fd.append('to', JSON.stringify(recipients.map(r => r.email)))
+      fd.append('subject', subject)
+      fd.append('body', body)
+      composeFiles.forEach(f => fd.append('attachments', f))
+      return api.post('/inbox/compose', fd, { headers: { 'Content-Type': undefined } }).then(r => r.data)
+    },
     onSuccess: (data) => setResult(data),
   })
 
@@ -276,11 +280,40 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
           </div>
         </div>
 
+        {composeFiles.length > 0 && (
+          <div className="px-6 pb-2 flex flex-wrap gap-1.5">
+            {composeFiles.map((f, i) => (
+              <div key={i} className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded-lg text-xs text-slate-600">
+                <Paperclip size={10} />
+                <span className="max-w-[140px] truncate">{f.name}</span>
+                <button onClick={() => setComposeFiles(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-slate-600 cursor-pointer">
+                  <X size={10} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-          <p className="text-xs text-slate-400">
-            {recipients.length === 0 ? 'Add recipients to send' : `Sending to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}`}
-            {recipients.length > 1 ? ' via BCC' : ''}
-          </p>
+          <div className="flex items-center gap-3">
+            <label className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 cursor-pointer transition-colors">
+              <Paperclip size={13} />
+              <span>Attach</span>
+              <input
+                type="file"
+                multiple
+                className="hidden"
+                onChange={e => {
+                  if (e.target.files) setComposeFiles(prev => [...prev, ...Array.from(e.target.files!)])
+                  e.target.value = ''
+                }}
+              />
+            </label>
+            <p className="text-xs text-slate-400">
+              {recipients.length === 0 ? 'Add recipients to send' : `Sending to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}`}
+              {recipients.length > 1 ? ' via BCC' : ''}
+            </p>
+          </div>
           <div className="flex gap-3">
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
             <button

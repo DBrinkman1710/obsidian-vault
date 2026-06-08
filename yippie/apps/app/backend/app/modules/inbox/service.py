@@ -450,6 +450,7 @@ async def queue_send(
     send_at: datetime,
     actor_id: Optional[uuid.UUID] = None,
     contact_id: Optional[uuid.UUID] = None,
+    attachments_json: Optional[str] = None,
 ) -> PendingSend:
     pending = PendingSend(
         draft_id=draft_id,
@@ -460,6 +461,7 @@ async def queue_send(
         send_at=send_at,
         actor_id=actor_id,
         contact_id=contact_id,
+        attachments_json=attachments_json,
     )
     db.add(pending)
     await db.commit()
@@ -495,7 +497,8 @@ async def flush_pending_sends(db: AsyncSession) -> None:
 
     for p in pending_list:
         try:
-            await send_email(to=p.to_email, subject=p.subject, body=p.reply_text)
+            attachments = json.loads(p.attachments_json) if p.attachments_json else None
+            await send_email(to=p.to_email, subject=p.subject, body=p.reply_text, attachments=attachments)
             await activity_service.log_event(
                 db=db,
                 tenant_id=p.tenant_id,
