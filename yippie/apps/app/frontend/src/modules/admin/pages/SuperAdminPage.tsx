@@ -323,6 +323,9 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
             <div>
               <h2 className="text-lg font-bold text-slate-900">Users</h2>
               <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
+              {tenant.inbound_email && (
+                <p className="text-xs text-slate-400 mt-1 font-mono">{tenant.inbound_email}</p>
+              )}
             </div>
             <div className="flex items-center gap-2">
               <button

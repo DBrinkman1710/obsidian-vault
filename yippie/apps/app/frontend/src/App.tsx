@@ -20,6 +20,7 @@ const LoginPage       = lazy(() => import('./auth/LoginPage'))
 const DepartmentsPage          = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
 const SuperAdminPage           = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
 const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/SuperadminsSettingsPage'))
+const ProfileSettingsPage      = lazy(() => import('./modules/admin/pages/ProfileSettingsPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -107,6 +108,7 @@ export default function App() {
 
               <Route path="/settings/departments" element={<PagePad><DepartmentsPage /></PagePad>} />
               <Route path="/settings/superadmins" element={<PagePad><SuperadminsSettingsPage /></PagePad>} />
+              <Route path="/settings/profile" element={<PagePad><ProfileSettingsPage /></PagePad>} />
               <Route path="/superadmin/clients" element={<PagePad><SuperAdminPage /></PagePad>} />
             </Routes>
           </Suspense>

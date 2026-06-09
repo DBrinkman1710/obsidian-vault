@@ -17,10 +17,12 @@ async def send_email(
     body: str,
     reply_to: Optional[str] = None,
     attachments: Optional[list[dict]] = None,
+    from_email: Optional[str] = None,
 ) -> None:
     """Send an email via Resend.
 
     attachments: list of {"filename": str, "content": base64_str, "content_type": str}
+    from_email: override the sender address (must be on a Resend-verified domain)
     """
     settings = get_settings()
 
@@ -29,7 +31,7 @@ async def send_email(
             "RESEND_API_KEY must be set to send emails."
         )
 
-    from_addr = settings.resend_from or "support@getyippie.com"
+    from_addr = from_email or settings.resend_from or "support@getyippie.com"
 
     payload: dict = {
         "from": from_addr,

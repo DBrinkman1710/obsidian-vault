@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from jose import jwt
@@ -56,4 +56,24 @@ async def login(body: LoginRequest, db: Annotated[AsyncSession, Depends(get_db)]
 
 @router.get("/me", response_model=UserOut)
 async def me(current_user: CurrentUser):
+    return UserOut.model_validate(current_user)
+
+
+class UserSelfUpdate(BaseModel):
+    full_name: Optional[str] = None
+    reply_from_email: Optional[str] = None
+
+
+@router.patch("/me", response_model=UserOut)
+async def update_me(
+    body: UserSelfUpdate,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    if body.full_name is not None:
+        current_user.full_name = body.full_name.strip()
+    if "reply_from_email" in body.model_fields_set:
+        current_user.reply_from_email = body.reply_from_email or None
+    await db.commit()
+    await db.refresh(current_user)
     return UserOut.model_validate(current_user)

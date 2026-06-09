@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
+import { useAuth } from '../../../auth/useAuth'
 
 const SOURCE_ICON: Record<string, React.ReactNode> = {
   email: <Mail size={13} className="text-slate-400" />,
@@ -141,6 +142,8 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
   const [showAiPrompt, setShowAiPrompt] = useState(false)
   const [composeFiles, setComposeFiles] = useState<File[]>([])
   const [result, setResult] = useState<{ sent: number; failed: string[] } | null>(null)
+  const [usePersonalFrom, setUsePersonalFrom] = useState(false)
+  const { user } = useAuth()
 
   const addRecipient = (email: string, label: string) => {
     if (!recipients.find(r => r.email === email)) {
@@ -166,6 +169,9 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
       fd.append('subject', subject)
       fd.append('body', body)
       composeFiles.forEach(f => fd.append('attachments', f))
+      if (usePersonalFrom && user?.reply_from_email) {
+        fd.append('from_email', user.reply_from_email)
+      }
       return api.post('/inbox/compose', fd, { headers: { 'Content-Type': undefined } }).then(r => r.data)
     },
     onSuccess: (data) => setResult(data),
@@ -294,8 +300,8 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
           </div>
         )}
 
-        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-4 flex-wrap">
+          <div className="flex items-center gap-3 flex-wrap">
             <label className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 cursor-pointer transition-colors">
               <Paperclip size={13} />
               <span>Attach</span>
@@ -309,6 +315,25 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
                 }}
               />
             </label>
+            {user?.reply_from_email && (
+              <div className="flex items-center gap-1 text-xs text-slate-500">
+                <span className="text-slate-400">From:</span>
+                <button
+                  type="button"
+                  onClick={() => setUsePersonalFrom(false)}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${!usePersonalFrom ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
+                >
+                  Shared
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setUsePersonalFrom(true)}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${usePersonalFrom ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
+                >
+                  {user.reply_from_email}
+                </button>
+              </div>
+            )}
             <p className="text-xs text-slate-400">
               {recipients.length === 0 ? 'Add recipients to send' : `Sending to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}`}
               {recipients.length > 1 ? ' via BCC' : ''}

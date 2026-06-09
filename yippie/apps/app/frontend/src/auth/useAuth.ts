@@ -7,6 +7,7 @@ interface User {
   full_name: string
   role: string
   tenant_id: string
+  reply_from_email?: string | null
 }
 
 interface AuthState {

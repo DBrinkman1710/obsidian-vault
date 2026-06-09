@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Paperclip } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
+import { useAuth } from '../../../auth/useAuth'
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English', nl: 'Dutch', fr: 'French', de: 'German', es: 'Spanish',
@@ -272,6 +273,7 @@ export default function DraftReview() {
   const qc = useQueryClient()
   const config = useTenantConfig()
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
+  const { user } = useAuth()
 
   const { data: ctx, isLoading } = useQuery({
     queryKey: ['draft', id],
@@ -324,6 +326,7 @@ export default function DraftReview() {
   const [undoCancelled, setUndoCancelled] = useState(false)
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [replyFiles, setReplyFiles] = useState<File[]>([])
+  const [usePersonalFrom, setUsePersonalFrom] = useState(false)
 
   const showContactModal = !isLoading && !!ctx && !ctx.contact && !modalDismissed && !isProcessed
 
@@ -408,6 +411,9 @@ export default function DraftReview() {
       const form = new FormData()
       form.append('reply_text', replyText)
       replyFiles.forEach(f => form.append('attachments', f))
+      if (usePersonalFrom && user?.reply_from_email) {
+        form.append('from_email', user.reply_from_email)
+      }
       const res = await api.post(`/inbox/drafts/${id}/send-reply`, form, {
         headers: { 'Content-Type': undefined },
       })
@@ -873,7 +879,7 @@ export default function DraftReview() {
             </div>
 
             <div className="px-3 py-2.5 border-t border-slate-100 shrink-0 flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 {/* Attach files */}
                 <label className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 cursor-pointer transition-colors">
                   <Paperclip size={13} />
@@ -888,6 +894,26 @@ export default function DraftReview() {
                     }}
                   />
                 </label>
+                {/* From selector — only shown when user has a personal reply address */}
+                {user?.reply_from_email && (
+                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                    <span className="text-slate-400">From:</span>
+                    <button
+                      type="button"
+                      onClick={() => setUsePersonalFrom(false)}
+                      className={`px-2 py-0.5 rounded-md transition-colors ${!usePersonalFrom ? 'bg-yippie/10 text-yippie font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
+                    >
+                      Shared
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setUsePersonalFrom(true)}
+                      className={`px-2 py-0.5 rounded-md transition-colors ${usePersonalFrom ? 'bg-yippie/10 text-yippie font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
+                    >
+                      {user.reply_from_email}
+                    </button>
+                  </div>
+                )}
                 <div className="text-xs">
                   {undoCancelled && <span className="text-slate-400">Send cancelled</span>}
                   {sentTo && !undoCancelled && <span className="text-emerald-600">Sent to {sentTo}</span>}

@@ -116,6 +116,7 @@ async def send_reply(
     db: DB,
     reply_text: str = Form(...),
     attachments: List[UploadFile] = File(default=[]),
+    from_email: Optional[str] = Form(None),
 ):
     """Queue a reply for sending after a 5s undo window. Attachments are optional."""
     ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
@@ -151,6 +152,7 @@ async def send_reply(
         actor_id=current_user.id,
         contact_id=contact.id if contact else None,
         attachments_json=attachments_json,
+        from_email=from_email or None,
     )
     return {"queued": True, "to": msg.sender, "subject": subject, "undo_until": send_at.isoformat()}
 
@@ -313,6 +315,7 @@ async def compose_send(
     subject: str = Form(...),
     body: str = Form(...),
     attachments: List[UploadFile] = File(default=[]),
+    from_email: Optional[str] = Form(None),
 ):
     """Send a new outbound email to one or more recipients (BCC when multiple). Supports optional file attachments."""
     recipients: list[str] = json.loads(to)
@@ -332,7 +335,7 @@ async def compose_send(
     att_arg = encoded_attachments if encoded_attachments else None
 
     results = await asyncio.gather(
-        *[send_email(to=r, subject=subject, body=body, attachments=att_arg) for r in recipients],
+        *[send_email(to=r, subject=subject, body=body, attachments=att_arg, from_email=from_email or None) for r in recipients],
         return_exceptions=True,
     )
     for exc in results:
