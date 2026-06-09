@@ -6,23 +6,30 @@ RUN npm install
 COPY frontend/ .
 RUN npm run build
 
-## Stage 2: Python backend + nginx serving both
+## Stage 2: build Python packages (needs gcc for C extensions)
+FROM python:3.12-slim AS python-builder
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libpq-dev gcc && rm -rf /var/lib/apt/lists/*
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+COPY backend/requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+## Stage 3: lean runtime image — no gcc, no build tools
 FROM python:3.12-slim
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    libpq-dev gcc nginx && rm -rf /var/lib/apt/lists/*
+    libpq5 nginx && rm -rf /var/lib/apt/lists/*
 
-# Python deps + backend
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy the pre-built venv (no gcc needed at runtime)
+COPY --from=python-builder /opt/venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
 COPY backend/ .
 COPY config/tenant.yaml ./config/tenant.yaml
 
-# Frontend static assets
 COPY --from=frontend-builder /frontend/dist /usr/share/nginx/html
-
-# nginx: serves frontend on :8000 and :8080, proxies /api to uvicorn on :8001
 COPY frontend/nginx.conf /etc/nginx/conf.d/default.conf
 RUN rm -f /etc/nginx/sites-enabled/default
 
