@@ -13,11 +13,15 @@
    - Send a reply from a draft → 200 OK, no white screen, undo bar appears with 5s countdown + working Undo
    - Sidebar shows: Inbox, Contacts, Tickets, Activity, Billing, Live Chat
 
-2. **Per-tenant webhook routing** ← highest-impact prototype gap: `core/tenant.py:19-29` silently routes all inbound email to the first tenant in DB. Fix `resolve_tenant_uuid()` to look up tenant by `inbound_email` field.
+2. **Duplicate email bug** ← critical: replies are sending twice. Investigate whether `flush_pending_sends` in `email_poller.py` is firing alongside a direct send path. (see item 32)
 
-3. **Enforce `is_active`/`is_demo`/`go_live_at`** — toggles exist but do nothing; add login-blocking for inactive tenants
+3. **Undo send broken** — undo bar appears but undo doesn't cancel the send; hitting Undo shows "email may already be sent". Likely the `cancel_send` endpoint isn't being called in time before the 1s flush. (see item 17)
 
-4. **Impersonation / "view as tenant"** — JWT swap + sessionStorage + amber banner; no DB/migration needed
+4. **Per-tenant webhook routing** ← highest-impact prototype gap: `core/tenant.py:19-29` silently routes all inbound email to the first tenant in DB. Fix `resolve_tenant_uuid()` to look up tenant by `inbound_email` field.
+
+5. **Enforce `is_active`/`is_demo`/`go_live_at`** — toggles exist but do nothing; add login-blocking for inactive tenants
+
+6. **Impersonation / "view as tenant"** — JWT swap + sessionStorage + amber banner; no DB/migration needed
 
 ---
 
@@ -110,9 +114,9 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 - Can activate / deactivate / set to demo from the list
 - The "client app" is their isolated tenant in the shared deployment — no separate Railway env per client
 
-#### 24. Delete client with password protection
-- Deleting a client requires password confirmation (diederik1710@gmail.com)
-- Wipes all tenant data after confirmation; irreversible
+#### 24. Delete client / delete superadmin — password protected
+- **Delete client:** password confirmation required (diederik1710@gmail.com) → wipes all tenant data; irreversible
+- **Delete superadmin:** same password gate; removes the superadmin account entirely (deactivate first if just suspending). Cannot delete yourself.
 
 ### C. Auth completeness
 
@@ -123,8 +127,10 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 - Sidebar: admin sees Profile + Team + Departments; superadmin also sees Superadmins link
 
 #### 26. User registration / invite
-- Admin creates invite → signed token emailed via Resend
-- `/register?token=xxx` → user sets password, gets assigned role
+- Admins (and superadmins) can add users from the Settings → Team page
+- UI: "Add user" button → ask for name + email (company is already set from tenant context)
+- Backend generates signed invite token → Resend email to new user with `/register?token=xxx` link
+- User sets their own password on registration; gets assigned `agent` role by default
 - Backend: `POST /admin/invite`, `POST /auth/register` (token-gated)
 
 #### 27. Forgot password
@@ -160,8 +166,8 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 - Deleted mails → `DraftStatus.bin` (soft delete, visible in Bin tab)
 - Spam → `DraftStatus.spam` + call Resend API to block sender
 
-### 13. Filter processed mails by status
-- Filter pills on Processed tab: All / Approved / Rejected / Forwarded / Bin
+### 13. Filter processed mails by status ✓ DONE
+- Filter pills on Processed tab: All / Approved / Rejected / Forwarded / Bin — shipped session 12
 
 ### 15. Language-matching replies ✓ DONE
 - Shipped in `7967bac`: badge "Reply in {language}" when detected language ≠ English
@@ -211,11 +217,11 @@ in `service.py`, flushed every 1s by `email_poller.py`). With migration `c9d0e1f
 `app_user` access, the queue should now work end-to-end. **Once `devsandbox` is redeployed, send
 a reply and confirm the bar appears + Undo works — then mark fully done.**
 
-**Known secondary bug (not fixed yet):** replies **with attachments** bypass the undo queue —
-`router.py` (~line 140) acknowledges `PendingSend` has no `attachments` field, so
-attachment-replies send immediately and return a fake `undo_until` in the past. The
-progress-bar math produces `NaN`/`Infinity` — bar can get stuck. Fix: add `attachments_json`
-column to `pending_sends` (migration), thread attachments through `queue_send`/`flush_pending_sends`.
+**Known bugs (not fixed yet):**
+- Undo doesn't cancel in time — `cancel_send` is called but the 1s flush has already fired; "email may already be sent" shown after hitting Undo. Fix: increase flush interval or check cancel timestamp before flushing.
+- After a successful undo, the progress bar window should **auto-dismiss** — currently stays visible.
+- Replies **with attachments** bypass the undo queue — `router.py` (~line 140) acknowledges `PendingSend` has no `attachments` field, so attachment-replies send immediately and return a fake `undo_until` in the past. Fix: add `attachments_json` column to `pending_sends` (migration), thread attachments through `queue_send`/`flush_pending_sends`.
+- **Undo send is only wired for replies, not compose** — compose modal sends immediately with no queue or undo bar. Add same queue/undo flow to compose.
 
 ### 18. Attachments — partially built; gaps found (session 14)
 Shipped for **reply** flow only:
@@ -230,6 +236,25 @@ Shipped for **reply** flow only:
 - Attachment-replies skipping the undo queue (see item 17)
 
 ### 19. Modules order matches sidebar ✓ DONE — fixed at the source, no manual action needed
+
+### 32. Duplicate email sending (bug)
+- Replies are sending twice — user receives two identical emails.
+- Likely cause: `flush_pending_sends` fires AND a direct send path is also executing. Investigate `router.py` send-reply flow and `email_poller.py` flush loop for double-trigger.
+- Fix before any further inbox work — corrupts every client interaction while broken.
+
+### 33. Delete tickets
+- From ticket detail view: "Delete ticket" button → confirmation dialog
+- Soft delete (add `deleted_at` column) so ticket history is preserved; filter deleted from default views
+- Admin+ only; agents cannot delete
+
+### 34. Ticket deadline reminder popup
+- When viewing a draft/ticket that has `follow_up_at` set and the deadline is ≤24h away, show a small toast/badge
+- Also surface in inbox list as a warning indicator on the card
+- Relates to item 11 (SLA assignment) — deadline only fires when SLA is set
+
+### 35. Hotkey for send — `Cmd/Ctrl + Enter`
+- In both compose modal and reply panel: `Cmd+Enter` (Mac) / `Ctrl+Enter` (Windows) triggers send
+- Should respect the same undo queue flow (item 17)
 
 Shipped in `7967bac`. `Sidebar.tsx` renders nav items by iterating `config.enabled_modules`.
 The catch was modules were saved in toggle-click order, not canonical order.
@@ -250,9 +275,22 @@ immediately — **no per-tenant action required**.
   - **Export CSV** → download name, email, company, phone, tags
   - **Delete** → soft delete with confirmation
 
+### 36. Company grouping for contacts
+- Ability to tie multiple contacts under the same company
+- Add a `Company` entity (name, domain, notes) that contacts can belong to
+- Contact list shows company badge; filter/group by company
+- Composing to a company auto-selects all contacts in that company
+
 ---
 
 ## Phase 7 — Data & communications
+
+### 37. Import users / staff from CSV
+- `POST /admin/tenants/{id}/users/import` — superadmin only, or `POST /admin/users/import` for own tenant (admin)
+- CSV columns: name, email, role (agent/admin)
+- Backend: validate, deduplicate by email, bulk-invite (sends invite email per new user via Resend)
+- Frontend: upload widget in Settings → Team, results summary (invited / skipped / errors)
+- Different from contact import (item 29) — these become platform users, not contacts
 
 ### 29. Klantenbestand migratiesysteem (contact CSV import)
 - `POST /contacts/import` — multipart CSV upload
@@ -344,6 +382,12 @@ immediately — **no per-tenant action required**.
 - New `aitools` module — AI-powered utility tools inside the platform
 - Examples: summarise contact history, auto-categorise tickets, draft department responses
 - Superadmin can enable/disable per tenant via Clients tab
+
+### Calendar module
+- New `calendar` module — view and manage appointments, follow-up dates, and ticket deadlines
+- Calendar view per agent showing scheduled follow-ups from tickets (`follow_up_at`)
+- Ability to create standalone calendar events tied to a contact or ticket
+- Superadmin can enable/disable per tenant
 
 ---
 
