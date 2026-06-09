@@ -140,7 +140,10 @@ async def send_reply(
 
     attachments_json = json.dumps(encoded_attachments) if encoded_attachments else None
 
-    send_at = datetime.now(timezone.utc) + timedelta(seconds=5)
+    # Server window is 8s but the UI counts down 5s on its own clock — the 3s
+    # margin absorbs network latency and browser/server clock skew so Undo
+    # clicked during the bar always lands before the flush.
+    send_at = datetime.now(timezone.utc) + timedelta(seconds=8)
     await service.queue_send(
         db=db,
         draft_id=draft.id,
@@ -154,7 +157,7 @@ async def send_reply(
         attachments_json=attachments_json,
         from_email=from_email or None,
     )
-    return {"queued": True, "to": msg.sender, "subject": subject, "undo_until": send_at.isoformat()}
+    return {"queued": True, "to": msg.sender, "subject": subject, "undo_until": send_at.isoformat(), "undo_seconds": 5}
 
 
 @router.post("/drafts/{draft_id}/undo-send")

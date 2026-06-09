@@ -494,29 +494,55 @@ async def flush_pending_sends(db: AsyncSession) -> None:
     from app.modules.activity import service as activity_service
 
     now = datetime.now(timezone.utc)
-    result = await db.execute(select(PendingSend).where(PendingSend.send_at <= now))
+    # devsandbox and sandbox share one DB, so two containers run this loop
+    # concurrently. Claim rows with SKIP LOCKED and delete them before sending,
+    # so each pending send is dispatched at most once.
+    result = await db.execute(
+        select(PendingSend)
+        .where(PendingSend.send_at <= now)
+        .with_for_update(skip_locked=True)
+    )
     pending_list = result.scalars().all()
+    if not pending_list:
+        return
 
+    claimed = [
+        {
+            "id": p.id,
+            "tenant_id": p.tenant_id,
+            "draft_id": p.draft_id,
+            "to_email": p.to_email,
+            "subject": p.subject,
+            "reply_text": p.reply_text,
+            "actor_id": p.actor_id,
+            "contact_id": p.contact_id,
+            "attachments_json": p.attachments_json,
+            "from_email": p.from_email,
+        }
+        for p in pending_list
+    ]
     for p in pending_list:
+        await db.delete(p)
+    await db.commit()
+
+    for c in claimed:
         try:
-            attachments = json.loads(p.attachments_json) if p.attachments_json else None
-            await send_email(to=p.to_email, subject=p.subject, body=p.reply_text, attachments=attachments, from_email=p.from_email or None)
+            attachments = json.loads(c["attachments_json"]) if c["attachments_json"] else None
+            await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None)
             await activity_service.log_event(
                 db=db,
-                tenant_id=p.tenant_id,
+                tenant_id=c["tenant_id"],
                 module="inbox",
                 event_type="email.replied",
                 entity_type="draft_ticket",
-                entity_id=p.draft_id,
-                contact_id=p.contact_id,
-                actor_id=p.actor_id,
-                payload={"subject": p.subject, "to": p.to_email, "preview": p.reply_text[:120]},
+                entity_id=c["draft_id"],
+                contact_id=c["contact_id"],
+                actor_id=c["actor_id"],
+                payload={"subject": c["subject"], "to": c["to_email"], "preview": c["reply_text"][:120]},
             )
         except ResendNotConfiguredError:
-            log.warning("Resend not configured — skipping pending send %s", p.id)
+            log.warning("Resend not configured — skipping pending send %s", c["id"])
         except Exception:
-            log.exception("Failed to dispatch pending send %s", p.id)
-        await db.delete(p)
+            log.exception("Failed to dispatch pending send %s", c["id"])
 
-    if pending_list:
-        await db.commit()
+    await db.commit()

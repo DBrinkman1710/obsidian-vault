@@ -417,18 +417,13 @@ export default function DraftReview() {
       const res = await api.post(`/inbox/drafts/${id}/send-reply`, form, {
         headers: { 'Content-Type': undefined },
       })
-      const until = new Date(res.data.undo_until)
+      // Count down on the local clock only — the server holds the email for
+      // longer than this bar (undo_seconds < server window), so an Undo click
+      // anywhere on the bar is guaranteed to arrive in time.
       const start = Date.now()
-      const duration = until.getTime() - start
+      const duration = (res.data.undo_seconds ?? 5) * 1000
+      const until = new Date(start + duration)
       if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
-      if (duration <= 0) {
-        setUndoUntil(null)
-        setUndoProgress(100)
-        setSentTo(res.data.to)
-        qc.invalidateQueries({ queryKey: ['contact-activity'] })
-        qc.invalidateQueries({ queryKey: ['contact-moments'] })
-        return
-      }
       setUndoUntil(until)
       setUndoProgress(0)
       undoIntervalRef.current = setInterval(() => {
@@ -463,12 +458,13 @@ export default function DraftReview() {
       setUndoUntil(null)
       setUndoProgress(0)
       setUndoCancelled(true)
+      setTimeout(() => setUndoCancelled(false), 3000)
     } catch (err: any) {
       if (err?.response?.status === 409) {
+        // Too late — the email went out. Don't claim it was cancelled.
         if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
         setUndoUntil(null)
         setUndoProgress(0)
-        setUndoCancelled(true)
       }
       setSendError('Could not undo — email may already be sent.')
     }
