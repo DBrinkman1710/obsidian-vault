@@ -13,14 +13,11 @@
    - Send a reply from a draft → 200 OK, no white screen, undo bar appears with 5s countdown + working Undo
    - Sidebar shows: Inbox, Contacts, Tickets, Activity, Billing, Live Chat
 
-2. **Client-management refinement** (see assessment section below) — decide which area to tackle first:
-   - **(a) Per-tenant webhook routing** ← highest-impact gap: `core/tenant.py:19-29` silently routes all inbound email to the first tenant in DB. Fix `resolve_tenant_uuid()` to look up tenant by `inbound_email` field.
-   - **(b) Enforce `is_active`/`is_demo`/`go_live_at`** — toggles exist but do nothing; add login-blocking for inactive tenants
-   - **(c) Impersonation / "view as tenant"** — no "log in as" mechanism exists; superadmin must manually create an account in the target tenant to see their data
+2. **Per-tenant webhook routing** ← highest-impact prototype gap: `core/tenant.py:19-29` silently routes all inbound email to the first tenant in DB. Fix `resolve_tenant_uuid()` to look up tenant by `inbound_email` field.
 
-3. **Department/SLA modal redesign** (item 11) — let the agent pick department + SLA inline from the approval popup
+3. **Enforce `is_active`/`is_demo`/`go_live_at`** — toggles exist but do nothing; add login-blocking for inactive tenants
 
-4. **Compose-modal attachments** (item 18) — port the reply-panel file picker to `InboxQueue.tsx`
+4. **Impersonation / "view as tenant"** — JWT swap + sessionStorage + amber banner; no DB/migration needed
 
 ---
 
@@ -77,42 +74,70 @@
 
 ---
 
-## Phase 2 — Client management extensions (SuperAdminPage)
+## Prototype critical path
 
-### 5. Client list filter + demo tick in create modal ✓ DONE
-- Filter tabs (All/Active/Demo/Inactive) with per-tab counts
-- `is_demo` checkbox in CreateClientModal
-- Unified status pill per row (Active/Demo/Inactive)
-- TODO (Phase 6): switch from admin_password field to invite-email flow
+Everything needed for the platform to actually work for real clients.
 
-### 6. Bulk status change ✓ DONE
-- Checkbox per row + select-all in header
-- Bulk action bar with Set Active / Set Demo / Set Inactive
-- `PATCH` each in parallel via `Promise.all`
+### A. Multi-tenancy correctness
 
-### 7. Company name in sidebar ✓ DONE
-- `Sidebar.tsx` already renders `config.tenant_name` below the logo mark
+#### Per-tenant webhook routing
+`resolve_tenant_uuid()` in `core/tenant.py:19-29` has a literal `TODO: replace with per-tenant webhook URLs` and currently routes **all** inbound email/webhooks to the first tenant in the DB — silently misrouting for every other client. Fix to look up tenant by `inbound_email` field.
 
-### 8a. Hide own environment ✓ DONE
-- Client list filters out the tenant whose `id === config.tenant_id`
+#### Enforce `is_active` / `is_demo` / `go_live_at`
+Fields exist on `Tenant` (`models.py:36-38`) and are toggled in SuperAdminPage, but do nothing. Add:
+- Login-blocking for `is_active=false` tenants
+- Feature/data restrictions for `is_demo=true`
+- Read and act on `go_live_at` (e.g., auto-activate on date)
 
-### 8b. Scoped superadmin management in settings ✓ DONE
-- `/settings/superadmins` page (superadmin only) — lists all superadmins with active toggle
-- `GET /admin/superadmins` + `PATCH /admin/superadmins/{id}` endpoints
-- Deactivation requires own password confirmation; own account protected
-- Scope note shown in UI: sandbox superadmins ≠ live superadmins
-- TODO (Phase 6): "Add superadmin" button with password-verify popup → invite email flow
+### B. Client management (superadmin tools)
 
-### 8c. Status column labels (pending)
-- Clients tab status column should show "Active" / "Inactive" / "Demo" as text labels clearly
+#### 23. Impersonation / "view as tenant"
+- From SuperAdminPage, "Impersonate" button per client → logs in as their admin (generates short-lived token)
+- JWT swap + sessionStorage + amber banner; no DB/migration needed
+- Lets Diederik test/debug a client's environment without knowing their password
+
+#### 21. Client onboarding wizard
+Guided multi-step flow in SuperAdminPage when creating a new client:
+1. Company name + contact name + admin email
+2. Modules toggle
+3. Branding (color, logo)
+4. Add additional admin users
+5. Status: start as demo or go live immediately
+- After creation: invite email sent via Resend so admin can set their own password
+
+#### 22. Client environment management from dev
+- From dev.getyippie.com, Diederik sees all client tenants
+- Can activate / deactivate / set to demo from the list
+- The "client app" is their isolated tenant in the shared deployment — no separate Railway env per client
+
+#### 24. Delete client with password protection
+- Deleting a client requires password confirmation (diederik1710@gmail.com)
+- Wipes all tenant data after confirmation; irreversible
+
+### C. Auth completeness
+
+#### 25. Repair settings page
+- `/settings/profile` — update name, email, **change own password** (important)
+- `/settings/team` — invite/manage users for this tenant (admin only)
+- `/settings/departments` — already exists
+- Sidebar: admin sees Profile + Team + Departments; superadmin also sees Superadmins link
+
+#### 26. User registration / invite
+- Admin creates invite → signed token emailed via Resend
+- `/register?token=xxx` → user sets password, gets assigned role
+- Backend: `POST /admin/invite`, `POST /auth/register` (token-gated)
+
+#### 27. Forgot password
+- `/forgot-password` → enters email → receives reset link via Resend
+- `/reset-password?token=xxx` → sets new password
+
+#### 28. Superadmin invite flow (from dev)
+- Password-verification popup (root owner confirms) → name + email → invite email → new superadmin sets password via link
+- Sandbox superadmins only have superadmin access in sandbox DBs, not live
 
 ---
 
-## Phase 3 — Inbox UX
-
-### 9. Inbox layout: scroll-only email list, larger compose
-- Email list column scrolls; header + tabs stay fixed
-- Compose modal: make wider/taller, textarea gets more space
+## Phase 3 — Inbox UX (functional gaps)
 
 ### 10. Stay in email window after approve/reject ✓ DONE (mostly)
 - After approve or reject: don't navigate away — shipped session 12
@@ -137,10 +162,6 @@
 
 ### 13. Filter processed mails by status
 - Filter pills on Processed tab: All / Approved / Rejected / Forwarded / Bin
-
-### 14. Glowing green dot in sidebar
-- Move live-fetch indicator into Sidebar nav item next to "Inbox"
-- Pulse animation when `isFetching`; solid green when idle
 
 ### 15. Language-matching replies ✓ DONE
 - Shipped in `7967bac`: badge "Reply in {language}" when detected language ≠ English
@@ -231,55 +252,6 @@ immediately — **no per-tenant action required**.
 
 ---
 
-## Phase 5 — Client onboarding control plane
-
-### 21. Client onboarding wizard
-Guided multi-step flow in SuperAdminPage when creating a new client:
-1. Company name + contact name + admin email
-2. Modules toggle
-3. Branding (color, logo)
-4. Add additional admin users
-5. Status: start as demo or go live immediately
-- After creation: invite email sent via Resend so admin can set their own password
-
-### 22. Client environment management from dev
-- From dev.getyippie.com, Diederik sees all client tenants
-- Can activate / deactivate / set to demo from the list
-- The "client app" is their isolated tenant in the shared deployment — no separate Railway env per client
-
-### 23. Access all client environments from dev
-- From SuperAdminPage, "Impersonate" button per client → logs in as their admin (generates short-lived token)
-- Lets Diederik test/debug a client's environment without knowing their password
-
-### 24. Delete client with password protection
-- Deleting a client requires password confirmation (diederik1710@gmail.com)
-- Wipes all tenant data after confirmation; irreversible
-
----
-
-## Phase 6 — User management
-
-### 25. Repair settings page
-- `/settings/profile` — update name, email, **change own password** (important)
-- `/settings/team` — invite/manage users for this tenant (admin only)
-- `/settings/departments` — already exists
-- Sidebar: admin sees Profile + Team + Departments; superadmin also sees Superadmins link
-
-### 26. User registration / invite
-- Admin creates invite → signed token emailed via Resend
-- `/register?token=xxx` → user sets password, gets assigned role
-- Backend: `POST /admin/invite`, `POST /auth/register` (token-gated)
-
-### 27. Forgot password
-- `/forgot-password` → enters email → receives reset link via Resend
-- `/reset-password?token=xxx` → sets new password
-
-### 28. Superadmin invite flow (from dev)
-- Password-verification popup (root owner confirms) → name + email → invite email → new superadmin sets password via link
-- Sandbox superadmins only have superadmin access in sandbox DBs, not live
-
----
-
 ## Phase 7 — Data & communications
 
 ### 29. Klantenbestand migratiesysteem (contact CSV import)
@@ -298,7 +270,54 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 
 ---
 
-## Phase 9 — Email templates
+## Phase 2 — Client management extensions (SuperAdminPage)
+
+### 5. Client list filter + demo tick in create modal ✓ DONE
+- Filter tabs (All/Active/Demo/Inactive) with per-tab counts
+- `is_demo` checkbox in CreateClientModal
+- Unified status pill per row (Active/Demo/Inactive)
+- TODO: switch from admin_password field to invite-email flow (covered by item 26)
+
+### 6. Bulk status change ✓ DONE
+- Checkbox per row + select-all in header
+- Bulk action bar with Set Active / Set Demo / Set Inactive
+- `PATCH` each in parallel via `Promise.all`
+
+### 7. Company name in sidebar ✓ DONE
+- `Sidebar.tsx` already renders `config.tenant_name` below the logo mark
+
+### 8a. Hide own environment ✓ DONE
+- Client list filters out the tenant whose `id === config.tenant_id`
+
+### 8b. Scoped superadmin management in settings ✓ DONE
+- `/settings/superadmins` page (superadmin only) — lists all superadmins with active toggle
+- `GET /admin/superadmins` + `PATCH /admin/superadmins/{id}` endpoints
+- Deactivation requires own password confirmation; own account protected
+- Scope note shown in UI: sandbox superadmins ≠ live superadmins
+- TODO: "Add superadmin" button covered by item 28
+
+### 8c. Status column labels (pending)
+- Clients tab status column should show "Active" / "Inactive" / "Demo" as text labels clearly
+
+---
+
+## Phase 8 — Polish & advanced
+
+- **Inbox layout** (item 9) — scroll-only email list, larger compose modal (cosmetic)
+- **Glowing green dot in sidebar** (item 14) — pulse animation when `isFetching`; solid green when idle (cosmetic)
+- **Per-tenant custom domain** (`acme.getyippie.com` → shared Railway service)
+- **PostgreSQL RLS** — row-level security policies as defense-in-depth
+- **getyippie.com 502 fix** — Cloudflare proxy toggle for Railway domain verification
+- **Billing/plans per client** — Tenant gets a `plan` field, gating advanced features
+- **Mobile web** — responsive layout for sandbox + devsandbox first
+- **diederik@getyippie.com** — Diederik's personal account for live environments
+- **Sandbox email address** — sandbox uses `sb-support@getyippie.com`; live uses `support@getyippie.com`
+- **Personalized user emails** *(architecture question)* — per-user domain email linked to Resend; shared + personal inbox per agent; needs routing design
+- **Customer data + AI briefing** *(architecture decision)* — define where full contact history is stored; AI briefing must pull complete history
+
+---
+
+## Phase 9 — Email templates (post-prototype)
 
 ### A. Resend email templates
 - Register reusable templates in Resend dashboard; backend references by template ID
@@ -313,7 +332,7 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 
 ---
 
-## Phase 10 — Additional modules
+## Phase 10 — Additional modules (post-prototype)
 
 ### Email tracking module
 - New `emailtracking` module — tracks opens, clicks, and delivery events per outbound email
@@ -325,20 +344,6 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 - New `aitools` module — AI-powered utility tools inside the platform
 - Examples: summarise contact history, auto-categorise tickets, draft department responses
 - Superadmin can enable/disable per tenant via Clients tab
-
----
-
-## Phase 8 — Polish & advanced
-
-- **Per-tenant custom domain** (`acme.getyippie.com` → shared Railway service)
-- **PostgreSQL RLS** — row-level security policies as defense-in-depth
-- **getyippie.com 502 fix** — Cloudflare proxy toggle for Railway domain verification
-- **Billing/plans per client** — Tenant gets a `plan` field, gating advanced features
-- **Mobile web** — responsive layout for sandbox + devsandbox first
-- **diederik@getyippie.com** — Diederik's personal account for live environments
-- **Sandbox email address** — sandbox uses `sb-support@getyippie.com`; live uses `support@getyippie.com`
-- **Personalized user emails** *(architecture question)* — per-user domain email linked to Resend; shared + personal inbox per agent; needs routing design
-- **Customer data + AI briefing** *(architecture decision)* — define where full contact history is stored; AI briefing must pull complete history
 
 ---
 
