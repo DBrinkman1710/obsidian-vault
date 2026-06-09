@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser
 from app.config import load_tenant_config
-from app.core.tenant import resolve_tenant_by_slug, resolve_tenant_uuid
+from app.core.tenant import resolve_tenant_by_slug
 from app.database import db_session, get_db
 from app.modules.chat import whatsapp_service
 from app.modules.chat.manager import manager
@@ -188,9 +188,10 @@ async def whatsapp_verify(request: Request):
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
-@router.post("/webhooks/whatsapp", status_code=status.HTTP_200_OK)
-async def whatsapp_incoming(request: Request, db: DB):
-    """Receive inbound WhatsApp messages from Meta Cloud API."""
+@router.post("/webhooks/{tenant_slug}/whatsapp", status_code=status.HTTP_200_OK)
+async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
+    """Receive inbound WhatsApp messages from Meta Cloud API. One URL per client:
+    https://{env}.getyippie.com/api/v1/chat/webhooks/{slug}/whatsapp"""
     try:
         payload = await request.json()
     except Exception:
@@ -199,7 +200,7 @@ async def whatsapp_incoming(request: Request, db: DB):
     if payload.get("object") != "whatsapp_business_account":
         return {"status": "ignored"}
 
-    tenant_id = await resolve_tenant_uuid(db)
+    tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
     await whatsapp_service.handle_incoming_webhook(db, tenant_id, payload)
     return {"status": "ok"}
 

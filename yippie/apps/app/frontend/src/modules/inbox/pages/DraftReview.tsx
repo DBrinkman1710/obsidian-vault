@@ -324,6 +324,7 @@ export default function DraftReview() {
   const [undoUntil, setUndoUntil] = useState<Date | null>(null)
   const [undoProgress, setUndoProgress] = useState(0)
   const [undoCancelled, setUndoCancelled] = useState(false)
+  const [demoNotice, setDemoNotice] = useState(false)
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [replyFiles, setReplyFiles] = useState<File[]>([])
   const [usePersonalFrom, setUsePersonalFrom] = useState(false)
@@ -407,6 +408,7 @@ export default function DraftReview() {
     setSending(true)
     setSendError('')
     setUndoCancelled(false)
+    setDemoNotice(false)
     try {
       const form = new FormData()
       form.append('reply_text', replyText)
@@ -417,6 +419,10 @@ export default function DraftReview() {
       const res = await api.post(`/inbox/drafts/${id}/send-reply`, form, {
         headers: { 'Content-Type': undefined },
       })
+      if (res.data.demo) {
+        setDemoNotice(true)
+        return
+      }
       // Count down on the local clock only — the server holds the email for
       // longer than this bar (undo_seconds < server window), so an Undo click
       // anywhere on the bar is guaranteed to arrive in time.
@@ -912,6 +918,7 @@ export default function DraftReview() {
                 )}
                 <div className="text-xs">
                   {undoCancelled && <span className="text-slate-400">Send cancelled</span>}
+                  {demoNotice && <span className="text-amber-600">Demo mode — email not sent</span>}
                   {sentTo && !undoCancelled && <span className="text-emerald-600">Sent to {sentTo}</span>}
                   {sendError && <span className="text-red-500">{sendError}</span>}
                 </div>

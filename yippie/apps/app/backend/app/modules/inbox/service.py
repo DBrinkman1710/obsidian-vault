@@ -438,6 +438,14 @@ async def bulk_update_drafts(
     return result.rowcount
 
 
+async def tenant_is_demo(db: AsyncSession, tenant_id: uuid.UUID) -> bool:
+    """Demo tenants never send real outbound email — callers show 'demo mode' instead."""
+    from app.core.models import Tenant
+
+    tenant = await db.get(Tenant, tenant_id)
+    return bool(tenant and tenant.is_demo)
+
+
 # --- Undo-send queue ---
 
 async def queue_send(
@@ -525,10 +533,18 @@ async def flush_pending_sends(db: AsyncSession) -> None:
         await db.delete(p)
     await db.commit()
 
+    demo_cache: dict = {}
     for c in claimed:
         try:
-            attachments = json.loads(c["attachments_json"]) if c["attachments_json"] else None
-            await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None)
+            if c["tenant_id"] not in demo_cache:
+                demo_cache[c["tenant_id"]] = await tenant_is_demo(db, c["tenant_id"])
+            suppressed = demo_cache[c["tenant_id"]]
+            if not suppressed:
+                attachments = json.loads(c["attachments_json"]) if c["attachments_json"] else None
+                await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None)
+            payload = {"subject": c["subject"], "to": c["to_email"], "preview": c["reply_text"][:120]}
+            if suppressed:
+                payload["demo_suppressed"] = True
             await activity_service.log_event(
                 db=db,
                 tenant_id=c["tenant_id"],
@@ -538,7 +554,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                 entity_id=c["draft_id"],
                 contact_id=c["contact_id"],
                 actor_id=c["actor_id"],
-                payload={"subject": c["subject"], "to": c["to_email"], "preview": c["reply_text"][:120]},
+                payload=payload,
             )
         except ResendNotConfiguredError:
             log.warning("Resend not configured — skipping pending send %s", c["id"])

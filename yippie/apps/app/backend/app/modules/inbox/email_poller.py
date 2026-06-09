@@ -263,6 +263,24 @@ async def flush_pending_sends_job() -> None:
         await service.flush_pending_sends(db)
 
 
+@scheduler.scheduled_job("interval", seconds=60, id="go_live_check", max_instances=1, coalesce=True)
+async def go_live_job() -> None:
+    """Activate tenants whose go_live_at date has passed: live, out of demo.
+    go_live_at is cleared so this is one-shot — re-demoing a client later won't
+    be instantly reverted. Idempotent, so safe with two containers on one DB."""
+    from sqlalchemy import func, update
+
+    async with db_session() as db:
+        result = await db.execute(
+            update(Tenant)
+            .where(Tenant.go_live_at.isnot(None), Tenant.go_live_at <= func.now())
+            .values(is_active=True, is_demo=False, go_live_at=None)
+        )
+        await db.commit()
+        if result.rowcount:
+            log.info("go_live_job: activated %d tenant(s)", result.rowcount)
+
+
 def start_scheduler() -> None:
     if not scheduler.running:
         scheduler.start()

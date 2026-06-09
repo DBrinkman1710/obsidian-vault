@@ -17,7 +17,7 @@ from app.auth.dependencies import CurrentUser, require_module
 from app.config import get_settings
 from app.core.mailer import ResendNotConfiguredError, send_email
 from app.core.models import Tenant
-from app.core.tenant import resolve_tenant_by_slug, resolve_tenant_uuid
+from app.core.tenant import resolve_tenant_by_slug
 from app.database import get_db
 from app.modules.activity import service as activity_service
 from app.modules.departments import service as dept_service
@@ -128,6 +128,9 @@ async def send_reply(
     contact = ctx["contact"]
     subject = f"Re: {draft.final_subject or draft.ai_suggested_subject}"
 
+    if await service.tenant_is_demo(db, current_user.tenant_id):
+        return {"queued": False, "demo": True, "to": msg.sender, "subject": subject}
+
     # Encode any attached files so the background job can send them
     encoded_attachments: list[dict] = []
     for f in attachments:
@@ -234,15 +237,16 @@ async def forward_draft(draft_id: uuid.UUID, body: ForwardRequest, current_user:
         f"Subject: {original_subject}\n\n"
         f"--- Original message ---\n{msg.raw_body}"
     )
-    try:
-        await send_email(
-            to=dept.email,
-            subject=f"FWD: {original_subject}",
-            body=dept_body,
-            reply_to=msg.sender,
-        )
-    except ResendNotConfiguredError:
-        pass  # Email not configured — still mark as forwarded
+    if not await service.tenant_is_demo(db, current_user.tenant_id):
+        try:
+            await send_email(
+                to=dept.email,
+                subject=f"FWD: {original_subject}",
+                body=dept_body,
+                reply_to=msg.sender,
+            )
+        except ResendNotConfiguredError:
+            pass  # Email not configured — still mark as forwarded
 
     draft.forwarded_to_department_id = dept.id
     draft.status = DraftStatus.forwarded
@@ -327,6 +331,9 @@ async def compose_send(
     if not subject.strip() or not body.strip():
         raise HTTPException(status_code=400, detail="Subject and body are required")
 
+    if await service.tenant_is_demo(db, current_user.tenant_id):
+        return {"sent": 0, "failed": [], "demo": True}
+
     encoded_attachments: list[dict] = []
     for f in attachments:
         content = await f.read()
@@ -391,11 +398,12 @@ async def tenant_email_webhook(tenant_slug: str, request: Request, db: WDB):
     return {"status": "ok"}
 
 
-@webhook_router.post("/webhooks/whatsapp", status_code=status.HTTP_200_OK)
-async def twilio_webhook(request: Request, db: WDB):
-    """Twilio WhatsApp inbound webhook — no auth required."""
+@webhook_router.post("/webhooks/{tenant_slug}/whatsapp", status_code=status.HTTP_200_OK)
+async def twilio_webhook(tenant_slug: str, request: Request, db: WDB):
+    """Twilio WhatsApp inbound webhook — no auth required. Configure one URL per
+    client in Twilio: https://{env}.getyippie.com/api/v1/inbox/webhooks/{slug}/whatsapp"""
     form = await request.form()
-    tenant_id = await resolve_tenant_uuid(db)
+    tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
     await service.ingest_whatsapp(
         db=db,
         tenant_id=tenant_id,

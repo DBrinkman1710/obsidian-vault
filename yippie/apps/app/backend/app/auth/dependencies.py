@@ -39,6 +39,13 @@ async def get_current_user(
     if user is None:
         raise credentials_exception
 
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account deactivated")
+    if user.role != UserRole.superadmin:
+        tenant = await db.get(Tenant, user.tenant_id)
+        if tenant is None or not tenant.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This workspace is inactive")
+
     await set_tenant_context(db, user.tenant_id)
     return user
 

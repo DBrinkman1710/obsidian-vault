@@ -17,15 +17,6 @@ async def get_tenant(db: AsyncSession, tenant_id) -> Tenant:
     return tenant
 
 
-async def resolve_tenant_uuid(db: AsyncSession) -> uuid.UUID:
-    """Return the first tenant's UUID. Fallback for legacy single-tenant webhook routes."""
-    result = await db.execute(select(Tenant.id).order_by(Tenant.created_at).limit(1))
-    tenant_id = result.scalar_one_or_none()
-    if tenant_id is None:
-        raise RuntimeError("No tenant found in database")
-    return tenant_id
-
-
 async def resolve_tenant_by_inbound_email(db: AsyncSession, email: str) -> uuid.UUID | None:
     """Return a tenant's UUID by inbound_email. Returns None if not found."""
     result = await db.execute(

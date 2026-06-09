@@ -141,7 +141,7 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
   const [aiPrompt, setAiPrompt] = useState('')
   const [showAiPrompt, setShowAiPrompt] = useState(false)
   const [composeFiles, setComposeFiles] = useState<File[]>([])
-  const [result, setResult] = useState<{ sent: number; failed: string[] } | null>(null)
+  const [result, setResult] = useState<{ sent: number; failed: string[]; demo?: boolean } | null>(null)
   const [usePersonalFrom, setUsePersonalFrom] = useState(false)
   const { user } = useAuth()
 
@@ -181,11 +181,15 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
     return (
       <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
-          <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Send size={20} className="text-green-600" />
+          <div className={`w-12 h-12 ${result.demo ? 'bg-amber-100' : 'bg-green-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
+            <Send size={20} className={result.demo ? 'text-amber-600' : 'text-green-600'} />
           </div>
-          <h2 className="text-lg font-bold text-slate-900 mb-2">Email sent</h2>
-          <p className="text-sm text-slate-500 mb-1">Sent to {result.sent} recipient{result.sent !== 1 ? 's' : ''}</p>
+          <h2 className="text-lg font-bold text-slate-900 mb-2">{result.demo ? 'Demo mode' : 'Email sent'}</h2>
+          {result.demo ? (
+            <p className="text-sm text-amber-600 mb-1">This workspace is in demo mode — no email was sent.</p>
+          ) : (
+            <p className="text-sm text-slate-500 mb-1">Sent to {result.sent} recipient{result.sent !== 1 ? 's' : ''}</p>
+          )}
           {result.failed.length > 0 && (
             <p className="text-sm text-red-500">Failed: {result.failed.join(', ')}</p>
           )}

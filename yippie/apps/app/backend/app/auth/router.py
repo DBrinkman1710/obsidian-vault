@@ -11,7 +11,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.models import User
+from app.core.models import Tenant, User, UserRole
 from app.core.schemas import UserOut
 from app.database import get_db
 from app.auth.dependencies import CurrentUser
@@ -43,6 +43,13 @@ async def login(body: LoginRequest, db: Annotated[AsyncSession, Depends(get_db)]
 
     if not user or not pwd_context.verify(body.password, user.hashed_password):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+    if not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account deactivated")
+    if user.role != UserRole.superadmin:
+        tenant = await db.get(Tenant, user.tenant_id)
+        if tenant is None or not tenant.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This workspace is inactive")
 
     await db.execute(
         update(User).where(User.id == user.id).values(last_login_at=datetime.now(timezone.utc))
