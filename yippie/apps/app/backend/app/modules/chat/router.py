@@ -12,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser
 from app.config import load_tenant_config
-from app.core.tenant import resolve_tenant_uuid
+from app.core.tenant import resolve_tenant_by_slug, resolve_tenant_uuid
 from app.database import db_session, get_db
 from app.modules.chat import whatsapp_service
 from app.modules.chat.manager import manager
@@ -225,7 +225,7 @@ async def chat_ws(websocket, tenant_slug: str, session_id: str):
     await manager.connect(websocket, tenant_slug, session_id)
 
     async with db_session() as db:
-        tenant_id = await resolve_tenant_uuid(db)
+        tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
         result = await db.execute(
             select(ChatSession).where(
                 ChatSession.visitor_id == session_id,
