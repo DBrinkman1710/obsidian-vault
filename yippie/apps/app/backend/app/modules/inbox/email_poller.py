@@ -253,7 +253,7 @@ async def poll_inbound_emails() -> None:
         log.exception("email_poll failed")
 
 
-@scheduler.scheduled_job("interval", seconds=1, id="flush_pending_sends", max_instances=1, coalesce=True)
+@scheduler.scheduled_job("interval", seconds=5, id="flush_pending_sends", max_instances=1, coalesce=True)
 async def flush_pending_sends_job() -> None:
     """Dispatch queued emails whose undo window has expired."""
     async with db_session() as db:
