@@ -475,9 +475,9 @@ export default function SuperAdminPage() {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
 
-  function copyWebhook(slug: string) {
-    const url = `${window.location.origin}/api/v1/inbox/webhooks/${slug}/email`
-    navigator.clipboard.writeText(url)
+  function copyInboundEmail(slug: string, inboundEmail: string | null) {
+    if (!inboundEmail) return
+    navigator.clipboard.writeText(inboundEmail)
     setCopiedSlug(slug)
     setTimeout(() => setCopiedSlug(null), 2000)
   }
@@ -740,15 +740,17 @@ export default function SuperAdminPage() {
                             {t.is_active ? <ToggleRight size={14} className="text-emerald-500" /> : <ToggleLeft size={14} className="text-slate-400" />}
                           </button>
                         )}
-                        <button
-                          onClick={() => copyWebhook(t.slug)}
-                          className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                          title={`Copy Resend webhook URL for ${t.slug}`}
-                        >
-                          {copiedSlug === t.slug
-                            ? <Check size={14} className="text-emerald-500" />
-                            : <Clipboard size={14} />}
-                        </button>
+                        {t.inbound_email && (
+                          <button
+                            onClick={() => copyInboundEmail(t.slug, t.inbound_email)}
+                            className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                            title={`Copy inbound email: ${t.inbound_email}`}
+                          >
+                            {copiedSlug === t.slug
+                              ? <Check size={14} className="text-emerald-500" />
+                              : <Clipboard size={14} />}
+                          </button>
+                        )}
                         <button
                           onClick={() => setEditingTenant(t)}
                           className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
