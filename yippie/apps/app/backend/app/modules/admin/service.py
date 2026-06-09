@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 import uuid
 
 from passlib.context import CryptContext
@@ -12,6 +13,10 @@ from app.modules.admin.schemas import AddAdminRequest, TenantCreate, TenantUpdat
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 TENANT_SAFE_FIELDS = {"name", "enabled_modules", "primary_color", "logo_url", "is_active", "is_demo", "go_live_at", "inbound_email"}
+
+# The platform owner's account — same default as promote_superadmin.py / seed.py.
+# No one, including other superadmins, may deactivate it.
+PROTECTED_SUPERADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "diederik1710@gmail.com").lower()
 
 
 def _tenant_to_dict(tenant: Tenant, user_count: int) -> dict:
@@ -120,6 +125,8 @@ async def toggle_superadmin_active(
         raise LookupError("User not found.")
     if target.role != UserRole.superadmin:
         raise ValueError("User is not a superadmin.")
+    if not is_active and target.email.lower() == PROTECTED_SUPERADMIN_EMAIL:
+        raise ValueError(f"{target.email} cannot be deactivated.")
     target.is_active = is_active
     await db.commit()
     await db.refresh(target)

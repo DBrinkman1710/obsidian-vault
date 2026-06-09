@@ -15,7 +15,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.config import get_settings
 from app.core.models import Tenant
-from app.core.tenant import resolve_tenant_uuid
+from app.core.tenant import get_inbound_email_map, resolve_tenant_uuid
 from app.database import db_session
 from app.modules.inbox import service
 
@@ -113,59 +113,92 @@ async def poll_inbound_emails() -> None:
             if not emails:
                 return
 
-            # Filter by inbound address so each environment only picks up its own mail.
-            # INBOUND_EMAIL env var (e.g. dev-support@getyippie.com) must match the `to` field.
-            # Resend may return `to` as a plain string, a list of strings, or a list of objects.
-            # We use substring matching to handle angle-bracket formats like "<addr@domain>".
-            filter_addr = (settings.inbound_email or "").lower().strip()
-            if filter_addr:
-                def _to_text(m: dict) -> str:
-                    raw = m.get("to") or []
-                    if isinstance(raw, str):
-                        return raw.lower()
-                    parts = []
-                    for t in raw:
-                        if isinstance(t, dict):
-                            parts.append(t.get("email", "").lower())
-                            parts.append(t.get("name", "").lower())
-                        else:
-                            parts.append(str(t).lower())
-                    return " ".join(parts)
+            def _to_text(m: dict) -> str:
+                """Flatten all 'to' recipients into a single lowercase string for matching."""
+                raw = m.get("to") or []
+                if isinstance(raw, str):
+                    return raw.lower()
+                parts = []
+                for t in raw:
+                    if isinstance(t, dict):
+                        parts.append(t.get("email", "").lower())
+                        parts.append(t.get("name", "").lower())
+                    else:
+                        parts.append(str(t).lower())
+                return " ".join(parts)
 
-                total_before = len(emails)
-                emails = [m for m in emails if filter_addr in _to_text(m)]
-                log.info("email_poll: INBOUND_EMAIL=%s matched %d/%d emails",
-                         filter_addr, len(emails), total_before)
-                if not emails:
-                    return
+            def _first_to_addr(m: dict) -> str:
+                """Extract the first recipient email as a normalized lowercase string."""
+                raw = m.get("to") or []
+                if isinstance(raw, str):
+                    return raw.lower().strip()
+                for t in raw:
+                    if isinstance(t, dict):
+                        return t.get("email", "").lower().strip()
+                    return str(t).lower().strip()
+                return ""
 
-            # Determine which emails need processing before opening the DB session
-            # so the expensive work (HTTP + AI) doesn't hold a connection open needlessly
+            # Build per-tenant routing map: {inbound_email_lower: (tenant_id, ai_enabled)}
             async with db_session() as db:
-                tenant_id = await resolve_tenant_uuid(db)
-                tenant = await db.get(Tenant, tenant_id)
-                ai_scan = tenant is not None and "ai" in (tenant.enabled_modules or [])
+                inbound_map = await get_inbound_email_map(db)
 
-                # Separate into "needs fresh ingest" vs "needs body update"
-                to_ingest: list[dict] = []
-                to_update: list[tuple] = []  # (existing_msg, meta)
+            # Fallback: INBOUND_EMAIL env var → first tenant in DB (keeps existing setup working
+            # for tenants whose inbound_email field hasn't been set in the DB yet)
+            fallback_addr = (settings.inbound_email or "").lower().strip()
+            fallback_tenant_id = None
+            fallback_ai_scan = False
 
-                for meta in emails:
-                    email_id: str = meta["id"]
-                    existing = await service.find_by_resend_id(db, email_id)
+            # Assign each email to a tenant
+            routed: list[tuple] = []  # (meta, tenant_id, ai_scan)
+            for meta in emails:
+                addr = _first_to_addr(meta)
+                if addr in inbound_map:
+                    tid, ai = inbound_map[addr]
+                    routed.append((meta, tid, ai))
+                elif fallback_addr and fallback_addr in _to_text(meta):
+                    routed.append((meta, None, None))  # resolved below
+
+            if not routed:
+                return
+
+            # Resolve fallback tenant once if needed
+            if any(tid is None for _, tid, _ in routed):
+                async with db_session() as db:
+                    fallback_tenant_id = await resolve_tenant_uuid(db)
+                    t = await db.get(Tenant, fallback_tenant_id)
+                    fallback_ai_scan = t is not None and "ai" in (t.enabled_modules or [])
+
+            resolved: list[tuple] = []
+            for meta, tid, ai in routed:
+                if tid is None:
+                    if fallback_tenant_id:
+                        resolved.append((meta, fallback_tenant_id, fallback_ai_scan))
+                else:
+                    resolved.append((meta, tid, ai))
+
+            if not resolved:
+                return
+
+            # Determine which emails need processing
+            to_ingest: list[tuple] = []   # (meta, tenant_id, ai_scan)
+            to_update: list[tuple] = []   # (existing_msg, meta, tenant_id, ai_scan)
+
+            async with db_session() as db:
+                for meta, tid, ai in resolved:
+                    existing = await service.find_by_resend_id(db, meta["id"])
                     if existing and existing.raw_body:
                         continue
                     if existing:
-                        to_update.append((existing, meta))
+                        to_update.append((existing, meta, tid, ai))
                     else:
-                        to_ingest.append(meta)
+                        to_ingest.append((meta, tid, ai))
 
             if not to_ingest and not to_update:
                 return
 
             # Fetch all bodies + attachment metadata in parallel
             import asyncio as _asyncio
-            ids_needed = [m["id"] for m in to_ingest] + [m["id"] for _, m in to_update]
+            ids_needed = [m["id"] for m, _, _ in to_ingest] + [m["id"] for _, m, _, _ in to_update]
             fetch_results = await _asyncio.gather(
                 *[_fetch_email_data(client, auth, eid) for eid in ids_needed],
                 return_exceptions=True,
@@ -179,40 +212,42 @@ async def poll_inbound_emails() -> None:
                         body_map[eid] = body
                         att_map[eid] = atts
 
-            # Now process with a fresh DB session
+            # Process with a fresh DB session
             async with db_session() as db:
-                tenant_id = await resolve_tenant_uuid(db)
-
-                for meta in to_ingest:
+                for meta, tid, ai in to_ingest:
                     body = body_map.get(meta["id"])
                     if not body:
                         continue
-                    log.info("Ingesting %s from=%s subject=%r body_len=%d ai_scan=%s",
-                             meta["id"], meta.get("from"), meta.get("subject"), len(body), ai_scan)
-                    to_list = meta.get("to") or []
-                    inbound_to = to_list[0] if to_list else None
+                    log.info("Ingesting %s from=%s subject=%r body_len=%d ai_scan=%s tenant=%s",
+                             meta["id"], meta.get("from"), meta.get("subject"), len(body), ai, tid)
+                    raw_to = meta.get("to") or []
+                    inbound_to: str | None = None
+                    if isinstance(raw_to, list) and raw_to:
+                        first = raw_to[0]
+                        inbound_to = first.get("email") if isinstance(first, dict) else str(first)
+                    elif isinstance(raw_to, str):
+                        inbound_to = raw_to
                     await service.ingest_email(
                         db=db,
-                        tenant_id=tenant_id,
+                        tenant_id=tid,
                         sender=meta.get("from") or "",
                         subject=meta.get("subject") or None,
                         body=body,
                         resend_email_id=meta["id"],
                         inbound_to=inbound_to,
                         attachments_json=att_map.get(meta["id"]),
-                        ai_scan=ai_scan,
+                        ai_scan=ai,
                     )
 
-                for existing, meta in to_update:
+                for existing, meta, tid, ai in to_update:
                     body = body_map.get(meta["id"])
                     if not body:
                         continue
-                    log.info("Updating body for %s (was empty) ai_scan=%s", meta["id"], ai_scan)
-                    # Update attachments too if we got them
+                    log.info("Updating body for %s (was empty) ai_scan=%s", meta["id"], ai)
                     atts = att_map.get(meta["id"])
                     if atts is not None:
                         existing.attachments_json = atts
-                    await service.update_message_body(db, tenant_id, existing, body, ai_scan=ai_scan)
+                    await service.update_message_body(db, tid, existing, body, ai_scan=ai)
 
     except Exception:
         log.exception("email_poll failed")

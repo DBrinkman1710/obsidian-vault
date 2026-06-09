@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -17,13 +18,30 @@ async def get_tenant(db: AsyncSession, tenant_id) -> Tenant:
 
 
 async def resolve_tenant_uuid(db: AsyncSession) -> uuid.UUID:
-    """Return the first tenant's UUID. Used by unauthenticated webhook endpoints.
-
-    TODO: replace with per-tenant webhook URLs (/{tenant_slug}/webhooks/...) once
-    multiple clients are onboarded.
-    """
+    """Return the first tenant's UUID. Fallback for legacy single-tenant webhook routes."""
     result = await db.execute(select(Tenant.id).order_by(Tenant.created_at).limit(1))
     tenant_id = result.scalar_one_or_none()
     if tenant_id is None:
         raise RuntimeError("No tenant found in database")
     return tenant_id
+
+
+async def resolve_tenant_by_slug(db: AsyncSession, slug: str) -> uuid.UUID:
+    """Return a tenant's UUID by slug. Used by per-tenant webhook endpoints."""
+    result = await db.execute(select(Tenant.id).where(Tenant.slug == slug))
+    tenant_id = result.scalar_one_or_none()
+    if tenant_id is None:
+        raise HTTPException(status_code=404, detail=f"Tenant '{slug}' not found")
+    return tenant_id
+
+
+async def get_inbound_email_map(db: AsyncSession) -> dict[str, tuple[uuid.UUID, bool]]:
+    """Return {inbound_email_lower: (tenant_id, ai_enabled)} for all active tenants with inbound_email set."""
+    result = await db.execute(
+        select(Tenant.id, Tenant.inbound_email, Tenant.enabled_modules)
+        .where(Tenant.inbound_email.isnot(None), Tenant.is_active == True)  # noqa: E712
+    )
+    return {
+        row.inbound_email.lower().strip(): (row.id, "ai" in (row.enabled_modules or []))
+        for row in result
+    }

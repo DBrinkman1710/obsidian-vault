@@ -412,11 +412,19 @@ export default function DraftReview() {
         headers: { 'Content-Type': undefined },
       })
       const until = new Date(res.data.undo_until)
-      setUndoUntil(until)
-      setUndoProgress(0)
       const start = Date.now()
       const duration = until.getTime() - start
       if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
+      if (duration <= 0) {
+        setUndoUntil(null)
+        setUndoProgress(100)
+        setSentTo(res.data.to)
+        qc.invalidateQueries({ queryKey: ['contact-activity'] })
+        qc.invalidateQueries({ queryKey: ['contact-moments'] })
+        return
+      }
+      setUndoUntil(until)
+      setUndoProgress(0)
       undoIntervalRef.current = setInterval(() => {
         const pct = Math.min(100, ((Date.now() - start) / duration) * 100)
         setUndoProgress(pct)
@@ -449,9 +457,14 @@ export default function DraftReview() {
       setUndoUntil(null)
       setUndoProgress(0)
       setUndoCancelled(true)
-    } catch {
+    } catch (err: any) {
+      if (err?.response?.status === 409) {
+        if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
+        setUndoUntil(null)
+        setUndoProgress(0)
+        setUndoCancelled(true)
+      }
       setSendError('Could not undo — email may already be sent.')
-      setUndoUntil(null)
     }
   }
 

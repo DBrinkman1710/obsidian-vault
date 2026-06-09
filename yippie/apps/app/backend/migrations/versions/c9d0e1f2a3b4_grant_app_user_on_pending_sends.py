@@ -46,4 +46,22 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    op.execute("""
+        DO $$
+        DECLARE connecting_role text := current_user;
+        BEGIN
+            EXECUTE format(
+                'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public
+                 REVOKE USAGE, SELECT ON SEQUENCES FROM app_user',
+                connecting_role
+            );
+            EXECUTE format(
+                'ALTER DEFAULT PRIVILEGES FOR ROLE %I IN SCHEMA public
+                 REVOKE SELECT, INSERT, UPDATE, DELETE ON TABLES FROM app_user',
+                connecting_role
+            );
+        END
+        $$
+    """)
+    op.execute("REVOKE USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public FROM app_user")
     op.execute("REVOKE SELECT, INSERT, UPDATE, DELETE ON pending_sends FROM app_user")

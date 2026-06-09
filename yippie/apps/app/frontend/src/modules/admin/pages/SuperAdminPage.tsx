@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Users, X, Building2, UserPlus, ShieldCheck,
   ToggleLeft, ToggleRight, Rocket, FlaskConical, CheckSquare, Square,
+  Clipboard, Check,
 } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
@@ -45,11 +46,13 @@ interface CreateForm {
   primary_color: string
   enabled_modules: string[]
   is_demo: boolean
+  inbound_email: string
 }
 
 const EMPTY_FORM: CreateForm = {
   name: '', slug: '', admin_email: '', admin_password: '',
   primary_color: '#5BB8E8', enabled_modules: [...ALL_MODULES], is_demo: false,
+  inbound_email: '',
 }
 
 function slugify(s: string) {
@@ -90,7 +93,22 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   const set = (field: keyof CreateForm) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const val = e.target.value
-      setForm(prev => ({ ...prev, [field]: val, ...(field === 'name' ? { slug: slugify(val) } : {}) }))
+      setForm(prev => {
+        const next: Partial<CreateForm> = { [field]: val }
+        if (field === 'name') {
+          const newSlug = slugify(val)
+          next.slug = newSlug
+          const autoEmail = prev.slug ? `${prev.slug}-support@getyippie.com` : ''
+          if (!prev.inbound_email || prev.inbound_email === autoEmail)
+            next.inbound_email = newSlug ? `${newSlug}-support@getyippie.com` : ''
+        }
+        if (field === 'slug') {
+          const autoEmail = prev.slug ? `${prev.slug}-support@getyippie.com` : ''
+          if (!prev.inbound_email || prev.inbound_email === autoEmail)
+            next.inbound_email = val ? `${val}-support@getyippie.com` : ''
+        }
+        return { ...prev, ...next }
+      })
     }
 
   const toggleModule = (mod: string) =>
@@ -136,6 +154,11 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <input className={inputCls} type="email" value={form.admin_email} onChange={set('admin_email')} placeholder="admin@acme.nl" /></div>
             <div><label className={labelCls}>Admin password *</label>
               <input className={inputCls} type="password" value={form.admin_password} onChange={set('admin_password')} placeholder="••••••••" /></div>
+          </div>
+          <div>
+            <label className={labelCls}>Inbound email</label>
+            <input className={inputCls} type="email" value={form.inbound_email} onChange={set('inbound_email')} placeholder="acme-bv-support@getyippie.com" />
+            <p className="mt-1 text-xs text-slate-400">Address to configure in Resend. Auto-suggested from slug.</p>
           </div>
           <div>
             <label className={labelCls}>Brand color</label>
@@ -450,14 +473,22 @@ export default function SuperAdminPage() {
   const [viewingUsers, setViewingUsers] = useState<Tenant | null>(null)
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
+
+  function copyWebhook(slug: string) {
+    const url = `${window.location.origin}/api/v1/inbox/webhooks/${slug}/email`
+    navigator.clipboard.writeText(url)
+    setCopiedSlug(slug)
+    setTimeout(() => setCopiedSlug(null), 2000)
+  }
 
   const { data: allTenants, isLoading } = useQuery<Tenant[]>({
     queryKey: ['superadmin-tenants'],
     queryFn: () => api.get('/admin/tenants').then(r => r.data),
   })
 
-  // Hide own environment
-  const tenants = (allTenants ?? []).filter(t => t.id !== config?.tenant_id)
+  // Hide own environment — config.tenant_id is the tenant *slug*, not its UUID
+  const tenants = (allTenants ?? []).filter(t => t.slug !== config?.tenant_id)
 
   const counts = {
     all: tenants.length,
@@ -709,6 +740,15 @@ export default function SuperAdminPage() {
                             {t.is_active ? <ToggleRight size={14} className="text-emerald-500" /> : <ToggleLeft size={14} className="text-slate-400" />}
                           </button>
                         )}
+                        <button
+                          onClick={() => copyWebhook(t.slug)}
+                          className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                          title={`Copy Resend webhook URL for ${t.slug}`}
+                        >
+                          {copiedSlug === t.slug
+                            ? <Check size={14} className="text-emerald-500" />
+                            : <Clipboard size={14} />}
+                        </button>
                         <button
                           onClick={() => setEditingTenant(t)}
                           className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"

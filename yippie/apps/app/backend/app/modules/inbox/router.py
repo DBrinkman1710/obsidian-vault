@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from app.auth.dependencies import CurrentUser, require_module
 from app.config import get_settings
 from app.core.mailer import ResendNotConfiguredError, send_email
-from app.core.tenant import resolve_tenant_uuid
+from app.core.tenant import resolve_tenant_by_slug, resolve_tenant_uuid
 from app.database import get_db
 from app.modules.activity import service as activity_service
 from app.modules.departments import service as dept_service
@@ -368,9 +368,18 @@ WDB = Annotated[AsyncSession, Depends(get_db)]
 
 @webhook_router.post("/webhooks/email", status_code=status.HTTP_200_OK)
 async def email_webhook(request: Request):
-    """Acknowledge Resend webhook — the email poller (10 s) owns all ingestion.
-    Just returning 200 prevents Resend from retrying the delivery.
+    """Legacy shared Resend webhook — kept for backward compat. Poller handles ingestion."""
+    return {"status": "ok"}
+
+
+@webhook_router.post("/webhooks/{tenant_slug}/email", status_code=status.HTTP_200_OK)
+async def tenant_email_webhook(tenant_slug: str, request: Request, db: WDB):
+    """Per-tenant Resend inbound webhook. Configure one route per client in Resend,
+    pointing to https://{env}.getyippie.com/api/v1/inbox/webhooks/{slug}/email.
+    The email poller owns ingestion — this just validates the slug and returns 200
+    so Resend doesn't retry.
     """
+    await resolve_tenant_by_slug(db, tenant_slug)
     return {"status": "ok"}
 
 

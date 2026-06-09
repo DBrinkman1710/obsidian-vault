@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -65,6 +65,8 @@ def create_app() -> FastAPI:
         db: Annotated[AsyncSession, Depends(get_db)],
     ):
         tenant = await db.get(Tenant, current_user.tenant_id)
+        if tenant is None:
+            raise HTTPException(status_code=404, detail="Tenant not found")
         settings = get_settings()
         stored = tenant.enabled_modules or []
         ordered_modules = [m for m in ALL_MODULES if m in stored] + [m for m in stored if m not in ALL_MODULES]
