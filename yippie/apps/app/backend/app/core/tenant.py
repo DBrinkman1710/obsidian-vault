@@ -26,6 +26,14 @@ async def resolve_tenant_uuid(db: AsyncSession) -> uuid.UUID:
     return tenant_id
 
 
+async def resolve_tenant_by_inbound_email(db: AsyncSession, email: str) -> uuid.UUID | None:
+    """Return a tenant's UUID by inbound_email. Returns None if not found."""
+    result = await db.execute(
+        select(Tenant.id).where(Tenant.inbound_email == email.lower().strip(), Tenant.is_active == True)  # noqa: E712
+    )
+    return result.scalar_one_or_none()
+
+
 async def resolve_tenant_by_slug(db: AsyncSession, slug: str) -> uuid.UUID:
     """Return a tenant's UUID by slug. Used by per-tenant webhook endpoints."""
     result = await db.execute(select(Tenant.id).where(Tenant.slug == slug))

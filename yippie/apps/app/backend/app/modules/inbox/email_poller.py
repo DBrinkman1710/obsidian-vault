@@ -15,7 +15,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from app.config import get_settings
 from app.core.models import Tenant
-from app.core.tenant import get_inbound_email_map, resolve_tenant_uuid
+from app.core.tenant import get_inbound_email_map, resolve_tenant_by_inbound_email
 from app.database import db_session
 from app.modules.inbox import service
 
@@ -161,12 +161,15 @@ async def poll_inbound_emails() -> None:
             if not routed:
                 return
 
-            # Resolve fallback tenant once if needed
+            # Resolve fallback tenant once if needed (look up by inbound_email, not first-in-DB)
             if any(tid is None for _, tid, _ in routed):
                 async with db_session() as db:
-                    fallback_tenant_id = await resolve_tenant_uuid(db)
-                    t = await db.get(Tenant, fallback_tenant_id)
-                    fallback_ai_scan = t is not None and "ai" in (t.enabled_modules or [])
+                    fallback_tenant_id = await resolve_tenant_by_inbound_email(db, fallback_addr) if fallback_addr else None
+                    if fallback_tenant_id:
+                        t = await db.get(Tenant, fallback_tenant_id)
+                        fallback_ai_scan = t is not None and "ai" in (t.enabled_modules or [])
+                    else:
+                        fallback_ai_scan = False
 
             resolved: list[tuple] = []
             for meta, tid, ai in routed:

@@ -17,7 +17,7 @@
 
 3. **Undo send broken** — undo bar appears but undo doesn't cancel the send; hitting Undo shows "email may already be sent". Likely the `cancel_send` endpoint isn't being called in time before the 1s flush. (see item 17)
 
-4. **Per-tenant webhook routing** ← highest-impact prototype gap: `core/tenant.py:19-29` silently routes all inbound email to the first tenant in DB. Fix `resolve_tenant_uuid()` to look up tenant by `inbound_email` field.
+4. ~~**Per-tenant webhook routing**~~ ✓ Fixed — `resolve_tenant_by_inbound_email()` added; email poller fallback now routes by `inbound_email` DB field instead of first-tenant-in-DB; WebSocket endpoint uses `resolve_tenant_by_slug` (slug was already in the URL). WhatsApp webhooks still use first-tenant fallback (no routing info in payload).
 
 5. **Enforce `is_active`/`is_demo`/`go_live_at`** — toggles exist but do nothing; add login-blocking for inactive tenants
 
