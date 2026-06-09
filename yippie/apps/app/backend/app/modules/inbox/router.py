@@ -16,6 +16,7 @@ from pydantic import BaseModel
 from app.auth.dependencies import CurrentUser, require_module
 from app.config import get_settings
 from app.core.mailer import ResendNotConfiguredError, send_email
+from app.core.models import Tenant
 from app.core.tenant import resolve_tenant_by_slug, resolve_tenant_uuid
 from app.database import get_db
 from app.modules.activity import service as activity_service
@@ -43,7 +44,8 @@ async def list_drafts(
     db: DB,
     status: Optional[DraftStatus] = DraftStatus.pending,
 ):
-    inbound_email = get_settings().inbound_email or None
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
     return await service.list_drafts(db, current_user.tenant_id, status, inbound_email)
 
 
