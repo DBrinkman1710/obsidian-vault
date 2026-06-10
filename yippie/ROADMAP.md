@@ -7,6 +7,29 @@
 
 ## ▶ Next session — start here
 
+### 🐞 Reported after session-18 deploy — NEXT SESSION, in this order
+
+1. ~~Compose/reply send broken~~ **FIXED + deployed same day** — session 18c's from-address
+   snapshot did `from app.config import settings`, but `app.config` only exports
+   `get_settings()` → ImportError on every `queue_send` (compose AND reply). One-line fix.
+   **Verify compose + reply live in devsandbox before anything else.**
+2. **klimaatexamen mail shows in both the klimaatexamen sandbox AND devsandbox** — investigate:
+   - If "devsandbox" means logged in as the same/klimaatexamen user on the other URL: that's
+     the pair design (one shared DB; the inbox follows the login, not the URL) — explain, close.
+   - If the mail appears in the **Yippie tenant's** inbox as superadmin: real bug — check
+     `inbound_messages` rows per `resend_email_id` for duplicate ingestion into two tenants
+     (possible poller dedup race between the two containers: both call `find_by_resend_id`
+     before either commits). Fix would be a unique index on `resend_email_id` + on-conflict skip.
+3. **Welcome mail rework (item 42 follow-up, Diederik's feedback):**
+   - Create-password/invite mail goes back to **short form** (just the link).
+   - The welcome/introduction content becomes a **separate mail sent INTO the client's Yippie
+     inbox** (send to the tenant's `inbound_email` on creation) so it's the first item they see
+     in the product — not buried in the password mail.
+4. **Add-admin/wizard email validation must be immediate** — validate format + already-in-use
+   as soon as the email is entered (on blur / debounced), not on submit. Needs a small
+   `GET /admin/check-email?email=` endpoint + inline field error in CreateClientModal /
+   AddAdminModal / wizard.
+
 ### ⚡ Session 18 status update (read first)
 
 - **Shipped + deployed:** from-address snapshot fix (wrong `dev-support@` sender bug),
