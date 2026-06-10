@@ -9,31 +9,27 @@
 
 ### Priority order
 
-1. ~~🔴 BLOCKER: Railway deploys~~ **RESOLVED 2026-06-10.** Root cause: **both** staging Railway
-   environments (Dev Sandbox + Sandbox) build the **`sandbox` git branch** — session-16 work sat
-   unbuilt on `devsandbox`, so "GitHub auto-deploy dead" was just the wrong branch. The "SUCCESS"
-   deploys were *redeploys* of the old image, and for a repo-connected service `railway up` does
-   NOT upload local files — it re-triggers a build of the connected branch tip (verified: it built
-   old `8fe757c8`). Fix = `git push origin devsandbox:sandbox` (fast-forward to `b3e5b69`); both
-   envs rebuilt and verified live (old whatsapp route → 404, health → 200 on both URLs).
-   **Deploy rule going forward: to ship the staging pair, push/merge to the `sandbox` branch.**
-
-2. **Verify session-16 fixes in devsandbox** (code is now live; needs manual UI verification):
+1. **Verify session-16 + session-17 work in devsandbox** (all code deployed via `sandbox` branch; needs manual UI verification):
    - Reply → exactly **one** email received; undo bar counts 5s; Undo actually cancels; "Send cancelled" auto-dismisses after 3s
+   - **Compose → same undo bar** (new): floating bar appears, Undo returns to the editable draft, "Send cancelled" notice; recipients receive nothing after Undo
+   - `Cmd/Ctrl+Enter` sends in both compose modal and reply panel
+   - **Onboarding wizard**: New client → 5 steps (company+admin / modules / branding / extra admins / demo-live); leave password empty → invite email arrives with a working `/register` link
+   - **Delete client** (root owner only): trash button → password dialog → tenant + all data gone
+   - **Superadmins page**: Invite superadmin (root owner) → invite email; Delete dialog works; non-root superadmins see neither button
+   - **Delete ticket** (admin+): button on ticket detail → confirm → gone from list, SLA jobs skip it
+   - **Undo approve/reject**: processed draft → Undo → back in Pending; the created ticket is gone
    - Login as a user of a deactivated tenant → blocked with "This workspace is inactive"
    - Demo tenant reply/compose → amber "Demo mode — email not sent", nothing delivered
 
-3. ~~Promote to sandbox~~ Done as part of the deploy fix (both envs build the same `sandbox` branch, so one push deployed both).
+2. **End-to-end test the auth flows in sandbox:** team invite → register link → login; forgot password → reset; impersonation (View as → amber banner → Exit); change own password (Profile page). `APP_BASE_URL` is now set in **all four** Railway envs (verified 2026-06-10) and the backend strips trailing slashes, so emailed links should work everywhere.
 
-4. **Set `APP_BASE_URL` in every Railway environment** (e.g. `https://sandbox.getyippie.com`) — invite + password-reset emails build their links from it; until set, emailed links are broken.
+3. **Next development candidates (critical path A/B/C is complete):**
+   - Item 11 — DeptReminderModal redesign (pick department AND SLA in the popup, "No department"/"No SLA" options)
+   - Item 12 — select + delete/spam mails in InboxQueue (backend bulk-action endpoint exists)
+   - Item 34 — ticket deadline reminder popup (≤24h before `follow_up_at`)
+   - Item 18 leftover — attachment-replies now DO go through the undo queue (verified in code); compose attachments existed already — only live verification remains
 
-5. **Remaining frontend (backend is done & committed):**
-   - Onboarding wizard (item 21) — rework `CreateClientModal` into steps ① company+admin ② modules ③ branding ④ extra admins ⑤ demo/live. Backend already accepts `admin_full_name`, `extra_admin_emails`, and optional `admin_password` (empty = invite email).
-   - Delete-client button + password-confirm dialog → `POST /admin/tenants/{id}/delete` (item 24)
-   - Superadmins page: invite UI → `POST /admin/superadmins/invite`; delete dialog → `POST /admin/superadmins/{id}/delete` (items 28, 24) — both root-owner-only
-   - `AddAdminModal`: make password optional → "leave empty to send invite"
-
-6. **End-to-end test the new auth flows in sandbox:** team invite → register link → login; forgot password → reset; impersonation (View as → amber banner → Exit); change own password (Profile page).
+4. ~~Railway deploy blocker~~ **RESOLVED 2026-06-10** — both staging envs build the **`sandbox` branch**; ship with `git push origin devsandbox:sandbox`. `railway up` does NOT upload local code. Migrations are now also safe to deploy to both envs at once: `migrations/env.py` takes a Postgres advisory lock, so the two containers can't race DDL on the shared DB.
 
 ---
 
@@ -454,6 +450,71 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ---
 
 ## Session log
+
+---
+
+### Session 17 — 2026-06-10 (critical path COMPLETE: wizard, deletes, invites, compose undo, ticket delete, undo review)
+
+Diederik set `APP_BASE_URL` in every Railway env and asked to proceed with the critical path.
+All remaining A/B/C frontend shipped, plus the open inbox-reliability items. Five commits on
+`devsandbox`, each also pushed to `sandbox` (deploys both staging envs): `f8287c5`, `e86b038`,
+`5543d29`, `5815449`, `ae1c80d`.
+
+#### Items 21/24/28 — remaining frontend (`f8287c5`)
+- **Onboarding wizard**: `CreateClientModal` reworked into 5 steps (company+admin → modules →
+  branding → extra admins → demo/live) with step indicator, per-step validation, summary, and a
+  success screen listing sent invites. Password empty ⇒ invite-email flow.
+- **Bug found & fixed**: the create form's `inbound_email` was silently dropped — `TenantCreate`
+  had no such field, so Pydantic discarded it. Now accepted and stored on the tenant.
+- **Delete client**: root-owner-only trash button per row + password-confirm dialog →
+  `POST /admin/tenants/{id}/delete`.
+- **Superadmins page**: "Invite superadmin" modal (root-owner-only) → `POST /admin/superadmins/invite`
+  with sent-confirmation; "Delete" per row (root owner, not self, not root owner row) →
+  `POST /admin/superadmins/{id}/delete`. Info box updated per role.
+- **AddAdminModal**: password optional — empty sends an invite link; button switches to
+  "Send invite"; in-modal confirmation (invitees don't appear in the list until they register).
+- `ROOT_OWNER_EMAIL` exported from `useAuth.ts` (UI gating only — server re-verifies with password).
+
+#### APP_BASE_URL hardening (`e86b038`)
+All four envs verified set via `railway variables`. Development had a **trailing slash**
+(`https://dev.getyippie.com/`) which would have produced `//register` links that React Router
+won't match — `config.py` now strips trailing slashes via a field validator.
+
+#### Item 17 (compose undo) + item 35 (hotkey) — (`5543d29`)
+- `/inbox/compose` no longer sends immediately: queues one `pending_sends` row **per recipient**
+  under a shared compose batch id (8s server hold / 5s UI countdown, same as replies). The
+  existing `/drafts/{id}/undo-send` cancels the whole batch (`cancel_send` now deletes all rows,
+  not `scalar_one`).
+- New `pending_sends.kind` column ('reply'|'compose') so the flush logs `email.composed` vs
+  `email.replied` (migration `f4a5b6c7d8e9`, idempotent ADD COLUMN IF NOT EXISTS).
+- ComposeModal: floating Yippie undo bar with progress; Undo returns to the **editable draft**
+  ("Send cancelled — your draft is unchanged."); send button shows Queued…
+- `Cmd/Ctrl+Enter` sends in both the compose modal and the reply panel.
+- **`migrations/env.py` now takes `pg_advisory_xact_lock(912021)`** before running migrations —
+  one `sandbox` push triggers BOTH staging containers to run `alembic upgrade heads` on the same
+  DB simultaneously; the lock serializes them, killing the session-15 "tuple concurrently
+  updated" failure class for good. (The lock ships in the same image that runs it.)
+- Note: attachment-replies through the undo queue + compose attachments turned out to be
+  **already built** (sessions 14-16 + PR #14) — the ROADMAP notes were stale.
+
+#### Item 33 — delete tickets (`5815449`)
+- `tickets.deleted_at` (migration `a5b6c7d8e9f0`, idempotent). `list_tickets`, `get_ticket_orm`
+  (so every mutation path 404s), and both SLA automation jobs filter deleted tickets.
+- `POST /tickets/{id}/delete` gated by `require_admin`.
+- TicketDetail: Delete button (admin/superadmin only) + confirm dialog → back to list.
+
+#### Item 10 leftover — undo approve/reject (`ae1c80d`)
+- `POST /inbox/drafts/{id}/undo-review`: approved/rejected → pending; clears
+  `reviewed_by/reviewed_at/follow_up_at`; the approval's created ticket is **soft-deleted**
+  (reuses item 33). 409 for forwarded/pending drafts.
+- Undo button in the processed-state box on DraftReview (hidden for forwarded).
+- The "✗ Rejected" red state box already existed — that half of item 10 was already done.
+
+#### Open / not done
+- All of priority 1+2 verification (manual, needs Diederik's mailbox + UI).
+- Items 11, 12 (UI), 34 remain — see "Next session" item 3.
+- Production/Development/Commercial Railway envs still trigger on stale branch
+  `claude/modular-account-management-design-XrQwj` — must fix before any production deploy.
 
 ---
 
@@ -924,4 +985,11 @@ a6b7c8d9e0f1  add inbound_to to inbound_messages
 f5a6b7c8d9e0  strip aitools from enabled_modules
 b8c9d0e1f2a3  create pending_sends + attachments_json on inbound_messages
 c9d0e1f2a3b4  grant app_user access to pending_sends + ALTER DEFAULT PRIVILEGES
+d0e1f2a3b4c5  add attachments_json to pending_sends
+e2f3a4b5c6d7  add per-user from_email
+f4a5b6c7d8e9  add kind (reply|compose) to pending_sends
+a5b6c7d8e9f0  add deleted_at to tickets (soft delete)
 ```
+
+> `migrations/env.py` takes `pg_advisory_xact_lock(912021)` before migrating — concurrent
+> deploys of the staging pair can no longer race DDL on the shared DB.
