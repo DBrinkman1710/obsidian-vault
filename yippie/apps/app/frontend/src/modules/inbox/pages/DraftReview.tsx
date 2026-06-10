@@ -628,7 +628,7 @@ export default function DraftReview() {
                 </div>
               )}
 
-              {aiEnabled && (draft.context_summary || aiQueued || !isProcessed) && (
+              {(draft.context_summary || (aiEnabled && (aiQueued || !isProcessed))) && (
                 <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
                   <p className="text-[10px] font-bold tracking-widest text-blue-400 uppercase mb-2">AI Briefing</p>
                   {aiQueued ? (
