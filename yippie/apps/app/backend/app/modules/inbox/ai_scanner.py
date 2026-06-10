@@ -40,13 +40,34 @@ def _strip_fences(text: str) -> str:
     return text
 
 
+# Cap the body sent to the model to bound cost/latency on very large emails.
+MAX_SCAN_BODY_CHARS = 8000
+
+
+def _message_text(message) -> str:
+    """Safely extract text from an Anthropic response that may have empty/non-text content."""
+    for block in getattr(message, "content", None) or []:
+        text = getattr(block, "text", None)
+        if text:
+            return text.strip()
+    return ""
+
+
+def _parse_json(text: str, fallback):
+    """Parse model JSON output, returning ``fallback`` on any error."""
+    try:
+        return json.loads(_strip_fences(text))
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return fallback
+
+
 async def scan_message(sender: str, raw_body: str, source: str) -> AIScanResult:
     """Classify an inbound message and extract structured ticket fields."""
     prompt = f"""You are a customer service assistant. Analyze the following inbound {source} message and extract key information.
 
 From: {sender}
 Message:
-{raw_body}
+{raw_body[:MAX_SCAN_BODY_CHARS]}
 
 Respond with ONLY a JSON object (no markdown, no explanation) with these exact fields:
 {{
@@ -67,7 +88,9 @@ Priority guidance:
         model=_model(), max_tokens=512,
         messages=[{"role": "user", "content": prompt}],
     )
-    data = json.loads(_strip_fences(message.content[0].text.strip()))
+    data = _parse_json(_message_text(message), fallback={})
+    if not isinstance(data, dict):
+        data = {}
     return AIScanResult(
         subject=data.get("subject", "New message"),
         description=data.get("description", raw_body[:1000]),
@@ -124,7 +147,7 @@ Return 4-6 short keywords or phrases, comma-separated, capturing who this custom
         model=_model(), max_tokens=80,
         messages=[{"role": "user", "content": prompt}],
     )
-    return message.content[0].text.strip()
+    return _message_text(message)
 
 
 async def generate_reply_draft(
@@ -151,7 +174,7 @@ Begin with: {greeting},"""
         model=_model(), max_tokens=400,
         messages=[{"role": "user", "content": prompt}],
     )
-    return message.content[0].text.strip()
+    return _message_text(message)
 
 
 async def generate_reply_improvements(
@@ -179,7 +202,8 @@ Return a JSON array of up to 3 objects:
         model=_model(), max_tokens=1200,
         messages=[{"role": "user", "content": prompt}],
     )
-    return json.loads(_strip_fences(message.content[0].text.strip()))[:3]
+    parsed = _parse_json(_message_text(message), fallback=[])
+    return parsed[:3] if isinstance(parsed, list) else []
 
 
 async def generate_compose_suggestion(prompt: str) -> dict:
@@ -195,8 +219,8 @@ async def generate_compose_suggestion(prompt: str) -> dict:
             ),
         }],
     )
-    try:
-        data = json.loads(_strip_fences(message.content[0].text.strip()))
+    text = _message_text(message)
+    data = _parse_json(text, fallback=None)
+    if isinstance(data, dict):
         return {"subject": data.get("subject", ""), "body": data.get("body", "")}
-    except Exception:
-        return {"subject": "", "body": message.content[0].text.strip()}
+    return {"subject": "", "body": text}

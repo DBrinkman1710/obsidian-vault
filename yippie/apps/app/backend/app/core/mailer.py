@@ -1,10 +1,24 @@
 from __future__ import annotations
 
+import re
 from typing import Optional
 
 import httpx
 
 from app.config import get_settings
+
+# Pragmatic single-line email check — full RFC validation is not the goal, just
+# rejecting obviously malformed addresses before they reach the mail provider.
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def is_valid_email(addr: str) -> bool:
+    return bool(_EMAIL_RE.match((addr or "").strip()))
+
+
+def email_domain(addr: str) -> str:
+    addr = (addr or "").strip().lower()
+    return addr.rsplit("@", 1)[-1] if "@" in addr else ""
 
 
 class ResendNotConfiguredError(Exception):
