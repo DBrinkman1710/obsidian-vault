@@ -6,18 +6,22 @@ import { useAuth } from '../../../auth/useAuth'
 export default function ProfileSettingsPage() {
   const { user, refreshUser } = useAuth()
   const [replyFromEmail, setReplyFromEmail] = useState(user?.reply_from_email ?? '')
+  const [inboundEmail, setInboundEmail] = useState(user?.inbound_email ?? '')
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => api.patch('/auth/me', { reply_from_email: replyFromEmail.trim() || null }).then(r => r.data),
+    mutationFn: () => api.patch('/auth/me', {
+      reply_from_email: replyFromEmail.trim() || null,
+      inbound_email: inboundEmail.trim() || null,
+    }).then(r => r.data),
     onSuccess: async () => {
       await refreshUser()
       setSaved(true)
       setError('')
       setTimeout(() => setSaved(false), 3000)
     },
-    onError: () => setError('Failed to save — try again.'),
+    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to save — try again.'),
   })
 
   function handleSubmit(e: React.FormEvent) {
@@ -51,6 +55,22 @@ export default function ProfileSettingsPage() {
           />
           <p className="mt-1.5 text-xs text-slate-400">
             When set, you can choose this address as the "From" when replying or composing. Must be on a Resend-verified domain (e.g. @getyippie.com).
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+            Personal inbox address
+          </label>
+          <input
+            type="email"
+            value={inboundEmail}
+            onChange={e => setInboundEmail(e.target.value)}
+            placeholder="e.g. klimaatexamen-eddy@getyippie.com"
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+          />
+          <p className="mt-1.5 text-xs text-slate-400">
+            Mail sent (or forwarded) to this @getyippie.com address lands in your Personal inbox instead of the team's shared one. Set up forwarding from your work email to this address.
           </p>
         </div>
 

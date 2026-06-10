@@ -174,6 +174,7 @@ async def change_password(
 class UserSelfUpdate(BaseModel):
     full_name: Optional[str] = None
     reply_from_email: Optional[str] = None
+    inbound_email: Optional[str] = None
 
 
 @router.patch("/me", response_model=UserOut)
@@ -186,6 +187,22 @@ async def update_me(
         current_user.full_name = body.full_name.strip()
     if "reply_from_email" in body.model_fields_set:
         current_user.reply_from_email = body.reply_from_email or None
+    if "inbound_email" in body.model_fields_set:
+        addr = (body.inbound_email or "").lower().strip()
+        if addr:
+            # Must be on the Resend receiving domain — mail to other domains never reaches the poller
+            local = addr.removesuffix("@getyippie.com")
+            if local == addr or not local or "@" in local:
+                raise HTTPException(status_code=400, detail="Personal inbox address must be on @getyippie.com")
+            taken_user = await db.execute(
+                select(User.id).where(User.inbound_email == addr, User.id != current_user.id)
+            )
+            taken_tenant = await db.execute(select(Tenant.id).where(Tenant.inbound_email == addr))
+            if taken_user.scalar_one_or_none() or taken_tenant.scalar_one_or_none():
+                raise HTTPException(status_code=409, detail="That inbox address is already in use")
+            current_user.inbound_email = addr
+        else:
+            current_user.inbound_email = None
     await db.commit()
     await db.refresh(current_user)
     return UserOut.model_validate(current_user)

@@ -340,19 +340,18 @@ async def list_drafts(
     tenant_id: uuid.UUID,
     status: Optional[DraftStatus] = DraftStatus.pending,
     inbound_email: Optional[str] = None,
+    include_legacy: bool = True,
 ) -> list[DraftTicket]:
     if inbound_email:
-        # JOIN with InboundMessage to show only emails addressed to this environment's inbound address.
+        # JOIN with InboundMessage to show only emails addressed to this mailbox's inbound address.
+        # include_legacy keeps pre-inbound_to rows visible in the shared mailbox only.
+        addr_filter = InboundMessage.inbound_to == inbound_email.lower()
+        if include_legacy:
+            addr_filter = or_(addr_filter, InboundMessage.inbound_to.is_(None))
         q = (
             select(DraftTicket)
             .join(InboundMessage, DraftTicket.inbound_message_id == InboundMessage.id)
-            .where(
-                DraftTicket.tenant_id == tenant_id,
-                or_(
-                    InboundMessage.inbound_to == inbound_email.lower(),
-                    InboundMessage.inbound_to.is_(None),  # legacy rows without inbound_to still visible
-                ),
-            )
+            .where(DraftTicket.tenant_id == tenant_id, addr_filter)
         )
     else:
         q = select(DraftTicket).where(DraftTicket.tenant_id == tenant_id)

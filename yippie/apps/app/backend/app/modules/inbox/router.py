@@ -42,7 +42,15 @@ async def list_drafts(
     current_user: CurrentUser,
     db: DB,
     status: Optional[DraftStatus] = DraftStatus.pending,
+    mailbox: str = "shared",
 ):
+    if mailbox == "personal":
+        # Personal mailbox: only mail sent to this user's own inbound address.
+        if not current_user.inbound_email:
+            return []
+        return await service.list_drafts(
+            db, current_user.tenant_id, status, current_user.inbound_email, include_legacy=False
+        )
     tenant = await db.get(Tenant, current_user.tenant_id)
     inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
     return await service.list_drafts(db, current_user.tenant_id, status, inbound_email)

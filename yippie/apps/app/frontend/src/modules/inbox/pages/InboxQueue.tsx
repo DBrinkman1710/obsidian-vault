@@ -28,6 +28,7 @@ const STATUS_STYLES: Record<string, string> = {
 
 type Tab = 'pending' | 'processed'
 type ProcessedFilter = 'all' | 'approved' | 'rejected' | 'forwarded' | 'bin'
+type Mailbox = 'shared' | 'personal'
 
 interface Contact {
   id: string
@@ -453,42 +454,44 @@ const PROCESSED_FILTERS: { value: ProcessedFilter; label: string }[] = [
 
 export default function InboxQueue() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
+  const [mailbox, setMailbox] = useState<Mailbox>('shared')
   const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all')
   const [showCompose, setShowCompose] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const qc = useQueryClient()
   const config = useTenantConfig()
+  const { user } = useAuth()
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
 
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
-    queryKey: ['drafts', 'pending'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending' } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'pending'],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending', mailbox } }).then(r => r.data),
     refetchInterval: 10_000,
     refetchIntervalInBackground: true,
     enabled: activeTab === 'pending',
   })
 
   const { data: approvedDrafts } = useQuery({
-    queryKey: ['drafts', 'approved'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'approved' } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'approved'],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'approved', mailbox } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: rejectedDrafts } = useQuery({
-    queryKey: ['drafts', 'rejected'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'rejected' } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'rejected'],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'rejected', mailbox } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: forwardedDrafts } = useQuery({
-    queryKey: ['drafts', 'forwarded'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'forwarded' } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'forwarded'],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'forwarded', mailbox } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: binDrafts } = useQuery({
-    queryKey: ['drafts', 'bin'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'bin' } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'bin'],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'bin', mailbox } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
@@ -540,7 +543,29 @@ export default function InboxQueue() {
       {/* Fixed header */}
       <div className="shrink-0 px-8 pt-8 pb-0 bg-slate-50">
         <div className="flex items-start justify-between mb-5">
-          <h1 className="text-2xl font-bold text-slate-900">Inbox</h1>
+          <div className="flex items-center gap-4">
+            <h1 className="text-2xl font-bold text-slate-900">Inbox</h1>
+            {/* Mailbox switch: shared (whole team) vs personal (mail to your own address) */}
+            <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
+              {([
+                { value: 'shared', label: 'Shared', icon: <Users size={13} /> },
+                { value: 'personal', label: 'Personal', icon: <Mail size={13} /> },
+              ] as { value: Mailbox; label: string; icon: React.ReactNode }[]).map(m => (
+                <button
+                  key={m.value}
+                  onClick={() => { setMailbox(m.value); setSelected(new Set()) }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                    mailbox === m.value
+                      ? 'bg-blue-600 text-white'
+                      : 'text-slate-500 hover:bg-slate-50'
+                  }`}
+                >
+                  {m.icon}
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          </div>
           <button
             onClick={() => setShowCompose(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
@@ -566,6 +591,17 @@ export default function InboxQueue() {
             </button>
           ))}
         </div>
+
+        {/* Personal mailbox without an address configured */}
+        {mailbox === 'personal' && !user?.inbound_email && (
+          <div className="mt-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
+            No personal inbox address set yet.{' '}
+            <Link to="/settings/profile" className="font-semibold underline">
+              Add one in Profile settings
+            </Link>{' '}
+            and forward your work email to it.
+          </div>
+        )}
 
         {/* Processed filter pills */}
         {activeTab === 'processed' && (

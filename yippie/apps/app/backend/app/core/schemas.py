@@ -16,6 +16,7 @@ class UserOut(BaseModel):
     full_name: str
     role: UserRole
     reply_from_email: Optional[str] = None
+    inbound_email: Optional[str] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

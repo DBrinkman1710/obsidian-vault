@@ -6,7 +6,7 @@ from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models import Tenant
+from app.core.models import Tenant, User
 
 
 async def get_tenant(db: AsyncSession, tenant_id) -> Tenant:
@@ -35,12 +35,23 @@ async def resolve_tenant_by_slug(db: AsyncSession, slug: str) -> uuid.UUID:
 
 
 async def get_inbound_email_map(db: AsyncSession) -> dict[str, tuple[uuid.UUID, bool]]:
-    """Return {inbound_email_lower: (tenant_id, ai_enabled)} for all active tenants with inbound_email set."""
+    """Return {inbound_email_lower: (tenant_id, ai_enabled)} for all active tenants with inbound_email set,
+    plus active users' personal inbound addresses (routed to their tenant)."""
     result = await db.execute(
         select(Tenant.id, Tenant.inbound_email, Tenant.enabled_modules)
         .where(Tenant.inbound_email.isnot(None), Tenant.is_active == True)  # noqa: E712
     )
-    return {
+    mapping = {
         row.inbound_email.lower().strip(): (row.id, "ai" in (row.enabled_modules or []))
         for row in result
     }
+    user_rows = await db.execute(
+        select(User.inbound_email, Tenant.id, Tenant.enabled_modules)
+        .join(Tenant, User.tenant_id == Tenant.id)
+        .where(User.inbound_email.isnot(None), User.is_active == True, Tenant.is_active == True)  # noqa: E712
+    )
+    for row in user_rows:
+        mapping.setdefault(
+            row.inbound_email.lower().strip(), (row.id, "ai" in (row.enabled_modules or []))
+        )
+    return mapping
