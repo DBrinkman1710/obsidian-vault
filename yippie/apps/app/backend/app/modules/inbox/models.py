@@ -57,6 +57,11 @@ class DraftTicket(Base):
     # AI-generated customer briefing shown in the context window
     context_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Async AI enrichment: 'queued' (waiting for the background scan),
+    # 'done' (enriched, or AI disabled for this tenant), 'failed' (scan errored —
+    # raw fallback fields are shown and the agent can retry via /generate)
+    ai_status: Mapped[str] = mapped_column(String(20), nullable=False, default="done", server_default="done")
+
     # AI-suggested ticket fields (editable before approval)
     ai_suggested_subject: Mapped[str] = mapped_column(String(500), nullable=False)
     ai_suggested_description: Mapped[str] = mapped_column(Text, nullable=False)

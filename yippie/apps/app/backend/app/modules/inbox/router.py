@@ -154,6 +154,25 @@ async def link_contact(draft_id: uuid.UUID, body: LinkContactRequest, current_us
     return result
 
 
+@router.post("/drafts/{draft_id}/generate", response_model=DraftWithContextOut, dependencies=[Depends(require_module("ai"))])
+async def generate_draft_ai(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    """Run AI enrichment (scan + briefing) for this draft on demand — the
+    Generate button. Works for queued drafts (skip the background wait),
+    failed ones (retry) and done ones (regenerate)."""
+    ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
+    if not ctx:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    draft = ctx["draft"]
+    msg = ctx["inbound_message"]
+    if not msg:
+        raise HTTPException(status_code=409, detail="Draft has no inbound message to analyze")
+    await service.enrich_draft(db, current_user.tenant_id, draft, msg)
+    await db.commit()
+    if draft.ai_status == "failed":
+        raise HTTPException(status_code=502, detail="AI generation failed — please try again")
+    return await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
+
+
 @router.post("/drafts/{draft_id}/suggest-reply", dependencies=[Depends(require_module("ai"))])
 async def suggest_reply(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
     ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)

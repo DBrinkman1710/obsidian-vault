@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { X, Paperclip } from 'lucide-react'
+import { X, Paperclip, Sparkles } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
@@ -277,9 +277,15 @@ export default function DraftReview() {
   const { data: ctx, isLoading } = useQuery({
     queryKey: ['draft', id],
     queryFn: () => api.get(`/inbox/drafts/${id}`).then(r => r.data),
+    // While the background AI enrichment is running, poll so the suggestions
+    // and briefing fill in on their own.
+    refetchInterval: (query) =>
+      (query.state.data as any)?.draft?.ai_status === 'queued' ? 3_000 : false,
   })
 
   const draft = ctx?.draft
+  const aiQueued = draft?.ai_status === 'queued'
+  const aiFailed = draft?.ai_status === 'failed'
   const msg = ctx?.inbound_message
   const contact = ctx?.contact
   const recentTickets: any[] = ctx?.recent_tickets ?? []
@@ -341,6 +347,14 @@ export default function DraftReview() {
   }, [id])
 
   const showContactModal = !isLoading && !!ctx && !ctx.contact && !modalDismissed && !isProcessed
+
+  const generateMutation = useMutation({
+    mutationFn: () => api.post(`/inbox/drafts/${id}/generate`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['draft', id] })
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+    },
+  })
 
   const reviewMutation = useMutation({
     mutationFn: (action: 'approve' | 'reject') =>
@@ -614,10 +628,23 @@ export default function DraftReview() {
                 </div>
               )}
 
-              {draft.context_summary && (
+              {aiEnabled && (draft.context_summary || aiQueued || !isProcessed) && (
                 <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
                   <p className="text-[10px] font-bold tracking-widest text-blue-400 uppercase mb-2">AI Briefing</p>
-                  <p className="text-xs text-blue-900 leading-relaxed">{draft.context_summary}</p>
+                  {aiQueued ? (
+                    <p className="text-xs text-blue-400 animate-pulse">Generating briefing…</p>
+                  ) : draft.context_summary ? (
+                    <p className="text-xs text-blue-900 leading-relaxed">{draft.context_summary}</p>
+                  ) : (
+                    <button
+                      onClick={() => generateMutation.mutate()}
+                      disabled={generateMutation.isPending}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-100 border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-200 transition-colors disabled:opacity-50 cursor-pointer"
+                    >
+                      <Sparkles size={11} />
+                      {generateMutation.isPending ? 'Generating…' : 'Generate briefing'}
+                    </button>
+                  )}
                 </div>
               )}
 
@@ -790,6 +817,23 @@ export default function DraftReview() {
                   <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Ticket</span>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {aiEnabled && (aiQueued || aiFailed) && (
+                    <div className="rounded-xl bg-violet-50 border border-violet-100 p-3 flex items-center justify-between gap-2 flex-wrap">
+                      {aiQueued ? (
+                        <p className="text-xs text-violet-600 animate-pulse">AI is analyzing this email — suggestions will fill in automatically.</p>
+                      ) : (
+                        <p className="text-xs text-violet-600">AI analysis failed — the raw email is shown instead.</p>
+                      )}
+                      <button
+                        onClick={() => generateMutation.mutate()}
+                        disabled={generateMutation.isPending}
+                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-100 border border-violet-200 rounded-lg px-3 py-1.5 hover:bg-violet-200 transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        <Sparkles size={11} />
+                        {generateMutation.isPending ? 'Generating…' : 'Generate now'}
+                      </button>
+                    </div>
+                  )}
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Subject</label>
                     <input

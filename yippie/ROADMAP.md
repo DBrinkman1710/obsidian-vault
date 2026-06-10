@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-10 (session 21 — inbound_to on inbox cards, deploy-log triage; see session log for 19/20 parallel work)
+**Updated:** 2026-06-10 (session 22 — Performance Step 2 shipped: async ingest + Generate buttons)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -173,14 +173,22 @@ Top priority initiative. Diederik wants Yippie to feel fast. A code pass over
    Note: Vite route code-splitting from Step 3 turns out to already be in place
    (per-page chunks in the build output) — skip that line of Step 3.
 
-**Step 2 — Async ingest (~1 day):** return a minimal draft immediately, move
-`scan_message()` + `_build_context()` to a background APScheduler sub-job that
-enriches the draft after. Kills the poller stall.
-- **Diederik's idea (2026-06-10): explicit Generate buttons for the AI summary
-  and tickets** — generate on demand when the user clicks, instead of
-  automatically for every inbound mail. Same goal as async ingest (nothing AI
-  blocks the inbox); the two combine: ingest stays instant, AI runs on click
-  (or lazily in the background).
+**Step 2 — Async ingest (~1 day): ✅ SHIPPED (session 22)**
+- Ingest no longer calls the AI: `_create_draft` stores the raw email fields
+  instantly with new column `draft_tickets.ai_status='queued'` (migration
+  `b0c1d2e3f4a5`, idempotent + partial index on queued rows).
+- Background `enrich_drafts` job (10s, drains the queue in batches of 5) claims
+  rows `FOR UPDATE SKIP LOCKED` (shared-DB safe), fetches contact/tickets/billing
+  sequentially, then runs `scan_message` + briefing **concurrently** per batch
+  with a 30s timeout; failure → `ai_status='failed'`, raw fields stay.
+- **Diederik's Generate buttons**: `POST /inbox/drafts/{id}/generate` runs
+  enrichment on demand — DraftReview shows "AI is analyzing…" (auto-polls 3s)
+  with a **Generate now** button, the briefing block gets **Generate briefing**
+  (also works as retry after a failure / regenerate), inbox cards show a pulsing
+  "Analyzing…" badge while queued.
+- Reviewing a still-queued draft drops it from the queue so agent edits are
+  never overwritten after the fact; body re-fetch re-queues instead of scanning
+  inline.
 
 **Step 3 — Perceived speed (~1 day):** Vite `manualChunks` route splitting;
 loading skeletons on inbox/contacts/tickets; parallelize
@@ -839,6 +847,37 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ---
 
 ## Session log
+
+---
+
+### Session 22 — 2026-06-10 (Performance Step 2: async ingest + on-demand Generate)
+
+The roadmap's top-priority next step. Inbound mail now appears in the inbox the moment the
+poller sees it; AI runs behind it (or on click) instead of blocking ingestion.
+
+- **Backend** — migration `b0c1d2e3f4a5` adds `draft_tickets.ai_status`
+  (`queued`/`done`/`failed`, default `done` so existing rows are untouched) + a partial index
+  on queued rows. `_create_draft` is now AI-free (raw subject/body[:500]/medium priority);
+  `update_message_body` re-queues instead of scanning inline; `_build_context` split into
+  `_context_inputs` (DB) + the AI call so batch enrichment can parallelize the AI half safely
+  on one session (sessions can't run concurrent queries — DB reads stay sequential).
+- **Enrichment job** — `enrich_drafts` every 10s in `email_poller.py`, drains the queue in
+  batches of `ENRICH_BATCH_SIZE=5`, claims with `FOR UPDATE SKIP LOCKED` so the devsandbox and
+  sandbox containers never double-enrich; locks roll back to `queued` if a container dies
+  mid-batch; 30s `asyncio.wait_for` per batch item so a hung AI call can't pin locks. Only
+  `status=pending` drafts are enriched; reviewing a queued draft flips it to `done` so the
+  agent's edits aren't overwritten later.
+- **On-demand** — `POST /inbox/drafts/{id}/generate` (gated on the `ai` module) enriches
+  immediately; 502 if the AI fails (status stays `failed` for retry).
+- **Frontend** — `ai_status` on `DraftTicketOut`; inbox cards show a pulsing "Analyzing…"
+  badge (the 5s inbox poll updates it); DraftReview auto-polls every 3s while queued, shows
+  an "AI is analyzing this email" banner with **Generate now** in the Draft Ticket form, and
+  the AI Briefing block shows a generating state / **Generate briefing** button (doubles as
+  regenerate for drafts whose briefing is missing or failed).
+- Verified: backend compiles, frontend `tsc --noEmit` clean. Deployed devsandbox + sandbox.
+- **Next perf step:** Step 3 — perceived speed (skeletons, `manualChunks`, parallelize
+  `get_draft_with_context` reads), then Step 4 (contact search tsvector, pool tuning, RLS
+  decision).
 
 ---
 

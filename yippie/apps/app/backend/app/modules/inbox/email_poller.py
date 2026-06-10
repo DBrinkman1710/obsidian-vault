@@ -275,6 +275,20 @@ async def poll_inbound_emails() -> None:
         log.exception("email_poll failed")
 
 
+@scheduler.scheduled_job("interval", seconds=10, id="enrich_drafts", max_instances=1, coalesce=True)
+async def enrich_drafts_job() -> None:
+    """AI-enrich drafts queued by ingest. Loops until the queue is drained so a
+    burst of mail doesn't wait multiple ticks, then sleeps until the next one."""
+    try:
+        while True:
+            async with db_session() as db:
+                processed = await service.enrich_queued_drafts(db)
+            if processed < service.ENRICH_BATCH_SIZE:
+                break
+    except Exception:
+        log.exception("enrich_drafts failed")
+
+
 @scheduler.scheduled_job("interval", seconds=5, id="flush_pending_sends", max_instances=1, coalesce=True)
 async def flush_pending_sends_job() -> None:
     """Dispatch queued emails whose undo window has expired."""

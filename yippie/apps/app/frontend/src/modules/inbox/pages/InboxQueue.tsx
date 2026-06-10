@@ -719,6 +719,12 @@ export default function InboxQueue() {
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${PRIORITY_STYLES[d.ai_suggested_priority]}`}>
                             {d.ai_suggested_priority}
                           </span>
+                          {d.ai_status === 'queued' && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-600 animate-pulse">
+                              <Sparkles size={11} />
+                              Analyzing…
+                            </span>
+                          )}
                           {d.ai_suggested_category && (
                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
                               {d.ai_suggested_category}

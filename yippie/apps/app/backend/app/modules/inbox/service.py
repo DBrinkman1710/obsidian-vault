@@ -33,14 +33,12 @@ async def _match_contact(db: AsyncSession, tenant_id: uuid.UUID, sender: str) ->
     return result.scalar_one_or_none()
 
 
-async def _build_context(
+async def _context_inputs(
     db: AsyncSession,
     tenant_id: uuid.UUID,
     contact: Optional[Contact],
-    sender: str,
-    raw_body: str,
-) -> str:
-    """Fetch customer data and generate an AI briefing paragraph."""
+) -> tuple[Optional[dict], list[dict], Optional[dict]]:
+    """Fetch the contact/tickets/billing data the AI briefing prompt needs."""
     recent_tickets: list[dict] = []
     billing: Optional[dict] = None
 
@@ -94,6 +92,18 @@ async def _build_context(
     else:
         contact_dict = None
 
+    return contact_dict, recent_tickets, billing
+
+
+async def _build_context(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    contact: Optional[Contact],
+    sender: str,
+    raw_body: str,
+) -> str:
+    """Fetch customer data and generate an AI briefing paragraph."""
+    contact_dict, recent_tickets, billing = await _context_inputs(db, tenant_id, contact)
     return await generate_context_summary(
         sender=sender,
         raw_body=raw_body,
@@ -116,7 +126,8 @@ async def update_message_body(
     body: str,
     ai_scan: bool = True,
 ) -> None:
-    """Update an existing message's body and re-run AI scan on the pending draft."""
+    """Update an existing message's body and re-queue the pending draft for AI
+    enrichment (the background enrich_queued_drafts job picks it up)."""
     msg.raw_body = body
 
     draft = await db.scalar(
@@ -126,23 +137,9 @@ async def update_message_body(
         )
     )
     if draft:
-        if ai_scan:
-            contact = await _match_contact(db, tenant_id, msg.sender)
-            context_summary = await _build_context(db, tenant_id, contact, msg.sender, body)
-            try:
-                scan = await scan_message(msg.sender, body, msg.source.value)
-                draft.ai_suggested_subject = scan.subject or msg.subject or "(no subject)"
-                draft.ai_suggested_description = scan.description or body[:500]
-                draft.ai_suggested_priority = scan.priority or "medium"
-                draft.ai_suggested_category = scan.category
-                draft.detected_language = scan.language
-            except Exception:
-                draft.ai_suggested_subject = msg.subject or "(no subject)"
-                draft.ai_suggested_description = body[:500]
-            draft.context_summary = context_summary
-        else:
-            draft.ai_suggested_subject = msg.subject or "(no subject)"
-            draft.ai_suggested_description = body[:500]
+        draft.ai_suggested_subject = msg.subject or "(no subject)"
+        draft.ai_suggested_description = body[:500]
+        draft.ai_status = "queued" if ai_scan else "done"
 
     await db.commit()
 
@@ -198,41 +195,22 @@ async def ingest_whatsapp(
 async def _create_draft(
     db: AsyncSession, tenant_id: uuid.UUID, msg: InboundMessage, ai_scan: bool = True
 ) -> DraftTicket:
-    if ai_scan:
-        # Run AI scan — fall back to raw message fields if scan fails (e.g. no API key)
-        try:
-            scan = await scan_message(msg.sender, msg.raw_body, msg.source.value)
-            suggested_subject = scan.subject or msg.subject or "(no subject)"
-            suggested_description = scan.description or msg.raw_body[:500]
-            suggested_priority = scan.priority or "medium"
-            suggested_category = scan.category
-            detected_language = scan.language
-        except Exception:
-            suggested_subject = msg.subject or "(no subject)"
-            suggested_description = msg.raw_body[:500]
-            suggested_priority = "medium"
-            suggested_category = None
-            detected_language = "en"
-    else:
-        suggested_subject = msg.subject or "(no subject)"
-        suggested_description = msg.raw_body[:500]
-        suggested_priority = "medium"
-        suggested_category = None
-        detected_language = "en"
-
+    # The draft is created instantly from raw message fields so ingest never
+    # blocks on the AI. Enrichment (scan + briefing) runs in the background
+    # enrich_queued_drafts job, or on demand via POST /drafts/{id}/generate.
     contact = await _match_contact(db, tenant_id, msg.sender)
-    context_summary = await _build_context(db, tenant_id, contact, msg.sender, msg.raw_body) if ai_scan else None
 
     draft = DraftTicket(
         tenant_id=tenant_id,
         inbound_message_id=msg.id,
         matched_contact_id=contact.id if contact else None,
-        context_summary=context_summary,
-        ai_suggested_subject=suggested_subject,
-        ai_suggested_description=suggested_description,
-        ai_suggested_priority=suggested_priority,
-        ai_suggested_category=suggested_category,
-        detected_language=detected_language,
+        context_summary=None,
+        ai_suggested_subject=msg.subject or "(no subject)",
+        ai_suggested_description=msg.raw_body[:500],
+        ai_suggested_priority="medium",
+        ai_suggested_category=None,
+        detected_language="en",
+        ai_status="queued" if ai_scan else "done",
         # Pre-fill contact_id from match so agent doesn't have to search
         contact_id=contact.id if contact else None,
     )
@@ -240,6 +218,94 @@ async def _create_draft(
     await db.commit()
     await db.refresh(draft)
     return draft
+
+
+# Bound each draft's enrichment so a hung AI call can't pin row locks for long.
+ENRICH_TIMEOUT_SECONDS = 30
+ENRICH_BATCH_SIZE = 5
+
+
+async def _enrich_ai(
+    draft: DraftTicket,
+    msg: InboundMessage,
+    contact_dict: Optional[dict],
+    recent_tickets: list[dict],
+    billing: Optional[dict],
+) -> None:
+    """The pure-AI half of enrichment — no DB access, so multiple drafts can run
+    through this concurrently on one session. Sets ai_status to 'done' on success,
+    'failed' on error (raw fallback fields from ingest stay in place)."""
+    import asyncio
+
+    try:
+        scan, context_summary = await asyncio.wait_for(
+            asyncio.gather(
+                scan_message(msg.sender, msg.raw_body, msg.source.value),
+                generate_context_summary(
+                    sender=msg.sender,
+                    raw_body=msg.raw_body,
+                    contact=contact_dict,
+                    recent_tickets=recent_tickets,
+                    billing=billing,
+                ),
+            ),
+            timeout=ENRICH_TIMEOUT_SECONDS,
+        )
+        draft.ai_suggested_subject = scan.subject or msg.subject or "(no subject)"
+        draft.ai_suggested_description = scan.description or msg.raw_body[:500]
+        draft.ai_suggested_priority = scan.priority or "medium"
+        draft.ai_suggested_category = scan.category
+        draft.detected_language = scan.language
+        draft.context_summary = context_summary
+        draft.ai_status = "done"
+    except Exception:
+        log.exception("AI enrichment failed for draft %s", draft.id)
+        draft.ai_status = "failed"
+
+
+async def enrich_draft(
+    db: AsyncSession, tenant_id: uuid.UUID, draft: DraftTicket, msg: InboundMessage
+) -> None:
+    """Run AI scan + customer briefing for one draft and store the results.
+    Does not commit — callers own the transaction."""
+    contact = await _match_contact(db, tenant_id, msg.sender)
+    contact_dict, recent_tickets, billing = await _context_inputs(db, tenant_id, contact)
+    await _enrich_ai(draft, msg, contact_dict, recent_tickets, billing)
+
+
+async def enrich_queued_drafts(db: AsyncSession) -> int:
+    """Enrich a batch of queued drafts. Called by the background scheduler.
+
+    devsandbox and sandbox share one DB, so two containers run this loop
+    concurrently: rows are claimed with SKIP LOCKED and the locks are held
+    until the status flips to done/failed — if a container dies mid-batch the
+    transaction rolls back and the rows stay 'queued' for the next tick.
+    The DB reads run sequentially (a session can't run concurrent queries);
+    the AI calls — the slow part — run concurrently across the batch.
+    Returns the number of drafts processed."""
+    import asyncio
+
+    result = await db.execute(
+        select(DraftTicket, InboundMessage)
+        .join(InboundMessage, DraftTicket.inbound_message_id == InboundMessage.id)
+        .where(DraftTicket.ai_status == "queued", DraftTicket.status == DraftStatus.pending)
+        .order_by(DraftTicket.created_at)
+        .limit(ENRICH_BATCH_SIZE)
+        .with_for_update(skip_locked=True, of=DraftTicket)
+    )
+    rows = result.all()
+    if not rows:
+        return 0
+
+    prepared = []
+    for draft, msg in rows:
+        contact = await _match_contact(db, draft.tenant_id, msg.sender)
+        contact_dict, recent_tickets, billing = await _context_inputs(db, draft.tenant_id, contact)
+        prepared.append((draft, msg, contact_dict, recent_tickets, billing))
+
+    await asyncio.gather(*[_enrich_ai(*p) for p in prepared])
+    await db.commit()
+    return len(rows)
 
 
 async def get_draft_with_context(
@@ -394,6 +460,10 @@ async def review_draft(
 ) -> DraftTicket:
     draft.reviewed_by = reviewer_id
     draft.reviewed_at = datetime.now(timezone.utc)
+    # The agent reviewed the raw draft before the AI got to it — drop it from
+    # the enrichment queue so the suggestions aren't overwritten after the fact.
+    if draft.ai_status == "queued":
+        draft.ai_status = "done"
     draft.final_subject = review.subject
     draft.final_description = review.description
     draft.final_priority = review.priority
