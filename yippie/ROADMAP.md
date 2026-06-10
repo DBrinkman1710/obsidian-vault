@@ -9,17 +9,21 @@
 
 ### Priority order
 
-1. **🔴 BLOCKER: Railway deploys are not picking up new code** — nothing from session 16 is live yet.
-   - GitHub auto-deploy is dead: neither PR #14's merge nor any push to `devsandbox` triggered a build (last GitHub-triggered build was hours before).
-   - `railway up` from `~/yippie` created deployment `4015bac7` (SUCCESS, 2026-06-09 23:16 +03:00) but the container **still serves old code** — probes: `POST /api/v1/inbox/webhooks/whatsapp` → 200 (new code removes that route), and startup logs still show `flush_pending_sends_job interval[0:00:01]` (old 1s interval; current code uses 5s).
-   - Check in the Railway dashboard: service Source settings (repo/branch connection), Root Directory, and which commit deployment `4015bac7` actually built. Fix, redeploy, re-probe with the curl above (expect 404/405 on the old route).
+1. ~~🔴 BLOCKER: Railway deploys~~ **RESOLVED 2026-06-10.** Root cause: **both** staging Railway
+   environments (Dev Sandbox + Sandbox) build the **`sandbox` git branch** — session-16 work sat
+   unbuilt on `devsandbox`, so "GitHub auto-deploy dead" was just the wrong branch. The "SUCCESS"
+   deploys were *redeploys* of the old image, and for a repo-connected service `railway up` does
+   NOT upload local files — it re-triggers a build of the connected branch tip (verified: it built
+   old `8fe757c8`). Fix = `git push origin devsandbox:sandbox` (fast-forward to `b3e5b69`); both
+   envs rebuilt and verified live (old whatsapp route → 404, health → 200 on both URLs).
+   **Deploy rule going forward: to ship the staging pair, push/merge to the `sandbox` branch.**
 
-2. **Verify session-16 fixes in devsandbox** once a real deploy lands:
+2. **Verify session-16 fixes in devsandbox** (code is now live; needs manual UI verification):
    - Reply → exactly **one** email received; undo bar counts 5s; Undo actually cancels; "Send cancelled" auto-dismisses after 3s
    - Login as a user of a deactivated tenant → blocked with "This workspace is inactive"
    - Demo tenant reply/compose → amber "Demo mode — email not sent", nothing delivered
 
-3. **Promote to sandbox** — `git push origin devsandbox:sandbox` (clean fast-forward; sandbox is 12 commits behind, no divergence). Deploy devsandbox first, wait, then sandbox.
+3. ~~Promote to sandbox~~ Done as part of the deploy fix (both envs build the same `sandbox` branch, so one push deployed both).
 
 4. **Set `APP_BASE_URL` in every Railway environment** (e.g. `https://sandbox.getyippie.com`) — invite + password-reset emails build their links from it; until set, emailed links are broken.
 
