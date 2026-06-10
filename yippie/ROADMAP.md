@@ -1,11 +1,15 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-10 (checklist absorption + session 18 email-correctness sprint)
+**Updated:** 2026-06-10 (session 18d — checklist reconciliation: Diederik verified a batch of items; scope frozen, no new tasks for now)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
 ---
 
 ## ▶ Next session — start here
+
+> **📌 Scope freeze (2026-06-10):** Diederik's checklist is final for now — **no new tasks
+> will be added for the time being.** Everything below is already filed; the job is to
+> verify and execute, not to expand scope.
 
 ### 🐞 Reported after session-18 deploy — NEXT SESSION, in this order
 
@@ -95,17 +99,10 @@
 
 ### Priority order
 
-1. **Verify session-16 + session-17 work in devsandbox** (all code deployed via `sandbox` branch; needs manual UI verification):
-   - Reply → exactly **one** email received; undo bar counts 5s; Undo actually cancels; "Send cancelled" auto-dismisses after 3s
-   - **Compose → same undo bar** (new): floating bar appears, Undo returns to the editable draft, "Send cancelled" notice; recipients receive nothing after Undo
-   - `Cmd/Ctrl+Enter` sends in both compose modal and reply panel
-   - **Onboarding wizard**: New client → 5 steps (company+admin / modules / branding / extra admins / demo-live); leave password empty → invite email arrives with a working `/register` link
-   - **Delete client** (root owner only): trash button → password dialog → tenant + all data gone
-   - **Superadmins page**: Invite superadmin (root owner) → invite email; Delete dialog works; non-root superadmins see neither button
-   - **Delete ticket** (admin+): button on ticket detail → confirm → gone from list, SLA jobs skip it
-   - **Undo approve/reject**: processed draft → Undo → back in Pending; the created ticket is gone
-   - Login as a user of a deactivated tenant → blocked with "This workspace is inactive"
-   - Demo tenant reply/compose → amber "Demo mode — email not sent", nothing delivered
+1. ~~Verify session-16 + session-17 work in devsandbox~~ **✅ VERIFIED by Diederik (2026-06-10 checklist)** — confirmed working: single email per reply (no more duplicates), undo send incl. compose, no more "could not undo — email may already be sent", delete ticket, delete client/superadmin with password gate, undo approve/reject, onboarding via dev app, demo environments, make-client-inactive, Sent/Spam/Bin views, shared + personal inbox. **Still to verify (left unchecked):**
+   - "Send cancelled" / undo window **auto-dismisses** after undo (item 47)
+   - `Cmd/Ctrl+Enter` sends in compose modal and reply panel (item 35)
+   - Scroll-only inbox layout + larger compose (item 9)
 
 2. **End-to-end test the auth flows in sandbox:** team invite → register link → login; forgot password → reset; impersonation (View as → amber banner → Exit); change own password (Profile page). `APP_BASE_URL` is now set in **all four** Railway envs (verified 2026-06-10) and the backend strips trailing slashes, so emailed links should work everywhere.
 
@@ -113,7 +110,7 @@
    - Item 11 — DeptReminderModal redesign (pick department AND SLA in the popup, "No department"/"No SLA" options)
    - Item 12 — select + delete/spam mails in InboxQueue (backend bulk-action endpoint exists)
    - Item 34 — ticket deadline reminder popup (≤24h before `follow_up_at`)
-   - Item 18 leftover — attachment-replies now DO go through the undo queue (verified in code); compose attachments existed already — only live verification remains
+   - ~~Item 18 leftover~~ ✅ compose attachments + attachment-replies-through-undo-queue **verified by Diederik 2026-06-10** — only the chips dropdown/remove-`x` UX remains (item 45)
 
 4. ~~Railway deploy blocker~~ **RESOLVED 2026-06-10** — both staging envs build the **`sandbox` branch**; ship with `git push origin devsandbox:sandbox`. `railway up` does NOT upload local code. Migrations are now also safe to deploy to both envs at once: `migrations/env.py` takes a Postgres advisory lock, so the two containers can't race DDL on the shared DB.
 
@@ -161,6 +158,11 @@ Top priority initiative. Diederik wants Yippie to feel fast. A code pass over
 **Step 2 — Async ingest (~1 day):** return a minimal draft immediately, move
 `scan_message()` + `_build_context()` to a background APScheduler sub-job that
 enriches the draft after. Kills the poller stall.
+- **Diederik's idea (2026-06-10): explicit Generate buttons for the AI summary
+  and tickets** — generate on demand when the user clicks, instead of
+  automatically for every inbound mail. Same goal as async ingest (nothing AI
+  blocks the inbox); the two combine: ingest stays instant, AI runs on click
+  (or lazily in the background).
 
 **Step 3 — Perceived speed (~1 day):** Vite `manualChunks` route splitting;
 loading skeletons on inbox/contacts/tickets; parallelize
@@ -267,7 +269,7 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 - Can activate / deactivate / set to demo from the list
 - The "client app" is their isolated tenant in the shared deployment — no separate Railway env per client
 
-#### 24. Delete client / delete superadmin — password protected
+#### 24. Delete client / delete superadmin — password protected ✓ DONE + VERIFIED (2026-06-10)
 - **Delete client:** password confirmation required (diederik1710@gmail.com) → wipes all tenant data; irreversible
 - **Delete superadmin:** same password gate; removes the superadmin account entirely (deactivate first if just suspending). Cannot delete yourself.
 
@@ -298,14 +300,11 @@ Guided multi-step flow in SuperAdminPage when creating a new client:
 
 ## Phase 3 — Inbox UX (functional gaps)
 
-### 10. Stay in email window after approve/reject ✓ DONE (mostly)
+### 10. Stay in email window after approve/reject ✓ DONE + VERIFIED
 - After approve or reject: don't navigate away — shipped session 12
 - "Back" / "← Back to Inbox" buttons removed from the panel entirely (session 14)
-- **Still open:**
-  - Add a clear "✗ Rejected" overlay/state mirroring the "✓ Approved" treatment
-    (`DraftReview.tsx` ~line 630) — right now a denied draft has no visual confirmation
-  - "Undo approve / reject" — needs a backend endpoint to revert `draft_ticket.status`
-    (and the ticket it created, if approved) plus a button in the processed view
+- "✗ Rejected" red state box already existed (confirmed session 17)
+- **Undo approve/reject** shipped session 17 (`ae1c80d`) — ✅ **verified by Diederik 2026-06-10**
 
 ### 11. Department/SLA reminder on approve — needs redesign
 `DeptReminderModal` exists but Diederik wants:
@@ -362,43 +361,46 @@ migrations is auto-granted — preventing this whole class of bug from recurring
 
 All four are now fixed and pushed (`d39b56a`, `a6a58f2`). ⚠️ See deploy hazard in Reference.
 
-### 17. Undo send ✓ DONE — should now actually work, needs final live confirmation
+### 17. Undo send ✓ DONE + VERIFIED (2026-06-10)
 
 Shipped in `7967bac`: floating "Yippie" bar with 5s progress + Undo button (`DraftReview.tsx`
 ~line 896), backed by a `pending_sends` queue (`queue_send`/`cancel_send`/`flush_pending_sends`
-in `service.py`, flushed every 1s by `email_poller.py`). With migration `c9d0e1f2a3b4` granting
-`app_user` access, the queue should now work end-to-end. **Once `devsandbox` is redeployed, send
-a reply and confirm the bar appears + Undo works — then mark fully done.**
+in `service.py`). ✅ **Verified by Diederik 2026-06-10**: undo works for replies AND compose,
+and the "could not undo — email may already be sent" message is gone.
 
-**Known bugs (not fixed yet):**
-- Undo doesn't cancel in time — `cancel_send` is called but the 1s flush has already fired; "email may already be sent" shown after hitting Undo. Fix: increase flush interval or check cancel timestamp before flushing.
-- After a successful undo, the progress bar window should **auto-dismiss** — currently stays visible.
-- Replies **with attachments** bypass the undo queue — `router.py` (~line 140) acknowledges `PendingSend` has no `attachments` field, so attachment-replies send immediately and return a fake `undo_until` in the past. Fix: add `attachments_json` column to `pending_sends` (migration), thread attachments through `queue_send`/`flush_pending_sends`.
-- **Undo send is only wired for replies, not compose** — compose modal sends immediately with no queue or undo bar. Add same queue/undo flow to compose.
+**Bug history (all fixed + verified):**
+- ~~Undo doesn't cancel in time~~ — fixed session 16: server holds 8s, UI counts 5s on its own clock.
+- ~~Replies with attachments bypass the undo queue~~ — turned out already built (session 17 audit).
+- ~~Undo only wired for replies, not compose~~ — compose undo shipped session 17 (`5543d29`), verified.
 
-### 18. Attachments — partially built; gaps found (session 14)
-Shipped for **reply** flow only:
+**Still open (cosmetic, → item 47):** after a successful undo, the progress bar window should
+**auto-dismiss** — Diederik re-filed this unchecked ("make email sent window disappear
+automatically after undo send is done").
+
+### 18. Attachments ✓ DONE + VERIFIED (2026-06-10)
 - Reply panel: file picker + chips (`DraftReview.tsx` ~line 778 ✓)
 - Inbound messages: attachment list + download proxy via Resend
 - Backend: `attachments_json` column, `mailer.py` sends via Resend attachment API
+- ~~Compose modal has no attachment support~~ — already built (sessions 14-16 + PR #14;
+  session-17 audit found the gap note was stale). ✅ **Compose attachments verified by
+  Diederik 2026-06-10.**
+- ~~Attachment-replies skipping the undo queue~~ — already built (see item 17)
 
-**Gaps:**
-- **Compose modal has no attachment support** — `InboxQueue.tsx` has zero attachment code.
-  Add the same file-picker + filename-chip UI, reusing `DraftReview.tsx` ~line 778-790 pattern,
-  wired through existing `send_email`/attachments backend support
-- Attachment-replies skipping the undo queue (see item 17)
+**Still open (→ item 45):** attachment **chips dropdown** (list all attached files + `x` to
+remove each) and reliable display of inbound attachments — Diederik re-filed unchecked.
 
 ### 19. Modules order matches sidebar ✓ DONE — fixed at the source, no manual action needed
 
-### 32. Duplicate email sending (bug)
-- Replies are sending twice — user receives two identical emails.
-- Likely cause: `flush_pending_sends` fires AND a direct send path is also executing. Investigate `router.py` send-reply flow and `email_poller.py` flush loop for double-trigger.
-- Fix before any further inbox work — corrupts every client interaction while broken.
+### 32. Duplicate email sending ✓ FIXED + VERIFIED (2026-06-10)
+- Root cause (session 16, `5bcc8a1`): devsandbox + sandbox share one DB and both containers ran
+  `flush_pending_sends` with no locking — both sent every queued email. Fixed with
+  `SELECT … FOR UPDATE SKIP LOCKED` + delete-before-dispatch (at-most-once).
+- ✅ **Verified by Diederik 2026-06-10** ("im responding with 2 emails now" → checked off).
 
-### 33. Delete tickets
-- From ticket detail view: "Delete ticket" button → confirmation dialog
-- Soft delete (add `deleted_at` column) so ticket history is preserved; filter deleted from default views
-- Admin+ only; agents cannot delete
+### 33. Delete tickets ✓ DONE + VERIFIED (2026-06-10)
+- Shipped session 17 (`5815449`): soft delete via `tickets.deleted_at`, Delete button +
+  confirm dialog on ticket detail, admin+ only, SLA jobs skip deleted tickets.
+- ✅ **Verified by Diederik 2026-06-10.**
 
 ### 34. Ticket deadline reminder popup
 - When viewing a draft/ticket that has `follow_up_at` set and the deadline is ≤24h away, show a small toast/badge
@@ -419,16 +421,17 @@ returned `enabled_modules` by canonical `ALL_MODULES` order server-side —
 `['inbox', 'contacts', 'tickets', 'activity', 'billing', 'chat']`. Fixes every tenant
 immediately — **no per-tenant action required**.
 
-### 41. Sent mail view
-- A **Sent** tab/view, placed to the **right of Processed**, listing outbound mail
-  (replies + composes). Reads from the send log / `pending_sends` history.
+### 41. Sent mail view ✓ VISIBLE + VERIFIED (2026-06-10)
+- ✅ Diederik confirmed he can **see sent mails** ("able to see send mails, spam and
+  deleted mails" → checked off).
+- Verify placement: the Sent tab should sit to the **right of Processed**.
 
-### 42. Spam tab + bin/spam retention
-- Expose a **Spam** view alongside **Bin** (only Bin is visible today). `bin` and
-  `spam` already exist on `DraftStatus` (migration `e4f5a6b7c8d9`).
-- **Spam → Bin after 10 working days** (show a note explaining this).
-- **Bin emptied after 20 working days** (show a note explaining this).
-- Scheduler jobs perform both moves; spam senders also blocked in Resend (item 12).
+### 42. Spam tab + bin/spam retention — views ✓ VERIFIED; retention still open
+- ✅ **Spam and Bin views are visible and confirmed** by Diederik (2026-06-10).
+- **Still open (retention + blocking):**
+  - **Spam → Bin after 10 working days** (show a note explaining this).
+  - **Bin emptied after 20 working days** (show a note explaining this).
+  - Scheduler jobs perform both moves; spam senders also blocked in Resend (item 12).
 
 ### 43. Ticket deadline reminders (extends item 34)
 - Small pop-up/toast reminder when a ticket is close to its `follow_up_at`.
@@ -453,8 +456,9 @@ immediately — **no per-tenant action required**.
   below; a **filling progress panel** to undo; window **auto-dismisses after undo**.
 - Compose: pressing send **hides the compose window → shows the undo bar**; undo
   **returns to the editable compose draft**.
-- Item 17 already implements most of this — remaining items are cosmetic deltas +
-  the "undo doesn't work / check again if true" report → **live-verification**.
+- Item 17 implements most of this and undo itself is ✅ **verified working (2026-06-10)** —
+  remaining: the cosmetic deltas above + **auto-dismiss of the undo window after a
+  successful undo** (re-filed unchecked).
 
 ### 48. Clickable rows everywhere (UX convention)
 - Make the **whole ticket bar clickable** to open it, mirroring how mail opens.
@@ -577,7 +581,7 @@ The client row currently exposes many inline options — too noisy. Consolidate:
 ## Phase 8 — Polish & advanced
 
 - **Inbox layout** (item 9) — scroll-only email list, larger compose modal (cosmetic)
-- **Glowing green dot in sidebar** (item 14) — pulse animation when `isFetching`; solid green when idle (cosmetic)
+- **Glowing green dot in sidebar** (item 14) — pulse animation when `isFetching`; solid green when idle (cosmetic). Re-filed unchecked 2026-06-10: make the glow more obvious and place the dot **next to Inbox in the sidebar** for visibility
 - **Per-tenant custom domain** (`acme.getyippie.com` → shared Railway service)
 - **PostgreSQL RLS** — row-level security policies as defense-in-depth
 - **getyippie.com 502 fix** — Cloudflare proxy toggle for Railway domain verification
@@ -585,7 +589,7 @@ The client row currently exposes many inline options — too noisy. Consolidate:
 - **Mobile web** — responsive layout for sandbox + devsandbox first
 - **diederik@getyippie.com** — Diederik's personal account for live environments
 - **Sandbox email address** — sandbox uses `sb-support@getyippie.com`; live uses `support@getyippie.com`
-- **Personalized user emails** — ✅ v1 shipped (session 18, commit `9eb8620`): `users.inbound_email` (unique, @getyippie.com) set on the Profile page; Resend poller routes those addresses to the user's tenant; `GET /inbox/drafts?mailbox=shared|personal` filter; Shared/Personal switch in InboxQueue. Remaining: client-domain white-label (verify e.g. `klimaatexamen.nl` in Resend, per-tenant `reply_from_email`), and per-draft privacy (any tenant agent can still open a personal draft by direct ID/URL)
+- **Personalized user emails** — ✅ v1 shipped (session 18, commit `9eb8620`): `users.inbound_email` (unique, @getyippie.com) set on the Profile page; Resend poller routes those addresses to the user's tenant; `GET /inbox/drafts?mailbox=shared|personal` filter; Shared/Personal switch in InboxQueue. ✅ **Shared + personal inbox confirmed working by Diederik (2026-06-10)** — but see the personal-inbox-leak and receive-after-send bugs in "New from Diederik's checklist". Remaining: client-domain white-label (verify e.g. `klimaatexamen.nl` in Resend, per-tenant `reply_from_email`), and per-draft privacy (any tenant agent can still open a personal draft by direct ID/URL)
 - **Customer data + AI briefing** *(architecture decision)* — define where full contact history is stored; AI briefing must pull complete history
 
 ---
@@ -602,6 +606,8 @@ The client row currently exposes many inline options — too noisy. Consolidate:
 ### C. Template insertion for users
 - "Insert template" button in compose modal and reply modal
 - AI recommends a template based on the content of the received email
+- User can then edit the inserted template, or improve it with AI
+- Templates are company-wide (per tenant); **users can also create personal templates**
 
 ---
 
@@ -765,7 +771,7 @@ tenant creation (`admin/service.py create_tenant`), and demo enforcement
 
 ## Open questions
 
-- **Superadmin without password** — second superadmin was created but never set a password, yet can log in. Investigate how promote-superadmin sets credentials; fix so invite-email flow is the only path.
+- ~~Superadmin without password~~ **CLOSED (2026-06-10)** — checked off by Diederik; the invite-only superadmin path (item 28, session 16/17) closes the hole.
 - **Sandbox email routing** — sending from diederik_test sends via `sb-support@getyippie.com`; replies go to sandbox connected to diederik1710@gmail.com. Document that this is intentional. **Same root cause for "reply to `dev-support@getyippie.com` also arrives in regular sandbox"** — `devsandbox` and `sandbox` share one Sandbox DB, so inbound to either address surfaces in both. Document as intentional (or split per `INBOUND_EMAIL` if true isolation is wanted).
 - ~~Branding wiring~~ **ANSWERED (session 18):** `primary_color` / `logo_url` are stored on the tenant and returned by `/api/v1/tenant/config`, but **no frontend component applies them** — only the SuperAdminPage form references the fields. The selection currently does nothing. To-do: wire branding into the app shell (sidebar logo, accent color).
 
@@ -815,6 +821,31 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ---
 
 ## Session log
+
+---
+
+### Session 18d — 2026-06-10 (checklist reconciliation — docs only, no code)
+
+Diederik returned the refreshed checklist with a batch of items **checked off** and declared a
+**scope freeze: no new tasks for the time being**. Roadmap reconciled accordingly; every
+unchecked line was confirmed already tracked (sections, 18b reconciliation table, or session log).
+
+**Marked verified by Diederik:** undo send incl. compose + the "could not undo" bug (item 17),
+compose attachments (item 18), duplicate emails fixed (item 32), delete tickets (item 33),
+delete client/superadmin with password gate (item 24), undo approve/reject (item 10),
+Sent/Spam/Bin views visible (items 41/42 — retention rules still open), shared + personal
+inbox (Phase 8), onboarding via dev app, demo environments, make-client-inactive, AI-functions
+issue resolved, superadmin-without-password question closed.
+
+**Still to verify (left unchecked by Diederik):** undo-window auto-dismiss after undo
+(item 47), `Cmd/Ctrl+Enter` send (item 35), scroll-only inbox layout (item 9), fetching-dot
+visibility (item 14).
+
+**New nuances captured (only three — everything else was already filed):**
+- Performance: explicit **Generate buttons for the AI summary and tickets** (on-demand AI
+  instead of blocking generation during ingest) — added under Performance Step 2.
+- Phase 9C: users can also create **personal templates** alongside company-wide ones.
+- Item 14: fetching dot **next to Inbox in the sidebar**, more obvious glow.
 
 ---
 
