@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-09
+**Updated:** 2026-06-10
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -9,19 +9,27 @@
 
 ### Priority order
 
-1. **Confirm `devsandbox` redeploy** (if not done) — click Redeploy on `Dev Sandbox → obsidian-vault` in Railway dashboard, or run `railway redeploy -y`. Then verify:
-   - Send a reply from a draft → 200 OK, no white screen, undo bar appears with 5s countdown + working Undo
-   - Sidebar shows: Inbox, Contacts, Tickets, Activity, Billing, Live Chat
+1. **🔴 BLOCKER: Railway deploys are not picking up new code** — nothing from session 16 is live yet.
+   - GitHub auto-deploy is dead: neither PR #14's merge nor any push to `devsandbox` triggered a build (last GitHub-triggered build was hours before).
+   - `railway up` from `~/yippie` created deployment `4015bac7` (SUCCESS, 2026-06-09 23:16 +03:00) but the container **still serves old code** — probes: `POST /api/v1/inbox/webhooks/whatsapp` → 200 (new code removes that route), and startup logs still show `flush_pending_sends_job interval[0:00:01]` (old 1s interval; current code uses 5s).
+   - Check in the Railway dashboard: service Source settings (repo/branch connection), Root Directory, and which commit deployment `4015bac7` actually built. Fix, redeploy, re-probe with the curl above (expect 404/405 on the old route).
 
-2. **Duplicate email bug** ← critical: replies are sending twice. Investigate whether `flush_pending_sends` in `email_poller.py` is firing alongside a direct send path. (see item 32)
+2. **Verify session-16 fixes in devsandbox** once a real deploy lands:
+   - Reply → exactly **one** email received; undo bar counts 5s; Undo actually cancels; "Send cancelled" auto-dismisses after 3s
+   - Login as a user of a deactivated tenant → blocked with "This workspace is inactive"
+   - Demo tenant reply/compose → amber "Demo mode — email not sent", nothing delivered
 
-3. **Undo send broken** — undo bar appears but undo doesn't cancel the send; hitting Undo shows "email may already be sent". Likely the `cancel_send` endpoint isn't being called in time before the 1s flush. (see item 17)
+3. **Promote to sandbox** — `git push origin devsandbox:sandbox` (clean fast-forward; sandbox is 12 commits behind, no divergence). Deploy devsandbox first, wait, then sandbox.
 
-4. ~~**Per-tenant webhook routing**~~ ✓ Fixed — `resolve_tenant_by_inbound_email()` added; email poller fallback now routes by `inbound_email` DB field instead of first-tenant-in-DB; WebSocket endpoint uses `resolve_tenant_by_slug` (slug was already in the URL). WhatsApp webhooks still use first-tenant fallback (no routing info in payload).
+4. **Set `APP_BASE_URL` in every Railway environment** (e.g. `https://sandbox.getyippie.com`) — invite + password-reset emails build their links from it; until set, emailed links are broken.
 
-5. **Enforce `is_active`/`is_demo`/`go_live_at`** — toggles exist but do nothing; add login-blocking for inactive tenants
+5. **Remaining frontend (backend is done & committed):**
+   - Onboarding wizard (item 21) — rework `CreateClientModal` into steps ① company+admin ② modules ③ branding ④ extra admins ⑤ demo/live. Backend already accepts `admin_full_name`, `extra_admin_emails`, and optional `admin_password` (empty = invite email).
+   - Delete-client button + password-confirm dialog → `POST /admin/tenants/{id}/delete` (item 24)
+   - Superadmins page: invite UI → `POST /admin/superadmins/invite`; delete dialog → `POST /admin/superadmins/{id}/delete` (items 28, 24) — both root-owner-only
+   - `AddAdminModal`: make password optional → "leave empty to send invite"
 
-6. **Impersonation / "view as tenant"** — JWT swap + sessionStorage + amber banner; no DB/migration needed
+6. **End-to-end test the new auth flows in sandbox:** team invite → register link → login; forgot password → reset; impersonation (View as → amber banner → Exit); change own password (Profile page).
 
 ---
 
@@ -442,6 +450,71 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ---
 
 ## Session log
+
+---
+
+### Session 16 — 2026-06-09/10 (critical path A+B+C, bugs 32+17 root-caused)
+
+Diederik asked for critical-path sections A, B and C, with the two critical inbox bugs fixed
+first. All backend work shipped; frontend ~70% done. **Nothing is live yet — see the deploy
+blocker in "▶ Next session".** Three commits on `devsandbox`: `5bcc8a1`, `5147dfe`, `e132bc4`.
+
+#### Item 32 — duplicate emails: ROOT CAUSE FOUND + FIXED (`5bcc8a1`)
+devsandbox and sandbox **share one Postgres DB**, and `main.py` starts the APScheduler in every
+container — so two `flush_pending_sends` loops raced on the same `pending_sends` rows with no
+locking, and **both sent every queued email**. Fix: rows are claimed with
+`SELECT … FOR UPDATE SKIP LOCKED`, deleted + committed *before* dispatch (at-most-once).
+
+#### Item 17 — undo: ROOT CAUSE FOUND + FIXED (`5bcc8a1`)
+The 5s bar was computed from server `undo_until` minus the **browser clock** — latency/skew ate
+the window so Undo arrived after the flush. Fix: server holds emails **8s**, UI counts a fixed
+**5s** on its own clock (≥3s guaranteed margin). Also: the 409 handler no longer claims "Send
+cancelled" when the email actually went out (that lie invited manual re-sends → more duplicates),
+and the cancelled notice auto-dismisses after 3s.
+
+#### Phase A — multi-tenancy enforcement (`5147dfe`)
+- `is_active` enforced at login **and** per-request in `get_current_user` (user + tenant;
+  superadmins exempt from the tenant check)
+- **Demo mode blocks outbound email** (Diederik's choice): reply/compose/forward return
+  `{demo: true}` and the UI shows amber "Demo mode — email not sent"; the flush re-checks
+  `is_demo` and logs the activity event with `demo_suppressed` instead of sending
+- **go_live_at acts** (Diederik's choice: auto-activate + end demo): 60s scheduler job sets
+  `is_active=true, is_demo=false` and **clears `go_live_at`** (one-shot) once the date passes
+- WhatsApp webhooks (Twilio in inbox, Meta in chat) now slug-routed:
+  `/api/v1/inbox/webhooks/{slug}/whatsapp`, `/api/v1/chat/webhooks/{slug}/whatsapp`;
+  `resolve_tenant_uuid()` (first-tenant-in-DB) is **deleted** — no fallback misrouting remains
+
+#### Phase B+C — client management + auth (backend complete, `e132bc4`)
+- **Impersonation (item 23)**: `POST /admin/tenants/{id}/impersonate` mints a 1h JWT (`imp: true`
+  claim) for the tenant's first active admin. Frontend done too: "View as" button per client row,
+  amber banner with Exit, superadmin token stashed in sessionStorage.
+- **Signed-token infra**: `auth/tokens.py` (purpose-scoped JWTs, no DB), `auth/invite.py`
+  (7-day invite emails). New `APP_BASE_URL` setting for email links — **must be set in Railway**.
+- **Auth flows (items 25-27)**: `POST /auth/register` (invite token → set own password →
+  auto-login), `POST /auth/forgot-password` + `/auth/reset-password` (1h token),
+  `PATCH /auth/me/password`. Frontend pages live: `/register`, `/forgot-password`,
+  `/reset-password`, "Forgot password?" on login, change-password card on Profile.
+- **Team module (items 25/26)**: `GET /team/users`, `POST /team/invite` (admin/agent/viewer),
+  `PATCH /team/users/{id}` (deactivate/role) — admin-gated, tenant-scoped. `/settings/team` page
+  + sidebar "Team" link done.
+- **Invite-based onboarding (item 21 backend)**: `create_tenant` password now optional → invite
+  email instead; `extra_admin_emails` invited too. **Wizard UI not built yet.**
+- **Password-gated deletes (item 24 backend)**: `POST /admin/tenants/{id}/delete` (FK-safe wipe
+  of all 15 tenant tables) and `POST /admin/superadmins/{id}/delete` — root-owner
+  (diederik1710@gmail.com) + password verify; can't delete self/own tenant/root owner. **UI not built yet.**
+- **Superadmin invite (item 28 backend)**: `POST /admin/superadmins/invite` — closes the
+  "superadmin without password" hole; invite-only path. **UI not built yet.**
+- Login page now shows the backend's 403 detail ("Account deactivated" / "This workspace is inactive").
+
+#### ⚠️ Deploy problem discovered (the session blocker)
+GitHub pushes stopped triggering Railway builds, and a manual `railway up` produced a SUCCESS
+deployment that still runs old code. Details + probes in "▶ Next session" item 1.
+
+#### Notes
+- PR #14 (Michiel + cloud agent) landed mid-session: per-tenant email routing by `inbound_email`,
+  chat WS by slug, flush interval 1s→5s. Session-16 work is rebased on top of it.
+- `pnpm install --ignore-workspace` in `apps/app/frontend` gives a local `node_modules` for
+  `npx tsc --noEmit` (frontend isn't a pnpm workspace package; lockfile left untracked).
 
 ---
 
