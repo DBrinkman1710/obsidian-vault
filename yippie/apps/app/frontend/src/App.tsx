@@ -36,12 +36,17 @@ function PagePad({ children }: { children: React.ReactNode }) {
 export default function App() {
   const { token, refreshUser, impersonating, exitImpersonation } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
+  const [configError, setConfigError] = useState(false)
 
   useEffect(() => {
-    if (token) {
-      refreshUser()
-      fetchTenantConfig().then(setConfig)
-    }
+    if (!token) return
+    let cancelled = false
+    refreshUser()
+    setConfigError(false)
+    fetchTenantConfig()
+      .then((cfg) => { if (!cancelled) setConfig(cfg) })
+      .catch(() => { if (!cancelled) setConfigError(true) })
+    return () => { cancelled = true }
   }, [token])
 
   if (!token) {
@@ -55,6 +60,22 @@ export default function App() {
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>
+    )
+  }
+
+  if (configError) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-slate-50 p-8 text-center">
+        <div>
+          <p className="text-slate-700 font-medium">Couldn’t load your workspace.</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-3 rounded bg-slate-800 px-4 py-2 text-sm text-white"
+          >
+            Retry
+          </button>
+        </div>
+      </div>
     )
   }
 
