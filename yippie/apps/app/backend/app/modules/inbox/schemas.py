@@ -44,6 +44,7 @@ class DraftTicketOut(BaseModel):
     detected_language: Optional[str] = None
     created_at: datetime
     inbound_subject: Optional[str] = None
+    inbound_to: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

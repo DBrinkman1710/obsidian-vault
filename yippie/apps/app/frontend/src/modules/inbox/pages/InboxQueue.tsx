@@ -743,7 +743,10 @@ export default function InboxQueue() {
                         <p className="text-xs text-slate-500 mb-1 line-clamp-2">
                           {d.ai_suggested_description?.slice(0, 120)}…
                         </p>
-                        <p className="text-xs text-slate-400">{new Date(d.created_at).toLocaleString()}</p>
+                        <p className="text-xs text-slate-400">
+                          {new Date(d.created_at).toLocaleString()}
+                          {d.inbound_to && <span className="ml-2">· to {d.inbound_to}</span>}
+                        </p>
                       </div>
                       <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0 mt-0.5" />
                     </Link>

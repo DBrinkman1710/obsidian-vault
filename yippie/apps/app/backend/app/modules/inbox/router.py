@@ -84,9 +84,10 @@ async def _encode_attachments(attachments: list[UploadFile]) -> list[dict]:
 
 def _enrich_drafts(rows: list[tuple]) -> list[DraftTicketOut]:
     result = []
-    for draft, inbound_subject in rows:
+    for draft, inbound_subject, inbound_to in rows:
         item = DraftTicketOut.model_validate(draft)
         item.inbound_subject = inbound_subject
+        item.inbound_to = inbound_to
         result.append(item)
     return result
 

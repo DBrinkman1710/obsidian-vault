@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-10 (session 19 — perf Step 1 quick wins shipped + next-session items 2/3/4 done; agent-as-admin and personal-leak chains code-verified)
+**Updated:** 2026-06-10 (session 21 — inbound_to on inbox cards, deploy-log triage; see session log for 19/20 parallel work)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -64,9 +64,11 @@
   stays on the standard value instead of following the department's default (editable). Extends
   item 11 (DeptReminderModal redesign).
 - **Subject altered on receive** — the inbox shows the AI-suggested subject
-  (`ai_suggested_subject`), not the raw email subject. By design for draft tickets, but show
-  the original subject (e.g. secondary line) and keep reply threads on the original. Related:
-  item 44 (reply subject language).
+  (`ai_suggested_subject`), not the raw email subject. By design for draft tickets. **Mostly
+  done:** session 20 added "Subject: {original}" as a secondary line when it differs; session
+  21 added "· to {address}" (the `inbound_to` the mail was routed to) on every card — also the
+  diagnostic for the personal-leak report. Remaining: keep reply threads on the original
+  subject. Related: item 44 (reply subject language).
 
 **Design/feature requests (filed in phases):**
 - **Department emails as shared inboxes** — a department can have its own address (e.g.
@@ -837,6 +839,32 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ---
 
 ## Session log
+
+---
+
+### Session 21 — 2026-06-10 (inbound_to diagnostics + deploy-log triage; sessions 19/20 ran in parallel)
+
+- **"Deploy crash" report triaged — NOT a crash.** Railway tags all stderr as `[err]`; the
+  pasted log was a normal healthy boot (migrations → seed skip → promote skip → uvicorn →
+  health 200 → container Online). The trailing `[DB] RAW_URL` line after startup is the
+  uvicorn worker lazily creating its engine on the poller's first tick
+  (`database.py:34` prints on every engine build). Both staging health endpoints return ok.
+- **Inbox cards now show "· to {address}"** — `list_drafts` also returns
+  `InboundMessage.inbound_to`; `DraftTicketOut.inbound_to`; rendered next to the timestamp.
+  This makes mailbox routing visible in the UI and is the live diagnostic for the
+  personal-inbox-leak report (check what address joost's mail was actually routed to, and
+  what the icloud account's cards say).
+- **Independently re-derived and confirmed session 19's conclusions** on the dedup race
+  (unique index since `b1c2d3e4f5a6`; on-conflict skip correct), agent-as-admin (chain clean;
+  prime suspect = older 7-day admin invite link, not single-use), and personal-leak (only a
+  set `users.inbound_email` on the icloud account can explain it).
+- **Parallel work note:** sessions 19 and 20 shipped without log entries — session 19
+  (PR #18 + cbfc7fc): perf Step 1 quick wins + next-session items 2/3/4 (welcome-mail rework,
+  check-email validation, dedup hardening); session 20 (f7cff8d/5fee89e/5bc799a): SLA modal
+  redesign, original-subject display, urgency badge, auto-dismiss sent state.
+- **Workflow (Diederik):** save roadmap progress at ~90% context; after each phase → update
+  roadmap, commit, deploy (`git push origin devsandbox` + `devsandbox:sandbox`), then he
+  clears chat and starts the next phase.
 
 ---
 

@@ -346,10 +346,11 @@ async def list_drafts(
     status: Optional[DraftStatus] = DraftStatus.pending,
     inbound_email: Optional[str] = None,
     include_legacy: bool = True,
-) -> list[tuple[DraftTicket, Optional[str]]]:
-    # Always join InboundMessage to include the original email subject.
+) -> list[tuple[DraftTicket, Optional[str], Optional[str]]]:
+    # Always join InboundMessage to include the original email subject and the
+    # address the mail was routed to (mailbox diagnostics).
     q = (
-        select(DraftTicket, InboundMessage.subject.label("inbound_subject"))
+        select(DraftTicket, InboundMessage.subject.label("inbound_subject"), InboundMessage.inbound_to)
         .join(InboundMessage, DraftTicket.inbound_message_id == InboundMessage.id)
         .where(DraftTicket.tenant_id == tenant_id)
     )
@@ -374,7 +375,7 @@ async def list_drafts(
     elif status:
         q = q.where(DraftTicket.status == status)
     result = await db.execute(q.order_by(DraftTicket.created_at.desc()))
-    return [(row[0], row[1]) for row in result.all()]
+    return [(row[0], row[1], row[2]) for row in result.all()]
 
 
 async def get_draft(db: AsyncSession, tenant_id: uuid.UUID, draft_id: uuid.UUID) -> Optional[DraftTicket]:
