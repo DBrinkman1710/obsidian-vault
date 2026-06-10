@@ -45,7 +45,22 @@ async def list_tickets(
 
 @router.post("", response_model=TicketOut, status_code=status.HTTP_201_CREATED)
 async def create_ticket(body: TicketCreate, current_user: CurrentUser, db: DB):
-    return await service.create_ticket(db, current_user.tenant_id, current_user.id, body)
+    try:
+        return await service.create_ticket(db, current_user.tenant_id, current_user.id, body)
+    except service.TenantScopeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+# NOTE: static /templates routes must be declared BEFORE the dynamic /{ticket_id}
+# routes, otherwise "templates" is parsed as a ticket_id UUID and 422s.
+@router.get("/templates", response_model=list[TemplateOut])
+async def list_templates(current_user: CurrentUser, db: DB):
+    return await service.list_templates(db, current_user.tenant_id)
+
+
+@router.post("/templates", response_model=TemplateOut, status_code=status.HTTP_201_CREATED)
+async def create_template(body: TemplateCreate, current_user: CurrentUser, db: DB):
+    return await service.create_template(db, current_user.tenant_id, body)
 
 
 @router.get("/{ticket_id}", response_model=TicketOut)
@@ -61,7 +76,10 @@ async def update_ticket(ticket_id: uuid.UUID, body: TicketUpdate, current_user: 
     ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    return await service.update_ticket(db, ticket, body)
+    try:
+        return await service.update_ticket(db, ticket, body)
+    except service.TenantScopeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.patch("/{ticket_id}/status", response_model=TicketOut)
@@ -97,13 +115,3 @@ async def add_comment(ticket_id: uuid.UUID, body: CommentCreate, current_user: C
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     return await service.add_comment(db, current_user.tenant_id, ticket, current_user.id, body)
-
-
-@router.get("/templates", response_model=list[TemplateOut])
-async def list_templates(current_user: CurrentUser, db: DB):
-    return await service.list_templates(db, current_user.tenant_id)
-
-
-@router.post("/templates", response_model=TemplateOut, status_code=status.HTTP_201_CREATED)
-async def create_template(body: TemplateCreate, current_user: CurrentUser, db: DB):
-    return await service.create_template(db, current_user.tenant_id, body)

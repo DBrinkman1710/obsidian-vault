@@ -25,6 +25,37 @@ SLA_HOURS = {
 }
 
 
+class TenantScopeError(ValueError):
+    """Raised when a referenced FK does not belong to the caller's tenant."""
+
+
+async def _validate_ticket_fks(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    contact_id: Optional[uuid.UUID] = None,
+    department_id: Optional[uuid.UUID] = None,
+    assigned_to: Optional[uuid.UUID] = None,
+) -> None:
+    """Ensure any referenced contact/department/user belongs to ``tenant_id`` (prevents IDOR)."""
+    from app.core.models import User
+    from app.modules.contacts.models import Contact
+    from app.modules.departments.models import Department
+
+    checks = [
+        (contact_id, Contact, "contact_id"),
+        (department_id, Department, "department_id"),
+        (assigned_to, User, "assigned_to"),
+    ]
+    for value, model, label in checks:
+        if value is None:
+            continue
+        exists = await db.scalar(
+            select(model.id).where(model.id == value, model.tenant_id == tenant_id)
+        )
+        if exists is None:
+            raise TenantScopeError(f"{label} does not belong to this tenant")
+
+
 def compute_sla_due(priority: TicketPriority) -> datetime:
     hours = SLA_HOURS[priority]
     return datetime.now(timezone.utc) + timedelta(hours=hours)
@@ -127,6 +158,12 @@ async def get_ticket(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid.UUI
 async def create_ticket(
     db: AsyncSession, tenant_id: uuid.UUID, created_by: Optional[uuid.UUID], data: TicketCreate
 ) -> TicketOut:
+    await _validate_ticket_fks(
+        db, tenant_id,
+        contact_id=data.contact_id,
+        department_id=data.department_id,
+        assigned_to=data.assigned_to,
+    )
     ticket = Ticket(
         tenant_id=tenant_id,
         created_by=created_by,
@@ -141,7 +178,14 @@ async def create_ticket(
 
 
 async def update_ticket(db: AsyncSession, ticket: Ticket, data: TicketUpdate) -> TicketOut:
-    for field, value in data.model_dump(exclude_unset=True).items():
+    fields = data.model_dump(exclude_unset=True)
+    await _validate_ticket_fks(
+        db, ticket.tenant_id,
+        contact_id=fields.get("contact_id"),
+        department_id=fields.get("department_id"),
+        assigned_to=fields.get("assigned_to"),
+    )
+    for field, value in fields.items():
         setattr(ticket, field, value)
     await db.commit()
     await db.refresh(ticket)
