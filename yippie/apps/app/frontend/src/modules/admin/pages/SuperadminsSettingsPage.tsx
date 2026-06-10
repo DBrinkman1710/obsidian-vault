@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ShieldCheck, X } from 'lucide-react'
+import { ShieldCheck, UserPlus, X } from 'lucide-react'
 import { api } from '../../../api/client'
-import { useAuth } from '../../../auth/useAuth'
+import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
 
 interface Superadmin {
   id: string
@@ -88,9 +88,139 @@ function ToggleConfirmModal({
   )
 }
 
+function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
+  const { user } = useAuth()
+  const [form, setForm] = useState({ email: '', full_name: '', current_password: '' })
+  const [sent, setSent] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.post('/admin/superadmins/invite', {
+        email: form.email.trim(),
+        full_name: form.full_name.trim() || 'Superadmin',
+        current_password: form.current_password,
+      }).then(r => r.data),
+    onSuccess: (data) => setSent(data.email),
+    onError: (err: any) => {
+      const detail = err.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : 'Failed to send invite')
+    },
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.email.trim() || !form.current_password.trim()) { setError('Email and your password are required'); return }
+    setError('')
+    mutation.mutate()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Invite superadmin</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        {sent ? (
+          <div className="p-6 flex flex-col gap-4">
+            <p className="text-sm text-emerald-600 font-medium">
+              ✓ Invite sent to <strong>{sent}</strong> — they appear in this list once they set their password.
+            </p>
+            <div className="flex justify-end">
+              <button onClick={onClose} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">Done</button>
+            </div>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+            <p className="text-sm text-slate-600">
+              The invitee gets full superadmin access to <strong>this environment</strong> once they set their own password via the emailed link.
+            </p>
+            <div>
+              <label className={labelCls}>Full name</label>
+              <input className={inputCls} value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jan de Vries" autoFocus />
+            </div>
+            <div>
+              <label className={labelCls}>Email *</label>
+              <input className={inputCls} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="naam@bedrijf.nl" />
+            </div>
+            <div>
+              <label className={labelCls}>Your password ({user?.email})</label>
+              <input className={inputCls} type="password" value={form.current_password} onChange={e => setForm(p => ({ ...p, current_password: e.target.value }))} placeholder="Confirm with your password" />
+            </div>
+            {error && <p className="text-sm text-red-500">{error}</p>}
+            <div className="flex gap-3 justify-end pt-1">
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+              <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
+                {mutation.isPending ? 'Sending…' : 'Send invite'}
+              </button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function DeleteSuperadminModal({ target, onClose }: { target: Superadmin; onClose: () => void }) {
+  const qc = useQueryClient()
+  const { user } = useAuth()
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.post(`/admin/superadmins/${target.id}/delete`, { current_password: password }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmins'] }); onClose() },
+    onError: (err: any) => {
+      const detail = err.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : 'Failed to delete superadmin')
+    },
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!password.trim()) { setError('Password required'); return }
+    setError('')
+    mutation.mutate()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-red-600">Delete superadmin</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+            <p className="text-sm text-red-700">
+              This permanently removes <strong>{target.full_name}</strong> ({target.email}). <strong>This cannot be undone.</strong> Use Deactivate instead if you only want to suspend access.
+            </p>
+          </div>
+          <div>
+            <label className={labelCls}>Your password ({user?.email})</label>
+            <input className={inputCls} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Confirm with your password" autoFocus />
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <div className="flex gap-3 justify-end pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
+              {mutation.isPending ? 'Deleting…' : 'Delete forever'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 export default function SuperadminsSettingsPage() {
   const { user } = useAuth()
+  const isRootOwner = user?.email?.toLowerCase() === ROOT_OWNER_EMAIL
   const [toggling, setToggling] = useState<Superadmin | null>(null)
+  const [deleting, setDeleting] = useState<Superadmin | null>(null)
+  const [showInvite, setShowInvite] = useState(false)
 
   const { data, isLoading } = useQuery<Superadmin[]>({
     queryKey: ['superadmins'],
@@ -100,15 +230,28 @@ export default function SuperadminsSettingsPage() {
   return (
     <div className="flex flex-col gap-6 max-w-2xl">
       {toggling && <ToggleConfirmModal target={toggling} onClose={() => setToggling(null)} />}
+      {deleting && <DeleteSuperadminModal target={deleting} onClose={() => setDeleting(null)} />}
+      {showInvite && <InviteSuperadminModal onClose={() => setShowInvite(false)} />}
 
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <ShieldCheck size={20} className="text-amber-500" />
-          <h1 className="text-2xl font-bold text-slate-900">Superadmins</h1>
+      <div className="flex items-start justify-between">
+        <div>
+          <div className="flex items-center gap-2 mb-1">
+            <ShieldCheck size={20} className="text-amber-500" />
+            <h1 className="text-2xl font-bold text-slate-900">Superadmins</h1>
+          </div>
+          <p className="text-sm text-slate-400">
+            Superadmins in this environment. Scope is limited to this database — sandbox superadmins are not live superadmins.
+          </p>
         </div>
-        <p className="text-sm text-slate-400">
-          Superadmins in this environment. Scope is limited to this database — sandbox superadmins are not live superadmins.
-        </p>
+        {isRootOwner && (
+          <button
+            onClick={() => setShowInvite(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors flex-shrink-0"
+          >
+            <UserPlus size={14} />
+            Invite superadmin
+          </button>
+        )}
       </div>
 
       {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
@@ -146,18 +289,29 @@ export default function SuperadminsSettingsPage() {
                       {new Date(sa.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      {!isOwnAccount && (
-                        <button
-                          onClick={() => setToggling(sa)}
-                          className={`px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors ${
-                            sa.is_active
-                              ? 'text-red-500 border-red-200 hover:bg-red-50'
-                              : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
-                          }`}
-                        >
-                          {sa.is_active ? 'Deactivate' : 'Activate'}
-                        </button>
-                      )}
+                      <div className="flex items-center gap-2 justify-end">
+                        {!isOwnAccount && (
+                          <button
+                            onClick={() => setToggling(sa)}
+                            className={`px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors ${
+                              sa.is_active
+                                ? 'text-red-500 border-red-200 hover:bg-red-50'
+                                : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                            }`}
+                          >
+                            {sa.is_active ? 'Deactivate' : 'Activate'}
+                          </button>
+                        )}
+                        {isRootOwner && !isOwnAccount && sa.email.toLowerCase() !== ROOT_OWNER_EMAIL && (
+                          <button
+                            onClick={() => setDeleting(sa)}
+                            className="px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Permanently delete this superadmin"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 )
@@ -169,7 +323,9 @@ export default function SuperadminsSettingsPage() {
 
       <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
         <p className="text-sm text-amber-800">
-          <strong>To add a new superadmin</strong>, use the "Promote to superadmin" panel on the Clients page, or use the create superadmin flow (coming soon — requires invite email).
+          {isRootOwner
+            ? <>New superadmins are added via <strong>invite email</strong> — they set their own password. Deleting is permanent; use Deactivate to suspend access instead.</>
+            : <>Only the root owner can invite or delete superadmins. You can deactivate/reactivate accounts with your password.</>}
         </p>
       </div>
     </div>

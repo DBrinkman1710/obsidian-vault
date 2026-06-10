@@ -52,6 +52,7 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
         primary_color=data.primary_color,
         logo_url=data.logo_url,
         is_demo=data.is_demo,
+        inbound_email=data.inbound_email or None,
     )
     db.add(tenant)
     await db.flush()

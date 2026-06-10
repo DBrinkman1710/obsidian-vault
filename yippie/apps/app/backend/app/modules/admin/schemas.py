@@ -19,6 +19,7 @@ class TenantCreate(BaseModel):
     primary_color: str = "#5BB8E8"
     logo_url: Optional[str] = None
     is_demo: bool = False
+    inbound_email: Optional[str] = None
 
 
 class TenantUpdate(BaseModel):

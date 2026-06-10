@@ -1,6 +1,10 @@
 import { create } from 'zustand'
 import { api } from '../api/client'
 
+// Mirrors PROTECTED_SUPERADMIN_EMAIL on the backend — UI gating only,
+// every root-owner action is re-verified server-side with a password.
+export const ROOT_OWNER_EMAIL = 'diederik1710@gmail.com'
+
 interface User {
   id: string
   email: string

@@ -4,10 +4,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Users, X, Building2, UserPlus, ShieldCheck,
   ToggleLeft, ToggleRight, Rocket, FlaskConical, CheckSquare, Square,
-  Clipboard, Check, Eye,
+  Clipboard, Check, Eye, Trash2,
 } from 'lucide-react'
 import { api } from '../../../api/client'
-import { useAuth } from '../../../auth/useAuth'
+import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 
 const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'activity', 'billing', 'chat', 'ai']
@@ -43,19 +43,25 @@ interface TenantUser {
 interface CreateForm {
   name: string
   slug: string
+  admin_full_name: string
   admin_email: string
   admin_password: string
+  extra_admin_emails: string[]
   primary_color: string
+  logo_url: string
   enabled_modules: string[]
   is_demo: boolean
   inbound_email: string
 }
 
 const EMPTY_FORM: CreateForm = {
-  name: '', slug: '', admin_email: '', admin_password: '',
-  primary_color: '#5BB8E8', enabled_modules: [...ALL_MODULES], is_demo: false,
-  inbound_email: '',
+  name: '', slug: '', admin_full_name: '', admin_email: '', admin_password: '',
+  extra_admin_emails: [], primary_color: '#5BB8E8', logo_url: '',
+  enabled_modules: [...ALL_MODULES], is_demo: false, inbound_email: '',
 }
+
+const WIZARD_STEPS = ['Company', 'Modules', 'Branding', 'Admins', 'Go live']
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
@@ -89,8 +95,11 @@ function ModuleToggle({ mod, active, onClick }: { mod: string; active: boolean; 
 
 function CreateClientModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
+  const [step, setStep] = useState(0)
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM)
+  const [extraEmail, setExtraEmail] = useState('')
   const [error, setError] = useState('')
+  const [created, setCreated] = useState<{ invites: string[] } | null>(null)
 
   const set = (field: keyof CreateForm) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -121,79 +130,231 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
     })
 
   const mutation = useMutation({
-    mutationFn: (data: CreateForm) => api.post('/admin/tenants', data).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to create client'),
+    mutationFn: () =>
+      api.post('/admin/tenants', {
+        ...form,
+        name: form.name.trim(),
+        slug: form.slug.trim(),
+        admin_email: form.admin_email.trim(),
+        admin_full_name: form.admin_full_name.trim() || 'Admin',
+        admin_password: form.admin_password.trim() || null,
+        logo_url: form.logo_url.trim() || null,
+        inbound_email: form.inbound_email.trim() || null,
+      }).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
+      const invites = form.admin_password.trim() ? [] : [form.admin_email.trim()]
+      setCreated({ invites: [...invites, ...form.extra_admin_emails] })
+    },
+    onError: (err: any) => {
+      const detail = err.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : 'Failed to create client')
+    },
   })
 
-  function handleSubmit(e: React.FormEvent) {
+  function stepError(): string {
+    if (step === 0) {
+      if (!form.name.trim() || !form.slug.trim()) return 'Company name and slug are required'
+      if (!EMAIL_RE.test(form.admin_email.trim())) return 'A valid admin email is required'
+    }
+    if (step === 1 && form.enabled_modules.length === 0) return 'Enable at least one module'
+    return ''
+  }
+
+  function handleNext(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.name.trim() || !form.slug.trim() || !form.admin_email.trim() || !form.admin_password.trim()) {
-      setError('All fields are required'); return
+    const err = stepError()
+    if (err) { setError(err); return }
+    setError('')
+    if (step < WIZARD_STEPS.length - 1) setStep(step + 1)
+    else mutation.mutate()
+  }
+
+  function addExtraEmail() {
+    const email = extraEmail.trim().toLowerCase()
+    if (!EMAIL_RE.test(email)) { setError('Enter a valid email address'); return }
+    if (email === form.admin_email.trim().toLowerCase() || form.extra_admin_emails.includes(email)) {
+      setError('That email is already on the list'); return
     }
     setError('')
-    mutation.mutate(form)
+    setForm(p => ({ ...p, extra_admin_emails: [...p.extra_admin_emails, email] }))
+    setExtraEmail('')
+  }
+
+  if (created) {
+    return (
+      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <Check size={16} className="text-emerald-600" />
+            </div>
+            <h2 className="text-lg font-bold text-slate-900">{form.name} created</h2>
+          </div>
+          {created.invites.length > 0 ? (
+            <p className="text-sm text-slate-600">
+              Invite emails sent to <strong>{created.invites.join(', ')}</strong> — each admin sets their own password via the link.
+            </p>
+          ) : (
+            <p className="text-sm text-slate-600">The admin account is ready to log in.</p>
+          )}
+          <div className="flex justify-end">
+            <button onClick={onClose} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">Done</button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Create client environment</h2>
+          <h2 className="text-lg font-bold text-slate-900">New client</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={18} />
           </button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={labelCls}>Company name *</label>
-              <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme BV" autoFocus /></div>
-            <div><label className={labelCls}>Slug *</label>
-              <input className={inputCls} value={form.slug} onChange={set('slug')} placeholder="acme-bv" /></div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div><label className={labelCls}>Admin email *</label>
-              <input className={inputCls} type="email" value={form.admin_email} onChange={set('admin_email')} placeholder="admin@acme.nl" /></div>
-            <div><label className={labelCls}>Admin password *</label>
-              <input className={inputCls} type="password" value={form.admin_password} onChange={set('admin_password')} placeholder="••••••••" /></div>
-          </div>
-          <div>
-            <label className={labelCls}>Inbound email</label>
-            <input className={inputCls} type="email" value={form.inbound_email} onChange={set('inbound_email')} placeholder="acme-bv-support@getyippie.com" />
-            <p className="mt-1 text-xs text-slate-400">Address to configure in Resend. Auto-suggested from slug.</p>
-          </div>
-          <div>
-            <label className={labelCls}>Brand color</label>
-            <div className="flex items-center gap-3">
-              <input type="color" value={form.primary_color}
-                onChange={e => setForm(p => ({ ...p, primary_color: e.target.value }))}
-                className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer p-0.5"
-              />
-              <span className="text-sm text-slate-500 font-mono">{form.primary_color}</span>
+
+        <div className="flex items-center gap-1.5 px-6 pt-4 flex-wrap">
+          {WIZARD_STEPS.map((label, i) => (
+            <div key={label} className="flex items-center gap-1.5">
+              <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold ${
+                i < step ? 'bg-emerald-500 text-white' : i === step ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'
+              }`}>
+                {i < step ? <Check size={11} /> : i + 1}
+              </div>
+              <span className={`text-xs font-medium ${i === step ? 'text-slate-900' : 'text-slate-400'}`}>{label}</span>
+              {i < WIZARD_STEPS.length - 1 && <div className="w-4 h-px bg-slate-200 mx-0.5" />}
             </div>
-          </div>
-          <div>
-            <label className={labelCls}>Enabled modules</label>
-            <div className="flex flex-wrap gap-2 mt-1">
-              {ALL_MODULES.map(mod => (
-                <ModuleToggle key={mod} mod={mod} active={form.enabled_modules.includes(mod)} onClick={() => toggleModule(mod)} />
-              ))}
+          ))}
+        </div>
+
+        <form onSubmit={handleNext} className="p-6 flex flex-col gap-4">
+          {step === 0 && (
+            <>
+              <div className="grid grid-cols-2 gap-3">
+                <div><label className={labelCls}>Company name *</label>
+                  <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme BV" autoFocus /></div>
+                <div><label className={labelCls}>Slug *</label>
+                  <input className={inputCls} value={form.slug} onChange={set('slug')} placeholder="acme-bv" /></div>
+              </div>
+              <div>
+                <label className={labelCls}>Inbound email</label>
+                <input className={inputCls} type="email" value={form.inbound_email} onChange={set('inbound_email')} placeholder="acme-bv-support@getyippie.com" />
+                <p className="mt-1 text-xs text-slate-400">Address to configure in Resend. Auto-suggested from slug.</p>
+              </div>
+              <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
+                <div><label className={labelCls}>Admin name</label>
+                  <input className={inputCls} value={form.admin_full_name} onChange={set('admin_full_name')} placeholder="Jan de Vries" /></div>
+                <div><label className={labelCls}>Admin email *</label>
+                  <input className={inputCls} type="email" value={form.admin_email} onChange={set('admin_email')} placeholder="admin@acme.nl" /></div>
+              </div>
+              <div>
+                <label className={labelCls}>Admin password</label>
+                <input className={inputCls} type="password" value={form.admin_password} onChange={set('admin_password')} placeholder="••••••••" />
+                <p className="mt-1 text-xs text-slate-400">Leave empty to email an invite link — the admin sets their own password.</p>
+              </div>
+            </>
+          )}
+
+          {step === 1 && (
+            <div>
+              <label className={labelCls}>Enabled modules</label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {ALL_MODULES.map(mod => (
+                  <ModuleToggle key={mod} mod={mod} active={form.enabled_modules.includes(mod)} onClick={() => toggleModule(mod)} />
+                ))}
+              </div>
             </div>
-          </div>
-          <label className="flex items-center gap-3 cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={form.is_demo}
-              onChange={e => setForm(p => ({ ...p, is_demo: e.target.checked }))}
-              className="w-4 h-4 rounded border-slate-300 text-amber-500 focus:ring-amber-400"
-            />
-            <span className="text-sm text-slate-700 font-medium">Start as demo environment</span>
-          </label>
+          )}
+
+          {step === 2 && (
+            <>
+              <div>
+                <label className={labelCls}>Brand color</label>
+                <div className="flex items-center gap-3">
+                  <input type="color" value={form.primary_color}
+                    onChange={e => setForm(p => ({ ...p, primary_color: e.target.value }))}
+                    className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer p-0.5"
+                  />
+                  <span className="text-sm text-slate-500 font-mono">{form.primary_color}</span>
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Logo URL</label>
+                <input className={inputCls} value={form.logo_url} onChange={set('logo_url')} placeholder="https://acme.nl/logo.png" />
+                <p className="mt-1 text-xs text-slate-400">Optional — shown in the client's sidebar.</p>
+              </div>
+            </>
+          )}
+
+          {step === 3 && (
+            <div className="flex flex-col gap-3">
+              <div>
+                <label className={labelCls}>Extra admin users</label>
+                <div className="flex gap-2">
+                  <input className={inputCls} type="email" value={extraEmail}
+                    onChange={e => setExtraEmail(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExtraEmail() } }}
+                    placeholder="collega@acme.nl" />
+                  <button type="button" onClick={addExtraEmail} className="px-4 py-2 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">Add</button>
+                </div>
+                <p className="mt-1 text-xs text-slate-400">Optional — each gets an invite email to set their own password.</p>
+              </div>
+              {form.extra_admin_emails.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {form.extra_admin_emails.map(email => (
+                    <span key={email} className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700">
+                      {email}
+                      <button type="button"
+                        onClick={() => setForm(p => ({ ...p, extra_admin_emails: p.extra_admin_emails.filter(e2 => e2 !== email) }))}
+                        className="text-blue-400 hover:text-blue-600"><X size={12} /></button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {step === 4 && (
+            <>
+              <div className="flex flex-col gap-2">
+                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${form.is_demo ? 'border-amber-300 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <input type="radio" checked={form.is_demo} onChange={() => setForm(p => ({ ...p, is_demo: true }))} className="mt-0.5" />
+                  <span>
+                    <span className="block text-sm font-semibold text-slate-900">Start as demo</span>
+                    <span className="block text-xs text-slate-500">Outbound email is suppressed; the client sees an amber demo banner.</span>
+                  </span>
+                </label>
+                <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${!form.is_demo ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
+                  <input type="radio" checked={!form.is_demo} onChange={() => setForm(p => ({ ...p, is_demo: false }))} className="mt-0.5" />
+                  <span>
+                    <span className="block text-sm font-semibold text-slate-900">Go live immediately</span>
+                    <span className="block text-xs text-slate-500">Fully active from the start — emails are sent for real.</span>
+                  </span>
+                </label>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-600 flex flex-col gap-1">
+                <span><strong className="text-slate-900">{form.name}</strong> ({form.slug})</span>
+                <span>Modules: {form.enabled_modules.map(moduleLabel).join(', ')}</span>
+                <span>
+                  Admin: {form.admin_email}{form.admin_password.trim() ? '' : ' (invite email)'}
+                  {form.extra_admin_emails.length > 0 && ` + ${form.extra_admin_emails.length} invited`}
+                </span>
+              </div>
+            </>
+          )}
+
           {error && <p className="text-sm text-red-500">{error}</p>}
+
           <div className="flex gap-3 justify-end pt-2">
+            {step > 0 && (
+              <button type="button" onClick={() => { setError(''); setStep(step - 1) }} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors mr-auto">Back</button>
+            )}
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
             <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
-              {mutation.isPending ? 'Creating…' : 'Create client'}
+              {step < WIZARD_STEPS.length - 1 ? 'Next' : mutation.isPending ? 'Creating…' : 'Create client'}
             </button>
           </div>
         </form>
@@ -244,24 +405,88 @@ function EditModulesModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
   )
 }
 
-function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+function DeleteClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
   const qc = useQueryClient()
-  const [form, setForm] = useState({ email: '', password: '', full_name: 'Admin' })
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => api.post(`/admin/tenants/${tenant.id}/users`, form).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
-      qc.invalidateQueries({ queryKey: ['tenant-users', tenant.id] })
-      onClose()
+    mutationFn: () => api.post(`/admin/tenants/${tenant.id}/delete`, { current_password: password }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
+    onError: (err: any) => {
+      const detail = err.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : 'Failed to delete client')
     },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to add admin'),
   })
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.email.trim() || !form.password.trim()) { setError('Email and password required'); return }
+    if (!password.trim()) { setError('Password required'); return }
+    setError('')
+    mutation.mutate()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <div>
+            <h2 className="text-lg font-bold text-red-600">Delete client</h2>
+            <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3">
+            <p className="text-sm text-red-700">
+              This permanently wipes <strong>{tenant.name}</strong> — all users, contacts, tickets, messages and invoices. <strong>This cannot be undone.</strong>
+            </p>
+          </div>
+          <div>
+            <label className={labelCls}>Your password</label>
+            <input className={inputCls} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Confirm with your password" autoFocus />
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <div className="flex gap-3 justify-end pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
+              {mutation.isPending ? 'Deleting…' : 'Delete forever'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState({ email: '', password: '', full_name: 'Admin' })
+  const [error, setError] = useState('')
+  const [invited, setInvited] = useState<string | null>(null)
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.post(`/admin/tenants/${tenant.id}/users`, {
+        ...form,
+        email: form.email.trim(),
+        password: form.password.trim() || null,
+      }).then(r => r.data),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
+      qc.invalidateQueries({ queryKey: ['tenant-users', tenant.id] })
+      if (data?.invited) setInvited(data.email)
+      else onClose()
+    },
+    onError: (err: any) => {
+      const detail = err.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : 'Failed to add admin')
+    },
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!EMAIL_RE.test(form.email.trim())) { setError('A valid email is required'); return }
     setError('')
     mutation.mutate()
   }
@@ -276,6 +501,16 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
         </div>
+        {invited ? (
+          <div className="p-6 flex flex-col gap-4">
+            <p className="text-sm text-emerald-600 font-medium">
+              ✓ Invite sent to <strong>{invited}</strong> — they appear in the list once they set their password.
+            </p>
+            <div className="flex justify-end">
+              <button onClick={onClose} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">Done</button>
+            </div>
+          </div>
+        ) : (
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div>
             <label className={labelCls}>Full name</label>
@@ -286,17 +521,19 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
             <input className={inputCls} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="admin@company.nl" autoFocus />
           </div>
           <div>
-            <label className={labelCls}>Password *</label>
+            <label className={labelCls}>Password</label>
             <input className={inputCls} type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="••••••••" />
+            <p className="mt-1 text-xs text-slate-400">Leave empty to email an invite link — the admin sets their own password.</p>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 justify-end pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
             <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
-              {mutation.isPending ? 'Adding…' : 'Add admin'}
+              {mutation.isPending ? 'Adding…' : form.password.trim() ? 'Add admin' : 'Send invite'}
             </button>
           </div>
         </form>
+        )}
       </div>
     </div>
   )
@@ -474,9 +711,11 @@ export default function SuperAdminPage() {
   const qc = useQueryClient()
   const config = useTenantConfig()
   const navigate = useNavigate()
-  const { startImpersonation } = useAuth()
+  const { user, startImpersonation } = useAuth()
+  const isRootOwner = user?.email?.toLowerCase() === ROOT_OWNER_EMAIL
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
+  const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null)
   const [viewingUsers, setViewingUsers] = useState<Tenant | null>(null)
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -783,6 +1022,15 @@ export default function SuperAdminPage() {
                         >
                           Edit modules
                         </button>
+                        {isRootOwner && (
+                          <button
+                            onClick={() => setDeletingTenant(t)}
+                            className="px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                            title="Delete this client and all its data — irreversible"
+                          >
+                            <Trash2 size={13} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -798,6 +1046,7 @@ export default function SuperAdminPage() {
 
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}
       {editingTenant && <EditModulesModal tenant={editingTenant} onClose={() => setEditingTenant(null)} />}
+      {deletingTenant && <DeleteClientModal tenant={deletingTenant} onClose={() => setDeletingTenant(null)} />}
       {viewingUsers && <TenantUsersModal tenant={viewingUsers} onClose={() => setViewingUsers(null)} />}
     </div>
   )
