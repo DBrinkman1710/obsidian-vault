@@ -143,7 +143,13 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
   const [composeFiles, setComposeFiles] = useState<File[]>([])
   const [result, setResult] = useState<{ sent: number; failed: string[]; demo?: boolean } | null>(null)
   const [usePersonalFrom, setUsePersonalFrom] = useState(false)
+  const [queued, setQueued] = useState<{ composeId: string; recipients: number } | null>(null)
+  const [undoProgress, setUndoProgress] = useState(0)
+  const [undoNotice, setUndoNotice] = useState(false)
+  const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const { user } = useAuth()
+
+  useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
   const addRecipient = (email: string, label: string) => {
     if (!recipients.find(r => r.email === email)) {
@@ -174,8 +180,49 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
       }
       return api.post('/inbox/compose', fd, { headers: { 'Content-Type': undefined } }).then(r => r.data)
     },
-    onSuccess: (data) => setResult(data),
+    onSuccess: (data) => {
+      if (data.demo) { setResult(data); return }
+      // Queued with an undo window — count down 5s on the local clock (the
+      // server holds the email 8s, so an Undo click always lands in time).
+      const start = Date.now()
+      const duration = (data.undo_seconds ?? 5) * 1000
+      const recipients = data.recipients ?? 1
+      if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
+      setQueued({ composeId: data.compose_id, recipients })
+      setUndoProgress(0)
+      undoIntervalRef.current = setInterval(() => {
+        const pct = Math.min(100, ((Date.now() - start) / duration) * 100)
+        setUndoProgress(pct)
+        if (pct >= 100) {
+          clearInterval(undoIntervalRef.current!)
+          undoIntervalRef.current = null
+          setQueued(null)
+          setResult({ sent: recipients, failed: [] })
+        }
+      }, 100)
+    },
   })
+
+  async function handleUndoCompose() {
+    if (!queued) return
+    try {
+      await api.post(`/inbox/drafts/${queued.composeId}/undo-send`)
+      if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
+      setQueued(null)
+      setUndoProgress(0)
+      setUndoNotice(true)
+      setTimeout(() => setUndoNotice(false), 3000)
+    } catch {
+      // Too late — the email went out. Show the sent screen instead of lying.
+      if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
+      const recipients = queued.recipients
+      setQueued(null)
+      setUndoProgress(0)
+      setResult({ sent: recipients, failed: [] })
+    }
+  }
+
+  const canSend = recipients.length > 0 && !!subject.trim() && !!body.trim() && !sendMutation.isPending && !queued
 
   if (result) {
     return (
@@ -203,7 +250,16 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col" style={{ maxHeight: '92vh' }}>
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col"
+        style={{ maxHeight: '92vh' }}
+        onKeyDown={e => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSend) {
+            e.preventDefault()
+            sendMutation.mutate()
+          }
+        }}
+      >
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <Pencil size={16} className="text-slate-400" />
@@ -338,24 +394,51 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
                 </button>
               </div>
             )}
-            <p className="text-xs text-slate-400">
-              {recipients.length === 0 ? 'Add recipients to send' : `Sending to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}`}
-              {recipients.length > 1 ? ' via BCC' : ''}
-            </p>
+            {undoNotice
+              ? <p className="text-xs text-slate-500 font-medium">Send cancelled — your draft is unchanged.</p>
+              : <p className="text-xs text-slate-400">
+                  {recipients.length === 0 ? 'Add recipients to send' : `Sending to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}`}
+                  {recipients.length > 1 ? ' via BCC' : ''}
+                </p>}
           </div>
           <div className="flex gap-3">
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
             <button
               onClick={() => sendMutation.mutate()}
-              disabled={recipients.length === 0 || !subject.trim() || !body.trim() || sendMutation.isPending}
+              disabled={!canSend}
+              title="Cmd/Ctrl + Enter"
               className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
             >
               <Send size={13} />
-              {sendMutation.isPending ? 'Sending…' : 'Send'}
+              {queued ? 'Queued…' : sendMutation.isPending ? 'Sending…' : 'Send'}
             </button>
           </div>
         </div>
       </div>
+
+      {/* Undo send floating bar — same pattern as the reply panel */}
+      {queued && (
+        <div className="fixed bottom-5 right-5 z-[60] bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 w-72">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="font-bold text-slate-900 text-sm">Yippie</p>
+              <p className="text-xs text-slate-400">email sent</p>
+            </div>
+            <button
+              onClick={handleUndoCompose}
+              className="px-3 py-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+            >
+              Undo
+            </button>
+          </div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-yippie rounded-full"
+              style={{ width: `${undoProgress}%`, transition: 'width 0.1s linear' }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

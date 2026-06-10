@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import base64
 import json
 import uuid
@@ -324,7 +323,8 @@ async def compose_send(
     attachments: List[UploadFile] = File(default=[]),
     from_email: Optional[str] = Form(None),
 ):
-    """Send a new outbound email to one or more recipients (BCC when multiple). Supports optional file attachments."""
+    """Queue a new outbound email to one or more recipients (sent individually,
+    BCC-style) after a 5s undo window. Supports optional file attachments."""
     recipients: list[str] = json.loads(to)
     if not recipients:
         raise HTTPException(status_code=400, detail="At least one recipient is required")
@@ -342,30 +342,36 @@ async def compose_send(
             "content": base64.b64encode(content).decode(),
             "content_type": f.content_type or "application/octet-stream",
         })
-    att_arg = encoded_attachments if encoded_attachments else None
+    attachments_json = json.dumps(encoded_attachments) if encoded_attachments else None
 
-    results = await asyncio.gather(
-        *[send_email(to=r, subject=subject, body=body, attachments=att_arg, from_email=from_email or None) for r in recipients],
-        return_exceptions=True,
-    )
-    for exc in results:
-        if isinstance(exc, ResendNotConfiguredError):
-            raise HTTPException(status_code=503, detail=str(exc))
-    failed = [recipients[i] for i, r in enumerate(results) if isinstance(r, Exception)]
-
-    await activity_service.log_event(
-        db=db,
-        tenant_id=current_user.tenant_id,
-        module="inbox",
-        event_type="email.composed",
-        entity_type="outbound_email",
-        entity_id=None,
-        contact_id=None,
-        actor_id=current_user.id,
-        payload={"subject": subject, "recipients": len(recipients), "failed": failed},
-    )
+    # One queue row per recipient sharing one batch id, so a single undo call
+    # (POST /drafts/{compose_id}/undo-send) cancels the whole batch. Same 8s
+    # server hold vs 5s UI countdown margin as send-reply.
+    compose_id = uuid.uuid4()
+    send_at = datetime.now(timezone.utc) + timedelta(seconds=8)
+    for recipient in recipients:
+        await service.queue_send(
+            db=db,
+            draft_id=compose_id,
+            tenant_id=current_user.tenant_id,
+            to_email=recipient,
+            subject=subject,
+            reply_text=body,
+            send_at=send_at,
+            actor_id=current_user.id,
+            attachments_json=attachments_json,
+            from_email=from_email or None,
+            kind="compose",
+            commit=False,
+        )
     await db.commit()
-    return {"sent": len(recipients) - len(failed), "failed": failed}
+    return {
+        "queued": True,
+        "compose_id": str(compose_id),
+        "recipients": len(recipients),
+        "undo_until": send_at.isoformat(),
+        "undo_seconds": 5,
+    }
 
 
 @router.post("/compose/suggest", status_code=status.HTTP_200_OK, dependencies=[Depends(require_module("ai"))])

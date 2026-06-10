@@ -460,6 +460,8 @@ async def queue_send(
     contact_id: Optional[uuid.UUID] = None,
     attachments_json: Optional[str] = None,
     from_email: Optional[str] = None,
+    kind: str = "reply",
+    commit: bool = True,
 ) -> PendingSend:
     pending = PendingSend(
         draft_id=draft_id,
@@ -472,14 +474,18 @@ async def queue_send(
         contact_id=contact_id,
         attachments_json=attachments_json,
         from_email=from_email,
+        kind=kind,
     )
     db.add(pending)
-    await db.commit()
+    if commit:
+        await db.commit()
     return pending
 
 
 async def cancel_send(db: AsyncSession, draft_id: uuid.UUID, tenant_id: uuid.UUID) -> bool:
-    """Cancel a queued send if still within the undo window. Returns True if cancelled."""
+    """Cancel queued sends still within the undo window. A compose batch has one
+    row per recipient sharing the same draft_id — one undo cancels them all.
+    Returns True if anything was cancelled."""
     now = datetime.now(timezone.utc)
     result = await db.execute(
         select(PendingSend).where(
@@ -488,10 +494,11 @@ async def cancel_send(db: AsyncSession, draft_id: uuid.UUID, tenant_id: uuid.UUI
             PendingSend.send_at > now,
         )
     )
-    pending = result.scalar_one_or_none()
-    if not pending:
+    pending_rows = result.scalars().all()
+    if not pending_rows:
         return False
-    await db.delete(pending)
+    for pending in pending_rows:
+        await db.delete(pending)
     await db.commit()
     return True
 
@@ -526,6 +533,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
             "contact_id": p.contact_id,
             "attachments_json": p.attachments_json,
             "from_email": p.from_email,
+            "kind": p.kind,
         }
         for p in pending_list
     ]
@@ -545,13 +553,14 @@ async def flush_pending_sends(db: AsyncSession) -> None:
             payload = {"subject": c["subject"], "to": c["to_email"], "preview": c["reply_text"][:120]}
             if suppressed:
                 payload["demo_suppressed"] = True
+            is_compose = c["kind"] == "compose"
             await activity_service.log_event(
                 db=db,
                 tenant_id=c["tenant_id"],
                 module="inbox",
-                event_type="email.replied",
-                entity_type="draft_ticket",
-                entity_id=c["draft_id"],
+                event_type="email.composed" if is_compose else "email.replied",
+                entity_type="outbound_email" if is_compose else "draft_ticket",
+                entity_id=None if is_compose else c["draft_id"],
                 contact_id=c["contact_id"],
                 actor_id=c["actor_id"],
                 payload=payload,

@@ -93,4 +93,7 @@ class PendingSend(Base):
     contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     attachments_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     from_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # "reply" (draft_id = the draft) or "compose" (draft_id = a batch id shared
+    # by all recipients of one compose, so one undo cancels the whole batch)
+    kind: Mapped[str] = mapped_column(String(20), nullable=False, default="reply", server_default="reply")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

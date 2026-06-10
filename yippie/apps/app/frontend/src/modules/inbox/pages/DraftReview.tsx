@@ -844,6 +844,12 @@ export default function DraftReview() {
               <textarea
                 value={replyText}
                 onChange={e => { setReplyText(e.target.value); setSuggestions([]) }}
+                onKeyDown={e => {
+                  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !sending && !undoUntil && !sentTo && replyText.trim()) {
+                    e.preventDefault()
+                    handleSendReply()
+                  }
+                }}
                 placeholder="Click 'Generate' to draft an AI reply, or write your own…"
                 className="flex-1 w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie focus:bg-white transition-colors font-sans placeholder:text-slate-400 min-h-0"
               />
