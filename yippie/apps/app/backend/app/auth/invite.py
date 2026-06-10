@@ -30,30 +30,41 @@ async def send_invite_email(
         role=role,
     )
     link = f"{settings.app_base_url}/register?token={token}"
-    admin_section = (
-        "As an admin you can also:\n"
-        "  - Invite your team from Settings -> Team — every teammate gets their own login\n"
-        "  - Manage departments and follow-up times from Settings -> Departments\n\n"
-    ) if role in ("admin", "superadmin") else ""
+    # Short form on purpose (Diederik, 2026-06-10): just the activation link. The
+    # product introduction is a separate mail sent into the client's Yippie inbox
+    # on tenant creation — see send_welcome_to_inbox().
     body = (
         f"Hi {full_name},\n\n"
-        f"Welcome to Yippie! You've been invited to {tenant_name}.\n\n"
-        f"Step 1 — activate your account\n"
+        f"You've been invited to {tenant_name} on Yippie.\n\n"
         f"Set your password here (the link is valid for 7 days):\n{link}\n\n"
-        f"Step 2 — set up your email\n"
-        f"Yippie turns your support mail into tickets automatically. Once you're logged in:\n"
+        f"Team Yippie\n\n"
+        f"If you weren't expecting this email, you can safely ignore it."
+    )
+    await send_email(to=to, subject=f"Set your password — your {tenant_name} account on Yippie", body=body)
+
+
+async def send_welcome_to_inbox(tenant_inbound_email: str, tenant_name: str) -> None:
+    """Send the welcome/introduction mail INTO the client's Yippie inbox (their
+    tenant inbound address), so it's the first item they see in the product
+    instead of being buried in the password mail."""
+    body = (
+        f"Hi {tenant_name},\n\n"
+        f"Welcome to Yippie! This is your inbox — every email your customers send to your\n"
+        f"support address lands here, and Yippie drafts a ticket for each one automatically.\n\n"
+        f"Getting started:\n"
+        f"  - Inbox: review the tickets Yippie drafts from incoming mail — approve, edit or reject\n"
+        f"  - Contacts: your customers, with history and AI briefings\n"
+        f"  - Tickets: everything your team is working on, with deadlines\n\n"
+        f"Set up your email:\n"
         f"  - Your team's shared support address is already connected — new mail appears in Inbox\n"
         f"  - Want your own address too? Go to Settings -> Profile and set a personal email\n"
         f"    address. Mail sent to it lands in your Personal inbox, and you can send from it\n"
         f"    when replying or composing\n\n"
-        f"Step 3 — take a look around\n"
-        f"  - Inbox: review the tickets Yippie drafts from incoming mail — approve, edit or reject\n"
-        f"  - Contacts: your customers, with history and AI briefings\n"
-        f"  - Tickets: everything your team is working on, with deadlines\n\n"
-        f"{admin_section}"
+        f"As an admin you can also:\n"
+        f"  - Invite your team from Settings -> Team — every teammate gets their own login\n"
+        f"  - Manage departments and follow-up times from Settings -> Departments\n\n"
         f"Questions? Just reply to this email — a real person reads it.\n\n"
         f"Take back the time that matters,\n"
-        f"Team Yippie\n\n"
-        f"If you weren't expecting this email, you can safely ignore it."
+        f"Team Yippie"
     )
-    await send_email(to=to, subject=f"Welcome to Yippie — your {tenant_name} account is ready", body=body)
+    await send_email(to=tenant_inbound_email, subject="Welcome to Yippie 👋", body=body)
