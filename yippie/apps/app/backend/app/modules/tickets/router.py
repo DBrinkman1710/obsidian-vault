@@ -6,7 +6,7 @@ from typing import Annotated, Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentUser
+from app.auth.dependencies import AdminUser, CurrentUser
 from app.database import get_db
 from app.modules.tickets import service
 from app.modules.tickets.models import TicketStatus
@@ -70,6 +70,17 @@ async def change_status(ticket_id: uuid.UUID, body: TicketStatusUpdate, current_
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     return await service.change_status(db, ticket, body.status)
+
+
+@router.post("/{ticket_id}/delete", status_code=status.HTTP_200_OK)
+async def delete_ticket(ticket_id: uuid.UUID, current_user: AdminUser, db: DB):
+    """Soft-delete a ticket (admin+ only) — history is preserved but it
+    disappears from all views."""
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    await service.soft_delete_ticket(db, ticket)
+    return {"deleted": True}
 
 
 @router.get("/{ticket_id}/comments", response_model=list[CommentOut])

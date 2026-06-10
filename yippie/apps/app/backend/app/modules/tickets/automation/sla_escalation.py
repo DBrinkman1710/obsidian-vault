@@ -28,6 +28,7 @@ async def escalate_overdue_tickets():
                 Ticket.sla_due_at < now,
                 Ticket.status.in_([TicketStatus.open, TicketStatus.in_progress]),
                 Ticket.priority != TicketPriority.urgent,
+                Ticket.deleted_at.is_(None),
             )
         )
         tickets = result.scalars().all()
@@ -50,6 +51,7 @@ async def auto_close_stale_tickets():
             select(Ticket).where(
                 Ticket.status == TicketStatus.waiting,
                 Ticket.updated_at < cutoff,
+                Ticket.deleted_at.is_(None),
             )
         )
         tickets = result.scalars().all()

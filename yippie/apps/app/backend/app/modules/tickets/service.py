@@ -83,7 +83,7 @@ async def list_tickets(
     skip: int = 0,
     limit: int = 50,
 ) -> tuple[list[TicketOut], int]:
-    q = select(Ticket).where(Ticket.tenant_id == tenant_id)
+    q = select(Ticket).where(Ticket.tenant_id == tenant_id, Ticket.deleted_at.is_(None))
     if status:
         q = q.where(Ticket.status == status)
     if assigned_to:
@@ -103,9 +103,16 @@ async def list_tickets(
 async def get_ticket_orm(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid.UUID) -> Optional[Ticket]:
     """Return the raw ORM Ticket — needed for update/status/comment mutations."""
     result = await db.execute(
-        select(Ticket).where(Ticket.tenant_id == tenant_id, Ticket.id == ticket_id)
+        select(Ticket).where(
+            Ticket.tenant_id == tenant_id, Ticket.id == ticket_id, Ticket.deleted_at.is_(None)
+        )
     )
     return result.scalar_one_or_none()
+
+
+async def soft_delete_ticket(db: AsyncSession, ticket: Ticket) -> None:
+    ticket.deleted_at = datetime.now(timezone.utc)
+    await db.commit()
 
 
 async def get_ticket(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid.UUID) -> Optional[TicketOut]:

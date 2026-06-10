@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Lock } from 'lucide-react'
+import { Send, Lock, Trash2, X } from 'lucide-react'
 import { api } from '../../../api/client'
+import { useAuth } from '../../../auth/useAuth'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'resolved', 'closed']
 
@@ -19,8 +20,13 @@ const STATUS_INACTIVE = 'bg-white text-slate-500 border-slate-200 hover:bg-slate
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>()
   const qc = useQueryClient()
+  const navigate = useNavigate()
+  const { user } = useAuth()
+  const canDelete = user?.role === 'admin' || user?.role === 'superadmin'
   const [comment, setComment] = useState('')
   const [isInternal, setIsInternal] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleteError, setDeleteError] = useState('')
 
   const { data: ticket } = useQuery({
     queryKey: ['ticket', id],
@@ -44,11 +50,61 @@ export default function TicketDetail() {
     },
   })
 
+  const deleteMutation = useMutation({
+    mutationFn: () => api.post(`/tickets/${id}/delete`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tickets'] })
+      navigate('/tickets')
+    },
+    onError: (err: any) => {
+      const detail = err.response?.data?.detail
+      setDeleteError(typeof detail === 'string' ? detail : 'Failed to delete ticket')
+    },
+  })
+
   if (!ticket) return <p className="text-sm text-slate-400">Loading…</p>
 
   return (
     <div className="max-w-2xl">
-      <h1 className="text-xl font-bold text-slate-900 mb-2">{ticket.subject}</h1>
+      {confirmingDelete && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-red-600">Delete ticket</h2>
+              <button onClick={() => setConfirmingDelete(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <p className="text-sm text-slate-600">
+                Delete <strong>{ticket.subject}</strong>? It disappears from all views; its history is kept.
+              </p>
+              {deleteError && <p className="text-sm text-red-500">{deleteError}</p>}
+              <div className="flex gap-3 justify-end">
+                <button onClick={() => setConfirmingDelete(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                <button
+                  onClick={() => deleteMutation.mutate()}
+                  disabled={deleteMutation.isPending}
+                  className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+                >
+                  {deleteMutation.isPending ? 'Deleting…' : 'Delete ticket'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-start justify-between gap-4 mb-2">
+        <h1 className="text-xl font-bold text-slate-900">{ticket.subject}</h1>
+        {canDelete && (
+          <button
+            onClick={() => { setDeleteError(''); setConfirmingDelete(true) }}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0"
+          >
+            <Trash2 size={12} />
+            Delete
+          </button>
+        )}
+      </div>
 
       <div className="flex gap-3 mb-6 text-sm text-slate-600">
         <span>Status: <strong className="text-slate-900">{ticket.status}</strong></span>
