@@ -50,15 +50,22 @@ async def get_current_user(
     return user
 
 
-def _require_role(allowed: tuple[UserRole, ...], detail: str):
-    """Factory — returns a FastAPI dependency that enforces a role and resets the DB role."""
+def _require_role(allowed: tuple[UserRole, ...], detail: str, reset_role: bool = False):
+    """Factory — returns a FastAPI dependency that enforces a role.
+
+    When ``reset_role`` is True the connection drops back to the superuser DB role,
+    bypassing RLS so the request can read/write across tenants. This is ONLY for
+    superadmin (platform-wide tenant management). Regular tenant admins keep the
+    ``app_user`` role set by ``set_tenant_context`` so RLS stays enforced.
+    """
     async def _check(
         current_user: Annotated[User, Depends(get_current_user)],
         db: Annotated[AsyncSession, Depends(get_db)],
     ) -> User:
         if current_user.role not in allowed:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
-        await db.execute(text("RESET ROLE"))
+        if reset_role:
+            await db.execute(text("RESET ROLE"))
         return current_user
     return _check
 
@@ -71,6 +78,7 @@ require_admin = _require_role(
 require_superadmin = _require_role(
     (UserRole.superadmin,),
     "Superadmin access required",
+    reset_role=True,
 )
 
 

@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     # Public URL of this environment's client app (e.g. https://sandbox.getyippie.com)
     # — used for links in invite and password-reset emails.
     app_base_url: str = ""
+    # Comma-separated list of allowed browser origins for CORS. Wildcards are not
+    # permitted because the API is used with credentials.
+    cors_origins: str = (
+        "https://app.getyippie.com,https://dev.getyippie.com,"
+        "https://sandbox.getyippie.com,https://devsandbox.getyippie.com,"
+        "http://localhost:5173"
+    )
 
     @field_validator("app_base_url")
     @classmethod
@@ -73,6 +80,12 @@ class Settings(BaseSettings):
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
+    @property
+    def cors_origins_list(self) -> List[str]:
+        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+
+
+_DEFAULT_SECRET_KEY = "change-me-in-production"
 
 _settings: Optional[Settings] = None
 _tenant_config: Optional[TenantConfig] = None
@@ -82,6 +95,14 @@ def get_settings() -> Settings:
     global _settings
     if _settings is None:
         _settings = Settings()
+        if (
+            _settings.environment != "development"
+            and _settings.secret_key == _DEFAULT_SECRET_KEY
+        ):
+            raise RuntimeError(
+                "SECRET_KEY is still the insecure default. Set a real SECRET_KEY "
+                f"(e.g. `openssl rand -base64 32`) for environment '{_settings.environment}'."
+            )
     return _settings
 
 
