@@ -358,7 +358,7 @@ immediately — **no per-tenant action required**.
 - **Mobile web** — responsive layout for sandbox + devsandbox first
 - **diederik@getyippie.com** — Diederik's personal account for live environments
 - **Sandbox email address** — sandbox uses `sb-support@getyippie.com`; live uses `support@getyippie.com`
-- **Personalized user emails** *(architecture question)* — per-user domain email linked to Resend; shared + personal inbox per agent; needs routing design
+- **Personalized user emails** — ✅ v1 shipped (session 18, commit `9eb8620`): `users.inbound_email` (unique, @getyippie.com) set on the Profile page; Resend poller routes those addresses to the user's tenant; `GET /inbox/drafts?mailbox=shared|personal` filter; Shared/Personal switch in InboxQueue. Remaining: client-domain white-label (verify e.g. `klimaatexamen.nl` in Resend, per-tenant `reply_from_email`), and per-draft privacy (any tenant agent can still open a personal draft by direct ID/URL)
 - **Customer data + AI briefing** *(architecture decision)* — define where full contact history is stored; AI briefing must pull complete history
 
 ---
