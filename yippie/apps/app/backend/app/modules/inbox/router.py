@@ -82,6 +82,15 @@ async def _encode_attachments(attachments: list[UploadFile]) -> list[dict]:
     return encoded
 
 
+def _enrich_drafts(rows: list[tuple]) -> list[DraftTicketOut]:
+    result = []
+    for draft, inbound_subject in rows:
+        item = DraftTicketOut.model_validate(draft)
+        item.inbound_subject = inbound_subject
+        result.append(item)
+    return result
+
+
 @router.get("/drafts", response_model=list[DraftTicketOut])
 async def list_drafts(
     current_user: CurrentUser,
@@ -93,12 +102,14 @@ async def list_drafts(
         # Personal mailbox: only mail sent to this user's own inbound address.
         if not current_user.inbound_email:
             return []
-        return await service.list_drafts(
+        rows = await service.list_drafts(
             db, current_user.tenant_id, status, current_user.inbound_email, include_legacy=False
         )
+        return _enrich_drafts(rows)
     tenant = await db.get(Tenant, current_user.tenant_id)
     inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
-    return await service.list_drafts(db, current_user.tenant_id, status, inbound_email)
+    rows = await service.list_drafts(db, current_user.tenant_id, status, inbound_email)
+    return _enrich_drafts(rows)
 
 
 @router.get("/drafts/{draft_id}", response_model=DraftWithContextOut)

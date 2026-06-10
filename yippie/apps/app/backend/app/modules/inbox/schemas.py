@@ -43,6 +43,7 @@ class DraftTicketOut(BaseModel):
     forwarded_to_department_id: Optional[uuid.UUID]
     detected_language: Optional[str] = None
     created_at: datetime
+    inbound_subject: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

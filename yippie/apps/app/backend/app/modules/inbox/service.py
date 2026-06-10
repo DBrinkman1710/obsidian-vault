@@ -346,20 +346,20 @@ async def list_drafts(
     status: Optional[DraftStatus] = DraftStatus.pending,
     inbound_email: Optional[str] = None,
     include_legacy: bool = True,
-) -> list[DraftTicket]:
+) -> list[tuple[DraftTicket, Optional[str]]]:
+    # Always join InboundMessage to include the original email subject.
+    q = (
+        select(DraftTicket, InboundMessage.subject.label("inbound_subject"))
+        .join(InboundMessage, DraftTicket.inbound_message_id == InboundMessage.id)
+        .where(DraftTicket.tenant_id == tenant_id)
+    )
+
     if inbound_email:
-        # JOIN with InboundMessage to show only emails addressed to this mailbox's inbound address.
-        # include_legacy keeps pre-inbound_to rows visible in the shared mailbox only.
+        # Filter to this mailbox's inbound address; include_legacy keeps pre-inbound_to rows.
         addr_filter = InboundMessage.inbound_to == inbound_email.lower()
         if include_legacy:
             addr_filter = or_(addr_filter, InboundMessage.inbound_to.is_(None))
-        q = (
-            select(DraftTicket)
-            .join(InboundMessage, DraftTicket.inbound_message_id == InboundMessage.id)
-            .where(DraftTicket.tenant_id == tenant_id, addr_filter)
-        )
-    else:
-        q = select(DraftTicket).where(DraftTicket.tenant_id == tenant_id)
+        q = q.where(addr_filter)
 
     if status == DraftStatus.pending:
         now = datetime.now(timezone.utc)
@@ -374,7 +374,7 @@ async def list_drafts(
     elif status:
         q = q.where(DraftTicket.status == status)
     result = await db.execute(q.order_by(DraftTicket.created_at.desc()))
-    return result.scalars().all()
+    return [(row[0], row[1]) for row in result.all()]
 
 
 async def get_draft(db: AsyncSession, tenant_id: uuid.UUID, draft_id: uuid.UUID) -> Optional[DraftTicket]:
