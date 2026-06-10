@@ -59,4 +59,7 @@ async def record_payment(invoice_id: uuid.UUID, body: PaymentCreate, current_use
     invoice = await service.get_invoice(db, current_user.tenant_id, invoice_id)
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-    return await service.record_payment(db, current_user.tenant_id, invoice, body)
+    try:
+        return await service.record_payment(db, current_user.tenant_id, invoice, body)
+    except service.PaymentError as e:
+        raise HTTPException(status_code=400, detail=str(e))

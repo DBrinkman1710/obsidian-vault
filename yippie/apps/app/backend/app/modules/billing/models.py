@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -51,12 +51,15 @@ class Subscription(Base):
 
 class Invoice(Base):
     __tablename__ = "invoices"
+    # Invoice numbers are per-tenant sequences, so uniqueness is scoped to the tenant
+    # (a global unique constraint would make two tenants' INV-0001 collide).
+    __table_args__ = (UniqueConstraint("tenant_id", "invoice_number", name="uq_invoices_tenant_number"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     contact_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=False)
     subscription_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("subscriptions.id"), nullable=True)
-    invoice_number: Mapped[str] = mapped_column(String(50), nullable=False, unique=True)
+    invoice_number: Mapped[str] = mapped_column(String(50), nullable=False)
     status: Mapped[InvoiceStatus] = mapped_column(Enum(InvoiceStatus), nullable=False, default=InvoiceStatus.draft)
     line_items: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     subtotal_cents: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
