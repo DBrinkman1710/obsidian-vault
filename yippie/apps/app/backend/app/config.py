@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     resend_from: str = ""
     inbound_email: str = ""
+    # Public URL of this environment's client app (e.g. https://sandbox.getyippie.com)
+    # — used for links in invite and password-reset emails.
+    app_base_url: str = ""
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

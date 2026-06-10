@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from './useAuth'
 
 export default function LoginPage() {
@@ -17,8 +17,9 @@ export default function LoginPage() {
     try {
       await login(email, password)
       navigate('/')
-    } catch {
-      setError('Invalid email or password')
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : 'Invalid email or password')
     } finally {
       setLoading(false)
     }
@@ -75,6 +76,9 @@ export default function LoginPage() {
             >
               {loading ? 'Signing in…' : 'Sign in'}
             </button>
+            <Link to="/forgot-password" className="text-sm text-slate-400 hover:text-slate-600 text-center">
+              Forgot password?
+            </Link>
           </form>
         </div>
       </div>

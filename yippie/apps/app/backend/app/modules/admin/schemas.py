@@ -11,7 +11,10 @@ class TenantCreate(BaseModel):
     name: str
     slug: str
     admin_email: EmailStr
-    admin_password: str
+    # When omitted, the admin gets an invite email and sets their own password.
+    admin_password: Optional[str] = None
+    admin_full_name: str = "Admin"
+    extra_admin_emails: list[EmailStr] = []
     enabled_modules: list[str] = ["contacts", "tickets", "billing", "activity", "inbox", "chat"]
     primary_color: str = "#5BB8E8"
     logo_url: Optional[str] = None
@@ -58,7 +61,8 @@ class TenantUserOut(BaseModel):
 
 class AddAdminRequest(BaseModel):
     email: EmailStr
-    password: str
+    # When omitted, the user gets an invite email and sets their own password.
+    password: Optional[str] = None
     full_name: str = "Admin"
 
 
@@ -79,4 +83,14 @@ class SuperadminOut(BaseModel):
 
 class ToggleSuperadminRequest(BaseModel):
     is_active: bool
+    current_password: str
+
+
+class DeleteRequest(BaseModel):
+    current_password: str
+
+
+class InviteSuperadminRequest(BaseModel):
+    email: EmailStr
+    full_name: str = "Superadmin"
     current_password: str

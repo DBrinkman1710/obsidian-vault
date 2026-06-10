@@ -1,0 +1,72 @@
+from __future__ import annotations
+
+import uuid
+
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.auth.invite import send_invite_email
+from app.core.models import Tenant, User, UserRole
+
+INVITABLE_ROLES = {UserRole.admin, UserRole.agent, UserRole.viewer}
+
+
+async def list_users(db: AsyncSession, tenant_id: uuid.UUID) -> list[User]:
+    result = await db.execute(
+        select(User).where(User.tenant_id == tenant_id).order_by(User.created_at)
+    )
+    return result.scalars().all()
+
+
+async def invite_user(
+    db: AsyncSession, tenant_id: uuid.UUID, email: str, full_name: str, role: str
+) -> dict:
+    try:
+        role_enum = UserRole(role)
+    except ValueError:
+        raise ValueError(f"Unknown role '{role}'")
+    if role_enum not in INVITABLE_ROLES:
+        raise ValueError(f"Cannot invite users with role '{role}'")
+
+    existing = await db.scalar(select(User).where(User.email == email))
+    if existing:
+        raise ValueError(f"A user with email '{email}' already exists.")
+
+    tenant = await db.get(Tenant, tenant_id)
+    await send_invite_email(
+        to=email, full_name=full_name, tenant_id=tenant_id,
+        role=role_enum.value, tenant_name=tenant.name if tenant else "Yippie",
+    )
+    return {"invited": True, "email": email, "role": role_enum.value}
+
+
+async def update_user(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    acting_user: User,
+    is_active: bool | None,
+    role: str | None,
+) -> User:
+    user = await db.get(User, user_id)
+    if user is None or user.tenant_id != tenant_id:
+        raise LookupError("User not found")
+    if user.id == acting_user.id:
+        raise ValueError("You cannot change your own account here")
+    if user.role == UserRole.superadmin:
+        raise ValueError("Superadmins are managed from the Superadmins page")
+
+    if role is not None:
+        try:
+            role_enum = UserRole(role)
+        except ValueError:
+            raise ValueError(f"Unknown role '{role}'")
+        if role_enum not in INVITABLE_ROLES:
+            raise ValueError(f"Cannot assign role '{role}'")
+        user.role = role_enum
+    if is_active is not None:
+        user.is_active = is_active
+
+    await db.commit()
+    await db.refresh(user)
+    return user

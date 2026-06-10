@@ -38,12 +38,23 @@ async def update_tenant(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID, data: s
     return tenant
 
 
+@router.post("/tenants/{tenant_id}/delete")
+async def delete_tenant(current_user: SuperAdminUser, db: DB, tenant_id: uuid.UUID, data: schemas.DeleteRequest):
+    """Wipe a tenant and all its data — root owner + password confirmation. Irreversible."""
+    try:
+        return await service.delete_tenant(db, current_user, tenant_id, data.current_password)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 @router.get("/tenants/{tenant_id}/users", response_model=list[schemas.TenantUserOut])
 async def get_tenant_users(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
     return await service.get_tenant_users(db, tenant_id)
 
 
-@router.post("/tenants/{tenant_id}/users", response_model=schemas.TenantUserOut, status_code=status.HTTP_201_CREATED)
+@router.post("/tenants/{tenant_id}/users", status_code=status.HTTP_201_CREATED)
 async def add_tenant_user(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID, data: schemas.AddAdminRequest):
     try:
         user = await service.add_tenant_user(db, tenant_id, data)
@@ -51,7 +62,29 @@ async def add_tenant_user(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID, data:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     if user is None:
         raise HTTPException(status_code=404, detail="Tenant not found")
-    return user
+    if isinstance(user, dict):
+        return user  # {"invited": True, "email": ...}
+    return schemas.TenantUserOut.model_validate(user)
+
+
+@router.post("/tenants/{tenant_id}/impersonate")
+async def impersonate_tenant(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
+    """Mint a short-lived token for the tenant's first active admin, so a
+    superadmin can view the client's environment without their password."""
+    result = await service.get_impersonation_target(db, tenant_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="No active admin user in this tenant")
+    tenant, user = result
+
+    from app.auth.router import create_access_token
+    from datetime import timedelta
+
+    token = create_access_token(str(user.id), get_settings(), expires=timedelta(hours=1), imp=True)
+    return {
+        "access_token": token,
+        "impersonated_tenant_name": tenant.name,
+        "impersonated_user_email": user.email,
+    }
 
 
 @router.post("/promote-superadmin", response_model=schemas.TenantUserOut)
@@ -77,6 +110,26 @@ async def toggle_superadmin(
 ):
     try:
         return await service.toggle_superadmin_active(db, current_user, user_id, data.is_active, data.current_password)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/superadmins/invite")
+async def invite_superadmin(current_user: SuperAdminUser, db: DB, data: schemas.InviteSuperadminRequest):
+    """Invite a new superadmin — root owner + password confirmation."""
+    try:
+        return await service.invite_superadmin(db, current_user, data.email, data.full_name, data.current_password)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.post("/superadmins/{user_id}/delete")
+async def delete_superadmin(current_user: SuperAdminUser, db: DB, user_id: uuid.UUID, data: schemas.DeleteRequest):
+    """Permanently remove a superadmin — root owner + password confirmation."""
+    try:
+        return await service.delete_superadmin(db, current_user, user_id, data.current_password)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except LookupError as e:

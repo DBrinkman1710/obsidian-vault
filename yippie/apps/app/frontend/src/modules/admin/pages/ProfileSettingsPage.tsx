@@ -67,6 +67,73 @@ export default function ProfileSettingsPage() {
           {saved && <span className="text-sm text-emerald-600 font-medium">✓ Saved</span>}
         </div>
       </form>
+
+      <ChangePasswordCard />
     </div>
+  )
+}
+
+function ChangePasswordCard() {
+  const [current, setCurrent] = useState('')
+  const [next, setNext] = useState('')
+  const [confirm, setConfirm] = useState('')
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: () => api.patch('/auth/me/password', { current_password: current, new_password: next }).then(r => r.data),
+    onSuccess: () => {
+      setSaved(true)
+      setError('')
+      setCurrent(''); setNext(''); setConfirm('')
+      setTimeout(() => setSaved(false), 3000)
+    },
+    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to change password.'),
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (next !== confirm) { setError('Passwords do not match'); return }
+    setSaved(false)
+    setError('')
+    mutation.mutate()
+  }
+
+  const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+
+  return (
+    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 mt-6">
+      <div>
+        <h2 className="text-sm font-bold text-slate-900">Change password</h2>
+        <p className="text-xs text-slate-400 mt-0.5">At least 8 characters.</p>
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Current password</label>
+        <input type="password" value={current} onChange={e => setCurrent(e.target.value)} className={inputCls} required />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">New password</label>
+          <input type="password" value={next} onChange={e => setNext(e.target.value)} className={inputCls} required minLength={8} />
+        </div>
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Confirm new password</label>
+          <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} className={inputCls} required />
+        </div>
+      </div>
+
+      {error && <p className="text-xs text-red-500">{error}</p>}
+
+      <div className="flex items-center gap-3">
+        <button
+          type="submit"
+          disabled={mutation.isPending}
+          className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+        >
+          {mutation.isPending ? 'Updating…' : 'Update password'}
+        </button>
+        {saved && <span className="text-sm text-emerald-600 font-medium">✓ Password updated</span>}
+      </div>
+    </form>
   )
 }

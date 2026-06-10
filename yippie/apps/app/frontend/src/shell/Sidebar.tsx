@@ -119,17 +119,30 @@ export function Sidebar() {
         </NavLink>
 
         {(user?.role === 'admin' || user?.role === 'superadmin') && (
-          <NavLink
-            to="/settings/departments"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
-              }`
-            }
-          >
-            <Settings size={16} strokeWidth={2} />
-            <span>Settings</span>
-          </NavLink>
+          <>
+            <NavLink
+              to="/settings/team"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+                }`
+              }
+            >
+              <Users size={16} strokeWidth={2} />
+              <span>Team</span>
+            </NavLink>
+            <NavLink
+              to="/settings/departments"
+              className={({ isActive }) =>
+                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                  isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+                }`
+              }
+            >
+              <Settings size={16} strokeWidth={2} />
+              <span>Settings</span>
+            </NavLink>
+          </>
         )}
 
         {user?.role === 'superadmin' && (

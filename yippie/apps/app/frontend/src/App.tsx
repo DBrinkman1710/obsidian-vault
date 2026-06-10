@@ -16,7 +16,11 @@ const DraftReview   = lazy(() => import('./modules/inbox/pages/DraftReview'))
 const ChatPage      = lazy(() => import('./modules/chat/pages/ChatPage'))
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
-const LoginPage       = lazy(() => import('./auth/LoginPage'))
+const LoginPage          = lazy(() => import('./auth/LoginPage'))
+const RegisterPage       = lazy(() => import('./auth/RegisterPage'))
+const ForgotPasswordPage = lazy(() => import('./auth/ForgotPasswordPage'))
+const ResetPasswordPage  = lazy(() => import('./auth/ResetPasswordPage'))
+const TeamSettingsPage   = lazy(() => import('./modules/admin/pages/TeamSettingsPage'))
 const DepartmentsPage          = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
 const SuperAdminPage           = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
 const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/SuperadminsSettingsPage'))
@@ -30,7 +34,7 @@ function PagePad({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { token, refreshUser } = useAuth()
+  const { token, refreshUser, impersonating, exitImpersonation } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
 
   useEffect(() => {
@@ -45,6 +49,9 @@ export default function App() {
       <Suspense fallback={null}>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+          <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>
@@ -56,6 +63,19 @@ export default function App() {
       <div className="flex h-screen overflow-hidden bg-slate-50">
         <Sidebar />
         <main className="flex-1 overflow-hidden flex flex-col">
+          {impersonating && (
+            <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4 flex items-center justify-center gap-3">
+              <span>
+                Viewing as {impersonating.tenantName} ({impersonating.userEmail})
+              </span>
+              <button
+                onClick={() => exitImpersonation()}
+                className="underline underline-offset-2 hover:text-amber-100"
+              >
+                Exit
+              </button>
+            </div>
+          )}
           {config?.is_demo && (
             <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4">
               Demo environment — data may be reset at any time. Contact support to go live.
@@ -109,6 +129,7 @@ export default function App() {
               <Route path="/settings/departments" element={<PagePad><DepartmentsPage /></PagePad>} />
               <Route path="/settings/superadmins" element={<PagePad><SuperadminsSettingsPage /></PagePad>} />
               <Route path="/settings/profile" element={<PagePad><ProfileSettingsPage /></PagePad>} />
+              <Route path="/settings/team" element={<PagePad><TeamSettingsPage /></PagePad>} />
               <Route path="/superadmin/clients" element={<PagePad><SuperAdminPage /></PagePad>} />
             </Routes>
           </Suspense>

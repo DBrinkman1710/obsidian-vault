@@ -1,11 +1,13 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Users, X, Building2, UserPlus, ShieldCheck,
   ToggleLeft, ToggleRight, Rocket, FlaskConical, CheckSquare, Square,
-  Clipboard, Check,
+  Clipboard, Check, Eye,
 } from 'lucide-react'
 import { api } from '../../../api/client'
+import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 
 const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'activity', 'billing', 'chat', 'ai']
@@ -471,6 +473,8 @@ function ResendDiagnosticPanel() {
 export default function SuperAdminPage() {
   const qc = useQueryClient()
   const config = useTenantConfig()
+  const navigate = useNavigate()
+  const { startImpersonation } = useAuth()
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
   const [viewingUsers, setViewingUsers] = useState<Tenant | null>(null)
@@ -518,6 +522,14 @@ export default function SuperAdminPage() {
     mutationFn: (id: string) =>
       api.patch(`/admin/tenants/${id}`, { is_demo: false, go_live_at: new Date().toISOString() }).then(r => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
+  })
+
+  const impersonateMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/admin/tenants/${id}/impersonate`).then(r => r.data),
+    onSuccess: async (data) => {
+      await startImpersonation(data.access_token, data.impersonated_tenant_name, data.impersonated_user_email)
+      navigate('/')
+    },
   })
 
   const bulkMutation = useMutation({
@@ -741,6 +753,17 @@ export default function SuperAdminPage() {
                             title={t.is_active ? 'Deactivate' : 'Activate'}
                           >
                             {t.is_active ? <ToggleRight size={14} className="text-emerald-500" /> : <ToggleLeft size={14} className="text-slate-400" />}
+                          </button>
+                        )}
+                        {t.is_active && (
+                          <button
+                            onClick={() => impersonateMutation.mutate(t.id)}
+                            disabled={impersonateMutation.isPending}
+                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors disabled:opacity-50"
+                            title="Log in as this client's admin (read/write — be careful)"
+                          >
+                            <Eye size={11} />
+                            View as
                           </button>
                         )}
                         {t.inbound_email && (
