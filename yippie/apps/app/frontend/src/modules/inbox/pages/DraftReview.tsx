@@ -328,6 +328,18 @@ export default function DraftReview() {
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const [replyFiles, setReplyFiles] = useState<File[]>([])
   const [usePersonalFrom, setUsePersonalFrom] = useState(false)
+  const [actionError, setActionError] = useState('')
+
+  // The router reuses this component across draft ids — reset all editable state when
+  // the id changes so one draft's reply/suggestions can't leak into another.
+  useEffect(() => {
+    setSubject(''); setDescription(''); setPriority(''); setFollowUpDays('')
+    setSelectedDeptId(''); setForwardedToName(''); setModalDismissed(false)
+    setReplyText(''); setSuggestions([]); setReplyFiles([])
+    setSentTo(''); setSendError(''); setActionError('')
+    setUndoUntil(null); setUndoProgress(0); setUndoCancelled(false)
+    if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
+  }, [id])
 
   const showContactModal = !isLoading && !!ctx && !ctx.contact && !modalDismissed && !isProcessed
 
@@ -372,6 +384,7 @@ export default function DraftReview() {
   async function handleForward() {
     if (!selectedDeptId) return
     setForwardLoading(true)
+    setActionError('')
     try {
       const res = await api.post(`/inbox/drafts/${id}/forward`, { department_id: selectedDeptId })
       setReplyText(res.data.suggestion)
@@ -379,6 +392,8 @@ export default function DraftReview() {
       qc.invalidateQueries({ queryKey: ['drafts'] })
       qc.invalidateQueries({ queryKey: ['draft', id] })
       setSuggestions([])
+    } catch {
+      setActionError('Couldn’t forward this draft — please try again.')
     } finally {
       setForwardLoading(false)
     }
@@ -386,10 +401,13 @@ export default function DraftReview() {
 
   async function handleGenerateReply() {
     setReplyLoading(true)
+    setActionError('')
     try {
       const res = await api.post(`/inbox/drafts/${id}/suggest-reply`)
       setReplyText(res.data.suggestion)
       setSuggestions([])
+    } catch {
+      setActionError('Couldn’t generate a reply — please try again.')
     } finally {
       setReplyLoading(false)
     }
@@ -398,18 +416,25 @@ export default function DraftReview() {
   async function handleImproveReply() {
     if (!replyText.trim()) return
     setImproveLoading(true)
+    setActionError('')
     try {
       const res = await api.post(`/inbox/drafts/${id}/improve-reply`, { current_text: replyText })
       setSuggestions(res.data.suggestions)
+    } catch {
+      setActionError('Couldn’t suggest improvements — please try again.')
     } finally {
       setImproveLoading(false)
     }
   }
 
-  function handleCopy() {
-    navigator.clipboard.writeText(replyText)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+  async function handleCopy() {
+    try {
+      await navigator.clipboard.writeText(replyText)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setActionError('Couldn’t copy to clipboard.')
+    }
   }
 
   async function handleSendReply() {
@@ -661,11 +686,16 @@ export default function DraftReview() {
                       <button
                         key={att.id}
                         onClick={async () => {
-                          const res = await api.get(`/inbox/drafts/${id}/attachments/${att.id}/download`, { responseType: 'blob' })
-                          const url = URL.createObjectURL(res.data)
-                          const a = document.createElement('a')
-                          a.href = url; a.download = att.filename; a.click()
-                          URL.revokeObjectURL(url)
+                          setActionError('')
+                          try {
+                            const res = await api.get(`/inbox/drafts/${id}/attachments/${att.id}/download`, { responseType: 'blob' })
+                            const url = URL.createObjectURL(res.data)
+                            const a = document.createElement('a')
+                            a.href = url; a.download = att.filename; a.click()
+                            URL.revokeObjectURL(url)
+                          } catch {
+                            setActionError(`Couldn’t download ${att.filename}.`)
+                          }
                         }}
                         className="flex items-center gap-2 text-xs text-slate-600 hover:text-yippie transition-colors cursor-pointer w-full text-left"
                       >
@@ -893,7 +923,7 @@ export default function DraftReview() {
               {replyFiles.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 shrink-0">
                   {replyFiles.map((f, i) => (
-                    <div key={i} className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded-lg text-xs text-slate-600">
+                    <div key={`${f.name}-${f.size}-${f.lastModified}`} className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 rounded-lg text-xs text-slate-600">
                       <Paperclip size={10} />
                       <span className="max-w-[120px] truncate">{f.name}</span>
                       <button onClick={() => setReplyFiles(prev => prev.filter((_, j) => j !== i))} className="text-slate-400 hover:text-slate-600 cursor-pointer">
@@ -946,6 +976,7 @@ export default function DraftReview() {
                   {demoNotice && <span className="text-amber-600">Demo mode — email not sent</span>}
                   {sentTo && !undoCancelled && <span className="text-emerald-600">Sent to {sentTo}</span>}
                   {sendError && <span className="text-red-500">{sendError}</span>}
+                  {actionError && !sendError && <span className="text-red-500">{actionError}</span>}
                 </div>
               </div>
               <div className="flex gap-2">
