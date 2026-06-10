@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  Plus, Users, X, Building2, UserPlus, ShieldCheck,
+  Plus, Users, X, Building2, UserPlus,
   ToggleLeft, ToggleRight, Rocket, FlaskConical, CheckSquare, Square,
   Clipboard, Check, Eye, Trash2,
 } from 'lucide-react'
@@ -646,63 +646,6 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
   )
 }
 
-function PromoteSuperadminPanel() {
-  const [form, setForm] = useState({ target_email: '', current_password: '' })
-  const [result, setResult] = useState<{ email: string; role: string } | null>(null)
-  const [error, setError] = useState('')
-
-  const mutation = useMutation({
-    mutationFn: () => api.post('/admin/promote-superadmin', form).then(r => r.data),
-    onSuccess: (data) => { setResult(data); setForm({ target_email: '', current_password: '' }) },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to promote'),
-  })
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!form.target_email.trim() || !form.current_password.trim()) { setError('All fields required'); return }
-    setError('')
-    setResult(null)
-    mutation.mutate()
-  }
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-      <div className="flex items-center gap-2 mb-4">
-        <ShieldCheck size={18} className="text-amber-500" />
-        <h2 className="text-base font-bold text-slate-900">Promote to superadmin</h2>
-      </div>
-      <p className="text-sm text-slate-500 mb-4">Requires your own password to confirm.</p>
-      <form onSubmit={handleSubmit} className="flex flex-col gap-3 max-w-md">
-        <div>
-          <label className={labelCls}>Target email</label>
-          <input className={inputCls} type="email" value={form.target_email}
-            onChange={e => setForm(p => ({ ...p, target_email: e.target.value }))}
-            placeholder="user@company.nl"
-          />
-        </div>
-        <div>
-          <label className={labelCls}>Your password</label>
-          <input className={inputCls} type="password" value={form.current_password}
-            onChange={e => setForm(p => ({ ...p, current_password: e.target.value }))}
-            placeholder="Confirm with your password"
-          />
-        </div>
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        {result && (
-          <p className="text-sm text-emerald-600 font-medium">
-            ✓ {result.email} is now <strong>{result.role}</strong>
-          </p>
-        )}
-        <div className="pt-1">
-          <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-amber-500 hover:bg-amber-600 disabled:bg-amber-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
-            {mutation.isPending ? 'Promoting…' : 'Promote to superadmin'}
-          </button>
-        </div>
-      </form>
-    </div>
-  )
-}
-
 function ResendDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
   const [open, setOpen] = useState(false)
@@ -1078,7 +1021,6 @@ export default function SuperAdminPage() {
         </div>
       )}
 
-      <PromoteSuperadminPanel />
       <ResendDiagnosticPanel />
 
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}
