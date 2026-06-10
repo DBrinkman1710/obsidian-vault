@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-10
+**Updated:** 2026-06-10 (checklist absorption)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -30,6 +30,65 @@
    - Item 18 leftover — attachment-replies now DO go through the undo queue (verified in code); compose attachments existed already — only live verification remains
 
 4. ~~Railway deploy blocker~~ **RESOLVED 2026-06-10** — both staging envs build the **`sandbox` branch**; ship with `git push origin devsandbox:sandbox`. `railway up` does NOT upload local code. Migrations are now also safe to deploy to both envs at once: `migrations/env.py` takes a Postgres advisory lock, so the two containers can't race DDL on the shared DB.
+
+5. **Invite-link base URL bug (important).** Invites currently emit **devsandbox** links — they must point at the **client environments** (`sandbox` / `app`), not at `dev` / `devsandbox`. The admin/superadmin-facing dev app is not where clients register. Verify per-env `APP_BASE_URL` so each environment mints links to the correct client URL. (See Phase 13.)
+
+6. **Prototype 2.0 → promote to live.** Push `devsandbox → sandbox → live` (`dev` + `app`). As part of this, set up **`diederik@getyippie.com` (individual)** and **`support@getyippie.com` (shared)** as the addresses for `dev.getyippie.com`; sandbox keeps `sb-support@`, live uses `support@`. (See Phase 13.)
+
+---
+
+## ▶▶ Performance — make the tool faster
+
+Top priority initiative. Diederik wants Yippie to feel fast. A code pass over
+`apps/app` found concrete, fixable bottlenecks (file refs below).
+
+### Why it feels slow today (root causes)
+
+- **Blocking AI scan in the ingest loop** — inbound ingest calls `scan_message()`
+  (Anthropic, ~300–800ms) **synchronously** plus `_build_context()` (5 sequential
+  DB queries) per email: `email_poller.py:93`, `inbox/service.py:198–242`. High
+  volume blocks the poller for seconds → drafts appear to stall.
+- **Missing composite indexes on hot list filters** — `tenant_id` alone *is*
+  indexed, but list queries filter `(tenant_id, status)` etc. without a matching
+  index: needs `draft_tickets(tenant_id, status)`, `tickets(tenant_id, status,
+  deleted_at)`, `tickets(tenant_id, assigned_to)` (`inbox/models.py:50`,
+  `tickets/models.py:42`). Seq-scans grow with data.
+- **Aggressive / wide frontend queries** — inbox polls every 10s
+  (`InboxQueue.tsx:469`) so new mail can take up to 10s to appear; the compose
+  modal eager-loads up to **1000 contacts** (`InboxQueue.tsx:52–56`).
+- **Contact search is `ILIKE %term%`** with no full-text index
+  (`contacts/service.py:20–30`) — substring seq-scan on every keystroke.
+- **No Vite route code-splitting** (`vite.config.ts`) → one large initial bundle.
+- **RLS overhead with no current benefit** — `set_tenant_context` runs two
+  `SET LOCAL` round-trips/request (`database.py:101–123`) for RLS policies that
+  **aren't enforced yet**. Nginx has no gzip / cache headers (`nginx.conf`).
+
+### Next steps after "make my tool faster" — leverage-ordered
+
+**Step 1 — Quick wins (~1 day, highest leverage):**
+1. Add the missing composite indexes (one idempotent migration). Biggest
+   actual-latency win as tenants grow.
+2. Drop inbox `refetchInterval` 10s → 5s **and** invalidate the inbox query on
+   send/compose so new mail/sent state shows instantly.
+3. Nginx `gzip on` + long-cache hashed assets, short-cache `index.html`.
+
+**Step 2 — Async ingest (~1 day):** return a minimal draft immediately, move
+`scan_message()` + `_build_context()` to a background APScheduler sub-job that
+enriches the draft after. Kills the poller stall.
+
+**Step 3 — Perceived speed (~1 day):** Vite `manualChunks` route splitting;
+loading skeletons on inbox/contacts/tickets; parallelize
+`get_draft_with_context()` reads with `asyncio.gather()`
+(`inbox/service.py:245–303`).
+
+**Step 4 — Search & scale (later):** Postgres `tsvector` GIN index for contact
+search; paginate the compose contacts picker; tune the connection pool
+(`pool_size`/`max_overflow`) + benchmark; decide RLS — either enforce policies
+(so the `SET LOCAL` cost is justified) or defer it and drop the per-request role
+switch.
+
+Ship each step `devsandbox → sandbox`, `/verify` in sandbox, then promote. The
+migration-deploy hazard is already handled (advisory lock in `migrations/env.py`).
 
 ---
 
@@ -261,8 +320,10 @@ Shipped for **reply** flow only:
 - Relates to item 11 (SLA assignment) — deadline only fires when SLA is set
 
 ### 35. Hotkey for send — `Cmd/Ctrl + Enter`
-- In both compose modal and reply panel: `Cmd+Enter` (Mac) / `Ctrl+Enter` (Windows) triggers send
+- In both compose modal and reply panel: `Cmd+Enter` (Mac) / `Ctrl+Enter` (Windows) triggers send ✓ DONE (session 17)
 - Should respect the same undo queue flow (item 17)
+- **Backlog — more hotkeys:** `c` compose, `r` reply, `e` archive/process, `j`/`k`
+  next/prev mail, `/` focus search, `Esc` close panel/modal, `g i` go to inbox
 
 Shipped in `7967bac`. `Sidebar.tsx` renders nav items by iterating `config.enabled_modules`.
 The catch was modules were saved in toggle-click order, not canonical order.
@@ -272,22 +333,83 @@ returned `enabled_modules` by canonical `ALL_MODULES` order server-side —
 `['inbox', 'contacts', 'tickets', 'activity', 'billing', 'chat']`. Fixes every tenant
 immediately — **no per-tenant action required**.
 
+### 41. Sent mail view
+- A **Sent** tab/view, placed to the **right of Processed**, listing outbound mail
+  (replies + composes). Reads from the send log / `pending_sends` history.
+
+### 42. Spam tab + bin/spam retention
+- Expose a **Spam** view alongside **Bin** (only Bin is visible today). `bin` and
+  `spam` already exist on `DraftStatus` (migration `e4f5a6b7c8d9`).
+- **Spam → Bin after 10 working days** (show a note explaining this).
+- **Bin emptied after 20 working days** (show a note explaining this).
+- Scheduler jobs perform both moves; spam senders also blocked in Resend (item 12).
+
+### 43. Ticket deadline reminders (extends item 34)
+- Small pop-up/toast reminder when a ticket is close to its `follow_up_at`.
+- **Sidebar badge:** glowing-red dot on the Tickets nav item with the **count** of
+  tickets near deadline.
+
+### 44. Reply subject language (extends item 15)
+- **Bug:** reply subjects are being forced to English. The reply subject must match
+  the **language of the received mail body** (same detection used for item 15).
+
+### 45. Attachment chips UX (extends item 18)
+- In compose and reply: a small **dropdown listing all attached files** plus an
+  **`x`** to remove each. Inbound attachments should also reliably appear on
+  received mail (verify item 18 backend end-to-end).
+
+### 46. Outbound email formatting (nice HTML)
+- Proper HTML email templates/layout for outbound mail so it looks polished
+  (header, spacing, signature). Precursor to the full template system (Phase 9).
+
+### 47. Undo-send UI polish (reconcile item 17)
+- Replace "email sent" headline with **"Yippie"**; show "email sent" small + grey
+  below; a **filling progress panel** to undo; window **auto-dismisses after undo**.
+- Compose: pressing send **hides the compose window → shows the undo bar**; undo
+  **returns to the editable compose draft**.
+- Item 17 already implements most of this — remaining items are cosmetic deltas +
+  the "undo doesn't work / check again if true" report → **live-verification**.
+
+### 48. Clickable rows everywhere (UX convention)
+- Make the **whole ticket bar clickable** to open it, mirroring how mail opens.
+- Apply this **throughout Yippie** and treat it as a standing convention for
+  future UI work (lists open on full-row click).
+
 ---
 
 ## Phase 4 — Contact management
 
 ### 20. Multi-select contacts
 - Checkbox per contact row
-- Action bar when ≥1 selected:
+- Action bar when ≥1 selected (admins + superadmins):
   - **Compose** → pre-fills Compose modal with all selected emails
   - **Export CSV** → download name, email, company, phone, tags
-  - **Delete** → soft delete with confirmation
+  - **Label** → apply/replace a label on all selected (new — see item 38)
+  - **Delete** → soft delete with confirmation (retention — see item 39)
 
 ### 36. Company grouping for contacts
 - Ability to tie multiple contacts under the same company
 - Add a `Company` entity (name, domain, notes) that contacts can belong to
 - Contact list shows company badge; filter/group by company
 - Composing to a company auto-selects all contacts in that company
+
+### 38. Contact labels (client workflow embedding)
+- Tenant-defined labels so each client can embed **their own** workflow in Yippie
+  — e.g. `potential client`, `new client`, `process step 1`, `process step 2`,
+  `after sales`, and `potential client: demo` (used by the demo pipeline, Phase 12)
+- CRUD for labels in settings; assign one or more labels per contact
+- **Filter contacts by label** (label pills / dropdown on the contact list)
+- Bulk **Label** action from multi-select (item 20)
+
+### 39. Contact soft-delete + retention
+- Deleted contacts are **soft-deleted**, retained **1 month**, then permanently
+  purged by a scheduled job (reuse the `deleted_at` pattern from tickets, session 17)
+- Admins can **filter for deleted contacts** and restore within the window
+- A scheduler job purges contacts past the 1-month window
+
+### 40. Contact import — multiple formats
+- Extend item 29 (CSV) to also accept **JSON and Excel (.xlsx)**
+- Same validate / dedupe-by-email / results-summary flow per format
 
 ---
 
@@ -344,6 +466,25 @@ immediately — **no per-tenant action required**.
 
 ### 8c. Status column labels (pending)
 - Clients tab status column should show "Active" / "Inactive" / "Demo" as text labels clearly
+- Allow changing active/inactive/demo directly from that status column
+
+### 38c. Per-client edit modal (UX redesign)
+The client row currently exposes many inline options — too noisy. Consolidate:
+- Keep only **"View as"** inline on each row
+- One **Edit** modal per client with **multiple pages/tabs** for all the
+  settings currently scattered on the row (status, modules, branding, info)
+- Multi-select still shows the bulk action bar (item 6c) instead of the modal
+
+### 38d. Manage client users from the edit modal
+- Inside the per-client Edit modal, superadmins see that client's **user list**
+- Can **add / remove / inactivate** users in that client's environment from here
+  (reuses the team endpoints — `GET /team/users`, `POST /team/invite`,
+  `PATCH /team/users/{id}`)
+
+### 6c. Bulk delete clients
+- Extend the existing bulk status bar (item 6) with a **Delete** action so
+  superadmins can set selected clients to active/inactive/demo **or delete** at
+  once. Delete stays password-gated (item 24).
 
 ---
 
@@ -399,10 +540,133 @@ immediately — **no per-tenant action required**.
 
 ---
 
+## Phase 11 — getyippie.com (marketing site)
+
+`apps/web` (Next.js) is separate from the platform pair. Group all marketing
+work here.
+
+### A. Copy & branding
+- Replace **"Give yourself back the time that matters"** → **"Take back the time
+  that matters."**
+- Add hero line: **"Stop losing hours to repetitive support tickets. Yippie
+  automates and reduces your customer service so you can focus on building your
+  business."**
+- Add Diederik's **current logo** (replace placeholder).
+- Replace **"Sign up"** CTA → **"Request demo"** (→ Phase 12 flow).
+- **"Start for free"** also routes to the demo-request flow (Phase 12).
+
+### B. The Hour Counter (live ticker)
+- Feature a live ticker showing total hours Yippie has saved business owners
+  globally — e.g. *"Together, Yippie users have taken back 142,300 hours."*
+- Backend: public aggregate endpoint summing estimated hours saved across tenants
+  (e.g. tickets-automated × avg-handle-time). Seed a configurable base + live
+  delta so it's never zero; animated count-up on the page.
+
+### C. Customer-support ROI calculator (design input)
+
+Build in tiers, easiest first.
+
+**Tier 1 — On-page calculator (build first).** Inputs: tickets/month, avg
+minutes/ticket, # support staff, hourly cost, % automatable. Output: hours & €
+saved/month + payback vs Yippie price. **Pure frontend, no data leaves the
+browser → zero privacy concerns.** Ships in days and feeds the Hour Counter
+messaging.
+
+**Tier 2 — "Connect your inbox" estimate (higher conviction, more work).**
+Analyze the prospect's real support volume. Options, privacy tradeoffs noted:
+- **Gmail / Google Workspace add-on (Diederik's idea):** an add-on that reads
+  only **metadata** (message counts, threads, response times over a date range)
+  — **not bodies** — via the Gmail API with a narrow read-only scope, computes
+  volume client-side, returns only aggregate numbers. Privacy: requires Google
+  **OAuth verification + a security assessment for restricted scopes**
+  (heavyweight, weeks of review). Messaging must be explicit: *"we never read
+  your email content."*
+- **Lighter — one-time IMAP/OAuth scan:** prospect connects an inbox once; count
+  headers only, show ROI, **store nothing**. Faster to ship than a verified
+  Workspace add-on.
+- **Lightest — CSV / mailbox-export upload:** prospect uploads a mailbox export
+  or helpdesk CSV; parsed **in-browser**. No OAuth, no verification, strongest
+  privacy story.
+
+**Recommendation:** ship **Tier 1 now**; for Tier 2 pursue the **CSV upload**
+path first (best privacy/effort ratio); treat the Google add-on as a later "wow"
+once there's demand, flagging the OAuth-verification cost up front.
+
+### D. getyippie.com 502 fix (from Phase 8)
+- Cloudflare proxy toggle for Railway domain verification (carried over).
+
+---
+
+## Phase 12 — Demo-request → auto-provisioned demo
+
+Cross-cutting feature: turn a website demo request into a live, self-expiring
+demo tenant. Reuses invite-token infra (`auth/invite.py`, `auth/tokens.py`),
+tenant creation (`admin/service.py create_tenant`), and demo enforcement
+(session 16).
+
+### Request-demo flow
+1. Public **Request-demo form** on getyippie.com: **name\***, **email\***,
+   company, phone number. ("Start for free" routes here too.)
+2. On submit, in the **live env (dev/app)**:
+   - **Auto-create a demo tenant** (`is_demo=true`).
+   - Email the prospect a **set-password link** (invite token).
+   - Demo is **active 7 days, then auto-inactivates** — add a demo-expiry job
+     mirroring the existing 60s `go_live_at` scheduler that flips demo↔active.
+   - **Notify `diederik@getyippie.com`** that a demo was created.
+   - Save the prospect under **Contacts**, labeled **"potential client: demo"**
+     (needs Phase 11→ item 38 labels).
+   - Open a **ticket with a 3-day follow-up reminder** ("ask about their
+     experience / offer setup help").
+
+### Build-first, invite-later (deferred client onboarding)
+- Allow building a client environment **without inviting the admin yet** — create
+  the tenant in **demo** with no admin invite.
+- In the demo environment's **Settings**, a button to **send the invite /
+  password link** to the client when ready.
+- After the client approves, superadmin **flips it to live** (existing go-live).
+
+---
+
+## Phase 13 — Prototype 2.0 promotion & email identity
+
+### Promotion
+- Push **`devsandbox → sandbox → live` (`dev` + `app`)** for prototype 2.0.
+- Set up **`diederik@getyippie.com` (individual)** and
+  **`support@getyippie.com` (shared)** as the addresses for `dev.getyippie.com`.
+- Sandbox keeps `sb-support@getyippie.com`; live uses `support@getyippie.com`
+  (existing convention).
+
+### Invite-link base URL (bug — also in Next session)
+- Invites must point at **client environments** (`sandbox` / `app`), **not**
+  `dev` / `devsandbox` — currently emitting devsandbox links. Verify per-env
+  `APP_BASE_URL` so each environment mints links to the correct client URL.
+
+### Email identity
+- **`diederik@getyippie.com` as primary Yippie address** — make it Diederik's
+  working address; verify it can **receive** (the "Resend doesn't show it at
+  receiving" report) and is a valid receiving address end-to-end.
+- **One personal mailbox, multiple "send from" addresses** — collapse the
+  current "2 personal mail options" into a **single inbox that both sends and
+  receives**, plus a setting to add extra **"send from"** addresses (refines the
+  session-18 personalized-emails work).
+
+### Onboarding emails & tour
+- **Introductory/welcome email on onboarding** (ties to the item 21 wizard): a
+  first email explaining how the user sets up their email, etc. Important —
+  the in-app **welcome tour can come later**.
+- **App tour for new clients** (deferred): guided in-app tour after first login.
+
+### Deliverability
+- **Invalid DMARC record** — fix the DMARC DNS record for `getyippie.com` so
+  outbound mail authenticates and lands in inboxes.
+
+---
+
 ## Open questions
 
 - **Superadmin without password** — second superadmin was created but never set a password, yet can log in. Investigate how promote-superadmin sets credentials; fix so invite-email flow is the only path.
-- **Sandbox email routing** — sending from diederik_test sends via `sb-support@getyippie.com`; replies go to sandbox connected to diederik1710@gmail.com. Document that this is intentional.
+- **Sandbox email routing** — sending from diederik_test sends via `sb-support@getyippie.com`; replies go to sandbox connected to diederik1710@gmail.com. Document that this is intentional. **Same root cause for "reply to `dev-support@getyippie.com` also arrives in regular sandbox"** — `devsandbox` and `sandbox` share one Sandbox DB, so inbound to either address surfaces in both. Document as intentional (or split per `INBOUND_EMAIL` if true isolation is wanted).
+- **Branding wiring** — "what does the colour / logo selection actually do?" Today `primary_color` / `logo_url` are stored but may not be applied across the UI. Either **wire branding into the app shell** (sidebar logo, accent color) or document the current scope.
 
 ---
 
@@ -450,6 +714,60 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ---
 
 ## Session log
+
+---
+
+### Session 18b — 2026-06-10 (checklist absorption — no code)
+
+Absorbed Diederik's large working checklist into this roadmap (documentation
+only, no code changes). Method: every `[ ]` line maps to exactly one of —
+the new **Performance** block, a new/extended **section**, or the
+**reconciliation table** below.
+
+**New top-priority initiative:** *▶▶ Performance — make the tool faster* (root
+causes + leverage-ordered next steps, grounded in an `apps/app` code pass).
+
+**New sections/phases:**
+- Phase 11 — getyippie.com (copy, logo, CTAs, Hour Counter, **ROI calculator
+  design input**)
+- Phase 12 — Demo-request → auto-provisioned demo (+ build-first/invite-later)
+- Phase 13 — Prototype 2.0 promotion, email identity, onboarding emails, DMARC
+
+**Extended existing items:**
+- Phase 4 contacts: items 38 (labels), 39 (soft-delete + retention), 40
+  (JSON/Excel import); item 20 gains a bulk Label action
+- Phase 2 clients: items 38c (per-client edit modal), 38d (manage users in
+  modal), 6c (bulk delete)
+- Phase 3 inbox: items 41 (Sent view), 42 (Spam tab + retention), 43 (deadline
+  reminders/badge), 44 (reply subject language), 45 (attachment chips), 46 (HTML
+  formatting), 47 (undo polish), 48 (clickable rows everywhere); item 35 gains a
+  hotkeys backlog
+- Open questions: branding wiring + the shared-Sandbox-DB routing behaviour
+- Next session: invite-link base-URL bug (#5) + prototype 2.0 promotion (#6)
+
+#### Reconciliation — checklist lines already tracked
+
+| Checklist line | Roadmap entry | Status |
+|---|---|---|
+| add users / user registration | Items 25/26, Team module | DONE — verify |
+| add superadmins from settings, password gate | Items 28 / 8b | DONE — verify |
+| scroll-only inbox / larger compose | Item 9 | DONE — verify |
+| demo tick + active/demo/inactive filter | Item 5 | DONE |
+| multi-select clients → status | Item 6 (+ 6c delete) | DONE |
+| hotkey Cmd/Ctrl+Enter | Item 35 (+ hotkeys backlog) | DONE |
+| glowing green fetching dot | Item 14 | DONE |
+| select + delete/spam mails | Item 12 (+ item 42) | tracked |
+| import users CSV | Item 37 | tracked |
+| mail-all system | Item 30 | tracked |
+| email templates (Resend / settings / insert+AI) | Phase 9 A/B/C | tracked |
+| email tracking module / calendar module | Phase 10 | tracked |
+| customer data + AI briefing storage | Phase 8 | tracked |
+| mobile web for sandbox/devsandbox | Phase 8 | tracked |
+| company name in sidebar / hide own env | Items 7 / 8a | DONE |
+| company grouping for contacts | Item 36 | tracked |
+| undo auto-dismiss / "say Yippie" | Items 17 / 47 | DONE — verify |
+| access roles clarification | Access roles table | documented |
+| repairing activity tab | Phase 1 | DONE |
 
 ---
 
