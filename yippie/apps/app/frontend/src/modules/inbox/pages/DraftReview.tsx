@@ -352,6 +352,15 @@ export default function DraftReview() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', ticketId] }),
   })
 
+  const undoReviewMutation = useMutation({
+    mutationFn: () => api.post(`/inbox/drafts/${id}/undo-review`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+      qc.invalidateQueries({ queryKey: ['draft', id] })
+      // Draft is pending again — the edit form reappears on refetch
+    },
+  })
+
   const clearFollowUpMutation = useMutation({
     mutationFn: () => api.post(`/inbox/drafts/${id}/clear-followup`),
     onSuccess: () => {
@@ -703,6 +712,16 @@ export default function DraftReview() {
                         <span className="text-xs font-normal text-slate-400 ml-1">
                           {new Date(draft.reviewed_at).toLocaleString()}
                         </span>
+                      )}
+                      {!isForwarded && (
+                        <button
+                          onClick={() => undoReviewMutation.mutate()}
+                          disabled={undoReviewMutation.isPending}
+                          title={draft.status === 'approved' ? 'Back to pending — the created ticket is removed' : 'Back to pending'}
+                          className="ml-auto shrink-0 text-xs font-semibold px-3 py-1.5 bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
+                        >
+                          {undoReviewMutation.isPending ? 'Undoing…' : 'Undo'}
+                        </button>
                       )}
                     </div>
                   )}

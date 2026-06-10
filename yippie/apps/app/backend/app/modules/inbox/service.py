@@ -424,6 +424,25 @@ async def review_draft(
     return draft
 
 
+async def undo_review(db: AsyncSession, tenant_id: uuid.UUID, draft: DraftTicket) -> DraftTicket:
+    """Revert an approve/reject back to pending. The ticket created by an
+    approval is soft-deleted so no orphan remains."""
+    if draft.status not in (DraftStatus.approved, DraftStatus.rejected):
+        raise ValueError("Only approved or rejected drafts can be undone")
+    if draft.approved_ticket_id:
+        ticket = await ticket_service.get_ticket_orm(db, tenant_id, draft.approved_ticket_id)
+        if ticket:
+            ticket.deleted_at = datetime.now(timezone.utc)
+        draft.approved_ticket_id = None
+    draft.status = DraftStatus.pending
+    draft.reviewed_by = None
+    draft.reviewed_at = None
+    draft.follow_up_at = None
+    await db.commit()
+    await db.refresh(draft)
+    return draft
+
+
 async def bulk_update_drafts(
     db: AsyncSession, tenant_id: uuid.UUID, draft_ids: list[uuid.UUID], new_status: DraftStatus
 ) -> int:

@@ -68,6 +68,19 @@ async def review_draft(draft_id: uuid.UUID, body: DraftReview, current_user: Cur
     return await service.review_draft(db, current_user.tenant_id, draft, current_user.id, body)
 
 
+@router.post("/drafts/{draft_id}/undo-review", response_model=DraftTicketOut)
+async def undo_review(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    """Revert an approved/rejected draft back to pending; an approved draft's
+    created ticket is soft-deleted."""
+    draft = await service.get_draft(db, current_user.tenant_id, draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    try:
+        return await service.undo_review(db, current_user.tenant_id, draft)
+    except ValueError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+
+
 @router.post("/drafts/{draft_id}/link-contact", response_model=DraftWithContextOut)
 async def link_contact(draft_id: uuid.UUID, body: LinkContactRequest, current_user: CurrentUser, db: DB):
     result = await service.link_contact_to_draft(db, current_user.tenant_id, draft_id, body.contact_id)
