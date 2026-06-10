@@ -687,6 +687,8 @@ export default function InboxQueue() {
             <div className="flex flex-col gap-3">
               {drafts.map((d: any) => {
                 const isFollowUp = d.status === 'approved' && d.follow_up_at
+                const followUpDate = isFollowUp ? new Date(d.follow_up_at) : null
+                const isUrgent = followUpDate && (followUpDate.getTime() - Date.now()) <= 24 * 60 * 60 * 1000
                 const isSelected = selected.has(d.id)
                 return (
                   <div
@@ -728,11 +730,16 @@ export default function InboxQueue() {
                             </span>
                           )}
                           {isFollowUp && (
-                            <span className="px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-100 text-orange-700">
-                              Follow-up
+                            <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${isUrgent ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
+                              {isUrgent ? '⚠ Follow-up due' : 'Follow-up'}
                             </span>
                           )}
                         </div>
+                        {d.inbound_subject && d.inbound_subject !== d.ai_suggested_subject && (
+                          <p className="text-xs text-slate-400 mb-0.5 truncate">
+                            Subject: {d.inbound_subject}
+                          </p>
+                        )}
                         <p className="text-xs text-slate-500 mb-1 line-clamp-2">
                           {d.ai_suggested_description?.slice(0, 120)}…
                         </p>

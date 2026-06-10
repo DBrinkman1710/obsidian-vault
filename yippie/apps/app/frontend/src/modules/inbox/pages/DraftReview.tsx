@@ -178,17 +178,20 @@ function RouteAndApproveModal({
 }) {
   const [deptId, setDeptId] = useState(initialDeptId)
   const [noSla, setNoSla] = useState(false)
-  const [customSla, setCustomSla] = useState('')
+  const [slaValue, setSlaValue] = useState('')
 
   const selectedDept = departments.find((d: any) => d.id === deptId)
   const autoSla: number | null = selectedDept?.sla_working_days > 0 ? selectedDept.sla_working_days : null
 
+  // Re-init SLA input when department changes: pre-fill dept default if available
+  useEffect(() => {
+    setNoSla(false)
+    setSlaValue(autoSla ? String(autoSla) : '')
+  }, [deptId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function handleApprove() {
     let followUpDays: number | undefined
-    if (!noSla) {
-      if (autoSla) followUpDays = autoSla
-      else if (customSla.trim()) followUpDays = parseInt(customSla) || undefined
-    }
+    if (!noSla && slaValue.trim()) followUpDays = parseInt(slaValue) || undefined
     onApprove(deptId, followUpDays)
   }
 
@@ -210,7 +213,7 @@ function RouteAndApproveModal({
           <label className="block text-xs font-semibold text-slate-500 mb-1.5">Department</label>
           <select
             value={deptId}
-            onChange={e => { setDeptId(e.target.value); setNoSla(false); setCustomSla('') }}
+            onChange={e => setDeptId(e.target.value)}
             className="w-full text-sm border border-slate-200 rounded-xl px-3 py-2 bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           >
             <option value="">No department</option>
@@ -220,40 +223,36 @@ function RouteAndApproveModal({
           </select>
         </div>
 
-        {/* SLA section */}
+        {/* SLA section — always editable; pre-fills dept default when available */}
         <div className="mb-6">
           <label className="block text-xs font-semibold text-slate-500 mb-1.5">Follow-up SLA</label>
-          {autoSla ? (
-            <div className="flex items-center justify-between px-3 py-2 bg-emerald-50 border border-emerald-100 rounded-xl">
-              <span className="text-sm text-emerald-700 font-medium">{autoSla} working days</span>
-              <span className="text-xs text-emerald-500">from department</span>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min={1}
+                max={365}
+                value={noSla ? '' : slaValue}
+                onChange={e => setSlaValue(e.target.value)}
+                disabled={noSla}
+                placeholder="Days…"
+                className="w-24 text-center text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-40"
+              />
+              <span className="text-xs text-slate-400">working days</span>
+              {autoSla && !noSla && (
+                <span className="text-xs text-emerald-500">dept default: {autoSla}</span>
+              )}
             </div>
-          ) : (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min={1}
-                  max={365}
-                  value={noSla ? '' : customSla}
-                  onChange={e => setCustomSla(e.target.value)}
-                  disabled={noSla}
-                  placeholder="Days…"
-                  className="w-24 text-center text-sm border border-slate-200 rounded-xl px-3 py-2 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-40"
-                />
-                <span className="text-xs text-slate-400">working days</span>
-              </div>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={noSla}
-                  onChange={e => { setNoSla(e.target.checked); setCustomSla('') }}
-                  className="rounded"
-                />
-                <span className="text-xs text-slate-500">No SLA / skip follow-up</span>
-              </label>
-            </div>
-          )}
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={noSla}
+                onChange={e => { setNoSla(e.target.checked); setSlaValue('') }}
+                className="rounded"
+              />
+              <span className="text-xs text-slate-500">No SLA / skip follow-up</span>
+            </label>
+          </div>
         </div>
 
         <button
@@ -393,7 +392,7 @@ export default function DraftReview() {
       qc.invalidateQueries({ queryKey: ['draft', id] })
       setSuggestions([])
     } catch {
-      setActionError('Couldn’t forward this draft — please try again.')
+      setActionError('Couldn\'t forward this draft — please try again.')
     } finally {
       setForwardLoading(false)
     }
@@ -407,7 +406,7 @@ export default function DraftReview() {
       setReplyText(res.data.suggestion)
       setSuggestions([])
     } catch {
-      setActionError('Couldn’t generate a reply — please try again.')
+      setActionError('Couldn\'t generate a reply — please try again.')
     } finally {
       setReplyLoading(false)
     }
@@ -421,7 +420,7 @@ export default function DraftReview() {
       const res = await api.post(`/inbox/drafts/${id}/improve-reply`, { current_text: replyText })
       setSuggestions(res.data.suggestions)
     } catch {
-      setActionError('Couldn’t suggest improvements — please try again.')
+      setActionError('Couldn\'t suggest improvements — please try again.')
     } finally {
       setImproveLoading(false)
     }
@@ -433,7 +432,7 @@ export default function DraftReview() {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      setActionError('Couldn’t copy to clipboard.')
+      setActionError('Couldn\'t copy to clipboard.')
     }
   }
 
@@ -474,6 +473,7 @@ export default function DraftReview() {
           undoIntervalRef.current = null
           setUndoUntil(null)
           setSentTo(res.data.to)
+          setTimeout(() => setSentTo(''), 4000)
           qc.invalidateQueries({ queryKey: ['contact-activity'] })
           qc.invalidateQueries({ queryKey: ['contact-moments'] })
         }
@@ -533,13 +533,8 @@ export default function DraftReview() {
       reviewMutation.mutate('approve')
       return
     }
-    const selectedDept = departments.find((d: any) => d.id === selectedDeptId)
-    // Show modal when: no dept selected, or dept has no SLA configured
-    if (!selectedDeptId || !selectedDept?.sla_working_days) {
-      setShowDeptReminder(true)
-    } else {
-      reviewMutation.mutate('approve')
-    }
+    // Always show the modal so the user can confirm/edit dept and SLA
+    setShowDeptReminder(true)
   }
 
   return (
@@ -694,7 +689,7 @@ export default function DraftReview() {
                             a.href = url; a.download = att.filename; a.click()
                             URL.revokeObjectURL(url)
                           } catch {
-                            setActionError(`Couldn’t download ${att.filename}.`)
+                            setActionError(`Couldn't download ${att.filename}.`)
                           }
                         }}
                         className="flex items-center gap-2 text-xs text-slate-600 hover:text-yippie transition-colors cursor-pointer w-full text-left"
