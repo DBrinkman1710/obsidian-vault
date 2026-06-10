@@ -1,11 +1,31 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-10 (checklist absorption)
+**Updated:** 2026-06-10 (checklist absorption + session 18 email-correctness sprint)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
 ---
 
 ## ▶ Next session — start here
+
+### ⚡ Session 18 status update (read first)
+
+- **Shipped + deployed:** from-address snapshot fix (wrong `dev-support@` sender bug),
+  shared-inbox fallback fix (mail to dev-support@/sb-support@ was silently dropped since
+  9eb8620), ONE personal email address on Profile (sets send + receive), welcome/introduction
+  email on all invite paths. See session 18 log entry.
+- **Manual steps for Diederik:**
+  1. **Cloudflare DNS** — delete the bare `"v=DMARC1; p=none;"` TXT at `_dmarc.getyippie.com`
+     (keep the one with the Cloudflare `rua=`); at `resend._domainkey.getyippie.com` keep only
+     the DKIM key shown in the Resend dashboard, delete the other two. Multiple records at the
+     same name = invalid DMARC/DKIM.
+  2. **klimaatexamen tenant** — its `inbound_email` is NULL, so mail to
+     `klimaatexamen-support@getyippie.com` is dropped. Needs a DB update or the per-client edit
+     modal (item 38c); Claude can run the update on approval.
+- **diederik@getyippie.com receiving WORKS** — both test mails are pending drafts in
+  Inbox → Personal in devsandbox (tenant Yippie). Check the Personal tab.
+- **Go-live checklist additions:** set `INBOUND_EMAIL` in both live Railway envs (currently
+  unset; RESEND_FROM=support@ is already correct in both); production/Development/Commercial
+  still trigger on stale branch `claude/modular-account-management-design-XrQwj`.
 
 ### Priority order
 
@@ -538,6 +558,15 @@ The client row currently exposes many inline options — too noisy. Consolidate:
 - Ability to create standalone calendar events tied to a contact or ticket
 - Superadmin can enable/disable per tenant
 
+### Pipeline module (added 2026-06-10)
+- New `pipeline` module — client defines their own pipeline (the steps in their workflow)
+- Customers are **automatically labeled** with their pipeline stage (builds on contact
+  labels, item 38)
+- Tracks **time spent per pipeline stage** per customer
+- Automated emails / workflows per stage (e.g. customer enters "after sales" → follow-up
+  mail goes out)
+- Superadmin can enable/disable per tenant
+
 ---
 
 ## Phase 11 — getyippie.com (marketing site)
@@ -642,23 +671,29 @@ tenant creation (`admin/service.py create_tenant`), and demo enforcement
   `APP_BASE_URL` so each environment mints links to the correct client URL.
 
 ### Email identity
-- **`diederik@getyippie.com` as primary Yippie address** — make it Diederik's
-  working address; verify it can **receive** (the "Resend doesn't show it at
-  receiving" report) and is a valid receiving address end-to-end.
-- **One personal mailbox, multiple "send from" addresses** — collapse the
-  current "2 personal mail options" into a **single inbox that both sends and
-  receives**, plus a setting to add extra **"send from"** addresses (refines the
-  session-18 personalized-emails work).
+- **`diederik@getyippie.com` as primary Yippie address** — ✅ **receiving verified
+  2026-06-10**: Resend receiving is domain-level (MX → SES inbound), individual addresses never
+  appear in the Resend dashboard; mail to diederik@ is ingested and lands in Inbox → Personal.
+  Remaining: make it the working primary address in the live pair.
+- **One personal mailbox** — ✅ v1 shipped session 18: Profile now has a single "Personal
+  email address" that sets both `reply_from_email` and `inbound_email`. Remaining: a setting
+  to add extra **"send from"** aliases.
 
 ### Onboarding emails & tour
-- **Introductory/welcome email on onboarding** (ties to the item 21 wizard): a
-  first email explaining how the user sets up their email, etc. Important —
-  the in-app **welcome tour can come later**.
+- **Introductory/welcome email on onboarding** — ✅ shipped session 18: the invite email is now
+  a proper welcome mail (activate → set up email incl. personal address → tour of
+  Inbox/Contacts/Tickets, admin extras) on all four invite paths (`auth/invite.py`). Plain text
+  for now; nice HTML = item 46.
 - **App tour for new clients** (deferred): guided in-app tour after first login.
 
 ### Deliverability
-- **Invalid DMARC record** — fix the DMARC DNS record for `getyippie.com` so
-  outbound mail authenticates and lands in inboxes.
+- **Invalid DMARC record — root cause found 2026-06-10 (manual Cloudflare fix):**
+  - TWO DMARC TXT records at `_dmarc.getyippie.com` (`"v=DMARC1; p=none;"` and
+    `"v=DMARC1; p=none; rua=mailto:…@dmarc-reports.cloudflare.net"`) — multiple records =
+    invalid per RFC 7489; receivers treat it as no DMARC. Delete the bare one.
+  - THREE DKIM keys at `resend._domainkey.getyippie.com` — a selector must hold one key.
+    Keep only the value the Resend dashboard shows; delete the other two.
+  - SPF (`send.getyippie.com`) and MX (root → SES inbound) verified correct.
 
 ---
 
@@ -666,7 +701,7 @@ tenant creation (`admin/service.py create_tenant`), and demo enforcement
 
 - **Superadmin without password** — second superadmin was created but never set a password, yet can log in. Investigate how promote-superadmin sets credentials; fix so invite-email flow is the only path.
 - **Sandbox email routing** — sending from diederik_test sends via `sb-support@getyippie.com`; replies go to sandbox connected to diederik1710@gmail.com. Document that this is intentional. **Same root cause for "reply to `dev-support@getyippie.com` also arrives in regular sandbox"** — `devsandbox` and `sandbox` share one Sandbox DB, so inbound to either address surfaces in both. Document as intentional (or split per `INBOUND_EMAIL` if true isolation is wanted).
-- **Branding wiring** — "what does the colour / logo selection actually do?" Today `primary_color` / `logo_url` are stored but may not be applied across the UI. Either **wire branding into the app shell** (sidebar logo, accent color) or document the current scope.
+- ~~Branding wiring~~ **ANSWERED (session 18):** `primary_color` / `logo_url` are stored on the tenant and returned by `/api/v1/tenant/config`, but **no frontend component applies them** — only the SuperAdminPage form references the fields. The selection currently does nothing. To-do: wire branding into the app shell (sidebar logo, accent color).
 
 ---
 
@@ -714,6 +749,50 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ---
 
 ## Session log
+
+---
+
+### Session 18c — 2026-06-10 (email-correctness sprint: 4 fixes shipped, full routing diagnosis)
+
+Diederik supplied his full to-do list and asked for answers to the email questions. Traced the
+code, audited Railway + Resend + DNS + the staging DB live, shipped four fixes. Merged on top of
+session 18b's checklist absorption (parallel PR #16).
+
+#### Live diagnosis (staging DB + Resend feed + DNS + Railway)
+- **diederik@getyippie.com receiving WORKS** — both test mails were in the Resend feed,
+  ingested 07:56/08:01 into the Yippie tenant as pending drafts with
+  `inbound_to=diederik@getyippie.com` → they are in **Inbox → Personal** in devsandbox.
+  `users.inbound_email` was already set correctly. Resend receiving is domain-level (MX), so
+  individual addresses never show in the Resend dashboard — that's normal.
+- **klimaatexamen-support@ mail is dropped**: the klimaatexamen tenant's `inbound_email` is
+  NULL (both test mails sit unrouted in the Resend feed). Manual fix needed (DB write was
+  permission-denied this session) — or wait for the per-client edit modal (item 38c), the
+  admin PATCH endpoint already accepts `inbound_email`.
+- **Shared-inbox regression (new bug, FIXED)**: since 9eb8620, fallback routing resolves the
+  container's `INBOUND_EMAIL` against `tenants.inbound_email` — no tenant has any support
+  address set, so mail to dev-support@/sb-support@ was silently dropped (today's 07:48 test
+  never ingested). Poller now falls back to the seed tenant (slug from `TENANT_ID`).
+- **Railway audit**: Dev Sandbox = dev-support@, Sandbox = sb-support@ (RESEND_FROM +
+  INBOUND_EMAIL each); both live envs RESEND_FROM=support@ ✓ but **INBOUND_EMAIL unset** —
+  go-live checklist.
+- **DNS**: two DMARC records + three DKIM keys = invalid (details under Phase 13 →
+  Deliverability); SPF and MX correct.
+
+#### Shipped (commit on `devsandbox`, deployed to both staging envs via `sandbox`)
+- **From-address snapshot fix** — `queue_send` (`inbox/service.py`) now stores the effective
+  from address at queue time. Root cause of "joost@klimaatexamen.nl in sandbox sends as
+  dev-support@": rows with `from_email=NULL` were sent with the `RESEND_FROM` of whichever
+  shared-DB container flushed them.
+- **Shared-inbox fallback fix** — `email_poller.py` (above).
+- **One personal email address** — Profile's two fields merged into one that sets both
+  `reply_from_email` and `inbound_email` (`ProfileSettingsPage.tsx`); backend unchanged;
+  extra send-from aliases remain Phase 13.
+- **Welcome/introduction email** — `auth/invite.py` rewritten: activate → set up your email
+  (incl. personal address) → tour of Inbox/Contacts/Tickets, admin extras, "Take back the
+  time that matters" sign-off. All four invite paths (client onboarding, add-admin,
+  superadmin, team) use it.
+- **Roadmap**: this status update, pipeline module (Phase 10), branding + sandbox-routing
+  open questions answered, Phase 13 items marked shipped/diagnosed.
 
 ---
 

@@ -5,15 +5,15 @@ import { useAuth } from '../../../auth/useAuth'
 
 export default function ProfileSettingsPage() {
   const { user, refreshUser } = useAuth()
-  const [replyFromEmail, setReplyFromEmail] = useState(user?.reply_from_email ?? '')
-  const [inboundEmail, setInboundEmail] = useState(user?.inbound_email ?? '')
+  const [personalEmail, setPersonalEmail] = useState(user?.inbound_email ?? user?.reply_from_email ?? '')
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
   const mutation = useMutation({
+    // One personal address does both: outbound "from" and inbound routing
     mutationFn: () => api.patch('/auth/me', {
-      reply_from_email: replyFromEmail.trim() || null,
-      inbound_email: inboundEmail.trim() || null,
+      reply_from_email: personalEmail.trim() || null,
+      inbound_email: personalEmail.trim() || null,
     }).then(r => r.data),
     onSuccess: async () => {
       await refreshUser()
@@ -34,7 +34,7 @@ export default function ProfileSettingsPage() {
   return (
     <div className="max-w-xl">
       <h1 className="text-2xl font-bold text-slate-900 mb-1">Profile</h1>
-      <p className="text-sm text-slate-500 mb-8">Manage your personal reply address and display name.</p>
+      <p className="text-sm text-slate-500 mb-8">Manage your personal email address and password.</p>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
         <div>
@@ -44,33 +44,17 @@ export default function ProfileSettingsPage() {
 
         <div>
           <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-            Personal reply-from address
+            Personal email address
           </label>
           <input
             type="email"
-            value={replyFromEmail}
-            onChange={e => setReplyFromEmail(e.target.value)}
-            placeholder="e.g. eddy-klimaatexamen-support@getyippie.com"
+            value={personalEmail}
+            onChange={e => setPersonalEmail(e.target.value)}
+            placeholder="e.g. eddy@getyippie.com"
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
           <p className="mt-1.5 text-xs text-slate-400">
-            When set, you can choose this address as the "From" when replying or composing. Must be on a Resend-verified domain (e.g. @getyippie.com).
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-            Personal inbox address
-          </label>
-          <input
-            type="email"
-            value={inboundEmail}
-            onChange={e => setInboundEmail(e.target.value)}
-            placeholder="e.g. klimaatexamen-eddy@getyippie.com"
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
-          />
-          <p className="mt-1.5 text-xs text-slate-400">
-            Mail sent (or forwarded) to this @getyippie.com address lands in your Personal inbox instead of the team's shared one. Set up forwarding from your work email to this address.
+            One address for both directions: mail sent to it lands in your Personal inbox, and you can pick it as the "From" address when replying or composing. Must be on @getyippie.com.
           </p>
         </div>
 

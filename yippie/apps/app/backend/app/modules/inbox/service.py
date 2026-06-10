@@ -486,6 +486,12 @@ async def queue_send(
     kind: str = "reply",
     commit: bool = True,
 ) -> PendingSend:
+    # Snapshot the effective from-address NOW. devsandbox and sandbox share one DB
+    # and both run flush_pending_sends — a NULL from_email would be resolved with
+    # the RESEND_FROM of whichever container happens to flush the row.
+    from app.config import settings
+
+    from_email = from_email or settings.resend_from or None
     pending = PendingSend(
         draft_id=draft_id,
         tenant_id=tenant_id,

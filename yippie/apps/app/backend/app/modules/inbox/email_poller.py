@@ -8,10 +8,12 @@ Emails with a body already stored are skipped.
 from __future__ import annotations
 
 import logging
+import os
 from html.parser import HTMLParser
 
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from sqlalchemy import select
 
 from app.config import get_settings
 from app.core.models import Tenant
@@ -165,6 +167,14 @@ async def poll_inbound_emails() -> None:
             if any(tid is None for _, tid, _ in routed):
                 async with db_session() as db:
                     fallback_tenant_id = await resolve_tenant_by_inbound_email(db, fallback_addr) if fallback_addr else None
+                    if fallback_tenant_id is None:
+                        # Mail addressed to this container's own INBOUND_EMAIL belongs to the
+                        # platform's seed tenant even when no tenant claims the address —
+                        # otherwise the shared inbox silently drops it.
+                        result = await db.execute(
+                            select(Tenant.id).where(Tenant.slug == os.getenv("TENANT_ID", "default"))
+                        )
+                        fallback_tenant_id = result.scalar_one_or_none()
                     if fallback_tenant_id:
                         t = await db.get(Tenant, fallback_tenant_id)
                         fallback_ai_scan = t is not None and "ai" in (t.enabled_modules or [])
