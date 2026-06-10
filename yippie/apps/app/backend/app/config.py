@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import yaml
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -63,6 +63,13 @@ class Settings(BaseSettings):
     # Public URL of this environment's client app (e.g. https://sandbox.getyippie.com)
     # — used for links in invite and password-reset emails.
     app_base_url: str = ""
+
+    @field_validator("app_base_url")
+    @classmethod
+    def _strip_trailing_slash(cls, v: str) -> str:
+        # A trailing slash in the env var would yield "…com//register" links,
+        # which React Router does not match.
+        return v.rstrip("/")
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
