@@ -35,7 +35,7 @@ async def list_tenants(db: AsyncSession) -> list[dict]:
 
 
 async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
-    from app.auth.invite import send_invite_email
+    from app.auth.invite import send_invite_email, send_welcome_to_inbox
     from app.core.mailer import ResendNotConfiguredError
 
     # Never silently overwrite an existing user's credentials
@@ -84,7 +84,28 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
         except ResendNotConfiguredError:
             pass  # tenant is created either way; invites can be re-sent later
 
+    # The product introduction lands in the client's own Yippie inbox — the
+    # poller picks it up like any customer mail, so it's the first draft they see.
+    if tenant.inbound_email:
+        try:
+            await send_welcome_to_inbox(tenant.inbound_email, tenant.name)
+        except Exception:
+            pass  # never block tenant creation on the welcome mail
+
     return _tenant_to_dict(tenant, user_count)
+
+
+async def check_email_available(db: AsyncSession, email: str) -> tuple[bool, str | None]:
+    """(available, reason) for an address about to be invited/created."""
+    from app.core.mailer import is_valid_email
+
+    addr = (email or "").strip().lower()
+    if not is_valid_email(addr):
+        return False, "Not a valid email address"
+    existing = await db.scalar(select(User.id).where(func.lower(User.email) == addr))
+    if existing:
+        return False, "A user with this email already exists"
+    return True, None
 
 
 async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpdate) -> dict | None:

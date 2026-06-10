@@ -22,6 +22,15 @@ async def list_tenants(_: SuperAdminUser, db: DB):
     return await service.list_tenants(db)
 
 
+@router.get("/check-email")
+async def check_email(_: SuperAdminUser, db: DB, email: str = ""):
+    """Inline validation for the create-client / add-admin forms: validates the
+    format and whether the address is already taken, as the user types (on blur),
+    instead of failing on submit."""
+    available, reason = await service.check_email_available(db, email)
+    return {"available": available, "reason": reason}
+
+
 @router.post("/tenants", response_model=schemas.TenantOut, status_code=status.HTTP_201_CREATED)
 async def create_tenant(_: SuperAdminUser, db: DB, data: schemas.TenantCreate):
     try:

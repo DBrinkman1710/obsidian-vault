@@ -136,6 +136,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
 }
 
 function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: boolean }) {
+  const qc = useQueryClient()
   const [recipients, setRecipients] = useState<{ email: string; label: string }[]>([])
   const [subject, setSubject] = useState('')
   const [body, setBody] = useState('')
@@ -199,6 +200,9 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
           undoIntervalRef.current = null
           setQueued(null)
           setResult({ sent: recipients, failed: [] })
+          // The mail just left the undo queue — refresh the inbox views so the
+          // Sent tab shows it without waiting for the next poll.
+          qc.invalidateQueries({ queryKey: ['drafts'] })
         }
       }, 100)
     },
@@ -220,6 +224,7 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
       setQueued(null)
       setUndoProgress(0)
       setResult({ sent: recipients, failed: [] })
+      qc.invalidateQueries({ queryKey: ['drafts'] })
     }
   }
 
@@ -466,7 +471,7 @@ export default function InboxQueue() {
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
     queryKey: ['drafts', mailbox, 'pending'],
     queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending', mailbox } }).then(r => r.data),
-    refetchInterval: 10_000,
+    refetchInterval: 5_000,
     refetchIntervalInBackground: true,
     enabled: activeTab === 'pending',
   })

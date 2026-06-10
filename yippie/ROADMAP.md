@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-10 (session 18d — checklist reconciliation: Diederik verified a batch of items; scope frozen, no new tasks for now)
+**Updated:** 2026-06-10 (session 19 — perf Step 1 quick wins shipped + next-session items 2/3/4 done; agent-as-admin and personal-leak chains code-verified)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -17,34 +17,45 @@
    snapshot did `from app.config import settings`, but `app.config` only exports
    `get_settings()` → ImportError on every `queue_send` (compose AND reply). One-line fix.
    **Verify compose + reply live in devsandbox before anything else.**
-2. **klimaatexamen mail shows in both the klimaatexamen sandbox AND devsandbox** — investigate:
-   - If "devsandbox" means logged in as the same/klimaatexamen user on the other URL: that's
-     the pair design (one shared DB; the inbox follows the login, not the URL) — explain, close.
-   - If the mail appears in the **Yippie tenant's** inbox as superadmin: real bug — check
-     `inbound_messages` rows per `resend_email_id` for duplicate ingestion into two tenants
-     (possible poller dedup race between the two containers: both call `find_by_resend_id`
-     before either commits). Fix would be a unique index on `resend_email_id` + on-conflict skip.
-3. **Welcome mail rework (item 42 follow-up, Diederik's feedback):**
-   - Create-password/invite mail goes back to **short form** (just the link).
-   - The welcome/introduction content becomes a **separate mail sent INTO the client's Yippie
-     inbox** (send to the tenant's `inbound_email` on creation) so it's the first item they see
-     in the product — not buried in the password mail.
-4. **Add-admin/wizard email validation must be immediate** — validate format + already-in-use
-   as soon as the email is entered (on blur / debounced), not on submit. Needs a small
-   `GET /admin/check-email?email=` endpoint + inline field error in CreateClientModal /
-   AddAdminModal / wizard.
+2. ~~klimaatexamen mail shows in both sandboxes~~ **HARDENED (session 19)** — findings:
+   - The unique index on `resend_email_id` has existed since migration `b1c2d3e4f5a6`, so a
+     true duplicate row (same mail in two tenants) **cannot persist**. If Diederik saw the mail
+     on both URLs while logged in as the same/klimaatexamen user, that's the pair design (one
+     shared DB; the inbox follows the login, not the URL) — explain, close.
+   - Real gap fixed: when both containers raced past `find_by_resend_id`, the loser's
+     `IntegrityError` aborted its **whole ingest batch** (other new mails dropped until the next
+     poll). `email_poller.py` now catches the conflict per email, rolls back and skips —
+     the roadmap's "on-conflict skip".
+   - Still verify in the live DB if the report recurs: `SELECT resend_email_id, count(*),
+     array_agg(tenant_id) FROM inbound_messages GROUP BY 1 HAVING count(*) > 1;`
+3. ~~Welcome mail rework~~ **DONE (session 19)** — invite/create-password mail is back to
+   short form (just the link, 7-day validity). New `send_welcome_to_inbox()` in
+   `app/auth/invite.py` sends the introduction content to the tenant's `inbound_email` on
+   creation (called from `create_tenant`, never blocks creation); the poller ingests it so
+   it's the first draft the client sees. Note: only sent when the tenant has an inbound
+   address at creation time.
+4. ~~Add-admin/wizard email validation~~ **DONE (session 19)** — `GET /admin/check-email`
+   (superadmin-gated, format + already-in-use) + debounced (500ms) inline field errors in
+   CreateClientModal (admin email blocks Next; extra-admin email blocks Add) and AddAdminModal
+   (blocks submit).
 
 ### 🆕 New from Diederik's checklist — 2026-06-10 (post-session 18)
 
 **Bugs to investigate (after the numbered bug list above):**
-- **New agent user arrived as admin** — invited a user with role agent via Team page; account
-  came out as admin. Check `POST /team/invite` → invite token `role` claim → `/auth/register`
-  role assignment.
-- **Personal inbox leaks across users** — mail to joost@getyippie.com (joost's personal
-  address) showed in BOTH joost's personal box AND diederik1710@icloud.com's personal box,
-  although the latter has no personal address set. Per code, `mailbox=personal` without
-  `inbound_email` returns `[]` — so find what the icloud account actually displays (frontend
-  fallback to shared? stale tab state?). Likely same root as bug 2 above.
+- **New agent user arrived as admin** — *code-verified clean (session 19):* the whole chain
+  Team page (sends `role: 'agent'`) → `POST /team/invite` → invite token `role` claim →
+  `/auth/register` `UserRole(claims.get("role", "agent"))` is correct on this branch. Most
+  likely cause: the user registered with an **older invite token** — the create-client wizard
+  and Add-admin modal always mint `role=admin` tokens, and invite links stay valid 7 days, so
+  clicking an earlier admin invite mail (or a pre-session-18 link) yields an admin account.
+  Verify live: re-invite a fresh address as agent and register via that exact mail.
+- **Personal inbox leaks across users** — *code-verified (session 19):* `mailbox=personal`
+  without a personal `inbound_email` returns `[]` server-side, and the frontend shows the
+  "no personal inbox address set" banner — the icloud account cannot display joost's personal
+  mail from current code. Check live whether diederik1710@icloud.com actually has
+  `users.inbound_email` set (e.g. to joost's address before the 409-uniqueness check landed),
+  or whether the screenshot predates session 18. The batch-abort fix for bug 2 also removes
+  one route for stray fallback ingestion.
 - **Personal address only receives after first send** — "I can only receive on a personal mail
   after I have sent a mail from that personal mail using Yippie." Probably: the poller's
   routing map only contains the address once saved on the Profile (no send needed) — verify
@@ -148,12 +159,17 @@ Top priority initiative. Diederik wants Yippie to feel fast. A code pass over
 
 ### Next steps after "make my tool faster" — leverage-ordered
 
-**Step 1 — Quick wins (~1 day, highest leverage):**
-1. Add the missing composite indexes (one idempotent migration). Biggest
-   actual-latency win as tenants grow.
-2. Drop inbox `refetchInterval` 10s → 5s **and** invalidate the inbox query on
-   send/compose so new mail/sent state shows instantly.
-3. Nginx `gzip on` + long-cache hashed assets, short-cache `index.html`.
+**Step 1 — Quick wins (~1 day, highest leverage): ✅ SHIPPED (session 19)**
+1. ~~Add the missing composite indexes~~ DONE — migration `a9b0c1d2e3f4` adds
+   `tickets(tenant_id, status, deleted_at)` + `tickets(tenant_id, assigned_to)`
+   (idempotent; `draft_tickets(tenant_id, status)` already existed via `c8d9e0f1a2b3`).
+2. ~~Inbox `refetchInterval` 10s → 5s + invalidate on send/compose~~ DONE —
+   `InboxQueue.tsx` polls every 5s; compose invalidates `['drafts']` when the undo
+   window elapses (and when undo arrives too late). Reply/review already invalidated.
+3. ~~Nginx `gzip on` + cache headers~~ DONE — gzip for js/css/json/svg, hashed
+   `/assets/` cached 1y immutable, `index.html` no-cache (`frontend/nginx.conf`).
+   Note: Vite route code-splitting from Step 3 turns out to already be in place
+   (per-page chunks in the build output) — skip that line of Step 3.
 
 **Step 2 — Async ingest (~1 day):** return a minimal draft immediately, move
 `scan_message()` + `_build_context()` to a background APScheduler sub-job that

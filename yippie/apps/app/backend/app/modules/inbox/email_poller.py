@@ -14,6 +14,7 @@ from html.parser import HTMLParser
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
 from app.core.models import Tenant
@@ -240,17 +241,25 @@ async def poll_inbound_emails() -> None:
                         inbound_to = first.get("email") if isinstance(first, dict) else str(first)
                     elif isinstance(raw_to, str):
                         inbound_to = raw_to
-                    await service.ingest_email(
-                        db=db,
-                        tenant_id=tid,
-                        sender=meta.get("from") or "",
-                        subject=meta.get("subject") or None,
-                        body=body,
-                        resend_email_id=meta["id"],
-                        inbound_to=inbound_to,
-                        attachments_json=att_map.get(meta["id"]),
-                        ai_scan=ai,
-                    )
+                    try:
+                        await service.ingest_email(
+                            db=db,
+                            tenant_id=tid,
+                            sender=meta.get("from") or "",
+                            subject=meta.get("subject") or None,
+                            body=body,
+                            resend_email_id=meta["id"],
+                            inbound_to=inbound_to,
+                            attachments_json=att_map.get(meta["id"]),
+                            ai_scan=ai,
+                        )
+                    except IntegrityError:
+                        # devsandbox and sandbox share one DB, so both pollers can pass
+                        # the find_by_resend_id check before either commits. The unique
+                        # index on resend_email_id rejects the loser — skip just this
+                        # email instead of aborting the rest of the batch.
+                        await db.rollback()
+                        log.info("Skipping %s — already ingested by the other container", meta["id"])
 
                 for existing, meta, tid, ai in to_update:
                     body = body_map.get(meta["id"])

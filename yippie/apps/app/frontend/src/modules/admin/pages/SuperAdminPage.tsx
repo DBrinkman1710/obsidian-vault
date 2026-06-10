@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -67,6 +67,34 @@ function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
 }
 
+/** Inline validation for invite/admin email fields: format + already-in-use,
+ * checked ~500ms after the user stops typing instead of failing on submit.
+ * Returns null while typing or when the address is fine. */
+function useEmailCheckError(email: string): string | null {
+  const trimmed = email.trim().toLowerCase()
+  const [debounced, setDebounced] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(trimmed), 500)
+    return () => clearTimeout(t)
+  }, [trimmed])
+
+  const settled = debounced === trimmed && trimmed.length > 0
+  const validFormat = EMAIL_RE.test(trimmed)
+
+  const { data } = useQuery<{ available: boolean; reason: string | null }>({
+    queryKey: ['check-email', debounced],
+    queryFn: () => api.get('/admin/check-email', { params: { email: debounced } }).then(r => r.data),
+    enabled: settled && validFormat,
+    staleTime: 30_000,
+  })
+
+  if (!settled) return null
+  if (!validFormat) return 'Not a valid email address'
+  if (data && !data.available) return data.reason ?? 'This email is not available'
+  return null
+}
+
 const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
@@ -100,6 +128,8 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   const [extraEmail, setExtraEmail] = useState('')
   const [error, setError] = useState('')
   const [created, setCreated] = useState<{ invites: string[] } | null>(null)
+  const adminEmailError = useEmailCheckError(form.admin_email)
+  const extraEmailError = useEmailCheckError(extraEmail)
 
   const set = (field: keyof CreateForm) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -156,6 +186,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
     if (step === 0) {
       if (!form.name.trim() || !form.slug.trim()) return 'Company name and slug are required'
       if (!EMAIL_RE.test(form.admin_email.trim())) return 'A valid admin email is required'
+      if (adminEmailError) return adminEmailError
     }
     if (step === 1 && form.enabled_modules.length === 0) return 'Enable at least one module'
     return ''
@@ -173,6 +204,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   function addExtraEmail() {
     const email = extraEmail.trim().toLowerCase()
     if (!EMAIL_RE.test(email)) { setError('Enter a valid email address'); return }
+    if (extraEmailError) { setError(extraEmailError); return }
     if (email === form.admin_email.trim().toLowerCase() || form.extra_admin_emails.includes(email)) {
       setError('That email is already on the list'); return
     }
@@ -248,7 +280,8 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                 <div><label className={labelCls}>Admin name</label>
                   <input className={inputCls} value={form.admin_full_name} onChange={set('admin_full_name')} placeholder="Jan de Vries" /></div>
                 <div><label className={labelCls}>Admin email *</label>
-                  <input className={inputCls} type="email" value={form.admin_email} onChange={set('admin_email')} placeholder="admin@acme.nl" /></div>
+                  <input className={inputCls} type="email" value={form.admin_email} onChange={set('admin_email')} placeholder="admin@acme.nl" />
+                  {adminEmailError && <p className="mt-1 text-xs text-red-500">{adminEmailError}</p>}</div>
               </div>
               <div>
                 <label className={labelCls}>Admin password</label>
@@ -300,6 +333,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                     placeholder="collega@acme.nl" />
                   <button type="button" onClick={addExtraEmail} className="px-4 py-2 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">Add</button>
                 </div>
+                {extraEmailError && <p className="mt-1 text-xs text-red-500">{extraEmailError}</p>}
                 <p className="mt-1 text-xs text-slate-400">Optional — each gets an invite email to set their own password.</p>
               </div>
               {form.extra_admin_emails.length > 0 && (
@@ -464,6 +498,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
   const [form, setForm] = useState({ email: '', password: '', full_name: 'Admin' })
   const [error, setError] = useState('')
   const [invited, setInvited] = useState<string | null>(null)
+  const emailError = useEmailCheckError(form.email)
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -487,6 +522,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!EMAIL_RE.test(form.email.trim())) { setError('A valid email is required'); return }
+    if (emailError) { setError(emailError); return }
     setError('')
     mutation.mutate()
   }
@@ -519,6 +555,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
           <div>
             <label className={labelCls}>Email *</label>
             <input className={inputCls} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="admin@company.nl" autoFocus />
+            {emailError && <p className="mt-1 text-xs text-red-500">{emailError}</p>}
           </div>
           <div>
             <label className={labelCls}>Password</label>
