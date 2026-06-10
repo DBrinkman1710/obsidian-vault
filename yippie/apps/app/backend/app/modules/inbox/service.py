@@ -321,9 +321,14 @@ async def link_contact_to_draft(
         return None
 
     msg_result = await db.execute(
-        select(InboundMessage).where(InboundMessage.id == draft.inbound_message_id)
+        select(InboundMessage).where(
+            InboundMessage.tenant_id == tenant_id,
+            InboundMessage.id == draft.inbound_message_id,
+        )
     )
     msg = msg_result.scalar_one_or_none()
+    if not msg:
+        return None
 
     context_summary = await _build_context(db, tenant_id, contact, msg.sender, msg.raw_body)
     draft.matched_contact_id = contact_id

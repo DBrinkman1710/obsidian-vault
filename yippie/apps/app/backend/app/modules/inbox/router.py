@@ -14,7 +14,7 @@ from pydantic import BaseModel
 
 from app.auth.dependencies import CurrentUser, require_module
 from app.config import get_settings
-from app.core.mailer import ResendNotConfiguredError, send_email
+from app.core.mailer import ResendNotConfiguredError, email_domain, is_valid_email, send_email
 from app.core.models import Tenant
 from app.core.tenant import resolve_tenant_by_slug
 from app.database import get_db
@@ -35,6 +35,51 @@ class ForwardRequest(BaseModel):
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
 DB = Annotated[AsyncSession, Depends(get_db)]
+
+# Attachment limits, mirroring typical provider caps.
+MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024        # 10 MB per file
+MAX_ATTACHMENTS_TOTAL_BYTES = 25 * 1024 * 1024  # 25 MB per message
+
+
+def _tenant_from_domains(tenant: Optional[Tenant]) -> set[str]:
+    """Sender domains this tenant is allowed to send from."""
+    domains: set[str] = set()
+    if tenant and tenant.inbound_email:
+        domains.add(email_domain(tenant.inbound_email))
+    settings = get_settings()
+    if settings.resend_from:
+        domains.add(email_domain(settings.resend_from))
+    return {d for d in domains if d}
+
+
+async def _validate_from_email(from_email: Optional[str], db: AsyncSession, tenant_id: uuid.UUID) -> None:
+    """Reject malformed senders and addresses outside this tenant's verified domains."""
+    if not from_email:
+        return
+    if not is_valid_email(from_email):
+        raise HTTPException(status_code=400, detail="from_email is not a valid email address")
+    allowed = _tenant_from_domains(await db.get(Tenant, tenant_id))
+    if allowed and email_domain(from_email) not in allowed:
+        raise HTTPException(status_code=403, detail="from_email domain is not permitted for this tenant")
+
+
+async def _encode_attachments(attachments: list[UploadFile]) -> list[dict]:
+    """Read + base64-encode uploads, enforcing per-file and total size caps."""
+    encoded: list[dict] = []
+    total = 0
+    for f in attachments:
+        content = await f.read()
+        total += len(content)
+        if len(content) > MAX_ATTACHMENT_BYTES:
+            raise HTTPException(status_code=413, detail=f"Attachment '{f.filename}' exceeds 10 MB")
+        if total > MAX_ATTACHMENTS_TOTAL_BYTES:
+            raise HTTPException(status_code=413, detail="Attachments exceed 25 MB total")
+        encoded.append({
+            "filename": f.filename or "attachment",
+            "content": base64.b64encode(content).decode(),
+            "content_type": f.content_type or "application/octet-stream",
+        })
+    return encoded
 
 
 @router.get("/drafts", response_model=list[DraftTicketOut])
@@ -146,21 +191,16 @@ async def send_reply(
     draft = ctx["draft"]
     msg = ctx["inbound_message"]
     contact = ctx["contact"]
+    if not msg or not msg.sender:
+        raise HTTPException(status_code=409, detail="Original message has no sender to reply to")
+    await _validate_from_email(from_email, db, current_user.tenant_id)
     subject = f"Re: {draft.final_subject or draft.ai_suggested_subject}"
 
     if await service.tenant_is_demo(db, current_user.tenant_id):
         return {"queued": False, "demo": True, "to": msg.sender, "subject": subject}
 
     # Encode any attached files so the background job can send them
-    encoded_attachments: list[dict] = []
-    for f in attachments:
-        content = await f.read()
-        encoded_attachments.append({
-            "filename": f.filename or "attachment",
-            "content": base64.b64encode(content).decode(),
-            "content_type": f.content_type or "application/octet-stream",
-        })
-
+    encoded_attachments = await _encode_attachments(attachments)
     attachments_json = json.dumps(encoded_attachments) if encoded_attachments else None
 
     # Server window is 8s but the UI counts down 5s on its own clock — the 3s
@@ -346,23 +386,23 @@ async def compose_send(
 ):
     """Queue a new outbound email to one or more recipients (sent individually,
     BCC-style) after a 5s undo window. Supports optional file attachments."""
-    recipients: list[str] = json.loads(to)
-    if not recipients:
+    await _validate_from_email(from_email, db, current_user.tenant_id)
+    try:
+        recipients = json.loads(to)
+    except (json.JSONDecodeError, TypeError):
+        raise HTTPException(status_code=400, detail="'to' must be a JSON array of email addresses")
+    if not isinstance(recipients, list) or not recipients:
         raise HTTPException(status_code=400, detail="At least one recipient is required")
+    invalid = [r for r in recipients if not is_valid_email(str(r))]
+    if invalid:
+        raise HTTPException(status_code=400, detail=f"Invalid recipient address(es): {', '.join(map(str, invalid))}")
     if not subject.strip() or not body.strip():
         raise HTTPException(status_code=400, detail="Subject and body are required")
 
     if await service.tenant_is_demo(db, current_user.tenant_id):
         return {"sent": 0, "failed": [], "demo": True}
 
-    encoded_attachments: list[dict] = []
-    for f in attachments:
-        content = await f.read()
-        encoded_attachments.append({
-            "filename": f.filename or "attachment",
-            "content": base64.b64encode(content).decode(),
-            "content_type": f.content_type or "application/octet-stream",
-        })
+    encoded_attachments = await _encode_attachments(attachments)
     attachments_json = json.dumps(encoded_attachments) if encoded_attachments else None
 
     # One queue row per recipient sharing one batch id, so a single undo call
