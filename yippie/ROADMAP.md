@@ -30,6 +30,49 @@
    `GET /admin/check-email?email=` endpoint + inline field error in CreateClientModal /
    AddAdminModal / wizard.
 
+### 🆕 New from Diederik's checklist — 2026-06-10 (post-session 18)
+
+**Bugs to investigate (after the numbered bug list above):**
+- **New agent user arrived as admin** — invited a user with role agent via Team page; account
+  came out as admin. Check `POST /team/invite` → invite token `role` claim → `/auth/register`
+  role assignment.
+- **Personal inbox leaks across users** — mail to joost@getyippie.com (joost's personal
+  address) showed in BOTH joost's personal box AND diederik1710@icloud.com's personal box,
+  although the latter has no personal address set. Per code, `mailbox=personal` without
+  `inbound_email` returns `[]` — so find what the icloud account actually displays (frontend
+  fallback to shared? stale tab state?). Likely same root as bug 2 above.
+- **Personal address only receives after first send** — "I can only receive on a personal mail
+  after I have sent a mail from that personal mail using Yippie." Probably: the poller's
+  routing map only contains the address once saved on the Profile (no send needed) — verify
+  what saving vs sending actually changes, document or fix.
+- **Dept/SLA popup: SLA sticks to standard** — after picking a department in the popup, SLA
+  stays on the standard value instead of following the department's default (editable). Extends
+  item 11 (DeptReminderModal redesign).
+- **Subject altered on receive** — the inbox shows the AI-suggested subject
+  (`ai_suggested_subject`), not the raw email subject. By design for draft tickets, but show
+  the original subject (e.g. secondary line) and keep reply threads on the original. Related:
+  item 44 (reply subject language).
+
+**Design/feature requests (filed in phases):**
+- **Department emails as shared inboxes** — a department can have its own address (e.g.
+  klimaatexamen@getyippie.com as THE shared inbox; joost-klimaatexamen@ personal). General
+  mail from that environment sends from the department address; only admins/superadmins can
+  edit. → New design item, pairs with the departments module + item 40 matrix.
+- **Auto-provision the client's shared support address on tenant creation** (like personal
+  inboxes work) — wizard pre-fills `{slug}-support@getyippie.com` (partially exists in the
+  create modal; make it the default end-to-end incl. Resend-side readiness).
+- **Personal mail tied to login email + shared mail tied to company** — design decision for
+  the email-identity model (Phase 13): personal inbound address derives from the user's login
+  identity; shared address belongs to the tenant.
+- **Move Departments onto the Team page** — one settings page: user list (large) + departments
+  (smaller section) side by side.
+- **Email signatures per user** — compose/reply appends the user's signature; editable on
+  Profile. (New item.)
+- **Remove the "Promote to superadmin" block from the Clients page** — superadmin management
+  lives in Settings → Superadmins now.
+- **Onboarding mails still carry devsandbox links** — confirms the invite-link base URL bug
+  (Next session item 5 / Phase 13); client invites must use the client-facing URL.
+
 ### ⚡ Session 18 status update (read first)
 
 - **Shipped + deployed:** from-address snapshot fix (wrong `dev-support@` sender bug),
