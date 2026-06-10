@@ -31,18 +31,21 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     cfg = load_tenant_config()
+    settings = get_settings()
+    is_prod = settings.environment == "production"
 
     app = FastAPI(
         title="Yippie — Customer Platform",
         version="1.0.0",
-        docs_url="/api/docs",
-        redoc_url="/api/redoc",
+        # API docs are disabled in production to avoid exposing the schema/diagnostics.
+        docs_url=None if is_prod else "/api/docs",
+        redoc_url=None if is_prod else "/api/redoc",
         lifespan=lifespan,
     )
 
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
