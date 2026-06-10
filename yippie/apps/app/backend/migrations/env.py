@@ -48,8 +48,8 @@ async def run_async_migrations() -> None:
 
     from app.database import _prepare_db_url, _make_engine
     settings = get_settings()
-    url, needs_ssl = _prepare_db_url(settings.database_url)
-    engine = _make_engine(url, needs_ssl)
+    url, sslmode, sslrootcert = _prepare_db_url(settings.database_url)
+    engine = _make_engine(url, sslmode, sslrootcert)
     async with engine.begin() as conn:
         # devsandbox and sandbox deploy from the same branch at the same moment
         # against one shared DB — serialize their migration runs so concurrent
