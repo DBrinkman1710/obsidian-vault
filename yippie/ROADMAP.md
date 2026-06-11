@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 28 — deadline-indicator redesign: per-tenant severity dots on Tickets nav)
+**Updated:** 2026-06-11 (session 28b — attachments fixed end-to-end: real inbound content via Resend attachments API, nginx upload limit, forward carries attachments)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -42,6 +42,7 @@ environment / deploy reference lives in **Appendix B**.
   - Both thresholds are editable per tenant in **Settings → Departments → Deadline indicator**.
 - ~~**Hotkeys on/off toggle**~~ ✅ **DONE (session 27, PR #20)** — per-user toggle in Profile (`users.hotkeys_enabled`).
 - **Activity page not working** — code-audited session 28: backend (`/activity`, `/activity/stats`) + frontend + route registration all look correct; no code defect found. Most likely an empty-state (no logged events for that tenant) — **needs sandbox repro** with a specific error before any fix.
+- ~~**Attachments still broken after session 27**~~ ✅ **DONE (session 28b)** — real root cause: Resend keeps attachment bytes behind a separate attachments endpoint (pre-signed `download_url`), not inline in the email-get response, so every stored `content` was empty; plus nginx's default 1 MB body limit 413'd uploads. Both fixed, forward now carries attachments, pickers enforce the 10/25 MB caps client-side. **Verify in sandbox** (see session 28b log for the 5-step checklist).
 
 **Additional bugs reported (pre-session-28 — fix alongside the above):**
 - ~~**Outbound from-address wrong in ndugu environment**~~ ✅ **DONE (commit `9414789`)** — `queue_send` now resolves `from_email` to `tenant.inbound_email` before the `RESEND_FROM` fallback.
@@ -188,6 +189,49 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 28b — 2026-06-11 (attachments fixed end-to-end — parallel with session 28)
+
+Diederik reported attachments still broken after session 27. Traced the full pipeline against
+Resend's actual API docs and found four real bugs; all fixed this session.
+
+**Root cause #1 — inbound downloads were always empty.** Session 27 assumed
+`GET /emails/receiving/{id}` returns attachment `content` inline — it doesn't (metadata only).
+Bytes live behind the separate documented endpoint
+`GET /emails/receiving/{email_id}/attachments`, which returns a pre-signed, expiring
+`download_url` per attachment (no auth header needed). The poller was storing
+`a.get("content", "")` → `""` for every attachment, so every download served a zero-byte file.
+
+- New `inbox/attachments.py`: `fetch_attachment_list()` (the attachments endpoint) +
+  `fetch_attachment_bytes()` (pre-signed URL download), shared by poller and router.
+- `email_poller.py _fetch_email_data`: when the email has attachments, fetch the list, download
+  each file's bytes, store base64 inline in `attachments_json` (same shape as before — survives
+  Resend URL expiry/retention). Files over 10 MB store metadata only; any fetch failure degrades
+  to metadata-only and never blocks ingestion.
+- `router.py download_attachment`: when stored `content` is empty (legacy rows ingested before
+  this fix, or over-cap files), live-fetch via `msg.resend_email_id` → fresh `download_url` →
+  stream back; clear 404 "Attachment no longer available" if Resend no longer has it. Old drafts
+  become downloadable without any backfill.
+
+**Root cause #2 — outbound uploads over ~1 MB were 413'd by nginx.** `frontend/nginx.conf` had
+no `client_max_body_size` (default 1 MB), so the backend's documented 10 MB/file / 25 MB/total
+caps were unreachable. Added `client_max_body_size 30m;` to the `/api` location.
+
+**Bug #3 — forward dropped the customer's original attachments.** `forward_draft` now passes
+the stored attachments to `send_email` (live-fetching any without stored content); a file that
+can't be recovered degrades to forwarding without it rather than blocking the forward.
+
+**Bug #4 — silent failure UX.** New shared `frontend/src/modules/inbox/attachmentLimits.ts`
+mirrors the backend caps; reply + compose file pickers now reject >10 MB files / >25 MB totals
+with a visible message instead of an opaque 413 at send time. The download button detects
+zero-byte responses ("{file} is no longer available.") instead of silently saving an empty file.
+
+Verified: `py_compile` clean, `tsc --noEmit` clean, `vite build` clean. No migration.
+**Sandbox verification (Diederik):** mail an attachment to `sb-support@` → download it from the
+draft; download from an *older* draft (fallback path); reply with a 2–5 MB file; try a >10 MB
+file (friendly rejection); forward a draft with attachments to a department.
 
 ---
 

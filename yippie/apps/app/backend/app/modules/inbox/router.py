@@ -6,6 +6,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
 
+import httpx
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status  # noqa: F401
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,6 +24,7 @@ from app.modules.activity import service as activity_service
 from app.modules.departments import service as dept_service
 from app.modules.departments.schemas import DepartmentOut
 from app.modules.inbox import service, ai_scanner
+from app.modules.inbox.attachments import fetch_attachment_list, fetch_attachment_bytes
 from app.modules.inbox.models import DraftStatus
 from app.modules.inbox.schemas import (
     DraftReview, DraftTicketOut, DraftWithContextOut,
@@ -80,6 +83,22 @@ async def _encode_attachments(attachments: list[UploadFile]) -> list[dict]:
             "content_type": f.content_type or "application/octet-stream",
         })
     return encoded
+
+
+async def _live_fetch_attachment_bytes(
+    resend_email_id: Optional[str], attachment_id: str
+) -> Optional[bytes]:
+    """Fetch attachment bytes straight from Resend (pre-signed download_url)."""
+    settings = get_settings()
+    if not resend_email_id or not settings.resend_api_key:
+        return None
+    auth = {"Authorization": f"Bearer {settings.resend_api_key}"}
+    async with httpx.AsyncClient(timeout=30) as client:
+        atts = await fetch_attachment_list(client, auth, resend_email_id)
+        match = next((a for a in atts if a.get("id") == attachment_id), None)
+        if not match or not match.get("download_url"):
+            return None
+        return await fetch_attachment_bytes(client, match["download_url"])
 
 
 def _enrich_drafts(rows: list[tuple]) -> list[DraftTicketOut]:
@@ -280,6 +299,12 @@ async def download_attachment(
 
     raw = att.get("content", "")
     content = base64.b64decode(raw) if raw else b""
+    if not content:
+        # Legacy rows (ingested before content was stored) or over-cap files:
+        # fetch fresh bytes from Resend via a pre-signed download_url.
+        content = await _live_fetch_attachment_bytes(msg.resend_email_id, attachment_id)
+        if content is None:
+            raise HTTPException(status_code=404, detail="Attachment no longer available")
     filename = att.get("filename", "attachment")
     content_type = att.get("content_type", "application/octet-stream")
     return Response(
@@ -323,6 +348,22 @@ async def forward_draft(draft_id: uuid.UUID, body: ForwardRequest, current_user:
         f"Subject: {original_subject}\n\n"
         f"--- Original message ---\n{msg.raw_body}"
     )
+    # Include the customer's original attachments; a file we can't recover
+    # degrades to forwarding without it rather than blocking the forward.
+    fwd_attachments: list[dict] = []
+    if msg.attachments_json:
+        for att in json.loads(msg.attachments_json):
+            content = att.get("content", "")
+            if not content:
+                raw_bytes = await _live_fetch_attachment_bytes(msg.resend_email_id, att.get("id", ""))
+                if raw_bytes is None:
+                    continue
+                content = base64.b64encode(raw_bytes).decode()
+            fwd_attachments.append({
+                "filename": att.get("filename", "attachment"),
+                "content": content,
+            })
+
     if not await service.tenant_is_demo(db, current_user.tenant_id):
         try:
             tenant = await db.get(Tenant, current_user.tenant_id)
@@ -331,6 +372,7 @@ async def forward_draft(draft_id: uuid.UUID, body: ForwardRequest, current_user:
                 subject=f"FWD: {original_subject}",
                 body=dept_body,
                 reply_to=msg.sender,
+                attachments=fwd_attachments or None,
                 html=render_email_html(
                     dept_body,
                     tenant_name=tenant.name if tenant else None,

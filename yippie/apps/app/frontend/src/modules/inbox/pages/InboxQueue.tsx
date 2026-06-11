@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../../../api/client'
+import { addFilesWithinLimits } from '../attachmentLimits'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { CardListSkeleton } from '../../../shell/Skeleton'
@@ -400,7 +401,11 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
                 multiple
                 className="hidden"
                 onChange={e => {
-                  if (e.target.files) setComposeFiles(prev => [...prev, ...Array.from(e.target.files!)])
+                  if (e.target.files) {
+                    const { files, error } = addFilesWithinLimits(composeFiles, Array.from(e.target.files))
+                    setComposeFiles(files)
+                    setSendError(error)
+                  }
                   e.target.value = ''
                 }}
               />

@@ -7,6 +7,7 @@ Emails with a body already stored are skipped.
 """
 from __future__ import annotations
 
+import base64
 import logging
 import os
 from html.parser import HTMLParser
@@ -21,6 +22,11 @@ from app.core.models import Tenant
 from app.core.tenant import get_inbound_email_map, resolve_tenant_by_inbound_email
 from app.database import db_session
 from app.modules.inbox import service
+from app.modules.inbox.attachments import (
+    MAX_STORED_ATTACHMENT_BYTES,
+    fetch_attachment_list,
+    fetch_attachment_bytes,
+)
 
 log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
@@ -80,21 +86,36 @@ async def _fetch_email_data(client: httpx.AsyncClient, auth: dict, email_id: str
     if not body:
         log.warning("Body fetch %s → empty body. text=%r html=%r", email_id, text, (html or "")[:200])
 
-    # Extract attachments — store content inline (base64) so the download proxy
-    # doesn't need a separate Resend API call (no such endpoint exists).
+    # Extract attachments — the email-get response carries metadata only; bytes
+    # come from the separate attachments endpoint via pre-signed download_urls.
+    # Store content inline (base64) so downloads/forwards survive URL expiry.
     attachments_json: str | None = None
-    raw_atts = full.get("attachments") or []
-    parsed = [
-        {
-            "id": a["id"],
-            "filename": a.get("filename", "attachment"),
-            "content_type": a.get("content_type", "application/octet-stream"),
-            "content": a.get("content", ""),
-        }
-        for a in raw_atts if a.get("id")
-    ]
-    if parsed:
-        attachments_json = _json.dumps(parsed)
+    if full.get("attachments"):
+        parsed = []
+        for a in await fetch_attachment_list(client, auth, email_id):
+            if not a.get("id"):
+                continue
+            content_b64 = ""
+            size = a.get("size") or 0
+            if size > MAX_STORED_ATTACHMENT_BYTES:
+                log.warning(
+                    "Attachment %s on %s is %s bytes — over cap, storing metadata only",
+                    a.get("filename"), email_id, size,
+                )
+            elif a.get("download_url"):
+                raw_bytes = await fetch_attachment_bytes(client, a["download_url"])
+                if raw_bytes is not None:
+                    content_b64 = base64.b64encode(raw_bytes).decode()
+            parsed.append(
+                {
+                    "id": a["id"],
+                    "filename": a.get("filename", "attachment"),
+                    "content_type": a.get("content_type", "application/octet-stream"),
+                    "content": content_b64,
+                }
+            )
+        if parsed:
+            attachments_json = _json.dumps(parsed)
 
     return body, attachments_json
 

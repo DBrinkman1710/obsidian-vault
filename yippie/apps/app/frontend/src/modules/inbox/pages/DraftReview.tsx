@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Paperclip, Sparkles } from 'lucide-react'
 import { api } from '../../../api/client'
+import { addFilesWithinLimits } from '../attachmentLimits'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { Skeleton } from '../../../shell/Skeleton'
@@ -729,6 +730,10 @@ export default function DraftReview() {
                           setActionError('')
                           try {
                             const res = await api.get(`/inbox/drafts/${id}/attachments/${att.id}/download`, { responseType: 'blob' })
+                            if (!res.data || res.data.size === 0) {
+                              setActionError(`${att.filename} is no longer available.`)
+                              return
+                            }
                             const url = URL.createObjectURL(res.data)
                             const a = document.createElement('a')
                             a.href = url; a.download = att.filename; a.click()
@@ -1004,7 +1009,11 @@ export default function DraftReview() {
                     multiple
                     className="hidden"
                     onChange={e => {
-                      if (e.target.files) setReplyFiles(prev => [...prev, ...Array.from(e.target.files!)])
+                      if (e.target.files) {
+                        const { files, error } = addFilesWithinLimits(replyFiles, Array.from(e.target.files))
+                        setReplyFiles(files)
+                        setSendError(error)
+                      }
                       e.target.value = ''
                     }}
                   />
