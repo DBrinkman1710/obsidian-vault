@@ -416,6 +416,8 @@ function EditClientModal({
   onCopyEmail,
   copied,
   onRequestDelete,
+  onGoLive,
+  goingLive,
 }: {
   tenant: Tenant
   onClose: () => void
@@ -425,6 +427,8 @@ function EditClientModal({
   onCopyEmail: () => void
   copied: boolean
   onRequestDelete: () => void
+  onGoLive?: () => void
+  goingLive?: boolean
 }) {
   const qc = useQueryClient()
   const [tab, setTab] = useState<EditTab>('info')
@@ -646,6 +650,22 @@ function EditClientModal({
 
           {tab === 'actions' && (
             <div className="flex flex-col gap-4">
+              {tenant.is_demo && (
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-700">Go live</p>
+                    <p className="text-xs text-slate-400">Ends demo mode and enables real email sending.</p>
+                  </div>
+                  <button
+                    onClick={() => { onGoLive?.(); onClose() }}
+                    disabled={goingLive}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                  >
+                    <Rocket size={13} />
+                    Go live
+                  </button>
+                </div>
+              )}
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-slate-700">{tenant.is_active ? 'Active' : 'Inactive'}</p>
@@ -860,6 +880,61 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
   )
 }
 
+function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      Promise.all(tenants.map(t => api.post(`/admin/tenants/${t.id}/delete`, { current_password: password }))),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
+    onError: (err: any) => {
+      const detail = err.response?.data?.detail
+      setError(typeof detail === 'string' ? detail : 'Failed to delete — check your password')
+    },
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!password.trim()) { setError('Password required'); return }
+    setError('')
+    mutation.mutate()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <div>
+            <h2 className="text-lg font-bold text-red-600">Delete {tenants.length} client{tenants.length !== 1 ? 's' : ''}</h2>
+            <p className="text-sm text-slate-400 mt-0.5">This cannot be undone</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+          <div className="bg-red-50 border border-red-200 rounded-xl p-3 max-h-32 overflow-y-auto">
+            {tenants.map(t => (
+              <p key={t.id} className="text-sm text-red-700"><strong>{t.name}</strong> — all users, contacts and data wiped.</p>
+            ))}
+          </div>
+          <div>
+            <label className={labelCls}>Your password</label>
+            <input className={inputCls} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Confirm with your password" autoFocus />
+          </div>
+          {error && <p className="text-sm text-red-500">{error}</p>}
+          <div className="flex gap-3 justify-end pt-1">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
+              {mutation.isPending ? 'Deleting…' : 'Delete forever'}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function ResendDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
   const [copied, setCopied] = useState(false)
@@ -915,6 +990,7 @@ export default function SuperAdminPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
   const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null)
+  const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(null)
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
@@ -1082,6 +1158,15 @@ export default function SuperAdminPage() {
                 >
                   Set Inactive
                 </button>
+                {isRootOwner && (
+                  <button
+                    onClick={() => setBulkDeletingTenants(visible.filter(t => selectedIds.has(t.id)))}
+                    disabled={bulkMutation.isPending}
+                    className="px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                )}
                 <button onClick={() => setSelectedIds(new Set())} className="text-slate-400 hover:text-slate-600 ml-1">
                   <X size={14} />
                 </button>
@@ -1151,16 +1236,6 @@ export default function SuperAdminPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        {status === 'demo' && (
-                          <button
-                            onClick={() => goLiveMutation.mutate(t.id)}
-                            disabled={goLiveMutation.isPending}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
-                          >
-                            <Rocket size={11} />
-                            Go live
-                          </button>
-                        )}
                         {status === 'active' && (
                           <button
                             onClick={() => toggleDemoMutation.mutate({ id: t.id, is_demo: true })}
@@ -1211,9 +1286,17 @@ export default function SuperAdminPage() {
           onCopyEmail={() => editingTenant.inbound_email && copyInboundEmail(editingTenant.slug, editingTenant.inbound_email)}
           copied={copiedSlug === editingTenant.slug}
           onRequestDelete={() => { setEditingTenant(null); setDeletingTenant(editingTenant) }}
+          onGoLive={() => goLiveMutation.mutate(editingTenant.id)}
+          goingLive={goLiveMutation.isPending}
         />
       )}
       {deletingTenant && <DeleteClientModal tenant={deletingTenant} onClose={() => setDeletingTenant(null)} />}
+      {bulkDeletingTenants && (
+        <BulkDeleteClientsModal
+          tenants={bulkDeletingTenants}
+          onClose={() => { setBulkDeletingTenants(null); setSelectedIds(new Set()) }}
+        />
+      )}
     </div>
   )
 }
