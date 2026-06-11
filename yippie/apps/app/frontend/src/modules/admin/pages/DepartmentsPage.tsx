@@ -100,6 +100,80 @@ function DeptForm({ initial, onSave, onCancel, isPending }: {
   )
 }
 
+interface DeadlineSettings {
+  deadline_red_days: number
+  deadline_orange_days: number
+}
+
+function DeadlineSettingsCard() {
+  const qc = useQueryClient()
+  const [red, setRed] = useState('1')
+  const [orange, setOrange] = useState('2')
+  const [loaded, setLoaded] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  useQuery<DeadlineSettings>({
+    queryKey: ['deadline-settings'],
+    queryFn: async () => {
+      const { data } = await api.get('/departments/deadline-settings')
+      setRed(String(data.deadline_red_days))
+      setOrange(String(data.deadline_orange_days))
+      setLoaded(true)
+      return data
+    },
+  })
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.patch('/departments/deadline-settings', {
+      deadline_red_days: parseInt(red) || 0,
+      deadline_orange_days: parseInt(orange) || 0,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tickets', 'deadline-count'] })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    },
+  })
+
+  return (
+    <div className="mb-8 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+      <h2 className="text-base font-bold text-slate-900 mb-1">Deadline indicator</h2>
+      <p className="text-sm text-slate-500 mb-4">
+        Controls the coloured dot on the Tickets menu item. A{' '}
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 align-middle" /> red dot
+        appears when tickets are overdue or due within the red window; an{' '}
+        <span className="inline-block w-2.5 h-2.5 rounded-full bg-amber-400 align-middle" /> orange
+        dot when tickets are due within the orange window.
+      </p>
+      <div className="flex flex-wrap items-end gap-5">
+        <div>
+          <label className={labelCls}>Red — due within (days)</label>
+          <input
+            className={`${inputCls} w-24`}
+            type="number" min={0} max={90}
+            value={red} onChange={e => setRed(e.target.value)}
+          />
+        </div>
+        <div>
+          <label className={labelCls}>Orange — due within (days)</label>
+          <input
+            className={`${inputCls} w-24`}
+            type="number" min={0} max={90}
+            value={orange} onChange={e => setOrange(e.target.value)}
+          />
+        </div>
+        <button
+          onClick={() => saveMutation.mutate()}
+          disabled={!loaded || saveMutation.isPending}
+          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+        >
+          {saveMutation.isPending ? 'Saving…' : saved ? 'Saved ✓' : 'Save'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 export default function DepartmentsPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
@@ -157,6 +231,8 @@ export default function DepartmentsPage() {
           </button>
         )}
       </div>
+
+      <DeadlineSettingsCard />
 
       {showCreate && (
         <div className="mb-5">

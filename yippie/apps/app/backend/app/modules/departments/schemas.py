@@ -21,6 +21,17 @@ class DepartmentUpdate(BaseModel):
     sla_working_days: Optional[int] = None
 
 
+class DeadlineSettings(BaseModel):
+    """Per-tenant thresholds for the Tickets-nav deadline indicator."""
+    deadline_red_days: int
+    deadline_orange_days: int
+
+
+class DeadlineSettingsUpdate(BaseModel):
+    deadline_red_days: Optional[int] = None
+    deadline_orange_days: Optional[int] = None
+
+
 class DepartmentOut(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID

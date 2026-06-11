@@ -38,8 +38,19 @@ export function Sidebar() {
 
   const pendingCount: number = pendingDrafts?.length ?? 0
   const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
-  const deadlineCount: number = deadlineData?.count ?? 0
-  const deadlineBadge = deadlineCount === 0 ? null : deadlineCount > 9 ? '9+' : String(deadlineCount)
+  const deadlineSeverity: 'red' | 'orange' | null = deadlineData?.severity ?? null
+  const deadlineDot =
+    deadlineSeverity === 'red'
+      ? {
+          cls: 'bg-red-500 shadow-[0_0_6px_2px_rgba(239,68,68,0.7)] animate-pulse',
+          title: `${deadlineData?.red ?? 0} ticket(s) overdue or due today/tomorrow`,
+        }
+      : deadlineSeverity === 'orange'
+      ? {
+          cls: 'bg-amber-400 shadow-[0_0_5px_1px_rgba(251,191,36,0.7)]',
+          title: `${deadlineData?.orange ?? 0} ticket(s) due soon`,
+        }
+      : null
 
   if (!config) return null
 
@@ -107,10 +118,11 @@ export function Sidebar() {
                     )}
                   </div>
                 )}
-                {mod === 'tickets' && deadlineBadge && (
-                  <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 animate-pulse">
-                    {deadlineBadge}
-                  </span>
+                {mod === 'tickets' && deadlineDot && (
+                  <span
+                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${deadlineDot.cls}`}
+                    title={deadlineDot.title}
+                  />
                 )}
               </NavLink>
             )
