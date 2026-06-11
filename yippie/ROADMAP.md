@@ -56,7 +56,7 @@ environment / deploy reference lives in **Appendix B**.
 - **Personal address only receives after first send** — likely test confusion; saving Profile should be sufficient.
 
 **Manual / ops (Diederik):**
-- Cloudflare: delete the duplicate bare DMARC TXT at `_dmarc.getyippie.com`; keep only the one DKIM key shown in Resend at `resend._domainkey.getyippie.com`.
+- ~~Cloudflare: delete the duplicate bare DMARC TXT at `_dmarc.getyippie.com`; keep only the one DKIM key shown in Resend at `resend._domainkey.getyippie.com`.~~ ✅ **DONE (2026-06-11)** — single DMARC record with Cloudflare `rua=` reporting, single DKIM verified, SPF verified.
 - klimaatexamen tenant `inbound_email` is NULL → use Clients → Edit → Info tab (now available via [38c]).
 - Set `INBOUND_EMAIL` in both live Railway envs before go-live.
 
@@ -157,7 +157,7 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ### Config / ops one-liners
 - **getyippie.com 502 fix** — `Sonnet` — Cloudflare proxy toggle (orange→grey→wait→orange) for Railway domain verification.
 - **[Phase 13] Invite-link base URL** — `Sonnet` — code already done (`CLIENT_BASE_URL`); just set Railway env vars: devsandbox → `https://sandbox.getyippie.com`, dev → `https://app.getyippie.com`.
-- **[Phase 13] Deliverability cleanup** — `Sonnet` — delete the duplicate bare DMARC TXT and the two extra DKIM keys in Cloudflare (SPF + MX verified correct).
+- ~~**[Phase 13] Deliverability cleanup**~~ ✅ **DONE (2026-06-11)** — single DMARC + single DKIM (verified) + SPF (verified). DNS is clean.
 - **`diederik@getyippie.com` personal account on live** — `Sonnet` — make it the working primary address in the live pair (receiving already verified).
 - **`INBOUND_EMAIL` in live Railway envs** — `Sonnet` — currently unset in both live envs; set before go-live.
 
