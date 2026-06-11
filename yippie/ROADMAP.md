@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 28b — attachments fixed end-to-end: real inbound content via Resend attachments API, nginx upload limit, forward carries attachments)
+**Updated:** 2026-06-11 (session 29 — Tier 3: Go live → Edit modal, bulk delete [6c])
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -47,9 +47,9 @@ environment / deploy reference lives in **Appendix B**.
 **Additional bugs reported (pre-session-28 — fix alongside the above):**
 - ~~**Outbound from-address wrong in ndugu environment**~~ ✅ **DONE (commit `9414789`)** — `queue_send` now resolves `from_email` to `tenant.inbound_email` before the `RESEND_FROM` fallback.
 - **Settings page broken** — one or more `/settings/*` routes are inaccessible or throwing an error. Code-audited session 28: all `/settings/*` routes (`profile`, `team`, `departments`, `superadmins`) are registered in `App.tsx` and the pages compile/build clean; no defect found. **Needs sandbox repro** — which tab, and the exact error.
-- **Client page: too many buttons per row** — should expose only **View as**, **Set demo**, and **Edit** inline; the Inactive/Active toggle, Copy email, and Delete should live inside the Edit modal. Extends [38c].
-- **Compose modal: Send/Quit buttons shift on send** — pressing Send causes the button row to jump/shift position; layout must stay stable while the undo bar is rendering.
-- **Email sent popup still appears after compose send** — the "email sent" toast/bar should not appear at all (or auto-dismiss immediately) for compose; only the undo bar should be visible.
+- ~~**Client page: too many buttons per row**~~ ✅ **DONE (session 29)** — "Go live" moved from inline row into Edit modal's Actions tab. Row now shows at most 3 buttons: View as / Set demo / Edit. Bulk delete ([6c]) added for root owner (password-gated).
+- ~~**Compose modal: Send/Quit buttons shift on send**~~ ✅ **DONE (PR #20, session 27)** — code-verified: `min-w-[116px]` on Send button + `shrink-0` right container prevents shift.
+- ~~**Email sent popup still appears after compose send**~~ ✅ **DONE (PR #20, session 27)** — code-verified: `result` state only set for `data.demo`; normal sends use undo-queue flow, no popup.
 
 **Legacy open bugs (from before session 27):**
 - **New agent arrived as admin** — code-verified clean session 19; most likely an older invite token. Re-test with a fresh invite.
@@ -152,7 +152,7 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 - **[43] Ticket deadline reminder toast** — `Sonnet` — *banners + sidebar badge already shipped (`[34]`);* add the small toast when a ticket nears `follow_up_at`.
 - **[48] Clickable rows everywhere** — `Sonnet` — *mostly done* (inbox cards + contact rows open on full-row click); finish the convention on any remaining lists (e.g. tickets) and treat it as standing.
 - **[8c] Status column labels** — `Sonnet` — show "Active"/"Inactive"/"Demo" as clear text labels in the Clients tab; allow changing status directly from that column.
-- **[6c] Bulk delete clients** — `Sonnet` — add a Delete action to the existing bulk status bar (stays password-gated, `[24]`).
+- ~~**[6c] Bulk delete clients**~~ ✅ **DONE (session 29)** — Delete button in bulk action bar (root owner only); `BulkDeleteClientsModal` with password gate, calls `POST /admin/tenants/{id}/delete` for each selected client.
 - **Spam → Resend sender block** — `Sonnet` — bulk "spam" already moves drafts to the spam status + retention; still add the call to block the sender in Resend (the one remaining piece of `[12]`).
 
 ### Config / ops one-liners
@@ -189,6 +189,27 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 29 — 2026-06-11 (Tier 3: client row cleanup + bulk delete)
+
+Started with 20% context usage; focused on verified-open Tier 3 items only.
+
+**Code-audited as already fixed (no code change):**
+- Compose modal button shift — `min-w-[116px]` + `shrink-0` layout is stable; shipped PR #20.
+- Email sent popup after compose — `result` state only set for `data.demo`; normal sends use undo queue. Shipped PR #20.
+- TicketList clickable rows — already wraps each card in `<Link>` for full-row click.
+
+**Client page row cleanup (commit `61f1995`):**
+- Moved "Go live" button from the inline row into `EditClientModal` Actions tab (visible when `tenant.is_demo`). Row now max 3 buttons: **View as / Set demo / Edit**.
+- Added `onGoLive` + `goingLive` props to `EditClientModal`; Go live calls `goLiveMutation.mutate` and closes the modal.
+
+**[6c] Bulk delete clients (commit `61f1995`):**
+- New `BulkDeleteClientsModal`: lists selected client names, password confirmation, calls `POST /admin/tenants/{id}/delete` for each — same gate as single-delete.
+- Delete button added to bulk action bar — visible to root owner only.
+
+**Deployed:** `git push origin devsandbox && git push origin devsandbox:sandbox` — no migration, pure frontend.
 
 ---
 
