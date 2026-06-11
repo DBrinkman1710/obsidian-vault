@@ -213,10 +213,17 @@ already shipped in **PR #20 (`3e86a8f`)**, and the ndugu from-address bug was al
   `DepartmentsPage.tsx` gains a **Deadline indicator** card (two day-threshold inputs + Save,
   invalidates the deadline-count query on save). 60s Sidebar poll picks up changes.
 - Verified: backend `py_compile` clean; frontend `tsc --noEmit` + `vite build` clean.
+- Also: `.gitignore` now excludes the ad-hoc `apps/app/frontend/pnpm-lock.yaml` (frontend isn't a
+  pnpm workspace package; the lockfile is generated only for local `tsc`/`vite build`).
 
 **Audited, no code defect found (need sandbox repro):** Activity page (`/activity` +
 `/activity/stats` + route registration all correct — likely just an empty event log) and the
 "Settings page broken" report (all `/settings/*` routes registered, pages build clean).
+
+**Deployed:** merged to `devsandbox` via **PR #21** (merge `8ad082e`). Direct `git push` to
+`devsandbox`/`sandbox` is blocked in the web session (git proxy returns 403 for non-session
+branches), so promotion goes through PRs. **`sandbox` promotion still pending** — needs a
+`devsandbox → sandbox` PR merge to deploy to the staging URLs.
 
 ---
 
