@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 29 — Tier 3: inbox pagination, compose close-on-send, deadline badges, sidebar dot, client row cleanup)
+**Updated:** 2026-06-11 (session 30 items collected — UX polish, multi-signature, departments to team page, inbox sent tab, activity page bug)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -37,8 +37,20 @@ environment / deploy reference lives in **Appendix B**.
 - ~~**Deadline indicator redesign**~~ ✅ **DONE (session 29)** — two numeric count badges (red + orange) on the Tickets nav; backend uses per-tenant thresholds.
 - ~~**Inbox fetch dot**~~ ✅ **DONE (session 29)** — grey when idle, solid green when fetching, no glow.
 - ~~**Hotkeys on/off toggle**~~ ✅ **DONE (session 27)** — per-user toggle in Profile.
-- **Activity page not working** — code-audited; no code defect found. Likely empty-state (no logged events). **Needs sandbox repro** with a specific error.
+- **Activity page blank** — sandbox shows a completely white page. Needs root-cause investigation (route rendering crash / missing data guard / empty-state bug). Screenshot confirmed 2026-06-11.
 - **Attachments** — forward now carries attachments, pickers enforce 10/25 MB caps. **Verify in sandbox**.
+
+**New items collected (session 30 — 2026-06-11):**
+
+- **Inbox: duplicate select-all** — two "select all" controls present; keep only the upper one, remove the lower.
+- **Inbox: add Sent tab** — inbox currently shows Pending + Processed tabs; add a Sent tab (sent mail already has a backend view `[41]`, surface it here alongside the others).
+- **Client info page: remove Inactivate + Delete** — these actions already live in the Actions tab of the edit modal; remove them from the Info tab to avoid duplication.
+- **Client actions: remove "Copy email"** — copy-email belongs in the Info tab, not the Actions dropdown; remove it from Actions.
+- **Multi-signature support** — each user can have multiple named signatures; Profile shows a list with a "+" button to add more; existing single-signature field becomes the first entry. See Tier 2.
+- **Signature image upload** — users can embed an SVG, PNG, or JPEG image in their signature. See Tier 2.
+- **Delete users from team (admins + superusers)** — Team page should allow admins and superusers to remove users, not just inactivate them. See Tier 2.
+- **Departments → Team page** — move the Departments section from its own page onto the Team page, side-by-side with the team list; make the department bar narrower to fit. See Tier 3.
+- **Profile layout: password next to signature** — the password-change block should sit beside the signature box in a two-column layout; shrink the password box width to match. See Tier 3.
 
 **Additional bugs reported (pre-session-28 — fix alongside the above):**
 - ~~**Outbound from-address wrong in ndugu environment**~~ ✅ **DONE** — `queue_send` now resolves `from_email` to `tenant.inbound_email` before `RESEND_FROM`.
@@ -138,6 +150,11 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 - **Promotion: devsandbox → sandbox → live** — `Opus` — push prototype 2.0 to `dev` + `app`; set `diederik@getyippie.com` (individual) + `support@getyippie.com` (shared) on `dev`; sandbox keeps `sb-support@`.
 - **Send-from aliases + app tour** — `Opus` — single personal mailbox already shipped (`reply_from_email`/`inbound_email`); add a Profile setting for extra "send from" aliases; build a guided in-app tour after first login (welcome email already shipped).
 
+### Signatures & team management
+- **[S1] Multi-signature per user** — `Opus` — replace the single `signature` field with a `user_signatures` table (`id, user_id, name, body, is_default, order`); migration adds table + backfills existing signatures as the default entry. Profile page: list of signatures with edit/delete/reorder and a "+" button to add more; compose/reply picks the default or lets user switch. Backend: `GET/POST/PATCH/DELETE /profile/signatures`.
+- **[S2] Signature image upload** — `Opus` — extends `[S1]`; users can embed an SVG, PNG, or JPEG into their signature. Upload via `POST /profile/signature-images` (store in a `signature_images` table or as base64 inline); insert as an `<img>` tag into the signature HTML body; enforce reasonable file-size cap (≤ 500 KB).
+- **[T1] Delete users from team** — `Opus` — admins and superusers can hard-delete (or soft-delete with `deleted_at`) users from the Team page. Backend: `DELETE /team/users/{id}` with role gate (`require_admin`). Team page shows a Delete button next to Inactivate (already present); confirm modal with the user's name. Superadmin can already do this from the Clients → Edit modal; this makes it available to tenant admins for their own team.
+
 ---
 
 ## 🟢 Tier 3 — Quick & easy wins → **Sonnet**
@@ -151,6 +168,12 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 - **[8c] Status column labels** — `Sonnet` — show "Active"/"Inactive"/"Demo" as clear text labels in the Clients tab; allow changing status directly from that column.
 - ~~**[6c] Bulk delete clients**~~ ✅ **DONE (session 29)** — Delete button in bulk action bar (root owner only); `BulkDeleteClientsModal` with password gate, calls `POST /admin/tenants/{id}/delete` for each selected client.
 - **Spam → Resend sender block** — `Sonnet` — bulk "spam" already moves drafts to the spam status + retention; still add the call to block the sender in Resend (the one remaining piece of `[12]`).
+- **[U1] Inbox: remove duplicate select-all** — `Sonnet` — two "select all" controls rendered in `InboxQueue`; keep only the upper/header one, remove the lower duplicate.
+- **[U2] Inbox: add Sent tab** — `Sonnet` — inbox tab bar currently shows Pending + Processed; add a Sent tab that surfaces the existing sent-mail view `[41]`. No new backend work needed.
+- **[U3] Client info page: remove Inactivate + Delete** — `Sonnet` — Inactivate and Delete already live in the Actions tab of the edit modal; remove them from the Info tab to avoid duplication and clutter. Rule: destructive actions live only in Actions.
+- **[U4] Client actions: remove "Copy email"** — `Sonnet` — "Copy email address" belongs in the Info tab where the email is visible; remove it from the Actions dropdown.
+- **[U5] Departments → Team page** — `Sonnet` — move the Departments section onto the Team page, side-by-side with the team member list. Make the departments bar narrower (compact layout) so both fit on one screen without scrolling.
+- **[U6] Profile: password next to signature** — `Sonnet` — two-column layout in Profile: signature box on the left, password-change block on the right (narrower). Eliminates wasted vertical space and keeps related settings together.
 
 ### Config / ops one-liners
 - **getyippie.com 502 fix** — `Sonnet` — Cloudflare proxy toggle (orange→grey→wait→orange) for Railway domain verification.
@@ -186,6 +209,22 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 30 — items collected 2026-06-11
+
+No code this session — Diederik reviewed the product and logged the following items for the next build session. See "New items collected" in the Next session section above for full specs.
+
+**UX/layout (Tier 3 — Sonnet):** inbox duplicate select-all `[U1]`; inbox Sent tab `[U2]`; remove Inactivate+Delete from client Info tab `[U3]`; remove "Copy email" from client Actions `[U4]`; move Departments onto Team page `[U5]`; Profile two-column password+signature layout `[U6]`.
+
+**Features (Tier 2 — Opus):** multi-signature per user with "+" tab `[S1]`; signature image upload (SVG/PNG/JPEG) `[S2]`; delete users from team for admins+superusers `[T1]`.
+
+**Bugs:** activity page shows blank white page in sandbox — root cause unknown; `[U1]` (duplicate select-all) is also a bug not just polish.
+
+**Standing design rules confirmed this session:**
+- All modal dialogs must be the same consistent size — no modal larger or smaller than the others.
+- Never paginate lists unless explicitly specified — show all items or use infinite scroll/virtual list.
 
 ---
 

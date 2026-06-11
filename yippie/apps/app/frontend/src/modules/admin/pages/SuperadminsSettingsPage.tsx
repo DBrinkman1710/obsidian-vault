@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ShieldCheck, UserPlus, X } from 'lucide-react'
+import { ShieldCheck, UserPlus, X, ToggleLeft, ToggleRight, Trash2 } from 'lucide-react'
 import { api } from '../../../api/client'
 import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
 
@@ -293,22 +293,22 @@ export default function SuperadminsSettingsPage() {
                         {!isOwnAccount && (
                           <button
                             onClick={() => setToggling(sa)}
-                            className={`px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors ${
-                              sa.is_active
-                                ? 'text-red-500 border-red-200 hover:bg-red-50'
-                                : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
-                            }`}
+                            title={sa.is_active ? 'Deactivate' : 'Activate'}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                           >
+                            {sa.is_active
+                              ? <ToggleRight size={14} className="text-emerald-500" />
+                              : <ToggleLeft size={14} className="text-slate-400" />}
                             {sa.is_active ? 'Deactivate' : 'Activate'}
                           </button>
                         )}
                         {isRootOwner && !isOwnAccount && sa.email.toLowerCase() !== ROOT_OWNER_EMAIL && (
                           <button
                             onClick={() => setDeleting(sa)}
-                            className="px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
                             title="Permanently delete this superadmin"
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
                           >
-                            Delete
+                            <Trash2 size={13} />
                           </button>
                         )}
                       </div>
