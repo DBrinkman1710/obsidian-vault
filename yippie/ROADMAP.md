@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (restructured into 3 model-tagged tiers; reconciled against the codebase — many items moved to Done)
+**Updated:** 2026-06-11 (session 26 — Phase 11A copy+branding, Phase 11C Tier-1 ROI calculator, Phase 11B Hour Counter shipped)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -99,8 +99,9 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 - **Customer data + AI briefing** *(architecture decision)* — `Fable` — define where full contact history is stored; the AI briefing (already running) must pull complete history.
 
 ### Marketing site — creative (Phase 11)
-- **[Phase 11 A] Copy & branding** — `Fable` — *not done.* Hero still reads "Give yourself back the time that matters" / CTA "Start for free". Change hero → "Take back the time that matters."; add the support-automation hero line; real logo; "Sign up" → "Request demo" (Phase 12); "Start for free" also routes to demo-request.
-- **[Phase 11 B] The Hour Counter (live ticker)** — `Fable` — *not built.* Animated count-up of total hours Yippie has saved globally; public aggregate endpoint (tickets-automated × avg-handle-time) with a configurable base so it's never zero.
+- **[Phase 11 A] Copy & branding** — ✅ **DONE (session 26).** Hero → "Take back the time that matters."; support-automation sub copy; "Start for free" / "Sign up" → "Request demo →" across hero, nav, CTA section, pricing cards; `NEXT_PUBLIC_DEMO_URL` env var (falls back to `APP_URL` until Phase 12 form is built). Logo replacement still open (need Diederik's current logo file).
+- **[Phase 11 B] The Hour Counter (live ticker)** — ✅ **DONE (session 26).** `GET /api/v1/public/stats` (unauthenticated) in `apps/app/backend/app/public/router.py`; counts cross-tenant tickets × 15 min ÷ 60 + `BASE_HOURS_SAVED` (env, default 10 000). `HourCounter` client component on the marketing site fetches on mount, animates count-up with ease-out cubic over 2s, falls back to 10 000 on error. `getyippie.com` + `www.getyippie.com` added to CORS allowlist.
+- **[Phase 11 C — Tier 1] On-page ROI calculator** — ✅ **DONE (session 26).** Five sliders (tickets/mo, min/ticket, staff, hourly cost, automatable %) → hours saved, € saved/month, payback vs €29/mo plan. Pure-frontend `ROICalculator` component between "How it works" and Pricing. `NEXT_PUBLIC_DEMO_URL` wired to its CTA.
 - **[Phase 11 C — Tier 2] "Connect your inbox" ROI estimate** — `Fable` — *not built.* Pursue **CSV / mailbox-export upload first** (parsed in-browser, best privacy/effort); one-time IMAP/OAuth scan next; Gmail/Workspace metadata add-on last (flag the OAuth verification + restricted-scope security assessment cost up front). "We never read your email content."
 
 ---
@@ -123,7 +124,7 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 
 ### Branding & marketing
 - **Branding wiring into the app shell** — `Opus` — `primary_color` / `logo_url` are stored and returned by `/api/v1/tenant/config` but **no component applies them** (sidebar is hardcoded `bg-yippie`). Wire into the sidebar logo + accent color via CSS variables.
-- **[Phase 11 C — Tier 1] On-page ROI calculator** — `Opus` — pure-frontend calculator (tickets/mo, avg min/ticket, staff, hourly cost, % automatable → hours & € saved + payback). No data leaves the browser; feeds the Hour Counter messaging.
+- **[Phase 11 C — Tier 1] On-page ROI calculator** — ✅ **DONE (session 26)** — see Tier 1 entry above.
 
 ### Promotion & identity (Phase 13)
 - **Promotion: devsandbox → sandbox → live** — `Opus` — push prototype 2.0 to `dev` + `app`; set `diederik@getyippie.com` (individual) + `support@getyippie.com` (shared) on `dev`; sandbox keeps `sb-support@`.
@@ -177,6 +178,46 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 26 — 2026-06-11 (Phase 11A copy+branding, Phase 11C ROI calculator, Phase 11B Hour Counter)
+
+All three marketing-site Tier-1 Fable items shipped in one session.
+
+**Phase 11C — On-page ROI calculator (session 26, commit `307e22d`):**
+- New `"use client"` component `ROICalculator` with five range sliders (tickets/mo 200,
+  min/ticket 15, staff 2, hourly €35, automatable 60%). Live-computed outputs: hours saved,
+  € saved/month, payback vs €29/mo plan ("Instant ROI" / "X days" / "X months"). Pure
+  browser math, no data sent anywhere. Inserted between "How it works" and Pricing.
+- Also fixed two pre-existing `next build` breakages: CSS Modules global-selector error in
+  `page.module.css` (moved to `globals.css`) and `next.config.mjs` empty-string env fallback
+  that caused `new URL("")` to throw during static prerender.
+
+**Phase 11A — Copy & branding (session 26, commit `5504866`):**
+- Hero title → "Take back the time that matters."; sub copy updated to the roadmap version.
+- All primary CTAs ("Start for free", "Get started") → "Request demo →" pointing to
+  `NEXT_PUBLIC_DEMO_URL` (falls back to `APP_URL` until Phase 12 form ships).
+- Nav: added "Request demo →" as primary button alongside "Log in" link.
+- New `.navLogin` CSS class for the muted "Log in" link style.
+- Note: **logo replacement still open** — need Diederik to supply the current logo file.
+
+**Phase 11B — Hour Counter (session 26, commit `5504866`):**
+- `GET /api/v1/public/stats` — unauthenticated endpoint in new `apps/app/backend/app/public/`
+  module. Counts `tickets WHERE deleted_at IS NULL` cross-tenant × 15 min ÷ 60 +
+  `BASE_HOURS_SAVED` (env var, default 10 000). Returns `{hours_saved, tickets_automated}`.
+  Mounted in `main.py` without auth dependencies.
+- `HourCounter` client component on the marketing site: fetches on mount, animates count-up
+  from 60% of target over 2s (ease-out cubic with RAF), falls back to 10 000 on error.
+  Placed between the stats bar and Features.
+- `getyippie.com`, `www.getyippie.com`, `localhost:3000` added to `cors_origins` default in
+  `config.py` so browser fetch from the marketing site works without extra Railway env vars.
+
+**Deployed:** both commits pushed `devsandbox → sandbox`.
+
+**Remaining Phase 11 items:**
+- Logo replacement (need the file from Diederik).
+- Phase 11C Tier-2 "Connect your inbox" estimate (CSV upload → in-browser analysis).
 
 ---
 
