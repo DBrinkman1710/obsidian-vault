@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 30 items collected — UX polish, multi-signature, departments to team page, inbox sent tab, activity page bug)
+**Updated:** 2026-06-11 (session 30 — superadmins icon buttons, platform modules panel)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -190,7 +190,7 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 
 **Multi-tenant correctness:** **per-tenant webhook routing** by `inbound_email` + slug fallback (`core/tenant.py`, `email_poller.py`) — the old "route everything to tenant #1" stub is gone; **`is_active` login-blocking**, **`is_demo`** blocking real sends, **`go_live_at`** auto-activation scheduler (`go_live_job`, 60s); `set_tenant_context()` per request.
 
-**Auth & client management:** critical path A/B/C complete — settings page (`[25]`), registration/invite (`[26]`), forgot/reset password (`[27]`), superadmin invite (`[28]`), delete client/superadmin password-gated (`[24]`), **impersonation / "view as" (`[23]`)** — `POST /admin/tenants/{id}/impersonate` 1-hr token + amber banner, client list filter + demo tick (`[5]`), bulk status change (`[6]`), company name in sidebar (`[7]`), hide own env (`[8a]`), scoped superadmin management (`[8b]`), separate add-admin + tenant-users modals.
+**Auth & client management:** critical path A/B/C complete — settings page (`[25]`), registration/invite (`[26]`), forgot/reset password (`[27]`), superadmin invite (`[28]`), delete client/superadmin password-gated (`[24]`), **impersonation / "view as" (`[23]`)** — `POST /admin/tenants/{id}/impersonate` 1-hr token + amber banner, client list filter + demo tick (`[5]`), bulk status change (`[6]`), company name in sidebar (`[7]`), hide own env (`[8a]`), scoped superadmin management (`[8b]`), separate add-admin + tenant-users modals. **Superadmins page icon buttons** (session 30) — ToggleRight/Left + Trash2 icons consistent with Clients page. **Platform Modules panel** (session 30) — `PATCH /admin/modules` bulk-toggles a module for all tenants; side-by-side panel next to superadmins list.
 
 **Inbox:** stay-in-window + undo approve/reject (`[10]`), DeptReminderModal with dept+SLA in popup (`[11]`), filter processed by status (`[13]`), language-matching replies (`[15]`), reply-to-email fixed across 4 stacked bugs (`[16]`), undo send incl. compose (`[17]`) + **undo-send UI polish/auto-dismiss (`[47]`)**, attachments incl. compose (`[18]`) + **attachment chips with x-to-remove (`[45]`)**, modules order at the source (`[19]`), duplicate-send fix (`[32]`), delete tickets (`[33]`), ticket deadline banners + **glowing sidebar badge (`[34]`/`[14]`)**, `Cmd/Ctrl+Enter` send (`[35]`), **scroll-only inbox + larger compose (`[9]`)**, Sent view (`[41]`), **Spam/Bin views + bulk bin/spam action (`[12]`)**, **Spam→Bin (10d) / Bin purge (20d) retention scheduler (`[42]`)**, reply-subject language (`[44]`), nice HTML outbound email (`[46]`), per-user email signatures.
 
@@ -212,19 +212,24 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 
 ---
 
-### Session 30 — items collected 2026-06-11
+### Session 30 — 2026-06-11 (superadmins icon buttons + platform modules panel)
 
-No code this session — Diederik reviewed the product and logged the following items for the next build session. See "New items collected" in the Next session section above for full specs.
+**Superadmins page — icon buttons (commit `2e395ce`):**
+- Replaced text-only "Deactivate"/"Activate" pill buttons with `ToggleRight`/`ToggleLeft` icon buttons — same icons and style as the Clients page (`SuperAdminPage`).
+- Delete button is now icon-only (`Trash2`, size 13) with a tooltip — matches the Clients page pattern.
+- Added `ToggleLeft`, `ToggleRight`, `Trash2` imports to `SuperadminsSettingsPage.tsx`.
 
-**UX/layout (Tier 3 — Sonnet):** inbox duplicate select-all `[U1]`; inbox Sent tab `[U2]`; remove Inactivate+Delete from client Info tab `[U3]`; remove "Copy email" from client Actions `[U4]`; move Departments onto Team page `[U5]`; Profile two-column password+signature layout `[U6]`.
+**Platform Modules panel (commit `5dfecbd`):**
+- New `PATCH /admin/modules` backend endpoint — takes `{module, enabled}` and bulk-updates ALL tenants' `enabled_modules` (adds or removes the module for every tenant in the DB). No migration needed.
+- New `GlobalModulesPanel` React component in `SuperadminsSettingsPage.tsx`: lists all 7 modules in canonical order (Inbox → Contacts → Tickets → Activity → Billing → Chat → AI) with `ToggleRight` (green, all clients enabled) / `ToggleLeft` (grey, not all enabled) icons. Clicking sends `PATCH /admin/modules` and refreshes.
+- Layout changed from single-column `max-w-2xl` to side-by-side flex: superadmins section on the left (flex-1), modules panel (w-56) on the right.
+- Schemas: `BulkModuleRequest(module, enabled)` added to `admin/schemas.py`.
 
-**Features (Tier 2 — Opus):** multi-signature per user with "+" tab `[S1]`; signature image upload (SVG/PNG/JPEG) `[S2]`; delete users from team for admins+superusers `[T1]`.
+**Design rules locked this session:**
+- All modal dialogs must use a consistent size — no exceptions per modal.
+- Never paginate lists unless explicitly specified.
 
-**Bugs:** activity page shows blank white page in sandbox — root cause unknown; `[U1]` (duplicate select-all) is also a bug not just polish.
-
-**Standing design rules confirmed this session:**
-- All modal dialogs must be the same consistent size — no modal larger or smaller than the others.
-- Never paginate lists unless explicitly specified — show all items or use infinite scroll/virtual list.
+**Items collected for next build session** — see "New items collected" block in ▶ Next session above.
 
 ---
 
