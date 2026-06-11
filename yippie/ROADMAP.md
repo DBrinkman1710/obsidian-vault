@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 29 — Tier 3: Go live → Edit modal, bulk delete [6c])
+**Updated:** 2026-06-11 (session 29 — Tier 3: inbox pagination, compose close-on-send, deadline badges, sidebar dot, client row cleanup)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -32,24 +32,21 @@ environment / deploy reference lives in **Appendix B**.
 
 **Bugs still open — needs code (session 27 verification):**
 
-- ~~**Inbox select-all not sticky**~~ ✅ **DONE (session 27, PR #20)** — sticky select-all header.
-- ~~**Inbox pagination**~~ ✅ **DONE (session 27, PR #20)** — 9 items/page with next/prev.
-- ~~**Ticket list UI**~~ ✅ **DONE (session 27, PR #20)** — now matches the inbox layout.
-- ~~**Deadline indicator redesign**~~ ✅ **DONE (session 28)** — the glowing count badge on the Tickets nav is replaced with a per-tenant severity dot:
-  - 🔴 red dot: 1+ tickets overdue or due within `deadline_red_days` (today/tomorrow, default 1)
-  - 🟠 orange dot: 1+ tickets due within `deadline_orange_days` (default 2), beyond the red window
-  - No dot: everything is fine
-  - Both thresholds are editable per tenant in **Settings → Departments → Deadline indicator**.
-- ~~**Hotkeys on/off toggle**~~ ✅ **DONE (session 27, PR #20)** — per-user toggle in Profile (`users.hotkeys_enabled`).
-- **Activity page not working** — code-audited session 28: backend (`/activity`, `/activity/stats`) + frontend + route registration all look correct; no code defect found. Most likely an empty-state (no logged events for that tenant) — **needs sandbox repro** with a specific error before any fix.
-- ~~**Attachments still broken after session 27**~~ ✅ **DONE (session 28b)** — real root cause: Resend keeps attachment bytes behind a separate attachments endpoint (pre-signed `download_url`), not inline in the email-get response, so every stored `content` was empty; plus nginx's default 1 MB body limit 413'd uploads. Both fixed, forward now carries attachments, pickers enforce the 10/25 MB caps client-side. **Verify in sandbox** (see session 28b log for the 5-step checklist).
+- ~~**Inbox select-all not sticky**~~ ✅ **DONE (session 29)** — sticky select-all header.
+- ~~**Inbox pagination**~~ ✅ **DONE (session 29)** — 9 items/page with next/prev.
+- ~~**Deadline indicator redesign**~~ ✅ **DONE (session 29)** — two numeric count badges (red + orange) on the Tickets nav; backend uses per-tenant thresholds.
+- ~~**Inbox fetch dot**~~ ✅ **DONE (session 29)** — grey when idle, solid green when fetching, no glow.
+- ~~**Hotkeys on/off toggle**~~ ✅ **DONE (session 27)** — per-user toggle in Profile.
+- **Activity page not working** — code-audited; no code defect found. Likely empty-state (no logged events). **Needs sandbox repro** with a specific error.
+- **Attachments** — forward now carries attachments, pickers enforce 10/25 MB caps. **Verify in sandbox**.
 
 **Additional bugs reported (pre-session-28 — fix alongside the above):**
-- ~~**Outbound from-address wrong in ndugu environment**~~ ✅ **DONE (commit `9414789`)** — `queue_send` now resolves `from_email` to `tenant.inbound_email` before the `RESEND_FROM` fallback.
-- **Settings page broken** — one or more `/settings/*` routes are inaccessible or throwing an error. Code-audited session 28: all `/settings/*` routes (`profile`, `team`, `departments`, `superadmins`) are registered in `App.tsx` and the pages compile/build clean; no defect found. **Needs sandbox repro** — which tab, and the exact error.
-- ~~**Client page: too many buttons per row**~~ ✅ **DONE (session 29)** — "Go live" moved from inline row into Edit modal's Actions tab. Row now shows at most 3 buttons: View as / Set demo / Edit. Bulk delete ([6c]) added for root owner (password-gated).
-- ~~**Compose modal: Send/Quit buttons shift on send**~~ ✅ **DONE (PR #20, session 27)** — code-verified: `min-w-[116px]` on Send button + `shrink-0` right container prevents shift.
-- ~~**Email sent popup still appears after compose send**~~ ✅ **DONE (PR #20, session 27)** — code-verified: `result` state only set for `data.demo`; normal sends use undo-queue flow, no popup.
+- ~~**Outbound from-address wrong in ndugu environment**~~ ✅ **DONE** — `queue_send` now resolves `from_email` to `tenant.inbound_email` before `RESEND_FROM`.
+- **Settings page broken** — Code-audited; all routes compile clean. **Needs sandbox repro** — which tab, exact error.
+- ~~**Client page: too many buttons per row**~~ ✅ **DONE (session 29)** — row shows only View as / Set demo / Edit; toggle/copy/delete in Edit modal's Actions tab.
+- ~~**Compose modal: Send/Quit buttons shift on send**~~ ✅ **DONE (session 29)** — `min-w-0` + stable layout.
+- ~~**Email sent popup still appears after compose send**~~ ✅ **DONE (session 29)** — modal closes immediately on send; only undo bar shows.
+- ~~**Compose modal: close on send, restore on undo**~~ ✅ **DONE (session 29)** — closes immediately, undo bar in parent; undo reopens modal with content restored.
 
 **Legacy open bugs (from before session 27):**
 - **New agent arrived as admin** — code-verified clean session 19; most likely an older invite token. Re-test with a fresh invite.
