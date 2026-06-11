@@ -534,7 +534,7 @@ function EditClientModal({
                     placeholder={`${tenant.slug}-support@getyippie.com`}
                   />
                   {tenant.inbound_email && (
-                    <button type="button" onClick={copyInbound}
+                    <button type="button" onClick={onCopyEmail}
                       className="px-3 py-2 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shrink-0"
                       title="Copy inbound email"
                     >
@@ -557,8 +557,8 @@ function EditClientModal({
                 </div>
                 <button
                   type="button"
-                  onClick={() => toggleActiveMutation.mutate(!tenant.is_active)}
-                  disabled={toggleActiveMutation.isPending}
+                  onClick={onToggleActive}
+                  disabled={togglingActive}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors disabled:opacity-50"
                   title={tenant.is_active ? 'Deactivate' : 'Activate'}
                 >
@@ -573,7 +573,7 @@ function EditClientModal({
                 <div className="border-t border-slate-100 pt-4">
                   <button
                     type="button"
-                    onClick={() => { onClose(); onDelete() }}
+                    onClick={() => { onRequestDelete() }}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
                   >
                     <Trash2 size={12} />
