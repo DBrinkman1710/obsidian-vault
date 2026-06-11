@@ -341,7 +341,9 @@ export default function DraftReview() {
   useEffect(() => {
     setSubject(''); setDescription(''); setPriority(''); setFollowUpDays('')
     setSelectedDeptId(''); setForwardedToName(''); setModalDismissed(false)
-    setReplyText(''); setSuggestions([]); setReplyFiles([])
+    // Pre-fill the user's signature (editable per email — what you see is what's sent)
+    setReplyText(user?.email_signature ? `\n\n${user.email_signature}` : '')
+    setSuggestions([]); setReplyFiles([])
     setSentTo(''); setSendError(''); setActionError('')
     setUndoUntil(null); setUndoProgress(0); setUndoCancelled(false)
     if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
@@ -402,7 +404,7 @@ export default function DraftReview() {
     setActionError('')
     try {
       const res = await api.post(`/inbox/drafts/${id}/forward`, { department_id: selectedDeptId })
-      setReplyText(res.data.suggestion)
+      setReplyText(user?.email_signature ? `${res.data.suggestion}\n\n${user.email_signature}` : res.data.suggestion)
       setForwardedToName(res.data.department.name)
       qc.invalidateQueries({ queryKey: ['drafts'] })
       qc.invalidateQueries({ queryKey: ['draft', id] })
@@ -419,7 +421,7 @@ export default function DraftReview() {
     setActionError('')
     try {
       const res = await api.post(`/inbox/drafts/${id}/suggest-reply`)
-      setReplyText(res.data.suggestion)
+      setReplyText(user?.email_signature ? `${res.data.suggestion}\n\n${user.email_signature}` : res.data.suggestion)
       setSuggestions([])
     } catch {
       setActionError('Couldn\'t generate a reply — please try again.')

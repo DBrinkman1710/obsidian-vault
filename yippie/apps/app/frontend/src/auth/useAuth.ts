@@ -14,6 +14,7 @@ interface User {
   tenant_id: string
   reply_from_email?: string | null
   inbound_email?: string | null
+  email_signature?: string | null
 }
 
 interface Impersonation {

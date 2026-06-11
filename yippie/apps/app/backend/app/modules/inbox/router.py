@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 from app.auth.dependencies import CurrentUser, require_module
 from app.config import get_settings
+from app.core.email_html import render_email_html
 from app.core.mailer import ResendNotConfiguredError, email_domain, is_valid_email, send_email
 from app.core.models import Tenant
 from app.core.tenant import resolve_tenant_by_slug
@@ -330,11 +331,17 @@ async def forward_draft(draft_id: uuid.UUID, body: ForwardRequest, current_user:
     )
     if not await service.tenant_is_demo(db, current_user.tenant_id):
         try:
+            tenant = await db.get(Tenant, current_user.tenant_id)
             await send_email(
                 to=dept.email,
                 subject=f"FWD: {original_subject}",
                 body=dept_body,
                 reply_to=msg.sender,
+                html=render_email_html(
+                    dept_body,
+                    tenant_name=tenant.name if tenant else None,
+                    primary_color=tenant.primary_color if tenant else None,
+                ),
             )
         except ResendNotConfiguredError:
             pass  # Email not configured — still mark as forwarded

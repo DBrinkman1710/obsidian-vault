@@ -12,6 +12,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.email_html import render_email_html
 from app.core.mailer import ResendNotConfiguredError, send_email
 from app.core.models import Tenant, User, UserRole
 from app.core.schemas import UserOut
@@ -117,14 +118,16 @@ async def forgot_password(body: ForgotPasswordRequest, db: Annotated[AsyncSessio
         token = create_signed_token("reset", timedelta(hours=1), sub=str(user.id))
         link = f"{settings.app_base_url}/reset-password?token={token}"
         try:
+            reset_body = (
+                f"Hi {user.full_name},\n\n"
+                f"Reset your password here:\n{link}\n\n"
+                f"This link is valid for 1 hour. If you didn't request this, you can ignore it."
+            )
             await send_email(
                 to=user.email,
                 subject="Reset your Yippie password",
-                body=(
-                    f"Hi {user.full_name},\n\n"
-                    f"Reset your password here:\n{link}\n\n"
-                    f"This link is valid for 1 hour. If you didn't request this, you can ignore it."
-                ),
+                body=reset_body,
+                html=render_email_html(reset_body, tenant_name="Yippie"),
             )
         except ResendNotConfiguredError:
             pass
@@ -175,6 +178,7 @@ class UserSelfUpdate(BaseModel):
     full_name: Optional[str] = None
     reply_from_email: Optional[str] = None
     inbound_email: Optional[str] = None
+    email_signature: Optional[str] = None
 
 
 @router.patch("/me", response_model=UserOut)
@@ -185,6 +189,8 @@ async def update_me(
 ):
     if body.full_name is not None:
         current_user.full_name = body.full_name.strip()
+    if "email_signature" in body.model_fields_set:
+        current_user.email_signature = (body.email_signature or "").strip() or None
     if "reply_from_email" in body.model_fields_set:
         current_user.reply_from_email = body.reply_from_email or None
     if "inbound_email" in body.model_fields_set:
