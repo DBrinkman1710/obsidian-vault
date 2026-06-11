@@ -153,6 +153,12 @@ async def delete_superadmin(current_user: SuperAdminUser, db: DB, user_id: uuid.
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.patch("/modules")
+async def bulk_toggle_module(_: SuperAdminUser, db: DB, data: schemas.BulkModuleRequest):
+    """Enable or disable a module for every tenant in this database."""
+    return await service.bulk_toggle_module(db, data.module, data.enabled)
+
+
 @router.get("/resend-check")
 async def resend_check(_: SuperAdminUser):
     """Diagnostic: shows exactly what the Resend receiving API returns for the most recent email."""

@@ -307,6 +307,21 @@ async def toggle_superadmin_active(
     return target
 
 
+async def bulk_toggle_module(db: AsyncSession, module: str, enabled: bool) -> dict:
+    """Add or remove a module from every tenant's enabled_modules list."""
+    result = await db.execute(select(Tenant))
+    tenants = result.scalars().all()
+    for tenant in tenants:
+        mods = set(tenant.enabled_modules or [])
+        if enabled:
+            mods.add(module)
+        else:
+            mods.discard(module)
+        tenant.enabled_modules = list(mods)
+    await db.commit()
+    return {"module": module, "enabled": enabled, "tenants_updated": len(tenants)}
+
+
 async def promote_superadmin(
     db: AsyncSession,
     current_user: User,

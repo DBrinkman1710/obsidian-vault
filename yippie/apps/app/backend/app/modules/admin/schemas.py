@@ -100,3 +100,8 @@ class InviteSuperadminRequest(BaseModel):
     email: EmailStr
     full_name: str = "Superadmin"
     current_password: str
+
+
+class BulkModuleRequest(BaseModel):
+    module: str
+    enabled: bool
