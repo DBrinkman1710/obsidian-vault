@@ -10,7 +10,7 @@ from pydantic_settings import BaseSettings
 
 
 class BrandingConfig(BaseModel):
-    primary_color: str = "#2563EB"
+    primary_color: str = "#5BA4F5"
     logo_url: Optional[str] = None
 
 

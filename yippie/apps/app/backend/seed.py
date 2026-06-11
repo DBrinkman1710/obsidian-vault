@@ -21,10 +21,21 @@ async def main():
     admin_password = os.getenv("ADMIN_PASSWORD", "changeme123")
 
     async with db_session() as db:
-        # Guard 1: tenant already exists by slug → nothing to do
+        # Guard 1: tenant already exists — sync branding from config but skip user creation
         existing_tenant = await db.scalar(select(Tenant).where(Tenant.slug == cfg.tenant_id))
         if existing_tenant:
-            print(f"Tenant '{cfg.tenant_id}' already exists — skipping.")
+            changed = False
+            if existing_tenant.primary_color != cfg.branding.primary_color:
+                existing_tenant.primary_color = cfg.branding.primary_color
+                changed = True
+            if existing_tenant.logo_url != cfg.branding.logo_url:
+                existing_tenant.logo_url = cfg.branding.logo_url
+                changed = True
+            if changed:
+                await db.commit()
+                print(f"Tenant '{cfg.tenant_id}' branding updated from config.")
+            else:
+                print(f"Tenant '{cfg.tenant_id}' already exists — skipping.")
             return
 
         # Guard 2: user with this email already exists anywhere in the system

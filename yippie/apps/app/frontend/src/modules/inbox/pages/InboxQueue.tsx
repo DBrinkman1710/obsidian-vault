@@ -178,6 +178,8 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
     },
   })
 
+  const [sendError, setSendError] = useState('')
+
   const sendMutation = useMutation({
     mutationFn: () => {
       const fd = new FormData()
@@ -190,7 +192,12 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
       }
       return api.post('/inbox/compose', fd, { headers: { 'Content-Type': undefined } }).then(r => r.data)
     },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail
+      setSendError(typeof detail === 'string' ? detail : 'Send failed — please try again')
+    },
     onSuccess: (data) => {
+      setSendError('')
       if (data.demo) { setResult(data); return }
       // Queued with an undo window — count down 5s on the local clock (the
       // server holds the email 8s, so an Undo click always lands in time).
@@ -415,7 +422,8 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
                   {recipients.length > 1 ? ' via BCC' : ''}
                 </p>}
           </div>
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
+            {sendError && <p className="text-xs text-red-500">{sendError}</p>}
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
             <button
               onClick={() => sendMutation.mutate()}

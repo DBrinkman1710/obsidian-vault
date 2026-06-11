@@ -61,7 +61,8 @@ async def send_email(
     if reply_to:
         payload["reply_to"] = [reply_to]
     if attachments:
-        payload["attachments"] = attachments
+        # Resend expects only {filename, content} — strip any extra keys (e.g. content_type)
+        payload["attachments"] = [{"filename": a["filename"], "content": a["content"]} for a in attachments]
 
     async with httpx.AsyncClient() as client:
         response = await client.post(

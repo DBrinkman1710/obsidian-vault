@@ -52,23 +52,22 @@ export function Sidebar() {
       {/* Logo + tenant */}
       <div className="px-5 pt-6 pb-5">
         <div className="flex items-center gap-2 mb-1">
-          {config.branding.logo_url ? (
+          <svg viewBox="0 0 36 36" className="w-7 h-7 shrink-0" fill="white">
+            <circle cx="10" cy="8" r="4" />
+            <path d="M4 28 Q10 36 18 30" strokeWidth="3.5" stroke="white" fill="none" strokeLinecap="round"/>
+            <circle cx="21" cy="5" r="2.5" />
+          </svg>
+          <span className="text-white font-bold text-xl tracking-tight">yippie</span>
+        </div>
+        {config.branding.logo_url && (
+          <div className="mt-2 mb-1">
             <img
               src={config.branding.logo_url}
               alt={config.tenant_name}
-              className="h-7 w-7 object-contain rounded"
+              className="h-6 object-contain max-w-[120px]"
             />
-          ) : (
-            <>
-              <svg viewBox="0 0 36 36" className="w-7 h-7 shrink-0" fill="white">
-                <circle cx="10" cy="8" r="4" />
-                <path d="M4 28 Q10 36 18 30" strokeWidth="3.5" stroke="white" fill="none" strokeLinecap="round"/>
-                <circle cx="21" cy="5" r="2.5" />
-              </svg>
-              <span className="text-white font-bold text-xl tracking-tight">yippie</span>
-            </>
-          )}
-        </div>
+          </div>
+        )}
         <p className="text-white/60 text-xs font-medium pl-0.5 truncate">{config.tenant_name}</p>
       </div>
 

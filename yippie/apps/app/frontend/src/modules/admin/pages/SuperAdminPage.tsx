@@ -56,7 +56,7 @@ interface CreateForm {
 
 const EMPTY_FORM: CreateForm = {
   name: '', slug: '', admin_full_name: '', admin_email: '', admin_password: '',
-  extra_admin_emails: [], primary_color: '#5BB8E8', logo_url: '',
+  extra_admin_emails: [], primary_color: '#5BA4F5', logo_url: '',
   enabled_modules: [...ALL_MODULES], is_demo: false, inbound_email: '',
 }
 

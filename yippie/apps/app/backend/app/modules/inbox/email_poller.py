@@ -80,11 +80,17 @@ async def _fetch_email_data(client: httpx.AsyncClient, auth: dict, email_id: str
     if not body:
         log.warning("Body fetch %s → empty body. text=%r html=%r", email_id, text, (html or "")[:200])
 
-    # Extract attachment metadata (no content — download on demand via proxy endpoint)
+    # Extract attachments — store content inline (base64) so the download proxy
+    # doesn't need a separate Resend API call (no such endpoint exists).
     attachments_json: str | None = None
     raw_atts = full.get("attachments") or []
     parsed = [
-        {"id": a["id"], "filename": a.get("filename", "attachment"), "content_type": a.get("content_type", "application/octet-stream")}
+        {
+            "id": a["id"],
+            "filename": a.get("filename", "attachment"),
+            "content_type": a.get("content_type", "application/octet-stream"),
+            "content": a.get("content", ""),
+        }
         for a in raw_atts if a.get("id")
     ]
     if parsed:

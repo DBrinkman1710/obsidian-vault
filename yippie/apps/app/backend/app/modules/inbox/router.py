@@ -6,7 +6,6 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
 
-import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status  # noqa: F401
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -271,19 +270,14 @@ async def download_attachment(
     if not ctx:
         raise HTTPException(status_code=404, detail="Draft not found")
     msg = ctx["inbound_message"]
-    if not msg or not msg.resend_email_id:
-        raise HTTPException(status_code=404, detail="No Resend ID for this message")
+    if not msg or not msg.attachments_json:
+        raise HTTPException(status_code=404, detail="No attachments for this message")
 
-    settings = get_settings()
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(
-            f"https://api.resend.com/emails/receiving/{msg.resend_email_id}/attachments/{attachment_id}",
-            headers={"Authorization": f"Bearer {settings.resend_api_key}"},
-        )
-    if resp.status_code != 200:
+    attachments = json.loads(msg.attachments_json)
+    att = next((a for a in attachments if a.get("id") == attachment_id), None)
+    if not att:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
-    att = resp.json()
     raw = att.get("content", "")
     content = base64.b64decode(raw) if raw else b""
     filename = att.get("filename", "attachment")
