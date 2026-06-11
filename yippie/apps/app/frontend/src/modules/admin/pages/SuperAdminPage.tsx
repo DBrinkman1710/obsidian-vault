@@ -37,7 +37,15 @@ interface TenantUser {
   email: string
   full_name: string
   role: string
+  is_active: boolean
   created_at: string
+}
+
+const ROLE_STYLES: Record<string, string> = {
+  superadmin: 'bg-amber-100 text-amber-800',
+  admin: 'bg-blue-100 text-blue-700',
+  agent: 'bg-slate-100 text-slate-600',
+  viewer: 'bg-slate-100 text-slate-500',
 }
 
 interface CreateForm {
@@ -397,7 +405,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-type EditTab = 'info' | 'modules' | 'branding' | 'actions'
+type EditTab = 'info' | 'modules' | 'branding' | 'users' | 'actions'
 
 function EditClientModal({
   tenant,
@@ -428,12 +436,25 @@ function EditClientModal({
     logo_url: tenant.logo_url ?? '',
   })
   const [error, setError] = useState('')
+  const [showAddAdmin, setShowAddAdmin] = useState(false)
 
   const mutation = useMutation({
     mutationFn: (patch: Record<string, unknown>) =>
       api.patch(`/admin/tenants/${tenant.id}`, patch).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
     onError: () => setError('Failed to save changes'),
+  })
+
+  const { data: usersData, isLoading: usersLoading } = useQuery<TenantUser[]>({
+    queryKey: ['tenant-users', tenant.id],
+    queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then(r => r.data),
+    enabled: tab === 'users',
+  })
+
+  const toggleUserMutation = useMutation({
+    mutationFn: ({ userId, is_active }: { userId: string; is_active: boolean }) =>
+      api.patch(`/admin/tenants/${tenant.id}/users/${userId}`, { is_active }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tenant-users', tenant.id] }),
   })
 
   function handleSave() {
@@ -456,6 +477,7 @@ function EditClientModal({
     { key: 'info', label: 'Info' },
     { key: 'modules', label: 'Modules' },
     { key: 'branding', label: 'Branding' },
+    { key: 'users', label: 'Users' },
     { key: 'actions', label: 'Actions' },
   ]
 
@@ -580,6 +602,48 @@ function EditClientModal({
             </>
           )}
 
+          {tab === 'users' && (
+            <>
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Team members</span>
+                <button
+                  type="button"
+                  onClick={() => setShowAddAdmin(true)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  <UserPlus size={12} />
+                  Add admin
+                </button>
+              </div>
+              {usersLoading && <p className="text-sm text-slate-400">Loading…</p>}
+              {usersData && usersData.length === 0 && <p className="text-sm text-slate-400">No users yet.</p>}
+              {usersData && usersData.length > 0 && (
+                <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
+                  {usersData.map(u => (
+                    <div key={u.id} className={`flex items-center gap-3 px-4 py-3 ${!u.is_active ? 'opacity-50' : ''}`}>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-medium text-slate-900 truncate">{u.full_name}</div>
+                        <div className="text-xs text-slate-400 truncate">{u.email}</div>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${ROLE_STYLES[u.role] ?? ROLE_STYLES.viewer}`}>{u.role}</span>
+                      <button
+                        type="button"
+                        onClick={() => toggleUserMutation.mutate({ userId: u.id, is_active: !u.is_active })}
+                        disabled={toggleUserMutation.isPending}
+                        className="text-slate-400 hover:text-slate-600 transition-colors shrink-0 disabled:opacity-50"
+                        title={u.is_active ? 'Deactivate' : 'Activate'}
+                      >
+                        {u.is_active
+                          ? <ToggleRight size={16} className="text-emerald-500" />
+                          : <ToggleLeft size={16} />}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
           {tab === 'actions' && (
             <div className="flex flex-col gap-4">
               <div className="flex items-center justify-between">
@@ -640,9 +704,9 @@ function EditClientModal({
               onClick={onClose}
               className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              {tab === 'actions' ? 'Close' : 'Cancel'}
+              {tab === 'actions' || tab === 'users' ? 'Close' : 'Cancel'}
             </button>
-            {tab !== 'actions' && (
+            {tab !== 'actions' && tab !== 'users' && (
               <button
                 onClick={handleSave}
                 disabled={mutation.isPending}
@@ -654,6 +718,7 @@ function EditClientModal({
           </div>
         </div>
       </div>
+      {showAddAdmin && <AddAdminModal tenant={tenant} onClose={() => { setShowAddAdmin(false); qc.invalidateQueries({ queryKey: ['tenant-users', tenant.id] }) }} />}
     </div>
   )
 }
@@ -795,76 +860,6 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
   )
 }
 
-function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
-  const [showAddAdmin, setShowAddAdmin] = useState(false)
-  const { data, isLoading } = useQuery<TenantUser[]>({
-    queryKey: ['tenant-users', tenant.id],
-    queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then(r => r.data),
-  })
-
-  const ROLE_STYLES: Record<string, string> = {
-    superadmin: 'bg-amber-100 text-amber-800',
-    admin: 'bg-blue-100 text-blue-700',
-    agent: 'bg-slate-100 text-slate-600',
-    viewer: 'bg-slate-100 text-slate-500',
-  }
-
-  return (
-    <>
-      {showAddAdmin && <AddAdminModal tenant={tenant} onClose={() => setShowAddAdmin(false)} />}
-      <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-40 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[80vh] flex flex-col">
-          <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-            <div>
-              <h2 className="text-lg font-bold text-slate-900">Users</h2>
-              <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
-              {tenant.inbound_email && (
-                <p className="text-xs text-slate-400 mt-1 font-mono">{tenant.inbound_email}</p>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setShowAddAdmin(true)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
-              >
-                <UserPlus size={12} />
-                Add admin
-              </button>
-              <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
-            </div>
-          </div>
-          <div className="overflow-y-auto flex-1">
-            {isLoading && <p className="text-sm text-slate-400 p-6">Loading…</p>}
-            {data && data.length === 0 && <p className="text-sm text-slate-400 p-6">No users yet.</p>}
-            {data && data.length > 0 && (
-              <table className="w-full">
-                <thead className="bg-slate-50 border-b border-slate-200">
-                  <tr>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
-                    <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Role</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {data.map(u => (
-                    <tr key={u.id} className="hover:bg-slate-50">
-                      <td className="px-4 py-3 text-sm font-medium text-slate-900">{u.full_name}</td>
-                      <td className="px-4 py-3 text-sm text-slate-500">{u.email}</td>
-                      <td className="px-4 py-3">
-                        <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${ROLE_STYLES[u.role] ?? ROLE_STYLES.viewer}`}>{u.role}</span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        </div>
-      </div>
-    </>
-  )
-}
-
 function ResendDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
   const [copied, setCopied] = useState(false)
@@ -920,7 +915,6 @@ export default function SuperAdminPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
   const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null)
-  const [viewingUsers, setViewingUsers] = useState<Tenant | null>(null)
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
@@ -1147,13 +1141,10 @@ export default function SuperAdminPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => setViewingUsers(t)}
-                        className="inline-flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium transition-colors"
-                      >
+                      <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
                         <Users size={13} />
                         {t.user_count} {t.user_count === 1 ? 'user' : 'users'}
-                      </button>
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-400">
                       {new Date(t.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -1223,7 +1214,6 @@ export default function SuperAdminPage() {
         />
       )}
       {deletingTenant && <DeleteClientModal tenant={deletingTenant} onClose={() => setDeletingTenant(null)} />}
-      {viewingUsers && <TenantUsersModal tenant={viewingUsers} onClose={() => setViewingUsers(null)} />}
     </div>
   )
 }

@@ -159,6 +159,16 @@ async def add_tenant_user(db: AsyncSession, tenant_id: uuid.UUID, data: AddAdmin
     return user
 
 
+async def patch_tenant_user(db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID, is_active: bool) -> User | None:
+    user = await db.scalar(select(User).where(User.id == user_id, User.tenant_id == tenant_id))
+    if user is None:
+        return None
+    user.is_active = is_active
+    await db.commit()
+    await db.refresh(user)
+    return user
+
+
 async def get_impersonation_target(db: AsyncSession, tenant_id: uuid.UUID) -> tuple[Tenant, User] | None:
     """Return (tenant, first active admin user) for impersonation, or None."""
     tenant = await db.get(Tenant, tenant_id)

@@ -76,6 +76,14 @@ async def add_tenant_user(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID, data:
     return schemas.TenantUserOut.model_validate(user)
 
 
+@router.patch("/tenants/{tenant_id}/users/{user_id}", response_model=schemas.TenantUserOut)
+async def patch_tenant_user(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID, user_id: uuid.UUID, data: schemas.PatchTenantUserRequest):
+    user = await service.patch_tenant_user(db, tenant_id, user_id, data.is_active)
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    return user
+
+
 @router.post("/tenants/{tenant_id}/impersonate")
 async def impersonate_tenant(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
     """Mint a short-lived token for the tenant's first active admin, so a
