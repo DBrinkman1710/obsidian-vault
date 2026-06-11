@@ -563,9 +563,13 @@ async def queue_send(
     # Snapshot the effective from-address NOW. devsandbox and sandbox share one DB
     # and both run flush_pending_sends — a NULL from_email would be resolved with
     # the RESEND_FROM of whichever container happens to flush the row.
+    # Priority: explicit caller value → tenant's own inbound_email → global RESEND_FROM.
     from app.config import get_settings
+    from app.core.models import Tenant as _Tenant
 
-    from_email = from_email or get_settings().resend_from or None
+    if not from_email:
+        _tenant = await db.get(_Tenant, tenant_id)
+        from_email = (_tenant.inbound_email if _tenant else None) or get_settings().resend_from or None
     pending = PendingSend(
         draft_id=draft_id,
         tenant_id=tenant_id,
