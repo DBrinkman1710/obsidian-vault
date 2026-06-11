@@ -1,956 +1,323 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (pre-session-25 bugs added; session 24 — verification outcomes filed; session 23 — Performance Step 3; session 22b — dept/SLA race fix, reply language, deadline badges, invite URL)
+**Updated:** 2026-06-11 (session 27 — branding wiring, [38c] edit modal, attachment bugs fixed, compose auto-dismiss)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
 ---
 
+## 🧭 How this roadmap is organized
+
+Open work is grouped into **three tiers** by size/complexity, and each tier is mapped to the
+Claude model to build it with:
+
+| Tier | Nature of work | Model |
+|---|---|---|
+| 🟣 **Tier 1** | Big, complicated & creative | **Fable** |
+| 🔵 **Tier 2** | Medium | **Opus** |
+| 🟢 **Tier 3** | Quick & easy fixes / wins | **Sonnet** |
+
+Item numbers (`[11]`, `[38c]`, …) are kept so each item still maps to its history in the
+**Session log** (Appendix A). Finished work is collapsed under **✅ Done**; full architecture /
+environment / deploy reference lives in **Appendix B**.
+
+> **Note (2026-06-11):** the tiers were reconciled against the actual `apps/app` code. A batch of
+> items previously listed as open turned out to be shipped (impersonation, bulk bin/spam, retention
+> scheduler, `is_active`/`go_live_at` enforcement, per-tenant webhook routing, undo-send polish,
+> attachment chips, response-template backend, …) and were moved to **✅ Done**. Only verified-open
+> work remains in the tiers below.
+
+---
+
 ## ▶ Next session — start here
 
-### 🐞 Bugs confirmed in session-24 verification (fix first, in this order)
+**Bugs still open — needs code (session 27 verification):**
 
-1. **Compose + attachment send broken** — sending a compose mail that has an attachment
-   fails. The undo queue path in `queue_send` / `ComposeModal` likely does not correctly
-   handle the `FormData` multipart body when attachments are present (same class of bug as
-   the reply `Content-Type` chain from session 15). Fix and verify live.
+- **Inbox select-all not sticky** — select-all checkbox scrolls away with the list; should stay fixed at the top while scrolling.
+- **Inbox pagination** — no pagination today; need next/prev arrows with ~9 items per page.
+- **Ticket list UI** — should match the inbox layout style (confirmed in sandbox: current list looks different).
+- **Deadline indicator redesign** — replace the glowing count badge on Tickets nav with:
+  - 🔴 red dot: 1+ tickets overdue or due today/tomorrow
+  - 🟠 orange dot: 1+ tickets due within 2 days
+  - No dot: everything is fine
+  - Threshold (2 days / today) configurable per tenant in Settings → Departments.
+- **Hotkeys on/off toggle** — add a toggle in Profile settings (per user); when off, no keyboard shortcuts fire.
+- **Activity page not working** — verify in sandbox; likely a module-gate issue or empty state. Investigate backend 500 if any.
 
-2. **Reply attachment not delivered** — attaching a file to a reply and sending it results
-   in the recipient not receiving the attachment. Check `mailer.py` Resend attachment
-   payload and the `pending_sends` flush path for the reply kind.
+**Legacy open bugs (from before session 27):**
+- **New agent arrived as admin** — code-verified clean session 19; most likely an older invite token. Re-test with a fresh invite.
+- **Personal inbox leaks across users** — check whether `diederik1710@icloud.com` has `users.inbound_email` set to Joost's address; clear if so.
+- **Personal address only receives after first send** — likely test confusion; saving Profile should be sufficient.
 
-3. **Inbound attachment arrives empty** — a mail with an attachment lands in the Yippie
-   inbox but the attachment is empty/zero-byte. Check `email_poller.py` `_fetch_email_data`
-   attachment extraction and the Resend receiving API response shape.
+**Manual / ops (Diederik):**
+- Cloudflare: delete the duplicate bare DMARC TXT at `_dmarc.getyippie.com`; keep only the one DKIM key shown in Resend at `resend._domainkey.getyippie.com`.
+- klimaatexamen tenant `inbound_email` is NULL → use Clients → Edit → Info tab (now available via [38c]).
+- Set `INBOUND_EMAIL` in both live Railway envs before go-live.
 
-4. **"Email sent" bar persists after compose** — the undo/sent bar does not auto-dismiss
-   after compose send completes. The reply path already auto-dismisses; apply the same
-   logic to the compose path in `ComposeModal` / `InboxQueue.tsx`. (Extends item 47.)
-
-### 🆕 New items from session-24 verification (implement after bugs)
-
-5. **Inbox: sticky select-all + pagination (9 per page)** — the select-all button should
-   be position-fixed/sticky so it stays on screen while scrolling the mail list. Replace
-   the current scroll/load-more with paginated pages of 9 mails; add a next/prev arrow
-   control. Backend `GET /inbox/drafts` already accepts `skip`/`limit`; wire the frontend.
-
-6. **Tickets list: match inbox UI** — bring `TicketList` in line with the inbox layout:
-   same card style, sticky select-all, same 9-per-page pagination with next/prev arrows,
-   same action bar for bulk operations.
-
-7. **Ticket deadline dot redesign** (replaces the glowing number from session 22):
-   - **Red dot with count** — tickets due same day, tomorrow, or overdue.
-   - **Orange dot with count** — tickets due in 2 days.
-   - Dot sits in the Tickets sidebar nav item (replacing the current pulsing badge).
-   - **Per-tenant thresholds** — the red and orange day-thresholds are configurable in
-     Settings → (new) Notifications section. Default: red ≤1 day, orange = 2 days.
-     Backend: two new `Tenant` columns (`deadline_red_days INT DEFAULT 1`,
-     `deadline_orange_days INT DEFAULT 2`); returned in `GET /api/v1/tenant/config`;
-     `GET /tickets/deadline-count` accepts the thresholds (or reads them from the tenant).
-
-8. **Hotkeys on/off toggle** — add a "Keyboard shortcuts" toggle to Profile settings
-   (`/settings/profile`). Persisted per user (`users.hotkeys_enabled BOOL DEFAULT true`).
-   Frontend reads the setting from the user object and conditionally registers/skips the
-   `keydown` listeners. Superadmins and admins see this toggle; agents too.
-
-### 🐞 Additional bugs reported (pre-session-25 — fix alongside items 1–4 above)
-
-9. **Outbound from-address wrong in ndugu environment** — mail sent from the ndugu tenant
-   goes out as `sb-support@getyippie.com` instead of the ndugu tenant's own address. Same
-   class as the session-18c klimaatexamen fix: check `pending_sends.from_email` snapshot for
-   that tenant and whether the tenant's `inbound_email` / `RESEND_FROM` is correctly set.
-
-10. **Settings page broken** — one or more `/settings/*` routes are inaccessible or throwing
-    an error in sandbox/devsandbox. Identify which tab is broken and the root cause.
-
-11. **Client page: 6 buttons per row** — currently showing ~6 actions inline per client row;
-    should expose only **View as**, **Set demo**, and **Edit**. Move the **Inactive/Active
-    toggle**, **Copy email**, and **Delete** actions inside the Edit modal as tabs or action
-    sections. Extends item 38c.
-
-12. **Dev sandbox sidebar colour reset** — the devsandbox sidebar has lost its original
-    distinct colour (environment indicator). Restore it; check `Sidebar.tsx` or the CSS
-    variables applied per environment.
-
-13. **Compose modal: Send/Quit buttons shift on send** — in the sandbox compose modal,
-    pressing Send causes the Send and Quit buttons to visually jump/shift position. The
-    button layout must remain stable while the undo bar is rendering.
-
-### ▶ Session 22 manual steps (Diederik) — still pending
-
-1. **Set `CLIENT_BASE_URL` in Railway** — fixes invite links pointing to wrong URL:
-   - Dev Sandbox env: `CLIENT_BASE_URL=https://sandbox.getyippie.com`
-   - Development env: `CLIENT_BASE_URL=https://app.getyippie.com`
-   - (Sandbox and app envs don't need it — `APP_BASE_URL` is already the client URL)
-2. **Verify dept + SLA saves correctly on approve** — open a draft, approve, pick a department and set a custom SLA. The created ticket should now have the department and the correct follow-up date.
-3. **Verify reply subject language** — reply to a Dutch email; reply should have `Re: <original Dutch subject>`, not an English AI-generated one.
+**Deploy reminder:** both staging envs build the **`sandbox`** branch — ship with
+`git push origin devsandbox:sandbox`, `/verify` in sandbox, then promote. `migrations/env.py`
+takes a Postgres advisory lock so the two shared-DB containers can't race DDL.
 
 ---
 
-### 🐞 Reported after session-18 deploy — NEXT SESSION, in this order
+## ▶▶ Performance initiative — ✅ COMPLETE
 
-1. ~~Compose/reply send broken~~ **FIXED + deployed same day** — session 18c's from-address
-   snapshot did `from app.config import settings`, but `app.config` only exports
-   `get_settings()` → ImportError on every `queue_send` (compose AND reply). One-line fix.
-   **Verify compose + reply live in devsandbox before anything else.**
-2. ~~klimaatexamen mail shows in both sandboxes~~ **HARDENED (session 19)** — findings:
-   - The unique index on `resend_email_id` has existed since migration `b1c2d3e4f5a6`, so a
-     true duplicate row (same mail in two tenants) **cannot persist**. If Diederik saw the mail
-     on both URLs while logged in as the same/klimaatexamen user, that's the pair design (one
-     shared DB; the inbox follows the login, not the URL) — explain, close.
-   - Real gap fixed: when both containers raced past `find_by_resend_id`, the loser's
-     `IntegrityError` aborted its **whole ingest batch** (other new mails dropped until the next
-     poll). `email_poller.py` now catches the conflict per email, rolls back and skips —
-     the roadmap's "on-conflict skip".
-   - Still verify in the live DB if the report recurs: `SELECT resend_email_id, count(*),
-     array_agg(tenant_id) FROM inbound_messages GROUP BY 1 HAVING count(*) > 1;`
-3. ~~Welcome mail rework~~ **DONE (session 19)** — invite/create-password mail is back to
-   short form (just the link, 7-day validity). New `send_welcome_to_inbox()` in
-   `app/auth/invite.py` sends the introduction content to the tenant's `inbound_email` on
-   creation (called from `create_tenant`, never blocks creation); the poller ingests it so
-   it's the first draft the client sees. Note: only sent when the tenant has an inbound
-   address at creation time.
-4. ~~Add-admin/wizard email validation~~ **DONE (session 19)** — `GET /admin/check-email`
-   (superadmin-gated, format + already-in-use) + debounced (500ms) inline field errors in
-   CreateClientModal (admin email blocks Next; extra-admin email blocks Add) and AddAdminModal
-   (blocks submit).
-
-### 🆕 New from Diederik's checklist — 2026-06-10 (post-session 18)
-
-**Bugs to investigate (after the numbered bug list above):**
-- **New agent user arrived as admin** — *code-verified clean (session 19):* the whole chain
-  Team page (sends `role: 'agent'`) → `POST /team/invite` → invite token `role` claim →
-  `/auth/register` `UserRole(claims.get("role", "agent"))` is correct on this branch. Most
-  likely cause: the user registered with an **older invite token** — the create-client wizard
-  and Add-admin modal always mint `role=admin` tokens, and invite links stay valid 7 days, so
-  clicking an earlier admin invite mail (or a pre-session-18 link) yields an admin account.
-  Verify live: re-invite a fresh address as agent and register via that exact mail.
-- **Personal inbox leaks across users** — *code-verified (session 19):* `mailbox=personal`
-  without a personal `inbound_email` returns `[]` server-side, and the frontend shows the
-  "no personal inbox address set" banner — the icloud account cannot display joost's personal
-  mail from current code. Check live whether diederik1710@icloud.com actually has
-  `users.inbound_email` set (e.g. to joost's address before the 409-uniqueness check landed),
-  or whether the screenshot predates session 18. The batch-abort fix for bug 2 also removes
-  one route for stray fallback ingestion.
-- **Personal address only receives after first send** — "I can only receive on a personal mail
-  after I have sent a mail from that personal mail using Yippie." Probably: the poller's
-  routing map only contains the address once saved on the Profile (no send needed) — verify
-  what saving vs sending actually changes, document or fix.
-- ~~**Dept/SLA popup: SLA sticks to standard**~~ **FIXED (session 22)** — root cause was a React
-  state race: `setFollowUpDays`/`setSelectedDeptId` are async, so `reviewMutation.mutate` fired
-  before state updated. Fix: mutation now accepts dept+SLA directly (bypasses state). Also fixed:
-  `DraftReview` schema now has `department_id` and passes it to `TicketCreate`.
-- **Subject altered on receive** — the inbox shows the AI-suggested subject
-  (`ai_suggested_subject`), not the raw email subject. By design for draft tickets. **DONE:**
-  session 20 added "Subject: {original}" secondary line; session 21 added "· to {address}";
-  **session 22 fixed item 44** — reply subject now uses `msg.subject` (original language),
-  not the AI-suggested subject. Fully resolved.
-
-**Design/feature requests (filed in phases):**
-- **Department emails as shared inboxes** — a department can have its own address (e.g.
-  klimaatexamen@getyippie.com as THE shared inbox; joost-klimaatexamen@ personal). General
-  mail from that environment sends from the department address; only admins/superadmins can
-  edit. → New design item, pairs with the departments module + item 40 matrix.
-- **Auto-provision the client's shared support address on tenant creation** (like personal
-  inboxes work) — wizard pre-fills `{slug}-support@getyippie.com` (partially exists in the
-  create modal; make it the default end-to-end incl. Resend-side readiness).
-- **Personal mail tied to login email + shared mail tied to company** — design decision for
-  the email-identity model (Phase 13): personal inbound address derives from the user's login
-  identity; shared address belongs to the tenant.
-- **Move Departments onto the Team page** — one settings page: user list (large) + departments
-  (smaller section) side by side.
-- **Email signatures per user** — compose/reply appends the user's signature; editable on
-  Profile. (New item.)
-- **Remove the "Promote to superadmin" block from the Clients page** — superadmin management
-  lives in Settings → Superadmins now.
-- **Onboarding mails still carry devsandbox links** — confirms the invite-link base URL bug
-  (Next session item 5 / Phase 13); client invites must use the client-facing URL.
-
-### ⚡ Session 18 status update (read first)
-
-- **Shipped + deployed:** from-address snapshot fix (wrong `dev-support@` sender bug),
-  shared-inbox fallback fix (mail to dev-support@/sb-support@ was silently dropped since
-  9eb8620), ONE personal email address on Profile (sets send + receive), welcome/introduction
-  email on all invite paths. See session 18 log entry.
-- **Manual steps for Diederik:**
-  1. **Cloudflare DNS** — delete the bare `"v=DMARC1; p=none;"` TXT at `_dmarc.getyippie.com`
-     (keep the one with the Cloudflare `rua=`); at `resend._domainkey.getyippie.com` keep only
-     the DKIM key shown in the Resend dashboard, delete the other two. Multiple records at the
-     same name = invalid DMARC/DKIM.
-  2. **klimaatexamen tenant** — its `inbound_email` is NULL, so mail to
-     `klimaatexamen-support@getyippie.com` is dropped. Needs a DB update or the per-client edit
-     modal (item 38c); Claude can run the update on approval.
-- **diederik@getyippie.com receiving WORKS** — both test mails are pending drafts in
-  Inbox → Personal in devsandbox (tenant Yippie). Check the Personal tab.
-- **Go-live checklist additions:** set `INBOUND_EMAIL` in both live Railway envs (currently
-  unset; RESEND_FROM=support@ is already correct in both); production/Development/Commercial
-  still trigger on stale branch `claude/modular-account-management-design-XrQwj`.
-
-### Priority order
-
-1. ~~Verify session-16 + session-17 work in devsandbox~~ **✅ VERIFIED by Diederik (2026-06-10 checklist)** — confirmed working: single email per reply (no more duplicates), undo send incl. compose, no more "could not undo — email may already be sent", delete ticket, delete client/superadmin with password gate, undo approve/reject, onboarding via dev app, demo environments, make-client-inactive, Sent/Spam/Bin views, shared + personal inbox. **Still to verify (left unchecked):**
-   - "Send cancelled" / undo window **auto-dismisses** after undo (item 47)
-   - `Cmd/Ctrl+Enter` sends in compose modal and reply panel (item 35)
-   - Scroll-only inbox layout + larger compose (item 9)
-
-2. **End-to-end test the auth flows in sandbox:** team invite → register link → login; forgot password → reset; impersonation (View as → amber banner → Exit); change own password (Profile page). `APP_BASE_URL` is now set in **all four** Railway envs (verified 2026-06-10) and the backend strips trailing slashes, so emailed links should work everywhere.
-
-3. **Next development candidates (critical path A/B/C is complete):**
-   - Item 11 — DeptReminderModal redesign (pick department AND SLA in the popup, "No department"/"No SLA" options)
-   - Item 12 — select + delete/spam mails in InboxQueue (backend bulk-action endpoint exists)
-   - Item 34 — ticket deadline reminder popup (≤24h before `follow_up_at`)
-   - ~~Item 18 leftover~~ ✅ compose attachments + attachment-replies-through-undo-queue **verified by Diederik 2026-06-10** — only the chips dropdown/remove-`x` UX remains (item 45)
-
-4. ~~Railway deploy blocker~~ **RESOLVED 2026-06-10** — both staging envs build the **`sandbox` branch**; ship with `git push origin devsandbox:sandbox`. `railway up` does NOT upload local code. Migrations are now also safe to deploy to both envs at once: `migrations/env.py` takes a Postgres advisory lock, so the two containers can't race DDL on the shared DB.
-
-5. **Invite-link base URL bug** ✓ **CODE FIXED (session 22) — needs Railway env vars.**
-   New `CLIENT_BASE_URL` config setting: invite links use this instead of `APP_BASE_URL` when set.
-   Set in Railway: devsandbox → `CLIENT_BASE_URL=https://sandbox.getyippie.com`,
-   dev → `CLIENT_BASE_URL=https://app.getyippie.com`. (See Phase 13.)
-
-6. **Prototype 2.0 → promote to live.** Push `devsandbox → sandbox → live` (`dev` + `app`). As part of this, set up **`diederik@getyippie.com` (individual)** and **`support@getyippie.com` (shared)** as the addresses for `dev.getyippie.com`; sandbox keeps `sb-support@`, live uses `support@`. (See Phase 13.)
+Top-priority "make the tool faster" pass — **all four steps shipped** (sessions 19, 22, 23, 24):
+composite indexes + 5s poll + nginx gzip/cache (Step 1); async ingest with on-demand Generate
+(Step 2); loading skeletons + vendor chunking + consolidated draft query (Step 3); `pg_trgm`
+search indexes + lazy compose contacts + pool tuning + dropped RLS role-switch (Step 4). Root
+causes and file refs are preserved in Appendix A (sessions 22–24). No remaining performance items.
 
 ---
 
-## ▶▶ Performance — make the tool faster
+## 🟣 Tier 1 — Big, complicated & creative → **Fable**
 
-Top priority initiative. Diederik wants Yippie to feel fast. A code pass over
-`apps/app` found concrete, fixable bottlenecks (file refs below).
+The heavy lifts: brand-new modules, cross-cutting features, and the creative/marketing work.
 
-### Why it feels slow today (root causes)
+### New modules (Phase 10)
+- **Email tracking module** — `Fable` — *not built.* `emailtracking` module: opens/clicks/delivery per outbound mail via Resend webhooks (`email.opened/clicked/bounced`); per-email status in Inbox/Sent; superadmin enable/disable per tenant.
+- **Calendar module** — `Fable` — *not built.* `calendar` module: agent calendar of `follow_up_at` deadlines + standalone events tied to a contact/ticket; per-tenant toggle.
+- **Pipeline module** — `Fable` — *not built.* Client-defined pipeline stages; customers auto-labeled by stage (builds on `[38]`); time-per-stage tracking; stage-triggered automated emails; per-tenant toggle.
 
-- **Blocking AI scan in the ingest loop** — inbound ingest calls `scan_message()`
-  (Anthropic, ~300–800ms) **synchronously** plus `_build_context()` (5 sequential
-  DB queries) per email: `email_poller.py:93`, `inbox/service.py:198–242`. High
-  volume blocks the poller for seconds → drafts appear to stall.
-- **Missing composite indexes on hot list filters** — `tenant_id` alone *is*
-  indexed, but list queries filter `(tenant_id, status)` etc. without a matching
-  index: needs `draft_tickets(tenant_id, status)`, `tickets(tenant_id, status,
-  deleted_at)`, `tickets(tenant_id, assigned_to)` (`inbox/models.py:50`,
-  `tickets/models.py:42`). Seq-scans grow with data.
-- **Aggressive / wide frontend queries** — inbox polls every 10s
-  (`InboxQueue.tsx:469`) so new mail can take up to 10s to appear; the compose
-  modal eager-loads up to **1000 contacts** (`InboxQueue.tsx:52–56`).
-- **Contact search is `ILIKE %term%`** with no full-text index
-  (`contacts/service.py:20–30`) — substring seq-scan on every keystroke.
-- **No Vite route code-splitting** (`vite.config.ts`) → one large initial bundle.
-- **RLS overhead with no current benefit** — `set_tenant_context` runs two
-  `SET LOCAL` round-trips/request (`database.py:101–123`) for RLS policies that
-  **aren't enforced yet**. Nginx has no gzip / cache headers (`nginx.conf`).
+> The **AI module** is already built — see ✅ Done. It's the `ai` per-tenant flag that switches on the AI extras across inbox + tickets (summaries, generate mail, suggested/improved replies, compose suggestions, autofilled ticket fields). With it off, none of that runs.
 
-### Next steps after "make my tool faster" — leverage-ordered
+### Email templates (Phase 9 — creative)
+- **[Phase 9] Template UX + AI insertion** — `Fable` — *backend partially exists* (`ResponseTemplate` model + `GET/POST /templates` in the tickets module). Still to build: `/settings/templates` CRUD page, "Insert template" in compose/reply, **AI-recommended** template based on the received email, company-wide + personal templates, and (optional) Resend-registered templates by ID.
 
-**Step 1 — Quick wins (~1 day, highest leverage): ✅ SHIPPED (session 19)**
-1. ~~Add the missing composite indexes~~ DONE — migration `a9b0c1d2e3f4` adds
-   `tickets(tenant_id, status, deleted_at)` + `tickets(tenant_id, assigned_to)`
-   (idempotent; `draft_tickets(tenant_id, status)` already existed via `c8d9e0f1a2b3`).
-2. ~~Inbox `refetchInterval` 10s → 5s + invalidate on send/compose~~ DONE —
-   `InboxQueue.tsx` polls every 5s; compose invalidates `['drafts']` when the undo
-   window elapses (and when undo arrives too late). Reply/review already invalidated.
-3. ~~Nginx `gzip on` + cache headers~~ DONE — gzip for js/css/json/svg, hashed
-   `/assets/` cached 1y immutable, `index.html` no-cache (`frontend/nginx.conf`).
-   Note: Vite route code-splitting from Step 3 turns out to already be in place
-   (per-page chunks in the build output) — skip that line of Step 3.
+### Contacts — workflow & data model (big)
+- **[36] Company grouping for contacts** — `Fable` — *partial:* `company` is only a string field on Contact. Build a real `Company` entity (name, domain, notes) contacts belong to; company badge + filter/group; composing to a company auto-selects all its contacts.
+- **[38] Contact labels** — `Fable` — *partial:* a `tags` array exists on Contact but there's no label model, CRUD, or filtering. Build tenant-defined labels so each client embeds **their own** workflow (`potential client`, `process step 1`, `after sales`, `potential client: demo`); CRUD in settings; assign 1+ per contact; filter by label; bulk-label from multi-select (`[20]`). Foundation for the Pipeline module + demo flow.
+- **[30] Mail-all / broadcast system** — `Fable` — *not built.* `POST /admin/tenants/{id}/broadcast` (superadmin), batch send to all tenant contacts via Resend; needs rate limiting + opt-out tracking.
 
-**Step 2 — Async ingest (~1 day): ✅ SHIPPED (session 22)**
-- Ingest no longer calls the AI: `_create_draft` stores the raw email fields
-  instantly with new column `draft_tickets.ai_status='queued'` (migration
-  `b0c1d2e3f4a5`, idempotent + partial index on queued rows).
-- Background `enrich_drafts` job (10s, drains the queue in batches of 5) claims
-  rows `FOR UPDATE SKIP LOCKED` (shared-DB safe), fetches contact/tickets/billing
-  sequentially, then runs `scan_message` + briefing **concurrently** per batch
-  with a 30s timeout; failure → `ai_status='failed'`, raw fields stay.
-- **Diederik's Generate buttons**: `POST /inbox/drafts/{id}/generate` runs
-  enrichment on demand — DraftReview shows "AI is analyzing…" (auto-polls 3s)
-  with a **Generate now** button, the briefing block gets **Generate briefing**
-  (also works as retry after a failure / regenerate), inbox cards show a pulsing
-  "Analyzing…" badge while queued.
-- Reviewing a still-queued draft drops it from the queue so agent edits are
-  never overwritten after the fact; body re-fetch re-queues instead of scanning
-  inline.
+### Demo provisioning (Phase 12 — cross-cutting)
+- **[Phase 12] Demo-request → auto-provisioned demo** — `Fable` — *foundations exist* (demo mode blocks real sends; `go_live_job` scheduler flips demo→active). Still to build: public request-demo form → auto-create `is_demo=true` tenant in live → set-password invite → 7-day auto-inactivate expiry job → notify `diederik@` → save prospect as Contact labeled "potential client: demo" → open a 3-day follow-up ticket. Plus **build-first, invite-later** (create in demo with no admin; send invite from Settings when ready; then flip to live). Reuses `auth/invite.py`, `admin/service.py create_tenant`.
 
-**Step 3 — Perceived speed: ✅ SHIPPED (session 23)**
-- Loading skeletons (shared `shell/Skeleton.tsx`) replace the "Loading…" text on
-  InboxQueue, TicketList, ContactList AND the DraftReview four-panel grid —
-  pages render their shape instantly while data loads.
-- Vendor `manualChunks` in `vite.config.ts`: react/router/react-query/axios/zustand
-  in one 251 kB (83 kB gzip) chunk that survives deploys via the 1y-immutable
-  asset cache; the entry chunk dropped to ~22 kB, so repeat visitors only
-  re-download the small per-page chunks after a deploy. (Route splitting itself
-  was already in place via `React.lazy`.)
-- `get_draft_with_context()` consolidated from 5 sequential round-trips to ≤3:
-  draft + inbound message + contact now come back in ONE joined query
-  (`asyncio.gather` was a no-go — one AsyncSession can't run concurrent queries,
-  same constraint session 22 hit; fewer round-trips is the actual lever).
+### Onboarding (big)
+- **[21] Client onboarding wizard** — `Fable` — *partial* (a create flow shipped session 17). Full guided multi-step redesign: company+contact+admin email → modules → branding → extra admins → demo/go-live; invite email on creation.
 
-**Step 4 — Search & scale (later):** Postgres `tsvector` GIN index for contact
-search; paginate the compose contacts picker; tune the connection pool
-(`pool_size`/`max_overflow`) + benchmark; decide RLS — either enforce policies
-(so the `SET LOCAL` cost is justified) or defer it and drop the per-request role
-switch.
+### Architecture & infra
+- **PostgreSQL RLS policies** — `Fable` — *partial:* `set_tenant_context` sets `app.current_tenant_id` and an `enable_rls` migration + `app_user` grants exist, but the actual row-level **policies aren't enforced yet**. Write + enable them as defense-in-depth.
+- **Per-tenant custom domain** — `Fable` — *not built.* `acme.getyippie.com` → shared Railway service (subdomain/slug-based tenant routing; no public slug-config lookup before login).
+- **Mobile web** — `Fable` — *not built.* Responsive layout (sandbox + devsandbox first).
+- **Billing / plans per client** — `Fable` — billing module (invoices/subscriptions) exists; still need a `Tenant.plan` field that **gates advanced features**.
+- **Customer data + AI briefing** *(architecture decision)* — `Fable` — define where full contact history is stored; the AI briefing (already running) must pull complete history.
 
-Ship each step `devsandbox → sandbox`, `/verify` in sandbox, then promote. The
-migration-deploy hazard is already handled (advisory lock in `migrations/env.py`).
+### Marketing site — creative (Phase 11)
+- **[Phase 11 A] Copy & branding** — ✅ **DONE (session 26).** Hero → "Take back the time that matters."; support-automation sub copy; "Start for free" / "Sign up" → "Request demo →" across hero, nav, CTA section, pricing cards; `NEXT_PUBLIC_DEMO_URL` env var (falls back to `APP_URL` until Phase 12 form is built). Logo replacement still open (need Diederik's current logo file).
+- **[Phase 11 B] The Hour Counter (live ticker)** — ✅ **DONE (session 26).** `GET /api/v1/public/stats` (unauthenticated) in `apps/app/backend/app/public/router.py`; counts cross-tenant tickets × 15 min ÷ 60 + `BASE_HOURS_SAVED` (env, default 10 000). `HourCounter` client component on the marketing site fetches on mount, animates count-up with ease-out cubic over 2s, falls back to 10 000 on error. `getyippie.com` + `www.getyippie.com` added to CORS allowlist.
+- **[Phase 11 C — Tier 1] On-page ROI calculator** — ✅ **DONE (session 26).** Five sliders (tickets/mo, min/ticket, staff, hourly cost, automatable %) → hours saved, € saved/month, payback vs €29/mo plan. Pure-frontend `ROICalculator` component between "How it works" and Pricing. `NEXT_PUBLIC_DEMO_URL` wired to its CTA.
+- **[Phase 11 C — Tier 2] "Connect your inbox" ROI estimate** — `Fable` — *not built.* Pursue **CSV / mailbox-export upload first** (parsed in-browser, best privacy/effort); one-time IMAP/OAuth scan next; Gmail/Workspace metadata add-on last (flag the OAuth verification + restricted-scope security assessment cost up front). "We never read your email content."
 
 ---
 
-## What's done
+## 🔵 Tier 2 — Medium → **Opus**
 
-- ✓ Resend email system (inbound + outbound)
-- ✓ Email poller (30s, body fully populated)
-- ✓ is_active / is_demo / go_live_at / inbound_email on Tenant
-- ✓ Multiple admin users per client
-- ✓ Promote superadmin (password-protected)
-- ✓ Demo banner for clients in demo mode
-- ✓ SuperAdminPage: toggles, add admin, go-live, demo, promote, diagnostic
-- ✓ Phase 3 items 15/17/18/19 (language badge, undo send, attachments-in-reply, modules
-  order) shipped in `7967bac` — see notes on items 16-19 below for bugs found & fixed
-  in session 14 testing
-- ✓ Reply-to-email — fully traced and fixed across **four stacked bugs** (the first
-  patch alone wasn't enough — see item 16 for the full chain): wrong `Content-Type`
-  override → shared axios instance's default `Content-Type: application/json` clobbering
-  FormData's auto-boundary → missing `app_user` DB grant on `pending_sends`
-  (migration `c9d0e1f2a3b4`)
-- ✓ White-screen-on-reply crash fixed — a 422 error response renders `detail` as an
-  array of objects; React throws "Objects are not valid as a React child" with no error
-  boundary → blank page. Hardened `DraftReview.tsx`'s send-reply error handler to
-  stringify array/string `detail` before rendering (see item 16)
-- ✓ Module order — fixed **at the source**: `/api/v1/tenant/config` now sorts
-  `enabled_modules` by canonical `ALL_MODULES` order server-side, so every tenant's
-  sidebar is correct immediately — no per-tenant "Edit modules → Save" needed
-- ✓ "Back" buttons removed from Draft Ticket panel
-- ✓ AI Briefing rewritten to return short keywords instead of a paragraph
+Standard feature builds — well-scoped, mostly with existing patterns/endpoints to reuse.
+
+### Contacts & data import (none of these exist yet)
+- **[29] Contact CSV import** — `Opus` — `POST /contacts/import` multipart; validate, dedupe by email, bulk insert; upload widget + results summary.
+- **[40] Contact import — JSON + Excel** — `Opus` — extend `[29]` to also accept JSON and `.xlsx` with the same validate/dedupe/summary flow.
+- **[37] Import users / staff from CSV** — `Opus` — `POST /admin/users/import` (own tenant) / `POST /admin/tenants/{id}/users/import` (superadmin); columns name/email/role; validate, dedupe, bulk-invite via Resend; upload widget in Settings → Team. (Platform users, not contacts.)
+- **[20] Multi-select contacts** — `Opus` — checkbox per row + action bar (admins/superadmins): Compose (prefill emails), Export CSV, Label (`[38]`), Delete (soft, `[39]`). Backend bulk contact endpoints don't exist yet either.
+- **[39] Contact soft-delete + retention** — `Opus` — add `contacts.deleted_at` (reuse the `tickets.deleted_at` pattern, session 17): retain 1 month, filter/restore within the window, scheduled purge after.
+
+### Superadmin / client management
+- **[38c] Per-client edit modal (UX redesign)** — ✅ **DONE (session 27).** "Edit modules" button replaced with "Edit" opening a 3-tab modal: Info (name, inbound_email, slug readonly), Modules (module toggles), Branding (primary_color, logo_url + preview). All fields patch via the existing `PATCH /admin/tenants/{id}`. Status buttons kept inline.
+- **[38d] Manage client users from the edit modal** — `Opus` — *partial:* a separate `TenantUsersModal` already lists/adds users; the work is folding add/remove/inactivate into the unified `[38c]` Edit modal (reuse `GET /team/users`, `POST /team/invite`, `PATCH /team/users/{id}`).
+- **[31] Demo environments (template data)** — `Opus` — *partial:* demo mode exists; still need a seed template dataset per demo tenant + a superadmin "Reset to demo" that wipes real data and restores the seed.
+
+### Branding & marketing
+- **Branding wiring into the app shell** — ✅ **DONE (session 27).** Sidebar background now reads `primary_color` from tenant config via inline style; the Yippie SVG mark always shows, client `logo_url` appears below it when set. Seed.py now syncs `primary_color` + `logo_url` from config on every deploy; all defaults updated to `#5BA4F5`.
+- **[Phase 11 C — Tier 1] On-page ROI calculator** — ✅ **DONE (session 26)** — see Tier 1 entry above.
+
+### Promotion & identity (Phase 13)
+- **Promotion: devsandbox → sandbox → live** — `Opus` — push prototype 2.0 to `dev` + `app`; set `diederik@getyippie.com` (individual) + `support@getyippie.com` (shared) on `dev`; sandbox keeps `sb-support@`.
+- **Send-from aliases + app tour** — `Opus` — single personal mailbox already shipped (`reply_from_email`/`inbound_email`); add a Profile setting for extra "send from" aliases; build a guided in-app tour after first login (welcome email already shipped).
 
 ---
 
-## Access roles
+## 🟢 Tier 3 — Quick & easy wins → **Sonnet**
 
-| Role | Access |
-|---|---|
-| Root owner | diederik1710@gmail.com only — can see Superadmins panel in dev, can promote/deactivate superadmins |
-| Superadmin | dev.getyippie.com + all client apps — full access but cannot manage other superadmins |
-| Admin | Own client app only (can edit settings) |
-| User | Own client app only (cannot edit settings) |
+Small, well-bounded changes — UX polish and config/ops one-liners.
 
-**Environments:** live = `app.getyippie.com` + `dev.getyippie.com`; sandbox = `sandbox.getyippie.com` + `devsandbox.getyippie.com`
+### UX polish
+- **[35-backlog] More hotkeys** — `Sonnet` — *only `Cmd/Ctrl+Enter` exists today.* Add `c` compose, `r` reply, `e` archive/process, `j`/`k` next/prev, `/` focus search, `Esc` close, `g i` go to inbox.
+- **[43] Ticket deadline reminder toast** — `Sonnet` — *banners + sidebar badge already shipped (`[34]`);* add the small toast when a ticket nears `follow_up_at`.
+- **[48] Clickable rows everywhere** — `Sonnet` — *mostly done* (inbox cards + contact rows open on full-row click); finish the convention on any remaining lists (e.g. tickets) and treat it as standing.
+- **[8c] Status column labels** — `Sonnet` — show "Active"/"Inactive"/"Demo" as clear text labels in the Clients tab; allow changing status directly from that column.
+- **[6c] Bulk delete clients** — `Sonnet` — add a Delete action to the existing bulk status bar (stays password-gated, `[24]`).
+- **Spam → Resend sender block** — `Sonnet` — bulk "spam" already moves drafts to the spam status + retention; still add the call to block the sender in Resend (the one remaining piece of `[12]`).
 
-> **TODO (future):** Formally implement the root-owner distinction as a DB role above superadmin. For now, gate the Superadmins panel behind `email === "diederik1710@gmail.com"` check.
-
----
-
-## Phase 1 — Critical bugs ✓ DONE
-
-- ✓ devsandbox ↔ app DB isolation fixed
-- ✓ Dev settings page access restored
-- ✓ Activity tab repaired
-- ✓ Web removed from sandbox/devsandbox builds
+### Config / ops one-liners
+- **getyippie.com 502 fix** — `Sonnet` — Cloudflare proxy toggle (orange→grey→wait→orange) for Railway domain verification.
+- **[Phase 13] Invite-link base URL** — `Sonnet` — code already done (`CLIENT_BASE_URL`); just set Railway env vars: devsandbox → `https://sandbox.getyippie.com`, dev → `https://app.getyippie.com`.
+- **[Phase 13] Deliverability cleanup** — `Sonnet` — delete the duplicate bare DMARC TXT and the two extra DKIM keys in Cloudflare (SPF + MX verified correct).
+- **`diederik@getyippie.com` personal account on live** — `Sonnet` — make it the working primary address in the live pair (receiving already verified).
+- **`INBOUND_EMAIL` in live Railway envs** — `Sonnet` — currently unset in both live envs; set before go-live.
 
 ---
 
-## Prototype critical path
+## ✅ Done
 
-Everything needed for the platform to actually work for real clients.
+**Foundations & infra:** Resend inbound+outbound email; 30s email poller; APScheduler jobs (poller 30s, enrichment 10s, pending-send flush 5s, retention 1h, SLA escalation 5m, auto-close 1h, go-live 60s); all four Railway environments healthy; full **Performance initiative** (Steps 1–4).
 
-### A. Multi-tenancy correctness
+**Multi-tenant correctness:** **per-tenant webhook routing** by `inbound_email` + slug fallback (`core/tenant.py`, `email_poller.py`) — the old "route everything to tenant #1" stub is gone; **`is_active` login-blocking**, **`is_demo`** blocking real sends, **`go_live_at`** auto-activation scheduler (`go_live_job`, 60s); `set_tenant_context()` per request.
 
-#### Per-tenant webhook routing
-`resolve_tenant_uuid()` in `core/tenant.py:19-29` has a literal `TODO: replace with per-tenant webhook URLs` and currently routes **all** inbound email/webhooks to the first tenant in the DB — silently misrouting for every other client. Fix to look up tenant by `inbound_email` field.
+**Auth & client management:** critical path A/B/C complete — settings page (`[25]`), registration/invite (`[26]`), forgot/reset password (`[27]`), superadmin invite (`[28]`), delete client/superadmin password-gated (`[24]`), **impersonation / "view as" (`[23]`)** — `POST /admin/tenants/{id}/impersonate` 1-hr token + amber banner, client list filter + demo tick (`[5]`), bulk status change (`[6]`), company name in sidebar (`[7]`), hide own env (`[8a]`), scoped superadmin management (`[8b]`), separate add-admin + tenant-users modals.
 
-#### Enforce `is_active` / `is_demo` / `go_live_at`
-Fields exist on `Tenant` (`models.py:36-38`) and are toggled in SuperAdminPage, but do nothing. Add:
-- Login-blocking for `is_active=false` tenants
-- Feature/data restrictions for `is_demo=true`
-- Read and act on `go_live_at` (e.g., auto-activate on date)
+**Inbox:** stay-in-window + undo approve/reject (`[10]`), DeptReminderModal with dept+SLA in popup (`[11]`), filter processed by status (`[13]`), language-matching replies (`[15]`), reply-to-email fixed across 4 stacked bugs (`[16]`), undo send incl. compose (`[17]`) + **undo-send UI polish/auto-dismiss (`[47]`)**, attachments incl. compose (`[18]`) + **attachment chips with x-to-remove (`[45]`)**, modules order at the source (`[19]`), duplicate-send fix (`[32]`), delete tickets (`[33]`), ticket deadline banners + **glowing sidebar badge (`[34]`/`[14]`)**, `Cmd/Ctrl+Enter` send (`[35]`), **scroll-only inbox + larger compose (`[9]`)**, Sent view (`[41]`), **Spam/Bin views + bulk bin/spam action (`[12]`)**, **Spam→Bin (10d) / Bin purge (20d) retention scheduler (`[42]`)**, reply-subject language (`[44]`), nice HTML outbound email (`[46]`), per-user email signatures.
 
-### B. Client management (superadmin tools)
+**Email templates (backend):** `ResponseTemplate` model + `GET/POST /templates` in the tickets module (UI + AI insertion still in Tier 1).
 
-#### 23. Impersonation / "view as tenant"
-- From SuperAdminPage, "Impersonate" button per client → logs in as their admin (generates short-lived token)
-- JWT swap + sessionStorage + amber banner; no DB/migration needed
-- Lets Diederik test/debug a client's environment without knowing their password
+**AI module:** the `ai` per-tenant flag (`require_module("ai")`, on for every tenant) switches on all the AI extras across **inbox + tickets** — incoming-mail scan that **autofills the ticket fields** (`ai_suggested_subject/description/priority/category`), the inbox **briefing/customer summary** (`generate_context_summary` → `context_summary`), and the **generate / suggest-reply / improve-reply / compose-suggest** actions. Turn the module off and none of it runs. (No separate nav page — it's the AI capability layer itself.)
 
-#### 21. Client onboarding wizard
-Guided multi-step flow in SuperAdminPage when creating a new client:
-1. Company name + contact name + admin email
-2. Modules toggle
-3. Branding (color, logo)
-4. Add additional admin users
-5. Status: start as demo or go live immediately
-- After creation: invite email sent via Resend so admin can set their own password
-
-#### 22. Client environment management from dev
-- From dev.getyippie.com, Diederik sees all client tenants
-- Can activate / deactivate / set to demo from the list
-- The "client app" is their isolated tenant in the shared deployment — no separate Railway env per client
-
-#### 24. Delete client / delete superadmin — password protected ✓ DONE + VERIFIED (2026-06-10)
-- **Delete client:** password confirmation required (diederik1710@gmail.com) → wipes all tenant data; irreversible
-- **Delete superadmin:** same password gate; removes the superadmin account entirely (deactivate first if just suspending). Cannot delete yourself.
-
-### C. Auth completeness
-
-#### 25. Repair settings page
-- `/settings/profile` — update name, email, **change own password** (important)
-- `/settings/team` — invite/manage users for this tenant (admin only)
-- `/settings/departments` — already exists
-- Sidebar: admin sees Profile + Team + Departments; superadmin also sees Superadmins link
-
-#### 26. User registration / invite
-- Admins (and superadmins) can add users from the Settings → Team page
-- UI: "Add user" button → ask for name + email (company is already set from tenant context)
-- Backend generates signed invite token → Resend email to new user with `/register?token=xxx` link
-- User sets their own password on registration; gets assigned `agent` role by default
-- Backend: `POST /admin/invite`, `POST /auth/register` (token-gated)
-
-#### 27. Forgot password
-- `/forgot-password` → enters email → receives reset link via Resend
-- `/reset-password?token=xxx` → sets new password
-
-#### 28. Superadmin invite flow (from dev)
-- Password-verification popup (root owner confirms) → name + email → invite email → new superadmin sets password via link
-- Sandbox superadmins only have superadmin access in sandbox DBs, not live
-
----
-
-## Phase 3 — Inbox UX (functional gaps)
-
-### 10. Stay in email window after approve/reject ✓ DONE + VERIFIED
-- After approve or reject: don't navigate away — shipped session 12
-- "Back" / "← Back to Inbox" buttons removed from the panel entirely (session 14)
-- "✗ Rejected" red state box already existed (confirmed session 17)
-- **Undo approve/reject** shipped session 17 (`ae1c80d`) — ✅ **verified by Diederik 2026-06-10**
-
-### 11. Department/SLA reminder on approve — needs redesign
-`DeptReminderModal` exists but Diederik wants:
-- Pick **department AND SLA directly from the popup** instead of bouncing back to the form
-- Explicit **"No department"** + **"No SLA"** options
-- **Also trigger when a department IS picked but no SLA is set** — currently no notification
-
-### 12. Select + delete / spam mails
-- Checkbox per draft card in InboxQueue
-- Action bar: Delete selected / Mark as spam
-- Deleted mails → `DraftStatus.bin` (soft delete, visible in Bin tab)
-- Spam → `DraftStatus.spam` + call Resend API to block sender
-
-### 13. Filter processed mails by status ✓ DONE
-- Filter pills on Processed tab: All / Approved / Rejected / Forwarded / Bin — shipped session 12
-
-### 15. Language-matching replies ✓ DONE
-- Shipped in `7967bac`: badge "Reply in {language}" when detected language ≠ English
-  (`DraftReview.tsx`, ~line 729)
-
-### 16. Reply to email in inbox — was BROKEN, now FIXED (session 15 follow-up — 4 stacked bugs)
-
-This took **three** rounds to fully fix — each fix uncovered the next layer:
-
-**Bug 1 — manual `Content-Type` override.** `handleSendReply()` (`DraftReview.tsx` ~line 347)
-built a `FormData` body but manually set `headers: { 'Content-Type': 'multipart/form-data' }`.
-With axios this overrides the auto-generated `boundary=...`, so FastAPI's multipart parser
-couldn't read the form fields. *Fix attempt 1: removed the header.* Didn't fully fix it —
-
-**Bug 2 — shared axios instance default header.** The `api` instance (`api/client.ts`) sets
-`headers: { 'Content-Type': 'application/json' }` as an **instance-level default**, which axios
-merges into every request — including this one — even with no per-request header. So the request
-was still going out as `application/json`, still breaking FastAPI's multipart parsing (confirmed
-via Railway logs: `POST .../send-reply → 422 Unprocessable Entity`). *Fix: explicitly unset it
-with `headers: { 'Content-Type': undefined }`* so the browser generates the correct
-`multipart/form-data; boundary=...` itself.
-
-**Bug 3 (the actual "white screen") — 422 error rendered as a React child.** FastAPI returns
-`detail` as an **array of validation-error objects** on a 422, and the old catch handler did
-`setSendError(detail)` then rendered `{sendError}` directly — React throws "Objects are not valid
-as a React child," and with no error boundary the whole tree unmounts to a blank page. *Fix:
-hardened the handler to stringify array/string `detail` before storing it.*
-
-**Bug 4 — missing DB grant on `pending_sends` (the true root cause of the 422/500).** Once the
-Content-Type was finally correct, the request hit the backend cleanly but returned `500 permission
-denied for table pending_sends` (`asyncpg.exceptions.InsufficientPrivilegeError`). The RLS
-migration (`c3d4e5f6a7b8`, session 13) ran `GRANT ... ON ALL TABLES IN SCHEMA public TO app_user`,
-which only covers tables that existed *at that moment*. `pending_sends` was created in a **later**
-migration (`b8c9d0e1f2a3`, session 14) and never got the grant — so `set_tenant_context`'s
-`SET LOCAL ROLE app_user` (`database.py:104`) leaves every send-reply request unable to write to
-its own queue table. *Fix: new migration `c9d0e1f2a3b4`* grants `app_user` access to
-`pending_sends` directly, **and** adds `ALTER DEFAULT PRIVILEGES` so any table created by future
-migrations is auto-granted — preventing this whole class of bug from recurring.
-
-All four are now fixed and pushed (`d39b56a`, `a6a58f2`). ⚠️ See deploy hazard in Reference.
-
-### 17. Undo send ✓ DONE + VERIFIED (2026-06-10)
-
-Shipped in `7967bac`: floating "Yippie" bar with 5s progress + Undo button (`DraftReview.tsx`
-~line 896), backed by a `pending_sends` queue (`queue_send`/`cancel_send`/`flush_pending_sends`
-in `service.py`). ✅ **Verified by Diederik 2026-06-10**: undo works for replies AND compose,
-and the "could not undo — email may already be sent" message is gone.
-
-**Bug history (all fixed + verified):**
-- ~~Undo doesn't cancel in time~~ — fixed session 16: server holds 8s, UI counts 5s on its own clock.
-- ~~Replies with attachments bypass the undo queue~~ — turned out already built (session 17 audit).
-- ~~Undo only wired for replies, not compose~~ — compose undo shipped session 17 (`5543d29`), verified.
-
-**Still open (cosmetic, → item 47):** after a successful undo, the progress bar window should
-**auto-dismiss** — Diederik re-filed this unchecked ("make email sent window disappear
-automatically after undo send is done").
-
-### 18. Attachments ✓ DONE + VERIFIED (2026-06-10) — NEW BUGS FOUND (session 24)
-- Reply panel: file picker + chips (`DraftReview.tsx` ~line 778 ✓)
-- Inbound messages: attachment list + download proxy via Resend
-- Backend: `attachments_json` column, `mailer.py` sends via Resend attachment API
-- ~~Compose modal has no attachment support~~ — already built (sessions 14-16 + PR #14;
-  session-17 audit found the gap note was stale). ✅ **Compose attachments verified by
-  Diederik 2026-06-10.**
-- ~~Attachment-replies skipping the undo queue~~ — already built (see item 17)
-
-**Still open (→ item 45):** attachment **chips dropdown** (list all attached files + `x` to
-remove each) and reliable display of inbound attachments — Diederik re-filed unchecked.
-
-**New bugs from session-24 verification (→ Next session bugs 1–3):**
-- **Compose + attachment send fails** — sending compose mail with an attachment is broken.
-- **Reply attachment not delivered** — recipient does not receive the file.
-- **Inbound attachment arrives empty** — file shows in Yippie inbox but is zero-byte/blank.
-
-### 19. Modules order matches sidebar ✓ DONE — fixed at the source, no manual action needed
-
-### 32. Duplicate email sending ✓ FIXED + VERIFIED (2026-06-10)
-- Root cause (session 16, `5bcc8a1`): devsandbox + sandbox share one DB and both containers ran
-  `flush_pending_sends` with no locking — both sent every queued email. Fixed with
-  `SELECT … FOR UPDATE SKIP LOCKED` + delete-before-dispatch (at-most-once).
-- ✅ **Verified by Diederik 2026-06-10** ("im responding with 2 emails now" → checked off).
-
-### 33. Delete tickets ✓ DONE + VERIFIED (2026-06-10)
-- Shipped session 17 (`5815449`): soft delete via `tickets.deleted_at`, Delete button +
-  confirm dialog on ticket detail, admin+ only, SLA jobs skip deleted tickets.
-- ✅ **Verified by Diederik 2026-06-10.**
-
-### 34. Ticket deadline reminder popup ✓ DONE (session 22) — REDESIGNED (session 24)
-- TicketDetail shows amber/red banner when `sla_due_at` ≤24h or overdue
-- TicketList shows colored SLA warning per card
-- ~~Sidebar shows pulsing red badge on Tickets nav with count of near-deadline tickets~~ →
-  **Redesigned (session 24):** no glowing number — instead a **red dot with count** for
-  overdue/same-day/next-day, and an **orange dot with count** for 2-days-out. Thresholds
-  are configurable per tenant in Settings → Notifications. See Next session item 7.
-- `GET /tickets/deadline-count` backend endpoint needs to accept/use the per-tenant thresholds.
-
-### 35. Hotkey for send — `Cmd/Ctrl + Enter` ✓ DONE (session 17)
-- In both compose modal and reply panel: `Cmd+Enter` (Mac) / `Ctrl+Enter` (Windows) triggers send
-- Should respect the same undo queue flow (item 17)
-- **Backlog — more hotkeys:** `c` compose, `r` reply, `e` archive/process, `j`/`k`
-  next/prev mail, `/` focus search, `Esc` close panel/modal, `g i` go to inbox
-- **Hotkeys on/off per user** — new Profile toggle (session 24, → Next session item 8)
-
-Shipped in `7967bac`. `Sidebar.tsx` renders nav items by iterating `config.enabled_modules`.
-The catch was modules were saved in toggle-click order, not canonical order.
-
-**Real fix (session 15 follow-up):** `/api/v1/tenant/config` (`main.py:69-77`) now sorts the
-returned `enabled_modules` by canonical `ALL_MODULES` order server-side —
-`['inbox', 'contacts', 'tickets', 'activity', 'billing', 'chat']`. Fixes every tenant
-immediately — **no per-tenant action required**.
-
-### 41. Sent mail view ✓ VISIBLE + VERIFIED (2026-06-10)
-- ✅ Diederik confirmed he can **see sent mails** ("able to see send mails, spam and
-  deleted mails" → checked off).
-- Verify placement: the Sent tab should sit to the **right of Processed**.
-
-### 42. Spam tab + bin/spam retention — views ✓ VERIFIED; retention still open
-- ✅ **Spam and Bin views are visible and confirmed** by Diederik (2026-06-10).
-- **Still open (retention + blocking):**
-  - **Spam → Bin after 10 working days** (show a note explaining this).
-  - **Bin emptied after 20 working days** (show a note explaining this).
-  - Scheduler jobs perform both moves; spam senders also blocked in Resend (item 12).
-
-### 43. Ticket deadline reminders (extends item 34) — REDESIGNED (session 24)
-- Small pop-up/toast reminder when a ticket is close to its `follow_up_at`.
-- **Sidebar badge redesign:** ~~glowing-red dot~~ → **red dot with count** (overdue /
-  same-day / next-day) + **orange dot with count** (2 days out). No glow animation.
-  Thresholds configurable per tenant. See Next session item 7.
-
-### 44. Reply subject language (extends item 15) ✓ FIXED (session 22)
-- Reply subject now uses `msg.subject` (original email's subject in original language)
-  instead of `draft.ai_suggested_subject` (always English). Threading preserved.
-
-### 45. Attachment chips UX (extends item 18)
-- In compose and reply: a small **dropdown listing all attached files** plus an
-  **`x`** to remove each. Inbound attachments should also reliably appear on
-  received mail (verify item 18 backend end-to-end).
-
-### 46. Outbound email formatting (nice HTML)
-- Proper HTML email templates/layout for outbound mail so it looks polished
-  (header, spacing, signature). Precursor to the full template system (Phase 9).
-- **Header:** top of every outbound email shows both the **client's logo** (from
-  `tenant.logo_url`) and the **Yippie logo** side by side (or client logo left,
-  small "powered by Yippie" right). Fall back to the tenant name as text when no
-  logo is set.
-
-### 47. Undo-send UI polish (reconcile item 17)
-- Replace "email sent" headline with **"Yippie"**; show "email sent" small + grey
-  below; a **filling progress panel** to undo; window **auto-dismisses after undo**.
-- Compose: pressing send **hides the compose window → shows the undo bar**; undo
-  **returns to the editable compose draft**.
-- Item 17 implements most of this and undo itself is ✅ **verified working (2026-06-10)** —
-  remaining: the cosmetic deltas above + **auto-dismiss of the undo window after a
-  successful undo** (re-filed unchecked).
-- **"Email sent" bar persists after compose** — confirmed broken in session-24 verification;
-  the compose path does not auto-dismiss after send. Fix tracked as Next session bug 4.
-
-### 48. Clickable rows everywhere (UX convention)
-- Make the **whole ticket bar clickable** to open it, mirroring how mail opens.
-- Apply this **throughout Yippie** and treat it as a standing convention for
-  future UI work (lists open on full-row click).
-
----
-
-## Phase 4 — Contact management
-
-### 20. Multi-select contacts
-- Checkbox per contact row
-- Action bar when ≥1 selected (admins + superadmins):
-  - **Compose** → pre-fills Compose modal with all selected emails
-  - **Export CSV** → download name, email, company, phone, tags
-  - **Label** → apply/replace a label on all selected (new — see item 38)
-  - **Delete** → soft delete with confirmation (retention — see item 39)
-
-### 36. Company grouping for contacts
-- Ability to tie multiple contacts under the same company
-- Add a `Company` entity (name, domain, notes) that contacts can belong to
-- Contact list shows company badge; filter/group by company
-- Composing to a company auto-selects all contacts in that company
-
-### 38. Contact labels (client workflow embedding)
-- Tenant-defined labels so each client can embed **their own** workflow in Yippie
-  — e.g. `potential client`, `new client`, `process step 1`, `process step 2`,
-  `after sales`, and `potential client: demo` (used by the demo pipeline, Phase 12)
-- CRUD for labels in settings; assign one or more labels per contact
-- **Filter contacts by label** (label pills / dropdown on the contact list)
-- Bulk **Label** action from multi-select (item 20)
-
-### 39. Contact soft-delete + retention
-- Deleted contacts are **soft-deleted**, retained **1 month**, then permanently
-  purged by a scheduled job (reuse the `deleted_at` pattern from tickets, session 17)
-- Admins can **filter for deleted contacts** and restore within the window
-- A scheduler job purges contacts past the 1-month window
-
-### 40. Contact import — multiple formats
-- Extend item 29 (CSV) to also accept **JSON and Excel (.xlsx)**
-- Same validate / dedupe-by-email / results-summary flow per format
-
----
-
-## Phase 7 — Data & communications
-
-### 37. Import users / staff from CSV
-- `POST /admin/tenants/{id}/users/import` — superadmin only, or `POST /admin/users/import` for own tenant (admin)
-- CSV columns: name, email, role (agent/admin)
-- Backend: validate, deduplicate by email, bulk-invite (sends invite email per new user via Resend)
-- Frontend: upload widget in Settings → Team, results summary (invited / skipped / errors)
-- Different from contact import (item 29) — these become platform users, not contacts
-
-### 29. Klantenbestand migratiesysteem (contact CSV import)
-- `POST /contacts/import` — multipart CSV upload
-- Backend: validate, deduplicate by email, bulk insert
-- Frontend: upload widget + results summary (imported / skipped / errors)
-
-### 30. Mail-all system
-- `POST /admin/tenants/{id}/broadcast` — superadmin only
-- Sends to all contacts of a tenant via Resend batch
-- Needs rate limiting + opt-out tracking
-
-### 31. Demo environments (template data)
-- Seed a template dataset per tenant in demo mode
-- Superadmin can "Reset to demo" — wipes real data, restores template seed
-
----
-
-## Phase 2 — Client management extensions (SuperAdminPage)
-
-### 5. Client list filter + demo tick in create modal ✓ DONE
-- Filter tabs (All/Active/Demo/Inactive) with per-tab counts
-- `is_demo` checkbox in CreateClientModal
-- Unified status pill per row (Active/Demo/Inactive)
-- TODO: switch from admin_password field to invite-email flow (covered by item 26)
-
-### 6. Bulk status change ✓ DONE
-- Checkbox per row + select-all in header
-- Bulk action bar with Set Active / Set Demo / Set Inactive
-- `PATCH` each in parallel via `Promise.all`
-
-### 7. Company name in sidebar ✓ DONE
-- `Sidebar.tsx` already renders `config.tenant_name` below the logo mark
-
-### 8a. Hide own environment ✓ DONE
-- Client list filters out the tenant whose `id === config.tenant_id`
-
-### 8b. Scoped superadmin management in settings ✓ DONE
-- `/settings/superadmins` page (superadmin only) — lists all superadmins with active toggle
-- `GET /admin/superadmins` + `PATCH /admin/superadmins/{id}` endpoints
-- Deactivation requires own password confirmation; own account protected
-- Scope note shown in UI: sandbox superadmins ≠ live superadmins
-- TODO: "Add superadmin" button covered by item 28
-
-### 8c. Status column labels (pending)
-- Clients tab status column should show "Active" / "Inactive" / "Demo" as text labels clearly
-- Allow changing active/inactive/demo directly from that status column
-
-### 38c. Per-client edit modal (UX redesign)
-The client row currently exposes many inline options — too noisy. Consolidate:
-- Keep only **"View as"** inline on each row
-- One **Edit** modal per client with **multiple pages/tabs** for all the
-  settings currently scattered on the row (status, modules, branding, info)
-- Multi-select still shows the bulk action bar (item 6c) instead of the modal
-
-### 38d. Manage client users from the edit modal
-- Inside the per-client Edit modal, superadmins see that client's **user list**
-- Can **add / remove / inactivate** users in that client's environment from here
-  (reuses the team endpoints — `GET /team/users`, `POST /team/invite`,
-  `PATCH /team/users/{id}`)
-
-### 6c. Bulk delete clients
-- Extend the existing bulk status bar (item 6) with a **Delete** action so
-  superadmins can set selected clients to active/inactive/demo **or delete** at
-  once. Delete stays password-gated (item 24).
-
----
-
-## Phase 8 — Polish & advanced
-
-- **Inbox layout** (item 9) — scroll-only email list, larger compose modal (cosmetic)
-- **Glowing green dot in sidebar** (item 14) — pulse animation when `isFetching`; solid green when idle (cosmetic). Re-filed unchecked 2026-06-10: make the glow more obvious and place the dot **next to Inbox in the sidebar** for visibility
-- **Per-tenant custom domain** (`acme.getyippie.com` → shared Railway service)
-- **PostgreSQL RLS** — row-level security policies as defense-in-depth
-- **getyippie.com 502 fix** — Cloudflare proxy toggle for Railway domain verification
-- **Billing/plans per client** — Tenant gets a `plan` field, gating advanced features
-- **Mobile web** — responsive layout for sandbox + devsandbox first
-- **diederik@getyippie.com** — Diederik's personal account for live environments
-- **Sandbox email address** — sandbox uses `sb-support@getyippie.com`; live uses `support@getyippie.com`
-- **Personalized user emails** — ✅ v1 shipped (session 18, commit `9eb8620`): `users.inbound_email` (unique, @getyippie.com) set on the Profile page; Resend poller routes those addresses to the user's tenant; `GET /inbox/drafts?mailbox=shared|personal` filter; Shared/Personal switch in InboxQueue. ✅ **Shared + personal inbox confirmed working by Diederik (2026-06-10)** — but see the personal-inbox-leak and receive-after-send bugs in "New from Diederik's checklist". Remaining: client-domain white-label (verify e.g. `klimaatexamen.nl` in Resend, per-tenant `reply_from_email`), and per-draft privacy (any tenant agent can still open a personal draft by direct ID/URL)
-- **Customer data + AI briefing** *(architecture decision)* — define where full contact history is stored; AI briefing must pull complete history
-
----
-
-## Phase 9 — Email templates (post-prototype)
-
-### A. Resend email templates
-- Register reusable templates in Resend dashboard; backend references by template ID
-
-### B. Mail templates in settings
-- `/settings/templates` page — accessible to admins and superadmins
-- Full CRUD: create, edit, delete
-
-### C. Template insertion for users
-- "Insert template" button in compose modal and reply modal
-- AI recommends a template based on the content of the received email
-- User can then edit the inserted template, or improve it with AI
-- Templates are company-wide (per tenant); **users can also create personal templates**
-
----
-
-## Phase 10 — Additional modules (post-prototype)
-
-### Email tracking module
-- New `emailtracking` module — tracks opens, clicks, and delivery events per outbound email
-- Webhook receives Resend tracking events (`email.opened`, `email.clicked`, `email.bounced`)
-- Shows per-email status in Inbox and Sent views
-- Superadmin can enable/disable per tenant
-
-### AI tools module
-- New `aitools` module — AI-powered utility tools inside the platform
-- Examples: summarise contact history, auto-categorise tickets, draft department responses
-- Superadmin can enable/disable per tenant via Clients tab
-
-### Calendar module
-- New `calendar` module — view and manage appointments, follow-up dates, and ticket deadlines
-- Calendar view per agent showing scheduled follow-ups from tickets (`follow_up_at`)
-- Ability to create standalone calendar events tied to a contact or ticket
-- Superadmin can enable/disable per tenant
-
-### Pipeline module (added 2026-06-10)
-- New `pipeline` module — client defines their own pipeline (the steps in their workflow)
-- Customers are **automatically labeled** with their pipeline stage (builds on contact
-  labels, item 38)
-- Tracks **time spent per pipeline stage** per customer
-- Automated emails / workflows per stage (e.g. customer enters "after sales" → follow-up
-  mail goes out)
-- Superadmin can enable/disable per tenant
-
----
-
-## Phase 11 — getyippie.com (marketing site)
-
-`apps/web` (Next.js) is separate from the platform pair. Group all marketing
-work here.
-
-### A. Copy & branding
-- Replace **"Give yourself back the time that matters"** → **"Take back the time
-  that matters."**
-- Add hero line: **"Stop losing hours to repetitive support tickets. Yippie
-  automates and reduces your customer service so you can focus on building your
-  business."**
-- Add Diederik's **current logo** (replace placeholder).
-- Replace **"Sign up"** CTA → **"Request demo"** (→ Phase 12 flow).
-- **"Start for free"** also routes to the demo-request flow (Phase 12).
-
-### B. The Hour Counter (live ticker)
-- Feature a live ticker showing total hours Yippie has saved business owners
-  globally — e.g. *"Together, Yippie users have taken back 142,300 hours."*
-- Backend: public aggregate endpoint summing estimated hours saved across tenants
-  (e.g. tickets-automated × avg-handle-time). Seed a configurable base + live
-  delta so it's never zero; animated count-up on the page.
-
-### C. Customer-support ROI calculator (design input)
-
-Build in tiers, easiest first.
-
-**Tier 1 — On-page calculator (build first).** Inputs: tickets/month, avg
-minutes/ticket, # support staff, hourly cost, % automatable. Output: hours & €
-saved/month + payback vs Yippie price. **Pure frontend, no data leaves the
-browser → zero privacy concerns.** Ships in days and feeds the Hour Counter
-messaging.
-
-**Tier 2 — "Connect your inbox" estimate (higher conviction, more work).**
-Analyze the prospect's real support volume. Options, privacy tradeoffs noted:
-- **Gmail / Google Workspace add-on (Diederik's idea):** an add-on that reads
-  only **metadata** (message counts, threads, response times over a date range)
-  — **not bodies** — via the Gmail API with a narrow read-only scope, computes
-  volume client-side, returns only aggregate numbers. Privacy: requires Google
-  **OAuth verification + a security assessment for restricted scopes**
-  (heavyweight, weeks of review). Messaging must be explicit: *"we never read
-  your email content."*
-- **Lighter — one-time IMAP/OAuth scan:** prospect connects an inbox once; count
-  headers only, show ROI, **store nothing**. Faster to ship than a verified
-  Workspace add-on.
-- **Lightest — CSV / mailbox-export upload:** prospect uploads a mailbox export
-  or helpdesk CSV; parsed **in-browser**. No OAuth, no verification, strongest
-  privacy story.
-
-**Recommendation:** ship **Tier 1 now**; for Tier 2 pursue the **CSV upload**
-path first (best privacy/effort ratio); treat the Google add-on as a later "wow"
-once there's demand, flagging the OAuth-verification cost up front.
-
-### D. getyippie.com 502 fix (from Phase 8)
-- Cloudflare proxy toggle for Railway domain verification (carried over).
-
----
-
-## Phase 12 — Demo-request → auto-provisioned demo
-
-Cross-cutting feature: turn a website demo request into a live, self-expiring
-demo tenant. Reuses invite-token infra (`auth/invite.py`, `auth/tokens.py`),
-tenant creation (`admin/service.py create_tenant`), and demo enforcement
-(session 16).
-
-### Request-demo flow
-1. Public **Request-demo form** on getyippie.com: **name\***, **email\***,
-   company, phone number. ("Start for free" routes here too.)
-2. On submit, in the **live env (dev/app)**:
-   - **Auto-create a demo tenant** (`is_demo=true`).
-   - Email the prospect a **set-password link** (invite token).
-   - Demo is **active 7 days, then auto-inactivates** — add a demo-expiry job
-     mirroring the existing 60s `go_live_at` scheduler that flips demo↔active.
-   - **Notify `diederik@getyippie.com`** that a demo was created.
-   - Save the prospect under **Contacts**, labeled **"potential client: demo"**
-     (needs Phase 11→ item 38 labels).
-   - Open a **ticket with a 3-day follow-up reminder** ("ask about their
-     experience / offer setup help").
-
-### Build-first, invite-later (deferred client onboarding)
-- Allow building a client environment **without inviting the admin yet** — create
-  the tenant in **demo** with no admin invite.
-- In the demo environment's **Settings**, a button to **send the invite /
-  password link** to the client when ready.
-- After the client approves, superadmin **flips it to live** (existing go-live).
-
----
-
-## Phase 13 — Prototype 2.0 promotion & email identity
-
-### Promotion
-- Push **`devsandbox → sandbox → live` (`dev` + `app`)** for prototype 2.0.
-- Set up **`diederik@getyippie.com` (individual)** and
-  **`support@getyippie.com` (shared)** as the addresses for `dev.getyippie.com`.
-- Sandbox keeps `sb-support@getyippie.com`; live uses `support@getyippie.com`
-  (existing convention).
-
-### Invite-link base URL (bug — also in Next session)
-- Invites must point at **client environments** (`sandbox` / `app`), **not**
-  `dev` / `devsandbox` — currently emitting devsandbox links. Verify per-env
-  `APP_BASE_URL` so each environment mints links to the correct client URL.
-
-### Email identity
-- **`diederik@getyippie.com` as primary Yippie address** — ✅ **receiving verified
-  2026-06-10**: Resend receiving is domain-level (MX → SES inbound), individual addresses never
-  appear in the Resend dashboard; mail to diederik@ is ingested and lands in Inbox → Personal.
-  Remaining: make it the working primary address in the live pair.
-- **One personal mailbox** — ✅ v1 shipped session 18: Profile now has a single "Personal
-  email address" that sets both `reply_from_email` and `inbound_email`. Remaining: a setting
-  to add extra **"send from"** aliases.
-
-### Onboarding emails & tour
-- **Introductory/welcome email on onboarding** — ✅ shipped session 18: the invite email is now
-  a proper welcome mail (activate → set up email incl. personal address → tour of
-  Inbox/Contacts/Tickets, admin extras) on all four invite paths (`auth/invite.py`). Plain text
-  for now; nice HTML = item 46.
-- **App tour for new clients** (deferred): guided in-app tour after first login.
-
-### Deliverability
-- **Invalid DMARC record — root cause found 2026-06-10 (manual Cloudflare fix):**
-  - TWO DMARC TXT records at `_dmarc.getyippie.com` (`"v=DMARC1; p=none;"` and
-    `"v=DMARC1; p=none; rua=mailto:…@dmarc-reports.cloudflare.net"`) — multiple records =
-    invalid per RFC 7489; receivers treat it as no DMARC. Delete the bare one.
-  - THREE DKIM keys at `resend._domainkey.getyippie.com` — a selector must hold one key.
-    Keep only the value the Resend dashboard shows; delete the other two.
-  - SPF (`send.getyippie.com`) and MX (root → SES inbound) verified correct.
+> Full per-item detail, bug histories and commit refs are preserved in **Appendix A — Session log**.
 
 ---
 
 ## Open questions
 
-- ~~Superadmin without password~~ **CLOSED (2026-06-10)** — checked off by Diederik; the invite-only superadmin path (item 28, session 16/17) closes the hole.
-- **Sandbox email routing** — sending from diederik_test sends via `sb-support@getyippie.com`; replies go to sandbox connected to diederik1710@gmail.com. Document that this is intentional. **Same root cause for "reply to `dev-support@getyippie.com` also arrives in regular sandbox"** — `devsandbox` and `sandbox` share one Sandbox DB, so inbound to either address surfaces in both. Document as intentional (or split per `INBOUND_EMAIL` if true isolation is wanted).
-- ~~Branding wiring~~ **ANSWERED (session 18):** `primary_color` / `logo_url` are stored on the tenant and returned by `/api/v1/tenant/config`, but **no frontend component applies them** — only the SuperAdminPage form references the fields. The selection currently does nothing. To-do: wire branding into the app shell (sidebar logo, accent color).
+- **Sandbox email routing** — `devsandbox` and `sandbox` share one Sandbox DB, so inbound to either `dev-support@`/`sb-support@` surfaces in both; the inbox follows the login, not the URL. Document as intentional, or split per `INBOUND_EMAIL` if true isolation is wanted.
 
 ---
 
-## Client-management assessment (2026-06-09)
-
-Diederik confirmed the shared-DB tenant model is the right architecture — just needs polish in three areas. Built-vs-missing:
-
-### 1. Activate/deactivate & demo-mode flow
-
-**Built:** `is_active`/`is_demo`/`go_live_at` on `Tenant` (`models.py:36-38`, migration
-`a9b8c7d6e5f4`); `PATCH /api/v1/admin/tenants/{id}` (`admin/router.py:33-38`); full
-SuperAdminPage UI — status badges, toggle/bulk-action mutations, create-tenant demo checkbox
-(`SuperAdminPage.tsx:62-72, 158-166, 471-487, 576-607, 674-711`); demo banner when
-`is_demo=true` (`App.tsx:58-62`); fields returned by `GET /api/v1/tenant/config` (`main.py:62-81`).
-
-**Missing/rough:** fields are purely informational — no enforcement. `is_active=false` doesn't
-block login, `is_demo=true` doesn't restrict features or expire data, `go_live_at` is stored
-but never read or acted on anywhere.
-
-### 2. Customer-support / impersonation tooling
-
-**Built:** list tenants + user counts (`admin/router.py:20-22`); list/add users per tenant and
-promote-to-superadmin (`admin/router.py:41-54`, `SuperAdminPage.tsx:280-402`); superadmin
-management page (`SuperadminsSettingsPage.tsx`); Resend email diagnostic (`admin/router.py:86-118`).
-
-**Missing/rough:** **no impersonation/"view as tenant" mechanism at all.** Every query is gated
-by `set_tenant_context()` inside `get_current_user()` (`auth/dependencies.py:42`) — to see a
-client's data Diederik must create an admin account *in that tenant* and log in separately.
-No cross-tenant support dashboard, no audit trail of admin actions.
-
-### 3. Client onboarding / login routing
-
-**Built:** `POST /api/v1/admin/tenants` creates tenant + first admin atomically with
-email-uniqueness validation (`admin/router.py:25-30`, `admin/service.py:37-63`); full
-create-tenant modal (`SuperAdminPage.tsx:85-178`); idempotent seed script (`seed.py:24-40`);
-login resolves user's tenant from `User.tenant_id` and calls `set_tenant_context()` to scope RLS
-(`auth/router.py:39-54`, `auth/dependencies.py:19-43`) — "login routes you to your own
-environment" already works.
-
-**Missing/rough:** no subdomain/slug-based tenant routing; `resolve_tenant_uuid()` in
-`core/tenant.py:19-29` has a literal `TODO: replace with per-tenant webhook URLs` and currently
-routes **all** inbound email/webhooks to the first tenant in the DB — silently misrouting for
-every other client; no public endpoint to look up a tenant's config by slug before login.
+## 📎 Appendix A — Session log
 
 ---
 
-## Session log
+### Session 27 — 2026-06-11 (branding wiring, [38c] edit modal, attachment bugs, compose auto-dismiss)
+
+**Branding wiring (commit `53ba33b`):**
+- `Sidebar.tsx`: sidebar background now uses `config.branding.primary_color` via inline style (replaces hardcoded `bg-yippie #5BA4F5`). Yippie SVG mark always renders; client `logo_url` shown below it when set.
+- Badge (`text-yippie`) → inline `style={{ color: config.branding.primary_color }}`.
+- `config.py` default `primary_color` updated from `#2563EB` → `#5BA4F5` (matches Tailwind `bg-yippie`).
+- `seed.py`: when seed tenant already exists, syncs `primary_color` + `logo_url` from config on every deploy.
+- `schemas.py` + `SuperAdminPage EMPTY_FORM`: new-tenant default updated from `#5BB8E8` → `#5BA4F5`.
+
+**[38c] Per-client edit modal (commit `53ba33b`):**
+- `SuperAdminPage.tsx`: replaced `EditModulesModal` with a 3-tab `EditClientModal` (Info / Modules / Branding).
+- Info tab exposes `name` and `inbound_email` per client — fixes the klimaatexamen NULL inbound_email without needing a direct DB update.
+- Branding tab lets superadmin change `primary_color` and `logo_url` with live preview.
+- Row button renamed "Edit modules" → "Edit".
+
+**Attachment bug fixes (commit `c87f7fa`):**
+- `email_poller.py`: stores attachment `content` (base64) inline in `attachments_json` at poll time. Resend has no separate attachment download endpoint — the old proxy was calling a non-existent URL and returning empty.
+- `router.py`: `download_attachment` now serves from stored content directly; removed the phantom Resend API call. Dropped unused `httpx` import.
+- `mailer.py`: Resend's attachments field only accepts `{filename, content}` — stripped the `content_type` key that was causing Resend to reject or silently drop attachments on outbound sends.
+- `InboxQueue.tsx`: added `onError` + `sendError` state to `ComposeModal`; compose send failures now show a red error message.
+
+**Compose auto-dismiss (commit `01c9352`):**
+- `InboxQueue.tsx`: success screen auto-closes after 3s via `useEffect` timeout. Demo mode stays open (agent needs to read the suppression notice).
+
+**Open from session 27 verification (→ Next session):**
+- Inbox select-all sticky, pagination (9 per page), ticket list UI redesign, deadline indicator dots, configurable threshold in Settings, hotkeys toggle in Profile, activity page not working.
+
+---
+
+### Session 26 — 2026-06-11 (Phase 11A copy+branding, Phase 11C ROI calculator, Phase 11B Hour Counter)
+
+All three marketing-site Tier-1 Fable items shipped in one session.
+
+**Phase 11C — On-page ROI calculator (session 26, commit `307e22d`):**
+- New `"use client"` component `ROICalculator` with five range sliders (tickets/mo 200,
+  min/ticket 15, staff 2, hourly €35, automatable 60%). Live-computed outputs: hours saved,
+  € saved/month, payback vs €29/mo plan ("Instant ROI" / "X days" / "X months"). Pure
+  browser math, no data sent anywhere. Inserted between "How it works" and Pricing.
+- Also fixed two pre-existing `next build` breakages: CSS Modules global-selector error in
+  `page.module.css` (moved to `globals.css`) and `next.config.mjs` empty-string env fallback
+  that caused `new URL("")` to throw during static prerender.
+
+**Phase 11A — Copy & branding (session 26, commit `5504866`):**
+- Hero title → "Take back the time that matters."; sub copy updated to the roadmap version.
+- All primary CTAs ("Start for free", "Get started") → "Request demo →" pointing to
+  `NEXT_PUBLIC_DEMO_URL` (falls back to `APP_URL` until Phase 12 form ships).
+- Nav: added "Request demo →" as primary button alongside "Log in" link.
+- New `.navLogin` CSS class for the muted "Log in" link style.
+- Note: **logo replacement still open** — need Diederik to supply the current logo file.
+
+**Phase 11B — Hour Counter (session 26, commit `5504866`):**
+- `GET /api/v1/public/stats` — unauthenticated endpoint in new `apps/app/backend/app/public/`
+  module. Counts `tickets WHERE deleted_at IS NULL` cross-tenant × 15 min ÷ 60 +
+  `BASE_HOURS_SAVED` (env var, default 10 000). Returns `{hours_saved, tickets_automated}`.
+  Mounted in `main.py` without auth dependencies.
+- `HourCounter` client component on the marketing site: fetches on mount, animates count-up
+  from 60% of target over 2s (ease-out cubic with RAF), falls back to 10 000 on error.
+  Placed between the stats bar and Features.
+- `getyippie.com`, `www.getyippie.com`, `localhost:3000` added to `cors_origins` default in
+  `config.py` so browser fetch from the marketing site works without extra Railway env vars.
+
+**Deployed:** both commits pushed `devsandbox → sandbox`.
+
+**Remaining Phase 11 items:**
+- Logo replacement (need the file from Diederik).
+- Phase 11C Tier-2 "Connect your inbox" estimate (CSV upload → in-browser analysis).
+
+---
+
+### Session 25 — 2026-06-11 (outbound email quality: HTML layout + per-user signatures)
+
+Performance done, remaining bugs are sandbox-verification-only → picked the
+highest-leverage filed dev items: item 46 + email signatures (they pair: the
+signature renders inside the HTML layout).
+
+- **HTML email layout (item 46)** — new `app/core/email_html.py`:
+  `render_email_html(body_text, tenant_name, primary_color)` wraps the plain
+  text in a deliverability-safe inline-styled shell (tenant accent bar +
+  name header, `<p>` paragraphs from blank-line splits, auto-linked URLs,
+  "Sent with Yippie" footer). No template engine — one f-string until Phase 9.
+  `send_email()` gained an optional `html=` param; `"text"` always sent too.
+  Wired everywhere: `flush_pending_sends` (reply + compose; tenant fetched
+  once per tenant_id — replaces the demo-only cache), `forward_draft`,
+  invite mail, welcome-to-inbox mail, forgot-password mail.
+- **Per-user email signatures** — `users.email_signature` (Text, migration
+  `d1e2f3a4b5c6`, idempotent ADD COLUMN IF NOT EXISTS; single head after
+  `c0d1e2f3a4b5`). `UserSelfUpdate`/`UserOut` + `/auth/me` PATCH handle it;
+  Profile page has a signature textarea. Compose + reply textareas pre-fill
+  `\n\n{signature}` (visible and editable — what you see is the text part);
+  AI suggest-reply / forward / compose-suggest append the signature below the
+  generated text. No double-append: the HTML renderer styles whatever text is
+  in the body, signature included.
+- Verified: backend `py_compile` clean; renderer output eyeballed (escaping,
+  links, paragraphs); frontend `tsc --noEmit` + `vite build` clean.
+- **For Diederik (sandbox):** set a signature on Profile → compose + reply
+  should pre-fill it; received mail should be the new HTML layout (accent bar
+  in tenant color) in Gmail/Apple Mail; invite + reset mails get clickable links.
+
+### Session 24 — 2026-06-11 (Performance Step 4: trgm search, lazy compose, pool tuning, RLS role-switch dropped; API diagnostics compacted)
+
+**Background task (concurrent):**
+- **Compact API diagnostics bar** (`ff4903a`) — `ResendDiagnosticPanel` in
+  `SuperAdminPage.tsx` now a single header row (icon · label · Copy all · Run check)
+  with a collapsible `max-h-64` pre-block below; removed the explanatory paragraph.
+
+**Performance Step 4 (commit `1e44346`):**
+- **`pg_trgm` GIN indexes** — migration `c0d1e2f3a4b5` adds `pg_trgm` extension
+  (idempotent) and GIN indexes on `contacts.full_name`, `email`, `company`
+  (`gin_trgm_ops`). The existing `ILIKE '%term%'` query in `contacts/service.py`
+  now uses the indexes instead of a seq-scan on every keystroke.
+- **Lazy compose contacts picker** — `ContactSearchPicker` no longer fires the
+  `limit=1000` query when the compose dropdown opens. "All contacts" button uses
+  `useQueryClient().fetchQuery` on click (60s stale); shows "Loading…" while
+  fetching; no unnecessary round-trip on compose open.
+- **Explicit pool settings** — `database.py` now has `pool_size=5, max_overflow=10,
+  pool_timeout=30`; was previously using SQLAlchemy defaults (same values, but now
+  explicit and documented).
+- **RLS role-switch dropped** — `set_tenant_context` simplified from 4+ SQL
+  round-trips to 1. The `SAVEPOINT / SET LOCAL ROLE app_user / RELEASE` block is
+  gone; `SET LOCAL app.current_tenant_id` kept as the hook for future RLS policies.
+  Decision: defer RLS enforcement until policies are actively written.
+
+**Code audit — items confirmed complete, no changes needed:**
+- Item 11 (DeptReminderModal redesign) — fully done since session 20; modal always
+  shows on approve when departments exist, has "No dept" + "No SLA" options.
+- Items 12 (bulk select/delete/spam), 45 (attachment chips), 47 (undo auto-dismiss)
+  — all confirmed in source; await sandbox verification by Diederik.
+
+**Personal-address-receive-after-send bug** — code-verified correct: the poller
+builds `get_inbound_email_map` from `users.inbound_email` on every 30s cycle;
+saving the Profile address is sufficient to receive. No send is needed. The
+phenomenon is most likely a timing/test confusion. Closing as no-fix.
+
+**Deployed:** `git push origin devsandbox && git push origin devsandbox:sandbox`
 
 ---
 
@@ -1589,7 +956,7 @@ exists, email exists, or any superadmin exists). `admin/service.py`: duplicate-e
 
 ---
 
-## Reference
+## 📎 Appendix B — Reference
 
 ### Deploy workflow
 

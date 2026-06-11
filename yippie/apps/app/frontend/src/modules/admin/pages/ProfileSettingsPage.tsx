@@ -6,6 +6,7 @@ import { useAuth } from '../../../auth/useAuth'
 export default function ProfileSettingsPage() {
   const { user, refreshUser } = useAuth()
   const [personalEmail, setPersonalEmail] = useState(user?.inbound_email ?? user?.reply_from_email ?? '')
+  const [signature, setSignature] = useState(user?.email_signature ?? '')
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
@@ -14,6 +15,7 @@ export default function ProfileSettingsPage() {
     mutationFn: () => api.patch('/auth/me', {
       reply_from_email: personalEmail.trim() || null,
       inbound_email: personalEmail.trim() || null,
+      email_signature: signature.trim() || null,
     }).then(r => r.data),
     onSuccess: async () => {
       await refreshUser()
@@ -34,7 +36,7 @@ export default function ProfileSettingsPage() {
   return (
     <div className="max-w-xl">
       <h1 className="text-2xl font-bold text-slate-900 mb-1">Profile</h1>
-      <p className="text-sm text-slate-500 mb-8">Manage your personal email address and password.</p>
+      <p className="text-sm text-slate-500 mb-8">Manage your personal email address, signature and password.</p>
 
       <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
         <div>
@@ -55,6 +57,22 @@ export default function ProfileSettingsPage() {
           />
           <p className="mt-1.5 text-xs text-slate-400">
             One address for both directions: mail sent to it lands in your Personal inbox, and you can pick it as the "From" address when replying or composing. Must be on @getyippie.com.
+          </p>
+        </div>
+
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">
+            Email signature
+          </label>
+          <textarea
+            value={signature}
+            onChange={e => setSignature(e.target.value)}
+            rows={4}
+            placeholder={'e.g.\nBest regards,\nEddy — Support Team'}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie resize-y"
+          />
+          <p className="mt-1.5 text-xs text-slate-400">
+            Added automatically below your message when you compose or reply. You can still edit or remove it per email.
           </p>
         </div>
 

@@ -28,7 +28,7 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 type Tab = 'pending' | 'processed'
-type ProcessedFilter = 'all' | 'approved' | 'rejected' | 'forwarded' | 'bin'
+type ProcessedFilter = 'all' | 'approved' | 'rejected' | 'forwarded' | 'spam' | 'bin'
 type Mailbox = 'shared' | 'personal'
 
 interface Contact {
@@ -42,18 +42,14 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [freeEmail, setFreeEmail] = useState('')
+  const [addingAll, setAddingAll] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const qc = useQueryClient()
 
   const { data: contacts } = useQuery({
     queryKey: ['contacts-compose', search],
     queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { search: search || undefined, limit: 8 } }).then(r => r.data.items),
     enabled: open && search.length > 0,
-  })
-
-  const { data: allContacts } = useQuery({
-    queryKey: ['contacts-compose-all'],
-    queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', { params: { limit: 1000 } }).then(r => r.data),
-    enabled: open,
   })
 
   useEffect(() => {
@@ -63,6 +59,20 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  async function handleAddAll() {
+    setAddingAll(true)
+    try {
+      const data = await qc.fetchQuery({
+        queryKey: ['contacts-compose-all'],
+        queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', { params: { limit: 1000 } }).then(r => r.data),
+        staleTime: 60_000,
+      })
+      data.items.filter(c => c.email).forEach(c => onAdd(c.email!, c.full_name))
+    } finally {
+      setAddingAll(false)
+    }
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -76,16 +86,12 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
         />
         <button
           type="button"
-          onClick={() => {
-            if (allContacts?.items) {
-              const withEmail = allContacts.items.filter(c => c.email)
-              withEmail.forEach(c => onAdd(c.email!, c.full_name))
-            }
-          }}
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap"
+          onClick={handleAddAll}
+          disabled={addingAll}
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap disabled:opacity-50"
         >
           <Users size={12} />
-          All contacts ({allContacts?.total ?? 0})
+          {addingAll ? 'Loading…' : 'All contacts'}
         </button>
       </div>
 
@@ -140,7 +146,6 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
   const qc = useQueryClient()
   const [recipients, setRecipients] = useState<{ email: string; label: string }[]>([])
   const [subject, setSubject] = useState('')
-  const [body, setBody] = useState('')
   const [aiPrompt, setAiPrompt] = useState('')
   const [showAiPrompt, setShowAiPrompt] = useState(false)
   const [composeFiles, setComposeFiles] = useState<File[]>([])
@@ -151,8 +156,17 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
   const [undoNotice, setUndoNotice] = useState(false)
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const { user } = useAuth()
+  // Pre-fill the user's signature (editable per email — what you see is what's sent)
+  const [body, setBody] = useState(user?.email_signature ? `\n\n${user.email_signature}` : '')
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
+
+  // Auto-dismiss the success screen after 3s (demo mode stays open so agent can read it)
+  useEffect(() => {
+    if (!result || result.demo) return
+    const t = setTimeout(onClose, 3000)
+    return () => clearTimeout(t)
+  }, [result, result?.demo, onClose])
 
   const addRecipient = (email: string, label: string) => {
     if (!recipients.find(r => r.email === email)) {
@@ -165,11 +179,13 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
     mutationFn: () => api.post('/inbox/compose/suggest', { prompt: aiPrompt }).then(r => r.data),
     onSuccess: (data) => {
       if (data.subject) setSubject(data.subject)
-      if (data.body) setBody(data.body)
+      if (data.body) setBody(user?.email_signature ? `${data.body}\n\n${user.email_signature}` : data.body)
       setShowAiPrompt(false)
       setAiPrompt('')
     },
   })
+
+  const [sendError, setSendError] = useState('')
 
   const sendMutation = useMutation({
     mutationFn: () => {
@@ -183,7 +199,12 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
       }
       return api.post('/inbox/compose', fd, { headers: { 'Content-Type': undefined } }).then(r => r.data)
     },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail
+      setSendError(typeof detail === 'string' ? detail : 'Send failed — please try again')
+    },
     onSuccess: (data) => {
+      setSendError('')
       if (data.demo) { setResult(data); return }
       // Queued with an undo window — count down 5s on the local clock (the
       // server holds the email 8s, so an Undo click always lands in time).
@@ -408,7 +429,8 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
                   {recipients.length > 1 ? ' via BCC' : ''}
                 </p>}
           </div>
-          <div className="flex gap-3">
+          <div className="flex items-center gap-3">
+            {sendError && <p className="text-xs text-red-500">{sendError}</p>}
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
             <button
               onClick={() => sendMutation.mutate()}
@@ -455,8 +477,14 @@ const PROCESSED_FILTERS: { value: ProcessedFilter; label: string }[] = [
   { value: 'approved',  label: 'Approved' },
   { value: 'rejected',  label: 'Rejected' },
   { value: 'forwarded', label: 'Forwarded' },
+  { value: 'spam',      label: 'Spam' },
   { value: 'bin',       label: 'Bin' },
 ]
+
+const RETENTION_NOTES: Partial<Record<ProcessedFilter, string>> = {
+  spam: 'Spam is moved to the Bin automatically after 10 working days.',
+  bin:  'Items in the Bin are permanently deleted after 20 working days.',
+}
 
 export default function InboxQueue() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
@@ -495,13 +523,19 @@ export default function InboxQueue() {
     enabled: activeTab === 'processed',
   })
 
+  const { data: spamDrafts } = useQuery({
+    queryKey: ['drafts', mailbox, 'spam'],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'spam', mailbox } }).then(r => r.data),
+    enabled: activeTab === 'processed',
+  })
+
   const { data: binDrafts } = useQuery({
     queryKey: ['drafts', mailbox, 'bin'],
     queryFn: () => api.get('/inbox/drafts', { params: { status: 'bin', mailbox } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
-  const allProcessed = [...(approvedDrafts ?? []), ...(rejectedDrafts ?? []), ...(forwardedDrafts ?? []), ...(binDrafts ?? [])]
+  const allProcessed = [...(approvedDrafts ?? []), ...(rejectedDrafts ?? []), ...(forwardedDrafts ?? []), ...(spamDrafts ?? []), ...(binDrafts ?? [])]
     .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   const processedDrafts = processedFilter === 'all'
@@ -545,7 +579,7 @@ export default function InboxQueue() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Fixed header */}
       <div className="shrink-0 px-8 pt-8 pb-0 bg-slate-50">
         <div className="flex items-start justify-between mb-5">
@@ -626,6 +660,10 @@ export default function InboxQueue() {
               </button>
             ))}
           </div>
+        )}
+
+        {activeTab === 'processed' && RETENTION_NOTES[processedFilter] && (
+          <p className="mt-2 text-xs text-slate-400">{RETENTION_NOTES[processedFilter]}</p>
         )}
 
         {/* Bulk action bar */}

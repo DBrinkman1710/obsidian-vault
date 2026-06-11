@@ -1,0 +1,61 @@
+/* Hour Counter — full-width editorial stat moment.
+   One enormous number on white space; no card, no box. */
+
+.section {
+  background: var(--white);
+  padding: 128px 24px 136px;
+  text-align: center;
+}
+
+.numberRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 16px;
+}
+
+.number {
+  font-size: clamp(64px, 11vw, 96px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.035em;
+  color: var(--blue);
+  font-variant-numeric: tabular-nums;
+}
+
+.counting {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.label {
+  margin: 28px auto 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--navy);
+}
+
+.note {
+  margin: 24px auto 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+@media (max-width: 640px) {
+  .section {
+    padding: 88px 20px 96px;
+  }
+
+  .numberRow {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .label {
+    font-size: 18px;
+  }
+}

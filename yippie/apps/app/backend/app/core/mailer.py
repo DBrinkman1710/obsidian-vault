@@ -32,11 +32,14 @@ async def send_email(
     reply_to: Optional[str] = None,
     attachments: Optional[list[dict]] = None,
     from_email: Optional[str] = None,
+    html: Optional[str] = None,
 ) -> None:
     """Send an email via Resend.
 
     attachments: list of {"filename": str, "content": base64_str, "content_type": str}
     from_email: override the sender address (must be on a Resend-verified domain)
+    html: optional HTML part — sent alongside the plain-text body (which stays
+          the fallback for clients that prefer text)
     """
     settings = get_settings()
 
@@ -53,10 +56,13 @@ async def send_email(
         "subject": subject,
         "text": body,
     }
+    if html:
+        payload["html"] = html
     if reply_to:
         payload["reply_to"] = [reply_to]
     if attachments:
-        payload["attachments"] = attachments
+        # Resend expects only {filename, content} — strip any extra keys (e.g. content_type)
+        payload["attachments"] = [{"filename": a["filename"], "content": a["content"]} for a in attachments]
 
     async with httpx.AsyncClient() as client:
         response = await client.post(

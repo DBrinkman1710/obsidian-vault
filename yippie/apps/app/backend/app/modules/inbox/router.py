@@ -6,7 +6,6 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
 
-import httpx
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status  # noqa: F401
 from fastapi.responses import Response
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,6 +13,7 @@ from pydantic import BaseModel
 
 from app.auth.dependencies import CurrentUser, require_module
 from app.config import get_settings
+from app.core.email_html import render_email_html
 from app.core.mailer import ResendNotConfiguredError, email_domain, is_valid_email, send_email
 from app.core.models import Tenant
 from app.core.tenant import resolve_tenant_by_slug
@@ -270,19 +270,14 @@ async def download_attachment(
     if not ctx:
         raise HTTPException(status_code=404, detail="Draft not found")
     msg = ctx["inbound_message"]
-    if not msg or not msg.resend_email_id:
-        raise HTTPException(status_code=404, detail="No Resend ID for this message")
+    if not msg or not msg.attachments_json:
+        raise HTTPException(status_code=404, detail="No attachments for this message")
 
-    settings = get_settings()
-    async with httpx.AsyncClient(timeout=15) as client:
-        resp = await client.get(
-            f"https://api.resend.com/emails/receiving/{msg.resend_email_id}/attachments/{attachment_id}",
-            headers={"Authorization": f"Bearer {settings.resend_api_key}"},
-        )
-    if resp.status_code != 200:
+    attachments = json.loads(msg.attachments_json)
+    att = next((a for a in attachments if a.get("id") == attachment_id), None)
+    if not att:
         raise HTTPException(status_code=404, detail="Attachment not found")
 
-    att = resp.json()
     raw = att.get("content", "")
     content = base64.b64decode(raw) if raw else b""
     filename = att.get("filename", "attachment")
@@ -330,11 +325,17 @@ async def forward_draft(draft_id: uuid.UUID, body: ForwardRequest, current_user:
     )
     if not await service.tenant_is_demo(db, current_user.tenant_id):
         try:
+            tenant = await db.get(Tenant, current_user.tenant_id)
             await send_email(
                 to=dept.email,
                 subject=f"FWD: {original_subject}",
                 body=dept_body,
                 reply_to=msg.sender,
+                html=render_email_html(
+                    dept_body,
+                    tenant_name=tenant.name if tenant else None,
+                    primary_color=tenant.primary_color if tenant else None,
+                ),
             )
         except ResendNotConfiguredError:
             pass  # Email not configured — still mark as forwarded

@@ -56,7 +56,7 @@ interface CreateForm {
 
 const EMPTY_FORM: CreateForm = {
   name: '', slug: '', admin_full_name: '', admin_email: '', admin_password: '',
-  extra_admin_emails: [], primary_color: '#5BB8E8', logo_url: '',
+  extra_admin_emails: [], primary_color: '#5BA4F5', logo_url: '',
   enabled_modules: [...ALL_MODULES], is_demo: false, inbound_email: '',
 }
 
@@ -397,40 +397,186 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-function EditModulesModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+type EditTab = 'info' | 'modules' | 'branding'
+
+function EditClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
   const qc = useQueryClient()
-  const [modules, setModules] = useState<string[]>(() => ALL_MODULES.filter(m => tenant.enabled_modules.includes(m)))
+  const [tab, setTab] = useState<EditTab>('info')
+  const [form, setForm] = useState({
+    name: tenant.name,
+    inbound_email: tenant.inbound_email ?? '',
+    enabled_modules: ALL_MODULES.filter(m => tenant.enabled_modules.includes(m)),
+    primary_color: tenant.primary_color,
+    logo_url: tenant.logo_url ?? '',
+  })
   const [error, setError] = useState('')
-  const toggle = (mod: string) => setModules(prev => {
-    const next = new Set(prev)
-    next.has(mod) ? next.delete(mod) : next.add(mod)
-    return ALL_MODULES.filter(m => next.has(m))
-  })
+
   const mutation = useMutation({
-    mutationFn: (enabled_modules: string[]) => api.patch(`/admin/tenants/${tenant.id}`, { enabled_modules }).then(r => r.data),
+    mutationFn: (patch: Record<string, unknown>) =>
+      api.patch(`/admin/tenants/${tenant.id}`, patch).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
-    onError: () => setError('Failed to update modules'),
+    onError: () => setError('Failed to save changes'),
   })
+
+  function handleSave() {
+    const patch: Record<string, unknown> = {}
+    if (form.name.trim() && form.name.trim() !== tenant.name) patch.name = form.name.trim()
+    const inbound = form.inbound_email.trim() || null
+    if (inbound !== tenant.inbound_email) patch.inbound_email = inbound
+    const newMods = JSON.stringify([...form.enabled_modules].sort())
+    const oldMods = JSON.stringify([...tenant.enabled_modules].sort())
+    if (newMods !== oldMods) patch.enabled_modules = form.enabled_modules
+    if (form.primary_color !== tenant.primary_color) patch.primary_color = form.primary_color
+    const logo = form.logo_url.trim() || null
+    if (logo !== tenant.logo_url) patch.logo_url = logo
+    if (Object.keys(patch).length === 0) { onClose(); return }
+    setError('')
+    mutation.mutate(patch)
+  }
+
+  const TABS: { key: EditTab; label: string }[] = [
+    { key: 'info', label: 'Info' },
+    { key: 'modules', label: 'Modules' },
+    { key: 'branding', label: 'Branding' },
+  ]
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Edit modules</h2>
+            <h2 className="text-lg font-bold text-slate-900">Edit client</h2>
             <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
         </div>
+
+        <div className="flex border-b border-slate-100 px-6">
+          {TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setTab(key)}
+              className={`px-4 py-3 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                tab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         <div className="p-6 flex flex-col gap-4">
-          <div className="flex flex-wrap gap-2">
-            {ALL_MODULES.map(mod => <ModuleToggle key={mod} mod={mod} active={modules.includes(mod)} onClick={() => toggle(mod)} />)}
-          </div>
+          {tab === 'info' && (
+            <>
+              <div>
+                <label className={labelCls}>Company name</label>
+                <input
+                  className={inputCls}
+                  value={form.name}
+                  onChange={e => setForm(p => ({ ...p, name: e.target.value }))}
+                  placeholder={tenant.name}
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className={labelCls}>Inbound email</label>
+                <input
+                  className={inputCls}
+                  type="email"
+                  value={form.inbound_email}
+                  onChange={e => setForm(p => ({ ...p, inbound_email: e.target.value }))}
+                  placeholder={`${tenant.slug}-support@getyippie.com`}
+                />
+                <p className="mt-1 text-xs text-slate-400">Address Resend routes to this client. Leave empty to disable inbound routing.</p>
+              </div>
+              <div>
+                <label className={labelCls}>Slug</label>
+                <input className={`${inputCls} opacity-50 cursor-not-allowed`} value={tenant.slug} disabled />
+                <p className="mt-1 text-xs text-slate-400">Slug cannot be changed after creation.</p>
+              </div>
+            </>
+          )}
+
+          {tab === 'modules' && (
+            <div>
+              <label className={labelCls}>Enabled modules</label>
+              <div className="flex flex-wrap gap-2 mt-1">
+                {ALL_MODULES.map(mod => (
+                  <ModuleToggle
+                    key={mod}
+                    mod={mod}
+                    active={form.enabled_modules.includes(mod)}
+                    onClick={() =>
+                      setForm(prev => {
+                        const next = new Set(prev.enabled_modules)
+                        next.has(mod) ? next.delete(mod) : next.add(mod)
+                        return { ...prev, enabled_modules: ALL_MODULES.filter(m => next.has(m)) }
+                      })
+                    }
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {tab === 'branding' && (
+            <>
+              <div>
+                <label className={labelCls}>Brand color</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={form.primary_color}
+                    onChange={e => setForm(p => ({ ...p, primary_color: e.target.value }))}
+                    className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer p-0.5"
+                  />
+                  <span className="text-sm text-slate-500 font-mono">{form.primary_color}</span>
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Logo URL</label>
+                <input
+                  className={inputCls}
+                  value={form.logo_url}
+                  onChange={e => setForm(p => ({ ...p, logo_url: e.target.value }))}
+                  placeholder="https://company.nl/logo.png"
+                />
+                <p className="mt-1 text-xs text-slate-400">Shown in the client's sidebar. Leave empty for the default Yippie logo.</p>
+              </div>
+              {(form.logo_url || form.primary_color !== tenant.primary_color) && (
+                <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
+                  <div className="w-1 h-8 rounded-full flex-shrink-0" style={{ background: form.primary_color }} />
+                  {form.logo_url ? (
+                    <img
+                      src={form.logo_url}
+                      alt="Logo preview"
+                      className="h-7 object-contain"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none' }}
+                    />
+                  ) : (
+                    <span className="text-xs font-bold" style={{ color: form.primary_color }}>Preview</span>
+                  )}
+                </div>
+              )}
+            </>
+          )}
+
           {error && <p className="text-sm text-red-500">{error}</p>}
-          <div className="flex gap-3 justify-end">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
-            <button onClick={() => mutation.mutate(modules)} disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
-              {mutation.isPending ? 'Saving…' : 'Save'}
+
+          <div className="flex gap-3 justify-end pt-2">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={mutation.isPending}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+            >
+              {mutation.isPending ? 'Saving…' : 'Save changes'}
             </button>
           </div>
         </div>
@@ -648,40 +794,45 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
 
 function ResendDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
-  const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const mutation = useMutation({
     mutationFn: () => api.get('/admin/resend-check').then(r => r.data),
-    onSuccess: (data) => { setResult(data); setOpen(true) },
+    onSuccess: (data) => setResult(data),
   })
 
+  function copyAll() {
+    navigator.clipboard.writeText(JSON.stringify(result, null, 2))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <FlaskConical size={16} className="text-slate-400" />
-          <h2 className="text-base font-bold text-slate-900">Resend API diagnostic</h2>
-        </div>
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex items-center gap-2 px-4 py-2.5">
+        <FlaskConical size={14} className="text-slate-400 shrink-0" />
+        <span className="text-sm font-semibold text-slate-700 flex-1">API diagnostics</span>
+        {result && (
+          <button
+            onClick={copyAll}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            {copied ? <Check size={12} className="text-emerald-500" /> : <Clipboard size={12} />}
+            {copied ? 'Copied' : 'Copy all'}
+          </button>
+        )}
         <button
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending}
-          className="px-4 py-2 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
+          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-semibold rounded-lg transition-colors"
         >
           {mutation.isPending ? 'Checking…' : 'Run check'}
         </button>
       </div>
-      <p className="text-sm text-slate-500">Calls the Resend receiving API and shows the raw response — use this to verify the API key has receive permissions and to see exactly what fields are returned.</p>
-
-      {open && result && (
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Raw response</span>
-            <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
-          </div>
-          <pre className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-700 overflow-auto max-h-96 whitespace-pre-wrap">
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        </div>
+      {result && (
+        <pre className="border-t border-slate-100 bg-slate-50 rounded-b-xl px-4 py-3 text-xs text-slate-700 overflow-auto max-h-64 whitespace-pre-wrap">
+          {JSON.stringify(result, null, 2)}
+        </pre>
       )}
     </div>
   )
@@ -1000,7 +1151,7 @@ export default function SuperAdminPage() {
                           onClick={() => setEditingTenant(t)}
                           className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                         >
-                          Edit modules
+                          Edit
                         </button>
                         {isRootOwner && (
                           <button
@@ -1024,7 +1175,7 @@ export default function SuperAdminPage() {
       <ResendDiagnosticPanel />
 
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}
-      {editingTenant && <EditModulesModal tenant={editingTenant} onClose={() => setEditingTenant(null)} />}
+      {editingTenant && <EditClientModal tenant={editingTenant} onClose={() => setEditingTenant(null)} />}
       {deletingTenant && <DeleteClientModal tenant={deletingTenant} onClose={() => setDeletingTenant(null)} />}
       {viewingUsers && <TenantUsersModal tenant={viewingUsers} onClose={() => setViewingUsers(null)} />}
     </div>

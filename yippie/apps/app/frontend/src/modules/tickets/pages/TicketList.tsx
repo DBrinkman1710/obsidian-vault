@@ -67,13 +67,13 @@ export default function TicketList() {
 
       <div className="flex flex-col gap-3">
         {data?.items.map((t: any) => (
-          <div key={t.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:border-slate-300 transition-colors">
+          <Link key={t.id} to={`/tickets/${t.id}`} className="block bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:border-slate-300 cursor-pointer transition-colors">
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <Link to={`/tickets/${t.id}`} className="text-sm font-semibold text-slate-900 hover:text-blue-600 transition-colors">
+                  <span className="text-sm font-semibold text-slate-900">
                     {t.subject}
-                  </Link>
+                  </span>
                   {t.department_name && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
                       {t.department_name}
@@ -107,7 +107,7 @@ export default function TicketList() {
                 )
               })()}
             </div>
-          </div>
+          </Link>
         ))}
       </div>
 

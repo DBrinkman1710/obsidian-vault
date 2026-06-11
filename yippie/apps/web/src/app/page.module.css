@@ -1,7 +1,4 @@
-/* ── Reset ──────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-a { color: inherit; text-decoration: none; }
-img { display: block; }
+/* Reset lives in globals.css — CSS Modules only allow class/id selectors. */
 
 /* ── Nav ────────────────────────────────────── */
 .nav {
@@ -35,6 +32,15 @@ img { display: block; }
 }
 
 .navLinks a:hover { color: var(--white); }
+
+.navLogin {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.45) !important;
+  transition: color 0.2s;
+}
+
+.navLogin:hover { color: rgba(255,255,255,0.8) !important; }
 
 .navCta {
   background: var(--blue);

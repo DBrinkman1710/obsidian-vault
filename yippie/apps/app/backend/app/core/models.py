@@ -56,6 +56,8 @@ class User(Base):
     # Personal Yippie receiving address on the Resend domain (e.g. klimaatexamen-eddy@getyippie.com).
     # Mail forwarded here lands in this user's personal inbox instead of the tenant's shared one.
     inbound_email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
+    # Personal signature appended to compose/reply (plain text; rendered into the HTML layout on send)
+    email_signature: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

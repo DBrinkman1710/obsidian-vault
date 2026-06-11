@@ -80,11 +80,17 @@ async def _fetch_email_data(client: httpx.AsyncClient, auth: dict, email_id: str
     if not body:
         log.warning("Body fetch %s → empty body. text=%r html=%r", email_id, text, (html or "")[:200])
 
-    # Extract attachment metadata (no content — download on demand via proxy endpoint)
+    # Extract attachments — store content inline (base64) so the download proxy
+    # doesn't need a separate Resend API call (no such endpoint exists).
     attachments_json: str | None = None
     raw_atts = full.get("attachments") or []
     parsed = [
-        {"id": a["id"], "filename": a.get("filename", "attachment"), "content_type": a.get("content_type", "application/octet-stream")}
+        {
+            "id": a["id"],
+            "filename": a.get("filename", "attachment"),
+            "content_type": a.get("content_type", "application/octet-stream"),
+            "content": a.get("content", ""),
+        }
         for a in raw_atts if a.get("id")
     ]
     if parsed:
@@ -294,6 +300,16 @@ async def flush_pending_sends_job() -> None:
     """Dispatch queued emails whose undo window has expired."""
     async with db_session() as db:
         await service.flush_pending_sends(db)
+
+
+@scheduler.scheduled_job("interval", hours=1, id="retention", max_instances=1, coalesce=True)
+async def retention_job() -> None:
+    """Spam → Bin after 10 working days; Bin emptied after 20 working days (item 42)."""
+    try:
+        async with db_session() as db:
+            await service.apply_retention(db)
+    except Exception:
+        log.exception("retention failed")
 
 
 @scheduler.scheduled_job("interval", seconds=60, id="go_live_check", max_instances=1, coalesce=True)

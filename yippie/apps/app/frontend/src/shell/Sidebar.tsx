@@ -44,12 +44,14 @@ export function Sidebar() {
   if (!config) return null
 
   return (
-    <aside className="flex flex-col w-56 h-screen bg-yippie text-white shrink-0 overflow-y-auto">
+    <aside
+      className="flex flex-col w-56 h-screen text-white shrink-0 overflow-y-auto"
+      style={{ background: config.branding.primary_color }}
+    >
 
       {/* Logo + tenant */}
       <div className="px-5 pt-6 pb-5">
         <div className="flex items-center gap-2 mb-1">
-          {/* Smiley mark from the logo */}
           <svg viewBox="0 0 36 36" className="w-7 h-7 shrink-0" fill="white">
             <circle cx="10" cy="8" r="4" />
             <path d="M4 28 Q10 36 18 30" strokeWidth="3.5" stroke="white" fill="none" strokeLinecap="round"/>
@@ -57,6 +59,15 @@ export function Sidebar() {
           </svg>
           <span className="text-white font-bold text-xl tracking-tight">yippie</span>
         </div>
+        {config.branding.logo_url && (
+          <div className="mt-2 mb-1">
+            <img
+              src={config.branding.logo_url}
+              alt={config.tenant_name}
+              className="h-6 object-contain max-w-[120px]"
+            />
+          </div>
+        )}
         <p className="text-white/60 text-xs font-medium pl-0.5 truncate">{config.tenant_name}</p>
       </div>
 
@@ -83,11 +94,18 @@ export function Sidebar() {
                 {mod === 'inbox' && (
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${inboxFetching ? 'bg-blue-300 animate-pulse' : 'bg-emerald-400'}`}
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        inboxFetching
+                          ? 'bg-emerald-300 animate-pulse shadow-[0_0_8px_2px_rgba(110,231,183,0.9)]'
+                          : 'bg-emerald-400 shadow-[0_0_5px_1px_rgba(52,211,153,0.7)]'
+                      }`}
                       title={inboxFetching ? 'Refreshing…' : 'Live'}
                     />
                     {badgeLabel && (
-                      <span className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                      <span
+                        className="bg-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1"
+                        style={{ color: config.branding.primary_color }}
+                      >
                         {badgeLabel}
                       </span>
                     )}

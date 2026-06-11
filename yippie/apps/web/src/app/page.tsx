@@ -1,6 +1,10 @@
 import styles from "./page.module.css";
+import ROICalculator from "./components/ROICalculator";
+import HourCounter from "./components/HourCounter";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
+// Phase 12: demo-request form lives at /demo once built; falls back to app login for now
+const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
 
 const features = [
   {
@@ -98,8 +102,9 @@ export default function HomePage() {
           <li><a href="#features">Features</a></li>
           <li><a href="#how-it-works">How it works</a></li>
           <li><a href="#pricing">Pricing</a></li>
+          <li><a href={APP_URL} className={styles.navLogin}>Log in</a></li>
           <li>
-            <a href={APP_URL} className={styles.navCta}>Log in →</a>
+            <a href={DEMO_URL} className={styles.navCta}>Request demo →</a>
           </li>
         </ul>
       </nav>
@@ -112,13 +117,13 @@ export default function HomePage() {
             Customer service platform for SMBs
           </div>
           <h1 className={styles.heroTitle}>
-            Give yourself back<br />the time that matters
+            Take back the time<br />that matters.
           </h1>
           <p className={styles.heroSub}>
-            Yippie handles your inbox, tickets, and live chat automatically — so you can focus on growing your business, not answering the same emails over and over.
+            Stop losing hours to repetitive support tickets. Yippie automates and reduces your customer service so you can focus on building your business.
           </p>
           <div className={styles.heroActions}>
-            <a href={APP_URL} className={styles.btnPrimary}>Start for free →</a>
+            <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
             <a href="#how-it-works" className={styles.btnGhost}>See how it works</a>
           </div>
         </div>
@@ -184,6 +189,9 @@ export default function HomePage() {
         ))}
       </div>
 
+      {/* Hour counter — live global hours saved */}
+      <HourCounter statsUrl={APP_URL} />
+
       {/* Features */}
       <section id="features" className={styles.section}>
         <p className={styles.eyebrow}>Features</p>
@@ -220,6 +228,9 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* ROI Calculator */}
+      <ROICalculator appUrl={DEMO_URL} />
+
       {/* Pricing */}
       <section id="pricing" className={styles.section}>
         <p className={styles.eyebrow}>Pricing</p>
@@ -242,7 +253,7 @@ export default function HomePage() {
                   </li>
                 ))}
               </ul>
-              <a href={APP_URL} className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}>
+              <a href={DEMO_URL} className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}>
                 {plan.cta}
               </a>
             </div>
@@ -254,9 +265,9 @@ export default function HomePage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Ready to win back your time?</h2>
         <p className={styles.ctaSub}>
-          Join businesses that handle customer support in half the time with Yippie.
+          Join businesses that handle customer support in half the time with Yippie. No credit card required.
         </p>
-        <a href={APP_URL} className={styles.btnPrimary}>Log in to Yippie →</a>
+        <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
       </section>
 
       {/* Footer */}

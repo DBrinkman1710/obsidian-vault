@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Plus, User } from 'lucide-react'
 import { api } from '../../../api/client'
@@ -15,6 +15,7 @@ interface Contact {
 }
 
 export default function ContactList() {
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const { data, isLoading } = useQuery({
     queryKey: ['contacts', search],
@@ -62,16 +63,20 @@ export default function ContactList() {
           ) : (
             <tbody className="divide-y divide-slate-100">
               {data?.items.map(c => (
-                <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                <tr
+                  key={c.id}
+                  onClick={() => navigate(`/contacts/${c.id}`)}
+                  className="hover:bg-slate-50 transition-colors cursor-pointer"
+                >
                   <td className="px-4 py-3">
-                    <Link to={`/contacts/${c.id}`} className="flex items-center gap-2.5 group">
+                    <div className="flex items-center gap-2.5">
                       <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center flex-shrink-0">
                         <User size={13} className="text-blue-600" />
                       </div>
-                      <span className="text-sm font-medium text-blue-600 group-hover:text-blue-700">
+                      <span className="text-sm font-medium text-blue-600">
                         {c.full_name}
                       </span>
-                    </Link>
+                    </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">{c.email ?? '—'}</td>
                   <td className="px-4 py-3 text-sm text-slate-600">{c.company ?? '—'}</td>
