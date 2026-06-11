@@ -42,18 +42,14 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [freeEmail, setFreeEmail] = useState('')
+  const [addingAll, setAddingAll] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
+  const qc = useQueryClient()
 
   const { data: contacts } = useQuery({
     queryKey: ['contacts-compose', search],
     queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { search: search || undefined, limit: 8 } }).then(r => r.data.items),
     enabled: open && search.length > 0,
-  })
-
-  const { data: allContacts } = useQuery({
-    queryKey: ['contacts-compose-all'],
-    queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', { params: { limit: 1000 } }).then(r => r.data),
-    enabled: open,
   })
 
   useEffect(() => {
@@ -63,6 +59,20 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  async function handleAddAll() {
+    setAddingAll(true)
+    try {
+      const data = await qc.fetchQuery({
+        queryKey: ['contacts-compose-all'],
+        queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', { params: { limit: 1000 } }).then(r => r.data),
+        staleTime: 60_000,
+      })
+      data.items.filter(c => c.email).forEach(c => onAdd(c.email!, c.full_name))
+    } finally {
+      setAddingAll(false)
+    }
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -76,16 +86,12 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
         />
         <button
           type="button"
-          onClick={() => {
-            if (allContacts?.items) {
-              const withEmail = allContacts.items.filter(c => c.email)
-              withEmail.forEach(c => onAdd(c.email!, c.full_name))
-            }
-          }}
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap"
+          onClick={handleAddAll}
+          disabled={addingAll}
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap disabled:opacity-50"
         >
           <Users size={12} />
-          All contacts ({allContacts?.total ?? 0})
+          {addingAll ? 'Loading…' : 'All contacts'}
         </button>
       </div>
 

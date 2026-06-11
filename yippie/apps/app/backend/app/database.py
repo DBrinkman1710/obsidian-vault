@@ -72,6 +72,9 @@ def get_engine():
             url, sslmode, sslrootcert,
             echo=settings.environment == "development",
             pool_pre_ping=True,
+            pool_size=5,
+            max_overflow=10,
+            pool_timeout=30,
         )
     return _engine
 
@@ -99,25 +102,15 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def set_tenant_context(session: AsyncSession, tenant_id: str) -> None:
-    """Sets tenant context for the current transaction.
+    """Sets app.current_tenant_id for the current transaction (read by future RLS policies).
 
-    Sets app.current_tenant_id (read by RLS policies) and, when app_user
-    role exists, switches to it so RLS is enforced even when connecting as
-    a superuser.  Both are SET LOCAL — they revert when the transaction ends,
-    making this safe in connection pools.
+    SET LOCAL reverts automatically when the transaction ends, making this safe in pools.
+    The app_user role switch is intentionally omitted until RLS policies are enforced —
+    the SAVEPOINT dance it required added 3 round-trips per request for no current benefit.
     """
     import uuid as _uuid
 
     from sqlalchemy import text
-    # SET LOCAL does not accept bind parameters, so the value is inlined. Coerce to a
-    # canonical UUID first so a malformed/hostile value can never break out of the quotes.
+    # SET LOCAL does not accept bind parameters; coerce to canonical UUID to prevent injection.
     safe_tenant_id = str(_uuid.UUID(str(tenant_id)))
     await session.execute(text(f"SET LOCAL \"app.current_tenant_id\" = '{safe_tenant_id}'"))
-    # Use a SAVEPOINT so a missing role never aborts the outer transaction.
-    await session.execute(text("SAVEPOINT _role_switch"))
-    try:
-        await session.execute(text("SET LOCAL ROLE app_user"))
-        await session.execute(text("RELEASE SAVEPOINT _role_switch"))
-    except Exception:
-        await session.execute(text("ROLLBACK TO SAVEPOINT _role_switch"))
-        await session.execute(text("RELEASE SAVEPOINT _role_switch"))
