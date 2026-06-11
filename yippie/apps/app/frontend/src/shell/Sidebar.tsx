@@ -44,10 +44,7 @@ export function Sidebar() {
   if (!config) return null
 
   return (
-    <aside
-      className="flex flex-col w-56 h-screen text-white shrink-0 overflow-y-auto"
-      style={{ background: config.branding.primary_color }}
-    >
+    <aside className="flex flex-col w-56 h-screen bg-yippie text-white shrink-0 overflow-y-auto">
 
       {/* Logo + tenant */}
       <div className="px-5 pt-6 pb-5">
@@ -103,8 +100,7 @@ export function Sidebar() {
                     />
                     {badgeLabel && (
                       <span
-                        className="bg-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1"
-                        style={{ color: config.branding.primary_color }}
+                        className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1"
                       >
                         {badgeLabel}
                       </span>

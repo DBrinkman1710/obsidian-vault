@@ -43,6 +43,13 @@ environment / deploy reference lives in **Appendix B**.
 - **Hotkeys on/off toggle** — add a toggle in Profile settings (per user); when off, no keyboard shortcuts fire.
 - **Activity page not working** — verify in sandbox; likely a module-gate issue or empty state. Investigate backend 500 if any.
 
+**Additional bugs reported (pre-session-28 — fix alongside the above):**
+- **Outbound from-address wrong in ndugu environment** — mail sent from the ndugu tenant goes out as `sb-support@getyippie.com` instead of the tenant's own address. Root cause identified: `queue_send` in `service.py` falls back straight to `RESEND_FROM` when `from_email` is `None`; it never checks `tenant.inbound_email` first. Fix: `from_email = from_email or (tenant.inbound_email if tenant else None) or get_settings().resend_from`.
+- **Settings page broken** — one or more `/settings/*` routes are inaccessible or throwing an error. Identify which tab and the root cause.
+- **Client page: too many buttons per row** — should expose only **View as**, **Set demo**, and **Edit** inline; the Inactive/Active toggle, Copy email, and Delete should live inside the Edit modal. Extends [38c].
+- **Compose modal: Send/Quit buttons shift on send** — pressing Send causes the button row to jump/shift position; layout must stay stable while the undo bar is rendering.
+- **Email sent popup still appears after compose send** — the "email sent" toast/bar should not appear at all (or auto-dismiss immediately) for compose; only the undo bar should be visible.
+
 **Legacy open bugs (from before session 27):**
 - **New agent arrived as admin** — code-verified clean session 19; most likely an older invite token. Re-test with a fresh invite.
 - **Personal inbox leaks across users** — check whether `diederik1710@icloud.com` has `users.inbound_email` set to Joost's address; clear if so.
