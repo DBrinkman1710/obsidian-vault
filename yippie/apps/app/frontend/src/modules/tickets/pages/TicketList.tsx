@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Plus, MessageSquare, Ticket } from 'lucide-react'
+import { Plus, MessageSquare, Ticket, ArrowRight } from 'lucide-react'
 import { api } from '../../../api/client'
 import { CardListSkeleton } from '../../../shell/Skeleton'
 
@@ -13,11 +13,12 @@ const STATUS_STYLES: Record<string, string> = {
   closed:      'bg-slate-100 text-slate-600',
 }
 
+// Badge styles — mirrors the inbox draft cards so the two lists look consistent.
 const PRIORITY_STYLES: Record<string, string> = {
-  low:    'text-slate-500',
-  medium: 'text-blue-600',
-  high:   'text-amber-600',
-  urgent: 'text-red-600',
+  urgent: 'bg-red-100 text-red-700',
+  high:   'bg-amber-100 text-amber-700',
+  medium: 'bg-blue-100 text-blue-700',
+  low:    'bg-slate-100 text-slate-600',
 }
 
 function timeAgo(dateStr: string): string {
@@ -67,46 +68,51 @@ export default function TicketList() {
 
       <div className="flex flex-col gap-3">
         {data?.items.map((t: any) => (
-          <Link key={t.id} to={`/tickets/${t.id}`} className="block bg-white rounded-xl border border-slate-200 shadow-sm p-4 hover:border-slate-300 cursor-pointer transition-colors">
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap mb-1">
-                  <span className="text-sm font-semibold text-slate-900">
-                    {t.subject}
+          <Link
+            key={t.id}
+            to={`/tickets/${t.id}`}
+            className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-3 hover:border-blue-300 hover:shadow-md transition-all group"
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                <span className="text-sm font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">
+                  {t.subject}
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${PRIORITY_STYLES[t.priority] ?? 'bg-slate-100 text-slate-600'}`}>
+                  {t.priority}
+                </span>
+                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_STYLES[t.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                  {t.status.replace('_', ' ')}
+                </span>
+                {t.department_name && (
+                  <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
+                    {t.department_name}
                   </span>
-                  {t.department_name && (
-                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
-                      {t.department_name}
-                    </span>
-                  )}
-                </div>
-                {t.last_comment && (
-                  <p className="text-xs text-slate-400 italic flex items-center gap-1.5 truncate">
-                    <MessageSquare size={11} />
-                    {t.last_comment.slice(0, 90)}{t.last_comment.length > 90 ? '…' : ''}
-                    {t.last_comment_at && <span className="ml-1">· {timeAgo(t.last_comment_at)}</span>}
-                  </p>
                 )}
               </div>
-              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold whitespace-nowrap flex-shrink-0 ${STATUS_STYLES[t.status]}`}>
-                {t.status.replace('_', ' ')}
-              </span>
+              {t.last_comment && (
+                <p className="text-xs text-slate-500 mb-1 line-clamp-2 italic flex items-start gap-1.5">
+                  <MessageSquare size={11} className="mt-0.5 flex-shrink-0" />
+                  <span>{t.last_comment.slice(0, 160)}{t.last_comment.length > 160 ? '…' : ''}</span>
+                </p>
+              )}
+              <p className="text-xs text-slate-400 flex items-center gap-2 flex-wrap">
+                <span>{new Date(t.created_at).toLocaleDateString()}</span>
+                {t.last_comment_at && <span>· {timeAgo(t.last_comment_at)}</span>}
+                {t.sla_due_at && (() => {
+                  const due = new Date(t.sla_due_at)
+                  const hoursLeft = (due.getTime() - Date.now()) / 3_600_000
+                  const overdue = hoursLeft < 0
+                  const urgent = hoursLeft >= 0 && hoursLeft <= 24
+                  return (
+                    <span className={`font-semibold ${overdue ? 'text-red-600' : urgent ? 'text-orange-600' : 'text-slate-400'}`}>
+                      · {overdue ? '⚠ Overdue' : urgent ? `⚠ SLA due ${due.toLocaleString()}` : `SLA: ${due.toLocaleString()}`}
+                    </span>
+                  )
+                })()}
+              </p>
             </div>
-            <div className="flex gap-4 mt-2 text-xs text-slate-500 items-center">
-              <span className={`font-semibold capitalize ${PRIORITY_STYLES[t.priority]}`}>{t.priority}</span>
-              <span>{new Date(t.created_at).toLocaleDateString()}</span>
-              {t.sla_due_at && (() => {
-                const due = new Date(t.sla_due_at)
-                const hoursLeft = (due.getTime() - Date.now()) / 3_600_000
-                const overdue = hoursLeft < 0
-                const urgent = hoursLeft >= 0 && hoursLeft <= 24
-                return (
-                  <span className={`font-semibold ${overdue ? 'text-red-600' : urgent ? 'text-orange-600' : ''}`}>
-                    {overdue ? '⚠ Overdue' : urgent ? `⚠ SLA due ${due.toLocaleString()}` : `SLA: ${due.toLocaleString()}`}
-                  </span>
-                )
-              })()}
-            </div>
+            <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0 mt-0.5" />
           </Link>
         ))}
       </div>
