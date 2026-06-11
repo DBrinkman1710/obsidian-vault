@@ -564,7 +564,7 @@ export default function InboxQueue() {
   }
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Fixed header */}
       <div className="shrink-0 px-8 pt-8 pb-0 bg-slate-50">
         <div className="flex items-start justify-between mb-5">

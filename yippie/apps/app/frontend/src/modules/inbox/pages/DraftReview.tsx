@@ -532,7 +532,7 @@ export default function DraftReview() {
 
   if (isLoading || !draft) {
     return (
-      <div className="flex flex-col h-full overflow-hidden bg-slate-50 p-3 gap-3" aria-hidden="true">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-3 gap-3" aria-hidden="true">
         <div className="grid grid-cols-[320px_1fr] grid-rows-[1fr_1fr] gap-3 flex-1 min-h-0">
           {[0, 1, 2, 3].map(i => (
             <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
@@ -594,7 +594,7 @@ export default function DraftReview() {
         />
       )}
 
-      <div className="flex flex-col h-full overflow-hidden bg-slate-50 p-3 gap-3">
+      <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-3 gap-3">
         <div className="grid grid-cols-[320px_1fr] grid-rows-[1fr_1fr_auto] gap-3 flex-1 min-h-0">
 
           {/* ── TOP-LEFT: Customer info ── */}
