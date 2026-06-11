@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 22b — dept/SLA race fix, reply language, deadline badges, invite URL; session 22 = async ingest)
+**Updated:** 2026-06-11 (session 23 — Performance Step 3 shipped: skeletons, vendor chunk, draft-context query consolidation; session 22b — dept/SLA race fix, reply language, deadline badges, invite URL)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -204,10 +204,19 @@ Top priority initiative. Diederik wants Yippie to feel fast. A code pass over
   never overwritten after the fact; body re-fetch re-queues instead of scanning
   inline.
 
-**Step 3 — Perceived speed (~1 day):** Vite `manualChunks` route splitting;
-loading skeletons on inbox/contacts/tickets; parallelize
-`get_draft_with_context()` reads with `asyncio.gather()`
-(`inbox/service.py:245–303`).
+**Step 3 — Perceived speed: ✅ SHIPPED (session 23)**
+- Loading skeletons (shared `shell/Skeleton.tsx`) replace the "Loading…" text on
+  InboxQueue, TicketList, ContactList AND the DraftReview four-panel grid —
+  pages render their shape instantly while data loads.
+- Vendor `manualChunks` in `vite.config.ts`: react/router/react-query/axios/zustand
+  in one 251 kB (83 kB gzip) chunk that survives deploys via the 1y-immutable
+  asset cache; the entry chunk dropped to ~22 kB, so repeat visitors only
+  re-download the small per-page chunks after a deploy. (Route splitting itself
+  was already in place via `React.lazy`.)
+- `get_draft_with_context()` consolidated from 5 sequential round-trips to ≤3:
+  draft + inbound message + contact now come back in ONE joined query
+  (`asyncio.gather` was a no-go — one AsyncSession can't run concurrent queries,
+  same constraint session 22 hit; fewer round-trips is the actual lever).
 
 **Step 4 — Search & scale (later):** Postgres `tsvector` GIN index for contact
 search; paginate the compose contacts picker; tune the connection pool
@@ -862,6 +871,35 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ---
 
 ## Session log
+
+---
+
+### Session 23 — 2026-06-11 (Performance Step 3: perceived speed)
+
+The roadmap's named next step after session 22. All three Step 3 lines shipped:
+
+- **Skeletons** — new `frontend/src/shell/Skeleton.tsx` (`Skeleton` primitive +
+  `CardListSkeleton` + `TableSkeleton`). InboxQueue shows 5 card skeletons, TicketList 4,
+  ContactList renders the real table header with skeleton rows, and DraftReview shows the
+  four-panel grid as skeletons instead of a centered "Loading…".
+- **Vendor chunk** — `vite.config.ts` `manualChunks.vendor` =
+  react/react-dom/react-router-dom/@tanstack/react-query/axios/zustand → one
+  251 kB (83 kB gzip) chunk whose hash only changes on dependency bumps; with nginx's
+  1y-immutable `/assets/` caching (perf Step 1) repeat visitors skip it entirely after
+  deploys. Entry chunk is now ~22 kB.
+- **`get_draft_with_context` consolidation** — draft + InboundMessage + Contact fetched in
+  one query via outer joins (`Contact.id == coalesce(matched_contact_id, contact_id)`);
+  tickets + billing remain two small follow-ups only when a contact matched. 5 round-trips
+  → ≤3 on the hot draft-open path (hit ~8× across inbox router endpoints). The roadmap's
+  `asyncio.gather` idea was intentionally NOT used: one AsyncSession can't run concurrent
+  queries (same constraint session 22 documented for batch enrichment).
+- Verified: backend `py_compile` clean, frontend `tsc --noEmit` clean, production
+  `vite build` clean with the expected chunk layout. Deployed devsandbox + sandbox.
+- **Parallel-session note:** rebased on session 22b (below), which landed mid-session —
+  code merged cleanly (22b's SLA badges + my skeletons coexist in TicketList).
+- **Next perf step:** Step 4 — contact-search tsvector GIN index, paginate the compose
+  contacts picker, pool tuning, RLS enforce-or-drop decision. Items 12/45/47 are
+  code-verified done (session 22b) — sandbox verification by Diederik remains.
 
 ---
 

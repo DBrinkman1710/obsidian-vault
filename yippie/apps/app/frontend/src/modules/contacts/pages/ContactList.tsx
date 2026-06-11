@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Search, Plus, User } from 'lucide-react'
 import { api } from '../../../api/client'
+import { TableSkeleton } from '../../../shell/Skeleton'
 
 interface Contact {
   id: string
@@ -46,21 +47,21 @@ export default function ContactList() {
         />
       </div>
 
-      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
-
-      {data && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Phone</th>
-              </tr>
-            </thead>
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Phone</th>
+            </tr>
+          </thead>
+          {isLoading ? (
+            <TableSkeleton />
+          ) : (
             <tbody className="divide-y divide-slate-100">
-              {data.items.map(c => (
+              {data?.items.map(c => (
                 <tr key={c.id} className="hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3">
                     <Link to={`/contacts/${c.id}`} className="flex items-center gap-2.5 group">
@@ -78,15 +79,15 @@ export default function ContactList() {
                 </tr>
               ))}
             </tbody>
-          </table>
-          {data.items.length === 0 && (
-            <div className="py-12 text-center">
-              <User size={32} className="text-slate-300 mx-auto mb-3" />
-              <p className="text-sm text-slate-400 font-medium">No contacts found</p>
-            </div>
           )}
-        </div>
-      )}
+        </table>
+        {!isLoading && data?.items.length === 0 && (
+          <div className="py-12 text-center">
+            <User size={32} className="text-slate-300 mx-auto mb-3" />
+            <p className="text-sm text-slate-400 font-medium">No contacts found</p>
+          </div>
+        )}
+      </div>
     </div>
   )
 }

@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.contacts.models import Contact
@@ -311,46 +311,48 @@ async def enrich_queued_drafts(db: AsyncSession) -> int:
 async def get_draft_with_context(
     db: AsyncSession, tenant_id: uuid.UUID, draft_id: uuid.UUID
 ) -> Optional[dict]:
-    """Returns draft + enriched context (inbound message, contact, recent tickets, billing)."""
-    draft_result = await db.execute(
-        select(DraftTicket).where(DraftTicket.tenant_id == tenant_id, DraftTicket.id == draft_id)
+    """Returns draft + enriched context (inbound message, contact, recent tickets, billing).
+
+    Draft, inbound message and contact come back in ONE round-trip (outer joins);
+    a single AsyncSession can't run queries concurrently, so fewer round-trips is
+    the lever here, not asyncio.gather.
+    """
+    row_result = await db.execute(
+        select(DraftTicket, InboundMessage, Contact)
+        .outerjoin(InboundMessage, DraftTicket.inbound_message_id == InboundMessage.id)
+        .outerjoin(
+            Contact,
+            and_(
+                Contact.tenant_id == DraftTicket.tenant_id,
+                Contact.id == func.coalesce(DraftTicket.matched_contact_id, DraftTicket.contact_id),
+            ),
+        )
+        .where(DraftTicket.tenant_id == tenant_id, DraftTicket.id == draft_id)
     )
-    draft = draft_result.scalar_one_or_none()
-    if not draft:
+    row = row_result.first()
+    if not row:
         return None
+    draft, msg, contact = row
 
-    msg_result = await db.execute(
-        select(InboundMessage).where(InboundMessage.id == draft.inbound_message_id)
-    )
-    msg = msg_result.scalar_one_or_none()
-
-    contact = None
     recent_tickets = []
     billing = None
 
-    contact_id = draft.matched_contact_id or draft.contact_id
-    if contact_id:
-        contact_result = await db.execute(
-            select(Contact).where(Contact.tenant_id == tenant_id, Contact.id == contact_id)
+    if contact:
+        tickets_result = await db.execute(
+            select(Ticket)
+            .where(Ticket.tenant_id == tenant_id, Ticket.contact_id == contact.id)
+            .order_by(Ticket.created_at.desc())
+            .limit(5)
         )
-        contact = contact_result.scalar_one_or_none()
+        recent_tickets = tickets_result.scalars().all()
 
-        if contact:
-            tickets_result = await db.execute(
-                select(Ticket)
-                .where(Ticket.tenant_id == tenant_id, Ticket.contact_id == contact.id)
-                .order_by(Ticket.created_at.desc())
-                .limit(5)
-            )
-            recent_tickets = tickets_result.scalars().all()
-
-            sub_result = await db.execute(
-                select(Subscription)
-                .where(Subscription.tenant_id == tenant_id, Subscription.contact_id == contact.id)
-                .order_by(Subscription.started_at.desc())
-                .limit(1)
-            )
-            billing = sub_result.scalar_one_or_none()
+        sub_result = await db.execute(
+            select(Subscription)
+            .where(Subscription.tenant_id == tenant_id, Subscription.contact_id == contact.id)
+            .order_by(Subscription.started_at.desc())
+            .limit(1)
+        )
+        billing = sub_result.scalar_one_or_none()
 
     attachments: list[dict] = []
     if msg and msg.attachments_json:

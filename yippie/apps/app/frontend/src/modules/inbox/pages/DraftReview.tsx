@@ -5,6 +5,7 @@ import { X, Paperclip, Sparkles } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
+import { Skeleton } from '../../../shell/Skeleton'
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English', nl: 'Dutch', fr: 'French', de: 'German', es: 'Spanish',
@@ -529,8 +530,24 @@ export default function DraftReview() {
 
   if (isLoading || !draft) {
     return (
-      <div className="flex-1 flex items-center justify-center text-slate-400">
-        Loading…
+      <div className="flex flex-col h-full overflow-hidden bg-slate-50 p-3 gap-3" aria-hidden="true">
+        <div className="grid grid-cols-[320px_1fr] grid-rows-[1fr_1fr] gap-3 flex-1 min-h-0">
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+              <Skeleton className="h-3 w-20 mb-4" />
+              <div className="flex items-center gap-3 mb-4">
+                <Skeleton className="w-10 h-10 rounded-full" />
+                <div className="flex-1">
+                  <Skeleton className="h-4 w-40 mb-1.5" />
+                  <Skeleton className="h-3 w-24" />
+                </div>
+              </div>
+              <Skeleton className="h-3 w-full mb-2" />
+              <Skeleton className="h-3 w-5/6 mb-2" />
+              <Skeleton className="h-3 w-2/3" />
+            </div>
+          ))}
+        </div>
       </div>
     )
   }

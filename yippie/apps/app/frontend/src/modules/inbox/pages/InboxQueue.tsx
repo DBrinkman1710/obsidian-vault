@@ -5,6 +5,7 @@ import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
+import { CardListSkeleton } from '../../../shell/Skeleton'
 
 const SOURCE_ICON: Record<string, React.ReactNode> = {
   email: <Mail size={13} className="text-slate-400" />,
@@ -661,7 +662,7 @@ export default function InboxQueue() {
 
       {/* Scrollable list */}
       <div className="flex-1 overflow-y-auto px-8 pb-8">
-        {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+        {isLoading && <CardListSkeleton rows={5} />}
         {!isLoading && drafts.length === 0 && (
           <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
             <Mail size={32} className="text-slate-300 mx-auto mb-3" />

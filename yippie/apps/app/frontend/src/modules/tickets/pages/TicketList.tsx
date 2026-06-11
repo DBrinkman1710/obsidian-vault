@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, MessageSquare, Ticket } from 'lucide-react'
 import { api } from '../../../api/client'
+import { CardListSkeleton } from '../../../shell/Skeleton'
 
 const STATUS_STYLES: Record<string, string> = {
   open:        'bg-blue-100 text-blue-700',
@@ -62,7 +63,7 @@ export default function TicketList() {
         <option value="closed">Closed</option>
       </select>
 
-      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+      {isLoading && <CardListSkeleton />}
 
       <div className="flex flex-col gap-3">
         {data?.items.map((t: any) => (
