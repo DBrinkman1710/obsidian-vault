@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { api } from '../api/client'
+import { queryClient } from '../main'
 
 // Mirrors PROTECTED_SUPERADMIN_EMAIL on the backend — UI gating only,
 // every root-owner action is re-verified server-side with a password.
@@ -44,6 +45,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     const { data } = await api.post('/auth/login', { email, password })
     localStorage.setItem('access_token', data.access_token)
     localStorage.setItem('auth_user', JSON.stringify(data.user))
+    queryClient.clear()
     set({ token: data.access_token, user: data.user })
   },
 
@@ -58,6 +60,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     localStorage.removeItem('auth_user')
     sessionStorage.removeItem('superadmin_token')
     sessionStorage.removeItem('impersonation')
+    queryClient.clear()
     set({ token: null, user: null, impersonating: null })
   },
 
@@ -77,6 +80,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     const imp = { tenantName, userEmail }
     sessionStorage.setItem('impersonation', JSON.stringify(imp))
     localStorage.setItem('access_token', token)
+    queryClient.clear()
     set({ token, impersonating: imp })
     await get().refreshUser()
   },
@@ -90,6 +94,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       return
     }
     localStorage.setItem('access_token', original)
+    queryClient.clear()
     set({ token: original, impersonating: null })
     await get().refreshUser()
   },
