@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 23 — Performance Step 3 shipped: skeletons, vendor chunk, draft-context query consolidation; session 22b — dept/SLA race fix, reply language, deadline badges, invite URL)
+**Updated:** 2026-06-11 (session 24 — verification outcomes filed; session 23 — Performance Step 3; session 22b — dept/SLA race fix, reply language, deadline badges, invite URL)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -7,11 +7,52 @@
 
 ## ▶ Next session — start here
 
-> **📌 Scope freeze (2026-06-10):** Diederik's checklist is final for now — **no new tasks
-> will be added for the time being.** Everything below is already filed; the job is to
-> verify and execute, not to expand scope.
+### 🐞 Bugs confirmed in session-24 verification (fix first, in this order)
 
-### ▶ Session 22 manual steps (Diederik)
+1. **Compose + attachment send broken** — sending a compose mail that has an attachment
+   fails. The undo queue path in `queue_send` / `ComposeModal` likely does not correctly
+   handle the `FormData` multipart body when attachments are present (same class of bug as
+   the reply `Content-Type` chain from session 15). Fix and verify live.
+
+2. **Reply attachment not delivered** — attaching a file to a reply and sending it results
+   in the recipient not receiving the attachment. Check `mailer.py` Resend attachment
+   payload and the `pending_sends` flush path for the reply kind.
+
+3. **Inbound attachment arrives empty** — a mail with an attachment lands in the Yippie
+   inbox but the attachment is empty/zero-byte. Check `email_poller.py` `_fetch_email_data`
+   attachment extraction and the Resend receiving API response shape.
+
+4. **"Email sent" bar persists after compose** — the undo/sent bar does not auto-dismiss
+   after compose send completes. The reply path already auto-dismisses; apply the same
+   logic to the compose path in `ComposeModal` / `InboxQueue.tsx`. (Extends item 47.)
+
+### 🆕 New items from session-24 verification (implement after bugs)
+
+5. **Inbox: sticky select-all + pagination (9 per page)** — the select-all button should
+   be position-fixed/sticky so it stays on screen while scrolling the mail list. Replace
+   the current scroll/load-more with paginated pages of 9 mails; add a next/prev arrow
+   control. Backend `GET /inbox/drafts` already accepts `skip`/`limit`; wire the frontend.
+
+6. **Tickets list: match inbox UI** — bring `TicketList` in line with the inbox layout:
+   same card style, sticky select-all, same 9-per-page pagination with next/prev arrows,
+   same action bar for bulk operations.
+
+7. **Ticket deadline dot redesign** (replaces the glowing number from session 22):
+   - **Red dot with count** — tickets due same day, tomorrow, or overdue.
+   - **Orange dot with count** — tickets due in 2 days.
+   - Dot sits in the Tickets sidebar nav item (replacing the current pulsing badge).
+   - **Per-tenant thresholds** — the red and orange day-thresholds are configurable in
+     Settings → (new) Notifications section. Default: red ≤1 day, orange = 2 days.
+     Backend: two new `Tenant` columns (`deadline_red_days INT DEFAULT 1`,
+     `deadline_orange_days INT DEFAULT 2`); returned in `GET /api/v1/tenant/config`;
+     `GET /tickets/deadline-count` accepts the thresholds (or reads them from the tenant).
+
+8. **Hotkeys on/off toggle** — add a "Keyboard shortcuts" toggle to Profile settings
+   (`/settings/profile`). Persisted per user (`users.hotkeys_enabled BOOL DEFAULT true`).
+   Frontend reads the setting from the user object and conditionally registers/skips the
+   `keydown` listeners. Superadmins and admins see this toggle; agents too.
+
+### ▶ Session 22 manual steps (Diederik) — still pending
 
 1. **Set `CLIENT_BASE_URL` in Railway** — fixes invite links pointing to wrong URL:
    - Dev Sandbox env: `CLIENT_BASE_URL=https://sandbox.getyippie.com`
@@ -426,7 +467,7 @@ and the "could not undo — email may already be sent" message is gone.
 **auto-dismiss** — Diederik re-filed this unchecked ("make email sent window disappear
 automatically after undo send is done").
 
-### 18. Attachments ✓ DONE + VERIFIED (2026-06-10)
+### 18. Attachments ✓ DONE + VERIFIED (2026-06-10) — NEW BUGS FOUND (session 24)
 - Reply panel: file picker + chips (`DraftReview.tsx` ~line 778 ✓)
 - Inbound messages: attachment list + download proxy via Resend
 - Backend: `attachments_json` column, `mailer.py` sends via Resend attachment API
@@ -437,6 +478,11 @@ automatically after undo send is done").
 
 **Still open (→ item 45):** attachment **chips dropdown** (list all attached files + `x` to
 remove each) and reliable display of inbound attachments — Diederik re-filed unchecked.
+
+**New bugs from session-24 verification (→ Next session bugs 1–3):**
+- **Compose + attachment send fails** — sending compose mail with an attachment is broken.
+- **Reply attachment not delivered** — recipient does not receive the file.
+- **Inbound attachment arrives empty** — file shows in Yippie inbox but is zero-byte/blank.
 
 ### 19. Modules order matches sidebar ✓ DONE — fixed at the source, no manual action needed
 
@@ -451,17 +497,21 @@ remove each) and reliable display of inbound attachments — Diederik re-filed u
   confirm dialog on ticket detail, admin+ only, SLA jobs skip deleted tickets.
 - ✅ **Verified by Diederik 2026-06-10.**
 
-### 34. Ticket deadline reminder popup ✓ DONE (session 22)
+### 34. Ticket deadline reminder popup ✓ DONE (session 22) — REDESIGNED (session 24)
 - TicketDetail shows amber/red banner when `sla_due_at` ≤24h or overdue
 - TicketList shows colored SLA warning per card
-- Sidebar shows pulsing red badge on Tickets nav with count of near-deadline tickets
-- `GET /tickets/deadline-count` backend endpoint (lightweight, no migration needed)
+- ~~Sidebar shows pulsing red badge on Tickets nav with count of near-deadline tickets~~ →
+  **Redesigned (session 24):** no glowing number — instead a **red dot with count** for
+  overdue/same-day/next-day, and an **orange dot with count** for 2-days-out. Thresholds
+  are configurable per tenant in Settings → Notifications. See Next session item 7.
+- `GET /tickets/deadline-count` backend endpoint needs to accept/use the per-tenant thresholds.
 
-### 35. Hotkey for send — `Cmd/Ctrl + Enter`
-- In both compose modal and reply panel: `Cmd+Enter` (Mac) / `Ctrl+Enter` (Windows) triggers send ✓ DONE (session 17)
+### 35. Hotkey for send — `Cmd/Ctrl + Enter` ✓ DONE (session 17)
+- In both compose modal and reply panel: `Cmd+Enter` (Mac) / `Ctrl+Enter` (Windows) triggers send
 - Should respect the same undo queue flow (item 17)
 - **Backlog — more hotkeys:** `c` compose, `r` reply, `e` archive/process, `j`/`k`
   next/prev mail, `/` focus search, `Esc` close panel/modal, `g i` go to inbox
+- **Hotkeys on/off per user** — new Profile toggle (session 24, → Next session item 8)
 
 Shipped in `7967bac`. `Sidebar.tsx` renders nav items by iterating `config.enabled_modules`.
 The catch was modules were saved in toggle-click order, not canonical order.
@@ -483,10 +533,11 @@ immediately — **no per-tenant action required**.
   - **Bin emptied after 20 working days** (show a note explaining this).
   - Scheduler jobs perform both moves; spam senders also blocked in Resend (item 12).
 
-### 43. Ticket deadline reminders (extends item 34)
+### 43. Ticket deadline reminders (extends item 34) — REDESIGNED (session 24)
 - Small pop-up/toast reminder when a ticket is close to its `follow_up_at`.
-- **Sidebar badge:** glowing-red dot on the Tickets nav item with the **count** of
-  tickets near deadline.
+- **Sidebar badge redesign:** ~~glowing-red dot~~ → **red dot with count** (overdue /
+  same-day / next-day) + **orange dot with count** (2 days out). No glow animation.
+  Thresholds configurable per tenant. See Next session item 7.
 
 ### 44. Reply subject language (extends item 15) ✓ FIXED (session 22)
 - Reply subject now uses `msg.subject` (original email's subject in original language)
@@ -509,6 +560,8 @@ immediately — **no per-tenant action required**.
 - Item 17 implements most of this and undo itself is ✅ **verified working (2026-06-10)** —
   remaining: the cosmetic deltas above + **auto-dismiss of the undo window after a
   successful undo** (re-filed unchecked).
+- **"Email sent" bar persists after compose** — confirmed broken in session-24 verification;
+  the compose path does not auto-dismiss after send. Fix tracked as Next session bug 4.
 
 ### 48. Clickable rows everywhere (UX convention)
 - Make the **whole ticket bar clickable** to open it, mirroring how mail opens.
