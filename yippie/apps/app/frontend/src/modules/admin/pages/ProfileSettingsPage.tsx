@@ -7,6 +7,7 @@ export default function ProfileSettingsPage() {
   const { user, refreshUser } = useAuth()
   const [personalEmail, setPersonalEmail] = useState(user?.inbound_email ?? user?.reply_from_email ?? '')
   const [signature, setSignature] = useState(user?.email_signature ?? '')
+  const [hotkeysEnabled, setHotkeysEnabled] = useState(user?.hotkeys_enabled !== false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
@@ -16,6 +17,7 @@ export default function ProfileSettingsPage() {
       reply_from_email: personalEmail.trim() || null,
       inbound_email: personalEmail.trim() || null,
       email_signature: signature.trim() || null,
+      hotkeys_enabled: hotkeysEnabled,
     }).then(r => r.data),
     onSuccess: async () => {
       await refreshUser()
@@ -74,6 +76,24 @@ export default function ProfileSettingsPage() {
           <p className="mt-1.5 text-xs text-slate-400">
             Added automatically below your message when you compose or reply. You can still edit or remove it per email.
           </p>
+        </div>
+
+        <div className="flex items-start justify-between gap-4 border-t border-slate-100 pt-5">
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Keyboard shortcuts</label>
+            <p className="text-xs text-slate-400 max-w-sm">
+              When on, shortcuts like <span className="font-medium text-slate-500">Cmd/Ctrl + Enter</span> to send are active. Turn off to disable all keyboard shortcuts.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={hotkeysEnabled}
+            onClick={() => setHotkeysEnabled(v => !v)}
+            className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${hotkeysEnabled ? 'bg-yippie' : 'bg-slate-300'}`}
+          >
+            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${hotkeysEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+          </button>
         </div>
 
         {error && <p className="text-xs text-red-500">{error}</p>}

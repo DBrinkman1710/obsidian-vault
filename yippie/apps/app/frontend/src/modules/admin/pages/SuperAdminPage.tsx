@@ -397,9 +397,27 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-type EditTab = 'info' | 'modules' | 'branding'
+type EditTab = 'info' | 'modules' | 'branding' | 'actions'
 
-function EditClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+function EditClientModal({
+  tenant,
+  onClose,
+  isRootOwner,
+  togglingActive,
+  onToggleActive,
+  onCopyEmail,
+  copied,
+  onRequestDelete,
+}: {
+  tenant: Tenant
+  onClose: () => void
+  isRootOwner: boolean
+  togglingActive: boolean
+  onToggleActive: () => void
+  onCopyEmail: () => void
+  copied: boolean
+  onRequestDelete: () => void
+}) {
   const qc = useQueryClient()
   const [tab, setTab] = useState<EditTab>('info')
   const [form, setForm] = useState({
@@ -438,6 +456,7 @@ function EditClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () => v
     { key: 'info', label: 'Info' },
     { key: 'modules', label: 'Modules' },
     { key: 'branding', label: 'Branding' },
+    { key: 'actions', label: 'Actions' },
   ]
 
   return (
@@ -561,6 +580,58 @@ function EditClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () => v
             </>
           )}
 
+          {tab === 'actions' && (
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">{tenant.is_active ? 'Active' : 'Inactive'}</p>
+                  <p className="text-xs text-slate-400">{tenant.is_active ? 'Users can log in and send mail.' : 'Login is blocked for this client.'}</p>
+                </div>
+                <button
+                  onClick={() => { onToggleActive(); onClose() }}
+                  disabled={togglingActive}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                >
+                  {tenant.is_active
+                    ? <><ToggleRight size={14} className="text-emerald-500" /> Deactivate</>
+                    : <><ToggleLeft size={14} className="text-slate-400" /> Activate</>}
+                </button>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-700">Inbound email</p>
+                  <p className="text-xs text-slate-400 truncate">{tenant.inbound_email || 'Not set'}</p>
+                </div>
+                <button
+                  onClick={onCopyEmail}
+                  disabled={!tenant.inbound_email}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  title={tenant.inbound_email ? `Copy ${tenant.inbound_email}` : 'No inbound email set'}
+                >
+                  {copied ? <Check size={14} className="text-emerald-500" /> : <Clipboard size={14} />}
+                  Copy
+                </button>
+              </div>
+
+              {isRootOwner && (
+                <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+                  <div>
+                    <p className="text-sm font-semibold text-red-600">Delete client</p>
+                    <p className="text-xs text-slate-400">Removes this client and all its data — irreversible.</p>
+                  </div>
+                  <button
+                    onClick={onRequestDelete}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 size={13} />
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {error && <p className="text-sm text-red-500">{error}</p>}
 
           <div className="flex gap-3 justify-end pt-2">
@@ -569,15 +640,17 @@ function EditClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () => v
               onClick={onClose}
               className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              Cancel
+              {tab === 'actions' ? 'Close' : 'Cancel'}
             </button>
-            <button
-              onClick={handleSave}
-              disabled={mutation.isPending}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
-            >
-              {mutation.isPending ? 'Saving…' : 'Save changes'}
-            </button>
+            {tab !== 'actions' && (
+              <button
+                onClick={handleSave}
+                disabled={mutation.isPending}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              >
+                {mutation.isPending ? 'Saving…' : 'Save changes'}
+              </button>
+            )}
           </div>
         </div>
       </div>
@@ -1106,25 +1179,6 @@ export default function SuperAdminPage() {
                             Set demo
                           </button>
                         )}
-                        {status === 'inactive' && (
-                          <button
-                            onClick={() => toggleActiveMutation.mutate({ id: t.id, is_active: true })}
-                            disabled={toggleActiveMutation.isPending}
-                            className="px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
-                          >
-                            Activate
-                          </button>
-                        )}
-                        {status !== 'inactive' && (
-                          <button
-                            onClick={() => toggleActiveMutation.mutate({ id: t.id, is_active: !t.is_active })}
-                            disabled={toggleActiveMutation.isPending}
-                            className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-                            title={t.is_active ? 'Deactivate' : 'Activate'}
-                          >
-                            {t.is_active ? <ToggleRight size={14} className="text-emerald-500" /> : <ToggleLeft size={14} className="text-slate-400" />}
-                          </button>
-                        )}
                         {t.is_active && (
                           <button
                             onClick={() => impersonateMutation.mutate(t.id)}
@@ -1136,32 +1190,13 @@ export default function SuperAdminPage() {
                             View as
                           </button>
                         )}
-                        {t.inbound_email && (
-                          <button
-                            onClick={() => copyInboundEmail(t.slug, t.inbound_email)}
-                            className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                            title={`Copy inbound email: ${t.inbound_email}`}
-                          >
-                            {copiedSlug === t.slug
-                              ? <Check size={14} className="text-emerald-500" />
-                              : <Clipboard size={14} />}
-                          </button>
-                        )}
+                        {/* Active/Inactive toggle, Copy email and Delete now live in the Edit modal's Actions tab */}
                         <button
                           onClick={() => setEditingTenant(t)}
                           className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                         >
                           Edit
                         </button>
-                        {isRootOwner && (
-                          <button
-                            onClick={() => setDeletingTenant(t)}
-                            className="px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-                            title="Delete this client and all its data — irreversible"
-                          >
-                            <Trash2 size={13} />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
@@ -1175,7 +1210,18 @@ export default function SuperAdminPage() {
       <ResendDiagnosticPanel />
 
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}
-      {editingTenant && <EditClientModal tenant={editingTenant} onClose={() => setEditingTenant(null)} />}
+      {editingTenant && (
+        <EditClientModal
+          tenant={editingTenant}
+          onClose={() => setEditingTenant(null)}
+          isRootOwner={isRootOwner}
+          togglingActive={toggleActiveMutation.isPending}
+          onToggleActive={() => toggleActiveMutation.mutate({ id: editingTenant.id, is_active: !editingTenant.is_active })}
+          onCopyEmail={() => editingTenant.inbound_email && copyInboundEmail(editingTenant.slug, editingTenant.inbound_email)}
+          copied={copiedSlug === editingTenant.slug}
+          onRequestDelete={() => { setEditingTenant(null); setDeletingTenant(editingTenant) }}
+        />
+      )}
       {deletingTenant && <DeleteClientModal tenant={deletingTenant} onClose={() => setDeletingTenant(null)} />}
       {viewingUsers && <TenantUsersModal tenant={viewingUsers} onClose={() => setViewingUsers(null)} />}
     </div>
