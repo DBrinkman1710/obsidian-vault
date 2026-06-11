@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 24 — Performance Step 4 shipped: trgm contact search, lazy compose picker, pool tuning, RLS role-switch dropped; API diagnostics bar compacted)
+**Updated:** 2026-06-11 (session 25 — outbound email quality: HTML email layout (item 46) + per-user email signatures shipped)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -112,8 +112,9 @@
   identity; shared address belongs to the tenant.
 - **Move Departments onto the Team page** — one settings page: user list (large) + departments
   (smaller section) side by side.
-- **Email signatures per user** — compose/reply appends the user's signature; editable on
-  Profile. (New item.)
+- **Email signatures per user** — ✅ DONE (session 25): `users.email_signature` (migration
+  `d1e2f3a4b5c6`), editable on Profile; pre-filled (editable) into compose + reply, appended
+  to AI-generated replies/forwards.
 - **Remove the "Promote to superadmin" block from the Clients page** — superadmin management
   lives in Settings → Superadmins now.
 - **Onboarding mails still carry devsandbox links** — confirms the invite-link base URL bug
@@ -523,9 +524,13 @@ immediately — **no per-tenant action required**.
   **`x`** to remove each. Inbound attachments should also reliably appear on
   received mail (verify item 18 backend end-to-end).
 
-### 46. Outbound email formatting (nice HTML)
+### 46. Outbound email formatting (nice HTML) ✓ DONE (session 25)
 - Proper HTML email templates/layout for outbound mail so it looks polished
   (header, spacing, signature). Precursor to the full template system (Phase 9).
+- Shipped: `core/email_html.py` renders every outbound mail (reply, compose,
+  forward, invite, welcome, password reset) into an inline-styled HTML shell —
+  tenant accent bar + name header, paragraphs, clickable links, "Sent with
+  Yippie" footer. Plain text always sent alongside as fallback.
 
 ### 47. Undo-send UI polish (reconcile item 17)
 - Replace "email sent" headline with **"Yippie"**; show "email sent" small + grey
@@ -899,6 +904,35 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ## Session log
 
 ---
+
+### Session 25 — 2026-06-11 (outbound email quality: HTML layout + per-user signatures)
+
+Performance done, remaining bugs are sandbox-verification-only → picked the
+highest-leverage filed dev items: item 46 + email signatures (they pair: the
+signature renders inside the HTML layout).
+
+- **HTML email layout (item 46)** — new `app/core/email_html.py`:
+  `render_email_html(body_text, tenant_name, primary_color)` wraps the plain
+  text in a deliverability-safe inline-styled shell (tenant accent bar +
+  name header, `<p>` paragraphs from blank-line splits, auto-linked URLs,
+  "Sent with Yippie" footer). No template engine — one f-string until Phase 9.
+  `send_email()` gained an optional `html=` param; `"text"` always sent too.
+  Wired everywhere: `flush_pending_sends` (reply + compose; tenant fetched
+  once per tenant_id — replaces the demo-only cache), `forward_draft`,
+  invite mail, welcome-to-inbox mail, forgot-password mail.
+- **Per-user email signatures** — `users.email_signature` (Text, migration
+  `d1e2f3a4b5c6`, idempotent ADD COLUMN IF NOT EXISTS; single head after
+  `c0d1e2f3a4b5`). `UserSelfUpdate`/`UserOut` + `/auth/me` PATCH handle it;
+  Profile page has a signature textarea. Compose + reply textareas pre-fill
+  `\n\n{signature}` (visible and editable — what you see is the text part);
+  AI suggest-reply / forward / compose-suggest append the signature below the
+  generated text. No double-append: the HTML renderer styles whatever text is
+  in the body, signature included.
+- Verified: backend `py_compile` clean; renderer output eyeballed (escaping,
+  links, paragraphs); frontend `tsc --noEmit` + `vite build` clean.
+- **For Diederik (sandbox):** set a signature on Profile → compose + reply
+  should pre-fill it; received mail should be the new HTML layout (accent bar
+  in tenant color) in Gmail/Apple Mail; invite + reset mails get clickable links.
 
 ### Session 24 — 2026-06-11 (Performance Step 4: trgm search, lazy compose, pool tuning, RLS role-switch dropped; API diagnostics compacted)
 

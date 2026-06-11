@@ -608,7 +608,9 @@ async def cancel_send(db: AsyncSession, draft_id: uuid.UUID, tenant_id: uuid.UUI
 
 async def flush_pending_sends(db: AsyncSession) -> None:
     """Dispatch all queued sends whose send_at has passed. Called by background scheduler."""
+    from app.core.email_html import render_email_html
     from app.core.mailer import send_email, ResendNotConfiguredError
+    from app.core.models import Tenant
     from app.modules.activity import service as activity_service
 
     now = datetime.now(timezone.utc)
@@ -644,15 +646,22 @@ async def flush_pending_sends(db: AsyncSession) -> None:
         await db.delete(p)
     await db.commit()
 
-    demo_cache: dict = {}
+    # One tenant fetch per tenant: demo flag (suppression) + name/color (HTML layout)
+    tenant_cache: dict = {}
     for c in claimed:
         try:
-            if c["tenant_id"] not in demo_cache:
-                demo_cache[c["tenant_id"]] = await tenant_is_demo(db, c["tenant_id"])
-            suppressed = demo_cache[c["tenant_id"]]
+            if c["tenant_id"] not in tenant_cache:
+                tenant_cache[c["tenant_id"]] = await db.get(Tenant, c["tenant_id"])
+            tenant = tenant_cache[c["tenant_id"]]
+            suppressed = bool(tenant and tenant.is_demo)
             if not suppressed:
                 attachments = json.loads(c["attachments_json"]) if c["attachments_json"] else None
-                await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None)
+                html_body = render_email_html(
+                    c["reply_text"],
+                    tenant_name=tenant.name if tenant else None,
+                    primary_color=tenant.primary_color if tenant else None,
+                )
+                await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body)
             payload = {"subject": c["subject"], "to": c["to_email"], "preview": c["reply_text"][:120]}
             if suppressed:
                 payload["demo_suppressed"] = True

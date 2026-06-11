@@ -146,7 +146,6 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
   const qc = useQueryClient()
   const [recipients, setRecipients] = useState<{ email: string; label: string }[]>([])
   const [subject, setSubject] = useState('')
-  const [body, setBody] = useState('')
   const [aiPrompt, setAiPrompt] = useState('')
   const [showAiPrompt, setShowAiPrompt] = useState(false)
   const [composeFiles, setComposeFiles] = useState<File[]>([])
@@ -157,6 +156,8 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
   const [undoNotice, setUndoNotice] = useState(false)
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const { user } = useAuth()
+  // Pre-fill the user's signature (editable per email — what you see is what's sent)
+  const [body, setBody] = useState(user?.email_signature ? `\n\n${user.email_signature}` : '')
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
@@ -171,7 +172,7 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
     mutationFn: () => api.post('/inbox/compose/suggest', { prompt: aiPrompt }).then(r => r.data),
     onSuccess: (data) => {
       if (data.subject) setSubject(data.subject)
-      if (data.body) setBody(data.body)
+      if (data.body) setBody(user?.email_signature ? `${data.body}\n\n${user.email_signature}` : data.body)
       setShowAiPrompt(false)
       setAiPrompt('')
     },

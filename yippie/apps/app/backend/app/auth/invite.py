@@ -8,6 +8,7 @@ from datetime import timedelta
 
 from app.auth.tokens import create_signed_token
 from app.config import get_settings
+from app.core.email_html import render_email_html
 from app.core.mailer import send_email
 
 INVITE_TTL = timedelta(days=7)
@@ -41,7 +42,12 @@ async def send_invite_email(
         f"Team Yippie\n\n"
         f"If you weren't expecting this email, you can safely ignore it."
     )
-    await send_email(to=to, subject=f"Set your password — your {tenant_name} account on Yippie", body=body)
+    await send_email(
+        to=to,
+        subject=f"Set your password — your {tenant_name} account on Yippie",
+        body=body,
+        html=render_email_html(body, tenant_name="Yippie"),
+    )
 
 
 async def send_welcome_to_inbox(tenant_inbound_email: str, tenant_name: str) -> None:
@@ -68,4 +74,9 @@ async def send_welcome_to_inbox(tenant_inbound_email: str, tenant_name: str) -> 
         f"Take back the time that matters,\n"
         f"Team Yippie"
     )
-    await send_email(to=tenant_inbound_email, subject="Welcome to Yippie 👋", body=body)
+    await send_email(
+        to=tenant_inbound_email,
+        subject="Welcome to Yippie 👋",
+        body=body,
+        html=render_email_html(body, tenant_name="Yippie"),
+    )
