@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (restructured into 3 model-tagged tiers)
+**Updated:** 2026-06-11 (restructured into 3 model-tagged tiers; reconciled against the codebase — many items moved to Done)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -20,19 +20,25 @@ Item numbers (`[11]`, `[38c]`, …) are kept so each item still maps to its hist
 **Session log** (Appendix A). Finished work is collapsed under **✅ Done**; full architecture /
 environment / deploy reference lives in **Appendix B**.
 
+> **Note (2026-06-11):** the tiers were reconciled against the actual `apps/app` code. A batch of
+> items previously listed as open turned out to be shipped (impersonation, bulk bin/spam, retention
+> scheduler, `is_active`/`go_live_at` enforcement, per-tenant webhook routing, undo-send polish,
+> attachment chips, response-template backend, …) and were moved to **✅ Done**. Only verified-open
+> work remains in the tiers below.
+
 ---
 
 ## ▶ Next session — start here
 
 > **📌 Scope freeze (2026-06-10):** the checklist is final for now — verify and execute, don't expand scope.
 
-**Verify in sandbox (live testing needed):**
+**Verify in sandbox (code is shipped — confirm behaviour live):**
 - Dept + SLA saves correctly on approve (pick dept + custom SLA → check created ticket)
 - Reply subject stays in original language (reply to a Dutch email) — `[44]`
-- "Send cancelled" undo window auto-dismisses — `[47]`
-- `Cmd/Ctrl+Enter` sends in compose + reply — `[35]`
-- Scroll-only inbox layout + larger compose — `[9]`
-- End-to-end auth flows: team invite → register → login; forgot/reset password; impersonation; change own password
+- "Send cancelled" undo window auto-dismisses — `[47]` (shipped)
+- `Cmd/Ctrl+Enter` sends in compose + reply — `[35]` (shipped)
+- Scroll-only inbox layout + larger compose — `[9]` (shipped)
+- End-to-end auth flows: team invite → register → login; forgot/reset password; impersonation (`[23]`, shipped); change own password (shipped)
 
 **Bugs still open (live verification):**
 - **New agent arrived as admin** — re-invite a fresh address as agent, register via that exact email, check the role (code-verified clean session 19; most likely an older invite token).
@@ -62,90 +68,79 @@ causes and file refs are preserved in Appendix A (sessions 22–24). No remainin
 
 ## 🟣 Tier 1 — Big, complicated & creative → **Fable**
 
-The heavy lifts: architecture-critical correctness, brand-new modules, cross-cutting features,
-and the creative/marketing work.
-
-### Architecture & multi-tenant correctness
-- **Per-tenant webhook routing** — `Fable` — `resolve_tenant_uuid()` (`core/tenant.py:19-29`) has a literal `TODO` and routes **all** inbound email/webhooks to the first tenant in the DB, silently misrouting every other client. Fix to look up tenant by `inbound_email`. Blocks onboarding a 2nd client.
-- **PostgreSQL RLS policies** — `Fable` — RLS scaffolded (`set_tenant_context` sets `app.current_tenant_id`) but **no policies are enforced yet**. Write the policies as defense-in-depth.
-- **Per-tenant custom domain** — `Fable` — `acme.getyippie.com` → shared Railway service (subdomain/slug-based tenant routing; no public slug-config lookup exists yet).
-- **Customer data + AI briefing** *(architecture decision)* — `Fable` — define where full contact history is stored; the AI briefing must pull complete history.
-- **Mobile web** — `Fable` — responsive layout (sandbox + devsandbox first).
-- **Billing / plans per client** — `Fable` — `Tenant.plan` field gating advanced features.
+The heavy lifts: brand-new modules, cross-cutting features, and the creative/marketing work.
 
 ### New modules (Phase 10)
-- **Email tracking module** — `Fable` — `emailtracking` module: opens/clicks/delivery per outbound mail via Resend webhooks (`email.opened/clicked/bounced`); per-email status in Inbox/Sent; superadmin enable/disable per tenant.
-- **AI tools module** — `Fable` — `aitools` module: summarise contact history, auto-categorise tickets, draft department responses; per-tenant toggle.
-- **Calendar module** — `Fable` — `calendar` module: agent calendar of `follow_up_at` deadlines + standalone events tied to a contact/ticket; per-tenant toggle.
-- **Pipeline module** — `Fable` — client-defined pipeline stages; customers auto-labeled by stage (builds on `[38]`); time-per-stage tracking; stage-triggered automated emails; per-tenant toggle.
+- **Email tracking module** — `Fable` — *not built.* `emailtracking` module: opens/clicks/delivery per outbound mail via Resend webhooks (`email.opened/clicked/bounced`); per-email status in Inbox/Sent; superadmin enable/disable per tenant.
+- **Calendar module** — `Fable` — *not built.* `calendar` module: agent calendar of `follow_up_at` deadlines + standalone events tied to a contact/ticket; per-tenant toggle.
+- **Pipeline module** — `Fable` — *not built.* Client-defined pipeline stages; customers auto-labeled by stage (builds on `[38]`); time-per-stage tracking; stage-triggered automated emails; per-tenant toggle.
+- **AI tools module** — `Fable` — *partial:* an `ai` module slug exists in `enabled_modules` (migration `d3e4f5a6b7c8`, `aitools` later renamed to `ai`) but verify what it actually does. Build out: summarise contact history, auto-categorise tickets, draft department responses; per-tenant toggle.
 
 ### Email templates (Phase 9 — creative)
-- **[Phase 9 A/B/C] Email template system** — `Fable` — Resend-registered reusable templates referenced by ID; `/settings/templates` CRUD (admin + superadmin); "Insert template" in compose/reply with **AI-recommended** template based on the received email; company-wide + personal templates.
+- **[Phase 9] Template UX + AI insertion** — `Fable` — *backend partially exists* (`ResponseTemplate` model + `GET/POST /templates` in the tickets module). Still to build: `/settings/templates` CRUD page, "Insert template" in compose/reply, **AI-recommended** template based on the received email, company-wide + personal templates, and (optional) Resend-registered templates by ID.
 
 ### Contacts — workflow & data model (big)
-- **[36] Company grouping for contacts** — `Fable` — new `Company` entity (name, domain, notes) contacts belong to; company badge + filter/group; composing to a company auto-selects all its contacts.
-- **[38] Contact labels** — `Fable` — tenant-defined labels so each client embeds **their own** workflow (`potential client`, `process step 1`, `after sales`, `potential client: demo`); CRUD in settings; assign 1+ per contact; filter by label; bulk-label from multi-select (`[20]`). Foundation for the Pipeline module + demo flow.
-- **[30] Mail-all / broadcast system** — `Fable` — `POST /admin/tenants/{id}/broadcast` (superadmin), batch send to all tenant contacts via Resend; needs rate limiting + opt-out tracking.
+- **[36] Company grouping for contacts** — `Fable` — *partial:* `company` is only a string field on Contact. Build a real `Company` entity (name, domain, notes) contacts belong to; company badge + filter/group; composing to a company auto-selects all its contacts.
+- **[38] Contact labels** — `Fable` — *partial:* a `tags` array exists on Contact but there's no label model, CRUD, or filtering. Build tenant-defined labels so each client embeds **their own** workflow (`potential client`, `process step 1`, `after sales`, `potential client: demo`); CRUD in settings; assign 1+ per contact; filter by label; bulk-label from multi-select (`[20]`). Foundation for the Pipeline module + demo flow.
+- **[30] Mail-all / broadcast system** — `Fable` — *not built.* `POST /admin/tenants/{id}/broadcast` (superadmin), batch send to all tenant contacts via Resend; needs rate limiting + opt-out tracking.
 
 ### Demo provisioning (Phase 12 — cross-cutting)
-- **[Phase 12] Demo-request → auto-provisioned demo** — `Fable` — public request-demo form → auto-create `is_demo=true` tenant in live → set-password invite → 7-day auto-inactivate expiry job (mirror the `go_live_at` scheduler) → notify `diederik@` → save prospect as Contact labeled "potential client: demo" → open a 3-day follow-up ticket. Plus **build-first, invite-later**: create the tenant in demo with no admin, send the invite from Settings when ready, then flip to live. Reuses `auth/invite.py`, `auth/tokens.py`, `admin/service.py create_tenant`.
+- **[Phase 12] Demo-request → auto-provisioned demo** — `Fable` — *foundations exist* (demo mode blocks real sends; `go_live_job` scheduler flips demo→active). Still to build: public request-demo form → auto-create `is_demo=true` tenant in live → set-password invite → 7-day auto-inactivate expiry job → notify `diederik@` → save prospect as Contact labeled "potential client: demo" → open a 3-day follow-up ticket. Plus **build-first, invite-later** (create in demo with no admin; send invite from Settings when ready; then flip to live). Reuses `auth/invite.py`, `admin/service.py create_tenant`.
 
 ### Onboarding (big)
-- **[21] Client onboarding wizard** — `Fable` — guided multi-step create flow in SuperAdminPage: company+contact+admin email → modules → branding → extra admins → demo/go-live; invite email on creation. (Partial wizard shipped session 17; this is the full guided redesign.)
+- **[21] Client onboarding wizard** — `Fable` — *partial* (a create flow shipped session 17). Full guided multi-step redesign: company+contact+admin email → modules → branding → extra admins → demo/go-live; invite email on creation.
+
+### Architecture & infra
+- **PostgreSQL RLS policies** — `Fable` — *partial:* `set_tenant_context` sets `app.current_tenant_id` and an `enable_rls` migration + `app_user` grants exist, but the actual row-level **policies aren't enforced yet**. Write + enable them as defense-in-depth.
+- **Per-tenant custom domain** — `Fable` — *not built.* `acme.getyippie.com` → shared Railway service (subdomain/slug-based tenant routing; no public slug-config lookup before login).
+- **Mobile web** — `Fable` — *not built.* Responsive layout (sandbox + devsandbox first).
+- **Billing / plans per client** — `Fable` — billing module (invoices/subscriptions) exists; still need a `Tenant.plan` field that **gates advanced features**.
+- **Customer data + AI briefing** *(architecture decision)* — `Fable` — define where full contact history is stored; the AI briefing (already running) must pull complete history.
 
 ### Marketing site — creative (Phase 11)
-- **[Phase 11 A] Copy & branding** — `Fable` — hero "Take back the time that matters."; add the support-automation hero line; real logo (replace placeholder); "Sign up" → "Request demo" (Phase 12); "Start for free" also routes to demo-request.
-- **[Phase 11 B] The Hour Counter (live ticker)** — `Fable` — animated count-up of total hours Yippie has saved globally; public aggregate endpoint (tickets-automated × avg-handle-time) with a configurable base so it's never zero.
-- **[Phase 11 C — Tier 2] "Connect your inbox" ROI estimate** — `Fable` — analyze a prospect's real volume. Pursue **CSV / mailbox-export upload first** (parsed in-browser, best privacy/effort); one-time IMAP/OAuth scan next; Gmail/Workspace metadata add-on last (flag the OAuth verification + restricted-scope security assessment cost up front). "We never read your email content."
+- **[Phase 11 A] Copy & branding** — `Fable` — *not done.* Hero still reads "Give yourself back the time that matters" / CTA "Start for free". Change hero → "Take back the time that matters."; add the support-automation hero line; real logo; "Sign up" → "Request demo" (Phase 12); "Start for free" also routes to demo-request.
+- **[Phase 11 B] The Hour Counter (live ticker)** — `Fable` — *not built.* Animated count-up of total hours Yippie has saved globally; public aggregate endpoint (tickets-automated × avg-handle-time) with a configurable base so it's never zero.
+- **[Phase 11 C — Tier 2] "Connect your inbox" ROI estimate** — `Fable` — *not built.* Pursue **CSV / mailbox-export upload first** (parsed in-browser, best privacy/effort); one-time IMAP/OAuth scan next; Gmail/Workspace metadata add-on last (flag the OAuth verification + restricted-scope security assessment cost up front). "We never read your email content."
 
 ---
 
 ## 🔵 Tier 2 — Medium → **Opus**
 
-Standard feature builds and enforcement — well-scoped, mostly with existing patterns/endpoints to reuse.
+Standard feature builds — well-scoped, mostly with existing patterns/endpoints to reuse.
 
-### Multi-tenant enforcement & superadmin tooling
-- **Enforce `is_active` / `is_demo` / `go_live_at`** — `Opus` — fields exist on `Tenant` (`models.py:36-38`) and toggle in the UI but do nothing. Add login-blocking for inactive tenants, feature/data limits for demo, and a scheduler that reads/acts on `go_live_at` (60s job already exists as a model).
-- **[23] Impersonation / "view as tenant"** — `Opus` — per-client "Impersonate" in SuperAdminPage → short-lived token, JWT swap + sessionStorage + amber banner; no DB/migration. Lets Diederik debug a client without their password.
-- **[38c] Per-client edit modal (UX redesign)** — `Opus` — replace the noisy inline row options with one multi-tab Edit modal per client (status, modules, branding, info); keep only "View as" inline; multi-select still shows the bulk bar.
-- **[38d] Manage client users from the edit modal** — `Opus` — inside the Edit modal, superadmins see/add/remove/inactivate that client's users (reuse `GET /team/users`, `POST /team/invite`, `PATCH /team/users/{id}`).
-
-### Inbox
-- **[12] Select + delete / spam mails** — `Opus` — checkbox per draft card + action bar (Delete selected / Mark as spam); deleted → `DraftStatus.bin` (soft delete), spam → `DraftStatus.spam` + Resend sender block. Backend bulk-action endpoint already exists.
-- **[42] Spam/Bin retention scheduler** — `Opus` — Spam → Bin after 10 working days, Bin emptied after 20 working days (with explanatory notes in the UI); scheduler jobs perform both moves; spam senders blocked in Resend (pairs with `[12]`). Views already shipped.
-
-### Contacts & data import
-- **[20] Multi-select contacts** — `Opus` — checkbox per row + action bar (admins/superadmins): Compose (prefill emails), Export CSV, Label (`[38]`), Delete (soft, `[39]`).
-- **[39] Contact soft-delete + retention** — `Opus` — reuse the `tickets.deleted_at` pattern (session 17): retain 1 month, filter/restore within the window, scheduled purge after.
+### Contacts & data import (none of these exist yet)
 - **[29] Contact CSV import** — `Opus` — `POST /contacts/import` multipart; validate, dedupe by email, bulk insert; upload widget + results summary.
 - **[40] Contact import — JSON + Excel** — `Opus` — extend `[29]` to also accept JSON and `.xlsx` with the same validate/dedupe/summary flow.
-- **[37] Import users / staff from CSV** — `Opus` — `POST /admin/users/import` (own tenant) / `POST /admin/tenants/{id}/users/import` (superadmin); columns name/email/role; validate, dedupe, bulk-invite via Resend; upload widget in Settings → Team with results summary. (These become platform users, not contacts.)
-- **[31] Demo environments (template data)** — `Opus` — seed a template dataset per demo tenant; superadmin "Reset to demo" wipes real data and restores the template seed.
+- **[37] Import users / staff from CSV** — `Opus` — `POST /admin/users/import` (own tenant) / `POST /admin/tenants/{id}/users/import` (superadmin); columns name/email/role; validate, dedupe, bulk-invite via Resend; upload widget in Settings → Team. (Platform users, not contacts.)
+- **[20] Multi-select contacts** — `Opus` — checkbox per row + action bar (admins/superadmins): Compose (prefill emails), Export CSV, Label (`[38]`), Delete (soft, `[39]`). Backend bulk contact endpoints don't exist yet either.
+- **[39] Contact soft-delete + retention** — `Opus` — add `contacts.deleted_at` (reuse the `tickets.deleted_at` pattern, session 17): retain 1 month, filter/restore within the window, scheduled purge after.
+
+### Superadmin / client management
+- **[38c] Per-client edit modal (UX redesign)** — `Opus` — replace the noisy inline row options with one multi-tab Edit modal per client (status, modules, branding, info); keep only "View as" inline. (Today: only a module-toggle modal exists.)
+- **[38d] Manage client users from the edit modal** — `Opus` — *partial:* a separate `TenantUsersModal` already lists/adds users; the work is folding add/remove/inactivate into the unified `[38c]` Edit modal (reuse `GET /team/users`, `POST /team/invite`, `PATCH /team/users/{id}`).
+- **[31] Demo environments (template data)** — `Opus` — *partial:* demo mode exists; still need a seed template dataset per demo tenant + a superadmin "Reset to demo" that wipes real data and restores the seed.
 
 ### Branding & marketing
-- **Branding wiring into the app shell** — `Opus` — `primary_color` / `logo_url` are stored and returned by `/api/v1/tenant/config` but **no component applies them**. Wire into the sidebar logo + accent color.
-- **[Phase 11 C — Tier 1] On-page ROI calculator** — `Opus` — pure-frontend calculator (tickets/mo, avg min/ticket, staff, hourly cost, % automatable → hours & € saved + payback vs price). No data leaves the browser; feeds the Hour Counter messaging.
+- **Branding wiring into the app shell** — `Opus` — `primary_color` / `logo_url` are stored and returned by `/api/v1/tenant/config` but **no component applies them** (sidebar is hardcoded `bg-yippie`). Wire into the sidebar logo + accent color via CSS variables.
+- **[Phase 11 C — Tier 1] On-page ROI calculator** — `Opus` — pure-frontend calculator (tickets/mo, avg min/ticket, staff, hourly cost, % automatable → hours & € saved + payback). No data leaves the browser; feeds the Hour Counter messaging.
 
 ### Promotion & identity (Phase 13)
 - **Promotion: devsandbox → sandbox → live** — `Opus` — push prototype 2.0 to `dev` + `app`; set `diederik@getyippie.com` (individual) + `support@getyippie.com` (shared) on `dev`; sandbox keeps `sb-support@`.
-- **Send-from aliases + app tour** — `Opus` — add a Profile setting for extra "send from" aliases (single personal mailbox already shipped); guided in-app tour after first login (welcome email already shipped).
+- **Send-from aliases + app tour** — `Opus` — single personal mailbox already shipped (`reply_from_email`/`inbound_email`); add a Profile setting for extra "send from" aliases; build a guided in-app tour after first login (welcome email already shipped).
 
 ---
 
 ## 🟢 Tier 3 — Quick & easy wins → **Sonnet**
 
-Small, well-bounded changes — UX polish, cosmetics, and config/ops one-liners.
+Small, well-bounded changes — UX polish and config/ops one-liners.
 
-### UX polish & cosmetics
-- **[35-backlog] More hotkeys** — `Sonnet` — `c` compose, `r` reply, `e` archive/process, `j`/`k` next/prev, `/` focus search, `Esc` close, `g i` go to inbox. (`Cmd/Ctrl+Enter` send already shipped.)
-- **[43] Ticket deadline reminder toast** — `Sonnet` — small toast when a ticket nears `follow_up_at` (banners + sidebar badge already shipped in `[34]`).
-- **[45] Attachment chips UX** — `Sonnet` — dropdown listing all attached files + `x` to remove each, in compose and reply; verify inbound attachments display reliably.
-- **[47] Undo-send UI polish** — `Sonnet` — headline "Yippie" + small grey "email sent"; filling progress panel; window **auto-dismisses after a successful undo**; compose hides → shows undo bar → undo returns to the editable draft. (Undo itself verified working.)
-- **[48] Clickable rows everywhere** — `Sonnet` — make the whole ticket bar open the ticket (mirror how mail opens); adopt full-row click as a standing convention across Yippie.
-- **[9] Scroll-only inbox layout + larger compose** — `Sonnet` — cosmetic layout pass.
-- **[14] Glowing green dot in sidebar** — `Sonnet` — pulse when `isFetching`, solid when idle; make the glow more obvious and place the dot next to Inbox.
+### UX polish
+- **[35-backlog] More hotkeys** — `Sonnet` — *only `Cmd/Ctrl+Enter` exists today.* Add `c` compose, `r` reply, `e` archive/process, `j`/`k` next/prev, `/` focus search, `Esc` close, `g i` go to inbox.
+- **[43] Ticket deadline reminder toast** — `Sonnet` — *banners + sidebar badge already shipped (`[34]`);* add the small toast when a ticket nears `follow_up_at`.
+- **[48] Clickable rows everywhere** — `Sonnet` — *mostly done* (inbox cards + contact rows open on full-row click); finish the convention on any remaining lists (e.g. tickets) and treat it as standing.
 - **[8c] Status column labels** — `Sonnet` — show "Active"/"Inactive"/"Demo" as clear text labels in the Clients tab; allow changing status directly from that column.
 - **[6c] Bulk delete clients** — `Sonnet` — add a Delete action to the existing bulk status bar (stays password-gated, `[24]`).
+- **Spam → Resend sender block** — `Sonnet` — bulk "spam" already moves drafts to the spam status + retention; still add the call to block the sender in Resend (the one remaining piece of `[12]`).
 
 ### Config / ops one-liners
 - **getyippie.com 502 fix** — `Sonnet` — Cloudflare proxy toggle (orange→grey→wait→orange) for Railway domain verification.
@@ -158,11 +153,15 @@ Small, well-bounded changes — UX polish, cosmetics, and config/ops one-liners.
 
 ## ✅ Done
 
-**Foundations & infra:** Resend inbound+outbound email; 30s email poller; `is_active`/`is_demo`/`go_live_at`/`inbound_email` on Tenant; multiple admins per client; password-gated superadmin promotion; demo banner; SuperAdminPage (toggles, add admin, go-live, demo, diagnostic); Phase 1 critical bugs; all four Railway environments healthy; full **Performance initiative** (Steps 1–4).
+**Foundations & infra:** Resend inbound+outbound email; 30s email poller; APScheduler jobs (poller 30s, enrichment 10s, pending-send flush 5s, retention 1h, SLA escalation 5m, auto-close 1h, go-live 60s); all four Railway environments healthy; full **Performance initiative** (Steps 1–4).
 
-**Auth & client management:** critical path A/B/C complete — settings page (`[25]`), user registration/invite (`[26]`), forgot/reset password (`[27]`), superadmin invite flow (`[28]`), delete client / delete superadmin password-gated (`[24]`), client list filter + demo tick (`[5]`), bulk status change (`[6]`), company name in sidebar (`[7]`), hide own env (`[8a]`), scoped superadmin management (`[8b]`).
+**Multi-tenant correctness:** **per-tenant webhook routing** by `inbound_email` + slug fallback (`core/tenant.py`, `email_poller.py`) — the old "route everything to tenant #1" stub is gone; **`is_active` login-blocking**, **`is_demo`** blocking real sends, **`go_live_at`** auto-activation scheduler (`go_live_job`, 60s); `set_tenant_context()` per request.
 
-**Inbox:** stay-in-window after approve/reject + undo approve/reject (`[10]`), DeptReminderModal redesign with dept+SLA in popup (`[11]`), filter processed by status (`[13]`), language-matching replies (`[15]`), reply-to-email fixed across 4 stacked bugs (`[16]`), undo send incl. compose (`[17]`), attachments incl. compose (`[18]`), modules order at the source (`[19]`), duplicate-send fix (`[32]`), delete tickets (`[33]`), ticket deadline banners + sidebar badge (`[34]`), `Cmd/Ctrl+Enter` send (`[35]`), Sent view (`[41]`), Spam/Bin views (`[42]` views), reply-subject language (`[44]`), nice HTML outbound email (`[46]`), per-user email signatures.
+**Auth & client management:** critical path A/B/C complete — settings page (`[25]`), registration/invite (`[26]`), forgot/reset password (`[27]`), superadmin invite (`[28]`), delete client/superadmin password-gated (`[24]`), **impersonation / "view as" (`[23]`)** — `POST /admin/tenants/{id}/impersonate` 1-hr token + amber banner, client list filter + demo tick (`[5]`), bulk status change (`[6]`), company name in sidebar (`[7]`), hide own env (`[8a]`), scoped superadmin management (`[8b]`), separate add-admin + tenant-users modals.
+
+**Inbox:** stay-in-window + undo approve/reject (`[10]`), DeptReminderModal with dept+SLA in popup (`[11]`), filter processed by status (`[13]`), language-matching replies (`[15]`), reply-to-email fixed across 4 stacked bugs (`[16]`), undo send incl. compose (`[17]`) + **undo-send UI polish/auto-dismiss (`[47]`)**, attachments incl. compose (`[18]`) + **attachment chips with x-to-remove (`[45]`)**, modules order at the source (`[19]`), duplicate-send fix (`[32]`), delete tickets (`[33]`), ticket deadline banners + **glowing sidebar badge (`[34]`/`[14]`)**, `Cmd/Ctrl+Enter` send (`[35]`), **scroll-only inbox + larger compose (`[9]`)**, Sent view (`[41]`), **Spam/Bin views + bulk bin/spam action (`[12]`)**, **Spam→Bin (10d) / Bin purge (20d) retention scheduler (`[42]`)**, reply-subject language (`[44]`), nice HTML outbound email (`[46]`), per-user email signatures.
+
+**Email templates (backend):** `ResponseTemplate` model + `GET/POST /templates` in the tickets module (UI + AI insertion still in Tier 1).
 
 > Full per-item detail, bug histories and commit refs are preserved in **Appendix A — Session log**.
 
