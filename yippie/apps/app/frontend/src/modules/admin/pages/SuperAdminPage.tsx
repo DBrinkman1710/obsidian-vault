@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Users, X, Building2, UserPlus,
   ToggleLeft, ToggleRight, Rocket, FlaskConical, CheckSquare, Square,
-  Clipboard, Check, Eye, Trash2,
+  Clipboard, Check, Eye, Trash2, Pencil,
 } from 'lucide-react'
 import { api } from '../../../api/client'
 import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
@@ -410,7 +410,6 @@ type EditTab = 'info' | 'modules' | 'branding' | 'users' | 'actions'
 function EditClientModal({
   tenant,
   onClose,
-  isRootOwner,
   togglingActive,
   onToggleActive,
   onCopyEmail,
@@ -421,7 +420,6 @@ function EditClientModal({
 }: {
   tenant: Tenant
   onClose: () => void
-  isRootOwner: boolean
   togglingActive: boolean
   onToggleActive: () => void
   onCopyEmail: () => void
@@ -431,6 +429,8 @@ function EditClientModal({
   goingLive?: boolean
 }) {
   const qc = useQueryClient()
+  const { user } = useAuth()
+  const isRootOwner = user?.email?.toLowerCase() === ROOT_OWNER_EMAIL
   const [tab, setTab] = useState<EditTab>('info')
   const [form, setForm] = useState({
     name: tenant.name,
@@ -525,13 +525,23 @@ function EditClientModal({
               </div>
               <div>
                 <label className={labelCls}>Inbound email</label>
-                <input
-                  className={inputCls}
-                  type="email"
-                  value={form.inbound_email}
-                  onChange={e => setForm(p => ({ ...p, inbound_email: e.target.value }))}
-                  placeholder={`${tenant.slug}-support@getyippie.com`}
-                />
+                <div className="flex gap-2">
+                  <input
+                    className={inputCls}
+                    type="email"
+                    value={form.inbound_email}
+                    onChange={e => setForm(p => ({ ...p, inbound_email: e.target.value }))}
+                    placeholder={`${tenant.slug}-support@getyippie.com`}
+                  />
+                  {tenant.inbound_email && (
+                    <button type="button" onClick={copyInbound}
+                      className="px-3 py-2 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shrink-0"
+                      title="Copy inbound email"
+                    >
+                      {copied ? <Check size={13} className="text-emerald-500" /> : <Clipboard size={13} />}
+                    </button>
+                  )}
+                </div>
                 <p className="mt-1 text-xs text-slate-400">Address Resend routes to this client. Leave empty to disable inbound routing.</p>
               </div>
               <div>
@@ -539,6 +549,39 @@ function EditClientModal({
                 <input className={`${inputCls} opacity-50 cursor-not-allowed`} value={tenant.slug} disabled />
                 <p className="mt-1 text-xs text-slate-400">Slug cannot be changed after creation.</p>
               </div>
+              {/* Active/inactive toggle */}
+              <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</p>
+                  <p className="text-xs text-slate-400 mt-0.5">{tenant.is_active ? 'Active — clients can log in' : 'Inactive — login blocked'}</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => toggleActiveMutation.mutate(!tenant.is_active)}
+                  disabled={toggleActiveMutation.isPending}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors disabled:opacity-50"
+                  title={tenant.is_active ? 'Deactivate' : 'Activate'}
+                >
+                  {tenant.is_active
+                    ? <><ToggleRight size={14} className="text-emerald-500" /> Active</>
+                    : <><ToggleLeft size={14} className="text-slate-400" /> Inactive</>
+                  }
+                </button>
+              </div>
+              {/* Delete — root owner only */}
+              {isRootOwner && (
+                <div className="border-t border-slate-100 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => { onClose(); onDelete() }}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                  >
+                    <Trash2 size={12} />
+                    Delete client…
+                  </button>
+                  <p className="mt-1 text-xs text-slate-400">Permanently wipes all data. Cannot be undone.</p>
+                </div>
+              )}
             </>
           )}
 
@@ -987,20 +1030,13 @@ export default function SuperAdminPage() {
   const navigate = useNavigate()
   const { user, startImpersonation } = useAuth()
   const isRootOwner = user?.email?.toLowerCase() === ROOT_OWNER_EMAIL
+  const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
   const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null)
   const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(null)
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
-
-  function copyInboundEmail(slug: string, inboundEmail: string | null) {
-    if (!inboundEmail) return
-    navigator.clipboard.writeText(inboundEmail)
-    setCopiedSlug(slug)
-    setTimeout(() => setCopiedSlug(null), 2000)
-  }
 
   const { data: allTenants, isLoading } = useQuery<Tenant[]>({
     queryKey: ['superadmin-tenants'],
@@ -1073,6 +1109,12 @@ export default function SuperAdminPage() {
 
   const allSelected = visible.length > 0 && selectedIds.size === visible.length
   const someSelected = selectedIds.size > 0
+
+  function copyInboundEmail(slug: string, email: string) {
+    navigator.clipboard.writeText(email)
+    setCopiedSlug(slug)
+    setTimeout(() => setCopiedSlug(null), 2000)
+  }
 
   const FILTER_TABS: { key: FilterStatus; label: string }[] = [
     { key: 'all', label: 'All' },
@@ -1259,8 +1301,9 @@ export default function SuperAdminPage() {
                         {/* Active/Inactive toggle, Copy email and Delete now live in the Edit modal's Actions tab */}
                         <button
                           onClick={() => setEditingTenant(t)}
-                          className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                         >
+                          <Pencil size={11} />
                           Edit
                         </button>
                       </div>
@@ -1280,7 +1323,6 @@ export default function SuperAdminPage() {
         <EditClientModal
           tenant={editingTenant}
           onClose={() => setEditingTenant(null)}
-          isRootOwner={isRootOwner}
           togglingActive={toggleActiveMutation.isPending}
           onToggleActive={() => toggleActiveMutation.mutate({ id: editingTenant.id, is_active: !editingTenant.is_active })}
           onCopyEmail={() => editingTenant.inbound_email && copyInboundEmail(editingTenant.slug, editingTenant.inbound_email)}

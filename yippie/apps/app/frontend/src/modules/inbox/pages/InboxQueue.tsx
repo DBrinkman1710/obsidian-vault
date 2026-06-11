@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip, ChevronLeft, ChevronRight } from 'lucide-react'
@@ -143,31 +143,39 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
   )
 }
 
-function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: boolean }) {
-  const qc = useQueryClient()
-  const [recipients, setRecipients] = useState<{ email: string; label: string }[]>([])
-  const [subject, setSubject] = useState('')
+interface ComposeInitialState {
+  recipients: { email: string; label: string }[]
+  subject: string
+  body: string
+  usePersonalFrom: boolean
+}
+
+interface SendQueuedPayload {
+  composeId: string
+  recipientCount: number
+  restoreData: ComposeInitialState
+}
+
+function ComposeModal({
+  onClose,
+  aiEnabled,
+  onSendQueued,
+  initialState,
+}: {
+  onClose: () => void
+  aiEnabled: boolean
+  onSendQueued: (payload: SendQueuedPayload) => void
+  initialState?: ComposeInitialState | null
+}) {
+  const { user } = useAuth()
+  const [recipients, setRecipients] = useState<{ email: string; label: string }[]>(initialState?.recipients ?? [])
+  const [subject, setSubject] = useState(initialState?.subject ?? '')
   const [aiPrompt, setAiPrompt] = useState('')
   const [showAiPrompt, setShowAiPrompt] = useState(false)
   const [composeFiles, setComposeFiles] = useState<File[]>([])
-  const [result, setResult] = useState<{ sent: number; failed: string[]; demo?: boolean } | null>(null)
-  const [usePersonalFrom, setUsePersonalFrom] = useState(false)
-  const [queued, setQueued] = useState<{ composeId: string; recipients: number } | null>(null)
-  const [undoProgress, setUndoProgress] = useState(0)
-  const [undoNotice, setUndoNotice] = useState(false)
-  const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const { user } = useAuth()
-  // Pre-fill the user's signature (editable per email — what you see is what's sent)
-  const [body, setBody] = useState(user?.email_signature ? `\n\n${user.email_signature}` : '')
-
-  useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
-
-  // Auto-dismiss the success screen after 3s (demo mode stays open so agent can read it)
-  useEffect(() => {
-    if (!result || result.demo) return
-    const t = setTimeout(onClose, 3000)
-    return () => clearTimeout(t)
-  }, [result, result?.demo, onClose])
+  const [demoResult, setDemoResult] = useState<{ demo: true } | null>(null)
+  const [usePersonalFrom, setUsePersonalFrom] = useState(initialState?.usePersonalFrom ?? false)
+  const [body, setBody] = useState(initialState?.body ?? (user?.email_signature ? `\n\n${user.email_signature}` : ''))
 
   const addRecipient = (email: string, label: string) => {
     if (!recipients.find(r => r.email === email)) {
@@ -206,70 +214,28 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
     },
     onSuccess: (data) => {
       setSendError('')
-      if (data.demo) { setResult(data); return }
-      // Queued with an undo window — count down 5s on the local clock (the
-      // server holds the email 8s, so an Undo click always lands in time).
-      const start = Date.now()
-      const duration = (data.undo_seconds ?? 5) * 1000
-      const recipients = data.recipients ?? 1
-      if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
-      setQueued({ composeId: data.compose_id, recipients })
-      setUndoProgress(0)
-      undoIntervalRef.current = setInterval(() => {
-        const pct = Math.min(100, ((Date.now() - start) / duration) * 100)
-        setUndoProgress(pct)
-        if (pct >= 100) {
-          clearInterval(undoIntervalRef.current!)
-          undoIntervalRef.current = null
-          setQueued(null)
-          // The undo bar already confirmed "email sent" — just close the modal,
-          // no separate success popup. Refresh the inbox views so the Sent tab
-          // shows it without waiting for the next poll.
-          qc.invalidateQueries({ queryKey: ['drafts'] })
-          onClose()
-        }
-      }, 100)
+      if (data.demo) { setDemoResult({ demo: true }); return }
+      // Close the modal immediately; hand the undo bar off to the parent.
+      onSendQueued({
+        composeId: data.compose_id,
+        recipientCount: data.recipients ?? 1,
+        restoreData: { recipients, subject, body, usePersonalFrom },
+      })
+      onClose()
     },
   })
 
-  async function handleUndoCompose() {
-    if (!queued) return
-    try {
-      await api.post(`/inbox/drafts/${queued.composeId}/undo-send`)
-      if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
-      setQueued(null)
-      setUndoProgress(0)
-      setUndoNotice(true)
-      setTimeout(() => setUndoNotice(false), 3000)
-    } catch {
-      // Too late — the email already went out. Don't claim it was cancelled;
-      // just close the modal (no separate "sent" popup) and refresh the views.
-      if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
-      setQueued(null)
-      setUndoProgress(0)
-      qc.invalidateQueries({ queryKey: ['drafts'] })
-      onClose()
-    }
-  }
+  const canSend = recipients.length > 0 && !!subject.trim() && !!body.trim() && !sendMutation.isPending
 
-  const canSend = recipients.length > 0 && !!subject.trim() && !!body.trim() && !sendMutation.isPending && !queued
-
-  if (result) {
+  if (demoResult) {
     return (
       <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
         <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
-          <div className={`w-12 h-12 ${result.demo ? 'bg-amber-100' : 'bg-green-100'} rounded-full flex items-center justify-center mx-auto mb-4`}>
-            <Send size={20} className={result.demo ? 'text-amber-600' : 'text-green-600'} />
+          <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <Send size={20} className="text-amber-600" />
           </div>
-          <h2 className="text-lg font-bold text-slate-900 mb-2">{result.demo ? 'Demo mode' : 'Email sent'}</h2>
-          {result.demo ? (
-            <p className="text-sm text-amber-600 mb-1">This workspace is in demo mode — no email was sent.</p>
-          ) : (
-            <p className="text-sm text-slate-500 mb-1">Sent to {result.sent} recipient{result.sent !== 1 ? 's' : ''}</p>
-          )}
-          {result.failed.length > 0 && (
-            <p className="text-sm text-red-500">Failed: {result.failed.join(', ')}</p>
-          )}
+          <h2 className="text-lg font-bold text-slate-900 mb-2">Demo mode</h2>
+          <p className="text-sm text-amber-600 mb-1">This workspace is in demo mode — no email was sent.</p>
           <button onClick={onClose} className="mt-6 px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
             Done
           </button>
@@ -413,28 +379,18 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
             {user?.reply_from_email && (
               <div className="flex items-center gap-1 text-xs text-slate-500">
                 <span className="text-slate-400">From:</span>
-                <button
-                  type="button"
-                  onClick={() => setUsePersonalFrom(false)}
-                  className={`px-2 py-0.5 rounded-md transition-colors ${!usePersonalFrom ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
-                >
+                <button type="button" onClick={() => setUsePersonalFrom(false)}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${!usePersonalFrom ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
                   Shared
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setUsePersonalFrom(true)}
-                  className={`px-2 py-0.5 rounded-md transition-colors ${usePersonalFrom ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
-                >
+                <button type="button" onClick={() => setUsePersonalFrom(true)}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${usePersonalFrom ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
                   {user.reply_from_email}
                 </button>
               </div>
             )}
-            {/* Status text — kept on the left so the action buttons never shift.
-                Error takes priority, then the undo notice, then the recipient hint. */}
             {sendError
               ? <p className="text-xs text-red-500 truncate">{sendError}</p>
-              : undoNotice
-              ? <p className="text-xs text-slate-500 font-medium truncate">Send cancelled — your draft is unchanged.</p>
               : <p className="text-xs text-slate-400 truncate">
                   {recipients.length === 0 ? 'Add recipients to send' : `Sending to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}`}
                   {recipients.length > 1 ? ' via BCC' : ''}
@@ -449,35 +405,11 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
               className="inline-flex items-center justify-center gap-2 min-w-[116px] px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
             >
               <Send size={13} />
-              {queued ? 'Queued…' : sendMutation.isPending ? 'Sending…' : 'Send'}
+              {sendMutation.isPending ? 'Sending…' : 'Send'}
             </button>
           </div>
         </div>
       </div>
-
-      {/* Undo send floating bar — same pattern as the reply panel */}
-      {queued && (
-        <div className="fixed bottom-5 right-5 z-[60] bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 w-72">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="font-bold text-slate-900 text-sm">Yippie</p>
-              <p className="text-xs text-slate-400">email sent</p>
-            </div>
-            <button
-              onClick={handleUndoCompose}
-              className="px-3 py-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
-            >
-              Undo
-            </button>
-          </div>
-          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-yippie rounded-full"
-              style={{ width: `${undoProgress}%`, transition: 'width 0.1s linear' }}
-            />
-          </div>
-        </div>
-      )}
     </div>
   )
 }
@@ -503,12 +435,55 @@ export default function InboxQueue() {
   const [mailbox, setMailbox] = useState<Mailbox>('shared')
   const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all')
   const [showCompose, setShowCompose] = useState(false)
+  const [composeInitial, setComposeInitial] = useState<ComposeInitialState | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(0)
+  // Undo bar state (lives here so the modal can close immediately on send)
+  const [pendingCompose, setPendingCompose] = useState<{ composeId: string; recipientCount: number; restoreData: ComposeInitialState } | null>(null)
+  const [undoProgress, setUndoProgress] = useState(0)
+  const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const qc = useQueryClient()
   const config = useTenantConfig()
   const { user } = useAuth()
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
+
+  useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
+
+  const handleSendQueued = useCallback((payload: SendQueuedPayload) => {
+    setPendingCompose({ composeId: payload.composeId, recipientCount: payload.recipientCount, restoreData: payload.restoreData })
+    setUndoProgress(0)
+    const start = Date.now()
+    const duration = 5000
+    if (undoIntervalRef.current) clearInterval(undoIntervalRef.current)
+    undoIntervalRef.current = setInterval(() => {
+      const pct = Math.min(100, ((Date.now() - start) / duration) * 100)
+      setUndoProgress(pct)
+      if (pct >= 100) {
+        clearInterval(undoIntervalRef.current!)
+        undoIntervalRef.current = null
+        setPendingCompose(null)
+        qc.invalidateQueries({ queryKey: ['drafts'] })
+      }
+    }, 100)
+  }, [qc])
+
+  async function handleUndoCompose() {
+    if (!pendingCompose) return
+    const restoreData = pendingCompose.restoreData
+    try {
+      await api.post(`/inbox/drafts/${pendingCompose.composeId}/undo-send`)
+      if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
+      setPendingCompose(null)
+      setUndoProgress(0)
+      setComposeInitial(restoreData)
+      setShowCompose(true)
+    } catch {
+      if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
+      setPendingCompose(null)
+      setUndoProgress(0)
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+    }
+  }
 
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
     queryKey: ['drafts', mailbox, 'pending'],
@@ -555,7 +530,9 @@ export default function InboxQueue() {
     ? allProcessed
     : allProcessed.filter((d: any) => d.status === processedFilter)
 
-  const drafts = activeTab === 'pending' ? (pendingDrafts ?? []) : processedDrafts
+  const allDrafts = activeTab === 'pending' ? (pendingDrafts ?? []) : processedDrafts
+  const totalPages = Math.ceil(allDrafts.length / PAGE_SIZE)
+  const drafts = allDrafts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
   const isLoading = activeTab === 'pending' ? pendingLoading : false
 
   // Client-side pagination — the full filtered list is already in memory.
@@ -582,14 +559,14 @@ export default function InboxQueue() {
   }
 
   function toggleSelectAll() {
-    if (selected.size === drafts.length) {
+    if (selected.size === allDrafts.length) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(drafts.map((d: any) => d.id)))
+      setSelected(new Set(allDrafts.map((d: any) => d.id)))
     }
   }
 
-  // Clear selection when switching tabs
+  // Clear selection and page when switching tabs
   const handleTabSwitch = (tab: Tab) => {
     setActiveTab(tab)
     setSelected(new Set())
@@ -742,8 +719,39 @@ export default function InboxQueue() {
           </div>
         )}
 
-        {drafts.length > 0 && (
+        {allDrafts.length > 0 && (
           <>
+            {/* Sticky select-all row */}
+            <div className="sticky top-0 z-10 flex items-center justify-between py-2 bg-slate-50">
+              <button
+                onClick={toggleSelectAll}
+                className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                <CheckSquare size={14} className={selected.size === allDrafts.length && allDrafts.length > 0 ? 'text-blue-600' : ''} />
+                {selected.size === allDrafts.length && allDrafts.length > 0 ? 'Deselect all' : `Select all (${allDrafts.length})`}
+              </button>
+              {totalPages > 1 && (
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <button
+                    onClick={() => setPage(p => Math.max(0, p - 1))}
+                    disabled={page === 0}
+                    className="px-2 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    ←
+                  </button>
+                  <span>{page + 1} / {totalPages}</span>
+                  <button
+                    onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                    disabled={page >= totalPages - 1}
+                    className="px-2 py-1 rounded border border-slate-200 bg-white hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                  >
+                    →
+                  </button>
+                </div>
+              )}
+            </div>
+
+
             <div className="flex flex-col gap-3">
               {pageDrafts.map((d: any) => {
                 const isFollowUp = d.status === 'approved' && d.follow_up_at
@@ -849,7 +857,38 @@ export default function InboxQueue() {
         )}
       </div>
 
-      {showCompose && <ComposeModal onClose={() => setShowCompose(false)} aiEnabled={aiEnabled} />}
+      {showCompose && (
+        <ComposeModal
+          onClose={() => { setShowCompose(false); setComposeInitial(null) }}
+          aiEnabled={aiEnabled}
+          onSendQueued={handleSendQueued}
+          initialState={composeInitial}
+        />
+      )}
+
+      {/* Undo bar — shown after compose send, outside the modal */}
+      {pendingCompose && (
+        <div className="fixed bottom-5 right-5 z-[60] bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 w-72">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <p className="font-bold text-slate-900 text-sm">Yippie</p>
+              <p className="text-xs text-slate-400">sending to {pendingCompose.recipientCount} recipient{pendingCompose.recipientCount !== 1 ? 's' : ''}…</p>
+            </div>
+            <button
+              onClick={handleUndoCompose}
+              className="px-3 py-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+            >
+              Undo
+            </button>
+          </div>
+          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-yippie rounded-full"
+              style={{ width: `${undoProgress}%`, transition: 'width 0.1s linear' }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

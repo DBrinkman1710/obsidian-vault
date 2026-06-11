@@ -38,19 +38,10 @@ export function Sidebar() {
 
   const pendingCount: number = pendingDrafts?.length ?? 0
   const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
-  const deadlineSeverity: 'red' | 'orange' | null = deadlineData?.severity ?? null
-  const deadlineDot =
-    deadlineSeverity === 'red'
-      ? {
-          cls: 'bg-red-500 shadow-[0_0_6px_2px_rgba(239,68,68,0.7)] animate-pulse',
-          title: `${deadlineData?.red ?? 0} ticket(s) overdue or due today/tomorrow`,
-        }
-      : deadlineSeverity === 'orange'
-      ? {
-          cls: 'bg-amber-400 shadow-[0_0_5px_1px_rgba(251,191,36,0.7)]',
-          title: `${deadlineData?.orange ?? 0} ticket(s) due soon`,
-        }
-      : null
+  const redCount: number = deadlineData?.red ?? 0
+  const orangeCount: number = deadlineData?.orange ?? 0
+  const redBadge = redCount === 0 ? null : redCount > 9 ? '9+' : String(redCount)
+  const orangeBadge = orangeCount === 0 ? null : orangeCount > 9 ? '9+' : String(orangeCount)
 
   if (!config) return null
 
@@ -103,26 +94,30 @@ export function Sidebar() {
                   <div className="flex items-center gap-1.5">
                     <span
                       className={`w-2 h-2 rounded-full shrink-0 ${
-                        inboxFetching
-                          ? 'bg-emerald-300 animate-pulse shadow-[0_0_8px_2px_rgba(110,231,183,0.9)]'
-                          : 'bg-emerald-400 shadow-[0_0_5px_1px_rgba(52,211,153,0.7)]'
+                        inboxFetching ? 'bg-green-500' : 'bg-slate-400'
                       }`}
-                      title={inboxFetching ? 'Refreshing…' : 'Live'}
+                      title={inboxFetching ? 'Refreshing…' : 'Idle'}
                     />
                     {badgeLabel && (
-                      <span
-                        className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1"
-                      >
+                      <span className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
                         {badgeLabel}
                       </span>
                     )}
                   </div>
                 )}
-                {mod === 'tickets' && deadlineDot && (
-                  <span
-                    className={`w-2.5 h-2.5 rounded-full shrink-0 ${deadlineDot.cls}`}
-                    title={deadlineDot.title}
-                  />
+                {mod === 'tickets' && (redBadge || orangeBadge) && (
+                  <div className="flex items-center gap-1">
+                    {redBadge && (
+                      <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                        {redBadge}
+                      </span>
+                    )}
+                    {orangeBadge && (
+                      <span className="bg-orange-400 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                        {orangeBadge}
+                      </span>
+                    )}
+                  </div>
                 )}
               </NavLink>
             )

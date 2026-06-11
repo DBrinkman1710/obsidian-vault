@@ -131,19 +131,40 @@ async def list_tickets(
     return _enrich_tickets(tickets, dept_names, last_comments), total or 0
 
 
-async def count_near_deadline(db: AsyncSession, tenant_id: uuid.UUID, hours: int = 24) -> int:
-    """Count open/in-progress tickets whose sla_due_at is within `hours` hours."""
-    cutoff = datetime.now(timezone.utc) + timedelta(hours=hours)
-    result = await db.scalar(
+async def count_deadline_badges(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    red_hours: int = 24,
+    orange_hours: int = 48,
+) -> dict:
+    """Return red/orange badge counts for the Tickets nav item.
+
+    Red: overdue OR due within red_hours (default ≤ 1 day).
+    Orange: due within orange_hours but NOT already red.
+    Red tickets are excluded from the orange count.
+    """
+    now = datetime.now(timezone.utc)
+    red_cutoff = now + timedelta(hours=red_hours)
+    orange_cutoff = now + timedelta(hours=orange_hours)
+
+    base = and_(
+        Ticket.tenant_id == tenant_id,
+        Ticket.deleted_at.is_(None),
+        Ticket.status.in_([TicketStatus.open, TicketStatus.in_progress]),
+        Ticket.sla_due_at.isnot(None),
+    )
+
+    red_result = await db.scalar(
+        select(func.count()).where(base, Ticket.sla_due_at <= red_cutoff)
+    )
+    orange_result = await db.scalar(
         select(func.count()).where(
-            Ticket.tenant_id == tenant_id,
-            Ticket.deleted_at.is_(None),
-            Ticket.status.in_([TicketStatus.open, TicketStatus.in_progress]),
-            Ticket.sla_due_at.isnot(None),
-            Ticket.sla_due_at <= cutoff,
+            base,
+            Ticket.sla_due_at > red_cutoff,
+            Ticket.sla_due_at <= orange_cutoff,
         )
     )
-    return result or 0
+    return {"red": red_result or 0, "orange": orange_result or 0}
 
 
 async def deadline_severity(
