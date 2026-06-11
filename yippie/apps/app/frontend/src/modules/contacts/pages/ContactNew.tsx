@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { api } from '../../../api/client'
+import { LabelPicker } from '../components/LabelChip'
 
 interface FormState {
   full_name: string
@@ -10,17 +11,17 @@ interface FormState {
   phone: string
   company: string
   notes: string
-  tags: string
 }
 
 const EMPTY: FormState = {
-  full_name: '', email: '', phone: '', company: '', notes: '', tags: '',
+  full_name: '', email: '', phone: '', company: '', notes: '',
 }
 
 export default function ContactNew() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [form, setForm] = useState<FormState>(EMPTY)
+  const [labelIds, setLabelIds] = useState<string[]>([])
   const [errors, setErrors] = useState<Partial<FormState>>({})
 
   const set = (field: keyof FormState) => (
@@ -44,7 +45,7 @@ export default function ContactNew() {
         phone: form.phone.trim() || null,
         company: form.company.trim() || null,
         notes: form.notes.trim() || null,
-        tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : null,
+        label_ids: labelIds.length ? labelIds : null,
       }),
     onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ['contacts'] })
@@ -104,10 +105,8 @@ export default function ContactNew() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-            Tags <span className="font-normal text-slate-400 normal-case">(comma-separated)</span>
-          </label>
-          <input className={inputClass()} value={form.tags} onChange={set('tags')} placeholder="vip, enterprise, nl" />
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Labels</label>
+          <LabelPicker selectedIds={labelIds} onChange={setLabelIds} />
         </div>
 
         <div>

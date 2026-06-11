@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 30 — superadmins icon buttons, platform modules panel)
+**Updated:** 2026-06-11 (session 31 — [38] contact labels shipped)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -102,7 +102,7 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 
 ### Contacts — workflow & data model (big)
 - **[36] Company grouping for contacts** — `Fable` — *partial:* `company` is only a string field on Contact. Build a real `Company` entity (name, domain, notes) contacts belong to; company badge + filter/group; composing to a company auto-selects all its contacts.
-- **[38] Contact labels** — `Fable` — *partial:* a `tags` array exists on Contact but there's no label model, CRUD, or filtering. Build tenant-defined labels so each client embeds **their own** workflow (`potential client`, `process step 1`, `after sales`, `potential client: demo`); CRUD in settings; assign 1+ per contact; filter by label; bulk-label from multi-select (`[20]`). Foundation for the Pipeline module + demo flow.
+- ~~**[38] Contact labels**~~ ✅ **DONE (session 31)** — `contact_labels` + `contact_label_links` tables, label CRUD at `/contacts/labels` (admin-gated), `/settings/labels` page, label picker on new/detail contact, label-filter chips + Labels column in the contact list. Bulk-label still waits on multi-select (`[20]`). Foundation for the Pipeline module + demo flow is in place.
 - **[30] Mail-all / broadcast system** — `Fable` — *not built.* `POST /admin/tenants/{id}/broadcast` (superadmin), batch send to all tenant contacts via Resend; needs rate limiting + opt-out tracking.
 
 ### Demo provisioning (Phase 12 — cross-cutting)
@@ -194,6 +194,8 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 
 **Inbox:** stay-in-window + undo approve/reject (`[10]`), DeptReminderModal with dept+SLA in popup (`[11]`), filter processed by status (`[13]`), language-matching replies (`[15]`), reply-to-email fixed across 4 stacked bugs (`[16]`), undo send incl. compose (`[17]`) + **undo-send UI polish/auto-dismiss (`[47]`)**, attachments incl. compose (`[18]`) + **attachment chips with x-to-remove (`[45]`)**, modules order at the source (`[19]`), duplicate-send fix (`[32]`), delete tickets (`[33]`), ticket deadline banners + **glowing sidebar badge (`[34]`/`[14]`)**, `Cmd/Ctrl+Enter` send (`[35]`), **scroll-only inbox + larger compose (`[9]`)**, Sent view (`[41]`), **Spam/Bin views + bulk bin/spam action (`[12]`)**, **Spam→Bin (10d) / Bin purge (20d) retention scheduler (`[42]`)**, reply-subject language (`[44]`), nice HTML outbound email (`[46]`), per-user email signatures.
 
+**Contacts:** tenant-defined **contact labels (`[38]`, session 31)** — label CRUD in `/settings/labels`, assign per contact, filter the list by label; foundation for the Pipeline module + demo flow.
+
 **Email templates (backend):** `ResponseTemplate` model + `GET/POST /templates` in the tickets module (UI + AI insertion still in Tier 1).
 
 **AI module:** the `ai` per-tenant flag (`require_module("ai")`, on for every tenant) switches on all the AI extras across **inbox + tickets** — incoming-mail scan that **autofills the ticket fields** (`ai_suggested_subject/description/priority/category`), the inbox **briefing/customer summary** (`generate_context_summary` → `context_summary`), and the **generate / suggest-reply / improve-reply / compose-suggest** actions. Turn the module off and none of it runs. (No separate nav page — it's the AI capability layer itself.)
@@ -209,6 +211,44 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 31 — 2026-06-11 (Tier 1: [38] contact labels)
+
+Read ROADMAP + handoff; Diederik picked **[38] Contact labels** from Tier 1.
+
+**Backend:**
+- Migration `b9c0d1e2f3a4` (revises `a7b8c9d0e1f2`, idempotent raw SQL): `contact_labels`
+  (`id, tenant_id, name, color, created_at`; tenant index + case-insensitive unique name per
+  tenant) and junction `contact_label_links(contact_id, label_id)` with `ON DELETE CASCADE`
+  both ways — deleting a label or contact cleans up its links.
+- `ContactLabel` model + `Contact.labels` relationship (`lazy="selectin"`, ordered by name —
+  no N+1 in the list).
+- Label CRUD in the contacts router at `/contacts/labels` — **declared above the dynamic
+  `/{contact_id}` routes** (FastAPI matches in declaration order; "labels" would otherwise 422
+  as a UUID). Reads `CurrentUser`, mutations `AdminUser`; duplicate names pre-checked → 409.
+- `ContactCreate`/`ContactUpdate` take optional `label_ids` (cross-tenant ids silently dropped);
+  `ContactOut.labels` returns full label objects; `GET /contacts?label_id=` filters via
+  `Contact.labels.any(...)`. Create/update re-fetch the contact after commit so the selectin
+  relationship is loaded for serialization.
+- Legacy free-form `tags` column/schemas untouched (non-destructive).
+
+**Frontend:**
+- New `/settings/labels` (`LabelsPage`, DepartmentsPage as template): name + `<input type="color">`
+  with live chip preview, edit/delete per row, 409 surfaced as "already exists". Sidebar "Labels"
+  link (Tag icon) in the admin block, gated on the contacts module; route wrapped in ModuleGate.
+- Shared `LabelChip`/`LabelPicker` (`modules/contacts/components/LabelChip.tsx`) — tinted chips
+  (`color + '1A'` bg) stay readable for any hue; picker links admins to /settings/labels when empty.
+- ContactList: label-filter chip row ("All" + per-label) + Labels column (≤3 chips, "+N" overflow).
+- ContactNew: tags input replaced by the label picker (sends `label_ids`).
+- ContactDetail: Labels block with inline edit (picker + Save/Cancel → PATCH); "Legacy tags"
+  field only shown when old tag data exists.
+
+Verified: backend `compileall` clean; frontend `tsc --noEmit` + `vite build` clean.
+**Sandbox verification (Diederik):** create labels in Settings → Labels; assign on a new
+contact; filter the list with the chips; edit labels from a contact's detail page; delete a
+label → it disappears from contacts.
 
 ---
 

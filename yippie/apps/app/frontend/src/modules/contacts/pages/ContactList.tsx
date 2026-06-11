@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Search, Plus, User } from 'lucide-react'
 import { api } from '../../../api/client'
 import { TableSkeleton } from '../../../shell/Skeleton'
+import { LabelChip, fetchLabels, type ContactLabel } from '../components/LabelChip'
 
 interface Contact {
   id: string
@@ -11,15 +12,20 @@ interface Contact {
   email: string | null
   company: string | null
   phone: string | null
+  labels: ContactLabel[]
   created_at: string
 }
 
 export default function ContactList() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
+  const [labelFilter, setLabelFilter] = useState<string | null>(null)
+  const { data: labels } = useQuery({ queryKey: ['contact-labels'], queryFn: fetchLabels })
   const { data, isLoading } = useQuery({
-    queryKey: ['contacts', search],
-    queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', { params: { search: search || undefined } }).then(r => r.data),
+    queryKey: ['contacts', search, labelFilter],
+    queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', {
+      params: { search: search || undefined, label_id: labelFilter || undefined },
+    }).then(r => r.data),
   })
 
   return (
@@ -48,6 +54,30 @@ export default function ContactList() {
         />
       </div>
 
+      {labels && labels.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-5">
+          <button
+            type="button"
+            onClick={() => setLabelFilter(null)}
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${
+              labelFilter === null
+                ? 'bg-slate-700 text-white border-slate-700'
+                : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            All
+          </button>
+          {labels.map(label => (
+            <LabelChip
+              key={label.id}
+              label={label}
+              selected={labelFilter === label.id}
+              onClick={() => setLabelFilter(labelFilter === label.id ? null : label.id)}
+            />
+          ))}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
@@ -55,11 +85,12 @@ export default function ContactList() {
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Labels</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Phone</th>
             </tr>
           </thead>
           {isLoading ? (
-            <TableSkeleton />
+            <TableSkeleton cols={5} />
           ) : (
             <tbody className="divide-y divide-slate-100">
               {data?.items.map(c => (
@@ -80,6 +111,18 @@ export default function ContactList() {
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">{c.email ?? '—'}</td>
                   <td className="px-4 py-3 text-sm text-slate-600">{c.company ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    {c.labels.length === 0 ? (
+                      <span className="text-sm text-slate-600">—</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {c.labels.slice(0, 3).map(label => <LabelChip key={label.id} label={label} />)}
+                        {c.labels.length > 3 && (
+                          <span className="text-xs text-slate-400 self-center">+{c.labels.length - 3}</span>
+                        )}
+                      </div>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-sm text-slate-600">{c.phone ?? '—'}</td>
                 </tr>
               ))}
