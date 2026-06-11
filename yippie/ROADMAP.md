@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 26 — Phase 11A copy+branding, Phase 11C Tier-1 ROI calculator, Phase 11B Hour Counter shipped)
+**Updated:** 2026-06-11 (session 27 — branding wiring, [38c] edit modal, attachment bugs fixed, compose auto-dismiss)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -30,24 +30,27 @@ environment / deploy reference lives in **Appendix B**.
 
 ## ▶ Next session — start here
 
-> **📌 Scope freeze (2026-06-10):** the checklist is final for now — verify and execute, don't expand scope.
+**Bugs still open — needs code (session 27 verification):**
 
-**Verify in sandbox (code is shipped — confirm behaviour live):**
-- Dept + SLA saves correctly on approve (pick dept + custom SLA → check created ticket)
-- Reply subject stays in original language (reply to a Dutch email) — `[44]`
-- "Send cancelled" undo window auto-dismisses — `[47]` (shipped)
-- `Cmd/Ctrl+Enter` sends in compose + reply — `[35]` (shipped)
-- Scroll-only inbox layout + larger compose — `[9]` (shipped)
-- End-to-end auth flows: team invite → register → login; forgot/reset password; impersonation (`[23]`, shipped); change own password (shipped)
+- **Inbox select-all not sticky** — select-all checkbox scrolls away with the list; should stay fixed at the top while scrolling.
+- **Inbox pagination** — no pagination today; need next/prev arrows with ~9 items per page.
+- **Ticket list UI** — should match the inbox layout style (confirmed in sandbox: current list looks different).
+- **Deadline indicator redesign** — replace the glowing count badge on Tickets nav with:
+  - 🔴 red dot: 1+ tickets overdue or due today/tomorrow
+  - 🟠 orange dot: 1+ tickets due within 2 days
+  - No dot: everything is fine
+  - Threshold (2 days / today) configurable per tenant in Settings → Departments.
+- **Hotkeys on/off toggle** — add a toggle in Profile settings (per user); when off, no keyboard shortcuts fire.
+- **Activity page not working** — verify in sandbox; likely a module-gate issue or empty state. Investigate backend 500 if any.
 
-**Bugs still open (live verification):**
-- **New agent arrived as admin** — re-invite a fresh address as agent, register via that exact email, check the role (code-verified clean session 19; most likely an older invite token).
+**Legacy open bugs (from before session 27):**
+- **New agent arrived as admin** — code-verified clean session 19; most likely an older invite token. Re-test with a fresh invite.
 - **Personal inbox leaks across users** — check whether `diederik1710@icloud.com` has `users.inbound_email` set to Joost's address; clear if so.
-- **Personal address only receives after first send** — code-verified: saving the Profile is sufficient (poller picks it up within 30s); likely test confusion.
+- **Personal address only receives after first send** — likely test confusion; saving Profile should be sufficient.
 
-**Manual / ops (Diederik — see Tier 3 for the dev-side items):**
+**Manual / ops (Diederik):**
 - Cloudflare: delete the duplicate bare DMARC TXT at `_dmarc.getyippie.com`; keep only the one DKIM key shown in Resend at `resend._domainkey.getyippie.com`.
-- klimaatexamen tenant `inbound_email` is NULL → mail to `klimaatexamen-support@` is dropped; needs a DB update or the per-client edit modal (`[38c]`).
+- klimaatexamen tenant `inbound_email` is NULL → use Clients → Edit → Info tab (now available via [38c]).
 - Set `INBOUND_EMAIL` in both live Railway envs before go-live.
 
 **Deploy reminder:** both staging envs build the **`sandbox`** branch — ship with
@@ -118,12 +121,12 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 - **[39] Contact soft-delete + retention** — `Opus` — add `contacts.deleted_at` (reuse the `tickets.deleted_at` pattern, session 17): retain 1 month, filter/restore within the window, scheduled purge after.
 
 ### Superadmin / client management
-- **[38c] Per-client edit modal (UX redesign)** — `Opus` — replace the noisy inline row options with one multi-tab Edit modal per client (status, modules, branding, info); keep only "View as" inline. (Today: only a module-toggle modal exists.)
+- **[38c] Per-client edit modal (UX redesign)** — ✅ **DONE (session 27).** "Edit modules" button replaced with "Edit" opening a 3-tab modal: Info (name, inbound_email, slug readonly), Modules (module toggles), Branding (primary_color, logo_url + preview). All fields patch via the existing `PATCH /admin/tenants/{id}`. Status buttons kept inline.
 - **[38d] Manage client users from the edit modal** — `Opus` — *partial:* a separate `TenantUsersModal` already lists/adds users; the work is folding add/remove/inactivate into the unified `[38c]` Edit modal (reuse `GET /team/users`, `POST /team/invite`, `PATCH /team/users/{id}`).
 - **[31] Demo environments (template data)** — `Opus` — *partial:* demo mode exists; still need a seed template dataset per demo tenant + a superadmin "Reset to demo" that wipes real data and restores the seed.
 
 ### Branding & marketing
-- **Branding wiring into the app shell** — `Opus` — `primary_color` / `logo_url` are stored and returned by `/api/v1/tenant/config` but **no component applies them** (sidebar is hardcoded `bg-yippie`). Wire into the sidebar logo + accent color via CSS variables.
+- **Branding wiring into the app shell** — ✅ **DONE (session 27).** Sidebar background now reads `primary_color` from tenant config via inline style; the Yippie SVG mark always shows, client `logo_url` appears below it when set. Seed.py now syncs `primary_color` + `logo_url` from config on every deploy; all defaults updated to `#5BA4F5`.
 - **[Phase 11 C — Tier 1] On-page ROI calculator** — ✅ **DONE (session 26)** — see Tier 1 entry above.
 
 ### Promotion & identity (Phase 13)
@@ -178,6 +181,35 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 27 — 2026-06-11 (branding wiring, [38c] edit modal, attachment bugs, compose auto-dismiss)
+
+**Branding wiring (commit `53ba33b`):**
+- `Sidebar.tsx`: sidebar background now uses `config.branding.primary_color` via inline style (replaces hardcoded `bg-yippie #5BA4F5`). Yippie SVG mark always renders; client `logo_url` shown below it when set.
+- Badge (`text-yippie`) → inline `style={{ color: config.branding.primary_color }}`.
+- `config.py` default `primary_color` updated from `#2563EB` → `#5BA4F5` (matches Tailwind `bg-yippie`).
+- `seed.py`: when seed tenant already exists, syncs `primary_color` + `logo_url` from config on every deploy.
+- `schemas.py` + `SuperAdminPage EMPTY_FORM`: new-tenant default updated from `#5BB8E8` → `#5BA4F5`.
+
+**[38c] Per-client edit modal (commit `53ba33b`):**
+- `SuperAdminPage.tsx`: replaced `EditModulesModal` with a 3-tab `EditClientModal` (Info / Modules / Branding).
+- Info tab exposes `name` and `inbound_email` per client — fixes the klimaatexamen NULL inbound_email without needing a direct DB update.
+- Branding tab lets superadmin change `primary_color` and `logo_url` with live preview.
+- Row button renamed "Edit modules" → "Edit".
+
+**Attachment bug fixes (commit `c87f7fa`):**
+- `email_poller.py`: stores attachment `content` (base64) inline in `attachments_json` at poll time. Resend has no separate attachment download endpoint — the old proxy was calling a non-existent URL and returning empty.
+- `router.py`: `download_attachment` now serves from stored content directly; removed the phantom Resend API call. Dropped unused `httpx` import.
+- `mailer.py`: Resend's attachments field only accepts `{filename, content}` — stripped the `content_type` key that was causing Resend to reject or silently drop attachments on outbound sends.
+- `InboxQueue.tsx`: added `onError` + `sendError` state to `ComposeModal`; compose send failures now show a red error message.
+
+**Compose auto-dismiss (commit `01c9352`):**
+- `InboxQueue.tsx`: success screen auto-closes after 3s via `useEffect` timeout. Demo mode stays open (agent needs to read the suppression notice).
+
+**Open from session 27 verification (→ Next session):**
+- Inbox select-all sticky, pagination (9 per page), ticket list UI redesign, deadline indicator dots, configurable threshold in Settings, hotkeys toggle in Profile, activity page not working.
 
 ---
 
