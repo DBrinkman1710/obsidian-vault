@@ -4,7 +4,29 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+
+COLOR_PATTERN = r"^#[0-9a-fA-F]{6}$"
+
+
+class ContactLabelCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    color: str = Field(default="#64748b", pattern=COLOR_PATTERN)
+
+
+class ContactLabelUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=100)
+    color: Optional[str] = Field(default=None, pattern=COLOR_PATTERN)
+
+
+class ContactLabelOut(BaseModel):
+    id: uuid.UUID
+    tenant_id: uuid.UUID
+    name: str
+    color: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class ContactCreate(BaseModel):
@@ -15,6 +37,7 @@ class ContactCreate(BaseModel):
     notes: Optional[str] = None
     tags: Optional[list[str]] = None
     custom_fields: Optional[dict] = None
+    label_ids: Optional[list[uuid.UUID]] = None
 
 
 class ContactUpdate(BaseModel):
@@ -25,6 +48,7 @@ class ContactUpdate(BaseModel):
     notes: Optional[str] = None
     tags: Optional[list[str]] = None
     custom_fields: Optional[dict] = None
+    label_ids: Optional[list[uuid.UUID]] = None
 
 
 class ContactOut(BaseModel):
@@ -37,6 +61,7 @@ class ContactOut(BaseModel):
     notes: Optional[str]
     tags: Optional[list[str]]
     custom_fields: Optional[dict]
+    labels: list[ContactLabelOut] = []
     created_at: datetime
     updated_at: datetime
 

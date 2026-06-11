@@ -1,7 +1,9 @@
+import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
-import { Plus, Clock } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Clock, Pencil } from 'lucide-react'
 import { api } from '../../../api/client'
+import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelChip'
 
 function formatEventType(s: string): string {
   return s.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -70,8 +72,10 @@ export default function ContactDetail() {
           <Field label="Email" value={contact.email} />
           <Field label="Phone" value={contact.phone} />
           <Field label="Company" value={contact.company} />
-          <Field label="Tags" value={contact.tags?.join(', ')} />
+          {contact.tags?.length > 0 && <Field label="Legacy tags" value={contact.tags.join(', ')} />}
         </div>
+
+        <LabelsBlock contactId={id!} labels={contact.labels ?? []} />
 
         {contact.notes && (
           <div className="mb-8">
@@ -125,6 +129,70 @@ export default function ContactDetail() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function LabelsBlock({ contactId, labels }: { contactId: string; labels: ContactLabel[] }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.patch(`/contacts/${contactId}`, { label_ids: selectedIds }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact', contactId] })
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      setEditing(false)
+    },
+  })
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-2">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Labels</h3>
+        {!editing && (
+          <button
+            type="button"
+            onClick={() => { setSelectedIds(labels.map(l => l.id)); setEditing(true) }}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <Pencil size={10} />
+            Edit
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div className="flex flex-col gap-3">
+          <LabelPicker selectedIds={selectedIds} onChange={setSelectedIds} />
+          {saveMutation.isError && (
+            <p className="text-sm text-red-500">Something went wrong — try again.</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+            >
+              {saveMutation.isPending ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="px-3 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : labels.length === 0 ? (
+        <p className="text-sm text-slate-400">No labels.</p>
+      ) : (
+        <div className="flex flex-wrap gap-1.5">
+          {labels.map(label => <LabelChip key={label.id} label={label} />)}
+        </div>
+      )}
     </div>
   )
 }
