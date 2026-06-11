@@ -648,40 +648,45 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
 
 function ResendDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
-  const [open, setOpen] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   const mutation = useMutation({
     mutationFn: () => api.get('/admin/resend-check').then(r => r.data),
-    onSuccess: (data) => { setResult(data); setOpen(true) },
+    onSuccess: (data) => setResult(data),
   })
 
+  function copyAll() {
+    navigator.clipboard.writeText(JSON.stringify(result, null, 2))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <FlaskConical size={16} className="text-slate-400" />
-          <h2 className="text-base font-bold text-slate-900">Resend API diagnostic</h2>
-        </div>
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex items-center gap-2 px-4 py-2.5">
+        <FlaskConical size={14} className="text-slate-400 shrink-0" />
+        <span className="text-sm font-semibold text-slate-700 flex-1">API diagnostics</span>
+        {result && (
+          <button
+            onClick={copyAll}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            {copied ? <Check size={12} className="text-emerald-500" /> : <Clipboard size={12} />}
+            {copied ? 'Copied' : 'Copy all'}
+          </button>
+        )}
         <button
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending}
-          className="px-4 py-2 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
+          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-semibold rounded-lg transition-colors"
         >
           {mutation.isPending ? 'Checking…' : 'Run check'}
         </button>
       </div>
-      <p className="text-sm text-slate-500">Calls the Resend receiving API and shows the raw response — use this to verify the API key has receive permissions and to see exactly what fields are returned.</p>
-
-      {open && result && (
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Raw response</span>
-            <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={14} /></button>
-          </div>
-          <pre className="bg-slate-50 border border-slate-200 rounded-lg p-4 text-xs text-slate-700 overflow-auto max-h-96 whitespace-pre-wrap">
-            {JSON.stringify(result, null, 2)}
-          </pre>
-        </div>
+      {result && (
+        <pre className="border-t border-slate-100 bg-slate-50 rounded-b-xl px-4 py-3 text-xs text-slate-700 overflow-auto max-h-64 whitespace-pre-wrap">
+          {JSON.stringify(result, null, 2)}
+        </pre>
       )}
     </div>
   )
