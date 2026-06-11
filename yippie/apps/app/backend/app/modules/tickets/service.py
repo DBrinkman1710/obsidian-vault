@@ -131,6 +131,21 @@ async def list_tickets(
     return _enrich_tickets(tickets, dept_names, last_comments), total or 0
 
 
+async def count_near_deadline(db: AsyncSession, tenant_id: uuid.UUID, hours: int = 24) -> int:
+    """Count open/in-progress tickets whose sla_due_at is within `hours` hours."""
+    cutoff = datetime.now(timezone.utc) + timedelta(hours=hours)
+    result = await db.scalar(
+        select(func.count()).where(
+            Ticket.tenant_id == tenant_id,
+            Ticket.deleted_at.is_(None),
+            Ticket.status.in_([TicketStatus.open, TicketStatus.in_progress]),
+            Ticket.sla_due_at.isnot(None),
+            Ticket.sla_due_at <= cutoff,
+        )
+    )
+    return result or 0
+
+
 async def get_ticket_orm(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid.UUID) -> Optional[Ticket]:
     """Return the raw ORM Ticket — needed for update/status/comment mutations."""
     result = await db.execute(

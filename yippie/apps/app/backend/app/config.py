@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     # Public URL of this environment's client app (e.g. https://sandbox.getyippie.com)
     # — used for links in invite and password-reset emails.
     app_base_url: str = ""
+    # Override for invite/reset links in admin environments (devsandbox → sandbox,
+    # dev → app). When set, invite emails point here instead of app_base_url.
+    client_base_url: str = ""
     # Comma-separated list of allowed browser origins for CORS. Wildcards are not
     # permitted because the API is used with credentials.
     cors_origins: str = (
@@ -71,7 +74,7 @@ class Settings(BaseSettings):
         "http://localhost:5173"
     )
 
-    @field_validator("app_base_url")
+    @field_validator("app_base_url", "client_base_url")
     @classmethod
     def _strip_trailing_slash(cls, v: str) -> str:
         # A trailing slash in the env var would yield "…com//register" links,

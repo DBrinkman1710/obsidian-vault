@@ -91,10 +91,20 @@ export default function TicketList() {
                 {t.status.replace('_', ' ')}
               </span>
             </div>
-            <div className="flex gap-4 mt-2 text-xs text-slate-500">
+            <div className="flex gap-4 mt-2 text-xs text-slate-500 items-center">
               <span className={`font-semibold capitalize ${PRIORITY_STYLES[t.priority]}`}>{t.priority}</span>
               <span>{new Date(t.created_at).toLocaleDateString()}</span>
-              {t.sla_due_at && <span>SLA: {new Date(t.sla_due_at).toLocaleString()}</span>}
+              {t.sla_due_at && (() => {
+                const due = new Date(t.sla_due_at)
+                const hoursLeft = (due.getTime() - Date.now()) / 3_600_000
+                const overdue = hoursLeft < 0
+                const urgent = hoursLeft >= 0 && hoursLeft <= 24
+                return (
+                  <span className={`font-semibold ${overdue ? 'text-red-600' : urgent ? 'text-orange-600' : ''}`}>
+                    {overdue ? '⚠ Overdue' : urgent ? `⚠ SLA due ${due.toLocaleString()}` : `SLA: ${due.toLocaleString()}`}
+                  </span>
+                )
+              })()}
             </div>
           </div>
         ))}

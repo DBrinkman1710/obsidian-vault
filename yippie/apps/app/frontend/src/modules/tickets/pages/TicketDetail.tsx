@@ -93,6 +93,17 @@ export default function TicketDetail() {
         </div>
       )}
 
+      {ticket.sla_due_at && (() => {
+        const due = new Date(ticket.sla_due_at)
+        const hoursLeft = (due.getTime() - Date.now()) / 3_600_000
+        if (hoursLeft > 24) return null
+        return (
+          <div className={`mb-4 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 ${hoursLeft < 0 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
+            ⚠ {hoursLeft < 0 ? `SLA overdue (was due ${due.toLocaleString()})` : `SLA due in ${Math.ceil(hoursLeft)}h — ${due.toLocaleString()}`}
+          </div>
+        )
+      })()}
+
       <div className="flex items-start justify-between gap-4 mb-2">
         <h1 className="text-xl font-bold text-slate-900">{ticket.subject}</h1>
         {canDelete && (

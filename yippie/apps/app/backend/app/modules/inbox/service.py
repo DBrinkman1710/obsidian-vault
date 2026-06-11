@@ -485,6 +485,7 @@ async def review_draft(
             contact_id=review.contact_id,
             priority=priority,
             assigned_to=review.assigned_to,
+            department_id=review.department_id,
             source=TicketSource.email,
         )
         ticket = await ticket_service.create_ticket(db, tenant_id, reviewer_id, ticket_data)

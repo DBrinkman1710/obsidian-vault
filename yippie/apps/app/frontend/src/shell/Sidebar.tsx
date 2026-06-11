@@ -29,8 +29,17 @@ export function Sidebar() {
     enabled: !!config,
   })
 
+  const { data: deadlineData } = useQuery({
+    queryKey: ['tickets', 'deadline-count'],
+    queryFn: () => api.get('/tickets/deadline-count').then(r => r.data),
+    refetchInterval: 60_000,
+    enabled: !!config,
+  })
+
   const pendingCount: number = pendingDrafts?.length ?? 0
   const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
+  const deadlineCount: number = deadlineData?.count ?? 0
+  const deadlineBadge = deadlineCount === 0 ? null : deadlineCount > 9 ? '9+' : String(deadlineCount)
 
   if (!config) return null
 
@@ -83,6 +92,11 @@ export function Sidebar() {
                       </span>
                     )}
                   </div>
+                )}
+                {mod === 'tickets' && deadlineBadge && (
+                  <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1 animate-pulse">
+                    {deadlineBadge}
+                  </span>
                 )}
               </NavLink>
             )

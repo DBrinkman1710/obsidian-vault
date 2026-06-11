@@ -120,6 +120,7 @@ class DraftReview(BaseModel):
     assigned_to: Optional[uuid.UUID] = None
     contact_id: Optional[uuid.UUID] = None
     follow_up_days: Optional[int] = None
+    department_id: Optional[uuid.UUID] = None
 
 
 class EmailWebhookPayload(BaseModel):

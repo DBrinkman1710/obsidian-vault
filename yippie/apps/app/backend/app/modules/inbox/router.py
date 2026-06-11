@@ -225,7 +225,7 @@ async def send_reply(
     if not msg or not msg.sender:
         raise HTTPException(status_code=409, detail="Original message has no sender to reply to")
     await _validate_from_email(from_email, db, current_user.tenant_id)
-    subject = f"Re: {draft.final_subject or draft.ai_suggested_subject}"
+    subject = f"Re: {msg.subject or draft.final_subject or draft.ai_suggested_subject}"
 
     if await service.tenant_is_demo(db, current_user.tenant_id):
         return {"queued": False, "demo": True, "to": msg.sender, "subject": subject}

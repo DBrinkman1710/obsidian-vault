@@ -357,13 +357,14 @@ export default function DraftReview() {
   })
 
   const reviewMutation = useMutation({
-    mutationFn: (action: 'approve' | 'reject') =>
+    mutationFn: ({ action, departmentId, modalFollowUpDays }: { action: 'approve' | 'reject'; departmentId?: string; modalFollowUpDays?: number }) =>
       api.post(`/inbox/drafts/${id}/review`, {
         action,
         subject: subject || draft?.ai_suggested_subject,
         description: description || draft?.ai_suggested_description,
         priority: priority || draft?.ai_suggested_priority,
-        follow_up_days: followUpDays ? parseInt(followUpDays) : undefined,
+        follow_up_days: modalFollowUpDays ?? (followUpDays ? parseInt(followUpDays) : undefined),
+        department_id: departmentId || selectedDeptId || undefined,
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drafts'] })
@@ -544,7 +545,7 @@ export default function DraftReview() {
   function handleApprove() {
     const hasDepts = departments && departments.length > 0
     if (!hasDepts) {
-      reviewMutation.mutate('approve')
+      reviewMutation.mutate({ action: 'approve' })
       return
     }
     // Always show the modal so the user can confirm/edit dept and SLA
@@ -566,11 +567,9 @@ export default function DraftReview() {
         <RouteAndApproveModal
           departments={departments ?? []}
           initialDeptId={selectedDeptId}
-          onApprove={(deptId, followUpDays) => {
+          onApprove={(deptId, fud) => {
             setShowDeptReminder(false)
-            if (deptId) setSelectedDeptId(deptId)
-            if (followUpDays) setFollowUpDays(String(followUpDays))
-            reviewMutation.mutate('approve')
+            reviewMutation.mutate({ action: 'approve', departmentId: deptId || undefined, modalFollowUpDays: fud })
           }}
           onCancel={() => setShowDeptReminder(false)}
         />
@@ -886,7 +885,7 @@ export default function DraftReview() {
                     {reviewMutation.isPending ? 'Creating…' : 'Approve & Create Ticket'}
                   </button>
                   <button
-                    onClick={() => reviewMutation.mutate('reject')}
+                    onClick={() => reviewMutation.mutate({ action: 'reject' })}
                     disabled={reviewMutation.isPending}
                     className="w-full py-2 text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors cursor-pointer"
                   >

@@ -29,7 +29,8 @@ async def send_invite_email(
         tenant_id=str(tenant_id),
         role=role,
     )
-    link = f"{settings.app_base_url}/register?token={token}"
+    base = settings.client_base_url or settings.app_base_url
+    link = f"{base}/register?token={token}"
     # Short form on purpose (Diederik, 2026-06-10): just the activation link. The
     # product introduction is a separate mail sent into the client's Yippie inbox
     # on tenant creation — see send_welcome_to_inbox().

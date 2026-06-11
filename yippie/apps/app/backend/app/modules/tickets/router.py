@@ -63,6 +63,13 @@ async def create_template(body: TemplateCreate, current_user: CurrentUser, db: D
     return await service.create_template(db, current_user.tenant_id, body)
 
 
+@router.get("/deadline-count")
+async def deadline_count(current_user: CurrentUser, db: DB):
+    """Return count of open/in-progress tickets with sla_due_at within 24h."""
+    count = await service.count_near_deadline(db, current_user.tenant_id)
+    return {"count": count}
+
+
 @router.get("/{ticket_id}", response_model=TicketOut)
 async def get_ticket(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
     ticket = await service.get_ticket(db, current_user.tenant_id, ticket_id)
