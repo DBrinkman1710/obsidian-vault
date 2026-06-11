@@ -33,6 +33,15 @@
 
 .navLinks a:hover { color: var(--white); }
 
+.navLogin {
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255,255,255,0.45) !important;
+  transition: color 0.2s;
+}
+
+.navLogin:hover { color: rgba(255,255,255,0.8) !important; }
+
 .navCta {
   background: var(--blue);
   color: var(--white) !important;

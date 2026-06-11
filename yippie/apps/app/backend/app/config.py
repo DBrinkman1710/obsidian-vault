@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import List, Optional
 
 import yaml
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -66,12 +66,17 @@ class Settings(BaseSettings):
     # Override for invite/reset links in admin environments (devsandbox → sandbox,
     # dev → app). When set, invite emails point here instead of app_base_url.
     client_base_url: str = ""
+    # Base offset added to the public "hours saved" counter so it never reads
+    # zero on a fresh install (env: BASE_HOURS_SAVED).
+    base_hours_saved: int = Field(default=10000)
     # Comma-separated list of allowed browser origins for CORS. Wildcards are not
     # permitted because the API is used with credentials.
     cors_origins: str = (
         "https://app.getyippie.com,https://dev.getyippie.com,"
         "https://sandbox.getyippie.com,https://devsandbox.getyippie.com,"
-        "http://localhost:5173"
+        # Marketing site fetches /api/v1/public/stats for the Hour Counter
+        "https://getyippie.com,https://www.getyippie.com,"
+        "http://localhost:5173,http://localhost:3000"
     )
 
     @field_validator("app_base_url", "client_base_url")

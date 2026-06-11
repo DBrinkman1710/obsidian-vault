@@ -169,7 +169,7 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
           )}
 
           <a href={appUrl} className={styles.cta}>
-            Start free →
+            Request demo →
           </a>
         </div>
       </div>
