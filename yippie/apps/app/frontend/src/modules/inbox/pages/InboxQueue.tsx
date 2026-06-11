@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
@@ -221,10 +221,11 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
           clearInterval(undoIntervalRef.current!)
           undoIntervalRef.current = null
           setQueued(null)
-          setResult({ sent: recipients, failed: [] })
-          // The mail just left the undo queue — refresh the inbox views so the
-          // Sent tab shows it without waiting for the next poll.
+          // The undo bar already confirmed "email sent" — just close the modal,
+          // no separate success popup. Refresh the inbox views so the Sent tab
+          // shows it without waiting for the next poll.
           qc.invalidateQueries({ queryKey: ['drafts'] })
+          onClose()
         }
       }, 100)
     },
@@ -240,13 +241,13 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
       setUndoNotice(true)
       setTimeout(() => setUndoNotice(false), 3000)
     } catch {
-      // Too late — the email went out. Show the sent screen instead of lying.
+      // Too late — the email already went out. Don't claim it was cancelled;
+      // just close the modal (no separate "sent" popup) and refresh the views.
       if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
-      const recipients = queued.recipients
       setQueued(null)
       setUndoProgress(0)
-      setResult({ sent: recipients, failed: [] })
       qc.invalidateQueries({ queryKey: ['drafts'] })
+      onClose()
     }
   }
 
@@ -282,6 +283,7 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
         className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col"
         style={{ maxHeight: '92vh' }}
         onKeyDown={e => {
+          if (user?.hotkeys_enabled === false) return
           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSend) {
             e.preventDefault()
             sendMutation.mutate()
@@ -388,8 +390,8 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
           </div>
         )}
 
-        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-4 flex-wrap">
-          <div className="flex items-center gap-3 flex-wrap">
+        <div className="px-6 py-4 border-t border-slate-100 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3 min-w-0">
             <label className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 cursor-pointer transition-colors">
               <Paperclip size={13} />
               <span>Attach</span>
@@ -422,21 +424,24 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
                 </button>
               </div>
             )}
-            {undoNotice
-              ? <p className="text-xs text-slate-500 font-medium">Send cancelled — your draft is unchanged.</p>
-              : <p className="text-xs text-slate-400">
+            {/* Status text — kept on the left so the action buttons never shift.
+                Error takes priority, then the undo notice, then the recipient hint. */}
+            {sendError
+              ? <p className="text-xs text-red-500 truncate">{sendError}</p>
+              : undoNotice
+              ? <p className="text-xs text-slate-500 font-medium truncate">Send cancelled — your draft is unchanged.</p>
+              : <p className="text-xs text-slate-400 truncate">
                   {recipients.length === 0 ? 'Add recipients to send' : `Sending to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}`}
                   {recipients.length > 1 ? ' via BCC' : ''}
                 </p>}
           </div>
-          <div className="flex items-center gap-3">
-            {sendError && <p className="text-xs text-red-500">{sendError}</p>}
+          <div className="flex items-center gap-3 shrink-0">
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
             <button
               onClick={() => sendMutation.mutate()}
               disabled={!canSend}
               title="Cmd/Ctrl + Enter"
-              className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 min-w-[116px] px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
             >
               <Send size={13} />
               {queued ? 'Queued…' : sendMutation.isPending ? 'Sending…' : 'Send'}
@@ -486,12 +491,15 @@ const RETENTION_NOTES: Partial<Record<ProcessedFilter, string>> = {
   bin:  'Items in the Bin are permanently deleted after 20 working days.',
 }
 
+const PAGE_SIZE = 9
+
 export default function InboxQueue() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [mailbox, setMailbox] = useState<Mailbox>('shared')
   const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all')
   const [showCompose, setShowCompose] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [page, setPage] = useState(0)
   const qc = useQueryClient()
   const config = useTenantConfig()
   const { user } = useAuth()
@@ -545,6 +553,11 @@ export default function InboxQueue() {
   const drafts = activeTab === 'pending' ? (pendingDrafts ?? []) : processedDrafts
   const isLoading = activeTab === 'pending' ? pendingLoading : false
 
+  // Client-side pagination — the full filtered list is already in memory.
+  const pageCount = Math.max(1, Math.ceil(drafts.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount - 1)
+  const pageDrafts = drafts.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+
   const bulkMutation = useMutation({
     mutationFn: ({ ids, action }: { ids: string[]; action: 'bin' | 'spam' }) =>
       api.post('/inbox/drafts/bulk-action', { ids, action }).then(r => r.data),
@@ -576,6 +589,7 @@ export default function InboxQueue() {
     setActiveTab(tab)
     setSelected(new Set())
     setProcessedFilter('all')
+    setPage(0)
   }
 
   return (
@@ -593,7 +607,7 @@ export default function InboxQueue() {
               ] as { value: Mailbox; label: string; icon: React.ReactNode }[]).map(m => (
                 <button
                   key={m.value}
-                  onClick={() => { setMailbox(m.value); setSelected(new Set()) }}
+                  onClick={() => { setMailbox(m.value); setSelected(new Set()); setPage(0) }}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                     mailbox === m.value
                       ? 'bg-blue-600 text-white'
@@ -649,7 +663,7 @@ export default function InboxQueue() {
             {PROCESSED_FILTERS.map(f => (
               <button
                 key={f.value}
-                onClick={() => setProcessedFilter(f.value)}
+                onClick={() => { setProcessedFilter(f.value); setPage(0) }}
                 className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
                   processedFilter === f.value
                     ? 'bg-slate-800 text-white'
@@ -695,6 +709,19 @@ export default function InboxQueue() {
           </div>
         )}
 
+        {/* Select all — pinned in the header so it stays put while the list scrolls */}
+        {drafts.length > 0 && (
+          <div className="flex items-center gap-2 mt-3">
+            <button
+              onClick={toggleSelectAll}
+              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            >
+              <CheckSquare size={14} className={selected.size === drafts.length && drafts.length > 0 ? 'text-blue-600' : ''} />
+              {selected.size === drafts.length && drafts.length > 0 ? 'Deselect all' : 'Select all'}
+            </button>
+          </div>
+        )}
+
         <div className="h-4" />
       </div>
 
@@ -712,19 +739,8 @@ export default function InboxQueue() {
 
         {drafts.length > 0 && (
           <>
-            {/* Select all row */}
-            <div className="flex items-center gap-2 mb-2">
-              <button
-                onClick={toggleSelectAll}
-                className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <CheckSquare size={14} className={selected.size === drafts.length && drafts.length > 0 ? 'text-blue-600' : ''} />
-                {selected.size === drafts.length && drafts.length > 0 ? 'Deselect all' : 'Select all'}
-              </button>
-            </div>
-
             <div className="flex flex-col gap-3">
-              {drafts.map((d: any) => {
+              {pageDrafts.map((d: any) => {
                 const isFollowUp = d.status === 'approved' && d.follow_up_at
                 const followUpDate = isFollowUp ? new Date(d.follow_up_at) : null
                 const isUrgent = followUpDate && (followUpDate.getTime() - Date.now()) <= 24 * 60 * 60 * 1000
@@ -799,6 +815,31 @@ export default function InboxQueue() {
                 )
               })}
             </div>
+
+            {/* Pagination — only when the list overflows one page */}
+            {drafts.length > PAGE_SIZE && (
+              <div className="flex items-center justify-center gap-4 mt-5">
+                <button
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={safePage === 0}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={14} />
+                  Prev
+                </button>
+                <span className="text-xs text-slate-500 font-medium">
+                  Page {safePage + 1} of {pageCount}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
+                  disabled={safePage >= pageCount - 1}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
           </>
         )}
       </div>
