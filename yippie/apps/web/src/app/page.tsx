@@ -1,4 +1,5 @@
 import styles from "./page.module.css";
+import ROICalculator from "./components/ROICalculator";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
 
@@ -219,6 +220,9 @@ export default function HomePage() {
           ))}
         </div>
       </section>
+
+      {/* ROI Calculator */}
+      <ROICalculator appUrl={APP_URL} />
 
       {/* Pricing */}
       <section id="pricing" className={styles.section}>

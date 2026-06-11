@@ -1,7 +1,4 @@
-/* ── Reset ──────────────────────────────────── */
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-a { color: inherit; text-decoration: none; }
-img { display: block; }
+/* Reset lives in globals.css — CSS Modules only allow class/id selectors. */
 
 /* ── Nav ────────────────────────────────────── */
 .nav {

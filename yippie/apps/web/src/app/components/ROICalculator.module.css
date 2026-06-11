@@ -1,0 +1,240 @@
+/* ── ROI Calculator section ─────────────────── */
+.section {
+  padding: 100px 6%;
+  background: var(--white);
+}
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: 14px;
+  text-align: center;
+}
+
+.title {
+  font-size: clamp(28px, 3.5vw, 46px);
+  font-weight: 800;
+  color: var(--navy);
+  text-align: center;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
+  margin-bottom: 16px;
+}
+
+.sub {
+  font-size: 17px;
+  color: var(--muted);
+  text-align: center;
+  max-width: 520px;
+  margin: 0 auto 64px;
+  line-height: 1.75;
+}
+
+/* ── Layout ─────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 48px;
+  max-width: 1040px;
+  margin: 0 auto;
+  align-items: stretch;
+}
+
+/* ── Inputs column ──────────────────────────── */
+.inputs {
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  justify-content: center;
+}
+
+.inputRow {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.inputHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.inputLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.inputValue {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--blue-dark);
+  font-variant-numeric: tabular-nums;
+}
+
+.privacyNote {
+  font-size: 12.5px;
+  color: var(--muted);
+  margin-top: -6px;
+}
+
+/* ── Slider ─────────────────────────────────── */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(
+    to right,
+    var(--blue) 0%,
+    var(--blue) var(--val, 50%),
+    var(--border) var(--val, 50%),
+    var(--border) 100%
+  );
+  outline: none;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 3px solid var(--white);
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.25);
+  cursor: grab;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 6px var(--blue-glow), 0 1px 6px rgba(15, 23, 42, 0.25);
+}
+
+.slider::-webkit-slider-thumb:active {
+  cursor: grabbing;
+}
+
+.slider::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--blue);
+  border: 3px solid var(--white);
+  box-shadow: 0 1px 6px rgba(15, 23, 42, 0.25);
+  cursor: grab;
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+
+.slider::-moz-range-thumb:hover {
+  transform: scale(1.12);
+  box-shadow: 0 0 0 6px var(--blue-glow), 0 1px 6px rgba(15, 23, 42, 0.25);
+}
+
+.slider::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: transparent;
+}
+
+.slider:focus-visible {
+  box-shadow: 0 0 0 4px var(--blue-glow);
+}
+
+/* ── Output panel ───────────────────────────── */
+.output {
+  background: linear-gradient(160deg, var(--dark-2), var(--dark));
+  border: 1px solid var(--dark-border);
+  border-radius: 20px;
+  padding: 44px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 28px;
+  box-shadow: 0 24px 60px rgba(5, 8, 15, 0.25);
+}
+
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.result {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.result:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.resultValue {
+  font-size: clamp(30px, 3vw, 40px);
+  font-weight: 800;
+  color: var(--blue);
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.resultLabel {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.55);
+  margin-top: 6px;
+}
+
+.teamNote {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.65);
+  border-top: 1px solid var(--dark-border);
+  padding-top: 20px;
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--blue), var(--blue-dark));
+  color: var(--white);
+  padding: 14px 26px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 15px;
+  transition: transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 20px rgba(91, 184, 232, 0.35);
+  align-self: flex-start;
+}
+
+.cta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 32px rgba(91, 184, 232, 0.5);
+}
+
+/* ── Responsive ─────────────────────────────── */
+@media (max-width: 900px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+
+  .output {
+    padding: 36px 28px;
+  }
+
+  .cta {
+    align-self: stretch;
+  }
+}
