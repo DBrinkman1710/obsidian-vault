@@ -37,6 +37,10 @@ class Tenant(Base):
     is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     go_live_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     inbound_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Ticket deadline indicator thresholds (Sidebar dot on the Tickets nav).
+    # Red = overdue or due within deadline_red_days; orange = due within deadline_orange_days.
+    deadline_red_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    deadline_orange_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     users: Mapped[list[User]] = relationship("User", back_populates="tenant")

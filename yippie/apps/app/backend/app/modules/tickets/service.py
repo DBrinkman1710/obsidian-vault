@@ -146,6 +146,50 @@ async def count_near_deadline(db: AsyncSession, tenant_id: uuid.UUID, hours: int
     return result or 0
 
 
+async def deadline_severity(
+    db: AsyncSession, tenant_id: uuid.UUID, red_days: int, orange_days: int
+) -> dict:
+    """Bucket open/in-progress tickets by deadline urgency for the Sidebar indicator.
+
+    - red:    overdue OR due within `red_days` days (today/tomorrow)
+    - orange: due within `orange_days` days, beyond the red window
+    The severity returned is the most urgent bucket that has any tickets.
+    """
+    now = datetime.now(timezone.utc)
+    red_cutoff = now + timedelta(days=max(red_days, 0))
+    orange_cutoff = now + timedelta(days=max(orange_days, red_days, 0))
+
+    base = (
+        Ticket.tenant_id == tenant_id,
+        Ticket.deleted_at.is_(None),
+        Ticket.status.in_([TicketStatus.open, TicketStatus.in_progress]),
+        Ticket.sla_due_at.isnot(None),
+    )
+    red = await db.scalar(
+        select(func.count()).where(*base, Ticket.sla_due_at <= red_cutoff)
+    ) or 0
+    orange = await db.scalar(
+        select(func.count()).where(
+            *base,
+            Ticket.sla_due_at > red_cutoff,
+            Ticket.sla_due_at <= orange_cutoff,
+        )
+    ) or 0
+
+    if red:
+        severity = "red"
+    elif orange:
+        severity = "orange"
+    else:
+        severity = None
+    return {
+        "severity": severity,
+        "count": red + orange,
+        "red": red,
+        "orange": orange,
+    }
+
+
 async def get_ticket_orm(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid.UUID) -> Optional[Ticket]:
     """Return the raw ORM Ticket — needed for update/status/comment mutations."""
     result = await db.execute(

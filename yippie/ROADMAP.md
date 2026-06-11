@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 27 — branding wiring, [38c] edit modal, attachment bugs fixed, compose auto-dismiss)
+**Updated:** 2026-06-11 (session 28 — deadline-indicator redesign: per-tenant severity dots on Tickets nav)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -32,20 +32,20 @@ environment / deploy reference lives in **Appendix B**.
 
 **Bugs still open — needs code (session 27 verification):**
 
-- **Inbox select-all not sticky** — select-all checkbox scrolls away with the list; should stay fixed at the top while scrolling.
-- **Inbox pagination** — no pagination today; need next/prev arrows with ~9 items per page.
-- **Ticket list UI** — should match the inbox layout style (confirmed in sandbox: current list looks different).
-- **Deadline indicator redesign** — replace the glowing count badge on Tickets nav with:
-  - 🔴 red dot: 1+ tickets overdue or due today/tomorrow
-  - 🟠 orange dot: 1+ tickets due within 2 days
+- ~~**Inbox select-all not sticky**~~ ✅ **DONE (session 27, PR #20)** — sticky select-all header.
+- ~~**Inbox pagination**~~ ✅ **DONE (session 27, PR #20)** — 9 items/page with next/prev.
+- ~~**Ticket list UI**~~ ✅ **DONE (session 27, PR #20)** — now matches the inbox layout.
+- ~~**Deadline indicator redesign**~~ ✅ **DONE (session 28)** — the glowing count badge on the Tickets nav is replaced with a per-tenant severity dot:
+  - 🔴 red dot: 1+ tickets overdue or due within `deadline_red_days` (today/tomorrow, default 1)
+  - 🟠 orange dot: 1+ tickets due within `deadline_orange_days` (default 2), beyond the red window
   - No dot: everything is fine
-  - Threshold (2 days / today) configurable per tenant in Settings → Departments.
-- **Hotkeys on/off toggle** — add a toggle in Profile settings (per user); when off, no keyboard shortcuts fire.
-- **Activity page not working** — verify in sandbox; likely a module-gate issue or empty state. Investigate backend 500 if any.
+  - Both thresholds are editable per tenant in **Settings → Departments → Deadline indicator**.
+- ~~**Hotkeys on/off toggle**~~ ✅ **DONE (session 27, PR #20)** — per-user toggle in Profile (`users.hotkeys_enabled`).
+- **Activity page not working** — code-audited session 28: backend (`/activity`, `/activity/stats`) + frontend + route registration all look correct; no code defect found. Most likely an empty-state (no logged events for that tenant) — **needs sandbox repro** with a specific error before any fix.
 
 **Additional bugs reported (pre-session-28 — fix alongside the above):**
-- **Outbound from-address wrong in ndugu environment** — mail sent from the ndugu tenant goes out as `sb-support@getyippie.com` instead of the tenant's own address. Root cause identified: `queue_send` in `service.py` falls back straight to `RESEND_FROM` when `from_email` is `None`; it never checks `tenant.inbound_email` first. Fix: `from_email = from_email or (tenant.inbound_email if tenant else None) or get_settings().resend_from`.
-- **Settings page broken** — one or more `/settings/*` routes are inaccessible or throwing an error. Identify which tab and the root cause.
+- ~~**Outbound from-address wrong in ndugu environment**~~ ✅ **DONE (commit `9414789`)** — `queue_send` now resolves `from_email` to `tenant.inbound_email` before the `RESEND_FROM` fallback.
+- **Settings page broken** — one or more `/settings/*` routes are inaccessible or throwing an error. Code-audited session 28: all `/settings/*` routes (`profile`, `team`, `departments`, `superadmins`) are registered in `App.tsx` and the pages compile/build clean; no defect found. **Needs sandbox repro** — which tab, and the exact error.
 - **Client page: too many buttons per row** — should expose only **View as**, **Set demo**, and **Edit** inline; the Inactive/Active toggle, Copy email, and Delete should live inside the Edit modal. Extends [38c].
 - **Compose modal: Send/Quit buttons shift on send** — pressing Send causes the button row to jump/shift position; layout must stay stable while the undo bar is rendering.
 - **Email sent popup still appears after compose send** — the "email sent" toast/bar should not appear at all (or auto-dismiss immediately) for compose; only the undo bar should be visible.
@@ -188,6 +188,35 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 28 — 2026-06-11 (deadline-indicator redesign + next-session reconciliation)
+
+Read ROADMAP + handoff, reconciled the session-27 "Next session" bug list against the actual
+code: the inbox sticky select-all, inbox pagination (9/page), ticket-list layout, compose footer
+stability, redundant sent popup, client-modal Actions tab, and per-user hotkeys toggle all
+already shipped in **PR #20 (`3e86a8f`)**, and the ndugu from-address bug was already fixed in
+`9414789`. Only the **deadline-indicator redesign** remained as concrete, well-specified work.
+
+**Deadline indicator — per-tenant severity dots (this session):**
+- **Backend** — migration `a7b8c9d0e1f2` adds `tenants.deadline_red_days` (default 1) +
+  `deadline_orange_days` (default 2), idempotent `ADD COLUMN IF NOT EXISTS`. `Tenant` model +
+  columns. New `tickets/service.py deadline_severity(red_days, orange_days)` buckets open/
+  in-progress tickets: **red** = overdue or due within the red window, **orange** = due within
+  the orange window beyond red; returns `{severity, count, red, orange}` (severity = most urgent
+  non-empty bucket). `GET /tickets/deadline-count` now loads the tenant's thresholds and returns
+  the bucketed result (old `{count}` key kept). New admin-gated
+  `GET/PATCH /departments/deadline-settings` to read/update the two thresholds.
+- **Frontend** — `Sidebar.tsx` replaces the red count badge on the Tickets nav with a coloured
+  dot (red pulsing / orange) driven by `severity`, with a tooltip count; no dot when fine.
+  `DepartmentsPage.tsx` gains a **Deadline indicator** card (two day-threshold inputs + Save,
+  invalidates the deadline-count query on save). 60s Sidebar poll picks up changes.
+- Verified: backend `py_compile` clean; frontend `tsc --noEmit` + `vite build` clean.
+
+**Audited, no code defect found (need sandbox repro):** Activity page (`/activity` +
+`/activity/stats` + route registration all correct — likely just an empty event log) and the
+"Settings page broken" report (all `/settings/*` routes registered, pages build clean).
 
 ---
 

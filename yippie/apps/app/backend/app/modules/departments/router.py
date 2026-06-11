@@ -9,7 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import AdminUser
 from app.database import get_db
 from app.modules.departments import service
-from app.modules.departments.schemas import DepartmentCreate, DepartmentOut, DepartmentUpdate
+from app.modules.departments.schemas import (
+    DeadlineSettings,
+    DeadlineSettingsUpdate,
+    DepartmentCreate,
+    DepartmentOut,
+    DepartmentUpdate,
+)
 
 router = APIRouter(prefix="/departments", tags=["departments"])
 DB = Annotated[AsyncSession, Depends(get_db)]
@@ -18,6 +24,38 @@ DB = Annotated[AsyncSession, Depends(get_db)]
 @router.get("", response_model=list[DepartmentOut])
 async def list_departments(current_user: AdminUser, db: DB):
     return await service.list_departments(db, current_user.tenant_id)
+
+
+@router.get("/deadline-settings", response_model=DeadlineSettings)
+async def get_deadline_settings(current_user: AdminUser, db: DB):
+    from app.core.models import Tenant
+
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return DeadlineSettings(
+        deadline_red_days=tenant.deadline_red_days,
+        deadline_orange_days=tenant.deadline_orange_days,
+    )
+
+
+@router.patch("/deadline-settings", response_model=DeadlineSettings)
+async def update_deadline_settings(body: DeadlineSettingsUpdate, current_user: AdminUser, db: DB):
+    from app.core.models import Tenant
+
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    if body.deadline_red_days is not None:
+        tenant.deadline_red_days = max(0, body.deadline_red_days)
+    if body.deadline_orange_days is not None:
+        tenant.deadline_orange_days = max(0, body.deadline_orange_days)
+    await db.commit()
+    await db.refresh(tenant)
+    return DeadlineSettings(
+        deadline_red_days=tenant.deadline_red_days,
+        deadline_orange_days=tenant.deadline_orange_days,
+    )
 
 
 @router.post("", response_model=DepartmentOut, status_code=status.HTTP_201_CREATED)

@@ -65,9 +65,15 @@ async def create_template(body: TemplateCreate, current_user: CurrentUser, db: D
 
 @router.get("/deadline-count")
 async def deadline_count(current_user: CurrentUser, db: DB):
-    """Return count of open/in-progress tickets with sla_due_at within 24h."""
-    count = await service.count_near_deadline(db, current_user.tenant_id)
-    return {"count": count}
+    """Return the deadline indicator for the Tickets nav: a severity bucket
+    (red = overdue/today/tomorrow, orange = due within the orange window) plus
+    counts. Thresholds are per-tenant (Settings → Departments)."""
+    from app.core.models import Tenant
+
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    red_days = tenant.deadline_red_days if tenant else 1
+    orange_days = tenant.deadline_orange_days if tenant else 2
+    return await service.deadline_severity(db, current_user.tenant_id, red_days, orange_days)
 
 
 @router.get("/{ticket_id}", response_model=TicketOut)

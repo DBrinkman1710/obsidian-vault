@@ -1,1 +1,5 @@
 smb-platform/.env
+
+# Local-only install artifact: apps/app/frontend isn't a pnpm workspace package,
+# so its lockfile is generated ad hoc for `tsc --noEmit` / `vite build` and not tracked.
+yippie/apps/app/frontend/pnpm-lock.yaml
