@@ -161,6 +161,13 @@ function ComposeModal({ onClose, aiEnabled }: { onClose: () => void; aiEnabled: 
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
+  // Auto-dismiss the success screen after 3s (demo mode stays open so agent can read it)
+  useEffect(() => {
+    if (!result || result.demo) return
+    const t = setTimeout(onClose, 3000)
+    return () => clearTimeout(t)
+  }, [result, result?.demo, onClose])
+
   const addRecipient = (email: string, label: string) => {
     if (!recipients.find(r => r.email === email)) {
       setRecipients(prev => [...prev, { email, label }])
