@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-10 (session 22 — Performance Step 2 shipped: async ingest + Generate buttons)
+**Updated:** 2026-06-11 (session 22b — dept/SLA race fix, reply language, deadline badges, invite URL; session 22 = async ingest)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -10,6 +10,17 @@
 > **📌 Scope freeze (2026-06-10):** Diederik's checklist is final for now — **no new tasks
 > will be added for the time being.** Everything below is already filed; the job is to
 > verify and execute, not to expand scope.
+
+### ▶ Session 22 manual steps (Diederik)
+
+1. **Set `CLIENT_BASE_URL` in Railway** — fixes invite links pointing to wrong URL:
+   - Dev Sandbox env: `CLIENT_BASE_URL=https://sandbox.getyippie.com`
+   - Development env: `CLIENT_BASE_URL=https://app.getyippie.com`
+   - (Sandbox and app envs don't need it — `APP_BASE_URL` is already the client URL)
+2. **Verify dept + SLA saves correctly on approve** — open a draft, approve, pick a department and set a custom SLA. The created ticket should now have the department and the correct follow-up date.
+3. **Verify reply subject language** — reply to a Dutch email; reply should have `Re: <original Dutch subject>`, not an English AI-generated one.
+
+---
 
 ### 🐞 Reported after session-18 deploy — NEXT SESSION, in this order
 
@@ -60,15 +71,15 @@
   after I have sent a mail from that personal mail using Yippie." Probably: the poller's
   routing map only contains the address once saved on the Profile (no send needed) — verify
   what saving vs sending actually changes, document or fix.
-- **Dept/SLA popup: SLA sticks to standard** — after picking a department in the popup, SLA
-  stays on the standard value instead of following the department's default (editable). Extends
-  item 11 (DeptReminderModal redesign).
+- ~~**Dept/SLA popup: SLA sticks to standard**~~ **FIXED (session 22)** — root cause was a React
+  state race: `setFollowUpDays`/`setSelectedDeptId` are async, so `reviewMutation.mutate` fired
+  before state updated. Fix: mutation now accepts dept+SLA directly (bypasses state). Also fixed:
+  `DraftReview` schema now has `department_id` and passes it to `TicketCreate`.
 - **Subject altered on receive** — the inbox shows the AI-suggested subject
-  (`ai_suggested_subject`), not the raw email subject. By design for draft tickets. **Mostly
-  done:** session 20 added "Subject: {original}" as a secondary line when it differs; session
-  21 added "· to {address}" (the `inbound_to` the mail was routed to) on every card — also the
-  diagnostic for the personal-leak report. Remaining: keep reply threads on the original
-  subject. Related: item 44 (reply subject language).
+  (`ai_suggested_subject`), not the raw email subject. By design for draft tickets. **DONE:**
+  session 20 added "Subject: {original}" secondary line; session 21 added "· to {address}";
+  **session 22 fixed item 44** — reply subject now uses `msg.subject` (original language),
+  not the AI-suggested subject. Fully resolved.
 
 **Design/feature requests (filed in phases):**
 - **Department emails as shared inboxes** — a department can have its own address (e.g.
@@ -127,7 +138,10 @@
 
 4. ~~Railway deploy blocker~~ **RESOLVED 2026-06-10** — both staging envs build the **`sandbox` branch**; ship with `git push origin devsandbox:sandbox`. `railway up` does NOT upload local code. Migrations are now also safe to deploy to both envs at once: `migrations/env.py` takes a Postgres advisory lock, so the two containers can't race DDL on the shared DB.
 
-5. **Invite-link base URL bug (important).** Invites currently emit **devsandbox** links — they must point at the **client environments** (`sandbox` / `app`), not at `dev` / `devsandbox`. The admin/superadmin-facing dev app is not where clients register. Verify per-env `APP_BASE_URL` so each environment mints links to the correct client URL. (See Phase 13.)
+5. **Invite-link base URL bug** ✓ **CODE FIXED (session 22) — needs Railway env vars.**
+   New `CLIENT_BASE_URL` config setting: invite links use this instead of `APP_BASE_URL` when set.
+   Set in Railway: devsandbox → `CLIENT_BASE_URL=https://sandbox.getyippie.com`,
+   dev → `CLIENT_BASE_URL=https://app.getyippie.com`. (See Phase 13.)
 
 6. **Prototype 2.0 → promote to live.** Push `devsandbox → sandbox → live` (`dev` + `app`). As part of this, set up **`diederik@getyippie.com` (individual)** and **`support@getyippie.com` (shared)** as the addresses for `dev.getyippie.com`; sandbox keeps `sb-support@`, live uses `support@`. (See Phase 13.)
 
@@ -428,10 +442,11 @@ remove each) and reliable display of inbound attachments — Diederik re-filed u
   confirm dialog on ticket detail, admin+ only, SLA jobs skip deleted tickets.
 - ✅ **Verified by Diederik 2026-06-10.**
 
-### 34. Ticket deadline reminder popup
-- When viewing a draft/ticket that has `follow_up_at` set and the deadline is ≤24h away, show a small toast/badge
-- Also surface in inbox list as a warning indicator on the card
-- Relates to item 11 (SLA assignment) — deadline only fires when SLA is set
+### 34. Ticket deadline reminder popup ✓ DONE (session 22)
+- TicketDetail shows amber/red banner when `sla_due_at` ≤24h or overdue
+- TicketList shows colored SLA warning per card
+- Sidebar shows pulsing red badge on Tickets nav with count of near-deadline tickets
+- `GET /tickets/deadline-count` backend endpoint (lightweight, no migration needed)
 
 ### 35. Hotkey for send — `Cmd/Ctrl + Enter`
 - In both compose modal and reply panel: `Cmd+Enter` (Mac) / `Ctrl+Enter` (Windows) triggers send ✓ DONE (session 17)
@@ -464,9 +479,9 @@ immediately — **no per-tenant action required**.
 - **Sidebar badge:** glowing-red dot on the Tickets nav item with the **count** of
   tickets near deadline.
 
-### 44. Reply subject language (extends item 15)
-- **Bug:** reply subjects are being forced to English. The reply subject must match
-  the **language of the received mail body** (same detection used for item 15).
+### 44. Reply subject language (extends item 15) ✓ FIXED (session 22)
+- Reply subject now uses `msg.subject` (original email's subject in original language)
+  instead of `draft.ai_suggested_subject` (always English). Threading preserved.
 
 ### 45. Attachment chips UX (extends item 18)
 - In compose and reply: a small **dropdown listing all attached files** plus an
@@ -847,6 +862,36 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ---
 
 ## Session log
+
+---
+
+### Session 22b — 2026-06-11 (dept/SLA race fix, reply language, deadline badges, invite URL)
+
+**Bugs fixed:**
+- **Dept/SLA popup sticks to standard** — root cause: React state updates from the modal
+  (`setFollowUpDays`, `setSelectedDeptId`) are async; `reviewMutation.mutate` fired before
+  state committed, sending old (empty) values. Fix: mutation now accepts `{ action, departmentId,
+  modalFollowUpDays }` directly from the modal callback, bypassing state. Second bug found and
+  fixed simultaneously: `DraftReview` backend schema had no `department_id` field — added it and
+  wired through to `TicketCreate` so the department is now actually saved on the ticket.
+- **Reply subject language (item 44)** — reply subject was using `draft.ai_suggested_subject`
+  (always English AI output). Fixed to use `msg.subject` (original email subject, correct
+  language), which also keeps email threads coherent for the recipient's mail client.
+
+**Features shipped:**
+- **Ticket deadline badge in Sidebar** — `GET /tickets/deadline-count` endpoint (new, no
+  migration) returns count of open/in-progress tickets with `sla_due_at` ≤24h. Sidebar queries
+  every 60s and shows a pulsing red badge on the Tickets nav item.
+- **TicketList + TicketDetail SLA warnings** — TicketList shows colored "⚠ Overdue" / "⚠ SLA
+  due" text per card; TicketDetail shows an amber/red banner at the top. (Items 34/43.)
+- **CLIENT_BASE_URL** — new config setting. Invite links use `client_base_url` (when set) instead
+  of `app_base_url`. Fix for priority-5 invite-URL bug (devsandbox was minting devsandbox links).
+  **Action for Diederik:** set `CLIENT_BASE_URL=https://sandbox.getyippie.com` in devsandbox and
+  `CLIENT_BASE_URL=https://app.getyippie.com` in dev Railway envs.
+
+**Code-verified as already done (no changes needed):**
+- Items 12 (bulk select/delete/spam), 45 (attachment chips), 47 (undo auto-dismiss) — all
+  confirmed complete in source; just need sandbox verification by Diederik.
 
 ---
 
