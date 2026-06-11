@@ -296,6 +296,16 @@ async def flush_pending_sends_job() -> None:
         await service.flush_pending_sends(db)
 
 
+@scheduler.scheduled_job("interval", hours=1, id="retention", max_instances=1, coalesce=True)
+async def retention_job() -> None:
+    """Spam → Bin after 10 working days; Bin emptied after 20 working days (item 42)."""
+    try:
+        async with db_session() as db:
+            await service.apply_retention(db)
+    except Exception:
+        log.exception("retention failed")
+
+
 @scheduler.scheduled_job("interval", seconds=60, id="go_live_check", max_instances=1, coalesce=True)
 async def go_live_job() -> None:
     """Activate tenants whose go_live_at date has passed: live, out of demo.

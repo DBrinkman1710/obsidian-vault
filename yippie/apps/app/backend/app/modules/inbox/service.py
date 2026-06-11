@@ -529,10 +529,74 @@ async def bulk_update_drafts(
     result = await db.execute(
         sa_update(DraftTicket)
         .where(DraftTicket.tenant_id == tenant_id, DraftTicket.id.in_(draft_ids))
-        .values(status=new_status)
+        .values(status=new_status, status_changed_at=func.now())
     )
     await db.commit()
     return result.rowcount
+
+
+# --- Spam/Bin retention (item 42) ---
+
+SPAM_TO_BIN_WORKING_DAYS = 10
+BIN_PURGE_WORKING_DAYS = 20
+
+
+def _working_days_ago(n: int) -> datetime:
+    """The moment n working days (Mon–Fri) before now, walking back calendar days."""
+    cutoff = datetime.now(timezone.utc)
+    remaining = n
+    while remaining > 0:
+        cutoff -= timedelta(days=1)
+        if cutoff.weekday() < 5:
+            remaining -= 1
+    return cutoff
+
+
+async def apply_retention(db: AsyncSession) -> None:
+    """Spam → Bin after 10 working days; Bin emptied after 20 working days.
+    Plain idempotent UPDATE/DELETE, so safe with two containers on one DB."""
+    from sqlalchemy import delete as sa_delete, update as sa_update
+
+    retention_ts = func.coalesce(
+        DraftTicket.status_changed_at, DraftTicket.reviewed_at, DraftTicket.created_at
+    )
+
+    # Move stale spam to the bin; reset the clock so it gets the full bin window
+    moved = await db.execute(
+        sa_update(DraftTicket)
+        .where(
+            DraftTicket.status == DraftStatus.spam,
+            retention_ts <= _working_days_ago(SPAM_TO_BIN_WORKING_DAYS),
+        )
+        .values(status=DraftStatus.bin, status_changed_at=func.now())
+    )
+
+    # Permanently delete stale bin items, then their now-orphaned inbound messages
+    stale = await db.execute(
+        select(DraftTicket.id, DraftTicket.inbound_message_id).where(
+            DraftTicket.status == DraftStatus.bin,
+            retention_ts <= _working_days_ago(BIN_PURGE_WORKING_DAYS),
+        )
+    )
+    rows = stale.all()
+    purged = 0
+    if rows:
+        draft_ids = [r[0] for r in rows]
+        msg_ids = [r[1] for r in rows]
+        result = await db.execute(sa_delete(DraftTicket).where(DraftTicket.id.in_(draft_ids)))
+        purged = result.rowcount
+        await db.execute(
+            sa_delete(InboundMessage).where(
+                InboundMessage.id.in_(msg_ids),
+                ~select(DraftTicket.id)
+                .where(DraftTicket.inbound_message_id == InboundMessage.id)
+                .exists(),
+            )
+        )
+
+    await db.commit()
+    if moved.rowcount or purged:
+        log.info("retention: %d spam → bin, %d bin item(s) purged", moved.rowcount, purged)
 
 
 async def tenant_is_demo(db: AsyncSession, tenant_id: uuid.UUID) -> bool:
