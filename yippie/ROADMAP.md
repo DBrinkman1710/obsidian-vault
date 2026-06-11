@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 24 — verification outcomes filed; session 23 — Performance Step 3; session 22b — dept/SLA race fix, reply language, deadline badges, invite URL)
+**Updated:** 2026-06-11 (pre-session-25 bugs added; session 24 — verification outcomes filed; session 23 — Performance Step 3; session 22b — dept/SLA race fix, reply language, deadline badges, invite URL)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -51,6 +51,29 @@
    (`/settings/profile`). Persisted per user (`users.hotkeys_enabled BOOL DEFAULT true`).
    Frontend reads the setting from the user object and conditionally registers/skips the
    `keydown` listeners. Superadmins and admins see this toggle; agents too.
+
+### 🐞 Additional bugs reported (pre-session-25 — fix alongside items 1–4 above)
+
+9. **Outbound from-address wrong in ndugu environment** — mail sent from the ndugu tenant
+   goes out as `sb-support@getyippie.com` instead of the ndugu tenant's own address. Same
+   class as the session-18c klimaatexamen fix: check `pending_sends.from_email` snapshot for
+   that tenant and whether the tenant's `inbound_email` / `RESEND_FROM` is correctly set.
+
+10. **Settings page broken** — one or more `/settings/*` routes are inaccessible or throwing
+    an error in sandbox/devsandbox. Identify which tab is broken and the root cause.
+
+11. **Client page: 6 buttons per row** — currently showing ~6 actions inline per client row;
+    should expose only **View as**, **Set demo**, and **Edit**. Move the **Inactive/Active
+    toggle**, **Copy email**, and **Delete** actions inside the Edit modal as tabs or action
+    sections. Extends item 38c.
+
+12. **Dev sandbox sidebar colour reset** — the devsandbox sidebar has lost its original
+    distinct colour (environment indicator). Restore it; check `Sidebar.tsx` or the CSS
+    variables applied per environment.
+
+13. **Compose modal: Send/Quit buttons shift on send** — in the sandbox compose modal,
+    pressing Send causes the Send and Quit buttons to visually jump/shift position. The
+    button layout must remain stable while the undo bar is rendering.
 
 ### ▶ Session 22 manual steps (Diederik) — still pending
 
@@ -551,6 +574,10 @@ immediately — **no per-tenant action required**.
 ### 46. Outbound email formatting (nice HTML)
 - Proper HTML email templates/layout for outbound mail so it looks polished
   (header, spacing, signature). Precursor to the full template system (Phase 9).
+- **Header:** top of every outbound email shows both the **client's logo** (from
+  `tenant.logo_url`) and the **Yippie logo** side by side (or client logo left,
+  small "powered by Yippie" right). Fall back to the tenant name as text when no
+  logo is set.
 
 ### 47. Undo-send UI polish (reconcile item 17)
 - Replace "email sent" headline with **"Yippie"**; show "email sent" small + grey
