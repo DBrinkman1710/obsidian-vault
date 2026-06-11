@@ -81,6 +81,8 @@ class DraftTicket(Base):
     forwarded_to_department_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("departments.id"), nullable=True)
     detected_language: Mapped[str | None] = mapped_column(String(10), nullable=True, default="en")
     follow_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # When the draft was last moved to bin/spam — drives the retention jobs (item 42)
+    status_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

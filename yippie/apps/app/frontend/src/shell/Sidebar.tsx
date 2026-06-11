@@ -83,7 +83,11 @@ export function Sidebar() {
                 {mod === 'inbox' && (
                   <div className="flex items-center gap-1.5">
                     <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${inboxFetching ? 'bg-blue-300 animate-pulse' : 'bg-emerald-400'}`}
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        inboxFetching
+                          ? 'bg-emerald-300 animate-pulse shadow-[0_0_8px_2px_rgba(110,231,183,0.9)]'
+                          : 'bg-emerald-400 shadow-[0_0_5px_1px_rgba(52,211,153,0.7)]'
+                      }`}
                       title={inboxFetching ? 'Refreshing…' : 'Live'}
                     />
                     {badgeLabel && (
