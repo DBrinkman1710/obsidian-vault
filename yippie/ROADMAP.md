@@ -74,7 +74,8 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 - **Email tracking module** — `Fable` — *not built.* `emailtracking` module: opens/clicks/delivery per outbound mail via Resend webhooks (`email.opened/clicked/bounced`); per-email status in Inbox/Sent; superadmin enable/disable per tenant.
 - **Calendar module** — `Fable` — *not built.* `calendar` module: agent calendar of `follow_up_at` deadlines + standalone events tied to a contact/ticket; per-tenant toggle.
 - **Pipeline module** — `Fable` — *not built.* Client-defined pipeline stages; customers auto-labeled by stage (builds on `[38]`); time-per-stage tracking; stage-triggered automated emails; per-tenant toggle.
-- **AI tools module** — `Fable` — *not built as a module — but an `ai` capability flag is live.* The `ai` slug (migration `d3e4f5a6b7c8`, backfilled onto every tenant) is **not** a standalone module: it has no router, no page, no `/ai` route, no sidebar entry, and is absent from `ALL_MODULES`. It is used purely as a per-tenant feature gate (`require_module("ai")`) on AI actions that already ship inside the **inbox** module — `POST /inbox/drafts/{id}/generate`, `…/suggest-reply`, `…/improve-reply`, `…/compose/suggest`. Still to build for a real "AI tools" module: a dedicated page + nav entry, the broader utilities (summarise contact history, auto-categorise tickets, draft department responses), and a **superadmin per-tenant toggle UI** (the flag is invisible today). Optional cleanup: drop the orphan `ai` flag from `enabled_modules` or add it to `ALL_MODULES`/`MODULE_MAP` properly.
+
+> The **AI module** is already built — see ✅ Done. It's the `ai` per-tenant flag that switches on the AI extras across inbox + tickets (summaries, generate mail, suggested/improved replies, compose suggestions, autofilled ticket fields). With it off, none of that runs.
 
 ### Email templates (Phase 9 — creative)
 - **[Phase 9] Template UX + AI insertion** — `Fable` — *backend partially exists* (`ResponseTemplate` model + `GET/POST /templates` in the tickets module). Still to build: `/settings/templates` CRUD page, "Insert template" in compose/reply, **AI-recommended** template based on the received email, company-wide + personal templates, and (optional) Resend-registered templates by ID.
@@ -163,7 +164,7 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 
 **Email templates (backend):** `ResponseTemplate` model + `GET/POST /templates` in the tickets module (UI + AI insertion still in Tier 1).
 
-**AI actions (inbox):** draft enrichment/`generate`, `suggest-reply`, `improve-reply`, and `compose/suggest` — all live and gated by the per-tenant `ai` capability flag (`require_module("ai")`, backfilled onto every tenant). A dedicated AI-tools module/page + toggle UI is still in Tier 1.
+**AI module:** the `ai` per-tenant flag (`require_module("ai")`, on for every tenant) switches on all the AI extras across **inbox + tickets** — incoming-mail scan that **autofills the ticket fields** (`ai_suggested_subject/description/priority/category`), the inbox **briefing/customer summary** (`generate_context_summary` → `context_summary`), and the **generate / suggest-reply / improve-reply / compose-suggest** actions. Turn the module off and none of it runs. (No separate nav page — it's the AI capability layer itself.)
 
 > Full per-item detail, bug histories and commit refs are preserved in **Appendix A — Session log**.
 
