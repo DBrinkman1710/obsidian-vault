@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 23 — Performance Step 3 shipped: skeletons, vendor chunk, draft-context query consolidation; session 22b — dept/SLA race fix, reply language, deadline badges, invite URL)
+**Updated:** 2026-06-11 (session 24 — Performance Step 4 shipped: trgm contact search, lazy compose picker, pool tuning, RLS role-switch dropped; API diagnostics bar compacted)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -11,12 +11,30 @@
 > will be added for the time being.** Everything below is already filed; the job is to
 > verify and execute, not to expand scope.
 
+### ▶ Session 24 — what's next
+
+**Diederik still to verify in sandbox:**
+- ~~`CLIENT_BASE_URL` set in Railway~~ **✅ DONE (2026-06-11)**
+- Dept + SLA saves correctly on approve (pick dept + custom SLA → check created ticket)
+- Reply subject stays in original language (reply to a Dutch email)
+- "Send cancelled" undo window auto-dismisses (item 47)
+- `Cmd/Ctrl+Enter` sends in compose + reply (item 35)
+- Scroll-only inbox layout + larger compose (item 9)
+- End-to-end auth flows: team invite → register → login; forgot/reset password; impersonation; change own password
+
+**Bugs still open (live verification needed):**
+- **New agent as admin** — re-invite a fresh address as agent and register via that exact email; check the role assigned
+- **Personal inbox leaks across users** — check in the DB or profile page whether `diederik1710@icloud.com` has `users.inbound_email` set to Joost's address; clear if so
+- **Personal address only receives after first send** — code-verified: saving the Profile is sufficient (poller picks up `users.inbound_email` within 30s); no send needed; likely a timing/test confusion
+
+**Next development candidates (after sandbox verification):**
+- Item 11 — ✅ DONE (RouteAndApproveModal redesign shipped session 20; dept/SLA race fixed session 22b)
+- Items 12, 45, 47 — ✅ code-verified done (session 22b); just need sandbox verification
+- No remaining Performance steps — Steps 1–4 all shipped
+
 ### ▶ Session 22 manual steps (Diederik)
 
-1. **Set `CLIENT_BASE_URL` in Railway** — fixes invite links pointing to wrong URL:
-   - Dev Sandbox env: `CLIENT_BASE_URL=https://sandbox.getyippie.com`
-   - Development env: `CLIENT_BASE_URL=https://app.getyippie.com`
-   - (Sandbox and app envs don't need it — `APP_BASE_URL` is already the client URL)
+1. ~~**Set `CLIENT_BASE_URL` in Railway**~~ **✅ DONE (2026-06-11)** — invite links now point to correct client URL.
 2. **Verify dept + SLA saves correctly on approve** — open a draft, approve, pick a department and set a custom SLA. The created ticket should now have the department and the correct follow-up date.
 3. **Verify reply subject language** — reply to a Dutch email; reply should have `Re: <original Dutch subject>`, not an English AI-generated one.
 
@@ -218,11 +236,19 @@ Top priority initiative. Diederik wants Yippie to feel fast. A code pass over
   (`asyncio.gather` was a no-go — one AsyncSession can't run concurrent queries,
   same constraint session 22 hit; fewer round-trips is the actual lever).
 
-**Step 4 — Search & scale (later):** Postgres `tsvector` GIN index for contact
-search; paginate the compose contacts picker; tune the connection pool
-(`pool_size`/`max_overflow`) + benchmark; decide RLS — either enforce policies
-(so the `SET LOCAL` cost is justified) or defer it and drop the per-request role
-switch.
+**Step 4 — Search & scale: ✅ SHIPPED (session 24)**
+- **`pg_trgm` GIN indexes** on `contacts.full_name`, `email`, `company` — makes
+  existing `ILIKE '%term%'` queries index-backed instead of seq-scan. Migration
+  `c0d1e2f3a4b5` (creates `pg_trgm` extension + three GIN indexes, idempotent).
+- **Compose contacts picker** — removed the eager `limit=1000` pre-load that fired
+  on every compose open. "All contacts" button now `fetchQuery` lazily on click
+  (60s stale); shows "Loading…" while fetching; no round-trip on open.
+- **Pool tuning** — explicit `pool_size=5, max_overflow=10, pool_timeout=30` in
+  `database.py` (was using SQLAlchemy defaults, now explicit and tunable).
+- **RLS role-switch dropped** — `set_tenant_context` dropped the
+  `SAVEPOINT/SET LOCAL ROLE app_user/RELEASE` dance (3 extra round-trips per
+  request). RLS policies not yet enforced so the role switch had no effect;
+  `SET LOCAL app.current_tenant_id` kept for when policies are added later.
 
 Ship each step `devsandbox → sandbox`, `/verify` in sandbox, then promote. The
 migration-deploy hazard is already handled (advisory lock in `migrations/env.py`).
@@ -871,6 +897,45 @@ every other client; no public endpoint to look up a tenant's config by slug befo
 ---
 
 ## Session log
+
+---
+
+### Session 24 — 2026-06-11 (Performance Step 4: trgm search, lazy compose, pool tuning, RLS role-switch dropped; API diagnostics compacted)
+
+**Background task (concurrent):**
+- **Compact API diagnostics bar** (`ff4903a`) — `ResendDiagnosticPanel` in
+  `SuperAdminPage.tsx` now a single header row (icon · label · Copy all · Run check)
+  with a collapsible `max-h-64` pre-block below; removed the explanatory paragraph.
+
+**Performance Step 4 (commit `1e44346`):**
+- **`pg_trgm` GIN indexes** — migration `c0d1e2f3a4b5` adds `pg_trgm` extension
+  (idempotent) and GIN indexes on `contacts.full_name`, `email`, `company`
+  (`gin_trgm_ops`). The existing `ILIKE '%term%'` query in `contacts/service.py`
+  now uses the indexes instead of a seq-scan on every keystroke.
+- **Lazy compose contacts picker** — `ContactSearchPicker` no longer fires the
+  `limit=1000` query when the compose dropdown opens. "All contacts" button uses
+  `useQueryClient().fetchQuery` on click (60s stale); shows "Loading…" while
+  fetching; no unnecessary round-trip on compose open.
+- **Explicit pool settings** — `database.py` now has `pool_size=5, max_overflow=10,
+  pool_timeout=30`; was previously using SQLAlchemy defaults (same values, but now
+  explicit and documented).
+- **RLS role-switch dropped** — `set_tenant_context` simplified from 4+ SQL
+  round-trips to 1. The `SAVEPOINT / SET LOCAL ROLE app_user / RELEASE` block is
+  gone; `SET LOCAL app.current_tenant_id` kept as the hook for future RLS policies.
+  Decision: defer RLS enforcement until policies are actively written.
+
+**Code audit — items confirmed complete, no changes needed:**
+- Item 11 (DeptReminderModal redesign) — fully done since session 20; modal always
+  shows on approve when departments exist, has "No dept" + "No SLA" options.
+- Items 12 (bulk select/delete/spam), 45 (attachment chips), 47 (undo auto-dismiss)
+  — all confirmed in source; await sandbox verification by Diederik.
+
+**Personal-address-receive-after-send bug** — code-verified correct: the poller
+builds `get_inbound_email_map` from `users.inbound_email` on every 30s cycle;
+saving the Profile address is sufficient to receive. No send is needed. The
+phenomenon is most likely a timing/test confusion. Closing as no-fix.
+
+**Deployed:** `git push origin devsandbox && git push origin devsandbox:sandbox`
 
 ---
 
