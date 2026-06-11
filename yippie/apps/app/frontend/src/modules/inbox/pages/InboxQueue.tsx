@@ -28,7 +28,7 @@ const STATUS_STYLES: Record<string, string> = {
 }
 
 type Tab = 'pending' | 'processed'
-type ProcessedFilter = 'all' | 'approved' | 'rejected' | 'forwarded' | 'bin'
+type ProcessedFilter = 'all' | 'approved' | 'rejected' | 'forwarded' | 'spam' | 'bin'
 type Mailbox = 'shared' | 'personal'
 
 interface Contact {
@@ -462,8 +462,14 @@ const PROCESSED_FILTERS: { value: ProcessedFilter; label: string }[] = [
   { value: 'approved',  label: 'Approved' },
   { value: 'rejected',  label: 'Rejected' },
   { value: 'forwarded', label: 'Forwarded' },
+  { value: 'spam',      label: 'Spam' },
   { value: 'bin',       label: 'Bin' },
 ]
+
+const RETENTION_NOTES: Partial<Record<ProcessedFilter, string>> = {
+  spam: 'Spam is moved to the Bin automatically after 10 working days.',
+  bin:  'Items in the Bin are permanently deleted after 20 working days.',
+}
 
 export default function InboxQueue() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
@@ -502,13 +508,19 @@ export default function InboxQueue() {
     enabled: activeTab === 'processed',
   })
 
+  const { data: spamDrafts } = useQuery({
+    queryKey: ['drafts', mailbox, 'spam'],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'spam', mailbox } }).then(r => r.data),
+    enabled: activeTab === 'processed',
+  })
+
   const { data: binDrafts } = useQuery({
     queryKey: ['drafts', mailbox, 'bin'],
     queryFn: () => api.get('/inbox/drafts', { params: { status: 'bin', mailbox } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
-  const allProcessed = [...(approvedDrafts ?? []), ...(rejectedDrafts ?? []), ...(forwardedDrafts ?? []), ...(binDrafts ?? [])]
+  const allProcessed = [...(approvedDrafts ?? []), ...(rejectedDrafts ?? []), ...(forwardedDrafts ?? []), ...(spamDrafts ?? []), ...(binDrafts ?? [])]
     .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
 
   const processedDrafts = processedFilter === 'all'
@@ -633,6 +645,10 @@ export default function InboxQueue() {
               </button>
             ))}
           </div>
+        )}
+
+        {activeTab === 'processed' && RETENTION_NOTES[processedFilter] && (
+          <p className="mt-2 text-xs text-slate-400">{RETENTION_NOTES[processedFilter]}</p>
         )}
 
         {/* Bulk action bar */}
