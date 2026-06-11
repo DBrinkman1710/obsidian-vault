@@ -18,6 +18,7 @@ class UserOut(BaseModel):
     reply_from_email: Optional[str] = None
     inbound_email: Optional[str] = None
     email_signature: Optional[str] = None
+    hotkeys_enabled: bool = True
     created_at: datetime
 
     model_config = {"from_attributes": True}

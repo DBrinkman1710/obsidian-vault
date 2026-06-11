@@ -951,6 +951,7 @@ export default function DraftReview() {
                 value={replyText}
                 onChange={e => { setReplyText(e.target.value); setSuggestions([]) }}
                 onKeyDown={e => {
+                  if (user?.hotkeys_enabled === false) return
                   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !sending && !undoUntil && !sentTo && replyText.trim()) {
                     e.preventDefault()
                     handleSendReply()

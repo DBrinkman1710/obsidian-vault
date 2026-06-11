@@ -15,6 +15,7 @@ interface User {
   reply_from_email?: string | null
   inbound_email?: string | null
   email_signature?: string | null
+  hotkeys_enabled?: boolean
 }
 
 interface Impersonation {
