@@ -423,12 +423,13 @@ function ComposeModal({
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Message</label>
               <TemplatePicker
                 onSelect={(tmplBody, isHtml) => {
+                  const sig = user?.email_signature ? `\n\n${user.email_signature}` : ''
                   if (isHtml) {
                     setTemplateHtml(tmplBody)
-                    const text = htmlToText(tmplBody)
-                    setBody(prev => prev.trim() ? `${text}\n\n${prev}` : text)
+                    setBody(htmlToText(tmplBody) + sig)
                   } else {
-                    setBody(prev => prev.trim() ? `${tmplBody}\n\n${prev}` : tmplBody)
+                    setTemplateHtml(null)
+                    setBody(tmplBody + sig)
                   }
                 }}
               />
