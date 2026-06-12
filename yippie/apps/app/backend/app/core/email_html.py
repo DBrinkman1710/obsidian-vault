@@ -89,6 +89,44 @@ def render_campaign_buttons_html(buttons: list[dict], token_map: dict[str, str] 
     return f'<div style="padding:8px 0;text-align:center;">{"".join(links)}</div>'
 
 
+def inject_button_tracking(html_content: str, buttons: list[dict], token_map: dict[str, str]) -> str:
+    """Replace hrefs in Unlayer-exported HTML for tracked buttons.
+
+    Matches <a> elements by their visible text (case-insensitive, stripped of whitespace)
+    against campaign button texts, then substitutes the tracking URL from token_map.
+    Uses a simple regex approach to avoid adding dependencies.
+    """
+    if not buttons or not token_map:
+        return html_content
+
+    # Build text (lowercased, stripped) → tracking_url
+    text_to_url: dict[str, str] = {}
+    for btn in buttons:
+        btn_id = str(btn.get("id", ""))
+        url = token_map.get(btn_id)
+        text = (btn.get("text") or "").strip().lower()
+        if url and text:
+            text_to_url[text] = url
+
+    if not text_to_url:
+        return html_content
+
+    # Match <a ...>...</a> blocks and replace href if link text matches
+    # Pattern captures: group1=opening tag with href, group2=href value, group3=rest of tag, group4=inner content
+    pattern = re.compile(
+        r'(<a\b[^>]*\bhref=")([^"]*)(\"[^>]*>)(.*?)(</a>)',
+        re.DOTALL | re.IGNORECASE,
+    )
+
+    def replacer(m: re.Match) -> str:
+        inner = re.sub(r'<[^>]+>', '', m.group(4)).strip().lower()
+        if inner in text_to_url:
+            return m.group(1) + html.escape(text_to_url[inner], quote=True) + m.group(3) + m.group(4) + m.group(5)
+        return m.group(0)
+
+    return pattern.sub(replacer, html_content)
+
+
 def render_email_html(
     body_text: str,
     tenant_name: str | None = None,

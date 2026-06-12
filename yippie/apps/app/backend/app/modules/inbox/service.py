@@ -786,7 +786,14 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                         db.add(tok)
                         await db.flush()
                         token_map[btn_id] = f"{base_url}/api/v1/track/click/{tok.token}"
-                    campaign_buttons_html = render_campaign_buttons_html(buttons, token_map=token_map)
+
+                    if c.get("prerendered_html"):
+                        # Unlayer template: inject tracking URLs into native button hrefs
+                        from app.core.email_html import inject_button_tracking
+                        c = {**c, "prerendered_html": inject_button_tracking(c["prerendered_html"], buttons, token_map)}
+                    else:
+                        # Plain text template: append buttons below body as before
+                        campaign_buttons_html = render_campaign_buttons_html(buttons, token_map=token_map)
 
                 html_body = render_email_html(
                     c["reply_text"],

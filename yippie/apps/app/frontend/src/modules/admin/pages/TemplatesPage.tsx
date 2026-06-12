@@ -21,31 +21,40 @@ interface CampaignButton {
   text: string
   label_id: string | null
   multiple_allowed: boolean
-  bg_color: string
-  text_color: string
-  border_radius: number
-  font_size: number
-  font_weight: string
-  border_color: string | null
-  border_width: number
 }
 
 interface ContactLabel { id: string; name: string; color: string }
 
-function newCampaignButton(): CampaignButton {
-  return {
-    id: crypto.randomUUID(),
-    text: 'Yes, count me in',
-    label_id: null,
-    multiple_allowed: false,
-    bg_color: '#5BA4F5',
-    text_color: '#ffffff',
-    border_radius: 6,
-    font_size: 14,
-    font_weight: '600',
-    border_color: null,
-    border_width: 0,
+function newCampaignButton(id: string, text: string): CampaignButton {
+  return { id, text, label_id: null, multiple_allowed: false }
+}
+
+function stripHtml(text: string): string {
+  return text.replace(/<[^>]*>/g, '').trim()
+}
+
+function extractButtonsFromDesign(design: object): Array<{ id: string; text: string }> {
+  const found: Array<{ id: string; text: string }> = []
+  function walk(node: unknown) {
+    if (Array.isArray(node)) {
+      node.forEach(walk)
+      return
+    }
+    if (node && typeof node === 'object') {
+      const n = node as Record<string, unknown>
+      if (n.type === 'button') {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const values = n.values as any
+        const text = stripHtml(String(values?.text ?? ''))
+        if (text) {
+          found.push({ id: String(values?._meta?.htmlID ?? crypto.randomUUID()), text })
+        }
+      }
+      Object.values(n).forEach(walk)
+    }
   }
+  walk(design)
+  return found
 }
 
 function parseButtons(raw: string | null): CampaignButton[] {
@@ -87,9 +96,17 @@ export default function TemplatesPage() {
   const updateButton = (id: string, patch: Partial<CampaignButton>) =>
     setButtons(prev => prev.map(b => (b.id === id ? { ...b, ...patch } : b)))
 
-  const addButton = () => setButtons(prev => [...prev, newCampaignButton()])
-
-  const removeButton = (id: string) => setButtons(prev => prev.filter(b => b.id !== id))
+  function syncButtonsFromDesign(design: object) {
+    const detected = extractButtonsFromDesign(design)
+    setButtons(prev =>
+      detected.map(d => {
+        const existing = prev.find(b => b.text === d.text)
+        return existing
+          ? { id: existing.id, text: d.text, label_id: existing.label_id, multiple_allowed: existing.multiple_allowed }
+          : newCampaignButton(d.id, d.text)
+      })
+    )
+  }
 
   function loadIntoEditor(designJson: string | null) {
     const editor = editorRef.current?.editor
@@ -110,6 +127,12 @@ export default function TemplatesPage() {
 
   function handleEditorReady() {
     setEditorReady(true)
+    const editor = editorRef.current?.editor
+    editor?.addEventListener('design:updated', () => {
+      editor.exportHtml(({ design }) => {
+        syncButtonsFromDesign(design)
+      })
+    })
     if (pendingDesignRef.current !== undefined) {
       const pending = pendingDesignRef.current
       pendingDesignRef.current = undefined
@@ -125,6 +148,13 @@ export default function TemplatesPage() {
     setButtons(parseButtons(t.campaign_buttons))
     setSaveError('')
     loadIntoEditor(t.design_json)
+    if (t.design_json) {
+      try {
+        syncButtonsFromDesign(JSON.parse(t.design_json))
+      } catch {
+        // corrupt design JSON — design:updated will sync once the editor loads
+      }
+    }
   }
 
   function openNew() {
@@ -135,6 +165,7 @@ export default function TemplatesPage() {
     setButtons([])
     setSaveError('')
     loadIntoEditor(null)
+    syncButtonsFromDesign({})
   }
 
   function clearSelection() {
@@ -319,33 +350,22 @@ export default function TemplatesPage() {
                 )}
               </div>
 
-              {/* Campaign button config — always visible below signature */}
+              {/* Button label config — auto-detected from Unlayer button blocks */}
               <div className="mx-5 mb-5 mt-3 shrink-0 border border-slate-200 rounded-xl bg-white overflow-y-auto max-h-[220px]">
                 <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
                   <MousePointerClick size={13} className="text-blue-500" />
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Campaign Buttons</span>
-                  <button
-                    onClick={addButton}
-                    className="ml-auto inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded text-[11px] font-semibold transition-colors"
-                  >
-                    <Plus size={11} strokeWidth={2.5} />
-                    Add button
-                  </button>
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Button Labels</span>
                 </div>
                 {buttons.length === 0 ? (
                   <p className="px-4 py-3 text-[11px] text-slate-400">
-                    No campaign buttons. Add one to map a click to a contact label — it renders below the email body when sent.
+                    Add a Button block to your email design to attach a label to it.
                   </p>
                 ) : (
-                  buttons.map((b, i) => (
+                  buttons.map(b => (
                     <div key={b.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0 border-slate-50">
-                      <span className="text-xs text-slate-400 font-bold w-4 shrink-0">{i + 1}</span>
-                      <input
-                        className="w-32 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                        value={b.text}
-                        placeholder="Button text"
-                        onChange={e => updateButton(b.id, { text: e.target.value })}
-                      />
+                      <span className="shrink-0 max-w-[160px] truncate px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold" title={b.text}>
+                        {b.text}
+                      </span>
                       <select
                         className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
                         value={b.label_id ?? ''}
@@ -363,15 +383,6 @@ export default function TemplatesPage() {
                         />
                         <span className="text-[11px] text-slate-500">Multi</span>
                       </label>
-                      <input type="color" value={b.bg_color} onChange={e => updateButton(b.id, { bg_color: e.target.value })} className="w-7 h-7 border-0 rounded cursor-pointer p-0" title="Background color" />
-                      <input type="color" value={b.text_color} onChange={e => updateButton(b.id, { text_color: e.target.value })} className="w-7 h-7 border-0 rounded cursor-pointer p-0" title="Text color" />
-                      <button
-                        onClick={() => removeButton(b.id)}
-                        className="shrink-0 p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
-                        title="Remove button"
-                      >
-                        <Trash2 size={13} />
-                      </button>
                     </div>
                   ))
                 )}
