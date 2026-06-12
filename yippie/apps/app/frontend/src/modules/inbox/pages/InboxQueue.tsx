@@ -29,6 +29,18 @@ const STATUS_STYLES: Record<string, string> = {
   spam:      'bg-orange-100 text-orange-700',
 }
 
+function statusBadge(status: string) {
+  const map: Record<string, { label: string; cls: string }> = {
+    sent:      { label: 'Sent',      cls: 'bg-slate-100 text-slate-500' },
+    delivered: { label: 'Delivered', cls: 'bg-green-50 text-green-600' },
+    opened:    { label: 'Opened',    cls: 'bg-blue-50 text-blue-600' },
+    clicked:   { label: 'Clicked',   cls: 'bg-purple-50 text-purple-600' },
+    bounced:   { label: 'Bounced',   cls: 'bg-red-50 text-red-600' },
+  }
+  const s = map[status] ?? map['sent']
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${s.cls}`}>{s.label}</span>
+}
+
 type Tab = 'pending' | 'processed' | 'sent'
 type ProcessedFilter = 'all' | 'approved' | 'rejected' | 'forwarded' | 'spam' | 'bin'
 type Mailbox = 'shared' | 'personal'
@@ -871,34 +883,24 @@ export default function InboxQueue() {
             )}
             {trackingEnabled && outboundEmails && outboundEmails.length > 0 && (
               <div className="flex flex-col gap-3">
-                {outboundEmails.map((em: any) => {
-                  const statusMap: Record<string, { label: string; cls: string }> = {
-                    sent:      { label: 'Sent',      cls: 'bg-slate-100 text-slate-500' },
-                    delivered: { label: 'Delivered', cls: 'bg-green-50 text-green-600' },
-                    opened:    { label: 'Opened',    cls: 'bg-blue-50 text-blue-600' },
-                    clicked:   { label: 'Clicked',   cls: 'bg-purple-50 text-purple-600' },
-                    bounced:   { label: 'Bounced',   cls: 'bg-red-50 text-red-600' },
-                  }
-                  const s = statusMap[em.status] ?? statusMap['sent']
-                  return (
-                    <div key={em.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <Send size={13} className="text-slate-400 shrink-0" />
-                            <span className="text-sm font-semibold text-slate-900 truncate">{em.subject ?? '(no subject)'}</span>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${s.cls}`}>{s.label}</span>
-                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${em.kind === 'compose' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                              {em.kind === 'compose' ? 'Composed' : 'Reply'}
-                            </span>
-                          </div>
-                          <p className="text-xs text-slate-500 mb-1">To: {em.to_email}</p>
+                {outboundEmails.map((em: any) => (
+                  <div key={em.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <Send size={13} className="text-slate-400 shrink-0" />
+                          <span className="text-sm font-semibold text-slate-900 truncate">{em.subject ?? '(no subject)'}</span>
+                          {statusBadge(em.status)}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${em.kind === 'compose' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {em.kind === 'compose' ? 'Composed' : 'Reply'}
+                          </span>
                         </div>
-                        <p className="text-xs text-slate-400 shrink-0">{new Date(em.created_at).toLocaleString()}</p>
+                        <p className="text-xs text-slate-500 mb-1">To: {em.to_email}</p>
                       </div>
+                      <p className="text-xs text-slate-400 shrink-0">{new Date(em.created_at).toLocaleString()}</p>
                     </div>
-                  )
-                })}
+                  </div>
+                ))}
               </div>
             )}
             {!trackingEnabled && sentEvents && sentEvents.length > 0 && (
