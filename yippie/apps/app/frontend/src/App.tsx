@@ -5,7 +5,6 @@ import { useAuth } from './auth/useAuth'
 import { ModuleGate } from './shell/ModuleGate'
 import { Sidebar } from './shell/Sidebar'
 
-const ContactList   = lazy(() => import('./modules/contacts/pages/ContactList'))
 const ContactDetail = lazy(() => import('./modules/contacts/pages/ContactDetail'))
 const ContactNew    = lazy(() => import('./modules/contacts/pages/ContactNew'))
 const TicketList    = lazy(() => import('./modules/tickets/pages/TicketList'))
@@ -23,7 +22,7 @@ const ResetPasswordPage  = lazy(() => import('./auth/ResetPasswordPage'))
 const TeamSettingsPage   = lazy(() => import('./modules/admin/pages/TeamSettingsPage'))
 const DepartmentsPage          = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
 const LabelsPage               = lazy(() => import('./modules/admin/pages/LabelsPage'))
-const CompaniesPage            = lazy(() => import('./modules/contacts/pages/CompaniesPage'))
+const ContactsPage             = lazy(() => import('./modules/contacts/pages/ContactsPage'))
 const SuperAdminPage           = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
 const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/SuperadminsSettingsPage'))
 const ProfileSettingsPage      = lazy(() => import('./modules/admin/pages/ProfileSettingsPage'))
@@ -141,14 +140,9 @@ export default function App() {
             <Routes>
               <Route path="/" element={<Navigate to="/inbox" replace />} />
 
+              {/* Contacts — manages its own scroll/padding like Inbox */}
               <Route path="/contacts" element={
-                <ModuleGate module="contacts"><PagePad><CompaniesPage /></PagePad></ModuleGate>
-              } />
-              <Route path="/contacts/list" element={
-                <ModuleGate module="contacts"><PagePad><ContactList /></PagePad></ModuleGate>
-              } />
-              <Route path="/contacts/companies/:companyId" element={
-                <ModuleGate module="contacts"><PagePad><ContactList /></PagePad></ModuleGate>
+                <ModuleGate module="contacts"><ContactsPage /></ModuleGate>
               } />
               <Route path="/contacts/new" element={
                 <ModuleGate module="contacts"><PagePad><ContactNew /></PagePad></ModuleGate>
