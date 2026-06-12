@@ -14,7 +14,9 @@ from app.modules.tickets.schemas import (
     CommentCreate,
     CommentOut,
     TemplateCreate,
+    TemplateUpdate,
     TemplateOut,
+    TemplateSuggestRequest,
     TicketCreate,
     TicketList,
     TicketOut,
@@ -61,6 +63,26 @@ async def list_templates(current_user: CurrentUser, db: DB):
 @router.post("/templates", response_model=TemplateOut, status_code=status.HTTP_201_CREATED)
 async def create_template(body: TemplateCreate, current_user: CurrentUser, db: DB):
     return await service.create_template(db, current_user.tenant_id, body)
+
+
+@router.patch("/templates/{template_id}", response_model=TemplateOut)
+async def update_template(template_id: uuid.UUID, body: TemplateUpdate, current_user: CurrentUser, db: DB):
+    template = await service.update_template(db, current_user.tenant_id, template_id, body)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
+
+
+@router.delete("/templates/{template_id}", status_code=204)
+async def delete_template(template_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    ok = await service.delete_template(db, current_user.tenant_id, template_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+
+@router.post("/templates/ai-suggest", response_model=list[TemplateOut])
+async def ai_suggest_templates(body: TemplateSuggestRequest, current_user: CurrentUser, db: DB):
+    return await service.suggest_templates(db, current_user.tenant_id, body.context)
 
 
 @router.get("/deadline-count")

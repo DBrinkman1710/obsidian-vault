@@ -156,7 +156,7 @@ function ChangePasswordCard() {
   const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 mt-6">
+    <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
       <div>
         <h2 className="text-sm font-bold text-slate-900">Change password</h2>
         <p className="text-xs text-slate-400 mt-0.5">At least 8 characters.</p>
@@ -165,15 +165,13 @@ function ChangePasswordCard() {
         <label className="block text-xs font-semibold text-slate-500 mb-1.5">Current password</label>
         <input type="password" value={current} onChange={e => setCurrent(e.target.value)} className={inputCls} required />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">New password</label>
-          <input type="password" value={next} onChange={e => setNext(e.target.value)} className={inputCls} required minLength={8} />
-        </div>
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Confirm new password</label>
-          <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} className={inputCls} required />
-        </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 mb-1.5">New password</label>
+        <input type="password" value={next} onChange={e => setNext(e.target.value)} className={inputCls} required minLength={8} />
+      </div>
+      <div>
+        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Confirm new password</label>
+        <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} className={inputCls} required />
       </div>
 
       {error && <p className="text-xs text-red-500">{error}</p>}

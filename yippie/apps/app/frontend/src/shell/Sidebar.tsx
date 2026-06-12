@@ -2,7 +2,7 @@ import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard,
-  MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Tag,
+  MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Tag, FileText,
   type LucideIcon,
 } from 'lucide-react'
 import { useTenantConfig } from '../App'
@@ -151,6 +151,18 @@ export function Sidebar() {
         >
           <UserCircle size={16} strokeWidth={2} />
           <span>Profile</span>
+        </NavLink>
+
+        <NavLink
+          to="/settings/templates"
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+              isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+            }`
+          }
+        >
+          <FileText size={16} strokeWidth={2} />
+          <span>Templates</span>
         </NavLink>
 
         {(user?.role === 'admin' || user?.role === 'superadmin') && (

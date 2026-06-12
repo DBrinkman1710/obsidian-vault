@@ -331,6 +331,84 @@ async def create_template(db: AsyncSession, tenant_id: uuid.UUID, data: Template
     return template
 
 
+async def update_template(
+    db: AsyncSession, tenant_id: uuid.UUID, template_id: uuid.UUID, data: "TemplateUpdate"
+) -> ResponseTemplate | None:
+    result = await db.execute(
+        select(ResponseTemplate).where(
+            ResponseTemplate.tenant_id == tenant_id,
+            ResponseTemplate.id == template_id,
+        )
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        return None
+    if data.name is not None:
+        template.name = data.name
+    if data.body is not None:
+        template.body = data.body
+    await db.commit()
+    await db.refresh(template)
+    return template
+
+
+async def delete_template(
+    db: AsyncSession, tenant_id: uuid.UUID, template_id: uuid.UUID
+) -> bool:
+    result = await db.execute(
+        select(ResponseTemplate).where(
+            ResponseTemplate.tenant_id == tenant_id,
+            ResponseTemplate.id == template_id,
+        )
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        return False
+    await db.delete(template)
+    await db.commit()
+    return True
+
+
+async def suggest_templates(
+    db: AsyncSession, tenant_id: uuid.UUID, context: str
+) -> list[ResponseTemplate]:
+    """Return up to 3 templates most relevant to the given email context using Claude."""
+    from app.modules.inbox.ai_scanner import _client, _model, _strip_fences
+    import json as _json
+
+    templates = await list_templates(db, tenant_id)
+    if not templates:
+        return []
+    if len(templates) <= 3:
+        return list(templates)
+
+    summaries = "\n".join(
+        f"{i+1}. Name: {t.name!r} | Preview: {t.body[:120]!r}"
+        for i, t in enumerate(templates)
+    )
+    prompt = (
+        f"An agent is handling this customer email:\n{context[:500]}\n\n"
+        f"These response templates are available:\n{summaries}\n\n"
+        "Return a JSON array of the 1-indexed numbers of the 3 most relevant templates, "
+        "most relevant first. Example: [2, 5, 1]. Return only the JSON array."
+    )
+    try:
+        resp = await _client().messages.create(
+            model=_model(),
+            max_tokens=64,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        raw = _strip_fences(resp.content[0].text)
+        indices = _json.loads(raw)
+        result = []
+        for idx in indices[:3]:
+            if isinstance(idx, int) and 1 <= idx <= len(templates):
+                result.append(templates[idx - 1])
+        return result
+    except Exception:
+        return list(templates[:3])
+
+
 async def get_ticket_stats(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
     rows = await db.execute(
         select(Ticket.status, func.count().label("cnt"))

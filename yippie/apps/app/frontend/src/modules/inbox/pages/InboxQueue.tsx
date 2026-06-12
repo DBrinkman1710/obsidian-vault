@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
+import { TemplatePicker } from '../components/TemplatePicker'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { CardListSkeleton } from '../../../shell/Skeleton'
@@ -332,7 +333,12 @@ function ComposeModal({
 
           {/* Body */}
           <div className="flex-1">
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Message</label>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Message</label>
+              <TemplatePicker
+                onSelect={tmplBody => setBody(prev => prev.trim() ? `${tmplBody}\n\n${prev}` : tmplBody)}
+              />
+            </div>
             <textarea
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-[inherit]"
               rows={14}

@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Paperclip, Sparkles } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
+import { TemplatePicker } from '../components/TemplatePicker'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { Skeleton } from '../../../shell/Skeleton'
@@ -931,24 +932,32 @@ export default function DraftReview() {
                   </span>
                 )}
               </div>
-              {aiEnabled && (
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleGenerateReply}
-                    disabled={replyLoading}
-                    className="px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
-                  >
-                    {replyLoading ? 'Generating…' : 'Generate'}
-                  </button>
-                  <button
-                    onClick={handleImproveReply}
-                    disabled={improveLoading || !replyText.trim()}
-                    className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg hover:bg-slate-200 disabled:opacity-40 transition-colors cursor-pointer"
-                  >
-                    {improveLoading ? 'Improving…' : 'Improve'}
-                  </button>
-                </div>
-              )}
+              <div className="flex gap-2">
+                {aiEnabled && (
+                  <>
+                    <button
+                      onClick={handleGenerateReply}
+                      disabled={replyLoading}
+                      className="px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+                    >
+                      {replyLoading ? 'Generating…' : 'Generate'}
+                    </button>
+                    <button
+                      onClick={handleImproveReply}
+                      disabled={improveLoading || !replyText.trim()}
+                      className="px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg hover:bg-slate-200 disabled:opacity-40 transition-colors cursor-pointer"
+                    >
+                      {improveLoading ? 'Improving…' : 'Improve'}
+                    </button>
+                  </>
+                )}
+                <TemplatePicker
+                  context={msg ? `${msg.subject ?? ''}\n\n${msg.raw_body ?? ''}` : ''}
+                  onSelect={body => setReplyText(prev =>
+                    prev.trim() ? `${body}\n\n${prev}` : body
+                  )}
+                />
+              </div>
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col p-3 gap-2 min-h-0">

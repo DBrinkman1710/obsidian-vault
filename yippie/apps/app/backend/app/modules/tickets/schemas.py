@@ -81,6 +81,11 @@ class TemplateCreate(BaseModel):
     body: str
 
 
+class TemplateUpdate(BaseModel):
+    name: str | None = None
+    body: str | None = None
+
+
 class TemplateOut(BaseModel):
     id: uuid.UUID
     name: str
@@ -88,3 +93,7 @@ class TemplateOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class TemplateSuggestRequest(BaseModel):
+    context: str
