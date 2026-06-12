@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-12 (session 35 — Phase 9B: Unlayer drag-and-drop template editor + campaign buttons built; session 34 + 35 items queued)
+**Updated:** 2026-06-12 (session 36 — Tier 3 batch: V2 all-contacts fix, V3 personal-From pre-select, V5 signature-in-email-card, V6+V7 team page layout, V9+V10+V11 settings/labels cleanup, TE1 delete confirmation disabled, TE2 signature moved into editor area)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -66,6 +66,15 @@ environment / deploy reference lives in **Appendix B**.
 - **[V10] Add contact labels to Settings page** — Add the Labels management section (name + colour, CRUD) as a section inside the main Settings page, accessible from the same Settings area. See Tier 3.
 - **[V11] Remove standalone Labels page** — Once labels are in Settings (V10), remove the standalone `/settings/labels` route, `LabelsPage` component, and its "Labels" sidebar link. See Tier 3.
 
+**New items collected (post-session-35 — 2026-06-12):**
+
+- **[T1] Template editor: full-screen pop-up modal** — `Sonnet` — when creating or editing a template, open the editor in a large modal/dialog rather than the current two-panel split on `/settings/templates`. Gives users enough vertical and horizontal room to build templates comfortably. The template list stays on the page behind the modal; modal has close/save in its header. See Tier 3.
+- **[T2] Campaign buttons as Unlayer blocks** — `Fable` — instead of a separate "Campaign Buttons" tab, integrate campaign buttons as native draggable block types inside the Unlayer canvas (part of Phase 9C). Each block maps to a contact label; supports "multiple answers allowed?" toggle per button; styled inline in the canvas. Aligns with Phase 9C tracked-click token work. See Tier 1.
+- ~~**[TE1] Template editor: remove object deletion warning**~~ ✅ **DONE (session 36)** — `editor: { confirmOnDelete: false }` added to Unlayer options.
+- ~~**[TE2] Signature: move inside template content area**~~ ✅ **DONE (session 36)** — signature preview now renders as a `rounded-b-xl` footer attached to the bottom of the Unlayer canvas border; separate bottom card removed.
+- **[TE3] Campaign buttons: per-button action type** — `Opus` — extend campaign button configuration with an "action type" selector per button. Supported types: **open website** (URL), **send mail** (email address), **call phone number** (phone number), **label contact to X** (label picker — the Phase 9C tracked-click flow). Non-label action types render as standard `<a>` links (no token needed); only label-action buttons generate `LabelClickToken`s at send time. Ties into Phase 9C. See Tier 2.
+- **[TE4] Template editor: AI tip tooltip on HTML button** — `Sonnet` — when hovering over the HTML/source button in the template editor, show a small tooltip: "Tip: Use AI to create a mail with HTML". Nudges users toward the AI compose flow for rich content. See Tier 3.
+
 **New items collected (session 35 — 2026-06-12):**
 
 - ~~**[Phase 9B] Full drag-and-drop email template editor**~~ ✅ **DONE (session 35)** — see Tier 1 entry for the build summary.
@@ -124,7 +133,7 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 ### Email templates (Phase 9 — creative)
 - ~~**[Phase 9] Template UX + AI insertion**~~ ✅ **DONE (session 33)** — `/settings/templates` CRUD page, `TemplatePicker` component (search + one-click insert + AI suggest button) wired into DraftReview reply panel and ComposeModal, `PATCH`/`DELETE`/`POST ai-suggest` backend endpoints, AI ranking via Claude. "Templates" sidebar link for all users. Personal templates still open ([S3] — see Tier 2 if needed).
 - ~~**[Phase 9B] Full drag-and-drop email template editor**~~ ✅ **DONE (session 35)** — `Fable` — Built on `react-email-editor` 1.8 (Unlayer, MIT licence). `/settings/templates` rebuilt as a two-panel split: template list (left, "Rich design" badge, delete) + editor (right) with "Email Design" (Unlayer canvas, design persisted as `design_json` + exported `html_body`) and "Campaign Buttons" tabs (per-button text/bg/text colour/radius/font size/weight/outline, drag-reorder, "multiple answers allowed?" toggle, live preview — stored as `campaign_buttons` JSONB, label mapping deferred to 9C). New migration `g7h8i9j0k1l2` adds the three columns. Templates button beneath Compose in the Inbox header (same size/colour) replaces the sidebar link; picking a template opens ComposeModal pre-filled (rich templates show an HTML preview + plain-text fallback). TemplatePicker shows "Visual" badge for rich templates and passes `html_body` via `onSelect(body, isHtml)`. `render_email_html()` gained `prerendered_html` param + `render_campaign_buttons_html()` helper (placeholder `#` hrefs until 9C tokens). Signature preview block below the editor. Rich-HTML *sending* pipeline + button label mapping land with [Phase 9C].
-- **[Phase 9C] Tracked click / campaign buttons (label-click tokens)** — `Fable` — *not built.* Four pieces to build: (1) **Buttons section in template editor** — admins map each button to a contact label; "multiple answers allowed?" toggle stored per-button in the template JSON body. (2) **`LabelClickToken` model** — `token` (UUID PK), `contact_id`, `label_id`, `tenant_id`, `used_at`; one token per button per recipient, generated at send-time. (3) **Public `/track/click/{token}` endpoint** — no auth required (contact has no Yippie account); looks up token, applies the mapped label to the contact, sets `used_at`, redirects to a plain "Thank you for your response" confirmation page. Tokens expire on first click. (4) **`render_email_html()` update** — injects campaign buttons as styled `<a>` anchor tags pointing to the tracking URLs.
+- **[Phase 9C] Tracked click / campaign buttons (label-click tokens)** — `Fable` — *not built.* Four pieces to build: (1) **Campaign buttons as native Unlayer blocks** — replace the current "Campaign Buttons" tab with draggable button blocks inside the Unlayer canvas; each block maps to a contact label; "multiple answers allowed?" toggle per button; styled inline in the canvas. (2) **`LabelClickToken` model** — `token` (UUID PK), `contact_id`, `label_id`, `tenant_id`, `used_at`; one token per button per recipient, generated at send-time. (3) **Public `/track/click/{token}` endpoint** — no auth required (contact has no Yippie account); looks up token, applies the mapped label to the contact, sets `used_at`, redirects to a plain "Thank you for your response" confirmation page. Tokens expire on first click. (4) **`render_email_html()` update** — injects campaign buttons as styled `<a>` anchor tags pointing to the tracking URLs.
 
 ### Contacts — workflow & data model (big)
 - ~~**[36] Company grouping for contacts**~~ ✅ **DONE (session 34)** — `companies` table + `contacts.company_id` FK (legacy text column kept for old data), company CRUD at `/contacts/companies` (admin-gated), `/settings/companies` page, `CompanyBadge`/`CompanyPicker` on contact list/new/detail (+DraftReview new-contact modal), company filter chips + `?company_id=` filter, ComposeModal "Company" button adds all of a company's contact emails via `/contacts/companies/{id}/contacts`.
@@ -184,6 +193,9 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 - **Promotion: devsandbox → sandbox → live** — `Opus` — push prototype 2.0 to `dev` + `app`; set `diederik@getyippie.com` (individual) + `support@getyippie.com` (shared) on `dev`; sandbox keeps `sb-support@`.
 - **Send-from aliases + app tour** — `Opus` — single personal mailbox already shipped (`reply_from_email`/`inbound_email`); add a Profile setting for extra "send from" aliases; build a guided in-app tour after first login (welcome email already shipped).
 
+### Template editor
+- **[TE3] Campaign buttons: per-button action type** — `Opus` — extend campaign button configuration with an "action type" selector per button. Supported types: **open website** (URL), **send mail** (email address), **call phone number** (phone number), **label contact to X** (label picker — the Phase 9C tracked-click flow). Non-label action types render as standard `<a>` links (no token); only label-action buttons generate `LabelClickToken`s at send time. Ties into Phase 9C.
+
 ### Signatures & team management
 - **[S1] Multi-signature per user** — `Opus` — replace the single `signature` field with a `user_signatures` table (`id, user_id, name, body, is_default, order`); migration adds table + backfills existing signatures as the default entry. Profile page: list of signatures with edit/delete/reorder and a "+" button to add more; compose/reply picks the default or lets user switch. Backend: `GET/POST/PATCH/DELETE /profile/signatures`.
 - **[S2] Signature image upload** — `Opus` — extends `[S1]`; users can embed an SVG, PNG, or JPEG into their signature. Upload via `POST /profile/signature-images` (store in a `signature_images` table or as base64 inline); insert as an `<img>` tag into the signature HTML body; enforce reasonable file-size cap (≤ 500 KB).
@@ -197,16 +209,19 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 
 ### UX polish
 - **[V1] Sent inbox not showing mails** — `Sonnet` — Sent tab calls `/activity?limit=500`; it is empty because the Activity page/endpoint is broken. Root-cause and fix the Activity module (white page crash — see "Activity page blank" in Next session); Sent tab will then work automatically.
-- **[V2] All contacts button in compose broken** — `Sonnet` — "All contacts" click handler in `ContactSearchPicker` / `ComposeModal` is not populating recipients; fix the lazy `fetchQuery` wiring from session 24.
-- **[V3] Compose: pre-select personal address as From when in personal inbox** — `Sonnet` — pass the current inbox context into `ComposeModal`; when the user is in their personal inbox default `fromEmail` to `user.inbound_email`; user can override via the From dropdown.
-- **[V4] Profile: narrow signature card** — `Sonnet` — reduce the signature card's width so the 280 px Change Password card fits cleanly beside it; adjust the `grid-cols-[1fr_280px]` proportions.
-- **[V5] Profile: signature inside email card** — `Sonnet` — merge the signature textarea into the personal-email-address card (same box); remove the separate signature section.
-- **[V6] Team page: align departments panel top with team list** — `Sonnet` — add `items-start` (or matching padding/margin) to the flex row so the DepartmentsPanel header aligns on the same x-axis as the team members list header.
-- **[V7] Team page: narrow team members list** — `Sonnet` — reduce team members column width (similar to the email box), giving DepartmentsPanel more horizontal space; adjust `flex gap-8` proportions.
+- ~~**[V2] All contacts button in compose broken**~~ ✅ **DONE (session 36)** — fixed `fetchQuery` wiring: `staleTime: 0`, defensive `Array.isArray` check, `catch` block so errors don't swallow silently.
+- ~~**[V3] Compose: pre-select personal address as From when in personal inbox**~~ ✅ **DONE (session 36)** — Compose button now sets `usePersonalFrom: true` in `composeInitial` when `mailbox === 'personal'`.
+- ~~**[V5] Profile: signature inside email card**~~ ✅ **DONE (session 36)** — signature textarea merged into the personal-email-address card; separate signature card removed; Change Password card stands alone below.
+- ~~**[V6] Team page: align departments panel top with team list**~~ ✅ **DONE (session 36)** — `DepartmentsPanel` given `pt-[78px]` to align its header with the team table header.
+- ~~**[V7] Team page: narrow team members list**~~ ✅ **DONE (session 36)** — team list capped at `max-w-2xl`; DepartmentsPanel widened to `w-80`.
 - **[V8] Department edit modal: add TemplatePicker** — `Sonnet` — embed `TemplatePicker` inside `DeptModal` so an admin can assign a default reply template to a department when creating or editing it.
-- **[V9] Remove Departments from Settings** — `Sonnet` — remove `/settings/departments` route, its page component, and the "Departments" sidebar link; departments live exclusively on the Team page now.
-- **[V10] Add contact labels to Settings page** — `Sonnet` — add a Labels section (name + colour CRUD, same as current `LabelsPage`) into the main Settings layout, replacing the standalone page.
-- **[V11] Remove standalone Labels page** — `Sonnet` — once V10 is done, delete the `/settings/labels` route, `LabelsPage`, and "Labels" sidebar link.
+- ~~**[V9] Remove Departments from Settings**~~ ✅ **DONE (session 36)** — `/settings/departments` route removed; `DepartmentsPage` lazy import removed from `App.tsx`; sidebar "Settings" link updated.
+- ~~**[V10] Add contact labels to Settings page**~~ ✅ **DONE (session 36)** — `/settings` route now renders `LabelsPage`; sidebar "Settings" → `/settings`.
+- ~~**[V11] Remove standalone Labels page**~~ ✅ **DONE (session 36)** — `/settings/labels` route and "Labels" sidebar link removed.
+- **[T1] Template editor: full-screen pop-up modal** — `Sonnet` — when creating or editing a template, open the editor in a large modal/dialog rather than the current two-panel split on `/settings/templates`. Gives users enough vertical and horizontal space to build templates comfortably. The template list stays on the page behind the modal; modal has close/save in its header.
+- ~~**[TE1] Template editor: remove object deletion warning**~~ ✅ **DONE (session 36)** — `editor: { confirmOnDelete: false }` added to Unlayer options.
+- ~~**[TE2] Signature: move inside template content area**~~ ✅ **DONE (session 36)** — signature preview now renders as a `rounded-b-xl` footer attached to the bottom of the Unlayer canvas border; separate bottom card removed.
+- **[TE4] Template editor: AI tip tooltip on HTML button** — `Sonnet` — when hovering over the HTML/source button in the template editor, show a small tooltip: "Tip: Use AI to create a mail with HTML". Nudges users toward the AI compose flow for rich content.
 - **[35-backlog] More hotkeys** — `Sonnet` — ~~`c` compose, `Esc` close compose, `g i` go to inbox~~ ✅ **DONE (session 32)**. Still open: `r` reply, `e` archive/process, `j`/`k` next/prev, `/` focus search.
 - **[43] Ticket deadline reminder toast** — `Sonnet` — *banners + sidebar badge already shipped (`[34]`);* add the small toast when a ticket nears `follow_up_at`.
 - **[48] Clickable rows everywhere** — `Sonnet` — *mostly done* (inbox cards + contact rows open on full-row click); finish the convention on any remaining lists (e.g. tickets) and treat it as standing.
@@ -256,6 +271,35 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 36 — 2026-06-12 (Tier 3 batch: V2, V3, V5, V6, V7, V9, V10, V11, TE1, TE2)
+
+No backend changes. Pure frontend. No migration needed.
+
+**`App.tsx`:**
+- Removed `DepartmentsPage` lazy import (departments live on Team page).
+- Changed `/settings/departments` route → removed; `/settings/labels` route → `/settings` (renders `LabelsPage` inside `ModuleGate contacts`).
+
+**`Sidebar.tsx`:**
+- Sidebar "Settings" link now points to `/settings` (was `/settings/departments`).
+- Removed "Labels" sidebar link and `Tag` import.
+
+**`TemplatesPage.tsx`:**
+- `[TE1]` Added `editor: { confirmOnDelete: false }` to Unlayer `options` — deletions are now immediate, no confirmation dialog.
+- `[TE2]` Signature preview moved inside the editor border as a `rounded-b-xl` footer strip attached to the bottom of the Unlayer canvas div; separate `shrink-0` card below the editor removed.
+
+**`InboxQueue.tsx`:**
+- `[V2]` Fixed "All contacts" button: `staleTime` set to `0` (always fresh), defensive `Array.isArray(data)` fallback, added `catch` block so API errors don't silently fail.
+- `[V3]` Compose button now passes `{ usePersonalFrom: true, ... }` in `composeInitial` when `mailbox === 'personal'` and user has `inbound_email` set.
+
+**`TeamSettingsPage.tsx`:**
+- `[V7]` Team members list capped at `max-w-2xl` to give the departments panel more room.
+- `[V6]` `DepartmentsPanel` widened to `w-80` and given `pt-[78px]` to align its header with the team table header row.
+
+**`ProfileSettingsPage.tsx`:**
+- `[V5]` Signature textarea merged into the personal-email-address form card (now one card: email + personal address + signature + hotkeys + Save). Separate signature card removed. Change Password card is now standalone below, wrapped in `max-w-sm`.
 
 ---
 

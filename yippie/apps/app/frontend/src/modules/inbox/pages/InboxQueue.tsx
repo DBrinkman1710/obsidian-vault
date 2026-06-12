@@ -136,9 +136,12 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
       const data = await qc.fetchQuery({
         queryKey: ['contacts-compose-all'],
         queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', { params: { limit: 1000 } }).then(r => r.data),
-        staleTime: 60_000,
+        staleTime: 0,
       })
-      data.items.filter(c => c.email).forEach(c => onAdd(c.email!, c.full_name))
+      const items: Contact[] = Array.isArray(data) ? data : (data?.items ?? [])
+      items.filter(c => c.email).forEach(c => onAdd(c.email!, c.full_name))
+    } catch {
+      // silently ignore fetch errors
     } finally {
       setAddingAll(false)
     }
@@ -723,7 +726,15 @@ export default function InboxQueue() {
           </div>
           <div className="flex flex-col items-stretch gap-2">
             <button
-              onClick={() => setShowCompose(true)}
+              onClick={() => {
+                setComposeInitial(mailbox === 'personal' && !!user?.inbound_email ? {
+                  recipients: [],
+                  subject: '',
+                  body: user?.email_signature ? `\n\n${user.email_signature}` : '',
+                  usePersonalFrom: true,
+                } : null)
+                setShowCompose(true)
+              }}
               className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
             >
               <Pencil size={14} />

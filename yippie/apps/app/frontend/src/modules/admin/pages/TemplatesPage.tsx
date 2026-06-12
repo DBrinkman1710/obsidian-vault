@@ -510,7 +510,7 @@ export default function TemplatesPage() {
 
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
               {/* Unlayer stays mounted across tab switches so the canvas state survives */}
-              <div className={`relative flex-1 min-h-[500px] m-5 mb-3 border border-slate-200 rounded-xl overflow-hidden ${activeTab === 'design' ? '' : 'hidden'}`}>
+              <div className={`relative flex-1 min-h-[500px] m-5 mb-0 border border-slate-200 rounded-t-xl overflow-hidden ${activeTab === 'design' ? '' : 'hidden'}`}>
                 {!editorReady && (
                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50">
                     <Loader2 size={22} className="text-blue-500 animate-spin mb-2" />
@@ -524,9 +524,22 @@ export default function TemplatesPage() {
                   options={{
                     features: { textEditor: { spellChecker: true } },
                     appearance: { theme: 'light', panels: { tools: { dock: 'left' } } },
+                    editor: { confirmOnDelete: false },
                   }}
                 />
               </div>
+
+              {/* Signature preview — shown as email footer inside the content area */}
+              {activeTab === 'design' && (
+                <div className="mx-5 mb-5 shrink-0 border border-t-0 border-slate-200 rounded-b-xl bg-white px-4 py-3">
+                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">— Signature</p>
+                  {user?.email_signature ? (
+                    <p className="text-xs text-slate-600 whitespace-pre-wrap">{user.email_signature}</p>
+                  ) : (
+                    <p className="text-xs text-slate-400 italic">No signature — add one in Profile settings.</p>
+                  )}
+                </div>
+              )}
 
               {activeTab === 'buttons' && (
                 <CampaignButtonsPanel
@@ -536,18 +549,6 @@ export default function TemplatesPage() {
                   setMultipleAllowed={setMultipleAllowed}
                 />
               )}
-            </div>
-
-            <div className="px-5 pb-4 shrink-0">
-              <div className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-3">
-                <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">Signature preview</p>
-                {user?.email_signature ? (
-                  <p className="text-xs text-slate-600 whitespace-pre-wrap line-clamp-3">{user.email_signature}</p>
-                ) : (
-                  <p className="text-xs text-slate-400 italic">No signature set — add one in Profile settings.</p>
-                )}
-                <p className="text-[11px] text-slate-400 mt-1.5">Your active signature will appear below the email body when sent.</p>
-              </div>
             </div>
           </>
         )}
