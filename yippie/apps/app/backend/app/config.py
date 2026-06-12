@@ -32,7 +32,7 @@ class WhatsAppConfig(BaseModel):
     display_phone: Optional[str] = None      # e.g. "+31612345678" (shown in UI)
 
 
-ALL_MODULES = ['inbox', 'contacts', 'tickets', 'activity', 'billing', 'chat']
+ALL_MODULES = ['inbox', 'contacts', 'tickets', 'activity', 'billing', 'chat', 'emailtracking']
 
 
 class TenantConfig(BaseModel):
@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     environment: str = "development"
     resend_api_key: str = ""
     resend_from: str = ""
+    resend_webhook_secret: str = ""
     inbound_email: str = ""
     # Public URL of this environment's client app (e.g. https://sandbox.getyippie.com)
     # — used for links in invite and password-reset emails.
