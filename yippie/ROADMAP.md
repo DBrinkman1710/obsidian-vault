@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-12 (session 36 — Tier 3 batch: V2 all-contacts fix, V3 personal-From pre-select, V5 signature-in-email-card, V6+V7 team page layout, V9+V10+V11 settings/labels cleanup, TE1 delete confirmation disabled, TE2 signature moved into editor area)
+**Updated:** 2026-06-12 (session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -165,12 +165,12 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 
 Standard feature builds — well-scoped, mostly with existing patterns/endpoints to reuse.
 
-### Contacts & data import (none of these exist yet)
-- **[29] Contact CSV import** — `Opus` — `POST /contacts/import` multipart; validate, dedupe by email, bulk insert; upload widget + results summary.
-- **[40] Contact import — JSON + Excel** — `Opus` — extend `[29]` to also accept JSON and `.xlsx` with the same validate/dedupe/summary flow.
+### Contacts & data import
+- ~~**[29] Contact CSV import**~~ ✅ **DONE (session 36b)** — `POST /contacts/import` multipart (CSV + JSON + XLSX), validate, dedupe by email, bulk insert; import widget in ContactsPage.
+- ~~**[40] Contact import — JSON + Excel**~~ ✅ **DONE (session 36b)** — bundled with [29]; same endpoint handles JSON and `.xlsx`.
 - **[C2] Pre-import column mapping** — `Opus` — before an import runs, show a mapping step where the user matches incoming CSV/JSON/XLSX columns to Yippie contact fields (name, email, phone, company, etc.). Build alongside `[29]`/`[40]` — no separate screen needed; add a step to the existing import flow.
 - **[37] Import users / staff from CSV** — `Opus` — `POST /admin/users/import` (own tenant) / `POST /admin/tenants/{id}/users/import` (superadmin); columns name/email/role; validate, dedupe, bulk-invite via Resend; upload widget in Settings → Team. (Platform users, not contacts.)
-- **[20] Multi-select contacts** — `Opus` — checkbox per row + action bar (admins/superadmins): Compose (prefill emails), Export CSV, Label (`[38]`), Delete (soft, `[39]`). Backend bulk contact endpoints don't exist yet either.
+- ~~**[20] Multi-select contacts**~~ ✅ **DONE (session 36b)** — checkbox per row + action bar (admins/superadmins): Compose (prefill emails), Export CSV, Label, Delete (soft). Wired into `ContactsPage.tsx` (`f0e4906`).
 - **[39] Contact soft-delete + retention** — `Opus` — add `contacts.deleted_at` (reuse the `tickets.deleted_at` pattern, session 17): retain 1 month, filter/restore within the window, scheduled purge after.
 - **[C1] Column customisation — Contacts & Companies** — `Opus` — users can add, remove, and reorder columns in both the Contacts list and the Companies list. A settings cog (⚙) beneath the "+New contact" / "+New company" button opens a column-picker panel. Visibility and order persisted per-user (or per-tenant as a starting point).
 
@@ -271,6 +271,23 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 36b — 2026-06-12 (Tier 2: contact import/export + multi-select [29][40][20])
+
+**Commits:** `266c4a2` (feat) + `f0e4906` (fix: wire into ContactsPage) — deployed `devsandbox` + `sandbox` by Diederik.
+
+**Backend (`contacts` module):**
+- `service.py`: `import_contacts(rows)` bulk-inserts from a list of dicts, dedupes by email (`INSERT … ON CONFLICT DO NOTHING`). `export_contacts()` returns all contacts as CSV bytes. `bulk_delete_contacts(ids)` soft-deletes via `deleted_at`.
+- `router.py`: `POST /contacts/import` (multipart, accepts CSV / JSON / XLSX — `openpyxl` added to `requirements.txt`); `GET /contacts/export` (streams CSV); `DELETE /contacts/bulk` (body `{ids: [...]}` — soft-delete).
+- `schemas.py`: `ContactImportRow`, `ImportResult` response.
+
+**Frontend (`ContactsPage.tsx`):**
+- Multi-select: checkbox per row; header checkbox selects all visible.
+- Bulk action bar (appears when ≥1 selected): Compose (opens ComposeModal pre-filled), Export CSV (downloads current selection), Label (label picker applies to all selected), Delete (confirm modal → `DELETE /contacts/bulk`).
+- Import button: file input (`accept=".csv,.json,.xlsx"`), calls `POST /contacts/import`, shows result summary (imported / skipped duplicates / errors).
+- Export All button: calls `GET /contacts/export`, triggers browser download.
 
 ---
 
