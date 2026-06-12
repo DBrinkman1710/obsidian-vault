@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import EmailEditor, { EditorRef } from 'react-email-editor'
-import { FileText, GripVertical, Loader2, MousePointerClick, Palette, Plus, Trash2 } from 'lucide-react'
+import { FileText, Loader2, MousePointerClick, Palette, Plus, Trash2 } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { htmlToText } from '../../inbox/components/TemplatePicker'
@@ -30,7 +30,7 @@ interface CampaignButton {
   border_width: number
 }
 
-type EditorTab = 'design' | 'buttons'
+interface ContactLabel { id: string; name: string; color: string }
 
 function newCampaignButton(): CampaignButton {
   return {
@@ -58,205 +58,26 @@ function parseButtons(raw: string | null): CampaignButton[] {
   }
 }
 
-function buttonStyle(b: CampaignButton): React.CSSProperties {
-  return {
-    display: 'inline-block',
-    padding: '10px 22px',
-    margin: '6px 8px 6px 0',
-    background: b.bg_color,
-    color: b.text_color,
-    borderRadius: `${b.border_radius}px`,
-    fontSize: `${b.font_size}px`,
-    fontWeight: b.font_weight,
-    textDecoration: 'none',
-    border: b.border_width > 0 && b.border_color ? `${b.border_width}px solid ${b.border_color}` : 'none',
+interface DesignState {
+  body?: {
+    rows?: {
+      columns?: {
+        contents?: { type?: string }[]
+      }[]
+    }[]
   }
 }
 
-const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
-const miniLabelCls = 'block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1'
-
-function CampaignButtonsPanel({
-  buttons,
-  setButtons,
-  multipleAllowed,
-  setMultipleAllowed,
-}: {
-  buttons: CampaignButton[]
-  setButtons: React.Dispatch<React.SetStateAction<CampaignButton[]>>
-  multipleAllowed: boolean
-  setMultipleAllowed: (v: boolean) => void
-}) {
-  const dragIndex = useRef<number | null>(null)
-
-  const update = (id: string, patch: Partial<CampaignButton>) =>
-    setButtons(prev => prev.map(b => (b.id === id ? { ...b, ...patch } : b)))
-
-  const reorder = (from: number, to: number) => {
-    if (from === to) return
-    setButtons(prev => {
-      const next = [...prev]
-      const [moved] = next.splice(from, 1)
-      next.splice(to, 0, moved)
-      return next
-    })
+function countCampaignButtons(design: DesignState): number {
+  let count = 0
+  for (const row of design?.body?.rows ?? []) {
+    for (const col of row?.columns ?? []) {
+      for (const content of col?.contents ?? []) {
+        if (content?.type === 'campaign_button') count += 1
+      }
+    }
   }
-
-  return (
-    <div className="flex flex-col gap-4 p-5 overflow-y-auto">
-      <label className="flex items-center gap-2.5 bg-slate-50 border border-slate-200 rounded-xl px-4 py-3 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={multipleAllowed}
-          onChange={e => setMultipleAllowed(e.target.checked)}
-          className="w-4 h-4 accent-blue-600"
-        />
-        <div>
-          <p className="text-sm font-semibold text-slate-800">Multiple answers allowed?</p>
-          <p className="text-xs text-slate-400">When enabled, a contact can click more than one button in this campaign.</p>
-        </div>
-      </label>
-
-      {buttons.length === 0 && (
-        <div className="text-center py-10 bg-white rounded-xl border-2 border-dashed border-slate-200">
-          <MousePointerClick size={28} className="text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-400 font-medium">No campaign buttons yet</p>
-          <p className="text-xs text-slate-400 mt-1">Add buttons your contacts can click to answer this campaign.</p>
-        </div>
-      )}
-
-      {buttons.map((b, i) => (
-        <div
-          key={b.id}
-          draggable
-          onDragStart={() => { dragIndex.current = i }}
-          onDragOver={e => e.preventDefault()}
-          onDrop={() => { if (dragIndex.current !== null) reorder(dragIndex.current, i); dragIndex.current = null }}
-          className="bg-white border border-slate-200 rounded-xl p-4 flex flex-col gap-3"
-        >
-          <div className="flex items-center gap-2">
-            <GripVertical size={15} className="text-slate-300 cursor-grab shrink-0" />
-            <input
-              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              value={b.text}
-              onChange={e => update(b.id, { text: e.target.value })}
-              placeholder="Button label…"
-            />
-            <button
-              type="button"
-              onClick={() => setButtons(prev => prev.filter(x => x.id !== b.id))}
-              className="p-2 text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-              title="Remove button"
-            >
-              <Trash2 size={14} />
-            </button>
-          </div>
-
-          <div className="grid grid-cols-3 gap-3 pl-6">
-            <div>
-              <label className={miniLabelCls}>Background</label>
-              <input
-                type="color"
-                value={b.bg_color}
-                onChange={e => update(b.id, { bg_color: e.target.value })}
-                className="w-full h-8 border border-slate-200 rounded cursor-pointer"
-              />
-            </div>
-            <div>
-              <label className={miniLabelCls}>Text color</label>
-              <input
-                type="color"
-                value={b.text_color}
-                onChange={e => update(b.id, { text_color: e.target.value })}
-                className="w-full h-8 border border-slate-200 rounded cursor-pointer"
-              />
-            </div>
-            <div>
-              <label className={miniLabelCls}>Font size ({b.font_size}px)</label>
-              <input
-                type="number"
-                min={10}
-                max={28}
-                value={b.font_size}
-                onChange={e => update(b.id, { font_size: Number(e.target.value) || 14 })}
-                className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            </div>
-            <div>
-              <label className={miniLabelCls}>Corner radius ({b.border_radius}px)</label>
-              <input
-                type="range"
-                min={0}
-                max={24}
-                value={b.border_radius}
-                onChange={e => update(b.id, { border_radius: Number(e.target.value) })}
-                className="w-full accent-blue-600"
-              />
-            </div>
-            <div>
-              <label className={miniLabelCls}>Border width ({b.border_width}px)</label>
-              <input
-                type="number"
-                min={0}
-                max={6}
-                value={b.border_width}
-                onChange={e => {
-                  const width = Number(e.target.value) || 0
-                  update(b.id, { border_width: width, border_color: width > 0 ? (b.border_color ?? '#5BA4F5') : b.border_color })
-                }}
-                className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-              />
-            </div>
-            {b.border_width > 0 ? (
-              <div>
-                <label className={miniLabelCls}>Border color</label>
-                <input
-                  type="color"
-                  value={b.border_color ?? '#5BA4F5'}
-                  onChange={e => update(b.id, { border_color: e.target.value })}
-                  className="w-full h-8 border border-slate-200 rounded cursor-pointer"
-                />
-              </div>
-            ) : (
-              <div>
-                <label className={miniLabelCls}>Font weight</label>
-                <select
-                  value={b.font_weight}
-                  onChange={e => update(b.id, { font_weight: e.target.value })}
-                  className="w-full px-2 py-1.5 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
-                >
-                  <option value="400">Regular</option>
-                  <option value="500">Medium</option>
-                  <option value="600">Semibold</option>
-                  <option value="700">Bold</option>
-                </select>
-              </div>
-            )}
-          </div>
-        </div>
-      ))}
-
-      <button
-        type="button"
-        onClick={() => setButtons(prev => [...prev, newCampaignButton()])}
-        className="inline-flex items-center justify-center gap-2 px-4 py-2.5 border-2 border-dashed border-slate-300 text-slate-500 hover:border-blue-400 hover:text-blue-600 text-sm font-semibold rounded-xl transition-colors"
-      >
-        <Plus size={14} />
-        Add button
-      </button>
-
-      {buttons.length > 0 && (
-        <div>
-          <p className={labelCls}>Live preview</p>
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-center">
-            {buttons.map(b => (
-              <span key={b.id} style={buttonStyle(b)}>{b.text || 'Button'}</span>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  )
+  return count
 }
 
 export default function TemplatesPage() {
@@ -269,8 +90,6 @@ export default function TemplatesPage() {
   const [name, setName] = useState('')
   const [existingBody, setExistingBody] = useState('')
   const [buttons, setButtons] = useState<CampaignButton[]>([])
-  const [multipleAllowed, setMultipleAllowed] = useState(false)
-  const [activeTab, setActiveTab] = useState<EditorTab>('design')
   const [editorReady, setEditorReady] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
@@ -280,7 +99,15 @@ export default function TemplatesPage() {
     queryFn: () => api.get('/tickets/templates').then(r => r.data),
   })
 
+  const { data: labels } = useQuery<ContactLabel[]>({
+    queryKey: ['labels'],
+    queryFn: () => api.get('/contacts/labels').then(r => r.data),
+  })
+
   const hasSelection = isNew || selectedId !== null
+
+  const updateButton = (id: string, patch: Partial<CampaignButton>) =>
+    setButtons(prev => prev.map(b => (b.id === id ? { ...b, ...patch } : b)))
 
   function loadIntoEditor(designJson: string | null) {
     const editor = editorRef.current?.editor
@@ -301,6 +128,25 @@ export default function TemplatesPage() {
 
   function handleEditorReady() {
     setEditorReady(true)
+    const editor = editorRef.current?.editor
+    if (editor) {
+      editor.addEventListener('design:updated', () => {
+        editor.exportHtml(({ design }) => {
+          const count = countCampaignButtons(design as DesignState)
+          setButtons(prev => {
+            if (count > prev.length) {
+              // New button block added on the canvas — append default config(s)
+              return [...prev, ...Array.from({ length: count - prev.length }, newCampaignButton)]
+            }
+            if (count < prev.length) {
+              // Button block(s) deleted — trim from end
+              return prev.slice(0, count)
+            }
+            return prev
+          })
+        })
+      })
+    }
     if (pendingDesignRef.current !== undefined) {
       const pending = pendingDesignRef.current
       pendingDesignRef.current = undefined
@@ -313,10 +159,7 @@ export default function TemplatesPage() {
     setIsNew(false)
     setName(t.name)
     setExistingBody(t.body)
-    const parsed = parseButtons(t.campaign_buttons)
-    setButtons(parsed)
-    setMultipleAllowed(parsed.some(b => b.multiple_allowed))
-    setActiveTab('design')
+    setButtons(parseButtons(t.campaign_buttons))
     setSaveError('')
     loadIntoEditor(t.design_json)
   }
@@ -327,8 +170,6 @@ export default function TemplatesPage() {
     setName('')
     setExistingBody('')
     setButtons([])
-    setMultipleAllowed(false)
-    setActiveTab('design')
     setSaveError('')
     loadIntoEditor(null)
   }
@@ -380,7 +221,7 @@ export default function TemplatesPage() {
         body: plain || existingBody,
         design_json: JSON.stringify(design),
         html_body: html,
-        campaign_buttons: buttons.map(b => ({ ...b, multiple_allowed: multipleAllowed })),
+        campaign_buttons: buttons,
       }
       if (isNew) createMutation.mutate(payload)
       else if (selectedId) updateMutation.mutate({ id: selectedId, payload })
@@ -482,35 +323,8 @@ export default function TemplatesPage() {
               </button>
             </div>
 
-            <div className="flex gap-2 px-5 pt-3">
-              {([
-                { value: 'design', label: 'Email Design' },
-                { value: 'buttons', label: 'Campaign Buttons' },
-              ] as { value: EditorTab; label: string }[]).map(tab => (
-                <button
-                  key={tab.value}
-                  onClick={() => setActiveTab(tab.value)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    activeTab === tab.value
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
-                >
-                  {tab.label}
-                  {tab.value === 'buttons' && buttons.length > 0 && (
-                    <span className={`ml-2 text-[10px] font-bold px-1.5 py-0.5 rounded-full ${
-                      activeTab === 'buttons' ? 'bg-white/25 text-white' : 'bg-blue-50 text-blue-600'
-                    }`}>
-                      {buttons.length}
-                    </span>
-                  )}
-                </button>
-              ))}
-            </div>
-
             <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              {/* Unlayer stays mounted across tab switches so the canvas state survives */}
-              <div className={`relative flex-1 min-h-[500px] m-5 mb-0 border border-slate-200 rounded-t-xl overflow-hidden ${activeTab === 'design' ? '' : 'hidden'}`}>
+              <div className="relative flex-1 min-h-[500px] m-5 mb-0 border border-slate-200 rounded-t-xl overflow-hidden">
                 {!editorReady && (
                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50">
                     <Loader2 size={22} className="text-blue-500 animate-spin mb-2" />
@@ -525,29 +339,92 @@ export default function TemplatesPage() {
                     features: { textEditor: { spellChecker: true } },
                     appearance: { theme: 'light', panels: { tools: { dock: 'left' } } },
                     editor: { confirmOnDelete: false },
+                    customTools: [
+                      {
+                        name: 'campaign_button',
+                        label: 'Campaign Button',
+                        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="4"/><path d="M7 12h10"/></svg>',
+                        supportedDisplayModes: ['email'],
+                        properties: {
+                          text: { editor: { data: { defaultValue: 'Yes, count me in' } } },
+                          bg_color: { editor: { data: { defaultValue: '#5BA4F5' } } },
+                          text_color: { editor: { data: { defaultValue: '#ffffff' } } },
+                          border_radius: { editor: { data: { defaultValue: 6 } } },
+                          font_size: { editor: { data: { defaultValue: 14 } } },
+                          font_weight: { editor: { data: { defaultValue: '600' } } },
+                          border_width: { editor: { data: { defaultValue: 0 } } },
+                          border_color: { editor: { data: { defaultValue: null } } },
+                        },
+                        transformer: (params: { values: Record<string, unknown> }, done: (result: { html: string }) => void) => {
+                          const v = params.values
+                          const bg = String(v.bg_color || '#5BA4F5')
+                          const color = String(v.text_color || '#ffffff')
+                          const radius = Number(v.border_radius ?? 6)
+                          const fontSize = Number(v.font_size ?? 14)
+                          const fontWeight = String(v.font_weight || '600')
+                          const bw = Number(v.border_width ?? 0)
+                          const bc = v.border_color ? String(v.border_color) : null
+                          const border = bw > 0 && bc ? `border:${bw}px solid ${bc};` : ''
+                          const text = String(v.text || 'Button')
+                          const id = String(v._btn_id || '')
+                          const html = `<div style="text-align:center;padding:8px 0;"><a href="#" data-campaign-btn-id="${id}" style="display:inline-block;padding:10px 22px;background:${bg};color:${color};border-radius:${radius}px;font-size:${fontSize}px;font-weight:${fontWeight};text-decoration:none;${border}">${text}</a></div>`
+                          done({ html })
+                        },
+                      },
+                    ],
                   }}
                 />
               </div>
 
               {/* Signature preview — shown as email footer inside the content area */}
-              {activeTab === 'design' && (
-                <div className="mx-5 mb-5 shrink-0 border border-t-0 border-slate-200 rounded-b-xl bg-white px-4 py-3">
-                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">— Signature</p>
-                  {user?.email_signature ? (
-                    <p className="text-xs text-slate-600 whitespace-pre-wrap">{user.email_signature}</p>
-                  ) : (
-                    <p className="text-xs text-slate-400 italic">No signature — add one in Profile settings.</p>
-                  )}
-                </div>
-              )}
+              <div className="mx-5 mb-5 shrink-0 border border-t-0 border-slate-200 rounded-b-xl bg-white px-4 py-3">
+                <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">— Signature</p>
+                {user?.email_signature ? (
+                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{user.email_signature}</p>
+                ) : (
+                  <p className="text-xs text-slate-400 italic">No signature — add one in Profile settings.</p>
+                )}
+              </div>
 
-              {activeTab === 'buttons' && (
-                <CampaignButtonsPanel
-                  buttons={buttons}
-                  setButtons={setButtons}
-                  multipleAllowed={multipleAllowed}
-                  setMultipleAllowed={setMultipleAllowed}
-                />
+              {/* Campaign button config — one row per button block on the canvas */}
+              {buttons.length > 0 && (
+                <div className="mx-5 mb-5 shrink-0 border border-slate-200 rounded-xl bg-white">
+                  <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
+                    <MousePointerClick size={13} className="text-blue-500" />
+                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Campaign Buttons</span>
+                    <span className="ml-auto text-[10px] text-slate-400">Configure label & settings per button</span>
+                  </div>
+                  {buttons.map((b, i) => (
+                    <div key={b.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0 border-slate-50">
+                      <span className="text-xs text-slate-400 font-bold w-4 shrink-0">{i + 1}</span>
+                      <input
+                        className="w-32 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                        value={b.text}
+                        placeholder="Button text"
+                        onChange={e => updateButton(b.id, { text: e.target.value })}
+                      />
+                      <select
+                        className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                        value={b.label_id ?? ''}
+                        onChange={e => updateButton(b.id, { label_id: e.target.value || null })}
+                      >
+                        <option value="">No label</option>
+                        {labels?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      </select>
+                      <label className="flex items-center gap-1.5 shrink-0 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={b.multiple_allowed}
+                          onChange={e => updateButton(b.id, { multiple_allowed: e.target.checked })}
+                          className="w-3.5 h-3.5 accent-blue-600"
+                        />
+                        <span className="text-[11px] text-slate-500">Multi</span>
+                      </label>
+                      <input type="color" value={b.bg_color} onChange={e => updateButton(b.id, { bg_color: e.target.value })} className="w-7 h-7 border-0 rounded cursor-pointer p-0" title="Background color" />
+                      <input type="color" value={b.text_color} onChange={e => updateButton(b.id, { text_color: e.target.value })} className="w-7 h-7 border-0 rounded cursor-pointer p-0" title="Text color" />
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
           </>
