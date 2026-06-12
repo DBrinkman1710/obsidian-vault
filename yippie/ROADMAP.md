@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-12 (session 32 — Tier 3 UX polish: U1–U6 shipped)
+**Updated:** 2026-06-12 (session 33 — Tier 1: response templates CRUD + TemplatePicker + AI suggest; profile password layout fixed)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -98,7 +98,7 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 > The **AI module** is already built — see ✅ Done. It's the `ai` per-tenant flag that switches on the AI extras across inbox + tickets (summaries, generate mail, suggested/improved replies, compose suggestions, autofilled ticket fields). With it off, none of that runs.
 
 ### Email templates (Phase 9 — creative)
-- **[Phase 9] Template UX + AI insertion** — `Fable` — *backend partially exists* (`ResponseTemplate` model + `GET/POST /templates` in the tickets module). Still to build: `/settings/templates` CRUD page, "Insert template" in compose/reply, **AI-recommended** template based on the received email, company-wide + personal templates, and (optional) Resend-registered templates by ID.
+- ~~**[Phase 9] Template UX + AI insertion**~~ ✅ **DONE (session 33)** — `/settings/templates` CRUD page, `TemplatePicker` component (search + one-click insert + AI suggest button) wired into DraftReview reply panel and ComposeModal, `PATCH`/`DELETE`/`POST ai-suggest` backend endpoints, AI ranking via Claude. "Templates" sidebar link for all users. Personal templates still open ([S3] — see Tier 2 if needed).
 
 ### Contacts — workflow & data model (big)
 - **[36] Company grouping for contacts** — `Fable` — *partial:* `company` is only a string field on Contact. Build a real `Company` entity (name, domain, notes) contacts belong to; company badge + filter/group; composing to a company auto-selects all its contacts.
@@ -162,10 +162,10 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 Small, well-bounded changes — UX polish and config/ops one-liners.
 
 ### UX polish
-- **[35-backlog] More hotkeys** — `Sonnet` — *only `Cmd/Ctrl+Enter` exists today.* Add `c` compose, `r` reply, `e` archive/process, `j`/`k` next/prev, `/` focus search, `Esc` close, `g i` go to inbox.
+- **[35-backlog] More hotkeys** — `Sonnet` — ~~`c` compose, `Esc` close compose, `g i` go to inbox~~ ✅ **DONE (session 32)**. Still open: `r` reply, `e` archive/process, `j`/`k` next/prev, `/` focus search.
 - **[43] Ticket deadline reminder toast** — `Sonnet` — *banners + sidebar badge already shipped (`[34]`);* add the small toast when a ticket nears `follow_up_at`.
 - **[48] Clickable rows everywhere** — `Sonnet` — *mostly done* (inbox cards + contact rows open on full-row click); finish the convention on any remaining lists (e.g. tickets) and treat it as standing.
-- **[8c] Status column labels** — `Sonnet` — show "Active"/"Inactive"/"Demo" as clear text labels in the Clients tab; allow changing status directly from that column.
+- ~~**[8c] Status column labels**~~ ✅ **DONE (session 32)** — Clients table status column replaced with a `<select>` dropdown (active/demo/inactive); clicking fires `PATCH /admin/tenants/{id}`; disabled during mutation.
 - ~~**[6c] Bulk delete clients**~~ ✅ **DONE (session 29)** — Delete button in bulk action bar (root owner only); `BulkDeleteClientsModal` with password gate, calls `POST /admin/tenants/{id}/delete` for each selected client.
 - **Spam → Resend sender block** — `Sonnet` — bulk "spam" already moves drafts to the spam status + retention; still add the call to block the sender in Resend (the one remaining piece of `[12]`).
 - ~~**[U1] Inbox: remove duplicate select-all**~~ ✅ **DONE (session 32)** — header copy removed; sticky select-all row in scrollable section kept.
@@ -173,7 +173,7 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 - ~~**[U3] Client info page: remove Inactivate + Delete**~~ ✅ **DONE (session 32)** — removed from Info tab; they live only in Actions tab.
 - ~~**[U4] Client actions: remove "Copy email"**~~ ✅ **DONE (session 32)** — removed from Actions dropdown; Copy button remains in Info tab.
 - ~~**[U5] Departments → Team page**~~ ✅ **DONE (session 32)** — `DepartmentsPanel` (compact, 288px) added as right column on Team page; create/edit via modal.
-- ~~**[U6] Profile: password next to signature**~~ ✅ **DONE (session 32)** — two-column layout: signature (left, flexible), Change Password card (right, 280px).
+- ~~**[U6] Profile: password next to signature**~~ ✅ **DONE (session 32 + 33)** — two-column layout: signature (left, flexible), Change Password card (right, 280px). `mt-6` offset removed + new/confirm fields unstacked in session 33.
 
 ### Config / ops one-liners
 - **getyippie.com 502 fix** — `Sonnet` — Cloudflare proxy toggle (orange→grey→wait→orange) for Railway domain verification.
@@ -196,7 +196,7 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 
 **Contacts:** tenant-defined **contact labels (`[38]`, session 31)** — label CRUD in `/settings/labels`, assign per contact, filter the list by label; foundation for the Pipeline module + demo flow.
 
-**Email templates (backend):** `ResponseTemplate` model + `GET/POST /templates` in the tickets module (UI + AI insertion still in Tier 1).
+**Email templates:** `ResponseTemplate` model + full CRUD (`GET/POST/PATCH/DELETE /tickets/templates`) + `POST /tickets/templates/ai-suggest` (Claude ranks templates by relevance to email context). `/settings/templates` CRUD page, `TemplatePicker` component with search + AI suggest wired into DraftReview reply panel and ComposeModal. "Templates" sidebar link for all users.
 
 **AI module:** the `ai` per-tenant flag (`require_module("ai")`, on for every tenant) switches on all the AI extras across **inbox + tickets** — incoming-mail scan that **autofills the ticket fields** (`ai_suggested_subject/description/priority/category`), the inbox **briefing/customer summary** (`generate_context_summary` → `context_summary`), and the **generate / suggest-reply / improve-reply / compose-suggest** actions. Turn the module off and none of it runs. (No separate nav page — it's the AI capability layer itself.)
 
@@ -211,6 +211,29 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 33 — 2026-06-12 (Tier 1: response templates + profile password fix)
+
+**Backend (tickets module):**
+- `schemas.py`: added `TemplateUpdate(name, body)` and `TemplateSuggestRequest(context)`.
+- `service.py`: `update_template()`, `delete_template()`, `suggest_templates()` — the suggest function calls Claude Haiku via `_client()`/`_model()` from `ai_scanner.py` to rank all tenant templates by relevance to the email context; returns up to 3 most relevant.
+- `router.py`: `PATCH /tickets/templates/{id}` → update, `DELETE /tickets/templates/{id}` → delete (204), `POST /tickets/templates/ai-suggest` → AI-ranked list. Static `/templates/*` routes declared before dynamic `/{ticket_id}` routes (FastAPI declaration order matters).
+
+**Frontend:**
+- New `TemplatesPage` (`/settings/templates`): list/create/edit/delete response templates. Same pattern as `DepartmentsPage` — inline edit form, confirm-on-delete. Body shows `line-clamp-3` preview. Empty state.
+- New `TemplatePicker` component (`modules/inbox/components/TemplatePicker.tsx`): floating panel triggered by "Templates" button; search input + filtered list + optional AI Suggest button (calls `/tickets/templates/ai-suggest` with context string); click-to-insert calls `onSelect(body)`; closes on outside click or selection.
+- `DraftReview.tsx`: TemplatePicker wired next to Generate/Improve; passes `msg.subject + msg.raw_body` as AI context; prepends selected body to existing reply text.
+- `InboxQueue.tsx` (ComposeModal): TemplatePicker added next to Message label; prepends body to existing compose text.
+- `App.tsx`: `/settings/templates` route (lazy `TemplatesPage`).
+- `Sidebar.tsx`: "Templates" link (FileText icon) for all users, below Profile.
+
+**Profile password fix:**
+- `ChangePasswordCard` had `mt-6` pushing it below the signature card's top edge in the `grid-cols-[1fr_280px]` layout — removed.
+- New/confirm password fields switched from `grid-cols-2` to stacked, preventing overflow in the 280px column.
+
+**Commit:** `0a5091e` — deployed `devsandbox` + `sandbox`.
 
 ---
 
