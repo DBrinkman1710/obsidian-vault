@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-12 (session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
+**Updated:** 2026-06-12 (post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -65,6 +65,18 @@ environment / deploy reference lives in **Appendix B**.
 - **[V9] Remove Departments from Settings page** — Departments moved to Team page in session 32; remove the `/settings/departments` route, page component, and sidebar link so it no longer appears in Settings. See Tier 3.
 - **[V10] Add contact labels to Settings page** — Add the Labels management section (name + colour, CRUD) as a section inside the main Settings page, accessible from the same Settings area. See Tier 3.
 - **[V11] Remove standalone Labels page** — Once labels are in Settings (V10), remove the standalone `/settings/labels` route, `LabelsPage` component, and its "Labels" sidebar link. See Tier 3.
+
+**New items collected (post-session-36b — 2026-06-12):**
+
+- **[36b-1] Contact bulk action order** — `Sonnet` — reorder the contact bulk action bar buttons to: **Compose → Export → Delete**. No logic change, JSX reorder only. See Tier 3.
+- **[36b-2] Contact / company inline edit popup** — `Sonnet` — add a pencil/edit icon button to each row in the Contacts list and the Companies list. Clicking opens a modal to edit that record inline (same fields as the create forms); no page navigation. Reuses `PATCH /contacts/{id}` and `PATCH /contacts/companies/{id}`. See Tier 3.
+- **[36b-3] Company filter dropdown in Contacts page** — `Sonnet` — add a company filter dropdown (all companies + "All companies" default) alongside the label-filter chips on the Contacts page. Uses the existing `?company_id=` query param. See Tier 3.
+- **[36b-4] Search bar on Companies page** — `Sonnet` — add a search/filter text input at the top of the `/contacts/companies` page that filters the company list client-side by name. See Tier 3.
+- **[36b-5] Multi-select on Companies page** — `Sonnet` — per-row checkboxes + "Select all" header checkbox on the Companies list. Bulk action bar: **Export CSV** and **Delete** (confirm modal → soft-delete). Mirrors the Contacts multi-select pattern (`[20]`). See Tier 3.
+- **[36b-6] XLSX import broken** — `Sonnet` — `.xlsx` import via `POST /contacts/import` fails (CSV import works). Likely `openpyxl` missing from the Railway Docker image or incorrect MIME/extension detection. Fix so `.xlsx` imports succeed. See Tier 3.
+- **[36b-7] Sent tab: match Pending/Processed UI + clickable rows** — `Sonnet` — the Sent tab currently renders a different card layout from Pending and Processed. Align it to use the same mail card component/style as the other two tabs; each sent card should be clickable (open the thread/detail view). See Tier 3.
+- **[36b-8] Team page: DepartmentsPanel polish** — `Sonnet` — give the DepartmentsPanel a proper border/card outline consistent with the team members panel; align the "Departments" title to the same height as the "Team members" title; use the available horizontal space to make the layout look balanced (e.g. stretch the panel, improve internal padding/spacing). See Tier 3.
+- **[36b-9] Sidebar: Settings stays active on superadmin/team/profile pages** — `Sonnet` — **bug.** The Settings nav item in the sidebar remains highlighted/active when navigating to Superadmin, Team, or Profile pages, because those routes are nested under `/settings`. Fix the active-link detection so only the exact Settings route (or its own sub-pages) marks Settings as active; Superadmin, Team, and Profile should highlight their own sidebar links instead. See Tier 3.
 
 **New items collected (post-session-35 — 2026-06-12):**
 
@@ -215,6 +227,15 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 - ~~**[V6] Team page: align departments panel top with team list**~~ ✅ **DONE (session 36)** — `DepartmentsPanel` given `pt-[78px]` to align its header with the team table header.
 - ~~**[V7] Team page: narrow team members list**~~ ✅ **DONE (session 36)** — team list capped at `max-w-2xl`; DepartmentsPanel widened to `w-80`.
 - **[V8] Department edit modal: add TemplatePicker** — `Sonnet` — embed `TemplatePicker` inside `DeptModal` so an admin can assign a default reply template to a department when creating or editing it.
+- **[36b-1] Contact bulk action order** — `Sonnet` — reorder the contact bulk action bar to: Compose → Export → Delete.
+- **[36b-2] Contact / company inline edit popup** — `Sonnet` — pencil icon on each contact row and each company row opens an edit modal inline; no page navigation. Reuses existing PATCH endpoints.
+- **[36b-3] Company filter dropdown in Contacts page** — `Sonnet` — dropdown alongside label-filter chips; uses `?company_id=` param already supported by the backend.
+- **[36b-4] Search bar on Companies page** — `Sonnet` — client-side name filter input at the top of `/contacts/companies`.
+- **[36b-5] Multi-select on Companies page** — `Sonnet` — checkboxes + select-all; bulk Export CSV + Delete actions. Mirrors Contacts multi-select.
+- **[36b-6] XLSX import broken** — `Sonnet` — fix `.xlsx` import (CSV works); likely missing `openpyxl` in Docker or wrong MIME detection.
+- **[36b-7] Sent tab: match Pending/Processed UI + clickable rows** — `Sonnet` — use the same mail card style as Pending/Processed; each row clickable to open thread/detail.
+- ~~**[36b-8] Team page: DepartmentsPanel polish**~~ ✅ **DONE** — proper card (white, border, rounded-2xl, divide rows); header mirrors Team header for exact alignment; `pt-[78px]` hack removed; Add button matches Invite button style.
+- **[36b-9] Sidebar: Settings active state bleeds into superadmin/team/profile pages** — `Sonnet` — **bug.** Settings link stays highlighted when on Superadmin, Team, or Profile routes. Fix active-link detection so those pages highlight their own nav items, not Settings.
 - ~~**[V9] Remove Departments from Settings**~~ ✅ **DONE (session 36)** — `/settings/departments` route removed; `DepartmentsPage` lazy import removed from `App.tsx`; sidebar "Settings" link updated.
 - ~~**[V10] Add contact labels to Settings page**~~ ✅ **DONE (session 36)** — `/settings` route now renders `LabelsPage`; sidebar "Settings" → `/settings`.
 - ~~**[V11] Remove standalone Labels page**~~ ✅ **DONE (session 36)** — `/settings/labels` route and "Labels" sidebar link removed.

@@ -22,10 +22,10 @@ export function Sidebar() {
   const config = useTenantConfig()
   const { user, logout } = useAuth()
 
-  const { data: pendingDrafts, isFetching: inboxFetching } = useQuery({
-    queryKey: ['drafts', 'pending'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending' } }).then(r => r.data),
-    refetchInterval: 30_000,
+  const { data: draftCount, isFetching: inboxFetching } = useQuery({
+    queryKey: ['drafts', 'count'],
+    queryFn: () => api.get('/inbox/drafts/count').then(r => r.data),
+    refetchInterval: 60_000,
     enabled: !!config,
   })
 
@@ -36,7 +36,7 @@ export function Sidebar() {
     enabled: !!config,
   })
 
-  const pendingCount: number = pendingDrafts?.length ?? 0
+  const pendingCount: number = draftCount?.pending ?? 0
   const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
   const redCount: number = deadlineData?.red ?? 0
   const orangeCount: number = deadlineData?.orange ?? 0

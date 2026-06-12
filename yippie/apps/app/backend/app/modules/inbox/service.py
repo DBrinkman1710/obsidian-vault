@@ -408,6 +408,36 @@ async def link_contact_to_draft(
     return await get_draft_with_context(db, tenant_id, draft_id)
 
 
+async def count_pending_drafts(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    inbound_email: Optional[str] = None,
+    include_legacy: bool = True,
+) -> int:
+    now = datetime.now(timezone.utc)
+    q = (
+        select(func.count())
+        .select_from(DraftTicket)
+        .join(InboundMessage, DraftTicket.inbound_message_id == InboundMessage.id)
+        .where(
+            DraftTicket.tenant_id == tenant_id,
+            or_(
+                DraftTicket.status == DraftStatus.pending,
+                (DraftTicket.status == DraftStatus.approved)
+                & DraftTicket.follow_up_at.isnot(None)
+                & (DraftTicket.follow_up_at <= now),
+            ),
+        )
+    )
+    if inbound_email:
+        addr_filter = InboundMessage.inbound_to == inbound_email.lower()
+        if include_legacy:
+            addr_filter = or_(addr_filter, InboundMessage.inbound_to.is_(None))
+        q = q.where(addr_filter)
+    result = await db.execute(q)
+    return result.scalar_one()
+
+
 async def list_drafts(
     db: AsyncSession,
     tenant_id: uuid.UUID,

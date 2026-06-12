@@ -611,8 +611,8 @@ export default function InboxQueue() {
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
     queryKey: ['drafts', mailbox, 'pending'],
     queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending', mailbox } }).then(r => r.data),
-    refetchInterval: 5_000,
-    refetchIntervalInBackground: true,
+    refetchInterval: 15_000,
+    refetchIntervalInBackground: false,
     enabled: activeTab === 'pending',
   })
 
@@ -700,7 +700,7 @@ export default function InboxQueue() {
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Fixed header */}
       <div className="shrink-0 px-8 pt-8 pb-0 bg-slate-50">
-        <div className="flex items-start justify-between mb-5">
+        <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-4">
             <h1 className="text-2xl font-bold text-slate-900">Inbox</h1>
             {/* Mailbox switch: shared (whole team) vs personal (mail to your own address) */}

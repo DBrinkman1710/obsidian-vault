@@ -99,56 +99,62 @@ function DepartmentsPanel() {
   })
 
   return (
-    <div className="w-80 flex-shrink-0 pt-[78px]">
-      <div className="flex items-center justify-between mb-4">
+    <div className="w-72 flex-shrink-0">
+      {/* Header row — mirrors the Team header for vertical alignment */}
+      <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-lg font-bold text-slate-900">Departments</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Route inbox messages to specialist teams.</p>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">Departments</h2>
+          <p className="text-sm text-slate-500">Route messages to specialist teams.</p>
         </div>
         <button
           onClick={() => setShowNew(true)}
-          className="inline-flex items-center gap-1 px-2.5 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold rounded-lg transition-colors"
+          className="inline-flex items-center gap-2 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
         >
-          <Plus size={12} />
+          <Plus size={15} />
           Add
         </button>
       </div>
 
-      {isLoading && <p className="text-xs text-slate-400">Loading…</p>}
+      {/* Card — same style as the team table card */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+        {isLoading && (
+          <p className="text-xs text-slate-400 px-4 py-6 text-center">Loading…</p>
+        )}
 
-      {!isLoading && (!departments || departments.length === 0) && (
-        <div className="text-center py-8 bg-white rounded-xl border-2 border-dashed border-slate-200">
-          <Building size={24} className="text-slate-300 mx-auto mb-2" />
-          <p className="text-xs text-slate-400">No departments yet</p>
-        </div>
-      )}
+        {!isLoading && (!departments || departments.length === 0) && (
+          <div className="text-center py-10">
+            <Building size={24} className="text-slate-300 mx-auto mb-2" />
+            <p className="text-xs text-slate-400">No departments yet</p>
+          </div>
+        )}
 
-      {departments && departments.length > 0 && (
-        <div className="flex flex-col gap-2">
-          {departments.map(dept => (
-            <div key={dept.id} className="bg-white border border-slate-200 rounded-xl p-3 flex items-start justify-between gap-2 shadow-sm">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-sm font-semibold text-slate-900 truncate">{dept.name}</span>
-                  <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700 shrink-0">{dept.sla_working_days}d</span>
+        {departments && departments.length > 0 && (
+          <div className="divide-y divide-slate-100">
+            {departments.map(dept => (
+              <div key={dept.id} className="flex items-center justify-between gap-2 px-4 py-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-sm font-semibold text-slate-900 truncate">{dept.name}</span>
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700 shrink-0">{dept.sla_working_days}d</span>
+                  </div>
+                  <p className="text-xs text-slate-400 truncate">{dept.email}</p>
                 </div>
-                <p className="text-xs text-slate-400 truncate">{dept.email}</p>
+                <div className="flex gap-1 shrink-0">
+                  <button onClick={() => setEditing(dept)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Edit">
+                    <Pencil size={13} />
+                  </button>
+                  <button
+                    onClick={() => { if (confirm(`Delete "${dept.name}"?`)) deleteMutation.mutate(dept.id) }}
+                    className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors" title="Delete"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
-              <div className="flex gap-1 shrink-0">
-                <button onClick={() => setEditing(dept)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Edit">
-                  <Pencil size={12} />
-                </button>
-                <button
-                  onClick={() => { if (confirm(`Delete "${dept.name}"?`)) deleteMutation.mutate(dept.id) }}
-                  className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors" title="Delete"
-                >
-                  <Trash2 size={12} />
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        )}
+      </div>
 
       {showNew && <DeptModal onClose={() => setShowNew(false)} />}
       {editing && <DeptModal dept={editing} onClose={() => setEditing(null)} />}

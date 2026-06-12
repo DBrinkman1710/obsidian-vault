@@ -132,6 +132,20 @@ async def list_drafts(
     return _enrich_drafts(rows)
 
 
+@router.get("/drafts/count")
+async def count_pending_drafts(current_user: CurrentUser, db: DB):
+    if not current_user.inbound_email:
+        shared_count = await service.count_pending_drafts(db, current_user.tenant_id)
+        return {"pending": shared_count, "personal": 0}
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
+    shared_count = await service.count_pending_drafts(db, current_user.tenant_id, inbound_email)
+    personal_count = await service.count_pending_drafts(
+        db, current_user.tenant_id, current_user.inbound_email, include_legacy=False
+    )
+    return {"pending": shared_count, "personal": personal_count}
+
+
 @router.get("/drafts/{draft_id}", response_model=DraftWithContextOut)
 async def get_draft(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
     ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
