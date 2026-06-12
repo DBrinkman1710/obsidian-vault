@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip, ChevronLeft, ChevronRight, Building2 } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip, ChevronLeft, ChevronRight, Building2, Palette } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
-import { TemplatePicker } from '../components/TemplatePicker'
+import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { CardListSkeleton } from '../../../shell/Skeleton'
@@ -218,6 +218,7 @@ interface ComposeInitialState {
   subject: string
   body: string
   usePersonalFrom: boolean
+  templateHtml?: string | null
 }
 
 interface SendQueuedPayload {
@@ -246,6 +247,7 @@ function ComposeModal({
   const [demoResult, setDemoResult] = useState<{ demo: true } | null>(null)
   const [usePersonalFrom, setUsePersonalFrom] = useState(initialState?.usePersonalFrom ?? false)
   const [body, setBody] = useState(initialState?.body ?? (user?.email_signature ? `\n\n${user.email_signature}` : ''))
+  const [templateHtml, setTemplateHtml] = useState<string | null>(initialState?.templateHtml ?? null)
 
   const addRecipient = (email: string, label: string) => {
     if (!recipients.find(r => r.email === email)) {
@@ -289,7 +291,7 @@ function ComposeModal({
       onSendQueued({
         composeId: data.compose_id,
         recipientCount: data.recipients ?? 1,
-        restoreData: { recipients, subject, body, usePersonalFrom },
+        restoreData: { recipients, subject, body, usePersonalFrom, templateHtml },
       })
       onClose()
     },
@@ -405,9 +407,31 @@ function ComposeModal({
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Message</label>
               <TemplatePicker
-                onSelect={tmplBody => setBody(prev => prev.trim() ? `${tmplBody}\n\n${prev}` : tmplBody)}
+                onSelect={(tmplBody, isHtml) => {
+                  if (isHtml) {
+                    setTemplateHtml(tmplBody)
+                    const text = htmlToText(tmplBody)
+                    setBody(prev => prev.trim() ? `${text}\n\n${prev}` : text)
+                  } else {
+                    setBody(prev => prev.trim() ? `${tmplBody}\n\n${prev}` : tmplBody)
+                  }
+                }}
               />
             </div>
+            {templateHtml && (
+              <div className="mb-2 border border-violet-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-1.5 bg-violet-50 border-b border-violet-100">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 uppercase tracking-wide">
+                    <Palette size={11} />
+                    Rich template
+                  </span>
+                  <button type="button" onClick={() => setTemplateHtml(null)} className="text-violet-400 hover:text-violet-600" title="Remove rich template">
+                    <X size={13} />
+                  </button>
+                </div>
+                <div className="max-h-44 overflow-y-auto p-3 bg-white" dangerouslySetInnerHTML={{ __html: templateHtml }} />
+              </div>
+            )}
             <textarea
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-[inherit]"
               rows={14}
@@ -697,13 +721,31 @@ export default function InboxQueue() {
               ))}
             </div>
           </div>
-          <button
-            onClick={() => setShowCompose(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-          >
-            <Pencil size={14} />
-            Compose
-          </button>
+          <div className="flex flex-col items-stretch gap-2">
+            <button
+              onClick={() => setShowCompose(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              <Pencil size={14} />
+              Compose
+            </button>
+            <TemplatePicker
+              direction="down"
+              triggerIconSize={14}
+              triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors w-full"
+              onSelect={(tmplBody, isHtml) => {
+                const text = isHtml ? htmlToText(tmplBody) : tmplBody
+                setComposeInitial({
+                  recipients: [],
+                  subject: '',
+                  body: user?.email_signature ? `${text}\n\n${user.email_signature}` : text,
+                  usePersonalFrom: false,
+                  templateHtml: isHtml ? tmplBody : null,
+                })
+                setShowCompose(true)
+              }}
+            />
+          </div>
         </div>
 
         {/* Tabs */}

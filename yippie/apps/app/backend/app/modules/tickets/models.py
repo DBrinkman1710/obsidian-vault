@@ -77,4 +77,7 @@ class ResponseTemplate(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
+    design_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    html_body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    campaign_buttons: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON string, JSONB in DB
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

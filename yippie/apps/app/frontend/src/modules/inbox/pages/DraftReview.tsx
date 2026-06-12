@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Paperclip, Sparkles } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
-import { TemplatePicker } from '../components/TemplatePicker'
+import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
 import { CompanyPicker } from '../../contacts/components/CompanyPicker'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
@@ -952,9 +952,10 @@ export default function DraftReview() {
                 )}
                 <TemplatePicker
                   context={msg ? `${msg.subject ?? ''}\n\n${msg.raw_body ?? ''}` : ''}
-                  onSelect={body => setReplyText(prev =>
-                    prev.trim() ? `${body}\n\n${prev}` : body
-                  )}
+                  onSelect={(body, isHtml) => {
+                    const text = isHtml ? htmlToText(body) : body
+                    setReplyText(prev => prev.trim() ? `${text}\n\n${prev}` : text)
+                  }}
                 />
               </div>
             </div>

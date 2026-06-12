@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-12 (session 33 — Tier 1: response templates CRUD + TemplatePicker + AI suggest; profile password layout fixed; session 34 items queued)
+**Updated:** 2026-06-12 (session 35 — Phase 9B: Unlayer drag-and-drop template editor + campaign buttons built; session 34 + 35 items queued)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -66,6 +66,16 @@ environment / deploy reference lives in **Appendix B**.
 - **[V10] Add contact labels to Settings page** — Add the Labels management section (name + colour, CRUD) as a section inside the main Settings page, accessible from the same Settings area. See Tier 3.
 - **[V11] Remove standalone Labels page** — Once labels are in Settings (V10), remove the standalone `/settings/labels` route, `LabelsPage` component, and its "Labels" sidebar link. See Tier 3.
 
+**New items collected (session 35 — 2026-06-12):**
+
+- ~~**[Phase 9B] Full drag-and-drop email template editor**~~ ✅ **DONE (session 35)** — see Tier 1 entry for the build summary.
+- **[Phase 9C] Tracked click / campaign buttons** — Fable — not built. Four pieces: (1) **Buttons section in template editor** — admins map each button to a contact label; "multiple answers allowed?" toggle stored per-button alongside the template JSON body. (2) **`LabelClickToken` model** — `token` (UUID PK), `contact_id`, `label_id`, `tenant_id`, `used_at`; one token per button per recipient, generated at send-time. (3) **Public `/track/click/{token}` endpoint** — no auth required (contact has no Yippie account); looks up token, applies the label to the contact, sets `used_at`, redirects to a plain "Thank you for your response" page. Tokens expire on first click. (4) **`render_email_html()` update** — injects campaign buttons as styled `<a>` tags pointing to the tracking URLs. See Tier 1.
+- **[C1] Column customisation — Contacts & Companies** — Opus — not built. Users can add, remove, and reorder columns in both the Contacts list and the Companies list. A settings cog (⚙) beneath the "+New contact" / "+New company" button opens a column-picker panel. Visibility and order persisted per-user (or per-tenant as a starting point). See Tier 2.
+- **[C2] Pre-import column mapping** — Opus — not built. Before an import runs, show a mapping step where the user matches incoming CSV/JSON/XLSX columns to Yippie contact fields (name, email, phone, company, etc.). Alternative to requiring users to pre-format the file. Build alongside `[29]`/`[40]`. See Tier 2.
+- **[I1] Inbox search** — Opus — not built. Search bar spanning Pending, Processed, and Sent tabs — query does **not** clear when switching tabs. Place the search bar next to the "Sent" label at the same height. When idle (no query): show trending topics in light grey, refreshed every 15 min. Sent tab: paginate at 9 mails per page (same cadence as Pending). Processed tab: convert existing inline filter pills to a dropdown menu. See Tier 2.
+- **[W1] Klimaatexamen primary colour not applied** — Opus — user edited `primary_color` via Clients → Edit → Branding tab but the colour does not appear in the app for that tenant. Likely a cache/stale-config issue — the `GET /tenant/config` response may not be re-fetched after the superadmin PATCH, or the sidebar inline style is not picking up the new value for that tenant session. Investigate and fix. See Tier 2.
+- **[V2] All contacts button in compose broken** — already tracked as Tier 3 (see below). No change needed.
+
 **Additional bugs reported (pre-session-28 — fix alongside the above):**
 - ~~**Outbound from-address wrong in ndugu environment**~~ ✅ **DONE** — `queue_send` now resolves `from_email` to `tenant.inbound_email` before `RESEND_FROM`.
 - **Settings page broken** — Code-audited; all routes compile clean. **Needs sandbox repro** — which tab, exact error.
@@ -113,6 +123,8 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 
 ### Email templates (Phase 9 — creative)
 - ~~**[Phase 9] Template UX + AI insertion**~~ ✅ **DONE (session 33)** — `/settings/templates` CRUD page, `TemplatePicker` component (search + one-click insert + AI suggest button) wired into DraftReview reply panel and ComposeModal, `PATCH`/`DELETE`/`POST ai-suggest` backend endpoints, AI ranking via Claude. "Templates" sidebar link for all users. Personal templates still open ([S3] — see Tier 2 if needed).
+- ~~**[Phase 9B] Full drag-and-drop email template editor**~~ ✅ **DONE (session 35)** — `Fable` — Built on `react-email-editor` 1.8 (Unlayer, MIT licence). `/settings/templates` rebuilt as a two-panel split: template list (left, "Rich design" badge, delete) + editor (right) with "Email Design" (Unlayer canvas, design persisted as `design_json` + exported `html_body`) and "Campaign Buttons" tabs (per-button text/bg/text colour/radius/font size/weight/outline, drag-reorder, "multiple answers allowed?" toggle, live preview — stored as `campaign_buttons` JSONB, label mapping deferred to 9C). New migration `g7h8i9j0k1l2` adds the three columns. Templates button beneath Compose in the Inbox header (same size/colour) replaces the sidebar link; picking a template opens ComposeModal pre-filled (rich templates show an HTML preview + plain-text fallback). TemplatePicker shows "Visual" badge for rich templates and passes `html_body` via `onSelect(body, isHtml)`. `render_email_html()` gained `prerendered_html` param + `render_campaign_buttons_html()` helper (placeholder `#` hrefs until 9C tokens). Signature preview block below the editor. Rich-HTML *sending* pipeline + button label mapping land with [Phase 9C].
+- **[Phase 9C] Tracked click / campaign buttons (label-click tokens)** — `Fable` — *not built.* Four pieces to build: (1) **Buttons section in template editor** — admins map each button to a contact label; "multiple answers allowed?" toggle stored per-button in the template JSON body. (2) **`LabelClickToken` model** — `token` (UUID PK), `contact_id`, `label_id`, `tenant_id`, `used_at`; one token per button per recipient, generated at send-time. (3) **Public `/track/click/{token}` endpoint** — no auth required (contact has no Yippie account); looks up token, applies the mapped label to the contact, sets `used_at`, redirects to a plain "Thank you for your response" confirmation page. Tokens expire on first click. (4) **`render_email_html()` update** — injects campaign buttons as styled `<a>` anchor tags pointing to the tracking URLs.
 
 ### Contacts — workflow & data model (big)
 - ~~**[36] Company grouping for contacts**~~ ✅ **DONE (session 34)** — `companies` table + `contacts.company_id` FK (legacy text column kept for old data), company CRUD at `/contacts/companies` (admin-gated), `/settings/companies` page, `CompanyBadge`/`CompanyPicker` on contact list/new/detail (+DraftReview new-contact modal), company filter chips + `?company_id=` filter, ComposeModal "Company" button adds all of a company's contact emails via `/contacts/companies/{id}/contacts`.
@@ -147,9 +159,17 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 ### Contacts & data import (none of these exist yet)
 - **[29] Contact CSV import** — `Opus` — `POST /contacts/import` multipart; validate, dedupe by email, bulk insert; upload widget + results summary.
 - **[40] Contact import — JSON + Excel** — `Opus` — extend `[29]` to also accept JSON and `.xlsx` with the same validate/dedupe/summary flow.
+- **[C2] Pre-import column mapping** — `Opus` — before an import runs, show a mapping step where the user matches incoming CSV/JSON/XLSX columns to Yippie contact fields (name, email, phone, company, etc.). Build alongside `[29]`/`[40]` — no separate screen needed; add a step to the existing import flow.
 - **[37] Import users / staff from CSV** — `Opus` — `POST /admin/users/import` (own tenant) / `POST /admin/tenants/{id}/users/import` (superadmin); columns name/email/role; validate, dedupe, bulk-invite via Resend; upload widget in Settings → Team. (Platform users, not contacts.)
 - **[20] Multi-select contacts** — `Opus` — checkbox per row + action bar (admins/superadmins): Compose (prefill emails), Export CSV, Label (`[38]`), Delete (soft, `[39]`). Backend bulk contact endpoints don't exist yet either.
 - **[39] Contact soft-delete + retention** — `Opus` — add `contacts.deleted_at` (reuse the `tickets.deleted_at` pattern, session 17): retain 1 month, filter/restore within the window, scheduled purge after.
+- **[C1] Column customisation — Contacts & Companies** — `Opus` — users can add, remove, and reorder columns in both the Contacts list and the Companies list. A settings cog (⚙) beneath the "+New contact" / "+New company" button opens a column-picker panel. Visibility and order persisted per-user (or per-tenant as a starting point).
+
+### Inbox
+- **[I1] Inbox search** — `Opus` — search bar spanning Pending, Processed, and Sent tabs; query does **not** clear when switching tabs. Place the search bar next to the "Sent" label at the same height. When idle (no query): show trending topics in light grey, refreshed every 15 min. Sent tab: paginate at 9 mails per page (same cadence as Pending). Processed tab: convert existing inline filter pills to a dropdown menu.
+
+### Bugs & config
+- **[W1] Klimaatexamen primary colour not applied** — `Opus` — user changed `primary_color` via Clients → Edit → Branding tab but the colour does not appear in the app for that tenant. Likely a stale-config issue: `GET /tenant/config` may not be re-fetched after the superadmin PATCH, or the sidebar inline style isn't picking up the new value for that tenant's session. Investigate and fix.
 
 ### Superadmin / client management
 - **[38c] Per-client edit modal (UX redesign)** — ✅ **DONE (session 27).** "Edit modules" button replaced with "Edit" opening a 3-tab modal: Info (name, inbound_email, slug readonly), Modules (module toggles), Branding (primary_color, logo_url + preview). All fields patch via the existing `PATCH /admin/tenants/{id}`. Status buttons kept inline.

@@ -23,6 +23,18 @@ def _safe_color(color: str | None) -> str:
     return color if _HEX_RE.match(color) else DEFAULT_ACCENT
 
 
+def _safe_hex(color: object, default: str) -> str:
+    color = str(color or "").strip()
+    return color if _HEX_RE.match(color) else default
+
+
+def _safe_int(value: object, default: int) -> int:
+    try:
+        return int(value)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return default
+
+
 _URL_RE = re.compile(r"(https?://[^\s<]+)")
 
 
@@ -39,13 +51,52 @@ def _paragraphs(text: str) -> str:
     )
 
 
+def render_campaign_buttons_html(buttons: list[dict], base_url: str) -> str:
+    """Render campaign buttons as HTML. base_url is used for /track/click/{token} in Phase 9C.
+    For now renders placeholder hrefs (#) since tracking tokens are Phase 9C."""
+    if not buttons:
+        return ""
+    links = []
+    for b in buttons:
+        text = html.escape(str(b.get("text") or ""))
+        if not text:
+            continue
+        bg = _safe_hex(b.get("bg_color"), "#5BA4F5")
+        color = _safe_hex(b.get("text_color"), "#ffffff")
+        radius = _safe_int(b.get("border_radius"), 6)
+        font_size = _safe_int(b.get("font_size"), 14)
+        font_weight = html.escape(str(b.get("font_weight") or "600"))
+        border_width = _safe_int(b.get("border_width"), 0)
+        border_color = b.get("border_color")
+        border = (
+            f"border:{border_width}px solid {_safe_hex(border_color, '#5BA4F5')};"
+            if border_width > 0 and border_color
+            else ""
+        )
+        href = "#"  # Phase 9C: f"{base_url}/track/click/{token}"
+        links.append(
+            f'<a href="{href}" style="display:inline-block;padding:10px 22px;'
+            f"margin:6px 8px 6px 0;background:{bg};color:{color};"
+            f"border-radius:{radius}px;font-size:{font_size}px;"
+            f'font-weight:{font_weight};text-decoration:none;{border}">{text}</a>'
+        )
+    if not links:
+        return ""
+    return f'<div style="padding:8px 0;text-align:center;">{"".join(links)}</div>'
+
+
 def render_email_html(
     body_text: str,
     tenant_name: str | None = None,
     primary_color: str | None = None,
+    prerendered_html: str | None = None,
 ) -> str:
-    """Render the plain-text body into the standard Yippie HTML layout."""
+    """Render the plain-text body into the standard Yippie HTML layout.
+
+    When ``prerendered_html`` is set (Unlayer template export), it is embedded
+    directly in the white card instead of paragraph-escaping ``body_text``."""
     accent = _safe_color(primary_color)
+    content = prerendered_html if prerendered_html is not None else _paragraphs(body_text)
     header = (
         f'<div style="font-size:14px;font-weight:600;color:#374151;'
         f'padding:14px 24px;border-bottom:1px solid #e5e7eb;">{html.escape(tenant_name)}</div>'
@@ -62,7 +113,7 @@ def render_email_html(
         'border:1px solid #e5e7eb;">'
         f'<div style="height:4px;background:{accent};"></div>'
         f"{header}"
-        f'<div style="padding:24px;">{_paragraphs(body_text)}</div>'
+        f'<div style="padding:24px;">{content}</div>'
         "</div>"
         '<div style="text-align:center;padding:16px 0;font-size:12px;color:#9ca3af;">'
         "Sent with Yippie</div>"

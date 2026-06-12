@@ -324,7 +324,13 @@ async def list_templates(db: AsyncSession, tenant_id: uuid.UUID) -> list[Respons
 
 
 async def create_template(db: AsyncSession, tenant_id: uuid.UUID, data: TemplateCreate) -> ResponseTemplate:
-    template = ResponseTemplate(tenant_id=tenant_id, **data.model_dump())
+    import json
+
+    template = ResponseTemplate(
+        tenant_id=tenant_id,
+        campaign_buttons=json.dumps([b.model_dump() for b in data.campaign_buttons]),
+        **data.model_dump(exclude={"campaign_buttons"}),
+    )
     db.add(template)
     await db.commit()
     await db.refresh(template)
@@ -343,10 +349,18 @@ async def update_template(
     template = result.scalar_one_or_none()
     if not template:
         return None
+    import json
+
     if data.name is not None:
         template.name = data.name
     if data.body is not None:
         template.body = data.body
+    if data.design_json is not None:
+        template.design_json = data.design_json
+    if data.html_body is not None:
+        template.html_body = data.html_body
+    if data.campaign_buttons is not None:
+        template.campaign_buttons = json.dumps([b.model_dump() for b in data.campaign_buttons])
     await db.commit()
     await db.refresh(template)
     return template
