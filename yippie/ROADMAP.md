@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-12 (session 33 — Tier 1: response templates CRUD + TemplatePicker + AI suggest; profile password layout fixed)
+**Updated:** 2026-06-12 (session 33 — Tier 1: response templates CRUD + TemplatePicker + AI suggest; profile password layout fixed; session 34 items queued)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -52,6 +52,20 @@ environment / deploy reference lives in **Appendix B**.
 - **Departments → Team page** — move the Departments section from its own page onto the Team page, side-by-side with the team list; make the department bar narrower to fit. See Tier 3.
 - **Profile layout: password next to signature** — the password-change block should sit beside the signature box in a two-column layout; shrink the password box width to match. See Tier 3.
 
+**New items collected (session 34 — 2026-06-12):**
+
+- **[V1] Sent inbox not showing mails** — Sent tab (session 32) fetches `/activity?limit=500`; it is empty because the Activity page/endpoint itself is broken (see existing "Activity page blank" bug above). Fix the Activity module and the Sent tab will populate automatically. See Tier 3.
+- **[V2] All contacts button in compose broken** — "All contacts" button in ComposeModal's ContactSearchPicker does not populate the recipient list. Was made lazy in session 24 (fetchQuery on click); the click handler may be wired incorrectly. See Tier 3.
+- **[V3] Compose: default From = personal mail when in personal inbox** — When the user is viewing their personal inbox and opens ComposeModal, the From field should pre-select their personal address (`user.inbound_email`). User can switch it manually. See Tier 3.
+- **[V4] Profile: narrow email/signature box** — The signature card is currently flexible-width; make it slightly narrower so the Change Password card (280 px) sits comfortably beside it without cramping. See Tier 3.
+- **[V5] Profile: signature inside email box** — Move the signature textarea into the same card as the personal email address field, rather than a separate card below. See Tier 3.
+- **[V6] Team page: align departments panel top with team list** — DepartmentsPanel column is vertically offset; align its top edge with the team members list header. See Tier 3.
+- **[V7] Team page: narrow team members list** — Reduce the team members column width (same ratio as the email box) so the DepartmentsPanel gets more horizontal breathing room. See Tier 3.
+- **[V8] Department edit modal: show reply template picker** — When editing a department in the modal (DeptModal), add a TemplatePicker so a default reply template can be assigned to the department. See Tier 3.
+- **[V9] Remove Departments from Settings page** — Departments moved to Team page in session 32; remove the `/settings/departments` route, page component, and sidebar link so it no longer appears in Settings. See Tier 3.
+- **[V10] Add contact labels to Settings page** — Add the Labels management section (name + colour, CRUD) as a section inside the main Settings page, accessible from the same Settings area. See Tier 3.
+- **[V11] Remove standalone Labels page** — Once labels are in Settings (V10), remove the standalone `/settings/labels` route, `LabelsPage` component, and its "Labels" sidebar link. See Tier 3.
+
 **Additional bugs reported (pre-session-28 — fix alongside the above):**
 - ~~**Outbound from-address wrong in ndugu environment**~~ ✅ **DONE** — `queue_send` now resolves `from_email` to `tenant.inbound_email` before `RESEND_FROM`.
 - **Settings page broken** — Code-audited; all routes compile clean. **Needs sandbox repro** — which tab, exact error.
@@ -101,7 +115,7 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 - ~~**[Phase 9] Template UX + AI insertion**~~ ✅ **DONE (session 33)** — `/settings/templates` CRUD page, `TemplatePicker` component (search + one-click insert + AI suggest button) wired into DraftReview reply panel and ComposeModal, `PATCH`/`DELETE`/`POST ai-suggest` backend endpoints, AI ranking via Claude. "Templates" sidebar link for all users. Personal templates still open ([S3] — see Tier 2 if needed).
 
 ### Contacts — workflow & data model (big)
-- **[36] Company grouping for contacts** — `Fable` — *partial:* `company` is only a string field on Contact. Build a real `Company` entity (name, domain, notes) contacts belong to; company badge + filter/group; composing to a company auto-selects all its contacts.
+- ~~**[36] Company grouping for contacts**~~ ✅ **DONE (session 34)** — `companies` table + `contacts.company_id` FK (legacy text column kept for old data), company CRUD at `/contacts/companies` (admin-gated), `/settings/companies` page, `CompanyBadge`/`CompanyPicker` on contact list/new/detail (+DraftReview new-contact modal), company filter chips + `?company_id=` filter, ComposeModal "Company" button adds all of a company's contact emails via `/contacts/companies/{id}/contacts`.
 - ~~**[38] Contact labels**~~ ✅ **DONE (session 31)** — `contact_labels` + `contact_label_links` tables, label CRUD at `/contacts/labels` (admin-gated), `/settings/labels` page, label picker on new/detail contact, label-filter chips + Labels column in the contact list. Bulk-label still waits on multi-select (`[20]`). Foundation for the Pipeline module + demo flow is in place.
 - **[30] Mail-all / broadcast system** — `Fable` — *not built.* `POST /admin/tenants/{id}/broadcast` (superadmin), batch send to all tenant contacts via Resend; needs rate limiting + opt-out tracking.
 
@@ -162,6 +176,17 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 Small, well-bounded changes — UX polish and config/ops one-liners.
 
 ### UX polish
+- **[V1] Sent inbox not showing mails** — `Sonnet` — Sent tab calls `/activity?limit=500`; it is empty because the Activity page/endpoint is broken. Root-cause and fix the Activity module (white page crash — see "Activity page blank" in Next session); Sent tab will then work automatically.
+- **[V2] All contacts button in compose broken** — `Sonnet` — "All contacts" click handler in `ContactSearchPicker` / `ComposeModal` is not populating recipients; fix the lazy `fetchQuery` wiring from session 24.
+- **[V3] Compose: pre-select personal address as From when in personal inbox** — `Sonnet` — pass the current inbox context into `ComposeModal`; when the user is in their personal inbox default `fromEmail` to `user.inbound_email`; user can override via the From dropdown.
+- **[V4] Profile: narrow signature card** — `Sonnet` — reduce the signature card's width so the 280 px Change Password card fits cleanly beside it; adjust the `grid-cols-[1fr_280px]` proportions.
+- **[V5] Profile: signature inside email card** — `Sonnet` — merge the signature textarea into the personal-email-address card (same box); remove the separate signature section.
+- **[V6] Team page: align departments panel top with team list** — `Sonnet` — add `items-start` (or matching padding/margin) to the flex row so the DepartmentsPanel header aligns on the same x-axis as the team members list header.
+- **[V7] Team page: narrow team members list** — `Sonnet` — reduce team members column width (similar to the email box), giving DepartmentsPanel more horizontal space; adjust `flex gap-8` proportions.
+- **[V8] Department edit modal: add TemplatePicker** — `Sonnet` — embed `TemplatePicker` inside `DeptModal` so an admin can assign a default reply template to a department when creating or editing it.
+- **[V9] Remove Departments from Settings** — `Sonnet` — remove `/settings/departments` route, its page component, and the "Departments" sidebar link; departments live exclusively on the Team page now.
+- **[V10] Add contact labels to Settings page** — `Sonnet` — add a Labels section (name + colour CRUD, same as current `LabelsPage`) into the main Settings layout, replacing the standalone page.
+- **[V11] Remove standalone Labels page** — `Sonnet` — once V10 is done, delete the `/settings/labels` route, `LabelsPage`, and "Labels" sidebar link.
 - **[35-backlog] More hotkeys** — `Sonnet` — ~~`c` compose, `Esc` close compose, `g i` go to inbox~~ ✅ **DONE (session 32)**. Still open: `r` reply, `e` archive/process, `j`/`k` next/prev, `/` focus search.
 - **[43] Ticket deadline reminder toast** — `Sonnet` — *banners + sidebar badge already shipped (`[34]`);* add the small toast when a ticket nears `follow_up_at`.
 - **[48] Clickable rows everywhere** — `Sonnet` — *mostly done* (inbox cards + contact rows open on full-row click); finish the convention on any remaining lists (e.g. tickets) and treat it as standing.

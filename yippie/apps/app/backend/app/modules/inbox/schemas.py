@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.modules.inbox.models import DraftStatus, MessageSource
 
@@ -55,7 +55,8 @@ class ContactBrief(BaseModel):
     full_name: str
     email: Optional[str]
     phone: Optional[str]
-    company: Optional[str]
+    # Company entity name when linked, else the legacy free-text value.
+    company: Optional[str] = Field(default=None, validation_alias="company_name")
     tags: Optional[list[str]]
 
     model_config = {"from_attributes": True}

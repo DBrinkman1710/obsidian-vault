@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip, ChevronLeft, ChevronRight, Building2 } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker } from '../components/TemplatePicker'
@@ -37,7 +37,75 @@ interface Contact {
   id: string
   full_name: string
   email: string | null
-  company: string | null
+  company: { id: string; name: string } | null
+}
+
+function CompanyRecipientsButton({ onAdd }: { onAdd: (email: string, label: string) => void }) {
+  const [open, setOpen] = useState(false)
+  const [loadingId, setLoadingId] = useState<string | null>(null)
+  const ref = useRef<HTMLDivElement>(null)
+
+  const { data: companies } = useQuery({
+    queryKey: ['companies'],
+    queryFn: () => api.get<{ id: string; name: string; contact_count: number }[]>('/contacts/companies').then(r => r.data),
+    enabled: open,
+  })
+
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  async function pickCompany(id: string) {
+    setLoadingId(id)
+    try {
+      const contacts = await api
+        .get<{ id: string; full_name: string; email: string | null }[]>(`/contacts/companies/${id}/contacts`)
+        .then(r => r.data)
+      contacts.filter(c => c.email).forEach(c => onAdd(c.email!, c.full_name))
+      setOpen(false)
+    } finally {
+      setLoadingId(null)
+    }
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap"
+      >
+        <Building2 size={12} />
+        Company
+        <ArrowRight size={11} />
+      </button>
+
+      {open && (
+        <div className="absolute top-full right-0 z-20 bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto w-60">
+          {companies?.map(c => (
+            <button
+              key={c.id} type="button"
+              onClick={() => pickCompany(c.id)}
+              disabled={loadingId !== null}
+              className="w-full text-left px-3 py-2.5 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors disabled:opacity-50"
+            >
+              <span className="font-medium text-slate-900">{c.name}</span>
+              <span className="text-slate-400 ml-2 text-xs">
+                {loadingId === c.id ? 'adding…' : `${c.contact_count} contact${c.contact_count !== 1 ? 's' : ''}`}
+              </span>
+            </button>
+          ))}
+          {companies && companies.length === 0 && (
+            <div className="px-3 py-3 text-xs text-slate-400 text-center">No companies yet</div>
+          )}
+        </div>
+      )}
+    </div>
+  )
 }
 
 function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) => void }) {
@@ -95,6 +163,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
           <Users size={12} />
           {addingAll ? 'Loading…' : 'All contacts'}
         </button>
+        <CompanyRecipientsButton onAdd={onAdd} />
       </div>
 
       {open && (
@@ -130,7 +199,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
                 className="w-full text-left px-3 py-2.5 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors"
               >
                 <span className="font-medium text-slate-900">{c.full_name}</span>
-                {c.company && <span className="text-slate-500 ml-2 text-xs">{c.company}</span>}
+                {c.company && <span className="text-slate-500 ml-2 text-xs">{c.company.name}</span>}
                 <span className="text-slate-400 ml-2 text-xs">{c.email}</span>
               </button>
             ) : null

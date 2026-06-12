@@ -5,6 +5,7 @@ import { X, Paperclip, Sparkles } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker } from '../components/TemplatePicker'
+import { CompanyPicker } from '../../contacts/components/CompanyPicker'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { Skeleton } from '../../../shell/Skeleton'
@@ -59,8 +60,9 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
   const [form, setForm] = useState({
     full_name: guessNameFromEmail(senderEmail),
     email: senderEmail,
-    phone: '', company: '', tags: '', notes: '',
+    phone: '', tags: '', notes: '',
   })
+  const [companyId, setCompanyId] = useState<string | null>(null)
   const [error, setError] = useState('')
 
   const set = (f: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -72,7 +74,7 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
         full_name: form.full_name.trim(),
         email: form.email.trim() || null,
         phone: form.phone.trim() || null,
-        company: form.company.trim() || null,
+        company_id: companyId,
         notes: form.notes.trim() || null,
         tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : null,
       })
@@ -126,10 +128,7 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">Company</label>
-            <input
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
-              value={form.company} onChange={set('company')} placeholder="Acme BV"
-            />
+            <CompanyPicker value={companyId} onChange={setCompanyId} />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">Tags <span className="font-normal text-slate-400">(comma-separated)</span></label>

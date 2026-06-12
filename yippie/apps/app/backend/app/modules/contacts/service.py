@@ -6,8 +6,10 @@ from typing import Optional
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.modules.contacts.models import Contact, ContactLabel
+from app.modules.contacts.models import Company, Contact, ContactLabel
 from app.modules.contacts.schemas import (
+    CompanyCreate,
+    CompanyUpdate,
     ContactCreate,
     ContactLabelCreate,
     ContactLabelUpdate,
@@ -22,6 +24,7 @@ async def list_contacts(
     skip: int = 0,
     limit: int = 50,
     label_id: Optional[uuid.UUID] = None,
+    company_id: Optional[uuid.UUID] = None,
 ) -> tuple[list[Contact], int]:
     q = select(Contact).where(Contact.tenant_id == tenant_id)
     if search:
@@ -30,9 +33,12 @@ async def list_contacts(
             Contact.full_name.ilike(term)
             | Contact.email.ilike(term)
             | Contact.company.ilike(term)
+            | Contact.company_rel.has(Company.name.ilike(term))
         )
     if label_id:
         q = q.where(Contact.labels.any(ContactLabel.id == label_id))
+    if company_id:
+        q = q.where(Contact.company_id == company_id)
     total = await db.scalar(select(func.count()).select_from(q.subquery()))
     result = await db.execute(q.order_by(Contact.created_at.desc()).offset(skip).limit(limit))
     return result.scalars().all(), total or 0
@@ -59,12 +65,27 @@ async def _resolve_labels(
     return result.scalars().all()
 
 
+async def _resolve_company_id(
+    db: AsyncSession, tenant_id: uuid.UUID, company_id: Optional[uuid.UUID]
+) -> Optional[uuid.UUID]:
+    # Tenant filter drops cross-tenant/unknown ids silently (same as labels).
+    if company_id is None:
+        return None
+    result = await db.execute(
+        select(Company.id).where(Company.tenant_id == tenant_id, Company.id == company_id)
+    )
+    return result.scalar_one_or_none()
+
+
 async def create_contact(
     db: AsyncSession, tenant_id: uuid.UUID, created_by: uuid.UUID, data: ContactCreate
 ) -> Contact:
     contact = Contact(
-        tenant_id=tenant_id, created_by=created_by, **data.model_dump(exclude={"label_ids"})
+        tenant_id=tenant_id,
+        created_by=created_by,
+        **data.model_dump(exclude={"label_ids", "company_id"}),
     )
+    contact.company_id = await _resolve_company_id(db, tenant_id, data.company_id)
     if data.label_ids is not None:
         contact.labels = await _resolve_labels(db, tenant_id, data.label_ids)
     db.add(contact)
@@ -76,10 +97,13 @@ async def create_contact(
 async def update_contact(
     db: AsyncSession, contact: Contact, data: ContactUpdate
 ) -> Contact:
-    fields = data.model_dump(exclude_unset=True, exclude={"label_ids"})
+    provided = data.model_dump(exclude_unset=True)
+    fields = data.model_dump(exclude_unset=True, exclude={"label_ids", "company_id"})
     for field, value in fields.items():
         setattr(contact, field, value)
-    if "label_ids" in data.model_dump(exclude_unset=True):
+    if "company_id" in provided:
+        contact.company_id = await _resolve_company_id(db, contact.tenant_id, data.company_id)
+    if "label_ids" in provided:
         contact.labels = await _resolve_labels(db, contact.tenant_id, data.label_ids or [])
     await db.commit()
     return await get_contact(db, contact.tenant_id, contact.id)
@@ -148,3 +172,86 @@ async def delete_label(db: AsyncSession, label: ContactLabel) -> None:
     # contact_label_links rows are removed by ON DELETE CASCADE.
     await db.delete(label)
     await db.commit()
+
+
+# --- Companies (item 36) ---
+
+
+async def list_companies(db: AsyncSession, tenant_id: uuid.UUID) -> list[Company]:
+    result = await db.execute(
+        select(Company, func.count(Contact.id))
+        .outerjoin(Contact, Contact.company_id == Company.id)
+        .where(Company.tenant_id == tenant_id)
+        .group_by(Company.id)
+        .order_by(func.lower(Company.name))
+    )
+    companies: list[Company] = []
+    for company, contact_count in result.all():
+        company.contact_count = contact_count  # picked up by CompanyOut
+        companies.append(company)
+    return companies
+
+
+async def get_company(db: AsyncSession, tenant_id: uuid.UUID, company_id: uuid.UUID) -> Optional[Company]:
+    result = await db.execute(
+        select(Company).where(Company.tenant_id == tenant_id, Company.id == company_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def _company_contact_count(db: AsyncSession, company_id: uuid.UUID) -> int:
+    return await db.scalar(
+        select(func.count()).select_from(Contact).where(Contact.company_id == company_id)
+    ) or 0
+
+
+async def _company_name_taken(
+    db: AsyncSession, tenant_id: uuid.UUID, name: str, exclude_id: Optional[uuid.UUID] = None
+) -> bool:
+    q = select(Company.id).where(
+        Company.tenant_id == tenant_id,
+        func.lower(Company.name) == name.lower(),
+    )
+    if exclude_id:
+        q = q.where(Company.id != exclude_id)
+    return (await db.execute(q.limit(1))).scalar_one_or_none() is not None
+
+
+async def create_company(db: AsyncSession, tenant_id: uuid.UUID, body: CompanyCreate) -> Company:
+    if await _company_name_taken(db, tenant_id, body.name):
+        raise ValueError("A company with this name already exists")
+    company = Company(tenant_id=tenant_id, name=body.name, domain=body.domain, notes=body.notes)
+    db.add(company)
+    await db.commit()
+    await db.refresh(company)
+    company.contact_count = 0
+    return company
+
+
+async def update_company(db: AsyncSession, company: Company, body: CompanyUpdate) -> Company:
+    fields = body.model_dump(exclude_unset=True)
+    if "name" in fields and await _company_name_taken(db, company.tenant_id, fields["name"], exclude_id=company.id):
+        raise ValueError("A company with this name already exists")
+    for field, value in fields.items():
+        setattr(company, field, value)
+    await db.commit()
+    await db.refresh(company)
+    company.contact_count = await _company_contact_count(db, company.id)
+    return company
+
+
+async def delete_company(db: AsyncSession, company: Company) -> None:
+    # contacts.company_id is set to NULL by ON DELETE SET NULL.
+    await db.delete(company)
+    await db.commit()
+
+
+async def list_company_contacts(
+    db: AsyncSession, tenant_id: uuid.UUID, company_id: uuid.UUID
+) -> list[Contact]:
+    result = await db.execute(
+        select(Contact)
+        .where(Contact.tenant_id == tenant_id, Contact.company_id == company_id)
+        .order_by(Contact.full_name)
+    )
+    return result.scalars().all()

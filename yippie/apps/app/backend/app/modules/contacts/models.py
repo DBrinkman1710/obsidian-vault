@@ -18,6 +18,17 @@ contact_label_links = Table(
 )
 
 
+class Company(Base):
+    __tablename__ = "companies"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(Text, nullable=False)
+    domain: Mapped[str | None] = mapped_column(Text, nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ContactLabel(Base):
     __tablename__ = "contact_labels"
 
@@ -36,7 +47,10 @@ class Contact(Base):
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     email: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
-    company: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    company: Mapped[str | None] = mapped_column(String(255), nullable=True)  # legacy free-text, superseded by company_id
+    company_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     custom_fields: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
@@ -50,3 +64,11 @@ class Contact(Base):
         order_by="ContactLabel.name",
         passive_deletes=True,
     )
+    # ORM attribute name avoids clashing with the legacy `company` text column;
+    # serialized as `company` in ContactOut via validation_alias.
+    company_rel: Mapped[Company | None] = relationship(lazy="selectin")
+
+    @property
+    def company_name(self) -> str | None:
+        """Entity name when linked, else the legacy free-text value."""
+        return self.company_rel.name if self.company_rel else self.company

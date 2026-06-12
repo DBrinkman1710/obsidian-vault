@@ -10,6 +10,10 @@ from app.auth.dependencies import AdminUser, CurrentUser
 from app.database import get_db
 from app.modules.contacts import service
 from app.modules.contacts.schemas import (
+    CompanyContactOut,
+    CompanyCreate,
+    CompanyOut,
+    CompanyUpdate,
     ContactCreate,
     ContactLabelCreate,
     ContactLabelOut,
@@ -32,8 +36,11 @@ async def list_contacts(
     skip: int = Query(0, ge=0),
     limit: int = Query(50, ge=1, le=200),
     label_id: Optional[uuid.UUID] = Query(None),
+    company_id: Optional[uuid.UUID] = Query(None),
 ):
-    items, total = await service.list_contacts(db, current_user.tenant_id, search, skip, limit, label_id)
+    items, total = await service.list_contacts(
+        db, current_user.tenant_id, search, skip, limit, label_id, company_id
+    )
     return ContactList(items=items, total=total)
 
 
@@ -42,8 +49,49 @@ async def create_contact(body: ContactCreate, current_user: CurrentUser, db: DB)
     return await service.create_contact(db, current_user.tenant_id, current_user.id, body)
 
 
-# Label routes MUST stay above the dynamic /{contact_id} routes — FastAPI matches in
-# declaration order and "labels" would otherwise 422 as a contact UUID.
+# Label and company routes MUST stay above the dynamic /{contact_id} routes — FastAPI
+# matches in declaration order and "labels"/"companies" would otherwise 422 as a
+# contact UUID.
+
+
+@router.get("/companies", response_model=list[CompanyOut])
+async def list_companies(current_user: CurrentUser, db: DB):
+    return await service.list_companies(db, current_user.tenant_id)
+
+
+@router.post("/companies", response_model=CompanyOut, status_code=status.HTTP_201_CREATED)
+async def create_company(body: CompanyCreate, current_user: AdminUser, db: DB):
+    try:
+        return await service.create_company(db, current_user.tenant_id, body)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
+@router.get("/companies/{company_id}/contacts", response_model=list[CompanyContactOut])
+async def list_company_contacts(company_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    company = await service.get_company(db, current_user.tenant_id, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    return await service.list_company_contacts(db, current_user.tenant_id, company_id)
+
+
+@router.patch("/companies/{company_id}", response_model=CompanyOut)
+async def update_company(company_id: uuid.UUID, body: CompanyUpdate, current_user: AdminUser, db: DB):
+    company = await service.get_company(db, current_user.tenant_id, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    try:
+        return await service.update_company(db, company, body)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+
+@router.delete("/companies/{company_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_company(company_id: uuid.UUID, current_user: AdminUser, db: DB):
+    company = await service.get_company(db, current_user.tenant_id, company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    await service.delete_company(db, company)
 
 
 @router.get("/labels", response_model=list[ContactLabelOut])

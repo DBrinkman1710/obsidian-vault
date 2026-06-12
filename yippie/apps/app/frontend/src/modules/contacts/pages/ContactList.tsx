@@ -5,12 +5,13 @@ import { Search, Plus, User } from 'lucide-react'
 import { api } from '../../../api/client'
 import { TableSkeleton } from '../../../shell/Skeleton'
 import { LabelChip, fetchLabels, type ContactLabel } from '../components/LabelChip'
+import { CompanyBadge, fetchCompanies, type CompanyRef } from '../components/CompanyBadge'
 
 interface Contact {
   id: string
   full_name: string
   email: string | null
-  company: string | null
+  company: CompanyRef | null
   phone: string | null
   labels: ContactLabel[]
   created_at: string
@@ -20,11 +21,17 @@ export default function ContactList() {
   const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [labelFilter, setLabelFilter] = useState<string | null>(null)
+  const [companyFilter, setCompanyFilter] = useState<string | null>(null)
   const { data: labels } = useQuery({ queryKey: ['contact-labels'], queryFn: fetchLabels })
+  const { data: companies } = useQuery({ queryKey: ['companies'], queryFn: fetchCompanies })
   const { data, isLoading } = useQuery({
-    queryKey: ['contacts', search, labelFilter],
+    queryKey: ['contacts', search, labelFilter, companyFilter],
     queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', {
-      params: { search: search || undefined, label_id: labelFilter || undefined },
+      params: {
+        search: search || undefined,
+        label_id: labelFilter || undefined,
+        company_id: companyFilter || undefined,
+      },
     }).then(r => r.data),
   })
 
@@ -78,6 +85,30 @@ export default function ContactList() {
         </div>
       )}
 
+      {companies && companies.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5 mb-5">
+          <button
+            type="button"
+            onClick={() => setCompanyFilter(null)}
+            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${
+              companyFilter === null
+                ? 'bg-slate-700 text-white border-slate-700'
+                : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'
+            }`}
+          >
+            All companies
+          </button>
+          {companies.map(company => (
+            <CompanyBadge
+              key={company.id}
+              name={company.name}
+              selected={companyFilter === company.id}
+              onClick={() => setCompanyFilter(companyFilter === company.id ? null : company.id)}
+            />
+          ))}
+        </div>
+      )}
+
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
@@ -110,7 +141,20 @@ export default function ContactList() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">{c.email ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600">{c.company ?? '—'}</td>
+                  <td className="px-4 py-3">
+                    {c.company ? (
+                      // stopPropagation so the badge filters instead of opening the row
+                      <span onClick={e => e.stopPropagation()}>
+                        <CompanyBadge
+                          name={c.company.name}
+                          selected={companyFilter === c.company.id}
+                          onClick={() => setCompanyFilter(companyFilter === c.company!.id ? null : c.company!.id)}
+                        />
+                      </span>
+                    ) : (
+                      <span className="text-sm text-slate-600">—</span>
+                    )}
+                  </td>
                   <td className="px-4 py-3">
                     {c.labels.length === 0 ? (
                       <span className="text-sm text-slate-600">—</span>

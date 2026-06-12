@@ -4,23 +4,24 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { api } from '../../../api/client'
 import { LabelPicker } from '../components/LabelChip'
+import { CompanyPicker } from '../components/CompanyPicker'
 
 interface FormState {
   full_name: string
   email: string
   phone: string
-  company: string
   notes: string
 }
 
 const EMPTY: FormState = {
-  full_name: '', email: '', phone: '', company: '', notes: '',
+  full_name: '', email: '', phone: '', notes: '',
 }
 
 export default function ContactNew() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [form, setForm] = useState<FormState>(EMPTY)
+  const [companyId, setCompanyId] = useState<string | null>(null)
   const [labelIds, setLabelIds] = useState<string[]>([])
   const [errors, setErrors] = useState<Partial<FormState>>({})
 
@@ -43,7 +44,7 @@ export default function ContactNew() {
         full_name: form.full_name.trim(),
         email: form.email.trim() || null,
         phone: form.phone.trim() || null,
-        company: form.company.trim() || null,
+        company_id: companyId,
         notes: form.notes.trim() || null,
         label_ids: labelIds.length ? labelIds : null,
       }),
@@ -101,7 +102,7 @@ export default function ContactNew() {
 
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Company</label>
-          <input className={inputClass()} value={form.company} onChange={set('company')} placeholder="Acme BV" />
+          <CompanyPicker value={companyId} onChange={setCompanyId} />
         </div>
 
         <div>

@@ -83,7 +83,7 @@ async def _context_inputs(
 
         contact_dict = {
             "full_name": contact.full_name,
-            "company": contact.company,
+            "company": contact.company_name,
             "email": contact.email,
             "phone": contact.phone,
             "tags": contact.tags,

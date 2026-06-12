@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Clock, Pencil } from 'lucide-react'
 import { api } from '../../../api/client'
 import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelChip'
+import { CompanyBadge, type CompanyRef } from '../components/CompanyBadge'
+import { CompanyPicker } from '../components/CompanyPicker'
 
 function formatEventType(s: string): string {
   return s.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -66,14 +68,15 @@ export default function ContactDetail() {
             New Ticket
           </Link>
         </div>
-        {contact.company && <p className="text-sm text-slate-500 mb-6">{contact.company}</p>}
+        {contact.company && <p className="text-sm text-slate-500 mb-6">{contact.company.name}</p>}
 
         <div className="grid grid-cols-2 gap-4 mb-8">
           <Field label="Email" value={contact.email} />
           <Field label="Phone" value={contact.phone} />
-          <Field label="Company" value={contact.company} />
           {contact.tags?.length > 0 && <Field label="Legacy tags" value={contact.tags.join(', ')} />}
         </div>
+
+        <CompanyBlock contactId={id!} company={contact.company ?? null} />
 
         <LabelsBlock contactId={id!} labels={contact.labels ?? []} />
 
@@ -129,6 +132,69 @@ export default function ContactDetail() {
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+function CompanyBlock({ contactId, company }: { contactId: string; company: CompanyRef | null }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [selectedId, setSelectedId] = useState<string | null>(null)
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.patch(`/contacts/${contactId}`, { company_id: selectedId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact', contactId] })
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      qc.invalidateQueries({ queryKey: ['companies'] })
+      setEditing(false)
+    },
+  })
+
+  return (
+    <div className="mb-8">
+      <div className="flex items-center gap-2 mb-2">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Company</h3>
+        {!editing && (
+          <button
+            type="button"
+            onClick={() => { setSelectedId(company?.id ?? null); setEditing(true) }}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <Pencil size={10} />
+            Edit
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div className="flex flex-col gap-3 max-w-sm">
+          <CompanyPicker value={selectedId} onChange={setSelectedId} />
+          {saveMutation.isError && (
+            <p className="text-sm text-red-500">Something went wrong — try again.</p>
+          )}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+            >
+              {saveMutation.isPending ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="px-3 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : company ? (
+        <CompanyBadge name={company.name} />
+      ) : (
+        <p className="text-sm text-slate-400">No company.</p>
+      )}
     </div>
   )
 }

@@ -23,6 +23,7 @@ const ResetPasswordPage  = lazy(() => import('./auth/ResetPasswordPage'))
 const TeamSettingsPage   = lazy(() => import('./modules/admin/pages/TeamSettingsPage'))
 const DepartmentsPage          = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
 const LabelsPage               = lazy(() => import('./modules/admin/pages/LabelsPage'))
+const CompaniesPage            = lazy(() => import('./modules/admin/pages/CompaniesPage'))
 const SuperAdminPage           = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
 const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/SuperadminsSettingsPage'))
 const ProfileSettingsPage      = lazy(() => import('./modules/admin/pages/ProfileSettingsPage'))
@@ -184,6 +185,9 @@ export default function App() {
               <Route path="/settings/departments" element={<PagePad><DepartmentsPage /></PagePad>} />
               <Route path="/settings/labels" element={
                 <ModuleGate module="contacts"><PagePad><LabelsPage /></PagePad></ModuleGate>
+              } />
+              <Route path="/settings/companies" element={
+                <ModuleGate module="contacts"><PagePad><CompaniesPage /></PagePad></ModuleGate>
               } />
               <Route path="/settings/superadmins" element={<PagePad><SuperadminsSettingsPage /></PagePad>} />
               <Route path="/settings/profile" element={<PagePad><ProfileSettingsPage /></PagePad>} />

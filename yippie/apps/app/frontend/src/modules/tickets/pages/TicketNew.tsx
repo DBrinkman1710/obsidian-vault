@@ -8,7 +8,7 @@ interface Contact {
   id: string
   full_name: string
   email: string | null
-  company: string | null
+  company: { id: string; name: string } | null
 }
 
 const PRIORITY_STYLES: Record<string, { active: string; inactive: string }> = {
@@ -71,14 +71,14 @@ function ContactPicker({ value, onChange }: {
             <button
               key={c.id} type="button"
               onMouseDown={() => {
-                onChange({ id: c.id, label: c.company ? `${c.full_name} (${c.company})` : c.full_name })
+                onChange({ id: c.id, label: c.company ? `${c.full_name} (${c.company.name})` : c.full_name })
                 setOpen(false)
                 setSearch('')
               }}
               className="w-full text-left px-4 py-2.5 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors"
             >
               <span className="font-medium text-slate-900">{c.full_name}</span>
-              {c.company && <span className="text-slate-500 ml-2">{c.company}</span>}
+              {c.company && <span className="text-slate-500 ml-2">{c.company.name}</span>}
               {c.email && <span className="text-slate-400 ml-2 text-xs">{c.email}</span>}
             </button>
           ))}
