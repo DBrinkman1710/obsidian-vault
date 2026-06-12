@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-11 (session 31 — [38] contact labels shipped)
+**Updated:** 2026-06-12 (session 32 — Tier 3 UX polish: U1–U6 shipped)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -168,12 +168,12 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 - **[8c] Status column labels** — `Sonnet` — show "Active"/"Inactive"/"Demo" as clear text labels in the Clients tab; allow changing status directly from that column.
 - ~~**[6c] Bulk delete clients**~~ ✅ **DONE (session 29)** — Delete button in bulk action bar (root owner only); `BulkDeleteClientsModal` with password gate, calls `POST /admin/tenants/{id}/delete` for each selected client.
 - **Spam → Resend sender block** — `Sonnet` — bulk "spam" already moves drafts to the spam status + retention; still add the call to block the sender in Resend (the one remaining piece of `[12]`).
-- **[U1] Inbox: remove duplicate select-all** — `Sonnet` — two "select all" controls rendered in `InboxQueue`; keep only the upper/header one, remove the lower duplicate.
-- **[U2] Inbox: add Sent tab** — `Sonnet` — inbox tab bar currently shows Pending + Processed; add a Sent tab that surfaces the existing sent-mail view `[41]`. No new backend work needed.
-- **[U3] Client info page: remove Inactivate + Delete** — `Sonnet` — Inactivate and Delete already live in the Actions tab of the edit modal; remove them from the Info tab to avoid duplication and clutter. Rule: destructive actions live only in Actions.
-- **[U4] Client actions: remove "Copy email"** — `Sonnet` — "Copy email address" belongs in the Info tab where the email is visible; remove it from the Actions dropdown.
-- **[U5] Departments → Team page** — `Sonnet` — move the Departments section onto the Team page, side-by-side with the team member list. Make the departments bar narrower (compact layout) so both fit on one screen without scrolling.
-- **[U6] Profile: password next to signature** — `Sonnet` — two-column layout in Profile: signature box on the left, password-change block on the right (narrower). Eliminates wasted vertical space and keeps related settings together.
+- ~~**[U1] Inbox: remove duplicate select-all**~~ ✅ **DONE (session 32)** — header copy removed; sticky select-all row in scrollable section kept.
+- ~~**[U2] Inbox: add Sent tab**~~ ✅ **DONE (session 32)** — Sent tab filters `/activity` log for `email.replied`/`email.composed` events; shows subject, to, preview, timestamp.
+- ~~**[U3] Client info page: remove Inactivate + Delete**~~ ✅ **DONE (session 32)** — removed from Info tab; they live only in Actions tab.
+- ~~**[U4] Client actions: remove "Copy email"**~~ ✅ **DONE (session 32)** — removed from Actions dropdown; Copy button remains in Info tab.
+- ~~**[U5] Departments → Team page**~~ ✅ **DONE (session 32)** — `DepartmentsPanel` (compact, 288px) added as right column on Team page; create/edit via modal.
+- ~~**[U6] Profile: password next to signature**~~ ✅ **DONE (session 32)** — two-column layout: signature (left, flexible), Change Password card (right, 280px).
 
 ### Config / ops one-liners
 - **getyippie.com 502 fix** — `Sonnet` — Cloudflare proxy toggle (orange→grey→wait→orange) for Railway domain verification.
@@ -211,6 +211,38 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 32 — 2026-06-12 (Tier 3 UX polish: U1–U6)
+
+All six session-30 quick-win items shipped in one commit (`413568e`). No migrations, pure frontend.
+
+**[U1] Inbox: remove duplicate select-all (`InboxQueue.tsx`):**
+- Removed the header-section select-all (lines ~694–705 pre-change); retained only the sticky select-all row in the scrollable list section.
+
+**[U2] Inbox: add Sent tab (`InboxQueue.tsx`):**
+- Added `'sent'` to `Tab` type. New `sentEvents` query fetches `/activity?limit=500` and filters client-side for `email.replied` + `email.composed`.
+- Sent tab renders cards with subject, to, preview, Composed/Reply badge, timestamp. Skeletons while loading. Empty state shows `Send` icon + "No sent mail yet".
+- Tab bar now shows Pending / Processed / Sent.
+
+**[U3] Client info page: remove Inactivate + Delete (`SuperAdminPage.tsx`):**
+- Removed Active/inactive toggle block and Delete-client block from the Info tab body. Both live exclusively in the Actions tab.
+
+**[U4] Client actions: remove "Copy email" (`SuperAdminPage.tsx`):**
+- Removed the "Inbound email / Copy" row from the Actions tab. Copy button still accessible in the Info tab's inbound-email field.
+
+**[U5] Departments → Team page (`TeamSettingsPage.tsx`):**
+- Added `DepartmentsPanel` component (w-72, compact cards) as right column using `flex gap-8` layout.
+- `DeptModal` handles create/edit inline (modal). Shows name + SLA badge + email; Pencil/Trash2 icon buttons.
+- Imports: `Plus`, `Pencil`, `Trash2`, `Building` added.
+
+**[U6] Profile two-column layout (`ProfileSettingsPage.tsx`):**
+- Top card (email, personal address, hotkeys, Save) stays full-width.
+- Below: `grid grid-cols-[1fr_280px]` — signature form on left, `ChangePasswordCard` on right.
+- Signature now has its own Save button (calls the same `mutation`); saves hotkeys + email at the same time.
+
+**Deployed:** `git push origin devsandbox && git push origin devsandbox:sandbox` — no migration.
 
 ---
 
