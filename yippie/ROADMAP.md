@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-12 (session 38: Calendar module — monthly grid, events + sla_due_at deadlines, contact/ticket typeahead; session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
+**Updated:** 2026-06-12 (session 39: Tier 3 batch [36b-9] sidebar Settings active-state bug, [36b-1] contact bulk action order, [36b-4] companies search bar, [V8] DeptModal TemplatePicker; session 38: Calendar module — monthly grid, events + sla_due_at deadlines, contact/ticket typeahead; session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -66,17 +66,21 @@ environment / deploy reference lives in **Appendix B**.
 - **[V10] Add contact labels to Settings page** — Add the Labels management section (name + colour, CRUD) as a section inside the main Settings page, accessible from the same Settings area. See Tier 3.
 - **[V11] Remove standalone Labels page** — Once labels are in Settings (V10), remove the standalone `/settings/labels` route, `LabelsPage` component, and its "Labels" sidebar link. See Tier 3.
 
+**New items collected (session 39 — 2026-06-12):**
+
+- **[Cal1] Calendar: automated email to contact when linked to a meeting** — `Opus` — when a contact is attached to a calendar event (on create or update), automatically send them an invitation/notification email via Resend. Email includes event title, date/time, description. Backend: hook into `POST /calendar/events` and `PATCH /calendar/events/{id}` — if `contact_id` is set (or changes), call `send_email()`. Frontend: no changes needed. Consider an opt-out flag on the event or per-tenant toggle. See Tier 2.
+
 **New items collected (post-session-36b — 2026-06-12):**
 
-- **[36b-1] Contact bulk action order** — `Sonnet` — reorder the contact bulk action bar buttons to: **Compose → Export → Delete**. No logic change, JSX reorder only. See Tier 3.
+- ~~**[36b-1] Contact bulk action order**~~ ✅ **DONE (session 39)** — reordered to Compose → Export → Delete in `ContactsPage.tsx`.
 - **[36b-2] Contact / company inline edit popup** — `Sonnet` — add a pencil/edit icon button to each row in the Contacts list and the Companies list. Clicking opens a modal to edit that record inline (same fields as the create forms); no page navigation. Reuses `PATCH /contacts/{id}` and `PATCH /contacts/companies/{id}`. See Tier 3.
 - **[36b-3] Company filter dropdown in Contacts page** — `Sonnet` — add a company filter dropdown (all companies + "All companies" default) alongside the label-filter chips on the Contacts page. Uses the existing `?company_id=` query param. See Tier 3.
-- **[36b-4] Search bar on Companies page** — `Sonnet` — add a search/filter text input at the top of the `/contacts/companies` page that filters the company list client-side by name. See Tier 3.
+- ~~**[36b-4] Search bar on Companies page**~~ ✅ **DONE (session 39)** — client-side search/filter input added to CompaniesTab in `ContactsPage.tsx`.
 - **[36b-5] Multi-select on Companies page** — `Sonnet` — per-row checkboxes + "Select all" header checkbox on the Companies list. Bulk action bar: **Export CSV** and **Delete** (confirm modal → soft-delete). Mirrors the Contacts multi-select pattern (`[20]`). See Tier 3.
 - **[36b-6] XLSX import broken** — `Sonnet` — `.xlsx` import via `POST /contacts/import` fails (CSV import works). Likely `openpyxl` missing from the Railway Docker image or incorrect MIME/extension detection. Fix so `.xlsx` imports succeed. See Tier 3.
 - **[36b-7] Sent tab: match Pending/Processed UI + clickable rows** — `Sonnet` — the Sent tab currently renders a different card layout from Pending and Processed. Align it to use the same mail card component/style as the other two tabs; each sent card should be clickable (open the thread/detail view). See Tier 3.
 - **[36b-8] Team page: DepartmentsPanel polish** — `Sonnet` — give the DepartmentsPanel a proper border/card outline consistent with the team members panel; align the "Departments" title to the same height as the "Team members" title; use the available horizontal space to make the layout look balanced (e.g. stretch the panel, improve internal padding/spacing). See Tier 3.
-- **[36b-9] Sidebar: Settings stays active on superadmin/team/profile pages** — `Sonnet` — **bug.** The Settings nav item in the sidebar remains highlighted/active when navigating to Superadmin, Team, or Profile pages, because those routes are nested under `/settings`. Fix the active-link detection so only the exact Settings route (or its own sub-pages) marks Settings as active; Superadmin, Team, and Profile should highlight their own sidebar links instead. See Tier 3.
+- ~~**[36b-9] Sidebar: Settings stays active on superadmin/team/profile pages**~~ ✅ **DONE (session 39)** — `useLocation` used to compute custom `settingsActive` in `Sidebar.tsx`, excluding `/settings/profile`, `/settings/team`, `/settings/superadmins`.
 
 **New items collected (post-session-35 — 2026-06-12):**
 
@@ -186,6 +190,9 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 - **[39] Contact soft-delete + retention** — `Opus` — add `contacts.deleted_at` (reuse the `tickets.deleted_at` pattern, session 17): retain 1 month, filter/restore within the window, scheduled purge after.
 - **[C1] Column customisation — Contacts & Companies** — `Opus` — users can add, remove, and reorder columns in both the Contacts list and the Companies list. A settings cog (⚙) beneath the "+New contact" / "+New company" button opens a column-picker panel. Visibility and order persisted per-user (or per-tenant as a starting point).
 
+### Calendar
+- **[Cal1] Automated contact email when linked to a calendar event** — `Opus` — when `contact_id` is set on a `CalendarEvent` (create or update), send the contact an invitation email via Resend with event title, date/time, and description. Backend: hook in `calendar/service.py` after DB commit; use existing `send_email()`. Consider a per-event `notify_contact: bool` field (default true) so agents can suppress it.
+
 ### Inbox
 - **[I1] Inbox search** — `Opus` — search bar spanning Pending, Processed, and Sent tabs; query does **not** clear when switching tabs. Place the search bar next to the "Sent" label at the same height. When idle (no query): show trending topics in light grey, refreshed every 15 min. Sent tab: paginate at 9 mails per page (same cadence as Pending). Processed tab: convert existing inline filter pills to a dropdown menu.
 
@@ -226,16 +233,16 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 - ~~**[V5] Profile: signature inside email card**~~ ✅ **DONE (session 36)** — signature textarea merged into the personal-email-address card; separate signature card removed; Change Password card stands alone below.
 - ~~**[V6] Team page: align departments panel top with team list**~~ ✅ **DONE (session 36)** — `DepartmentsPanel` given `pt-[78px]` to align its header with the team table header.
 - ~~**[V7] Team page: narrow team members list**~~ ✅ **DONE (session 36)** — team list capped at `max-w-2xl`; DepartmentsPanel widened to `w-80`.
-- **[V8] Department edit modal: add TemplatePicker** — `Sonnet` — embed `TemplatePicker` inside `DeptModal` so an admin can assign a default reply template to a department when creating or editing it.
-- **[36b-1] Contact bulk action order** — `Sonnet` — reorder the contact bulk action bar to: Compose → Export → Delete.
+- ~~**[V8] Department edit modal: add TemplatePicker**~~ ✅ **DONE (session 39)** — `TemplatePicker` embedded in `DeptModal`; selected template body stored as `reply_template` via existing `PATCH/POST /departments` endpoints.
+- ~~**[36b-1] Contact bulk action order**~~ ✅ **DONE (session 39)** — reordered to Compose → Export → Delete.
 - **[36b-2] Contact / company inline edit popup** — `Sonnet` — pencil icon on each contact row and each company row opens an edit modal inline; no page navigation. Reuses existing PATCH endpoints.
 - **[36b-3] Company filter dropdown in Contacts page** — `Sonnet` — dropdown alongside label-filter chips; uses `?company_id=` param already supported by the backend.
-- **[36b-4] Search bar on Companies page** — `Sonnet` — client-side name filter input at the top of `/contacts/companies`.
+- ~~**[36b-4] Search bar on Companies page**~~ ✅ **DONE (session 39)** — client-side filter input added to CompaniesTab.
 - **[36b-5] Multi-select on Companies page** — `Sonnet` — checkboxes + select-all; bulk Export CSV + Delete actions. Mirrors Contacts multi-select.
 - **[36b-6] XLSX import broken** — `Sonnet` — fix `.xlsx` import (CSV works); likely missing `openpyxl` in Docker or wrong MIME detection.
 - **[36b-7] Sent tab: match Pending/Processed UI + clickable rows** — `Sonnet` — use the same mail card style as Pending/Processed; each row clickable to open thread/detail.
 - ~~**[36b-8] Team page: DepartmentsPanel polish**~~ ✅ **DONE** — proper card (white, border, rounded-2xl, divide rows); header mirrors Team header for exact alignment; `pt-[78px]` hack removed; Add button matches Invite button style.
-- **[36b-9] Sidebar: Settings active state bleeds into superadmin/team/profile pages** — `Sonnet` — **bug.** Settings link stays highlighted when on Superadmin, Team, or Profile routes. Fix active-link detection so those pages highlight their own nav items, not Settings.
+- ~~**[36b-9] Sidebar: Settings active state bleeds into superadmin/team/profile pages**~~ ✅ **DONE (session 39)** — custom `settingsActive` via `useLocation` in `Sidebar.tsx`.
 - ~~**[V9] Remove Departments from Settings**~~ ✅ **DONE (session 36)** — `/settings/departments` route removed; `DepartmentsPage` lazy import removed from `App.tsx`; sidebar "Settings" link updated.
 - ~~**[V10] Add contact labels to Settings page**~~ ✅ **DONE (session 36)** — `/settings` route now renders `LabelsPage`; sidebar "Settings" → `/settings`.
 - ~~**[V11] Remove standalone Labels page**~~ ✅ **DONE (session 36)** — `/settings/labels` route and "Labels" sidebar link removed.
