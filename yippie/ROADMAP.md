@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-12 (session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
+**Updated:** 2026-06-12 (session 38: Calendar module — monthly grid, events + sla_due_at deadlines, contact/ticket typeahead; session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -137,7 +137,7 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 
 ### New modules (Phase 10)
 - ~~**Email tracking module**~~ ✅ **DONE (session 37)** — `emailtracking` module: `OutboundEmail` model + migration; `send_email()` returns Resend ID; `flush_pending_sends()` creates `OutboundEmail` record per send; `POST /emailtracking/webhooks/resend` (public, HMAC-verified) updates status/timestamps on delivered/opened/clicked/bounced events; `GET /emailtracking/outbound` list endpoint; Sent tab in InboxQueue shows status badge (Sent/Delivered/Opened/Clicked/Bounced) when module enabled, falls back to activity log otherwise.
-- **Calendar module** — `Fable` — *not built.* `calendar` module: agent calendar of `follow_up_at` deadlines + standalone events tied to a contact/ticket; per-tenant toggle.
+- ~~**Calendar module**~~ ✅ **DONE (session 38)** — `calendar` module: `calendar_events` table (id, tenant_id, title, description, start_at/end_at TIMESTAMPTZ, all_day, contact_id FK, ticket_id FK, created_by FK); migration `k1l2m3n4o5p6`; CRUD at `GET /calendar/items?start&end` (merges events + open-ticket `sla_due_at` deadlines), `POST/GET/PATCH/DELETE /calendar/events[/{id}]`; hand-built Monday-start month grid (no lib), prev/next/Today nav, today highlighted with `bg-yippie` circle, event chips (blue) + deadline chips (red ≤24h / orange), contact+ticket typeahead in create/edit modal; per-tenant toggle; Calendar nav item in sidebar.
 - **Pipeline module** — `Fable` — *not built.* Client-defined pipeline stages; customers auto-labeled by stage (builds on `[38]`); time-per-stage tracking; stage-triggered automated emails; per-tenant toggle.
 
 > The **AI module** is already built — see ✅ Done. It's the `ai` per-tenant flag that switches on the AI extras across inbox + tickets (summaries, generate mail, suggested/improved replies, compose suggestions, autofilled ticket fields). With it off, none of that runs.
@@ -292,6 +292,23 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 38 — 2026-06-12 (Tier 1: Calendar module)
+
+**Commit:** `e54009a` — pushed to `devsandbox` + `devsandbox:sandbox`.
+
+**Calendar module:**
+- Migration `k1l2m3n4o5p6` (chains from `j0k1l2m3n4o5`): `calendar_events` table (id UUID PK, tenant_id UUID NOT NULL, title VARCHAR(255), description TEXT, start_at/end_at TIMESTAMPTZ, all_day BOOLEAN, contact_id FK→contacts SET NULL, ticket_id FK→tickets SET NULL, created_by FK→users, created_at). Index on `(tenant_id, start_at)`. RLS enable/force + tenant_isolation policy + app_user grant. Migration also appends `'calendar'` to every existing tenant's `enabled_modules`.
+- `calendar/models.py`: `CalendarEvent` SQLAlchemy ORM model.
+- `calendar/schemas.py`: `CalendarEventCreate`, `CalendarEventUpdate`, `CalendarEventOut`, `CalendarItem` (kind: `"event" | "deadline"`) — the range response mixes both types.
+- `calendar/service.py`: `list_calendar_items(db, tenant_id, start, end)` merges `CalendarEvent` rows + open/in-progress tickets where `sla_due_at` is in range. Standard CRUD with tenant-scoped FK validation to prevent IDOR.
+- `calendar/router.py`: `GET /calendar/items?start&end`, `POST /calendar/events`, `GET/PATCH/DELETE /calendar/events/{id}` (204 on delete).
+- `modules/__init__.py` + `config.py ALL_MODULES`: `"calendar"` registered.
+- `CalendarPage.tsx`: hand-built Monday-start 6-week month grid (no external lib). Prev/next/Today nav. Today cell highlighted with `bg-yippie text-white` circle. Event chips (blue, show time). Deadline chips (red ≤24h overdue/due-soon, orange otherwise) navigate to `/tickets/{id}`. Clicking an event chip opens edit modal. "New event" button opens create modal. Modal fields: title (required), start date/time, end date/time, all-day toggle, description, contact typeahead (`/contacts?search=`), ticket typeahead (client-filtered from loaded tickets). `max-w-md` modal, consistent with platform.
+- Lazy route under `ModuleGate calendar` in `App.tsx`; Calendar nav item (`Calendar` lucide icon) in `Sidebar.tsx`.
+- Note: used `sla_due_at` (not `follow_up_at`) as the ticket deadline column — `sla_due_at` is the real deadline column on `tickets`; `follow_up_at` only exists on `draft_tickets`.
 
 ---
 
