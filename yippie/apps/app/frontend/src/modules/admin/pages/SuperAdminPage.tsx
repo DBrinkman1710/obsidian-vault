@@ -1042,6 +1042,17 @@ export default function SuperAdminPage() {
     },
   })
 
+  const setStatusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: 'active' | 'demo' | 'inactive' }) => {
+      const patch =
+        status === 'active' ? { is_active: true, is_demo: false } :
+        status === 'demo'   ? { is_active: true,  is_demo: true  } :
+                              { is_active: false }
+      return api.patch(`/admin/tenants/${id}`, patch).then(r => r.data)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
+  })
+
   function toggleRow(id: string) {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -1207,9 +1218,16 @@ export default function SuperAdminPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_PILL[status]}`}>
-                        {status}
-                      </span>
+                      <select
+                        value={status}
+                        onChange={e => setStatusMutation.mutate({ id: t.id, status: e.target.value as 'active' | 'demo' | 'inactive' })}
+                        disabled={setStatusMutation.isPending}
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-slate-300 disabled:opacity-50 ${STATUS_PILL[status]}`}
+                      >
+                        <option value="active">active</option>
+                        <option value="demo">demo</option>
+                        <option value="inactive">inactive</option>
+                      </select>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">

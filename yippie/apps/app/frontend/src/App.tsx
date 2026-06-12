@@ -1,5 +1,5 @@
-import { createContext, lazy, Suspense, useContext, useEffect, useState } from 'react'
-import { Navigate, Route, Routes } from 'react-router-dom'
+import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
+import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { fetchTenantConfig, TenantConfig } from './api/tenant'
 import { useAuth } from './auth/useAuth'
 import { ModuleGate } from './shell/ModuleGate'
@@ -34,10 +34,42 @@ function PagePad({ children }: { children: React.ReactNode }) {
   return <div className="flex-1 h-full overflow-auto p-8">{children}</div>
 }
 
+function useGlobalHotkeys() {
+  const { user } = useAuth()
+  const navigate = useNavigate()
+  const lastKey = useRef<string | null>(null)
+  const lastKeyTime = useRef(0)
+
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (user?.hotkeys_enabled === false) return
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement).isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+
+      const now = Date.now()
+      if (e.key === 'g') {
+        lastKey.current = 'g'
+        lastKeyTime.current = now
+        return
+      }
+      if (e.key === 'i' && lastKey.current === 'g' && now - lastKeyTime.current < 1000) {
+        lastKey.current = null
+        navigate('/inbox')
+        return
+      }
+      lastKey.current = null
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [user?.hotkeys_enabled, navigate])
+}
+
 export default function App() {
   const { token, refreshUser, impersonating, exitImpersonation } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
   const [configError, setConfigError] = useState(false)
+  useGlobalHotkeys()
 
   useEffect(() => {
     if (!token) return

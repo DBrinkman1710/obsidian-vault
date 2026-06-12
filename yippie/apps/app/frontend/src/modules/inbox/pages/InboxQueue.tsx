@@ -449,6 +449,19 @@ export default function InboxQueue() {
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (user?.hotkeys_enabled === false) return
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement).isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'c' && !showCompose) { setShowCompose(true); setComposeInitial(null) }
+      if (e.key === 'Escape' && showCompose) { setShowCompose(false); setComposeInitial(null) }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [user?.hotkeys_enabled, showCompose])
+
   const handleSendQueued = useCallback((payload: SendQueuedPayload) => {
     setPendingCompose({ composeId: payload.composeId, recipientCount: payload.recipientCount, restoreData: payload.restoreData })
     setUndoProgress(0)
