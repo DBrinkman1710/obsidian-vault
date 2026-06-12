@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, X, Plus, Pencil, Trash2, Building } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+import { TemplatePicker } from '../../inbox/components/TemplatePicker'
 
 interface TeamUser {
   id: string
@@ -24,21 +25,27 @@ const ROLE_PILL: Record<string, string> = {
 const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
 const labelCls = 'block text-xs font-semibold text-slate-500 mb-1.5'
 
-interface Dept { id: string; name: string; email: string; sla_working_days: number }
-type DeptForm = { name: string; email: string; sla_working_days: string }
-const DEPT_EMPTY: DeptForm = { name: '', email: '', sla_working_days: '3' }
+interface Dept { id: string; name: string; email: string; sla_working_days: number; reply_template: string | null }
+type DeptForm = { name: string; email: string; sla_working_days: string; reply_template: string }
+const DEPT_EMPTY: DeptForm = { name: '', email: '', sla_working_days: '3', reply_template: '' }
 
 function DeptModal({ dept, onClose }: { dept?: Dept; onClose: () => void }) {
   const qc = useQueryClient()
   const [form, setForm] = useState<DeptForm>(dept
-    ? { name: dept.name, email: dept.email, sla_working_days: String(dept.sla_working_days) }
+    ? { name: dept.name, email: dept.email, sla_working_days: String(dept.sla_working_days), reply_template: dept.reply_template ?? '' }
     : DEPT_EMPTY)
   const [error, setError] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => dept
-      ? api.patch(`/departments/${dept.id}`, { name: form.name.trim(), email: form.email.trim(), sla_working_days: parseInt(form.sla_working_days) || 3 })
-      : api.post('/departments', { name: form.name.trim(), email: form.email.trim(), sla_working_days: parseInt(form.sla_working_days) || 3 }),
+    mutationFn: () => {
+      const payload = {
+        name: form.name.trim(),
+        email: form.email.trim(),
+        sla_working_days: parseInt(form.sla_working_days) || 3,
+        reply_template: form.reply_template.trim() || null,
+      }
+      return dept ? api.patch(`/departments/${dept.id}`, payload) : api.post('/departments', payload)
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); onClose() },
     onError: () => setError('Failed to save'),
   })
@@ -69,6 +76,28 @@ function DeptModal({ dept, onClose }: { dept?: Dept; onClose: () => void }) {
           <div>
             <label className={labelCls}>SLA (working days)</label>
             <input className={`${inputCls} w-24`} type="number" min={1} max={90} value={form.sla_working_days} onChange={e => setForm(p => ({ ...p, sla_working_days: e.target.value }))} />
+          </div>
+          <div>
+            <label className={labelCls}>Default reply template</label>
+            <div className="flex items-center gap-2 mb-1.5">
+              <TemplatePicker
+                onSelect={(body) => setForm(p => ({ ...p, reply_template: body.replace(/<[^>]*>/g, '').trim() }))}
+                direction="down"
+              />
+              {form.reply_template && (
+                <button type="button" onClick={() => setForm(p => ({ ...p, reply_template: '' }))}
+                  className="text-xs text-red-500 hover:text-red-700 font-medium">
+                  Clear
+                </button>
+              )}
+            </div>
+            {form.reply_template ? (
+              <p className="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 border border-slate-200 line-clamp-3">
+                {form.reply_template}
+              </p>
+            ) : (
+              <p className="text-xs text-slate-400">No template selected</p>
+            )}
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-3 pt-1">

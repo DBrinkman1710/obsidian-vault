@@ -97,6 +97,7 @@ function CompaniesTab({ onOpenCompany, triggerCreate, onCreateHandled }: {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [showCreate, setShowCreate] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [search, setSearch] = useState('')
 
   useEffect(() => { if (triggerCreate) { setShowCreate(true); onCreateHandled() } }, [triggerCreate])
 
@@ -109,17 +110,30 @@ function CompaniesTab({ onOpenCompany, triggerCreate, onCreateHandled }: {
   const updateMutation = useMutation({ mutationFn: ({ id, f }: { id: string; f: FormState }) => api.patch(`/contacts/companies/${id}`, toPayload(f)), onSuccess: () => { invalidate(); setEditingId(null) } })
   const deleteMutation = useMutation({ mutationFn: (id: string) => api.delete(`/contacts/companies/${id}`), onSuccess: invalidate })
 
+  const displayed = search
+    ? (companies ?? []).filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+    : (companies ?? [])
+
   if (isLoading) return <CardListSkeleton rows={5} />
 
   return (
     <div>
+      <div className="relative mb-4 max-w-sm">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+        <input
+          placeholder="Filter companies…"
+          value={search} onChange={e => setSearch(e.target.value)}
+          className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        />
+      </div>
+
       {showCreate && (
         <CompanyForm initial={EMPTY} onSave={f => createMutation.mutate(f)} onCancel={() => { setShowCreate(false); createMutation.reset() }}
           isPending={createMutation.isPending} serverError={createMutation.isError ? errDetail(createMutation.error) : null} />
       )}
 
       <div className="flex flex-col gap-3">
-        {companies?.map(company => (
+        {displayed.map(company => (
           <div key={company.id}>
             {editingId === company.id ? (
               <CompanyForm
@@ -161,7 +175,7 @@ function CompaniesTab({ onOpenCompany, triggerCreate, onCreateHandled }: {
           </div>
         ))}
 
-        {companies?.length === 0 && !showCreate && (
+        {displayed.length === 0 && !showCreate && (
           <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-200">
             <Building2 size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-sm text-slate-400 font-medium">No companies yet</p>
@@ -257,6 +271,10 @@ function ContactsTab({ initialCompanyFilter }: { initialCompanyFilter: string | 
         <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
           <span className="text-sm font-semibold text-blue-900">{selected.size} selected</span>
           <div className="h-4 w-px bg-blue-200" />
+          <button onClick={() => alert('Compose from contacts — coming soon')}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900">
+            <Mail size={14} strokeWidth={2.5} /> Compose
+          </button>
           <button onClick={() => exportSelected(selectedIds)}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-900">
             <Download size={14} strokeWidth={2.5} /> Export selected
@@ -266,10 +284,6 @@ function ContactsTab({ initialCompanyFilter }: { initialCompanyFilter: string | 
             disabled={deleteMutation.isPending}
             className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
             <Trash2 size={14} strokeWidth={2.5} /> Delete selected
-          </button>
-          <button onClick={() => alert('Compose from contacts — coming soon')}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900">
-            <Mail size={14} strokeWidth={2.5} /> Compose
           </button>
           <button onClick={clearSelection} className="ml-auto text-slate-400 hover:text-slate-600">
             <X size={16} />

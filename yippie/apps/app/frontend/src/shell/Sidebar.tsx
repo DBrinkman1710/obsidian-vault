@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
@@ -43,6 +43,13 @@ export function Sidebar() {
   const orangeCount: number = deadlineData?.orange ?? 0
   const redBadge = redCount === 0 ? null : redCount > 9 ? '9+' : String(redCount)
   const orangeBadge = orangeCount === 0 ? null : orangeCount > 9 ? '9+' : String(orangeCount)
+
+  const location = useLocation()
+  const SETTINGS_OWN = ['/settings/profile', '/settings/team', '/settings/superadmins']
+  const settingsActive =
+    location.pathname === '/settings' ||
+    (location.pathname.startsWith('/settings') &&
+      !SETTINGS_OWN.some(p => location.pathname.startsWith(p)))
 
   if (!config) return null
 
@@ -169,9 +176,9 @@ export function Sidebar() {
             </NavLink>
             <NavLink
               to="/settings"
-              className={({ isActive }) =>
+              className={() =>
                 `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
+                  settingsActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
                 }`
               }
             >
