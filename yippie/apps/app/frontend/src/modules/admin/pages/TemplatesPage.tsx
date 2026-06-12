@@ -286,8 +286,8 @@ export default function TemplatesPage() {
               </button>
             </div>
 
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              <div className="relative flex-1 min-h-[500px] m-5 mb-0 border border-slate-200 rounded-t-xl overflow-hidden">
+            <div className="flex-1 min-h-0 overflow-y-auto">
+              <div className="relative min-h-[500px] m-5 mb-0 border border-slate-200 rounded-t-xl overflow-hidden">
                 {!editorReady && (
                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50">
                     <Loader2 size={22} className="text-blue-500 animate-spin mb-2" />
