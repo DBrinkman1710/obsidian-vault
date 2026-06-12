@@ -286,8 +286,8 @@ export default function TemplatesPage() {
               </button>
             </div>
 
-            <div className="flex-1 min-h-0 overflow-y-auto">
-              <div className="relative min-h-[500px] m-5 mb-0 border border-slate-200 rounded-t-xl overflow-hidden">
+            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+              <div className="relative flex-1 min-h-[300px] mx-5 mt-5 border border-slate-200 rounded-t-xl overflow-hidden">
                 {!editorReady && (
                   <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50">
                     <Loader2 size={22} className="text-blue-500 animate-spin mb-2" />
@@ -297,20 +297,20 @@ export default function TemplatesPage() {
                 <EmailEditor
                   ref={editorRef}
                   onReady={handleEditorReady}
-                  minHeight={500}
+                  minHeight="100%"
                   options={{
                     features: { textEditor: { spellChecker: true } },
                     appearance: {
-                      theme: 'light',
-                      panels: { tools: { dock: 'left', collapsible: false } },
+                      theme: 'classic_light',
+                      panels: { tools: { dock: 'left' } },
                     },
                     editor: { confirmOnDelete: false },
                   }}
                 />
               </div>
 
-              {/* Signature preview — shown as email footer inside the content area */}
-              <div className="mx-5 mb-5 shrink-0 border border-t-0 border-slate-200 rounded-b-xl bg-white px-4 py-3">
+              {/* Signature preview — always visible below editor */}
+              <div className="mx-5 shrink-0 border border-t-0 border-slate-200 rounded-b-xl bg-white px-4 py-3">
                 <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">— Signature</p>
                 {user?.email_signature ? (
                   <p className="text-xs text-slate-600 whitespace-pre-wrap">{user.email_signature}</p>
@@ -319,8 +319,8 @@ export default function TemplatesPage() {
                 )}
               </div>
 
-              {/* Campaign button config — managed in React state, appended below the email body on send */}
-              <div className="mx-5 mb-5 shrink-0 border border-slate-200 rounded-xl bg-white">
+              {/* Campaign button config — always visible below signature */}
+              <div className="mx-5 mb-5 mt-3 shrink-0 border border-slate-200 rounded-xl bg-white overflow-y-auto max-h-[220px]">
                 <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
                   <MousePointerClick size={13} className="text-blue-500" />
                   <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Campaign Buttons</span>
