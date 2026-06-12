@@ -36,20 +36,19 @@ export default function ProfileSettingsPage() {
   }
 
   return (
-    <div className="max-w-xl">
+    <div className="max-w-4xl">
       <h1 className="text-2xl font-bold text-slate-900 mb-1">Profile</h1>
       <p className="text-sm text-slate-500 mb-8">Manage your personal email address, signature and password.</p>
 
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
+      {/* Top: email + personal address + hotkeys */}
+      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 mb-6">
         <div>
           <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email</label>
           <p className="text-sm text-slate-700">{user?.email}</p>
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-            Personal email address
-          </label>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Personal email address</label>
           <input
             type="email"
             value={personalEmail}
@@ -58,23 +57,7 @@ export default function ProfileSettingsPage() {
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
           <p className="mt-1.5 text-xs text-slate-400">
-            One address for both directions: mail sent to it lands in your Personal inbox, and you can pick it as the "From" address when replying or composing. Must be on @getyippie.com.
-          </p>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">
-            Email signature
-          </label>
-          <textarea
-            value={signature}
-            onChange={e => setSignature(e.target.value)}
-            rows={4}
-            placeholder={'e.g.\nBest regards,\nEddy — Support Team'}
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie resize-y"
-          />
-          <p className="mt-1.5 text-xs text-slate-400">
-            Added automatically below your message when you compose or reply. You can still edit or remove it per email.
+            One address for both directions: mail sent to it lands in your Personal inbox, and you can pick it as the "From" address when replying or composing.
           </p>
         </div>
 
@@ -110,7 +93,36 @@ export default function ProfileSettingsPage() {
         </div>
       </form>
 
-      <ChangePasswordCard />
+      {/* Bottom two columns: signature (left) + change password (right, narrower) */}
+      <div className="grid grid-cols-[1fr_280px] gap-6 items-start">
+        {/* Signature */}
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
+          <div>
+            <h2 className="text-sm font-bold text-slate-900 mb-0.5">Email signature</h2>
+            <p className="text-xs text-slate-400">Added automatically below your message when you compose or reply.</p>
+          </div>
+          <textarea
+            value={signature}
+            onChange={e => setSignature(e.target.value)}
+            rows={5}
+            placeholder={'e.g.\nBest regards,\nEddy — Support Team'}
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie resize-y"
+          />
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+            >
+              {mutation.isPending ? 'Saving…' : 'Save signature'}
+            </button>
+            {saved && <span className="text-sm text-emerald-600 font-medium">✓ Saved</span>}
+          </div>
+        </form>
+
+        {/* Change password */}
+        <ChangePasswordCard />
+      </div>
     </div>
   )
 }

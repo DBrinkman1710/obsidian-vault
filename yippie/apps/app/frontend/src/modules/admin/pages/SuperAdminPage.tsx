@@ -549,39 +549,6 @@ function EditClientModal({
                 <input className={`${inputCls} opacity-50 cursor-not-allowed`} value={tenant.slug} disabled />
                 <p className="mt-1 text-xs text-slate-400">Slug cannot be changed after creation.</p>
               </div>
-              {/* Active/inactive toggle */}
-              <div className="border-t border-slate-100 pt-4 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Status</p>
-                  <p className="text-xs text-slate-400 mt-0.5">{tenant.is_active ? 'Active — clients can log in' : 'Inactive — login blocked'}</p>
-                </div>
-                <button
-                  type="button"
-                  onClick={onToggleActive}
-                  disabled={togglingActive}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors disabled:opacity-50"
-                  title={tenant.is_active ? 'Deactivate' : 'Activate'}
-                >
-                  {tenant.is_active
-                    ? <><ToggleRight size={14} className="text-emerald-500" /> Active</>
-                    : <><ToggleLeft size={14} className="text-slate-400" /> Inactive</>
-                  }
-                </button>
-              </div>
-              {/* Delete — root owner only */}
-              {isRootOwner && (
-                <div className="border-t border-slate-100 pt-4">
-                  <button
-                    type="button"
-                    onClick={() => { onRequestDelete() }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 size={12} />
-                    Delete client…
-                  </button>
-                  <p className="mt-1 text-xs text-slate-400">Permanently wipes all data. Cannot be undone.</p>
-                </div>
-              )}
             </>
           )}
 
@@ -722,22 +689,6 @@ function EditClientModal({
                   {tenant.is_active
                     ? <><ToggleRight size={14} className="text-emerald-500" /> Deactivate</>
                     : <><ToggleLeft size={14} className="text-slate-400" /> Activate</>}
-                </button>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="min-w-0">
-                  <p className="text-sm font-semibold text-slate-700">Inbound email</p>
-                  <p className="text-xs text-slate-400 truncate">{tenant.inbound_email || 'Not set'}</p>
-                </div>
-                <button
-                  onClick={onCopyEmail}
-                  disabled={!tenant.inbound_email}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  title={tenant.inbound_email ? `Copy ${tenant.inbound_email}` : 'No inbound email set'}
-                >
-                  {copied ? <Check size={14} className="text-emerald-500" /> : <Clipboard size={14} />}
-                  Copy
                 </button>
               </div>
 

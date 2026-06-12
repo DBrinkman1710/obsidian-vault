@@ -28,7 +28,7 @@ const STATUS_STYLES: Record<string, string> = {
   spam:      'bg-orange-100 text-orange-700',
 }
 
-type Tab = 'pending' | 'processed'
+type Tab = 'pending' | 'processed' | 'sent'
 type ProcessedFilter = 'all' | 'approved' | 'rejected' | 'forwarded' | 'spam' | 'bin'
 type Mailbox = 'shared' | 'personal'
 
@@ -485,6 +485,14 @@ export default function InboxQueue() {
     }
   }
 
+  const { data: sentEvents, isLoading: sentLoading } = useQuery({
+    queryKey: ['activity-sent'],
+    queryFn: () => api.get('/activity', { params: { limit: 500 } }).then(r =>
+      (r.data as any[]).filter((e: any) => e.event_type === 'email.replied' || e.event_type === 'email.composed')
+    ),
+    enabled: activeTab === 'sent',
+  })
+
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
     queryKey: ['drafts', mailbox, 'pending'],
     queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending', mailbox } }).then(r => r.data),
@@ -530,10 +538,10 @@ export default function InboxQueue() {
     ? allProcessed
     : allProcessed.filter((d: any) => d.status === processedFilter)
 
-  const allDrafts = activeTab === 'pending' ? (pendingDrafts ?? []) : processedDrafts
+  const allDrafts = activeTab === 'pending' ? (pendingDrafts ?? []) : activeTab === 'sent' ? [] : processedDrafts
   const totalPages = Math.ceil(allDrafts.length / PAGE_SIZE)
   const drafts = allDrafts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
-  const isLoading = activeTab === 'pending' ? pendingLoading : false
+  const isLoading = activeTab === 'pending' ? pendingLoading : activeTab === 'sent' ? sentLoading : false
 
   // Client-side pagination — the full filtered list is already in memory.
   const pageCount = Math.max(1, Math.ceil(drafts.length / PAGE_SIZE))
@@ -566,7 +574,6 @@ export default function InboxQueue() {
     }
   }
 
-  // Clear selection and page when switching tabs
   const handleTabSwitch = (tab: Tab) => {
     setActiveTab(tab)
     setSelected(new Set())
@@ -613,7 +620,7 @@ export default function InboxQueue() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-0">
-          {(['pending', 'processed'] as Tab[]).map(tab => (
+          {(['pending', 'processed', 'sent'] as Tab[]).map(tab => (
             <button
               key={tab}
               onClick={() => handleTabSwitch(tab)}
@@ -662,6 +669,11 @@ export default function InboxQueue() {
           <p className="mt-2 text-xs text-slate-400">{RETENTION_NOTES[processedFilter]}</p>
         )}
 
+        {/* Sent tab description */}
+        {activeTab === 'sent' && (
+          <p className="mt-3 text-xs text-slate-400">All outbound mail sent by your team.</p>
+        )}
+
         {/* Bulk action bar */}
         {selected.size > 0 && (
           <div className="mt-3 flex items-center gap-3 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
@@ -691,26 +703,54 @@ export default function InboxQueue() {
           </div>
         )}
 
-        {/* Select all — pinned in the header so it stays put while the list scrolls */}
-        {drafts.length > 0 && (
-          <div className="flex items-center gap-2 mt-3">
-            <button
-              onClick={toggleSelectAll}
-              className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <CheckSquare size={14} className={selected.size === drafts.length && drafts.length > 0 ? 'text-blue-600' : ''} />
-              {selected.size === drafts.length && drafts.length > 0 ? 'Deselect all' : 'Select all'}
-            </button>
-          </div>
-        )}
-
         <div className="h-4" />
       </div>
 
       {/* Scrollable list */}
       <div className="flex-1 overflow-y-auto px-8 pb-8">
-        {isLoading && <CardListSkeleton rows={5} />}
-        {!isLoading && drafts.length === 0 && (
+        {/* Sent tab content */}
+        {activeTab === 'sent' && (
+          <>
+            {sentLoading && <CardListSkeleton rows={5} />}
+            {!sentLoading && (!sentEvents || sentEvents.length === 0) && (
+              <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
+                <Send size={32} className="text-slate-300 mx-auto mb-3" />
+                <p className="text-sm text-slate-400 font-medium">No sent mail yet</p>
+              </div>
+            )}
+            {sentEvents && sentEvents.length > 0 && (
+              <div className="flex flex-col gap-3">
+                {sentEvents.map((ev: any) => (
+                  <div key={ev.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-1">
+                          <Send size={13} className="text-slate-400 shrink-0" />
+                          <span className="text-sm font-semibold text-slate-900 truncate">
+                            {ev.payload?.subject ?? '(no subject)'}
+                          </span>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${ev.event_type === 'email.composed' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {ev.event_type === 'email.composed' ? 'Composed' : 'Reply'}
+                          </span>
+                        </div>
+                        {ev.payload?.to && (
+                          <p className="text-xs text-slate-500 mb-1">To: {ev.payload.to}</p>
+                        )}
+                        {ev.payload?.preview && (
+                          <p className="text-xs text-slate-400 line-clamp-2">{ev.payload.preview}</p>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 shrink-0">{new Date(ev.created_at).toLocaleString()}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+
+        {activeTab !== 'sent' && isLoading && <CardListSkeleton rows={5} />}
+        {activeTab !== 'sent' && !isLoading && drafts.length === 0 && (
           <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
             <Mail size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-sm text-slate-400 font-medium">
@@ -719,7 +759,7 @@ export default function InboxQueue() {
           </div>
         )}
 
-        {allDrafts.length > 0 && (
+        {activeTab !== 'sent' && allDrafts.length > 0 && (
           <>
             {/* Sticky select-all row */}
             <div className="sticky top-0 z-10 flex items-center justify-between py-2 bg-slate-50">
