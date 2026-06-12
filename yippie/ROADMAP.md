@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-12 (post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
+**Updated:** 2026-06-12 (session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -81,7 +81,7 @@ environment / deploy reference lives in **Appendix B**.
 **New items collected (post-session-35 — 2026-06-12):**
 
 - **[T1] Template editor: full-screen pop-up modal** — `Sonnet` — when creating or editing a template, open the editor in a large modal/dialog rather than the current two-panel split on `/settings/templates`. Gives users enough vertical and horizontal room to build templates comfortably. The template list stays on the page behind the modal; modal has close/save in its header. See Tier 3.
-- **[T2] Campaign buttons as Unlayer blocks** — `Fable` — instead of a separate "Campaign Buttons" tab, integrate campaign buttons as native draggable block types inside the Unlayer canvas (part of Phase 9C). Each block maps to a contact label; supports "multiple answers allowed?" toggle per button; styled inline in the canvas. Aligns with Phase 9C tracked-click token work. See Tier 1.
+- ~~**[T2] Campaign buttons as Unlayer blocks**~~ ✅ **DONE (session 37)** — Campaign Buttons tab replaced with native Unlayer `customTools` drag-and-drop blocks; `design:updated` listener syncs button count to React state; per-button label picker + color/text config panel below canvas; design traversal extracts `campaign_buttons` array at save time. See Tier 1.
 - ~~**[TE1] Template editor: remove object deletion warning**~~ ✅ **DONE (session 36)** — `editor: { confirmOnDelete: false }` added to Unlayer options.
 - ~~**[TE2] Signature: move inside template content area**~~ ✅ **DONE (session 36)** — signature preview now renders as a `rounded-b-xl` footer attached to the bottom of the Unlayer canvas border; separate bottom card removed.
 - **[TE3] Campaign buttons: per-button action type** — `Opus` — extend campaign button configuration with an "action type" selector per button. Supported types: **open website** (URL), **send mail** (email address), **call phone number** (phone number), **label contact to X** (label picker — the Phase 9C tracked-click flow). Non-label action types render as standard `<a>` links (no token needed); only label-action buttons generate `LabelClickToken`s at send time. Ties into Phase 9C. See Tier 2.
@@ -90,7 +90,7 @@ environment / deploy reference lives in **Appendix B**.
 **New items collected (session 35 — 2026-06-12):**
 
 - ~~**[Phase 9B] Full drag-and-drop email template editor**~~ ✅ **DONE (session 35)** — see Tier 1 entry for the build summary.
-- **[Phase 9C] Tracked click / campaign buttons** — Fable — not built. Four pieces: (1) **Buttons section in template editor** — admins map each button to a contact label; "multiple answers allowed?" toggle stored per-button alongside the template JSON body. (2) **`LabelClickToken` model** — `token` (UUID PK), `contact_id`, `label_id`, `tenant_id`, `used_at`; one token per button per recipient, generated at send-time. (3) **Public `/track/click/{token}` endpoint** — no auth required (contact has no Yippie account); looks up token, applies the label to the contact, sets `used_at`, redirects to a plain "Thank you for your response" page. Tokens expire on first click. (4) **`render_email_html()` update** — injects campaign buttons as styled `<a>` tags pointing to the tracking URLs. See Tier 1.
+- ~~**[Phase 9C] Tracked click / campaign buttons**~~ ✅ **DONE (session 37)** — `LabelClickToken` model + migration; `flush_pending_sends()` generates one token per button×recipient, builds `token_map`, injects real tracking URLs into `render_campaign_buttons_html()`; public `GET /track/click/{token}` endpoint burns token + applies label + redirects; `TrackConfirmPage` (thank-you / already-used). See Tier 1.
 - **[C1] Column customisation — Contacts & Companies** — Opus — not built. Users can add, remove, and reorder columns in both the Contacts list and the Companies list. A settings cog (⚙) beneath the "+New contact" / "+New company" button opens a column-picker panel. Visibility and order persisted per-user (or per-tenant as a starting point). See Tier 2.
 - **[C2] Pre-import column mapping** — Opus — not built. Before an import runs, show a mapping step where the user matches incoming CSV/JSON/XLSX columns to Yippie contact fields (name, email, phone, company, etc.). Alternative to requiring users to pre-format the file. Build alongside `[29]`/`[40]`. See Tier 2.
 - **[I1] Inbox search** — Opus — not built. Search bar spanning Pending, Processed, and Sent tabs — query does **not** clear when switching tabs. Place the search bar next to the "Sent" label at the same height. When idle (no query): show trending topics in light grey, refreshed every 15 min. Sent tab: paginate at 9 mails per page (same cadence as Pending). Processed tab: convert existing inline filter pills to a dropdown menu. See Tier 2.
@@ -136,7 +136,7 @@ causes and file refs are preserved in Appendix A (sessions 22–24). No remainin
 The heavy lifts: brand-new modules, cross-cutting features, and the creative/marketing work.
 
 ### New modules (Phase 10)
-- **Email tracking module** — `Fable` — *not built.* `emailtracking` module: opens/clicks/delivery per outbound mail via Resend webhooks (`email.opened/clicked/bounced`); per-email status in Inbox/Sent; superadmin enable/disable per tenant.
+- ~~**Email tracking module**~~ ✅ **DONE (session 37)** — `emailtracking` module: `OutboundEmail` model + migration; `send_email()` returns Resend ID; `flush_pending_sends()` creates `OutboundEmail` record per send; `POST /emailtracking/webhooks/resend` (public, HMAC-verified) updates status/timestamps on delivered/opened/clicked/bounced events; `GET /emailtracking/outbound` list endpoint; Sent tab in InboxQueue shows status badge (Sent/Delivered/Opened/Clicked/Bounced) when module enabled, falls back to activity log otherwise.
 - **Calendar module** — `Fable` — *not built.* `calendar` module: agent calendar of `follow_up_at` deadlines + standalone events tied to a contact/ticket; per-tenant toggle.
 - **Pipeline module** — `Fable` — *not built.* Client-defined pipeline stages; customers auto-labeled by stage (builds on `[38]`); time-per-stage tracking; stage-triggered automated emails; per-tenant toggle.
 
@@ -145,7 +145,7 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 ### Email templates (Phase 9 — creative)
 - ~~**[Phase 9] Template UX + AI insertion**~~ ✅ **DONE (session 33)** — `/settings/templates` CRUD page, `TemplatePicker` component (search + one-click insert + AI suggest button) wired into DraftReview reply panel and ComposeModal, `PATCH`/`DELETE`/`POST ai-suggest` backend endpoints, AI ranking via Claude. "Templates" sidebar link for all users. Personal templates still open ([S3] — see Tier 2 if needed).
 - ~~**[Phase 9B] Full drag-and-drop email template editor**~~ ✅ **DONE (session 35)** — `Fable` — Built on `react-email-editor` 1.8 (Unlayer, MIT licence). `/settings/templates` rebuilt as a two-panel split: template list (left, "Rich design" badge, delete) + editor (right) with "Email Design" (Unlayer canvas, design persisted as `design_json` + exported `html_body`) and "Campaign Buttons" tabs (per-button text/bg/text colour/radius/font size/weight/outline, drag-reorder, "multiple answers allowed?" toggle, live preview — stored as `campaign_buttons` JSONB, label mapping deferred to 9C). New migration `g7h8i9j0k1l2` adds the three columns. Templates button beneath Compose in the Inbox header (same size/colour) replaces the sidebar link; picking a template opens ComposeModal pre-filled (rich templates show an HTML preview + plain-text fallback). TemplatePicker shows "Visual" badge for rich templates and passes `html_body` via `onSelect(body, isHtml)`. `render_email_html()` gained `prerendered_html` param + `render_campaign_buttons_html()` helper (placeholder `#` hrefs until 9C tokens). Signature preview block below the editor. Rich-HTML *sending* pipeline + button label mapping land with [Phase 9C].
-- **[Phase 9C] Tracked click / campaign buttons (label-click tokens)** — `Fable` — *not built.* Four pieces to build: (1) **Campaign buttons as native Unlayer blocks** — replace the current "Campaign Buttons" tab with draggable button blocks inside the Unlayer canvas; each block maps to a contact label; "multiple answers allowed?" toggle per button; styled inline in the canvas. (2) **`LabelClickToken` model** — `token` (UUID PK), `contact_id`, `label_id`, `tenant_id`, `used_at`; one token per button per recipient, generated at send-time. (3) **Public `/track/click/{token}` endpoint** — no auth required (contact has no Yippie account); looks up token, applies the mapped label to the contact, sets `used_at`, redirects to a plain "Thank you for your response" confirmation page. Tokens expire on first click. (4) **`render_email_html()` update** — injects campaign buttons as styled `<a>` anchor tags pointing to the tracking URLs.
+- ~~**[Phase 9C] Tracked click / campaign buttons (label-click tokens)**~~ ✅ **DONE (session 37)** — All four pieces shipped: (1) Campaign buttons as native Unlayer blocks (T2 — custom drag-and-drop tool, per-button config panel). (2) `LabelClickToken` model + migration `h8i9j0k1l2m3`. (3) Public `/track/click/{token}` endpoint + `TrackConfirmPage`. (4) `render_email_html()` + `render_campaign_buttons_html(token_map)` inject real tracking URLs generated at send time.
 
 ### Contacts — workflow & data model (big)
 - ~~**[36] Company grouping for contacts**~~ ✅ **DONE (session 34)** — `companies` table + `contacts.company_id` FK (legacy text column kept for old data), company CRUD at `/contacts/companies` (admin-gated), `/settings/companies` page, `CompanyBadge`/`CompanyPicker` on contact list/new/detail (+DraftReview new-contact modal), company filter chips + `?company_id=` filter, ComposeModal "Company" button adds all of a company's contact emails via `/contacts/companies/{id}/contacts`.
@@ -292,6 +292,38 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 37 — 2026-06-12 (Tier 1: Phase 9C tracked-click tokens, T2 Unlayer campaign blocks, emailtracking module)
+
+**Commits:** squash-merged to `devsandbox` via PRs #24, #25, #26.
+
+**[Phase 9C] Tracked click / campaign buttons:**
+- Migration `h8i9j0k1l2m3`: `label_click_tokens` table + `campaign_buttons_json`/`prerendered_html` columns on `pending_sends`.
+- `tracking/models.py`: `LabelClickToken` (token UUID PK, tenant_id, contact_id FK→contacts CASCADE, label_id FK→contact_labels CASCADE, button_id, used_at, created_at).
+- `tracking/router.py`: public `GET /track/click/{token}` — burns token (sets `used_at`), upserts into `contact_label_links` via `pg_insert().on_conflict_do_nothing()`, redirects 302 to `/track/confirm` or `/track/confirm?expired=1`.
+- `core/email_html.py`: `render_campaign_buttons_html(buttons, token_map)` replaces `#` hrefs with real tracking URLs; `render_email_html()` gains `campaign_buttons_html` injection.
+- `inbox/service.py`: `flush_pending_sends()` generates `LabelClickToken` rows per button×recipient, passes `token_map` to `render_campaign_buttons_html()`; `queue_send()` extended with `campaign_buttons_json` + `prerendered_html` params.
+- `inbox/router.py`: compose endpoint passes `campaign_buttons_json` + `html_body` form fields; resolves contact_id from recipient email for token generation.
+- `pages/TrackConfirmPage.tsx`: "Thank you for your response!" / "Link already used" based on `?expired=1`.
+- `App.tsx`: `/track/confirm` route in both unauthenticated and authenticated route trees.
+
+**[T2] Campaign buttons as native Unlayer blocks:**
+- `TemplatesPage.tsx` rebuilt: removed Campaign Buttons tab; registered `campaign_button` custom tool via `options.customTools` (drag-and-drop onto canvas, inline-styled `<a>` preview); `design:updated` listener traverses design JSON to sync button count to React state; per-button config panel below canvas (text, label picker, multiple_allowed, colors); `extractButtonsFromDesign()` at save time.
+
+**emailtracking module:**
+- Migration `i9j0k1l2m3n4`: `outbound_emails` table with all tracking fields.
+- `emailtracking/models.py`: `OutboundEmail` (id, tenant_id, resend_email_id unique, to_email, subject, actor_id, contact_id FK SET NULL, draft_id, kind, status, delivered/opened/clicked/bounced timestamps, bounce_type, created_at).
+- `emailtracking/service.py`: `create_outbound_email()`, `get_by_resend_id()`, `handle_event()` (status state machine), `list_outbound()`.
+- `emailtracking/webhooks.py`: public `POST /emailtracking/webhooks/resend`; optional HMAC verification via `RESEND_WEBHOOK_SECRET`; handles email.delivered/opened/clicked/bounced; always returns 200.
+- `emailtracking/router.py`: `GET /emailtracking/outbound` (module-gated, returns list[OutboundEmailOut]).
+- `core/mailer.py`: `send_email()` now returns `str | None` (Resend response `id`).
+- `inbox/service.py`: after each send, calls `create_outbound_email()` with the returned Resend ID.
+- `config.py`: `'emailtracking'` added to `ALL_MODULES`; `resend_webhook_secret: str = ""` in Settings.
+- `modules/__init__.py`: `emailtracking_router` registered as `"emailtracking"`.
+- `main.py`: emailtracking webhook router mounted as public (no auth).
+- `InboxQueue.tsx`: Sent tab uses `GET /emailtracking/outbound` when module enabled (status badge: Sent/Delivered/Opened/Clicked/Bounced); falls back to activity log when disabled.
 
 ---
 
