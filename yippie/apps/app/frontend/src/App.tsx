@@ -23,7 +23,7 @@ const ResetPasswordPage  = lazy(() => import('./auth/ResetPasswordPage'))
 const TeamSettingsPage   = lazy(() => import('./modules/admin/pages/TeamSettingsPage'))
 const DepartmentsPage          = lazy(() => import('./modules/admin/pages/DepartmentsPage'))
 const LabelsPage               = lazy(() => import('./modules/admin/pages/LabelsPage'))
-const CompaniesPage            = lazy(() => import('./modules/admin/pages/CompaniesPage'))
+const CompaniesPage            = lazy(() => import('./modules/contacts/pages/CompaniesPage'))
 const SuperAdminPage           = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
 const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/SuperadminsSettingsPage'))
 const ProfileSettingsPage      = lazy(() => import('./modules/admin/pages/ProfileSettingsPage'))
@@ -142,6 +142,12 @@ export default function App() {
               <Route path="/" element={<Navigate to="/inbox" replace />} />
 
               <Route path="/contacts" element={
+                <ModuleGate module="contacts"><PagePad><CompaniesPage /></PagePad></ModuleGate>
+              } />
+              <Route path="/contacts/list" element={
+                <ModuleGate module="contacts"><PagePad><ContactList /></PagePad></ModuleGate>
+              } />
+              <Route path="/contacts/companies/:companyId" element={
                 <ModuleGate module="contacts"><PagePad><ContactList /></PagePad></ModuleGate>
               } />
               <Route path="/contacts/new" element={
@@ -186,9 +192,7 @@ export default function App() {
               <Route path="/settings/labels" element={
                 <ModuleGate module="contacts"><PagePad><LabelsPage /></PagePad></ModuleGate>
               } />
-              <Route path="/settings/companies" element={
-                <ModuleGate module="contacts"><PagePad><CompaniesPage /></PagePad></ModuleGate>
-              } />
+
               <Route path="/settings/superadmins" element={<PagePad><SuperadminsSettingsPage /></PagePad>} />
               <Route path="/settings/profile" element={<PagePad><ProfileSettingsPage /></PagePad>} />
               <Route path="/settings/team" element={<PagePad><TeamSettingsPage /></PagePad>} />

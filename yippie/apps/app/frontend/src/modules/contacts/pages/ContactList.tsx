@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Search, Plus, User } from 'lucide-react'
+import { Search, Plus, User, ChevronLeft } from 'lucide-react'
 import { api } from '../../../api/client'
 import { TableSkeleton } from '../../../shell/Skeleton'
 import { LabelChip, fetchLabels, type ContactLabel } from '../components/LabelChip'
@@ -19,11 +19,13 @@ interface Contact {
 
 export default function ContactList() {
   const navigate = useNavigate()
+  const { companyId } = useParams<{ companyId?: string }>()
   const [search, setSearch] = useState('')
   const [labelFilter, setLabelFilter] = useState<string | null>(null)
-  const [companyFilter, setCompanyFilter] = useState<string | null>(null)
+  const [companyFilter, setCompanyFilter] = useState<string | null>(companyId ?? null)
   const { data: labels } = useQuery({ queryKey: ['contact-labels'], queryFn: fetchLabels })
   const { data: companies } = useQuery({ queryKey: ['companies'], queryFn: fetchCompanies })
+  const scopedCompany = companyId ? companies?.find(c => c.id === companyId) : null
   const { data, isLoading } = useQuery({
     queryKey: ['contacts', search, labelFilter, companyFilter],
     queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', {
@@ -37,18 +39,26 @@ export default function ContactList() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Contacts</h1>
-          <p className="text-sm text-slate-500 mt-0.5">{data?.total ?? 0} total</p>
-        </div>
-        <Link
-          to="/contacts/new"
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-        >
-          <Plus size={15} strokeWidth={2.5} />
-          New Contact
+      <div className="mb-6">
+        <Link to="/contacts" className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 mb-3 transition-colors">
+          <ChevronLeft size={13} />
+          Companies
         </Link>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">
+              {scopedCompany ? scopedCompany.name : 'All Contacts'}
+            </h1>
+            <p className="text-sm text-slate-500 mt-0.5">{data?.total ?? 0} contact{(data?.total ?? 0) !== 1 ? 's' : ''}</p>
+          </div>
+          <Link
+            to="/contacts/new"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <Plus size={15} strokeWidth={2.5} />
+            New Contact
+          </Link>
+        </div>
       </div>
 
       <div className="relative mb-5 max-w-sm">

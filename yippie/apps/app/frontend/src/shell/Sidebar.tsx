@@ -202,19 +202,6 @@ export function Sidebar() {
                 <span>Labels</span>
               </NavLink>
             )}
-            {config?.enabled_modules.includes('contacts') && (
-              <NavLink
-                to="/settings/companies"
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
-                  }`
-                }
-              >
-                <Building2 size={16} strokeWidth={2} />
-                <span>Companies</span>
-              </NavLink>
-            )}
           </>
         )}
 
