@@ -297,10 +297,13 @@ export default function TemplatesPage() {
                 <EmailEditor
                   ref={editorRef}
                   onReady={handleEditorReady}
-                  minHeight="100%"
+                  minHeight={500}
                   options={{
                     features: { textEditor: { spellChecker: true } },
-                    appearance: { theme: 'light', panels: { tools: { dock: 'left' } } },
+                    appearance: {
+                      theme: 'light',
+                      panels: { tools: { dock: 'left', collapsible: false } },
+                    },
                     editor: { confirmOnDelete: false },
                   }}
                 />
