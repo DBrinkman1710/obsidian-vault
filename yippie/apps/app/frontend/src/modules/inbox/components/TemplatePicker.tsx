@@ -13,7 +13,7 @@ interface Template {
 }
 
 interface Props {
-  onSelect: (body: string, isHtml?: boolean) => void
+  onSelect: (body: string, isHtml?: boolean, campaignButtons?: string | null) => void
   context?: string
   triggerClassName?: string
   triggerIconSize?: number
@@ -56,8 +56,8 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
   }, [open])
 
   function handleSelect(t: Template) {
-    if (t.html_body) onSelect(t.html_body, true)
-    else onSelect(t.body)
+    if (t.html_body) onSelect(t.html_body, true, t.campaign_buttons)
+    else onSelect(t.body, false, null)
     setOpen(false)
     setSearch('')
     suggestMutation.reset()

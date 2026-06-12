@@ -263,6 +263,7 @@ function ComposeModal({
   const [usePersonalFrom, setUsePersonalFrom] = useState(initialState?.usePersonalFrom ?? false)
   const [body, setBody] = useState(initialState?.body ?? (user?.email_signature ? `\n\n${user.email_signature}` : ''))
   const [templateHtml, setTemplateHtml] = useState<string | null>(initialState?.templateHtml ?? null)
+  const [campaignButtonsJson, setCampaignButtonsJson] = useState<string | null>(null)
 
   const addRecipient = (email: string, label: string) => {
     if (!recipients.find(r => r.email === email)) {
@@ -289,6 +290,8 @@ function ComposeModal({
       fd.append('to', JSON.stringify(recipients.map(r => r.email)))
       fd.append('subject', subject)
       fd.append('body', body)
+      if (templateHtml) fd.append('html_body', templateHtml)
+      if (campaignButtonsJson) fd.append('campaign_buttons_json', campaignButtonsJson)
       composeFiles.forEach(f => fd.append('attachments', f))
       if (usePersonalFrom && user?.reply_from_email) {
         fd.append('from_email', user.reply_from_email)
@@ -422,13 +425,15 @@ function ComposeModal({
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Message</label>
               <TemplatePicker
-                onSelect={(tmplBody, isHtml) => {
+                onSelect={(tmplBody, isHtml, buttons) => {
                   const sig = user?.email_signature ? `\n\n${user.email_signature}` : ''
                   if (isHtml) {
                     setTemplateHtml(tmplBody)
+                    setCampaignButtonsJson(buttons ?? null)
                     setBody(htmlToText(tmplBody) + sig)
                   } else {
                     setTemplateHtml(null)
+                    setCampaignButtonsJson(null)
                     setBody(tmplBody + sig)
                   }
                 }}
@@ -441,7 +446,7 @@ function ComposeModal({
                     <Palette size={11} />
                     Rich template
                   </span>
-                  <button type="button" onClick={() => setTemplateHtml(null)} className="text-violet-400 hover:text-violet-600" title="Remove rich template">
+                  <button type="button" onClick={() => { setTemplateHtml(null); setCampaignButtonsJson(null) }} className="text-violet-400 hover:text-violet-600" title="Remove rich template">
                     <X size={13} />
                   </button>
                 </div>
