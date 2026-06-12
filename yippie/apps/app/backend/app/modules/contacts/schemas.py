@@ -104,3 +104,10 @@ class ContactOut(BaseModel):
 class ContactList(BaseModel):
     items: list[ContactOut]
     total: int
+
+
+class ImportResult(BaseModel):
+    imported: int = 0
+    skipped: int = 0
+    errors: int = 0
+    error_details: list[str] = []

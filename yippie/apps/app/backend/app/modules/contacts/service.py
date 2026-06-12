@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import csv
+import io
 import uuid
 from typing import Optional
 
@@ -14,6 +16,7 @@ from app.modules.contacts.schemas import (
     ContactLabelCreate,
     ContactLabelUpdate,
     ContactUpdate,
+    ImportResult,
 )
 
 
@@ -255,3 +258,135 @@ async def list_company_contacts(
         .order_by(Contact.full_name)
     )
     return result.scalars().all()
+
+
+# --- Import / Export (items 29, 40, 20) ---
+
+IMPORT_COLUMNS = ("full_name", "email", "phone", "company", "notes")
+
+
+async def _company_id_by_name(
+    db: AsyncSession, tenant_id: uuid.UUID, name: str, cache: dict[str, uuid.UUID]
+) -> uuid.UUID:
+    """Find-or-create a Company by (case-insensitive) name within the tenant.
+
+    Uses an in-batch cache to avoid duplicate inserts for the same name.
+    """
+    key = name.lower()
+    if key in cache:
+        return cache[key]
+    existing = await db.execute(
+        select(Company.id).where(
+            Company.tenant_id == tenant_id, func.lower(Company.name) == key
+        )
+    )
+    cid = existing.scalar_one_or_none()
+    if cid is None:
+        company = Company(tenant_id=tenant_id, name=name)
+        db.add(company)
+        await db.flush()
+        cid = company.id
+    cache[key] = cid
+    return cid
+
+
+async def import_contacts(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    created_by: uuid.UUID,
+    rows: list[dict],
+) -> ImportResult:
+    """Bulk-insert contacts from parsed rows.
+
+    Validates each row (full_name required), dedupes by email against existing
+    tenant contacts and within the batch itself (skip), and bulk-inserts the rest.
+    """
+    result = ImportResult()
+
+    # Existing emails for this tenant (lowercased) so we can dedupe.
+    existing = await db.execute(
+        select(func.lower(Contact.email)).where(
+            Contact.tenant_id == tenant_id, Contact.email.is_not(None)
+        )
+    )
+    seen_emails: set[str] = {e for (e,) in existing.all() if e}
+    company_cache: dict[str, uuid.UUID] = {}
+
+    def _clean(val) -> Optional[str]:
+        s = (str(val) if val is not None else "").strip()
+        return s or None
+
+    to_add: list[Contact] = []
+    for i, row in enumerate(rows):
+        line = i + 2  # account for header row in user-facing messages
+        full_name = (str(row.get("full_name") or "")).strip()
+        if not full_name:
+            result.errors += 1
+            if len(result.error_details) < 20:
+                result.error_details.append(f"Row {line}: missing full_name")
+            continue
+
+        email = (str(row.get("email") or "")).strip() or None
+        if email:
+            key = email.lower()
+            if key in seen_emails:
+                result.skipped += 1
+                continue
+            seen_emails.add(key)
+
+        company_name = _clean(row.get("company"))
+        company_id = (
+            await _company_id_by_name(db, tenant_id, company_name, company_cache)
+            if company_name
+            else None
+        )
+
+        to_add.append(
+            Contact(
+                tenant_id=tenant_id,
+                created_by=created_by,
+                full_name=full_name,
+                email=email,
+                phone=_clean(row.get("phone")),
+                company_id=company_id,
+                notes=_clean(row.get("notes")),
+            )
+        )
+
+    if to_add:
+        db.add_all(to_add)
+        await db.commit()
+        result.imported = len(to_add)
+
+    return result
+
+
+async def export_contacts_csv(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    search: Optional[str] = None,
+    contact_ids: Optional[list[uuid.UUID]] = None,
+) -> str:
+    """Return all matching contacts serialized as a CSV string."""
+    q = select(Contact).where(Contact.tenant_id == tenant_id)
+    if contact_ids:
+        q = q.where(Contact.id.in_(contact_ids))
+    elif search:
+        term = f"%{search}%"
+        q = q.where(
+            Contact.full_name.ilike(term)
+            | Contact.email.ilike(term)
+            | Contact.company.ilike(term)
+            | Contact.company_rel.has(Company.name.ilike(term))
+        )
+    result = await db.execute(q.order_by(Contact.created_at.desc()))
+    contacts = result.scalars().all()
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(IMPORT_COLUMNS)
+    for c in contacts:
+        writer.writerow(
+            [c.full_name, c.email or "", c.phone or "", c.company_name or "", c.notes or ""]
+        )
+    return buf.getvalue()

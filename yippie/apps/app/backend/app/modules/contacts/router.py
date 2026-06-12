@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import csv
+import io
+import json
 import uuid
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import AdminUser, CurrentUser
@@ -21,11 +25,59 @@ from app.modules.contacts.schemas import (
     ContactList,
     ContactOut,
     ContactUpdate,
+    ImportResult,
 )
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
 DB = Annotated[AsyncSession, Depends(get_db)]
+
+
+def _parse_import_file(filename: str, content: bytes) -> list[dict]:
+    """Parse an uploaded CSV / JSON / XLSX file into a list of row dicts."""
+    name = (filename or "").lower()
+
+    if name.endswith(".json"):
+        try:
+            data = json.loads(content.decode("utf-8-sig"))
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
+            raise HTTPException(status_code=400, detail=f"Invalid JSON file: {e}")
+        if isinstance(data, dict):
+            data = data.get("contacts", data.get("items", []))
+        if not isinstance(data, list):
+            raise HTTPException(status_code=400, detail="JSON must be a list of contact objects")
+        return [r for r in data if isinstance(r, dict)]
+
+    if name.endswith(".xlsx"):
+        try:
+            from openpyxl import load_workbook
+        except ImportError:
+            raise HTTPException(status_code=400, detail="XLSX support is not available on the server")
+        try:
+            wb = load_workbook(io.BytesIO(content), read_only=True, data_only=True)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Invalid XLSX file: {e}")
+        ws = wb.active
+        rows_iter = ws.iter_rows(values_only=True)
+        try:
+            header = next(rows_iter)
+        except StopIteration:
+            return []
+        keys = [str(h).strip().lower() if h is not None else "" for h in header]
+        out: list[dict] = []
+        for raw in rows_iter:
+            if raw is None or all(v is None for v in raw):
+                continue
+            out.append({keys[i]: raw[i] for i in range(len(keys)) if keys[i]})
+        return out
+
+    # default: CSV
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="CSV file must be UTF-8 encoded")
+    reader = csv.DictReader(io.StringIO(text))
+    return [{(k or "").strip().lower(): v for k, v in row.items()} for row in reader]
 
 
 @router.get("", response_model=ContactList)
@@ -49,9 +101,9 @@ async def create_contact(body: ContactCreate, current_user: CurrentUser, db: DB)
     return await service.create_contact(db, current_user.tenant_id, current_user.id, body)
 
 
-# Label and company routes MUST stay above the dynamic /{contact_id} routes — FastAPI
-# matches in declaration order and "labels"/"companies" would otherwise 422 as a
-# contact UUID.
+# Label, company, import and export routes MUST stay above the dynamic /{contact_id}
+# routes — FastAPI matches in declaration order and "labels"/"companies"/"import"/
+# "export" would otherwise 422 as a contact UUID.
 
 
 @router.get("/companies", response_model=list[CompanyOut])
@@ -124,6 +176,42 @@ async def delete_label(label_id: uuid.UUID, current_user: AdminUser, db: DB):
     if not label:
         raise HTTPException(status_code=404, detail="Label not found")
     await service.delete_label(db, label)
+
+
+@router.post("/import", response_model=ImportResult)
+async def import_contacts(
+    current_user: AdminUser,
+    db: DB,
+    file: UploadFile = File(...),
+):
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
+    rows = _parse_import_file(file.filename or "", content)
+    if not rows:
+        raise HTTPException(status_code=400, detail="No rows found in file")
+    return await service.import_contacts(db, current_user.tenant_id, current_user.id, rows)
+
+
+@router.get("/export")
+async def export_contacts(
+    current_user: CurrentUser,
+    db: DB,
+    search: Optional[str] = Query(None),
+    ids: Optional[str] = Query(None, description="Comma-separated contact IDs to export"),
+):
+    contact_ids: Optional[list[uuid.UUID]] = None
+    if ids:
+        try:
+            contact_ids = [uuid.UUID(x) for x in ids.split(",") if x.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid contact id in 'ids'")
+    csv_text = await service.export_contacts_csv(db, current_user.tenant_id, search, contact_ids)
+    return StreamingResponse(
+        iter([csv_text]),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="contacts.csv"'},
+    )
 
 
 @router.get("/{contact_id}", response_model=ContactOut)
