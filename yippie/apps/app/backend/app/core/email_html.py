@@ -51,9 +51,12 @@ def _paragraphs(text: str) -> str:
     )
 
 
-def render_campaign_buttons_html(buttons: list[dict], base_url: str) -> str:
-    """Render campaign buttons as HTML. base_url is used for /track/click/{token} in Phase 9C.
-    For now renders placeholder hrefs (#) since tracking tokens are Phase 9C."""
+def render_campaign_buttons_html(buttons: list[dict], token_map: dict[str, str] | None = None) -> str:
+    """Render campaign buttons as HTML.
+
+    ``token_map`` maps button id → full tracking URL
+    (``{base_url}/api/v1/track/click/{token}``). Buttons without a token render
+    with a placeholder href."""
     if not buttons:
         return ""
     links = []
@@ -73,7 +76,8 @@ def render_campaign_buttons_html(buttons: list[dict], base_url: str) -> str:
             if border_width > 0 and border_color
             else ""
         )
-        href = "#"  # Phase 9C: f"{base_url}/track/click/{token}"
+        href = token_map.get(str(b.get("id", "")), "#") if token_map else "#"
+        href = html.escape(href, quote=True)
         links.append(
             f'<a href="{href}" style="display:inline-block;padding:10px 22px;'
             f"margin:6px 8px 6px 0;background:{bg};color:{color};"
@@ -90,11 +94,14 @@ def render_email_html(
     tenant_name: str | None = None,
     primary_color: str | None = None,
     prerendered_html: str | None = None,
+    campaign_buttons_html: str = "",
 ) -> str:
     """Render the plain-text body into the standard Yippie HTML layout.
 
     When ``prerendered_html`` is set (Unlayer template export), it is embedded
-    directly in the white card instead of paragraph-escaping ``body_text``."""
+    directly in the white card instead of paragraph-escaping ``body_text``.
+    ``campaign_buttons_html`` (Phase 9C tracked buttons) is injected after the
+    content block, inside the white card."""
     accent = _safe_color(primary_color)
     content = prerendered_html if prerendered_html is not None else _paragraphs(body_text)
     header = (
@@ -114,6 +121,7 @@ def render_email_html(
         f'<div style="height:4px;background:{accent};"></div>'
         f"{header}"
         f'<div style="padding:24px;">{content}</div>'
+        f"{campaign_buttons_html}"
         "</div>"
         '<div style="text-align:center;padding:16px 0;font-size:12px;color:#9ca3af;">'
         "Sent with Yippie</div>"

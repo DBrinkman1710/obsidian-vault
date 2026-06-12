@@ -19,6 +19,7 @@ from app.modules.departments.router import router as departments_router
 from app.modules.team.router import router as team_router
 from app.modules.inbox.router import webhook_router as inbox_webhook_router
 from app.public.router import router as public_router
+from app.modules.tracking.router import router as tracking_router
 from app.modules.inbox.email_poller import start_scheduler as start_email_poller
 from app.modules.tickets.automation.sla_escalation import start_scheduler as start_sla_scheduler
 
@@ -61,6 +62,8 @@ def create_app() -> FastAPI:
     app.include_router(inbox_webhook_router, prefix="/api/v1")
     # Public stats — no auth, consumed by the marketing site
     app.include_router(public_router, prefix="/api/v1")
+    # Public tracked-click endpoint — no auth, contacts click from email
+    app.include_router(tracking_router, prefix="/api/v1")
 
     @app.get("/api/v1/health", tags=["health"], include_in_schema=False)
     async def health():
