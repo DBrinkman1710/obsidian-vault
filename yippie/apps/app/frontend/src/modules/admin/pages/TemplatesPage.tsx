@@ -58,28 +58,6 @@ function parseButtons(raw: string | null): CampaignButton[] {
   }
 }
 
-interface DesignState {
-  body?: {
-    rows?: {
-      columns?: {
-        contents?: { type?: string }[]
-      }[]
-    }[]
-  }
-}
-
-function countCampaignButtons(design: DesignState): number {
-  let count = 0
-  for (const row of design?.body?.rows ?? []) {
-    for (const col of row?.columns ?? []) {
-      for (const content of col?.contents ?? []) {
-        if (content?.type === 'campaign_button') count += 1
-      }
-    }
-  }
-  return count
-}
-
 export default function TemplatesPage() {
   const qc = useQueryClient()
   const { user } = useAuth()
@@ -109,6 +87,10 @@ export default function TemplatesPage() {
   const updateButton = (id: string, patch: Partial<CampaignButton>) =>
     setButtons(prev => prev.map(b => (b.id === id ? { ...b, ...patch } : b)))
 
+  const addButton = () => setButtons(prev => [...prev, newCampaignButton()])
+
+  const removeButton = (id: string) => setButtons(prev => prev.filter(b => b.id !== id))
+
   function loadIntoEditor(designJson: string | null) {
     const editor = editorRef.current?.editor
     if (!editor) {
@@ -128,25 +110,6 @@ export default function TemplatesPage() {
 
   function handleEditorReady() {
     setEditorReady(true)
-    const editor = editorRef.current?.editor
-    if (editor) {
-      editor.addEventListener('design:updated', () => {
-        editor.exportHtml(({ design }) => {
-          const count = countCampaignButtons(design as DesignState)
-          setButtons(prev => {
-            if (count > prev.length) {
-              // New button block added on the canvas — append default config(s)
-              return [...prev, ...Array.from({ length: count - prev.length }, newCampaignButton)]
-            }
-            if (count < prev.length) {
-              // Button block(s) deleted — trim from end
-              return prev.slice(0, count)
-            }
-            return prev
-          })
-        })
-      })
-    }
     if (pendingDesignRef.current !== undefined) {
       const pending = pendingDesignRef.current
       pendingDesignRef.current = undefined
@@ -339,39 +302,6 @@ export default function TemplatesPage() {
                     features: { textEditor: { spellChecker: true } },
                     appearance: { theme: 'light', panels: { tools: { dock: 'left' } } },
                     editor: { confirmOnDelete: false },
-                    customTools: [
-                      {
-                        name: 'campaign_button',
-                        label: 'Campaign Button',
-                        icon: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="10" rx="4"/><path d="M7 12h10"/></svg>',
-                        supportedDisplayModes: ['email'],
-                        properties: {
-                          text: { editor: { data: { defaultValue: 'Yes, count me in' } } },
-                          bg_color: { editor: { data: { defaultValue: '#5BA4F5' } } },
-                          text_color: { editor: { data: { defaultValue: '#ffffff' } } },
-                          border_radius: { editor: { data: { defaultValue: 6 } } },
-                          font_size: { editor: { data: { defaultValue: 14 } } },
-                          font_weight: { editor: { data: { defaultValue: '600' } } },
-                          border_width: { editor: { data: { defaultValue: 0 } } },
-                          border_color: { editor: { data: { defaultValue: null } } },
-                        },
-                        transformer: (params: { values: Record<string, unknown> }, done: (result: { html: string }) => void) => {
-                          const v = params.values
-                          const bg = String(v.bg_color || '#5BA4F5')
-                          const color = String(v.text_color || '#ffffff')
-                          const radius = Number(v.border_radius ?? 6)
-                          const fontSize = Number(v.font_size ?? 14)
-                          const fontWeight = String(v.font_weight || '600')
-                          const bw = Number(v.border_width ?? 0)
-                          const bc = v.border_color ? String(v.border_color) : null
-                          const border = bw > 0 && bc ? `border:${bw}px solid ${bc};` : ''
-                          const text = String(v.text || 'Button')
-                          const id = String(v._btn_id || '')
-                          const html = `<div style="text-align:center;padding:8px 0;"><a href="#" data-campaign-btn-id="${id}" style="display:inline-block;padding:10px 22px;background:${bg};color:${color};border-radius:${radius}px;font-size:${fontSize}px;font-weight:${fontWeight};text-decoration:none;${border}">${text}</a></div>`
-                          done({ html })
-                        },
-                      },
-                    ],
                   }}
                 />
               </div>
@@ -386,15 +316,25 @@ export default function TemplatesPage() {
                 )}
               </div>
 
-              {/* Campaign button config — one row per button block on the canvas */}
-              {buttons.length > 0 && (
-                <div className="mx-5 mb-5 shrink-0 border border-slate-200 rounded-xl bg-white">
-                  <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
-                    <MousePointerClick size={13} className="text-blue-500" />
-                    <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Campaign Buttons</span>
-                    <span className="ml-auto text-[10px] text-slate-400">Configure label & settings per button</span>
-                  </div>
-                  {buttons.map((b, i) => (
+              {/* Campaign button config — managed in React state, appended below the email body on send */}
+              <div className="mx-5 mb-5 shrink-0 border border-slate-200 rounded-xl bg-white">
+                <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
+                  <MousePointerClick size={13} className="text-blue-500" />
+                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Campaign Buttons</span>
+                  <button
+                    onClick={addButton}
+                    className="ml-auto inline-flex items-center gap-1 px-2 py-1 bg-blue-50 hover:bg-blue-100 text-blue-600 rounded text-[11px] font-semibold transition-colors"
+                  >
+                    <Plus size={11} strokeWidth={2.5} />
+                    Add button
+                  </button>
+                </div>
+                {buttons.length === 0 ? (
+                  <p className="px-4 py-3 text-[11px] text-slate-400">
+                    No campaign buttons. Add one to map a click to a contact label — it renders below the email body when sent.
+                  </p>
+                ) : (
+                  buttons.map((b, i) => (
                     <div key={b.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0 border-slate-50">
                       <span className="text-xs text-slate-400 font-bold w-4 shrink-0">{i + 1}</span>
                       <input
@@ -422,10 +362,17 @@ export default function TemplatesPage() {
                       </label>
                       <input type="color" value={b.bg_color} onChange={e => updateButton(b.id, { bg_color: e.target.value })} className="w-7 h-7 border-0 rounded cursor-pointer p-0" title="Background color" />
                       <input type="color" value={b.text_color} onChange={e => updateButton(b.id, { text_color: e.target.value })} className="w-7 h-7 border-0 rounded cursor-pointer p-0" title="Text color" />
+                      <button
+                        onClick={() => removeButton(b.id)}
+                        className="shrink-0 p-1 text-red-500 hover:bg-red-50 rounded transition-colors"
+                        title="Remove button"
+                      >
+                        <Trash2 size={13} />
+                      </button>
                     </div>
-                  ))}
-                </div>
-              )}
+                  ))
+                )}
+              </div>
             </div>
           </>
         )}
