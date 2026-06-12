@@ -33,7 +33,7 @@ async def send_email(
     attachments: Optional[list[dict]] = None,
     from_email: Optional[str] = None,
     html: Optional[str] = None,
-) -> None:
+) -> str | None:
     """Send an email via Resend.
 
     attachments: list of {"filename": str, "content": base64_str, "content_type": str}
@@ -72,3 +72,5 @@ async def send_email(
             timeout=10,
         )
         response.raise_for_status()
+        data = response.json()
+        return data.get("id")

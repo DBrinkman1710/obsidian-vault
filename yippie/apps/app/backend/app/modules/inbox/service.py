@@ -795,7 +795,20 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                     prerendered_html=c["prerendered_html"],
                     campaign_buttons_html=campaign_buttons_html,
                 )
-                await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body)
+                resend_id = await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body)
+                # Record outbound email for tracking
+                from app.modules.emailtracking.service import create_outbound_email
+                await create_outbound_email(
+                    db,
+                    tenant_id=c["tenant_id"],
+                    resend_email_id=resend_id,
+                    to_email=c["to_email"],
+                    subject=c["subject"],
+                    actor_id=c["actor_id"],
+                    contact_id=c["contact_id"],
+                    draft_id=c["draft_id"],
+                    kind=c["kind"],
+                )
             payload = {"subject": c["subject"], "to": c["to_email"], "preview": c["reply_text"][:120]}
             if suppressed:
                 payload["demo_suppressed"] = True

@@ -600,12 +600,22 @@ export default function InboxQueue() {
     }
   }
 
+  const trackingEnabled = config?.enabled_modules?.includes('emailtracking')
+
   const { data: sentEvents, isLoading: sentLoading } = useQuery({
     queryKey: ['activity-sent'],
     queryFn: () => api.get('/activity', { params: { limit: 500 } }).then(r =>
       (r.data as any[]).filter((e: any) => e.event_type === 'email.replied' || e.event_type === 'email.composed')
     ),
-    enabled: activeTab === 'sent',
+    enabled: activeTab === 'sent' && !trackingEnabled,
+  })
+
+  const { data: outboundEmails, isLoading: outboundLoading } = useQuery({
+    queryKey: ['outbound-emails'],
+    queryFn: () => api.get('/emailtracking/outbound', { params: { limit: 200 } }).then(r => r.data as any[]),
+    enabled: activeTab === 'sent' && !!trackingEnabled,
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   })
 
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
@@ -656,7 +666,7 @@ export default function InboxQueue() {
   const allDrafts = activeTab === 'pending' ? (pendingDrafts ?? []) : activeTab === 'sent' ? [] : processedDrafts
   const totalPages = Math.ceil(allDrafts.length / PAGE_SIZE)
   const drafts = allDrafts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
-  const isLoading = activeTab === 'pending' ? pendingLoading : activeTab === 'sent' ? sentLoading : false
+  const isLoading = activeTab === 'pending' ? pendingLoading : activeTab === 'sent' ? (trackingEnabled ? outboundLoading : sentLoading) : false
 
   // Client-side pagination — the full filtered list is already in memory.
   const pageCount = Math.max(1, Math.ceil(drafts.length / PAGE_SIZE))
@@ -852,14 +862,46 @@ export default function InboxQueue() {
         {/* Sent tab content */}
         {activeTab === 'sent' && (
           <>
-            {sentLoading && <CardListSkeleton rows={5} />}
-            {!sentLoading && (!sentEvents || sentEvents.length === 0) && (
+            {isLoading && <CardListSkeleton rows={5} />}
+            {!isLoading && (trackingEnabled ? (!outboundEmails || outboundEmails.length === 0) : (!sentEvents || sentEvents.length === 0)) && (
               <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
                 <Send size={32} className="text-slate-300 mx-auto mb-3" />
                 <p className="text-sm text-slate-400 font-medium">No sent mail yet</p>
               </div>
             )}
-            {sentEvents && sentEvents.length > 0 && (
+            {trackingEnabled && outboundEmails && outboundEmails.length > 0 && (
+              <div className="flex flex-col gap-3">
+                {outboundEmails.map((em: any) => {
+                  const statusMap: Record<string, { label: string; cls: string }> = {
+                    sent:      { label: 'Sent',      cls: 'bg-slate-100 text-slate-500' },
+                    delivered: { label: 'Delivered', cls: 'bg-green-50 text-green-600' },
+                    opened:    { label: 'Opened',    cls: 'bg-blue-50 text-blue-600' },
+                    clicked:   { label: 'Clicked',   cls: 'bg-purple-50 text-purple-600' },
+                    bounced:   { label: 'Bounced',   cls: 'bg-red-50 text-red-600' },
+                  }
+                  const s = statusMap[em.status] ?? statusMap['sent']
+                  return (
+                    <div key={em.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <Send size={13} className="text-slate-400 shrink-0" />
+                            <span className="text-sm font-semibold text-slate-900 truncate">{em.subject ?? '(no subject)'}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${s.cls}`}>{s.label}</span>
+                            <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${em.kind === 'compose' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                              {em.kind === 'compose' ? 'Composed' : 'Reply'}
+                            </span>
+                          </div>
+                          <p className="text-xs text-slate-500 mb-1">To: {em.to_email}</p>
+                        </div>
+                        <p className="text-xs text-slate-400 shrink-0">{new Date(em.created_at).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+            {!trackingEnabled && sentEvents && sentEvents.length > 0 && (
               <div className="flex flex-col gap-3">
                 {sentEvents.map((ev: any) => (
                   <div key={ev.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
