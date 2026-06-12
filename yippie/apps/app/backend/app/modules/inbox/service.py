@@ -762,8 +762,6 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                 from app.core.email_html import render_campaign_buttons_html
                 from app.config import get_settings as _get_settings
                 from app.modules.tracking.models import LabelClickToken
-                from app.modules.contacts.models import contact_label_links
-                from sqlalchemy.dialects.postgresql import insert as pg_insert
 
                 attachments = json.loads(c["attachments_json"]) if c["attachments_json"] else None
 
