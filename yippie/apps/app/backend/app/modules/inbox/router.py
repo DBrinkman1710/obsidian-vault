@@ -10,6 +10,7 @@ import httpx
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status  # noqa: F401
 from fastapi.responses import Response
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 
@@ -471,6 +472,9 @@ async def compose_send(
     body: str = Form(...),
     attachments: List[UploadFile] = File(default=[]),
     from_email: Optional[str] = Form(None),
+    template_id: Optional[str] = Form(None),
+    campaign_buttons_json: Optional[str] = Form(None),
+    html_body: Optional[str] = Form(None),
 ):
     """Queue a new outbound email to one or more recipients (sent individually,
     BCC-style) after a 5s undo window. Supports optional file attachments."""
@@ -499,6 +503,18 @@ async def compose_send(
     compose_id = uuid.uuid4()
     send_at = datetime.now(timezone.utc) + timedelta(seconds=8)
     for recipient in recipients:
+        # Phase 9C: tracked campaign buttons need a contact to apply the label
+        # to, so resolve each recipient to a contact by email (best effort).
+        recipient_contact_id = None
+        if campaign_buttons_json:
+            from app.modules.contacts.models import Contact
+            contact_row = await db.execute(
+                select(Contact.id).where(
+                    Contact.tenant_id == current_user.tenant_id,
+                    func.lower(Contact.email) == str(recipient).lower(),
+                ).limit(1)
+            )
+            recipient_contact_id = contact_row.scalar_one_or_none()
         await service.queue_send(
             db=db,
             draft_id=compose_id,
@@ -508,9 +524,12 @@ async def compose_send(
             reply_text=body,
             send_at=send_at,
             actor_id=current_user.id,
+            contact_id=recipient_contact_id,
             attachments_json=attachments_json,
             from_email=from_email or None,
             kind="compose",
+            campaign_buttons_json=campaign_buttons_json or None,
+            prerendered_html=html_body or None,
             commit=False,
         )
     await db.commit()

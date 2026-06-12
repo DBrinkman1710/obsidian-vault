@@ -103,4 +103,8 @@ class PendingSend(Base):
     # "reply" (draft_id = the draft) or "compose" (draft_id = a batch id shared
     # by all recipients of one compose, so one undo cancels the whole batch)
     kind: Mapped[str] = mapped_column(String(20), nullable=False, default="reply", server_default="reply")
+    # Phase 9C: JSON array of campaign buttons (label-mapped) and the template's
+    # pre-rendered HTML body, snapshotted at queue time.
+    campaign_buttons_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    prerendered_html: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

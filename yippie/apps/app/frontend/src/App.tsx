@@ -27,6 +27,8 @@ const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/Supera
 const ProfileSettingsPage      = lazy(() => import('./modules/admin/pages/ProfileSettingsPage'))
 const TemplatesPage            = lazy(() => import('./modules/admin/pages/TemplatesPage'))
 
+const TrackConfirmPage = lazy(() => import('./pages/TrackConfirmPage'))
+
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
 
@@ -90,6 +92,7 @@ export default function App() {
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
+          <Route path="/track/confirm" element={<TrackConfirmPage />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>
@@ -190,6 +193,7 @@ export default function App() {
               <Route path="/settings/team" element={<PagePad><TeamSettingsPage /></PagePad>} />
               <Route path="/settings/templates" element={<PagePad><TemplatesPage /></PagePad>} />
               <Route path="/superadmin/clients" element={<PagePad><SuperAdminPage /></PagePad>} />
+              <Route path="/track/confirm" element={<TrackConfirmPage />} />
             </Routes>
           </Suspense>
         </main>

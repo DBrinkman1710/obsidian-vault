@@ -652,6 +652,8 @@ async def queue_send(
     attachments_json: Optional[str] = None,
     from_email: Optional[str] = None,
     kind: str = "reply",
+    campaign_buttons_json: Optional[str] = None,
+    prerendered_html: Optional[str] = None,
     commit: bool = True,
 ) -> PendingSend:
     # Snapshot the effective from-address NOW. devsandbox and sandbox share one DB
@@ -676,6 +678,8 @@ async def queue_send(
         attachments_json=attachments_json,
         from_email=from_email,
         kind=kind,
+        campaign_buttons_json=campaign_buttons_json,
+        prerendered_html=prerendered_html,
     )
     db.add(pending)
     if commit:
@@ -737,6 +741,8 @@ async def flush_pending_sends(db: AsyncSession) -> None:
             "attachments_json": p.attachments_json,
             "from_email": p.from_email,
             "kind": p.kind,
+            "campaign_buttons_json": p.campaign_buttons_json,
+            "prerendered_html": p.prerendered_html,
         }
         for p in pending_list
     ]
@@ -753,11 +759,41 @@ async def flush_pending_sends(db: AsyncSession) -> None:
             tenant = tenant_cache[c["tenant_id"]]
             suppressed = bool(tenant and tenant.is_demo)
             if not suppressed:
+                from app.core.email_html import render_campaign_buttons_html
+                from app.config import get_settings as _get_settings
+                from app.modules.tracking.models import LabelClickToken
+
                 attachments = json.loads(c["attachments_json"]) if c["attachments_json"] else None
+
+                # Phase 9C: generate per-button tokens when the send has campaign buttons
+                # and a known recipient contact.
+                campaign_buttons_html = ""
+                if c["campaign_buttons_json"] and c["contact_id"]:
+                    buttons = json.loads(c["campaign_buttons_json"])
+                    base_url = _get_settings().app_base_url
+                    token_map: dict[str, str] = {}
+                    for btn in buttons:
+                        label_id_str = btn.get("label_id")
+                        btn_id = str(btn.get("id", ""))
+                        if not label_id_str or not btn_id:
+                            continue
+                        tok = LabelClickToken(
+                            tenant_id=c["tenant_id"],
+                            contact_id=c["contact_id"],
+                            label_id=uuid.UUID(label_id_str),
+                            button_id=btn_id,
+                        )
+                        db.add(tok)
+                        await db.flush()
+                        token_map[btn_id] = f"{base_url}/api/v1/track/click/{tok.token}"
+                    campaign_buttons_html = render_campaign_buttons_html(buttons, token_map=token_map)
+
                 html_body = render_email_html(
                     c["reply_text"],
                     tenant_name=tenant.name if tenant else None,
                     primary_color=tenant.primary_color if tenant else None,
+                    prerendered_html=c["prerendered_html"],
+                    campaign_buttons_html=campaign_buttons_html,
                 )
                 await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body)
             payload = {"subject": c["subject"], "to": c["to_email"], "preview": c["reply_text"][:120]}
