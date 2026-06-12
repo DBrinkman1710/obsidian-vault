@@ -259,6 +259,29 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 
 ---
 
+### Session 35 — 2026-06-12 (Tier 1: Phase 9B — Unlayer drag-and-drop template editor)
+
+**Commit:** `f347c10` — deployed `devsandbox` + `sandbox`.
+
+**Backend:**
+- Migration `g7h8i9j0k1l2` (revises `d4e5f6a7b8c9`, idempotent): adds `design_json TEXT`, `html_body TEXT`, `campaign_buttons JSONB DEFAULT '[]'` to `response_templates`.
+- `models.py`: three new nullable fields on `ResponseTemplate`.
+- `schemas.py`: new `CampaignButton` Pydantic model (text, label_id, multiple_allowed, bg_color, text_color, border_radius, font_size, font_weight, border_color, border_width). `TemplateCreate`/`TemplateUpdate`/`TemplateOut` all extended; button lists serialized as JSON string for the Text column.
+- `service.py`: `create_template`/`update_template` persist new fields; campaign button lists serialized with `json.dumps`.
+- `core/email_html.py`: `render_email_html()` gains `prerendered_html` param — when set, embeds it directly in the accent-bar shell (skips plain-text escaping). New `render_campaign_buttons_html(buttons, base_url)` renders inline-styled `<a>` buttons with `#` hrefs (real tokens land in Phase 9C). Added `_safe_hex`/`_safe_int` validators to guard user-supplied style values.
+
+**Frontend:**
+- `react-email-editor@1.8.0` installed (Unlayer, MIT licence).
+- `TemplatesPage.tsx` fully rebuilt: 280px template list (+ new, "Rich design" badge, delete with confirm, blue selected state) + editor panel with name input, **Email Design** tab (Unlayer canvas, `loadDesign` on selection, `exportHtml` on save, spinner until `onReady`, canvas kept mounted across tab switches) and **Campaign Buttons** tab (global multiple-answers toggle, drag-reorder rows with text + color/radius/font/border pickers, live email-style preview). Signature preview block below editor.
+- `TemplatePicker.tsx`: new `onSelect(body, isHtml?)` signature; "Visual" badge for rich templates; `triggerClassName`/`triggerIconSize`/`direction` props for flexible placement; "Manage templates" footer link.
+- `InboxQueue.tsx`: Templates button directly beneath Compose (same blue style); selecting a template opens ComposeModal pre-filled (rich HTML preview card + plain-text body, uses new `templateHtml` field on `ComposeInitialState`).
+- `DraftReview.tsx`: rich template selections converted to plain text via shared `htmlToText` before insertion.
+- `Sidebar.tsx`: Templates NavLink and now-unused `FileText` import removed.
+
+**Deferred to Phase 9C:** `label_id` mapping in campaign buttons, `LabelClickToken` model, `/track/click/{token}` endpoint, and rich-HTML sending pipeline.
+
+---
+
 ### Session 33 — 2026-06-12 (Tier 1: response templates + profile password fix)
 
 **Backend (tickets module):**
