@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-12 (session 39: Tier 3 batch [36b-9] sidebar Settings active-state bug, [36b-1] contact bulk action order, [36b-4] companies search bar, [V8] DeptModal TemplatePicker; session 38: Calendar module — monthly grid, events + sla_due_at deadlines, contact/ticket typeahead; session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
+**Updated:** 2026-06-13 (session 40: [36b-7] clickable sent cards, [36b-5] companies multi-select+bulk, [36b-2] contact inline edit modal, fixed rich template html_body not sent on compose, Platform Modules now shows Calendar+EmailTracking; session 39: Tier 3 batch [36b-9] sidebar Settings active-state bug, [36b-1] contact bulk action order, [36b-4] companies search bar, [V8] DeptModal TemplatePicker; session 38: Calendar module — monthly grid, events + sla_due_at deadlines, contact/ticket typeahead; session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -235,12 +235,12 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 - ~~**[V7] Team page: narrow team members list**~~ ✅ **DONE (session 36)** — team list capped at `max-w-2xl`; DepartmentsPanel widened to `w-80`.
 - ~~**[V8] Department edit modal: add TemplatePicker**~~ ✅ **DONE (session 39)** — `TemplatePicker` embedded in `DeptModal`; selected template body stored as `reply_template` via existing `PATCH/POST /departments` endpoints.
 - ~~**[36b-1] Contact bulk action order**~~ ✅ **DONE (session 39)** — reordered to Compose → Export → Delete.
-- **[36b-2] Contact / company inline edit popup** — `Sonnet` — pencil icon on each contact row and each company row opens an edit modal inline; no page navigation. Reuses existing PATCH endpoints.
+- ~~**[36b-2] Contact inline edit popup**~~ ✅ **DONE (session 40)** — pencil icon on each contact row opens `EditContactModal` (name, email, phone, company, notes); `PATCH /contacts/{id}`. Company rows already had inline edit.
 - **[36b-3] Company filter dropdown in Contacts page** — `Sonnet` — dropdown alongside label-filter chips; uses `?company_id=` param already supported by the backend.
 - ~~**[36b-4] Search bar on Companies page**~~ ✅ **DONE (session 39)** — client-side filter input added to CompaniesTab.
-- **[36b-5] Multi-select on Companies page** — `Sonnet` — checkboxes + select-all; bulk Export CSV + Delete actions. Mirrors Contacts multi-select.
-- **[36b-6] XLSX import broken** — `Sonnet` — fix `.xlsx` import (CSV works); likely missing `openpyxl` in Docker or wrong MIME detection.
-- **[36b-7] Sent tab: match Pending/Processed UI + clickable rows** — `Sonnet` — use the same mail card style as Pending/Processed; each row clickable to open thread/detail.
+- ~~**[36b-5] Multi-select on Companies page**~~ ✅ **DONE (session 40)** — checkboxes + select-all; bulk Export CSV + Delete (sequential individual deletes). `deleteMutation` now takes `string[]`.
+- **[36b-6] XLSX import broken** — `Sonnet` — fix `.xlsx` import (CSV works); `openpyxl` is in `requirements.txt` so likely a Railway build cache issue; force redeploy or check Railway logs.
+- ~~**[36b-7] Sent tab: match Pending/Processed UI + clickable rows**~~ ✅ **DONE (session 40)** — hover border/shadow added; emailtracking rows link to `/inbox/drafts/{draft_id}`, activity-log rows link to draft if `payload.draft_id` is set.
 - ~~**[36b-8] Team page: DepartmentsPanel polish**~~ ✅ **DONE** — proper card (white, border, rounded-2xl, divide rows); header mirrors Team header for exact alignment; `pt-[78px]` hack removed; Add button matches Invite button style.
 - ~~**[36b-9] Sidebar: Settings active state bleeds into superadmin/team/profile pages**~~ ✅ **DONE (session 39)** — custom `settingsActive` via `useLocation` in `Sidebar.tsx`.
 - ~~**[V9] Remove Departments from Settings**~~ ✅ **DONE (session 36)** — `/settings/departments` route removed; `DepartmentsPage` lazy import removed from `App.tsx`; sidebar "Settings" link updated.
