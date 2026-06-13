@@ -98,6 +98,7 @@ function CompaniesTab({ onOpenCompany, triggerCreate, onCreateHandled }: {
   const [showCreate, setShowCreate] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<Set<string>>(new Set())
 
   useEffect(() => { if (triggerCreate) { setShowCreate(true); onCreateHandled() } }, [triggerCreate])
 
@@ -108,11 +109,27 @@ function CompaniesTab({ onOpenCompany, triggerCreate, onCreateHandled }: {
 
   const createMutation = useMutation({ mutationFn: (f: FormState) => api.post('/contacts/companies', toPayload(f)), onSuccess: () => { invalidate(); setShowCreate(false) } })
   const updateMutation = useMutation({ mutationFn: ({ id, f }: { id: string; f: FormState }) => api.patch(`/contacts/companies/${id}`, toPayload(f)), onSuccess: () => { invalidate(); setEditingId(null) } })
-  const deleteMutation = useMutation({ mutationFn: (id: string) => api.delete(`/contacts/companies/${id}`), onSuccess: invalidate })
+  const deleteMutation = useMutation({
+    mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.delete(`/contacts/companies/${id}`))),
+    onSuccess: () => { invalidate(); setSelected(new Set()) },
+  })
 
   const displayed = search
     ? (companies ?? []).filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
     : (companies ?? [])
+
+  const allSelected = displayed.length > 0 && displayed.every(c => selected.has(c.id))
+  function toggleAll() { setSelected(allSelected ? new Set() : new Set(displayed.map(c => c.id))) }
+  function toggle(id: string) {
+    setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  function exportSelectedCsv() {
+    const rows = (companies ?? []).filter(c => selected.has(c.id))
+    const header = 'name,domain,contact_count,notes'
+    const lines = rows.map(c => [c.name, c.domain ?? '', String(c.contact_count), ''].map(v => `"${v.replace(/"/g, '""')}"`).join(','))
+    downloadBlob([header, ...lines].join('\n'), 'companies.csv', 'text/csv')
+  }
 
   if (isLoading) return <CardListSkeleton rows={5} />
 
@@ -132,6 +149,34 @@ function CompaniesTab({ onOpenCompany, triggerCreate, onCreateHandled }: {
           isPending={createMutation.isPending} serverError={createMutation.isError ? errDetail(createMutation.error) : null} />
       )}
 
+      {selected.size > 0 && (
+        <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
+          <span className="text-sm font-semibold text-blue-900">{selected.size} selected</span>
+          <div className="h-4 w-px bg-blue-200" />
+          <button onClick={exportSelectedCsv}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-900">
+            <Download size={14} strokeWidth={2.5} /> Export CSV
+          </button>
+          <button
+            onClick={() => { if (confirm(`Delete ${selected.size} company/companies? Contacts will remain.`)) deleteMutation.mutate([...selected]) }}
+            disabled={deleteMutation.isPending}
+            className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
+            <Trash2 size={14} strokeWidth={2.5} /> Delete
+          </button>
+          <button onClick={() => setSelected(new Set())} className="ml-auto text-slate-400 hover:text-slate-600">
+            <X size={16} />
+          </button>
+        </div>
+      )}
+
+      {displayed.length > 0 && (
+        <div className="flex items-center gap-2 mb-2 px-1">
+          <input type="checkbox" checked={allSelected} onChange={toggleAll}
+            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+          <span className="text-xs text-slate-400">{allSelected ? 'Deselect all' : 'Select all'}</span>
+        </div>
+      )}
+
       <div className="flex flex-col gap-3">
         {displayed.map(company => (
           <div key={company.id}>
@@ -144,27 +189,33 @@ function CompaniesTab({ onOpenCompany, triggerCreate, onCreateHandled }: {
                 serverError={updateMutation.isError ? errDetail(updateMutation.error) : null}
               />
             ) : (
-              <div
-                onClick={() => onOpenCompany(company.id)}
-                className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
-              >
-                <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                  <Building2 size={15} className="text-blue-500" />
+              <div className={`bg-white border rounded-xl p-4 flex items-center gap-3 shadow-sm transition-colors ${selected.has(company.id) ? 'border-blue-300 ring-1 ring-blue-200' : 'border-slate-200'}`}>
+                <div onClick={e => e.stopPropagation()}>
+                  <input type="checkbox" checked={selected.has(company.id)} onChange={() => toggle(company.id)}
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <span className="text-sm font-semibold text-slate-800 block truncate">{company.name}</span>
-                  {company.domain && <span className="text-xs text-slate-400">{company.domain}</span>}
+                <div
+                  onClick={() => onOpenCompany(company.id)}
+                  className="flex flex-1 min-w-0 items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
+                >
+                  <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                    <Building2 size={15} className="text-blue-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-semibold text-slate-800 block truncate">{company.name}</span>
+                    {company.domain && <span className="text-xs text-slate-400">{company.domain}</span>}
+                  </div>
+                  <span className="text-xs text-slate-400 whitespace-nowrap mr-2">
+                    {company.contact_count} contact{company.contact_count !== 1 ? 's' : ''}
+                  </span>
                 </div>
-                <span className="text-xs text-slate-400 whitespace-nowrap mr-2">
-                  {company.contact_count} contact{company.contact_count !== 1 ? 's' : ''}
-                </span>
                 {isAdmin && (
-                  <div className="flex gap-2 shrink-0" onClick={e => e.stopPropagation()}>
+                  <div className="flex gap-2 shrink-0">
                     <button onClick={() => { setEditingId(company.id); setShowCreate(false) }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
                       <Pencil size={11} /> Edit
                     </button>
-                    <button onClick={() => { if (confirm(`Delete "${company.name}"? Contacts will remain without a company.`)) deleteMutation.mutate(company.id) }}
+                    <button onClick={() => { if (confirm(`Delete "${company.name}"? Contacts will remain without a company.`)) deleteMutation.mutate([company.id]) }}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors">
                       <Trash2 size={11} /> Delete
                     </button>
@@ -187,6 +238,82 @@ function CompaniesTab({ onOpenCompany, triggerCreate, onCreateHandled }: {
   )
 }
 
+interface EditContactForm { full_name: string; email: string; phone: string; notes: string; company_id: string }
+
+function EditContactModal({ contact, companies, onClose }: {
+  contact: Contact; companies: Company[]; onClose: () => void
+}) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState<EditContactForm>({
+    full_name: contact.full_name,
+    email: contact.email ?? '',
+    phone: contact.phone ?? '',
+    notes: '',
+    company_id: contact.company?.id ?? '',
+  })
+  const [error, setError] = useState('')
+  const set = (k: keyof EditContactForm) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm(p => ({ ...p, [k]: e.target.value }))
+
+  const mutation = useMutation({
+    mutationFn: () => api.patch(`/contacts/${contact.id}`, {
+      full_name: form.full_name.trim() || undefined,
+      email: form.email.trim() || null,
+      phone: form.phone.trim() || null,
+      notes: form.notes.trim() || null,
+      company_id: form.company_id || null,
+    }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contacts'] }); onClose() },
+    onError: () => setError('Failed to save'),
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Edit contact</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        <form onSubmit={e => { e.preventDefault(); if (!form.full_name.trim()) { setError('Name is required'); return } setError(''); mutation.mutate() }}
+          className="p-6 flex flex-col gap-4">
+          <div>
+            <label className={labelCls}>Name *</label>
+            <input className={inputCls} value={form.full_name} onChange={set('full_name')} autoFocus />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Email</label>
+              <input className={inputCls} type="email" value={form.email} onChange={set('email')} />
+            </div>
+            <div>
+              <label className={labelCls}>Phone</label>
+              <input className={inputCls} value={form.phone} onChange={set('phone')} />
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Company</label>
+            <select className={inputCls} value={form.company_id} onChange={set('company_id')}>
+              <option value="">— No company —</option>
+              {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+            </select>
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex gap-3 pt-1">
+            <button type="submit" disabled={mutation.isPending}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors">
+              {mutation.isPending ? 'Saving…' : 'Save'}
+            </button>
+            <button type="button" onClick={onClose}
+              className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+              Cancel
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function ContactsTab({ initialCompanyFilter }: { initialCompanyFilter: string | null }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -194,6 +321,7 @@ function ContactsTab({ initialCompanyFilter }: { initialCompanyFilter: string | 
   const [labelFilter, setLabelFilter] = useState<string | null>(null)
   const [companyFilter, setCompanyFilter] = useState<string | null>(initialCompanyFilter)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [editingContact, setEditingContact] = useState<Contact | null>(null)
 
   const { data: labels } = useQuery({ queryKey: ['contact-labels'], queryFn: fetchLabels })
   const { data: companies } = useQuery<Company[]>({ queryKey: ['companies'], queryFn: fetchCompanies })
@@ -304,10 +432,11 @@ function ContactsTab({ initialCompanyFilter }: { initialCompanyFilter: string | 
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Labels</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Phone</th>
+              <th className="px-4 py-3 w-10"></th>
             </tr>
           </thead>
           {isLoading ? (
-            <TableSkeleton cols={6} />
+            <TableSkeleton cols={7} />
           ) : (
             <tbody className="divide-y divide-slate-100">
               {items.map(c => (
@@ -345,6 +474,12 @@ function ContactsTab({ initialCompanyFilter }: { initialCompanyFilter: string | 
                     )}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>{c.phone ?? '—'}</td>
+                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    <button onClick={() => setEditingContact(c)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Edit">
+                      <Pencil size={13} />
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -357,6 +492,13 @@ function ContactsTab({ initialCompanyFilter }: { initialCompanyFilter: string | 
           </div>
         )}
       </div>
+      {editingContact && (
+        <EditContactModal
+          contact={editingContact}
+          companies={companies ?? []}
+          onClose={() => setEditingContact(null)}
+        />
+      )}
     </div>
   )
 }

@@ -889,9 +889,15 @@ export default function InboxQueue() {
             )}
             {trackingEnabled && outboundEmails && outboundEmails.length > 0 && (
               <div className="flex flex-col gap-3">
-                {outboundEmails.map((em: any) => (
-                  <div key={em.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                    <div className="flex items-start justify-between gap-3">
+                {outboundEmails.map((em: any) => {
+                  const CardEl = em.draft_id ? Link : 'div'
+                  const cardProps = em.draft_id ? { to: `/inbox/drafts/${em.draft_id}` } : {}
+                  return (
+                    <CardEl
+                      key={em.id}
+                      {...(cardProps as any)}
+                      className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-3 transition-all hover:border-blue-300 hover:shadow-md cursor-pointer"
+                    >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <Send size={13} className="text-slate-400 shrink-0" />
@@ -901,19 +907,26 @@ export default function InboxQueue() {
                             {em.kind === 'compose' ? 'Composed' : 'Reply'}
                           </span>
                         </div>
-                        <p className="text-xs text-slate-500 mb-1">To: {em.to_email}</p>
+                        <p className="text-xs text-slate-500">To: {em.to_email}</p>
                       </div>
                       <p className="text-xs text-slate-400 shrink-0">{new Date(em.created_at).toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
+                    </CardEl>
+                  )
+                })}
               </div>
             )}
             {!trackingEnabled && sentEvents && sentEvents.length > 0 && (
               <div className="flex flex-col gap-3">
-                {sentEvents.map((ev: any) => (
-                  <div key={ev.id} className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-                    <div className="flex items-start justify-between gap-3">
+                {sentEvents.map((ev: any) => {
+                  const draftId = ev.payload?.draft_id
+                  const CardEl = draftId ? Link : 'div'
+                  const cardProps = draftId ? { to: `/inbox/drafts/${draftId}` } : {}
+                  return (
+                    <CardEl
+                      key={ev.id}
+                      {...(cardProps as any)}
+                      className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-3 transition-all hover:border-blue-300 hover:shadow-md cursor-pointer"
+                    >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <Send size={13} className="text-slate-400 shrink-0" />
@@ -924,17 +937,13 @@ export default function InboxQueue() {
                             {ev.event_type === 'email.composed' ? 'Composed' : 'Reply'}
                           </span>
                         </div>
-                        {ev.payload?.to && (
-                          <p className="text-xs text-slate-500 mb-1">To: {ev.payload.to}</p>
-                        )}
-                        {ev.payload?.preview && (
-                          <p className="text-xs text-slate-400 line-clamp-2">{ev.payload.preview}</p>
-                        )}
+                        {ev.payload?.to && <p className="text-xs text-slate-500">To: {ev.payload.to}</p>}
+                        {ev.payload?.preview && <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{ev.payload.preview}</p>}
                       </div>
                       <p className="text-xs text-slate-400 shrink-0">{new Date(ev.created_at).toLocaleString()}</p>
-                    </div>
-                  </div>
-                ))}
+                    </CardEl>
+                  )
+                })}
               </div>
             )}
           </>
