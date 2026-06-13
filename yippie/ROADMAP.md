@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-13 (session 43: [TK1] tickets multi-select + bulk delete ✅ DONE, [36b-3] company filter verified done; 2026-06-13: [36b-8] Team/Departments panel layout reopened; [C1] compose rich template not loaded into editor added; [T1] template editor popup reopened (not live in sandbox); [TK1] tickets multi-select + delete, [UI1] full UI consistency audit added; [36b-5] companies multi-select reopened (not live in sandbox); session 42: Tier 1 checklist reconciliation — [21] onboarding wizard marked ✅ DONE (fully built), RLS description corrected to list 6 missing tables; session 41: [T1] template editor full-screen modal; session 40: [36b-7] clickable sent cards, [36b-5] companies multi-select+bulk, [36b-2] contact inline edit modal, fixed rich template html_body not sent on compose, Platform Modules now shows Calendar+EmailTracking; session 39: Tier 3 batch [36b-9] sidebar Settings active-state bug, [36b-1] contact bulk action order, [36b-4] companies search bar, [V8] DeptModal TemplatePicker; session 38: Calendar module — monthly grid, events + sla_due_at deadlines, contact/ticket typeahead; session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
+**Updated:** 2026-06-14 (session 44: PostgreSQL RLS policies ✅ DONE — migration n4o5p6q7r8s9 adds tenant_isolation on 8 unprotected tables; session 43: [TK1] tickets multi-select + bulk delete ✅ DONE, [36b-3] company filter verified done; 2026-06-13: [36b-8] Team/Departments panel layout reopened; [C1] compose rich template not loaded into editor added; [T1] template editor popup reopened (not live in sandbox); [TK1] tickets multi-select + delete, [UI1] full UI consistency audit added; [36b-5] companies multi-select reopened (not live in sandbox); session 42: Tier 1 checklist reconciliation — [21] onboarding wizard marked ✅ DONE (fully built), RLS description corrected to list 6 missing tables; session 41: [T1] template editor full-screen modal; session 40: [36b-7] clickable sent cards, [36b-5] companies multi-select+bulk, [36b-2] contact inline edit modal, fixed rich template html_body not sent on compose, Platform Modules now shows Calendar+EmailTracking; session 39: Tier 3 batch [36b-9] sidebar Settings active-state bug, [36b-1] contact bulk action order, [36b-4] companies search bar, [V8] DeptModal TemplatePicker; session 38: Calendar module — monthly grid, events + sla_due_at deadlines, contact/ticket typeahead; session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -168,7 +168,7 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 - ~~**[21] Client onboarding wizard**~~ ✅ **DONE (session 17 + polished later)** — `CreateClientModal` in `SuperAdminPage.tsx`: 5-step wizard (Company → Modules → Branding → Admins → Go live). Step 0: name/slug/admin email+password. Step 1: module toggles. Step 2: primary colour + logo URL. Step 3: extra admin emails (each gets an invite email). Step 4: demo vs go-live toggle + summary. Matches the full spec.
 
 ### Architecture & infra
-- **PostgreSQL RLS policies** — `Fable` — *partial:* policies ARE enforced (via migration `c3d4e5f6a7b8`) for the original 14 tables (`contacts`, `tickets`, `ticket_comments`, `response_templates`, `subscriptions`, `invoices`, `payments`, `activity_events`, `inbound_messages`, `draft_tickets`, `departments`, `chat_sessions`, `chat_messages`, `users`) + `tenants` + `calendar_events` (migration `k1l2m3n4o5p6`). **Still missing RLS** on 6 newer tables: `companies`, `contact_labels`, `contact_label_links`, `label_click_tokens`, `outbound_emails`, `pending_sends`. Add a migration that enables RLS + tenant_isolation policy on those 6 tables.
+- ~~**PostgreSQL RLS policies**~~ ✅ **DONE (session 44)** — All tables now covered. Migration `n4o5p6q7r8s9` adds `tenant_isolation` policies to the 8 previously-unprotected tables: `companies`, `contact_labels`, `contact_label_links` (subquery via contacts, no tenant_id), `label_click_tokens`, `outbound_emails`, `pending_sends`, `pipeline_stages`, `contact_pipeline_entries`. Original 14 tables + `tenants` + `calendar_events` already covered by `c3d4e5f6a7b8` + `k1l2m3n4o5p6`.
 - **Per-tenant custom domain** — `Fable` — *not built.* `acme.getyippie.com` → shared Railway service (subdomain/slug-based tenant routing; no public slug-config lookup before login).
 - **Mobile web** — `Fable` — *not built.* Responsive layout (sandbox + devsandbox first).
 - **Billing / plans per client** — `Fable` — billing module (invoices/subscriptions) exists; still need a `Tenant.plan` field that **gates advanced features**.
@@ -313,6 +313,20 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 ---
 
 ## 📎 Appendix A — Session log
+
+---
+
+### Session 44 — 2026-06-14 (Tier 1: PostgreSQL RLS policies)
+
+**Migration:** `n4o5p6q7r8s9` — pushed to `devsandbox` + `devsandbox:sandbox`.
+
+**PostgreSQL RLS — 8 missing tables:**
+- Migration `n4o5p6q7r8s9` (revises `m3n4o5p6q7r8`): adds `ENABLE ROW LEVEL SECURITY`, `FORCE ROW LEVEL SECURITY`, and a `tenant_isolation` policy to all 8 tables that were created after the original RLS migration (`c3d4e5f6a7b8`) and were therefore left unprotected.
+- **Standard policy** (`tenant_id = app_tenant_id()`) applied to 7 tables with a direct `tenant_id` column: `companies`, `contact_labels`, `label_click_tokens`, `outbound_emails`, `pending_sends`, `pipeline_stages`, `contact_pipeline_entries`.
+- **Subquery policy** applied to `contact_label_links` (pure junction table, no `tenant_id`): `EXISTS (SELECT 1 FROM contacts c WHERE c.id = contact_label_links.contact_id AND c.tenant_id = app_tenant_id())` for both `USING` and `WITH CHECK`.
+- Explicit `GRANT SELECT, INSERT, UPDATE, DELETE ... TO app_user` on each table (cheap insurance, same pattern as `k1l2m3n4o5p6`).
+- Migration is idempotent (`DROP POLICY IF EXISTS` before each `CREATE POLICY`).
+- All `app_user` role and `app_tenant_id()` prerequisites come from `c3d4e5f6a7b8`; `ALTER DEFAULT PRIVILEGES` from `c9d0e1f2a3b4` already covered grants, but repeating them is harmless.
 
 ---
 
