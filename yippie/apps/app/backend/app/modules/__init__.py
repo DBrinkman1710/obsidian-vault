@@ -8,6 +8,7 @@ from app.modules.inbox.router import router as inbox_router
 from app.modules.chat.router import router as chat_router
 from app.modules.emailtracking.router import router as emailtracking_router
 from app.modules.calendar.router import router as calendar_router
+from app.modules.pipeline.router import router as pipeline_router
 
 MODULES: dict[str, APIRouter] = {
     "contacts": contacts_router,
@@ -18,4 +19,5 @@ MODULES: dict[str, APIRouter] = {
     "chat": chat_router,
     "emailtracking": emailtracking_router,
     "calendar": calendar_router,
+    "pipeline": pipeline_router,
 }

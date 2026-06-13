@@ -773,16 +773,31 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                     base_url = _get_settings().app_base_url
                     token_map: dict[str, str] = {}
                     for btn in buttons:
-                        label_id_str = btn.get("label_id")
                         btn_id = str(btn.get("id", ""))
-                        if not label_id_str or not btn_id:
+                        action_type = btn.get("action_type", "label")
+                        label_id_str = btn.get("label_id")
+                        stage_id_str = btn.get("stage_id")
+                        if not btn_id:
                             continue
-                        tok = LabelClickToken(
-                            tenant_id=c["tenant_id"],
-                            contact_id=c["contact_id"],
-                            label_id=uuid.UUID(label_id_str),
-                            button_id=btn_id,
-                        )
+                        # Only generate a token when there is a configured action
+                        if action_type == "pipeline_stage" and stage_id_str:
+                            tok = LabelClickToken(
+                                tenant_id=c["tenant_id"],
+                                contact_id=c["contact_id"],
+                                action_type="pipeline_stage",
+                                stage_id=uuid.UUID(stage_id_str),
+                                button_id=btn_id,
+                            )
+                        elif action_type == "label" and label_id_str:
+                            tok = LabelClickToken(
+                                tenant_id=c["tenant_id"],
+                                contact_id=c["contact_id"],
+                                action_type="label",
+                                label_id=uuid.UUID(label_id_str),
+                                button_id=btn_id,
+                            )
+                        else:
+                            continue
                         db.add(tok)
                         await db.flush()
                         token_map[btn_id] = f"{base_url}/api/v1/track/click/{tok.token}"

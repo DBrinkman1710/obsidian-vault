@@ -2,6 +2,10 @@
 
 No auth: contacts click these links from their email client. Mounted in
 main.py alongside the other public routers (prefix /api/v1).
+
+Supported action types:
+- 'label': apply label_id to the contact
+- 'pipeline_stage': move contact to stage_id in the pipeline
 """
 from __future__ import annotations
 
@@ -25,16 +29,25 @@ DB = Annotated[AsyncSession, Depends(get_db)]
 
 @router.get("/click/{token}")
 async def track_click(token: uuid.UUID, db: DB):
-    """Apply the mapped label to the contact, burn the token, redirect to confirm page."""
+    """Apply the configured action to the contact, burn the token, redirect to confirm page."""
     row = await db.get(LabelClickToken, token)
     if not row or row.used_at is not None:
         return RedirectResponse("/track/confirm?expired=1", status_code=302)
 
     row.used_at = datetime.now(timezone.utc)
-    await db.execute(
-        pg_insert(contact_label_links)
-        .values(contact_id=row.contact_id, label_id=row.label_id)
-        .on_conflict_do_nothing()
-    )
+
+    if row.action_type == "pipeline_stage" and row.stage_id is not None:
+        from app.modules.pipeline.service import _assign_stage
+        try:
+            await _assign_stage(db, row.tenant_id, row.contact_id, row.stage_id)
+        except Exception:
+            pass
+    elif row.label_id is not None:
+        await db.execute(
+            pg_insert(contact_label_links)
+            .values(contact_id=row.contact_id, label_id=row.label_id)
+            .on_conflict_do_nothing()
+        )
+
     await db.commit()
     return RedirectResponse("/track/confirm", status_code=302)

@@ -14,6 +14,7 @@ const InboxQueue    = lazy(() => import('./modules/inbox/pages/InboxQueue'))
 const DraftReview   = lazy(() => import('./modules/inbox/pages/DraftReview'))
 const ChatPage      = lazy(() => import('./modules/chat/pages/ChatPage'))
 const CalendarPage  = lazy(() => import('./modules/calendar/CalendarPage'))
+const PipelinePage  = lazy(() => import('./modules/pipeline/PipelinePage'))
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
 const LoginPage          = lazy(() => import('./auth/LoginPage'))
@@ -175,6 +176,10 @@ export default function App() {
 
               <Route path="/calendar" element={
                 <ModuleGate module="calendar"><PagePad><CalendarPage /></PagePad></ModuleGate>
+              } />
+
+              <Route path="/pipeline" element={
+                <ModuleGate module="pipeline"><PagePad><PipelinePage /></PagePad></ModuleGate>
               } />
 
               <Route path="/chat" element={

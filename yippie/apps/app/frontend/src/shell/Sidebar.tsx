@@ -2,7 +2,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
-  MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle,
+  MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
   type LucideIcon,
 } from 'lucide-react'
 import { useTenantConfig } from '../App'
@@ -14,6 +14,7 @@ const MODULE_MAP: Record<string, { label: string; Icon: LucideIcon; path: string
   contacts: { label: 'Contacts',  Icon: Users,         path: '/contacts' },
   tickets:  { label: 'Tickets',   Icon: ClipboardList, path: '/tickets' },
   calendar: { label: 'Calendar',  Icon: Calendar,      path: '/calendar' },
+  pipeline: { label: 'Pipeline',  Icon: Kanban,        path: '/pipeline' },
   activity: { label: 'Activity',  Icon: Activity,      path: '/activity' },
   billing:  { label: 'Billing',   Icon: CreditCard,    path: '/billing' },
   chat:     { label: 'Live Chat', Icon: MessageSquare, path: '/chat' },

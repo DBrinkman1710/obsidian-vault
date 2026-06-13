@@ -19,14 +19,16 @@ interface Template {
 interface CampaignButton {
   id: string
   text: string
+  action_type: 'label' | 'pipeline_stage'
   label_id: string | null
-  multiple_allowed: boolean
+  stage_id: string | null
 }
 
 interface ContactLabel { id: string; name: string; color: string }
+interface PipelineStage { id: string; name: string; color: string }
 
 function newCampaignButton(id: string, text: string): CampaignButton {
-  return { id, text, label_id: null, multiple_allowed: false }
+  return { id, text, action_type: 'label', label_id: null, stage_id: null }
 }
 
 function stripHtml(text: string): string {
@@ -61,7 +63,12 @@ function parseButtons(raw: string | null): CampaignButton[] {
   if (!raw) return []
   try {
     const parsed = JSON.parse(raw)
-    return Array.isArray(parsed) ? parsed : []
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(b => ({
+      ...b,
+      action_type: b.action_type ?? 'label',
+      stage_id: b.stage_id ?? null,
+    }))
   } catch {
     return []
   }
@@ -92,6 +99,11 @@ export default function TemplatesPage() {
     queryFn: () => api.get('/contacts/labels').then(r => r.data),
   })
 
+  const { data: stages = [] } = useQuery<PipelineStage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+  })
+
   const hasSelection = isNew || selectedId !== null
 
   const updateButton = (id: string, patch: Partial<CampaignButton>) =>
@@ -103,7 +115,7 @@ export default function TemplatesPage() {
       detected.map(d => {
         const existing = prev.find(b => b.text === d.text)
         return existing
-          ? { id: existing.id, text: d.text, label_id: existing.label_id, multiple_allowed: existing.multiple_allowed }
+          ? { id: existing.id, text: d.text, action_type: existing.action_type, label_id: existing.label_id, stage_id: existing.stage_id }
           : newCampaignButton(d.id, d.text)
       })
     )
@@ -367,35 +379,47 @@ export default function TemplatesPage() {
             <div className="mx-5 mb-5 mt-3 shrink-0 border border-slate-200 rounded-xl bg-white overflow-y-auto max-h-[200px]">
               <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
                 <MousePointerClick size={13} className="text-blue-500" />
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Button Labels</span>
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Button Actions</span>
               </div>
               {buttons.length === 0 ? (
                 <p className="px-4 py-3 text-[11px] text-slate-400">
-                  Add a Button block to your email design to attach a label to it.
+                  Add a Button block to your email design to attach an action to it.
                 </p>
               ) : (
                 buttons.map(b => (
-                  <div key={b.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0 border-slate-50">
-                    <span className="shrink-0 max-w-[160px] truncate px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold" title={b.text}>
+                  <div key={b.id} className="px-4 py-2.5 border-b last:border-0 border-slate-50 space-y-1.5">
+                    <span className="inline-block max-w-full truncate px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-semibold" title={b.text}>
                       {b.text}
                     </span>
-                    <select
-                      className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                      value={b.label_id ?? ''}
-                      onChange={e => updateButton(b.id, { label_id: e.target.value || null })}
-                    >
-                      <option value="">No label</option>
-                      {labels?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                    </select>
-                    <label className="flex items-center gap-1.5 shrink-0 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={b.multiple_allowed}
-                        onChange={e => updateButton(b.id, { multiple_allowed: e.target.checked })}
-                        className="w-3.5 h-3.5 accent-blue-600"
-                      />
-                      <span className="text-[11px] text-slate-500">Multi</span>
-                    </label>
+                    <div className="flex gap-2">
+                      <select
+                        className="w-32 shrink-0 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                        value={b.action_type}
+                        onChange={e => updateButton(b.id, { action_type: e.target.value as 'label' | 'pipeline_stage', label_id: null, stage_id: null })}
+                      >
+                        <option value="label">Apply label</option>
+                        <option value="pipeline_stage">Pipeline stage</option>
+                      </select>
+                      {b.action_type === 'label' ? (
+                        <select
+                          className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                          value={b.label_id ?? ''}
+                          onChange={e => updateButton(b.id, { label_id: e.target.value || null })}
+                        >
+                          <option value="">No label</option>
+                          {labels?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                        </select>
+                      ) : (
+                        <select
+                          className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                          value={b.stage_id ?? ''}
+                          onChange={e => updateButton(b.id, { stage_id: e.target.value || null })}
+                        >
+                          <option value="">No stage</option>
+                          {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                        </select>
+                      )}
+                    </div>
                   </div>
                 ))
               )}

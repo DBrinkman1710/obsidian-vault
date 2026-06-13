@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Clock, Pencil } from 'lucide-react'
+import { Plus, Clock, Pencil, Kanban } from 'lucide-react'
 import { api } from '../../../api/client'
 import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelChip'
 import { CompanyBadge, type CompanyRef } from '../components/CompanyBadge'
 import { CompanyPicker } from '../components/CompanyPicker'
+import { useTenantConfig } from '../../../App'
 
 function formatEventType(s: string): string {
   return s.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -30,6 +31,106 @@ function payloadSummary(payload: any): string | null {
   if (payload.from_status && payload.to_status) return `${payload.from_status} → ${payload.to_status}`
   if (payload.status) return `Status: ${payload.status}`
   return null
+}
+
+interface PipelineStage { id: string; name: string; color: string; contact_count?: number }
+
+function PipelineStageBlock({ contactId }: { contactId: string }) {
+  const qc = useQueryClient()
+  const config = useTenantConfig()
+  const [editing, setEditing] = useState(false)
+  const [selectedId, setSelectedId] = useState<string>('')
+
+  const isPipelineEnabled = config?.enabled_modules?.includes('pipeline') ?? false
+
+  const { data: stage } = useQuery<PipelineStage | null>({
+    queryKey: ['contact-pipeline-stage', contactId],
+    queryFn: () => api.get(`/pipeline/contacts/${contactId}/stage`).then(r => r.data),
+    enabled: isPipelineEnabled,
+  })
+
+  const { data: allStages = [] } = useQuery<PipelineStage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    enabled: isPipelineEnabled && editing,
+  })
+
+  const moveMut = useMutation({
+    mutationFn: (stageId: string) => api.put(`/pipeline/contacts/${contactId}/stage`, { stage_id: stageId }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contact-pipeline-stage', contactId] }); qc.invalidateQueries({ queryKey: ['pipeline-board'] }); setEditing(false) },
+  })
+
+  const removeMut = useMutation({
+    mutationFn: () => api.delete(`/pipeline/contacts/${contactId}/stage`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contact-pipeline-stage', contactId] }); qc.invalidateQueries({ queryKey: ['pipeline-board'] }) },
+  })
+
+  if (!isPipelineEnabled) return null
+
+  return (
+    <div className="mb-6">
+      <div className="flex items-center gap-2 mb-2">
+        <Kanban size={12} className="text-slate-400" />
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pipeline</p>
+        {stage && !editing && (
+          <button
+            onClick={() => { setSelectedId(stage.id); setEditing(true) }}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <Pencil size={10} />
+            Change
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="space-y-2">
+          <select
+            autoFocus
+            value={selectedId}
+            onChange={e => setSelectedId(e.target.value)}
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          >
+            <option value="">Select stage…</option>
+            {allStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <div className="flex gap-2">
+            <button
+              onClick={() => { if (selectedId) moveMut.mutate(selectedId) }}
+              disabled={!selectedId || moveMut.isPending}
+              className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors"
+            >
+              Save
+            </button>
+            <button
+              onClick={() => setEditing(false)}
+              className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : stage ? (
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
+          <span className="text-sm font-semibold text-slate-700">{stage.name}</span>
+          <button
+            onClick={() => { if (confirm('Remove from pipeline?')) removeMut.mutate() }}
+            className="ml-auto text-xs text-slate-400 hover:text-red-500 transition-colors"
+          >
+            Remove
+          </button>
+        </div>
+      ) : (
+        <button
+          onClick={() => { setSelectedId(''); setEditing(true) }}
+          className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
+        >
+          + Add to pipeline
+        </button>
+      )}
+    </div>
+  )
 }
 
 export default function ContactDetail() {
@@ -104,6 +205,7 @@ export default function ContactDetail() {
       </div>
 
       <div className="w-64 flex-shrink-0">
+        <PipelineStageBlock contactId={id!} />
         <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Recent Moments</p>
         {!recentMoments || recentMoments.length === 0 ? (
           <p className="text-sm text-slate-400">No activity yet.</p>
