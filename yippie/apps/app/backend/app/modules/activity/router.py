@@ -10,7 +10,6 @@ from app.auth.dependencies import CurrentUser
 from app.database import get_db
 from app.modules.activity import service
 from app.modules.activity.schemas import ActivityEventOut
-from app.modules.tickets import service as ticket_service
 from typing import Annotated
 
 router = APIRouter(prefix="/activity", tags=["activity"])
@@ -29,7 +28,7 @@ async def list_activity(
 
 @router.get("/stats")
 async def get_stats(current_user: CurrentUser, db: DB):
-    return await ticket_service.get_ticket_stats(db, current_user.tenant_id)
+    return await service.get_activity_stats(db, current_user.tenant_id)
 
 
 @router.get("/contacts/{contact_id}", response_model=list[ActivityEventOut])

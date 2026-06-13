@@ -12,6 +12,7 @@ class ActivityEventOut(BaseModel):
     tenant_id: uuid.UUID
     contact_id: Optional[uuid.UUID]
     actor_id: Optional[uuid.UUID]
+    actor_name: Optional[str] = None
     module: str
     event_type: str
     entity_type: str

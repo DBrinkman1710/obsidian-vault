@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import AdminUser, CurrentUser
 from app.database import get_db
+from app.modules.activity import service as activity_service
 from app.modules.tickets import service
 from app.modules.tickets.models import TicketStatus
 from app.modules.tickets.schemas import (
@@ -48,9 +49,17 @@ async def list_tickets(
 @router.post("", response_model=TicketOut, status_code=status.HTTP_201_CREATED)
 async def create_ticket(body: TicketCreate, current_user: CurrentUser, db: DB):
     try:
-        return await service.create_ticket(db, current_user.tenant_id, current_user.id, body)
+        ticket = await service.create_ticket(db, current_user.tenant_id, current_user.id, body)
     except service.TenantScopeError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    await activity_service.log_event(
+        db, current_user.tenant_id,
+        module="tickets", event_type="ticket_created", entity_type="ticket",
+        entity_id=ticket.id, contact_id=ticket.contact_id, actor_id=current_user.id,
+        payload={"subject": ticket.subject, "priority": ticket.priority.value if hasattr(ticket.priority, "value") else ticket.priority},
+    )
+    await db.commit()
+    return ticket
 
 
 # NOTE: static /templates routes must be declared BEFORE the dynamic /{ticket_id}
@@ -112,9 +121,19 @@ async def update_ticket(ticket_id: uuid.UUID, body: TicketUpdate, current_user: 
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     try:
-        return await service.update_ticket(db, ticket, body)
+        updated = await service.update_ticket(db, ticket, body)
     except service.TenantScopeError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    fields = body.model_dump(exclude_unset=True)
+    if "assigned_to" in fields:
+        await activity_service.log_event(
+            db, current_user.tenant_id,
+            module="tickets", event_type="ticket_assigned", entity_type="ticket",
+            entity_id=updated.id, contact_id=updated.contact_id, actor_id=current_user.id,
+            payload={"assigned_to": str(fields["assigned_to"]) if fields["assigned_to"] else None},
+        )
+        await db.commit()
+    return updated
 
 
 @router.patch("/{ticket_id}/status", response_model=TicketOut)
@@ -122,7 +141,15 @@ async def change_status(ticket_id: uuid.UUID, body: TicketStatusUpdate, current_
     ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    return await service.change_status(db, ticket, body.status)
+    updated = await service.change_status(db, ticket, body.status)
+    await activity_service.log_event(
+        db, current_user.tenant_id,
+        module="tickets", event_type="ticket_status_changed", entity_type="ticket",
+        entity_id=updated.id, contact_id=updated.contact_id, actor_id=current_user.id,
+        payload={"status": body.status.value},
+    )
+    await db.commit()
+    return updated
 
 
 @router.post("/{ticket_id}/delete", status_code=status.HTTP_200_OK)
@@ -149,4 +176,12 @@ async def add_comment(ticket_id: uuid.UUID, body: CommentCreate, current_user: C
     ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    return await service.add_comment(db, current_user.tenant_id, ticket, current_user.id, body)
+    comment = await service.add_comment(db, current_user.tenant_id, ticket, current_user.id, body)
+    await activity_service.log_event(
+        db, current_user.tenant_id,
+        module="tickets", event_type="ticket_commented", entity_type="ticket",
+        entity_id=ticket.id, contact_id=ticket.contact_id, actor_id=current_user.id,
+        payload={"preview": body.body[:100]},
+    )
+    await db.commit()
+    return comment

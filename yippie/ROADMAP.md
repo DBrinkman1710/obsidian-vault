@@ -1,5 +1,5 @@
 # Yippie — Roadmap
-**Updated:** 2026-06-13 (session 41: [T1] template editor full-screen modal; session 40: [36b-7] clickable sent cards, [36b-5] companies multi-select+bulk, [36b-2] contact inline edit modal, fixed rich template html_body not sent on compose, Platform Modules now shows Calendar+EmailTracking; session 39: Tier 3 batch [36b-9] sidebar Settings active-state bug, [36b-1] contact bulk action order, [36b-4] companies search bar, [V8] DeptModal TemplatePicker; session 38: Calendar module — monthly grid, events + sla_due_at deadlines, contact/ticket typeahead; session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
+**Updated:** 2026-06-13 (2026-06-13: [36b-8] Team/Departments panel layout reopened; [C1] compose rich template not loaded into editor added; [T1] template editor popup reopened (not live in sandbox); [TK1] tickets multi-select + delete, [UI1] full UI consistency audit added; [36b-5] companies multi-select reopened (not live in sandbox); session 42: Tier 1 checklist reconciliation — [21] onboarding wizard marked ✅ DONE (fully built), RLS description corrected to list 6 missing tables; session 41: [T1] template editor full-screen modal; session 40: [36b-7] clickable sent cards, [36b-5] companies multi-select+bulk, [36b-2] contact inline edit modal, fixed rich template html_body not sent on compose, Platform Modules now shows Calendar+EmailTracking; session 39: Tier 3 batch [36b-9] sidebar Settings active-state bug, [36b-1] contact bulk action order, [36b-4] companies search bar, [V8] DeptModal TemplatePicker; session 38: Calendar module — monthly grid, events + sla_due_at deadlines, contact/ticket typeahead; session 37: Phase 9C tracked-click tokens, T2 campaign buttons as Unlayer blocks, emailtracking module; post-36b: bulk action order, inline edit popups, company dropdown/search/multi-select, XLSX fix, Sent UI, departments polish, sidebar active-state bug [36b-1–9]; session 36b — contacts import/export/multi-select [29][40][20]; session 36 Tier 3 batch V2 V3 V5 V6 V7 V9-V11 TE1 TE2)
 **Repo:** github.com/DBrinkman1710/obsidian-vault
 **Branch:** `sandbox` / `devsandbox`
 
@@ -37,7 +37,7 @@ environment / deploy reference lives in **Appendix B**.
 - ~~**Deadline indicator redesign**~~ ✅ **DONE (session 29)** — two numeric count badges (red + orange) on the Tickets nav; backend uses per-tenant thresholds.
 - ~~**Inbox fetch dot**~~ ✅ **DONE (session 29)** — grey when idle, solid green when fetching, no glow.
 - ~~**Hotkeys on/off toggle**~~ ✅ **DONE (session 27)** — per-user toggle in Profile.
-- **Activity page blank** — sandbox shows a completely white page. Needs root-cause investigation (route rendering crash / missing data guard / empty-state bug). Screenshot confirmed 2026-06-11.
+- ~~**Activity page blank**~~ ✅ **DONE (session 42)** — rebuilt `ActivityFeed.tsx`: stat cards now show real activity counts (today/this week/all time) via new `service.get_activity_stats()`; event rows humanized with actor name, colored module dot, clickable links to tickets/inbox drafts; typed `ActivityEventOut` interface (no more `any`). Removed `ticket_service` proxy from `/activity/stats`. Tickets now emit `ticket_created`, `ticket_status_changed`, `ticket_assigned`, `ticket_commented` events via `activity_service.log_event` in `tickets/router.py`. `list_events()` LEFT JOINs users table to resolve `actor_name`.
 - **Attachments** — forward now carries attachments, pickers enforce 10/25 MB caps. **Verify in sandbox**.
 
 **New items collected (session 30 — 2026-06-11):**
@@ -54,7 +54,7 @@ environment / deploy reference lives in **Appendix B**.
 
 **New items collected (session 34 — 2026-06-12):**
 
-- **[V1] Sent inbox not showing mails** — Sent tab (session 32) fetches `/activity?limit=500`; it is empty because the Activity page/endpoint itself is broken (see existing "Activity page blank" bug above). Fix the Activity module and the Sent tab will populate automatically. See Tier 3.
+- ~~**[V1] Sent inbox not showing mails**~~ ✅ **DONE (session 42)** — Activity module repaired (see above); Sent tab's `/activity?limit=500` call now returns inbox events correctly.
 - **[V2] All contacts button in compose broken** — "All contacts" button in ComposeModal's ContactSearchPicker does not populate the recipient list. Was made lazy in session 24 (fetchQuery on click); the click handler may be wired incorrectly. See Tier 3.
 - **[V3] Compose: default From = personal mail when in personal inbox** — When the user is viewing their personal inbox and opens ComposeModal, the From field should pre-select their personal address (`user.inbound_email`). User can switch it manually. See Tier 3.
 - **[V4] Profile: narrow email/signature box** — The signature card is currently flexible-width; make it slightly narrower so the Change Password card (280 px) sits comfortably beside it without cramping. See Tier 3.
@@ -119,6 +119,11 @@ environment / deploy reference lives in **Appendix B**.
 - klimaatexamen tenant `inbound_email` is NULL → use Clients → Edit → Info tab (now available via [38c]).
 - Set `INBOUND_EMAIL` in both live Railway envs before go-live.
 
+**New items collected (2026-06-13):**
+
+- **[TK1] Multi-select on Tickets page** — `Sonnet` — per-row checkboxes + "Select all" header checkbox on the Tickets list. Bulk action bar: **Delete** (confirm modal → soft-delete, same pattern as `DELETE /contacts/bulk`). Mirrors the Contacts multi-select pattern (`[20]`). No export needed. See Tier 3.
+- **[UI1] Full UI consistency audit & polish** — `Opus` — review every page/component for visual inconsistencies: button sizes/colours/variants, modal sizes (must all match), spacing, typography, card styles, icon sizes, empty states, loading skeletons, error states. Fix anything that deviates from the established pattern. See Tier 2.
+
 **Deploy reminder:** both staging envs build the **`sandbox`** branch — ship with
 `git push origin devsandbox:sandbox`, `/verify` in sandbox, then promote. `migrations/env.py`
 takes a Postgres advisory lock so the two shared-DB containers can't race DDL.
@@ -160,10 +165,10 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 - **[Phase 12] Demo-request → auto-provisioned demo** — `Fable` — *foundations exist* (demo mode blocks real sends; `go_live_job` scheduler flips demo→active). Still to build: public request-demo form → auto-create `is_demo=true` tenant in live → set-password invite → 7-day auto-inactivate expiry job → notify `diederik@` → save prospect as Contact labeled "potential client: demo" → open a 3-day follow-up ticket. Plus **build-first, invite-later** (create in demo with no admin; send invite from Settings when ready; then flip to live). Reuses `auth/invite.py`, `admin/service.py create_tenant`.
 
 ### Onboarding (big)
-- **[21] Client onboarding wizard** — `Fable` — *partial* (a create flow shipped session 17). Full guided multi-step redesign: company+contact+admin email → modules → branding → extra admins → demo/go-live; invite email on creation.
+- ~~**[21] Client onboarding wizard**~~ ✅ **DONE (session 17 + polished later)** — `CreateClientModal` in `SuperAdminPage.tsx`: 5-step wizard (Company → Modules → Branding → Admins → Go live). Step 0: name/slug/admin email+password. Step 1: module toggles. Step 2: primary colour + logo URL. Step 3: extra admin emails (each gets an invite email). Step 4: demo vs go-live toggle + summary. Matches the full spec.
 
 ### Architecture & infra
-- **PostgreSQL RLS policies** — `Fable` — *partial:* `set_tenant_context` sets `app.current_tenant_id` and an `enable_rls` migration + `app_user` grants exist, but the actual row-level **policies aren't enforced yet**. Write + enable them as defense-in-depth.
+- **PostgreSQL RLS policies** — `Fable` — *partial:* policies ARE enforced (via migration `c3d4e5f6a7b8`) for the original 14 tables (`contacts`, `tickets`, `ticket_comments`, `response_templates`, `subscriptions`, `invoices`, `payments`, `activity_events`, `inbound_messages`, `draft_tickets`, `departments`, `chat_sessions`, `chat_messages`, `users`) + `tenants` + `calendar_events` (migration `k1l2m3n4o5p6`). **Still missing RLS** on 6 newer tables: `companies`, `contact_labels`, `contact_label_links`, `label_click_tokens`, `outbound_emails`, `pending_sends`. Add a migration that enables RLS + tenant_isolation policy on those 6 tables.
 - **Per-tenant custom domain** — `Fable` — *not built.* `acme.getyippie.com` → shared Railway service (subdomain/slug-based tenant routing; no public slug-config lookup before login).
 - **Mobile web** — `Fable` — *not built.* Responsive layout (sandbox + devsandbox first).
 - **Billing / plans per client** — `Fable` — billing module (invoices/subscriptions) exists; still need a `Tenant.plan` field that **gates advanced features**.
@@ -195,6 +200,9 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 
 ### Inbox
 - **[I1] Inbox search** — `Opus` — search bar spanning Pending, Processed, and Sent tabs; query does **not** clear when switching tabs. Place the search bar next to the "Sent" label at the same height. When idle (no query): show trending topics in light grey, refreshed every 15 min. Sent tab: paginate at 9 mails per page (same cadence as Pending). Processed tab: convert existing inline filter pills to a dropdown menu.
+
+### UI consistency
+- **[UI1] Full UI consistency audit & polish** — `Opus` — review every page and component for visual inconsistencies: button sizes/colours/variants, modal sizes (must all match — locked in session 30), spacing, typography, card border/shadow styles, icon sizes, empty states, loading skeletons, error states. Fix anything that deviates from the established platform pattern. No new features — purely a visual correctness pass.
 
 ### Bugs & config
 - **[W1] Klimaatexamen primary colour not applied** — `Opus` — user changed `primary_color` via Clients → Edit → Branding tab but the colour does not appear in the app for that tenant. Likely a stale-config issue: `GET /tenant/config` may not be re-fetched after the superadmin PATCH, or the sidebar inline style isn't picking up the new value for that tenant's session. Investigate and fix.
@@ -238,18 +246,20 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 - ~~**[36b-2] Contact inline edit popup**~~ ✅ **DONE (session 40)** — pencil icon on each contact row opens `EditContactModal` (name, email, phone, company, notes); `PATCH /contacts/{id}`. Company rows already had inline edit.
 - **[36b-3] Company filter dropdown in Contacts page** — `Sonnet` — dropdown alongside label-filter chips; uses `?company_id=` param already supported by the backend.
 - ~~**[36b-4] Search bar on Companies page**~~ ✅ **DONE (session 39)** — client-side filter input added to CompaniesTab.
-- ~~**[36b-5] Multi-select on Companies page**~~ ✅ **DONE (session 40)** — checkboxes + select-all; bulk Export CSV + Delete (sequential individual deletes). `deleteMutation` now takes `string[]`.
+- **[36b-5] Multi-select on Companies page** — `Sonnet` — per-row checkboxes + "Select all" header checkbox on the Companies list. Bulk action bar: **Export CSV** and **Delete** (confirm modal → soft-delete). Mirrors the Contacts multi-select pattern (`[20]`). See Tier 3.
+- **[TK1] Multi-select on Tickets page** — `Sonnet` — per-row checkboxes + "Select all" header checkbox on the Tickets list. Bulk action bar: **Delete** (confirm modal → soft-delete). Backend: reuse the `deleted_at` soft-delete pattern from contacts (`DELETE /contacts/bulk`) — add `DELETE /tickets/bulk` with `{ids: [...]}`. Frontend: mirrors `ContactsPage.tsx` multi-select implementation (`[20]`). No export needed.
 - **[36b-6] XLSX import broken** — `Sonnet` — fix `.xlsx` import (CSV works); `openpyxl` is in `requirements.txt` so likely a Railway build cache issue; force redeploy or check Railway logs.
 - ~~**[36b-7] Sent tab: match Pending/Processed UI + clickable rows**~~ ✅ **DONE (session 40)** — hover border/shadow added; emailtracking rows link to `/inbox/drafts/{draft_id}`, activity-log rows link to draft if `payload.draft_id` is set.
-- ~~**[36b-8] Team page: DepartmentsPanel polish**~~ ✅ **DONE** — proper card (white, border, rounded-2xl, divide rows); header mirrors Team header for exact alignment; `pt-[78px]` hack removed; Add button matches Invite button style.
+- **[36b-8] Team page: DepartmentsPanel polish** — `Sonnet` — **REOPENED (not live in sandbox)** — the Departments column currently has no surrounding card/border container: department items float without a panel that matches the Team members table. Fix: wrap the departments list in the same `white border rounded-2xl` card as the Team table; align the "Departments" title + "+ Add" button header to the exact same height as the "Team" title + "Invite" button; use consistent padding/spacing so both columns look like a cohesive two-panel layout.
 - ~~**[36b-9] Sidebar: Settings active state bleeds into superadmin/team/profile pages**~~ ✅ **DONE (session 39)** — custom `settingsActive` via `useLocation` in `Sidebar.tsx`.
 - ~~**[V9] Remove Departments from Settings**~~ ✅ **DONE (session 36)** — `/settings/departments` route removed; `DepartmentsPage` lazy import removed from `App.tsx`; sidebar "Settings" link updated.
 - ~~**[V10] Add contact labels to Settings page**~~ ✅ **DONE (session 36)** — `/settings` route now renders `LabelsPage`; sidebar "Settings" → `/settings`.
 - ~~**[V11] Remove standalone Labels page**~~ ✅ **DONE (session 36)** — `/settings/labels` route and "Labels" sidebar link removed.
-- **[T1] Template editor: full-screen pop-up modal** — `Sonnet` — when creating or editing a template, open the editor in a large modal/dialog rather than the current two-panel split on `/settings/templates`. Gives users enough vertical and horizontal space to build templates comfortably. The template list stays on the page behind the modal; modal has close/save in its header.
+- **[T1] Template editor: full-screen pop-up modal** — `Sonnet` — **REOPENED (not live in sandbox)** — when clicking + (new template) or an existing template on `/settings/templates`, open the Unlayer editor in a large overlay modal (`fixed inset-0 z-50`, ~90vw × 90vh) instead of the current two-panel split. Template list stays on the page behind the modal; modal header has template name input + Save + × close; `EmailEditor` stays mounted after first open (`editorEverOpened` flag + `opacity-0 pointer-events-none` when closed) to avoid Unlayer re-init cost.
 - ~~**[TE1] Template editor: remove object deletion warning**~~ ✅ **DONE (session 36)** — `editor: { confirmOnDelete: false }` added to Unlayer options.
 - ~~**[TE2] Signature: move inside template content area**~~ ✅ **DONE (session 36)** — signature preview now renders as a `rounded-b-xl` footer attached to the bottom of the Unlayer canvas border; separate bottom card removed.
 - **[TE4] Template editor: AI tip tooltip on HTML button** — `Sonnet` — when hovering over the HTML/source button in the template editor, show a small tooltip: "Tip: Use AI to create a mail with HTML". Nudges users toward the AI compose flow for rich content.
+- **[C1] Compose: rich template not loaded into editor** — `Sonnet` — when selecting a rich (Unlayer/HTML) template in ComposeModal, the message body text area only shows the plain-text fallback ("test") instead of the template's HTML content. The `TemplatePicker` passes `html_body` via `onSelect(body, isHtml)` but ComposeModal is not injecting the HTML into the rich editor when `isHtml=true`. Fix so that selecting a rich template populates the compose editor with the full HTML content (displayed as a rendered preview), while plain-text templates continue to populate the plain textarea as before.
 - **[35-backlog] More hotkeys** — `Sonnet` — ~~`c` compose, `Esc` close compose, `g i` go to inbox~~ ✅ **DONE (session 32)**. Still open: `r` reply, `e` archive/process, `j`/`k` next/prev, `/` focus search.
 - **[43] Ticket deadline reminder toast** — `Sonnet` — *banners + sidebar badge already shipped (`[34]`);* add the small toast when a ticket nears `follow_up_at`.
 - **[48] Clickable rows everywhere** — `Sonnet` — *mostly done* (inbox cards + contact rows open on full-row click); finish the convention on any remaining lists (e.g. tickets) and treat it as standing.
