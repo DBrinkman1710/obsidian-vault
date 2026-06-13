@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import uuid
@@ -20,7 +21,7 @@ from app.core.email_html import render_email_html
 from app.core.mailer import ResendNotConfiguredError, email_domain, is_valid_email, send_email
 from app.core.models import Tenant
 from app.core.tenant import resolve_tenant_by_slug
-from app.database import get_db
+from app.database import get_db, db_session
 from app.modules.activity import service as activity_service
 from app.modules.departments import service as dept_service
 from app.modules.departments.schemas import DepartmentOut
@@ -39,6 +40,13 @@ class ForwardRequest(BaseModel):
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
 DB = Annotated[AsyncSession, Depends(get_db)]
+
+
+async def _flush_after(delay_seconds: float) -> None:
+    """Fire a one-shot flush once the undo window has expired."""
+    await asyncio.sleep(delay_seconds)
+    async with db_session() as db:
+        await service.flush_pending_sends(db)
 
 # Attachment limits, mirroring typical provider caps.
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024        # 10 MB per file
@@ -285,6 +293,9 @@ async def send_reply(
         attachments_json=attachments_json,
         from_email=from_email or None,
     )
+    # Kick off a one-shot flush ~0.5s after the undo window closes so the email
+    # goes out promptly instead of waiting up to 5s for the scheduler tick.
+    asyncio.create_task(_flush_after((send_at - datetime.now(timezone.utc)).total_seconds() + 0.5))
     return {"queued": True, "to": msg.sender, "subject": subject, "undo_until": send_at.isoformat(), "undo_seconds": 5}
 
 
@@ -502,6 +513,7 @@ async def compose_send(
     # server hold vs 5s UI countdown margin as send-reply.
     compose_id = uuid.uuid4()
     send_at = datetime.now(timezone.utc) + timedelta(seconds=8)
+    asyncio.create_task(_flush_after((send_at - datetime.now(timezone.utc)).total_seconds() + 0.5))
     for recipient in recipients:
         # Phase 9C: tracked campaign buttons need a contact to apply the label
         # to, so resolve each recipient to a contact by email (best effort).

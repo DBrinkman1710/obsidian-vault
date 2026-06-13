@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, String, Text
+from sqlalchemy import DateTime, Enum, ForeignKey, Index, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -85,6 +85,11 @@ class DraftTicket(Base):
     status_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
+    __table_args__ = (
+        # enrich_queued_drafts runs every 10s with FOR UPDATE SKIP LOCKED on ai_status='queued'
+        Index("ix_draft_tickets_ai_status_status_created", "ai_status", "status", "created_at"),
+    )
+
 
 class PendingSend(Base):
     __tablename__ = "pending_sends"
@@ -108,3 +113,8 @@ class PendingSend(Base):
     campaign_buttons_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     prerendered_html: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (
+        # flush_pending_sends queries send_at <= now every 5s
+        Index("ix_pending_sends_send_at", "send_at"),
+    )
