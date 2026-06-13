@@ -87,8 +87,7 @@ function CompanyForm({ initial, onSave, onCancel, isPending, serverError }: {
   )
 }
 
-function CompaniesTab({ onOpenCompany, triggerCreate, onCreateHandled }: {
-  onOpenCompany: (id: string) => void
+function CompaniesTab({ triggerCreate, onCreateHandled }: {
   triggerCreate: boolean
   onCreateHandled: () => void
 }) {
@@ -194,10 +193,7 @@ function CompaniesTab({ onOpenCompany, triggerCreate, onCreateHandled }: {
                   <input type="checkbox" checked={selected.has(company.id)} onChange={() => toggle(company.id)}
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
                 </div>
-                <div
-                  onClick={() => onOpenCompany(company.id)}
-                  className="flex flex-1 min-w-0 items-center gap-3 cursor-pointer hover:opacity-80 transition-opacity"
-                >
+                <div className="flex flex-1 min-w-0 items-center gap-3">
                   <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
                     <Building2 size={15} className="text-blue-500" />
                   </div>
@@ -314,21 +310,20 @@ function EditContactModal({ contact, companies, onClose }: {
   )
 }
 
-function ContactsTab({ initialCompanyFilter }: { initialCompanyFilter: string | null }) {
+function ContactsTab() {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [labelFilter, setLabelFilter] = useState<string | null>(null)
-  const [companyFilter, setCompanyFilter] = useState<string | null>(initialCompanyFilter)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
 
   const { data: labels } = useQuery({ queryKey: ['contact-labels'], queryFn: fetchLabels })
   const { data: companies } = useQuery<Company[]>({ queryKey: ['companies'], queryFn: fetchCompanies })
   const { data, isLoading } = useQuery({
-    queryKey: ['contacts', search, labelFilter, companyFilter],
+    queryKey: ['contacts', search, labelFilter],
     queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', {
-      params: { search: search || undefined, label_id: labelFilter || undefined, company_id: companyFilter || undefined },
+      params: { search: search || undefined, label_id: labelFilter || undefined },
     }).then(r => r.data),
   })
 
@@ -380,20 +375,6 @@ function ContactsTab({ initialCompanyFilter }: { initialCompanyFilter: string | 
         </div>
       )}
 
-      {companies && companies.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 mb-5">
-          <button onClick={() => setCompanyFilter(null)}
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${companyFilter === null ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'}`}>
-            All companies
-          </button>
-          {companies.map(company => (
-            <button key={company.id} onClick={() => setCompanyFilter(companyFilter === company.id ? null : company.id)}
-              className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${companyFilter === company.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'}`}>
-              {company.name}
-            </button>
-          ))}
-        </div>
-      )}
 
       {selected.size > 0 && (
         <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
@@ -454,16 +435,12 @@ function ContactsTab({ initialCompanyFilter }: { initialCompanyFilter: string | 
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>{c.email ?? '—'}</td>
-                  <td className="px-4 py-3">
+                  <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
                     {c.company ? (
-                      <span onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={() => setCompanyFilter(companyFilter === c.company!.id ? null : c.company!.id)}
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border transition-colors ${companyFilter === c.company!.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'}`}>
-                          <Building2 size={10} />{c.company.name}
-                        </button>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200">
+                        <Building2 size={10} />{c.company.name}
                       </span>
-                    ) : <span className="text-sm text-slate-400 cursor-pointer block" onClick={() => navigate(`/contacts/${c.id}`)}>—</span>}
+                    ) : <span className="text-sm text-slate-400">—</span>}
                   </td>
                   <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
                     {c.labels.length === 0 ? <span className="text-sm text-slate-400">—</span> : (
@@ -508,7 +485,6 @@ export default function ContactsPage() {
   const qc = useQueryClient()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [activeTab, setActiveTab] = useState<Tab>('companies')
-  const [pendingCompanyFilter, setPendingCompanyFilter] = useState<string | null>(null)
   const [triggerCreate, setTriggerCreate] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
@@ -536,11 +512,6 @@ export default function ContactsPage() {
   async function exportAll() {
     const res = await api.get('/contacts/export', { responseType: 'blob' })
     downloadBlob(res.data, 'contacts.csv', 'text/csv')
-  }
-
-  function openCompany(id: string) {
-    setPendingCompanyFilter(id)
-    setActiveTab('contacts')
   }
 
   function handleNewCompany() {
@@ -606,16 +577,12 @@ export default function ContactsPage() {
       <div className="flex-1 overflow-y-auto px-8 py-6">
         {activeTab === 'companies' && (
           <CompaniesTab
-            onOpenCompany={openCompany}
             triggerCreate={triggerCreate}
             onCreateHandled={() => setTriggerCreate(false)}
           />
         )}
         {activeTab === 'contacts' && (
-          <ContactsTab
-            key={pendingCompanyFilter ?? 'all'}
-            initialCompanyFilter={pendingCompanyFilter}
-          />
+          <ContactsTab />
         )}
       </div>
 
