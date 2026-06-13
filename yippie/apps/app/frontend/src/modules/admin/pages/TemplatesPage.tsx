@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import EmailEditor, { EditorRef } from 'react-email-editor'
-import { FileText, Loader2, MousePointerClick, Palette, Plus, Trash2 } from 'lucide-react'
+import { FileText, Loader2, MousePointerClick, Palette, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { htmlToText } from '../../inbox/components/TemplatePicker'
@@ -78,6 +78,7 @@ export default function TemplatesPage() {
   const [existingBody, setExistingBody] = useState('')
   const [buttons, setButtons] = useState<CampaignButton[]>([])
   const [editorReady, setEditorReady] = useState(false)
+  const [editorEverOpened, setEditorEverOpened] = useState(false)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
@@ -141,6 +142,7 @@ export default function TemplatesPage() {
   }
 
   function openTemplate(t: Template) {
+    setEditorEverOpened(true)
     setSelectedId(t.id)
     setIsNew(false)
     setName(t.name)
@@ -158,6 +160,7 @@ export default function TemplatesPage() {
   }
 
   function openNew() {
+    setEditorEverOpened(true)
     setSelectedId(null)
     setIsNew(true)
     setName('')
@@ -223,108 +226,117 @@ export default function TemplatesPage() {
   }
 
   return (
-    <div className="flex gap-5 h-[calc(100vh-6rem)] min-h-[560px]">
-      {/* Left panel — template list */}
-      <aside className="w-[280px] shrink-0 bg-white border border-slate-200 rounded-xl flex flex-col overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
-          <h1 className="text-sm font-bold text-slate-900">Templates</h1>
-          <button
-            onClick={openNew}
-            title="New template"
-            className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
-          >
-            <Plus size={14} strokeWidth={2.5} />
-          </button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto">
-          {isLoading && <p className="text-xs text-slate-400 px-4 py-4">Loading…</p>}
-
-          {isNew && (
-            <div className="px-4 py-3 bg-blue-50 border-l-2 border-blue-600">
-              <p className="text-sm font-semibold text-blue-700 truncate">{name.trim() || 'New template'}</p>
-              <p className="text-[11px] text-blue-400">Unsaved</p>
-            </div>
-          )}
-
-          {!isLoading && templates?.length === 0 && !isNew && (
-            <div className="text-center px-4 py-10">
-              <FileText size={26} className="text-slate-300 mx-auto mb-2" />
-              <p className="text-xs text-slate-400">No templates yet. Create one with the + button.</p>
-            </div>
-          )}
-
-          {templates?.map(t => (
-            <div
-              key={t.id}
-              className={`group flex items-center gap-2 px-4 py-3 border-l-2 cursor-pointer transition-colors ${
-                t.id === selectedId
-                  ? 'bg-blue-50 border-blue-600'
-                  : 'border-transparent hover:bg-slate-50'
-              }`}
-              onClick={() => openTemplate(t)}
+    <>
+      {/* Page — template list */}
+      <div className="h-[calc(100vh-6rem)] min-h-[560px]">
+        <aside className="w-[360px] h-full bg-white border border-slate-200 rounded-xl flex flex-col overflow-hidden">
+          <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
+            <h1 className="text-sm font-bold text-slate-900">Templates</h1>
+            <button
+              onClick={openNew}
+              title="New template"
+              className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
             >
-              <div className="flex-1 min-w-0">
-                <p className={`text-sm font-semibold truncate ${t.id === selectedId ? 'text-blue-700' : 'text-slate-800'}`}>
-                  {t.name}
-                </p>
-                {t.html_body && (
-                  <span className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-[10px] font-semibold">
-                    <Palette size={9} />
-                    Rich design
-                  </span>
-                )}
-              </div>
-              <button
-                onClick={e => {
-                  e.stopPropagation()
-                  if (confirm(`Delete "${t.name}"?`)) deleteMutation.mutate(t.id)
-                }}
-                className="opacity-0 group-hover:opacity-100 p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
-                title="Delete template"
-              >
-                <Trash2 size={13} />
-              </button>
-            </div>
-          ))}
-        </div>
-      </aside>
-
-      {/* Right panel — editor */}
-      <section className="flex-1 min-w-0 bg-white border border-slate-200 rounded-xl flex flex-col overflow-hidden">
-        {!hasSelection ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-center p-8">
-            <FileText size={36} className="text-slate-300 mb-3" />
-            <p className="text-sm font-medium text-slate-400">Select a template or create a new one</p>
-            <p className="text-xs text-slate-400 mt-1">Design rich emails with drag-and-drop and add campaign buttons.</p>
+              <Plus size={14} strokeWidth={2.5} />
+            </button>
           </div>
-        ) : (
-          <>
-            <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100">
-              <input
-                className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Template name…"
-              />
-              {saveError && <p className="text-xs text-red-500">{saveError}</p>}
-              <button
-                onClick={handleSave}
-                disabled={saving || !editorReady}
-                className="inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
-              >
-                {saving ? 'Saving…' : 'Save'}
-              </button>
-            </div>
 
-            <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-              <div className="relative flex-1 min-h-[300px] mx-5 mt-5 border border-slate-200 rounded-t-xl overflow-hidden">
-                {!editorReady && (
-                  <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50">
-                    <Loader2 size={22} className="text-blue-500 animate-spin mb-2" />
-                    <p className="text-xs text-slate-400">Loading email editor…</p>
-                  </div>
-                )}
+          <div className="flex-1 overflow-y-auto">
+            {isLoading && <p className="text-xs text-slate-400 px-4 py-4">Loading…</p>}
+
+            {isNew && (
+              <div className="px-4 py-3 bg-blue-50 border-l-2 border-blue-600">
+                <p className="text-sm font-semibold text-blue-700 truncate">{name.trim() || 'New template'}</p>
+                <p className="text-[11px] text-blue-400">Unsaved</p>
+              </div>
+            )}
+
+            {!isLoading && templates?.length === 0 && !isNew && (
+              <div className="text-center px-4 py-10">
+                <FileText size={26} className="text-slate-300 mx-auto mb-2" />
+                <p className="text-xs text-slate-400">No templates yet. Create one with the + button.</p>
+              </div>
+            )}
+
+            {templates?.map(t => (
+              <div
+                key={t.id}
+                className={`group flex items-center gap-2 px-4 py-3 border-l-2 cursor-pointer transition-colors ${
+                  t.id === selectedId
+                    ? 'bg-blue-50 border-blue-600'
+                    : 'border-transparent hover:bg-slate-50'
+                }`}
+                onClick={() => openTemplate(t)}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold truncate ${t.id === selectedId ? 'text-blue-700' : 'text-slate-800'}`}>
+                    {t.name}
+                  </p>
+                  {t.html_body && (
+                    <span className="inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-[10px] font-semibold">
+                      <Palette size={9} />
+                      Rich design
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={e => {
+                    e.stopPropagation()
+                    if (confirm(`Delete "${t.name}"?`)) deleteMutation.mutate(t.id)
+                  }}
+                  className="opacity-0 group-hover:opacity-100 p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
+                  title="Delete template"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            ))}
+          </div>
+        </aside>
+      </div>
+
+      {/* Full-screen editor modal — editor stays mounted once opened to avoid re-init */}
+      <div
+        className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 transition-opacity duration-200 ${
+          hasSelection ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        <div className="bg-white rounded-2xl w-[90vw] h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+          {/* Modal header */}
+          <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 shrink-0">
+            <input
+              className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder="Template name…"
+            />
+            {saveError && <p className="text-xs text-red-500 shrink-0">{saveError}</p>}
+            <button
+              onClick={handleSave}
+              disabled={saving || !editorReady}
+              className="shrink-0 inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+            >
+              {saving ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              onClick={clearSelection}
+              className="shrink-0 p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+              title="Close editor"
+            >
+              <X size={16} />
+            </button>
+          </div>
+
+          {/* Editor + bottom panels */}
+          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+            <div className="relative flex-1 min-h-0 mx-5 mt-5 border border-slate-200 rounded-t-xl overflow-hidden">
+              {!editorReady && (
+                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50">
+                  <Loader2 size={22} className="text-blue-500 animate-spin mb-2" />
+                  <p className="text-xs text-slate-400">Loading email editor…</p>
+                </div>
+              )}
+              {editorEverOpened && (
                 <EmailEditor
                   ref={editorRef}
                   onReady={handleEditorReady}
@@ -338,59 +350,59 @@ export default function TemplatesPage() {
                     editor: { confirmOnDelete: false },
                   }}
                 />
-              </div>
-
-              {/* Signature preview — always visible below editor */}
-              <div className="mx-5 shrink-0 border border-t-0 border-slate-200 rounded-b-xl bg-white px-4 py-3">
-                <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">— Signature</p>
-                {user?.email_signature ? (
-                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{user.email_signature}</p>
-                ) : (
-                  <p className="text-xs text-slate-400 italic">No signature — add one in Profile settings.</p>
-                )}
-              </div>
-
-              {/* Button label config — auto-detected from Unlayer button blocks */}
-              <div className="mx-5 mb-5 mt-3 shrink-0 border border-slate-200 rounded-xl bg-white overflow-y-auto max-h-[220px]">
-                <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
-                  <MousePointerClick size={13} className="text-blue-500" />
-                  <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Button Labels</span>
-                </div>
-                {buttons.length === 0 ? (
-                  <p className="px-4 py-3 text-[11px] text-slate-400">
-                    Add a Button block to your email design to attach a label to it.
-                  </p>
-                ) : (
-                  buttons.map(b => (
-                    <div key={b.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0 border-slate-50">
-                      <span className="shrink-0 max-w-[160px] truncate px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold" title={b.text}>
-                        {b.text}
-                      </span>
-                      <select
-                        className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                        value={b.label_id ?? ''}
-                        onChange={e => updateButton(b.id, { label_id: e.target.value || null })}
-                      >
-                        <option value="">No label</option>
-                        {labels?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                      </select>
-                      <label className="flex items-center gap-1.5 shrink-0 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={b.multiple_allowed}
-                          onChange={e => updateButton(b.id, { multiple_allowed: e.target.checked })}
-                          className="w-3.5 h-3.5 accent-blue-600"
-                        />
-                        <span className="text-[11px] text-slate-500">Multi</span>
-                      </label>
-                    </div>
-                  ))
-                )}
-              </div>
+              )}
             </div>
-          </>
-        )}
-      </section>
-    </div>
+
+            {/* Signature preview */}
+            <div className="mx-5 shrink-0 border border-t-0 border-slate-200 rounded-b-xl bg-white px-4 py-3">
+              <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">— Signature</p>
+              {user?.email_signature ? (
+                <p className="text-xs text-slate-600 whitespace-pre-wrap">{user.email_signature}</p>
+              ) : (
+                <p className="text-xs text-slate-400 italic">No signature — add one in Profile settings.</p>
+              )}
+            </div>
+
+            {/* Button label config — auto-detected from Unlayer button blocks */}
+            <div className="mx-5 mb-5 mt-3 shrink-0 border border-slate-200 rounded-xl bg-white overflow-y-auto max-h-[200px]">
+              <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
+                <MousePointerClick size={13} className="text-blue-500" />
+                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Button Labels</span>
+              </div>
+              {buttons.length === 0 ? (
+                <p className="px-4 py-3 text-[11px] text-slate-400">
+                  Add a Button block to your email design to attach a label to it.
+                </p>
+              ) : (
+                buttons.map(b => (
+                  <div key={b.id} className="flex items-center gap-3 px-4 py-2.5 border-b last:border-0 border-slate-50">
+                    <span className="shrink-0 max-w-[160px] truncate px-2 py-1 bg-slate-100 text-slate-600 rounded text-xs font-semibold" title={b.text}>
+                      {b.text}
+                    </span>
+                    <select
+                      className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                      value={b.label_id ?? ''}
+                      onChange={e => updateButton(b.id, { label_id: e.target.value || null })}
+                    >
+                      <option value="">No label</option>
+                      {labels?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                    <label className="flex items-center gap-1.5 shrink-0 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={b.multiple_allowed}
+                        onChange={e => updateButton(b.id, { multiple_allowed: e.target.checked })}
+                        className="w-3.5 h-3.5 accent-blue-600"
+                      />
+                      <span className="text-[11px] text-slate-500">Multi</span>
+                    </label>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   )
 }
