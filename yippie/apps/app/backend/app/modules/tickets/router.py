@@ -12,6 +12,7 @@ from app.modules.activity import service as activity_service
 from app.modules.tickets import service
 from app.modules.tickets.models import TicketStatus
 from app.modules.tickets.schemas import (
+    BulkDeleteTicketsRequest,
     CommentCreate,
     CommentOut,
     TemplateCreate,
@@ -150,6 +151,17 @@ async def change_status(ticket_id: uuid.UUID, body: TicketStatusUpdate, current_
     )
     await db.commit()
     return updated
+
+
+@router.delete("/bulk", status_code=status.HTTP_200_OK)
+async def bulk_delete_tickets(body: BulkDeleteTicketsRequest, current_user: AdminUser, db: DB):
+    deleted = 0
+    for ticket_id in body.ids:
+        ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
+        if ticket:
+            await service.soft_delete_ticket(db, ticket)
+            deleted += 1
+    return {"deleted": deleted}
 
 
 @router.post("/{ticket_id}/delete", status_code=status.HTTP_200_OK)

@@ -9,6 +9,10 @@ from pydantic import BaseModel
 from app.modules.tickets.models import MessageSource, TicketPriority, TicketStatus
 
 
+class BulkDeleteTicketsRequest(BaseModel):
+    ids: list[uuid.UUID]
+
+
 class TicketCreate(BaseModel):
     subject: str
     description: Optional[str] = None
