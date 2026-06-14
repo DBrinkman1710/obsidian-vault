@@ -251,8 +251,8 @@ async def chat_ws(websocket, tenant_slug: str, session_id: str):
             raw = await websocket.receive_text()
             data = json.loads(raw)
             msg_body = data.get("body", "").strip()
-            sender_type = data.get("sender_type", "visitor")
-            sender_id = data.get("sender_id", session_id)
+            sender_type = "visitor"
+            sender_id = session_id
 
             if not msg_body:
                 continue

@@ -14,13 +14,25 @@ log = logging.getLogger(__name__)
 webhook_router = APIRouter(prefix="/emailtracking", tags=["emailtracking-webhooks"])
 DB = Annotated[AsyncSession, Depends(get_db)]
 
-def _verify_signature(body: bytes, svix_signature: str | None) -> bool:
+def _verify_signature(
+    body: bytes,
+    svix_id: str | None,
+    svix_timestamp: str | None,
+    svix_signature: str | None,
+) -> bool:
+    import base64
     secret = get_settings().resend_webhook_secret
     if not secret:
         return True  # not configured — skip verification
-    if not svix_signature:
+    if not svix_id or not svix_timestamp or not svix_signature:
         return False
-    expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
+    try:
+        raw_secret = base64.b64decode(secret.removeprefix("whsec_"))
+    except Exception:
+        return False
+    # Svix signs "{svix_id}.{svix_timestamp}.{body}" with the base64-decoded secret.
+    signed = svix_id.encode() + b"." + svix_timestamp.encode() + b"." + body
+    expected = base64.b64encode(hmac.new(raw_secret, signed, hashlib.sha256).digest()).decode()
     for part in svix_signature.split(" "):
         if part.startswith("v1,") and hmac.compare_digest(expected, part[3:]):
             return True
@@ -29,8 +41,10 @@ def _verify_signature(body: bytes, svix_signature: str | None) -> bool:
 @webhook_router.post("/webhooks/resend", include_in_schema=False)
 async def resend_webhook(request: Request, db: DB):
     body = await request.body()
-    sig = request.headers.get("svix-signature")
-    if not _verify_signature(body, sig):
+    svix_id = request.headers.get("svix-id")
+    svix_timestamp = request.headers.get("svix-timestamp")
+    svix_sig = request.headers.get("svix-signature")
+    if not _verify_signature(body, svix_id, svix_timestamp, svix_sig):
         return Response(status_code=400, content="Invalid signature")
     try:
         payload: dict[str, Any] = await request.json()

@@ -102,11 +102,12 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def set_tenant_context(session: AsyncSession, tenant_id: str) -> None:
-    """Sets app.current_tenant_id for the current transaction (read by future RLS policies).
+    """Sets the tenant GUC and switches to app_user for the current transaction.
 
-    SET LOCAL reverts automatically when the transaction ends, making this safe in pools.
-    The app_user role switch is intentionally omitted until RLS policies are enforced —
-    the SAVEPOINT dance it required added 3 round-trips per request for no current benefit.
+    Both SET LOCALs revert automatically when the transaction ends, making this safe in pools.
+    Switching to app_user (a non-superuser role) activates the FORCE ROW LEVEL SECURITY
+    policies on all tenant tables. require_superadmin issues RESET ROLE afterward to revert
+    to the connecting role so platform-wide admin queries bypass RLS.
     """
     import uuid as _uuid
 
@@ -114,3 +115,4 @@ async def set_tenant_context(session: AsyncSession, tenant_id: str) -> None:
     # SET LOCAL does not accept bind parameters; coerce to canonical UUID to prevent injection.
     safe_tenant_id = str(_uuid.UUID(str(tenant_id)))
     await session.execute(text(f"SET LOCAL \"app.current_tenant_id\" = '{safe_tenant_id}'"))
+    await session.execute(text("SET LOCAL ROLE app_user"))
