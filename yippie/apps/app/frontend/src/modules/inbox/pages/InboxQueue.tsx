@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Paperclip, ChevronLeft, ChevronRight, Building2, Palette } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
@@ -52,70 +52,157 @@ interface Contact {
   company: { id: string; name: string } | null
 }
 
-function CompanyRecipientsButton({ onAdd }: { onAdd: (email: string, label: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const [loadingId, setLoadingId] = useState<string | null>(null)
-  const ref = useRef<HTMLDivElement>(null)
+interface CompanyRow { id: string; name: string; contact_count: number }
 
-  const { data: companies } = useQuery({
+function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: string) => void; onClose: () => void }) {
+  const [tab, setTab] = useState<'companies' | 'contacts'>('companies')
+  const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set())
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set())
+  const [adding, setAdding] = useState(false)
+
+  const { data: companies = [] } = useQuery({
     queryKey: ['companies'],
-    queryFn: () => api.get<{ id: string; name: string; contact_count: number }[]>('/contacts/companies').then(r => r.data),
-    enabled: open,
+    queryFn: () => api.get<CompanyRow[]>('/contacts/companies').then(r => r.data),
   })
 
-  useEffect(() => {
-    function handler(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
+  const { data: contactData } = useQuery({
+    queryKey: ['contacts-all-picker'],
+    queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { limit: 1000 } }).then(r => r.data),
+  })
+  const allContacts = (contactData?.items ?? []).filter(c => c.email)
 
-  async function pickCompany(id: string) {
-    setLoadingId(id)
+  const allCompaniesSelected = companies.length > 0 && companies.every(c => selectedCompanyIds.has(c.id))
+  const allContactsSelected = allContacts.length > 0 && allContacts.every(c => selectedContactIds.has(c.id))
+
+  function toggleCompany(id: string) {
+    setSelectedCompanyIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  }
+  function toggleContact(id: string) {
+    setSelectedContactIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
+  }
+  function toggleAllCompanies() {
+    setSelectedCompanyIds(allCompaniesSelected ? new Set() : new Set(companies.map(c => c.id)))
+  }
+  function toggleAllContacts() {
+    setSelectedContactIds(allContactsSelected ? new Set() : new Set(allContacts.map(c => c.id)))
+  }
+
+  const selectedCount = selectedCompanyIds.size + selectedContactIds.size
+
+  async function handleConfirm() {
+    setAdding(true)
     try {
-      const contacts = await api
-        .get<{ id: string; full_name: string; email: string | null }[]>(`/contacts/companies/${id}/contacts`)
-        .then(r => r.data)
-      contacts.filter(c => c.email).forEach(c => onAdd(c.email!, c.full_name))
-      setOpen(false)
+      for (const companyId of selectedCompanyIds) {
+        const contacts = await api
+          .get<{ id: string; full_name: string; email: string | null }[]>(`/contacts/companies/${companyId}/contacts`)
+          .then(r => r.data)
+        contacts.filter(c => c.email).forEach(c => onAdd(c.email!, c.full_name))
+      }
+      for (const contact of allContacts.filter(c => selectedContactIds.has(c.id))) {
+        onAdd(contact.email!, contact.full_name)
+      }
+      onClose()
     } finally {
-      setLoadingId(null)
+      setAdding(false)
     }
   }
 
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap"
-      >
-        <Building2 size={12} />
-        Company
-        <ArrowRight size={11} />
-      </button>
+  const tabCls = (t: typeof tab) =>
+    `px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`
 
-      {open && (
-        <div className="absolute top-full right-0 z-20 bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-56 overflow-y-auto w-60">
-          {companies?.map(c => (
-            <button
-              key={c.id} type="button"
-              onClick={() => pickCompany(c.id)}
-              disabled={loadingId !== null}
-              className="w-full text-left px-3 py-2.5 text-sm hover:bg-slate-50 border-b border-slate-100 last:border-0 transition-colors disabled:opacity-50"
-            >
-              <span className="font-medium text-slate-900">{c.name}</span>
-              <span className="text-slate-400 ml-2 text-xs">
-                {loadingId === c.id ? 'adding…' : `${c.contact_count} contact${c.contact_count !== 1 ? 's' : ''}`}
-              </span>
-            </button>
-          ))}
-          {companies && companies.length === 0 && (
-            <div className="px-3 py-3 text-xs text-slate-400 text-center">No companies yet</div>
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '80vh' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-base font-bold text-slate-900">Add recipients</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+        </div>
+
+        <div className="flex border-b border-slate-100 shrink-0 px-2">
+          <button className={tabCls('companies')} onClick={() => setTab('companies')}>
+            <Building2 size={13} className="inline mr-1.5 -mt-0.5" />
+            Companies
+            {selectedCompanyIds.size > 0 && <span className="ml-1.5 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">{selectedCompanyIds.size}</span>}
+          </button>
+          <button className={tabCls('contacts')} onClick={() => setTab('contacts')}>
+            <Users size={13} className="inline mr-1.5 -mt-0.5" />
+            Contacts
+            {selectedContactIds.size > 0 && <span className="ml-1.5 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">{selectedContactIds.size}</span>}
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          {tab === 'companies' && (
+            <>
+              <button
+                type="button"
+                onClick={toggleAllCompanies}
+                className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors text-left"
+              >
+                {allCompaniesSelected ? <CheckSquare size={15} className="text-blue-600 shrink-0" /> : <Square size={15} className="text-slate-400 shrink-0" />}
+                <span className="text-sm font-semibold text-slate-700">Select all companies</span>
+              </button>
+              {companies.map(c => (
+                <button
+                  key={c.id} type="button"
+                  onClick={() => toggleCompany(c.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors text-left"
+                >
+                  {selectedCompanyIds.has(c.id) ? <CheckSquare size={15} className="text-blue-600 shrink-0" /> : <Square size={15} className="text-slate-400 shrink-0" />}
+                  <span className="text-sm font-medium text-slate-900">{c.name}</span>
+                  <span className="text-xs text-slate-400 ml-auto">{c.contact_count} contact{c.contact_count !== 1 ? 's' : ''}</span>
+                </button>
+              ))}
+              {companies.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">No companies yet</div>}
+            </>
+          )}
+
+          {tab === 'contacts' && (
+            <>
+              <button
+                type="button"
+                onClick={toggleAllContacts}
+                className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors text-left"
+              >
+                {allContactsSelected ? <CheckSquare size={15} className="text-blue-600 shrink-0" /> : <Square size={15} className="text-slate-400 shrink-0" />}
+                <span className="text-sm font-semibold text-slate-700">Select all contacts</span>
+              </button>
+              {allContacts.map(c => (
+                <button
+                  key={c.id} type="button"
+                  onClick={() => toggleContact(c.id)}
+                  className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 transition-colors text-left"
+                >
+                  {selectedContactIds.has(c.id) ? <CheckSquare size={15} className="text-blue-600 shrink-0" /> : <Square size={15} className="text-slate-400 shrink-0" />}
+                  <div className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-slate-900">{c.full_name}</span>
+                    {c.company && <span className="text-xs text-slate-400 ml-2">{c.company.name}</span>}
+                    <div className="text-xs text-slate-400 truncate">{c.email}</div>
+                  </div>
+                </button>
+              ))}
+              {allContacts.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">No contacts with email</div>}
+            </>
           )}
         </div>
-      )}
+
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 shrink-0">
+          <span className="text-sm text-slate-500">
+            {selectedCount === 0 ? 'Nothing selected' : `${selectedCount} selected`}
+          </span>
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button
+              type="button"
+              onClick={handleConfirm}
+              disabled={selectedCount === 0 || adding}
+              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+            >
+              {adding ? 'Adding…' : `Add${selectedCount > 0 ? ` (${selectedCount})` : ''}`}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -124,9 +211,8 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [freeEmail, setFreeEmail] = useState('')
-  const [addingAll, setAddingAll] = useState(false)
+  const [showPicker, setShowPicker] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
-  const qc = useQueryClient()
 
   const { data: contacts } = useQuery({
     queryKey: ['contacts-compose', search],
@@ -142,24 +228,9 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  async function handleAddAll() {
-    setAddingAll(true)
-    try {
-      const data = await qc.fetchQuery({
-        queryKey: ['contacts-compose-all'],
-        queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', { params: { limit: 1000 } }).then(r => r.data),
-        staleTime: 0,
-      })
-      const items: Contact[] = Array.isArray(data) ? data : (data?.items ?? [])
-      items.filter(c => c.email).forEach(c => onAdd(c.email!, c.full_name))
-    } catch {
-      // silently ignore fetch errors
-    } finally {
-      setAddingAll(false)
-    }
-  }
-
   return (
+    <>
+    {showPicker && <AllContactsModal onAdd={onAdd} onClose={() => setShowPicker(false)} />}
     <div ref={ref} className="relative">
       <div className="flex gap-2">
         <input
@@ -171,14 +242,12 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
         />
         <button
           type="button"
-          onClick={handleAddAll}
-          disabled={addingAll}
-          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap disabled:opacity-50"
+          onClick={() => setShowPicker(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap"
         >
           <Users size={12} />
-          {addingAll ? 'Loading…' : 'All contacts'}
+          All contacts
         </button>
-        <CompanyRecipientsButton onAdd={onAdd} />
       </div>
 
       {open && (
@@ -225,6 +294,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
         </div>
       )}
     </div>
+    </>
   )
 }
 
