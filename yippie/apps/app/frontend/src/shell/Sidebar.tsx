@@ -54,15 +54,9 @@ export function Sidebar() {
 
   if (!config) return null
 
-  // Apply the tenant's configured brand colour. `bg-yippie` is only the
-  // fallback default; the inline style is what actually reflects the
-  // primary_color a superadmin sets via Clients → Edit → Branding.
-  const primaryColor = config.branding.primary_color
-
   return (
     <aside
       className="flex flex-col w-56 h-screen bg-yippie text-white shrink-0 overflow-y-auto"
-      style={primaryColor ? { backgroundColor: primaryColor } : undefined}
     >
 
       {/* Logo + tenant */}
