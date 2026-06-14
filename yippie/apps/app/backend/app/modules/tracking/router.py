@@ -18,7 +18,7 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
+from app.database import get_db, set_tenant_context
 from app.modules.contacts.models import contact_label_links
 from app.modules.tracking.models import LabelClickToken
 
@@ -35,6 +35,8 @@ async def track_click(token: uuid.UUID, db: DB):
         return RedirectResponse("/track/confirm?expired=1", status_code=302)
 
     row.used_at = datetime.now(timezone.utc)
+
+    await set_tenant_context(db, str(row.tenant_id))
 
     if row.action_type == "pipeline_stage" and row.stage_id is not None:
         from app.modules.pipeline.service import _assign_stage
