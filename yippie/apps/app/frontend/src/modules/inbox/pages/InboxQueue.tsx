@@ -67,7 +67,7 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
 
   const { data: contactData } = useQuery({
     queryKey: ['contacts-all-picker'],
-    queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { limit: 1000 } }).then(r => r.data),
+    queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { limit: 200 } }).then(r => r.data),
   })
   const allContacts = (contactData?.items ?? []).filter(c => c.email)
 
