@@ -128,7 +128,7 @@ function DepartmentsPanel() {
   })
 
   return (
-    <div className="w-80 flex-shrink-0">
+    <div className="w-96 flex-shrink-0">
       {/* Header row — mirrors the Team header for vertical alignment */}
       <div className="flex items-center justify-between mb-8">
         <div>
