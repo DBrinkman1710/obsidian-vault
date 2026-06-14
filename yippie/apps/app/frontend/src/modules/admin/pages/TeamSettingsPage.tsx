@@ -309,7 +309,7 @@ export default function TeamSettingsPage() {
   return (
     <div className="flex gap-8 items-start">
       {/* Team list */}
-      <div className="flex-1 min-w-0 max-w-2xl">
+      <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-900 mb-1">Team</h1>
