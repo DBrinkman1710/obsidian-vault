@@ -39,3 +39,13 @@ async def update_team_user(current_user: AdminUser, db: DB, user_id: uuid.UUID, 
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_team_user(current_user: AdminUser, db: DB, user_id: uuid.UUID):
+    try:
+        await service.delete_user(db, current_user.tenant_id, user_id, current_user)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))

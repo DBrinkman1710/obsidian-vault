@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.invite import send_invite_email
@@ -70,3 +70,36 @@ async def update_user(
     await db.commit()
     await db.refresh(user)
     return user
+
+
+async def delete_user(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    user_id: uuid.UUID,
+    acting_user: User,
+) -> None:
+    if user_id == acting_user.id:
+        raise ValueError("You cannot delete your own account")
+
+    user = await db.get(User, user_id)
+    if user is None or user.tenant_id != tenant_id:
+        raise LookupError("User not found")
+    if user.role == UserRole.superadmin:
+        raise ValueError("Superadmins are managed from the Superadmins page")
+
+    # Prevent removing the last active admin in the tenant.
+    if user.role == UserRole.admin and user.is_active:
+        active_admins = await db.scalar(
+            select(func.count())
+            .select_from(User)
+            .where(
+                User.tenant_id == tenant_id,
+                User.role == UserRole.admin,
+                User.is_active.is_(True),
+            )
+        )
+        if (active_admins or 0) <= 1:
+            raise ValueError("Cannot delete the last active admin")
+
+    await db.delete(user)
+    await db.commit()
