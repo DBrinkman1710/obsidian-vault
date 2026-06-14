@@ -31,6 +31,7 @@ const ProfileSettingsPage      = lazy(() => import('./modules/admin/pages/Profil
 const TemplatesPage            = lazy(() => import('./modules/admin/pages/TemplatesPage'))
 
 const TrackConfirmPage = lazy(() => import('./pages/TrackConfirmPage'))
+const RequestDemoPage = lazy(() => import('./pages/RequestDemoPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -96,6 +97,7 @@ export default function App() {
           <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/track/confirm" element={<TrackConfirmPage />} />
+          <Route path="/request-demo" element={<RequestDemoPage />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>

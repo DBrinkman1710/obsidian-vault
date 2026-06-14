@@ -33,6 +33,7 @@ async def send_email(
     attachments: Optional[list[dict]] = None,
     from_email: Optional[str] = None,
     html: Optional[str] = None,
+    headers: Optional[dict[str, str]] = None,
 ) -> str | None:
     """Send an email via Resend.
 
@@ -40,6 +41,7 @@ async def send_email(
     from_email: override the sender address (must be on a Resend-verified domain)
     html: optional HTML part — sent alongside the plain-text body (which stays
           the fallback for clients that prefer text)
+    headers: optional dict of custom email headers (e.g. List-Unsubscribe)
     """
     settings = get_settings()
 
@@ -63,6 +65,8 @@ async def send_email(
     if attachments:
         # Resend expects only {filename, content} — strip any extra keys (e.g. content_type)
         payload["attachments"] = [{"filename": a["filename"], "content": a["content"]} for a in attachments]
+    if headers:
+        payload["headers"] = headers
 
     async with httpx.AsyncClient() as client:
         response = await client.post(

@@ -394,6 +394,11 @@ async def broadcast_to_tenant(
                     body=data.body + text_footer,
                     from_email=from_email,
                     html=html_body,
+                    # Gmail requires List-Unsubscribe + List-Unsubscribe-Post for bulk mail
+                    headers={
+                        "List-Unsubscribe": f"<{unsubscribe_url}>",
+                        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                    },
                 )
                 sent += 1
             except Exception:
