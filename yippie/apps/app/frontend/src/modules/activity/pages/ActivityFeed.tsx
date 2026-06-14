@@ -1,189 +1,180 @@
-import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Activity } from 'lucide-react'
-import { Link } from 'react-router-dom'
 import { api } from '../../../api/client'
 
-interface PipelineStage {
-  id: string
-  name: string
+interface PipelineKpi {
+  stage_id: string
+  stage_name: string
   color: string
-  display_order: number
   contact_count: number
+  avg_days_in_stage: number | null
 }
 
-interface ActivityEventOut {
-  id: string
-  module: string
-  event_type: string
-  entity_type: string
-  entity_id: string | null
-  contact_id: string | null
-  actor_id: string | null
-  actor_name: string | null
-  payload: Record<string, unknown> | null
-  created_at: string
-}
-
-const STAT_CARDS = [
-  { key: 'today',     label: 'Today',      colorClass: 'text-blue-600',   bgClass: 'bg-blue-50 border-blue-100' },
-  { key: 'this_week', label: 'This week',  colorClass: 'text-violet-600', bgClass: 'bg-violet-50 border-violet-100' },
-  { key: 'total',     label: 'All time',   colorClass: 'text-slate-600',  bgClass: 'bg-slate-50 border-slate-200' },
-]
-
-const EVENT_LABELS: Record<string, string> = {
-  'email.replied':         'Replied to email',
-  'email.composed':        'Sent email',
-  'ticket_created':        'Created ticket',
-  'ticket_status_changed': 'Changed ticket status',
-  'ticket_assigned':       'Assigned ticket',
-  'ticket_commented':      'Added comment',
-  'pipeline_stage_changed': 'Moved pipeline stage',
-}
-
-const MODULE_DOT: Record<string, string> = {
-  inbox:    'bg-blue-500',
-  tickets:  'bg-violet-500',
-  pipeline: 'bg-emerald-500',
-}
-
-function humanize(key: string) {
-  return key.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
-function eventLink(ev: ActivityEventOut): string | null {
-  if (ev.entity_type === 'ticket' && ev.entity_id) return `/tickets/${ev.entity_id}`
-  const draftId = ev.payload?.draft_id
-  if (draftId) return `/inbox/drafts/${draftId}`
-  return null
-}
-
-function eventLabel(ev: ActivityEventOut): string {
-  if (ev.event_type === 'pipeline_stage_changed') {
-    const stageName = ev.payload?.stage_name
-    if (typeof stageName === 'string') return `Moved to ${stageName}`
+interface Kpis {
+  pipeline: PipelineKpi[]
+  email: {
+    sent_total: number
+    sent_this_week: number
+    delivered: number
+    opened: number
+    open_rate: number
+    bounced: number
   }
-  return EVENT_LABELS[ev.event_type] ?? humanize(ev.event_type)
+  tickets: {
+    open: number
+    in_progress: number
+    resolved_this_week: number
+    avg_resolution_hours: number | null
+  }
+  contacts: {
+    total: number
+    new_this_week: number
+  }
 }
 
-function EventRow({ ev, last }: { ev: ActivityEventOut; last: boolean }) {
-  const label = eventLabel(ev)
-  const dot = MODULE_DOT[ev.module] ?? 'bg-slate-400'
-  const href = eventLink(ev)
+const CARD = 'bg-white rounded-xl border border-slate-200 shadow-sm p-6'
+const SECTION_HEADER = 'text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4'
+const BIG = 'text-3xl font-extrabold text-slate-900'
+const SUB = 'text-sm text-slate-500'
 
-  const inner = (
-    <div className={`flex items-start gap-4 px-5 py-4 ${!last ? 'border-b border-slate-100' : ''}`}>
-      <span className={`w-2 h-2 rounded-full ${dot} mt-1.5 shrink-0`} />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm text-slate-900 truncate">
-          <span className="font-semibold">{label}</span>
-          {ev.actor_name && (
-            <span className="text-slate-500 font-normal"> · {ev.actor_name}</span>
-          )}
-        </p>
-        <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1.5">
-          {new Date(ev.created_at).toLocaleString()}
-          {ev.module && (
-            <span className="px-1.5 py-0.5 bg-slate-100 rounded text-slate-500">{ev.module}</span>
-          )}
-        </p>
+function fmt(value: number | null | undefined): string {
+  if (value === null || value === undefined) return '—'
+  return String(value)
+}
+
+function SkeletonBar({ className = '' }: { className?: string }) {
+  return <div className={`bg-slate-200 rounded animate-pulse ${className}`} />
+}
+
+function LoadingState() {
+  return (
+    <div className="space-y-8">
+      <div>
+        <SkeletonBar className="h-3 w-24 mb-4" />
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {[0, 1, 2, 3].map(i => (
+            <div key={i} className={CARD}>
+              <SkeletonBar className="h-3 w-20 mb-4" />
+              <SkeletonBar className="h-8 w-16 mb-2" />
+              <SkeletonBar className="h-3 w-24" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {[0, 1, 2].map(i => (
+          <div key={i} className={CARD}>
+            <SkeletonBar className="h-3 w-24 mb-6" />
+            <div className="space-y-4">
+              {[0, 1, 2, 3].map(j => (
+                <div key={j} className="flex justify-between items-center">
+                  <SkeletonBar className="h-3 w-24" />
+                  <SkeletonBar className="h-6 w-10" />
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
+}
 
-  if (href) {
-    return (
-      <Link to={href} className="block hover:bg-slate-50 transition-colors">
-        {inner}
-      </Link>
-    )
-  }
-  return <div>{inner}</div>
+function KpiRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between">
+      <span className={SUB}>{label}</span>
+      <span className="text-2xl font-extrabold text-slate-900 tabular-nums">{value}</span>
+    </div>
+  )
 }
 
 export default function ActivityFeed() {
-  const [stageId, setStageId] = useState<string | null>(null)
-
-  const { data: stats } = useQuery({
-    queryKey: ['activity-stats'],
-    queryFn: () => api.get('/activity/stats').then(r => r.data),
-    refetchInterval: 30_000,
-  })
-
-  const { data: stages = [] } = useQuery<PipelineStage[]>({
-    queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
-  })
-
-  const { data: events, isLoading } = useQuery<ActivityEventOut[]>({
-    queryKey: ['activity', stageId],
-    queryFn: () =>
-      api
-        .get('/activity', { params: stageId ? { pipeline_stage_id: stageId } : {} })
-        .then(r => r.data),
-    refetchInterval: 30_000,
+  const { data: kpis, isLoading } = useQuery<Kpis>({
+    queryKey: ['activity-kpis'],
+    queryFn: () => api.get('/activity/kpis').then(r => r.data),
+    refetchInterval: 60_000,
   })
 
   return (
     <div>
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Activity</h1>
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        {STAT_CARDS.map(({ key, label, colorClass, bgClass }) => (
-          <div key={key} className={`rounded-xl border p-6 ${bgClass}`}>
-            <p className={`text-4xl font-extrabold ${colorClass} leading-none mb-2`}>
-              {stats?.[key] ?? '—'}
-            </p>
-            <p className={`text-sm font-semibold ${colorClass} opacity-80`}>{label}</p>
+      {isLoading && <LoadingState />}
+
+      {!isLoading && kpis && (
+        <div className="space-y-8">
+          {/* Pipeline */}
+          <section>
+            <p className={SECTION_HEADER}>Pipeline</p>
+            {kpis.pipeline.length === 0 ? (
+              <div className={`${CARD} text-sm text-slate-400`}>No pipeline stages yet</div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {kpis.pipeline.map(stage => (
+                  <div key={stage.stage_id} className={CARD}>
+                    <div className="flex items-center gap-2 mb-3">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full shrink-0"
+                        style={{ background: stage.color }}
+                      />
+                      <span className="text-sm font-semibold text-slate-700 truncate">
+                        {stage.stage_name}
+                      </span>
+                    </div>
+                    <p className={BIG}>{stage.contact_count}</p>
+                    <p className={`${SUB} mt-1`}>
+                      {stage.avg_days_in_stage === null
+                        ? 'avg — days in stage'
+                        : `avg ${stage.avg_days_in_stage} days in stage`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* Email / Tickets / Contacts */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <div className={CARD}>
+              <p className={SECTION_HEADER}>Email</p>
+              <div className="space-y-4">
+                <KpiRow label="Sent total" value={fmt(kpis.email.sent_total)} />
+                <KpiRow label="Sent this week" value={fmt(kpis.email.sent_this_week)} />
+                <KpiRow
+                  label="Open rate"
+                  value={
+                    kpis.email.sent_total === 0
+                      ? '—'
+                      : `${Math.round(kpis.email.open_rate * 1000) / 10}%`
+                  }
+                />
+                <KpiRow label="Bounced" value={fmt(kpis.email.bounced)} />
+              </div>
+            </div>
+
+            <div className={CARD}>
+              <p className={SECTION_HEADER}>Tickets</p>
+              <div className="space-y-4">
+                <KpiRow label="Open" value={fmt(kpis.tickets.open)} />
+                <KpiRow label="In progress" value={fmt(kpis.tickets.in_progress)} />
+                <KpiRow label="Resolved this week" value={fmt(kpis.tickets.resolved_this_week)} />
+                <KpiRow
+                  label="Avg resolution (hours)"
+                  value={fmt(kpis.tickets.avg_resolution_hours)}
+                />
+              </div>
+            </div>
+
+            <div className={CARD}>
+              <p className={SECTION_HEADER}>Contacts</p>
+              <div className="space-y-4">
+                <KpiRow label="Total contacts" value={fmt(kpis.contacts.total)} />
+                <KpiRow label="New this week" value={fmt(kpis.contacts.new_this_week)} />
+              </div>
+            </div>
           </div>
-        ))}
-      </div>
-
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Recent Events</p>
-
-      {stages.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          <button
-            onClick={() => setStageId(null)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-              stageId === null
-                ? 'bg-slate-900 text-white border-slate-900'
-                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            All
-          </button>
-          {stages.map(s => (
-            <button
-              key={s.id}
-              onClick={() => setStageId(s.id)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
-                stageId === s.id
-                  ? 'bg-slate-900 text-white border-slate-900'
-                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
-              {s.name}
-            </button>
-          ))}
         </div>
       )}
-
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        {isLoading && (
-          <p className="text-sm text-slate-400 p-6">Loading…</p>
-        )}
-        {!isLoading && (!events || events.length === 0) && (
-          <div className="py-12 text-center">
-            <Activity size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 font-medium">No activity yet</p>
-          </div>
-        )}
-        {events && events.length > 0 && events.map((ev, i) => (
-          <EventRow key={ev.id} ev={ev} last={i === events.length - 1} />
-        ))}
-      </div>
     </div>
   )
 }

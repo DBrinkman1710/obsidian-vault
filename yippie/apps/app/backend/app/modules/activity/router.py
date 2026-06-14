@@ -34,6 +34,11 @@ async def get_stats(current_user: CurrentUser, db: DB):
     return await service.get_activity_stats(db, current_user.tenant_id)
 
 
+@router.get("/kpis")
+async def get_kpis(current_user: CurrentUser, db: DB):
+    return await service.get_kpis(db, current_user.tenant_id)
+
+
 @router.get("/contacts/{contact_id}", response_model=list[ActivityEventOut])
 async def contact_activity(contact_id: uuid.UUID, current_user: CurrentUser, db: DB):
     return await service.list_events(db, current_user.tenant_id, contact_id)
