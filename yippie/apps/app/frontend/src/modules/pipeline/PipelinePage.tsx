@@ -84,8 +84,8 @@ function StageModal({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl w-[520px] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-[520px] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-sm font-bold text-slate-900">Manage Pipeline Stages</h2>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
@@ -206,8 +206,8 @@ function AddContactModal({
   const available = contacts.filter(c => !existingContactIds.has(c.id))
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl w-[420px] max-h-[70vh] flex flex-col shadow-2xl overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-[420px] max-h-[70vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-4 border-b border-slate-100 shrink-0">
           <input
             autoFocus

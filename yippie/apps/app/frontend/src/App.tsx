@@ -4,6 +4,7 @@ import { fetchTenantConfig, TenantConfig } from './api/tenant'
 import { useAuth } from './auth/useAuth'
 import { ModuleGate } from './shell/ModuleGate'
 import { Sidebar } from './shell/Sidebar'
+import { BottomNav } from './shell/BottomNav'
 
 const ContactDetail = lazy(() => import('./modules/contacts/pages/ContactDetail'))
 const ContactNew    = lazy(() => import('./modules/contacts/pages/ContactNew'))
@@ -35,7 +36,7 @@ const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
 
 function PagePad({ children }: { children: React.ReactNode }) {
-  return <div className="flex-1 h-full overflow-auto p-8">{children}</div>
+  return <div className="flex-1 h-full overflow-auto p-4 md:p-8">{children}</div>
 }
 
 function useGlobalHotkeys() {
@@ -119,9 +120,9 @@ export default function App() {
 
   return (
     <TenantConfigContext.Provider value={config}>
-      <div className="flex h-screen overflow-hidden bg-slate-50">
+      <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
         <Sidebar />
-        <main className="flex-1 overflow-hidden flex flex-col">
+        <main className="flex-1 overflow-hidden flex flex-col pb-16 md:pb-0">
           {impersonating && (
             <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4 flex items-center justify-center gap-3">
               <span>
@@ -207,6 +208,7 @@ export default function App() {
             </Routes>
           </Suspense>
         </main>
+        <BottomNav />
       </div>
     </TenantConfigContext.Provider>
   )

@@ -22,6 +22,7 @@ export default function InvoiceList() {
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {isLoading && <p className="text-sm text-slate-400 p-6">Loading…</p>}
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -48,6 +49,7 @@ export default function InvoiceList() {
             ))}
           </tbody>
         </table>
+        </div>
         {!isLoading && (!invoices || invoices.length === 0) && (
           <div className="py-12 text-center">
             <Receipt size={32} className="text-slate-300 mx-auto mb-3" />

@@ -96,8 +96,8 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-7 w-[480px] shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-[480px] shadow-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-slate-900 mb-1">Unknown Sender</h2>
         <p className="text-sm text-slate-500 mb-5">
           No contact found for <strong className="text-slate-700">{senderEmail}</strong>. Add them to continue.
@@ -198,8 +198,8 @@ function RouteAndApproveModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-2xl p-7 w-[440px] shadow-2xl">
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl p-6 w-full max-w-[440px] shadow-2xl">
         <div className="flex items-start justify-between mb-1">
           <h2 className="text-base font-bold text-slate-900">Route & Approve</h2>
           <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
@@ -534,7 +534,7 @@ export default function DraftReview() {
   if (isLoading || !draft) {
     return (
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-3 gap-3" aria-hidden="true">
-        <div className="grid grid-cols-[320px_1fr] grid-rows-[1fr_1fr] gap-3 flex-1 min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-3 flex-1 min-h-0">
           {[0, 1, 2, 3].map(i => (
             <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
               <Skeleton className="h-3 w-20 mb-4" />
@@ -596,7 +596,7 @@ export default function DraftReview() {
       )}
 
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-3 gap-3">
-        <div className="grid grid-cols-[320px_1fr] grid-rows-[1fr_1fr_auto] gap-3 flex-1 min-h-0">
+        <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-3 flex-1 min-h-0">
 
           {/* ── TOP-LEFT: Customer info ── */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
@@ -1087,7 +1087,7 @@ export default function DraftReview() {
 
           {/* ── ROUTING STRIP (pending mode only) ── */}
           {!isProcessed && (
-            <div className="col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 flex items-center gap-4">
+            <div className="col-span-1 md:col-span-2 bg-white rounded-2xl border border-slate-100 shadow-sm px-4 py-3 flex items-center gap-4 flex-wrap">
               <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase shrink-0">Route</span>
 
               {departments && departments.length > 0 && (

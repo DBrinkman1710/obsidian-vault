@@ -58,7 +58,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex flex-col w-56 h-screen bg-yippie text-white shrink-0 overflow-y-auto"
+      className="hidden md:flex md:flex-col w-56 h-screen bg-yippie text-white shrink-0 overflow-y-auto"
       style={primaryColor ? { backgroundColor: primaryColor } : undefined}
     >
 
