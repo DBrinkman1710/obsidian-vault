@@ -386,7 +386,7 @@ function ComposeModal({
     },
   })
 
-  const canSend = recipients.length > 0 && !!subject.trim() && !!body.trim() && !sendMutation.isPending
+  const canSend = recipients.length > 0 && !!subject.trim() && (!!body.trim() || !!templateHtml) && !sendMutation.isPending
 
   if (demoResult) {
     return (
@@ -501,7 +501,7 @@ function ComposeModal({
                   if (isHtml) {
                     setTemplateHtml(tmplBody)
                     setCampaignButtonsJson(buttons ?? null)
-                    setBody(htmlToText(tmplBody) + sig)
+                    setBody(htmlToText(tmplBody) + sig)  // plain-text fallback, not shown in UI
                   } else {
                     setTemplateHtml(null)
                     setCampaignButtonsJson(null)
@@ -517,21 +517,16 @@ function ComposeModal({
                     <Palette size={11} />
                     Rich template — this is your email
                   </span>
-                  <button type="button" onClick={() => { setTemplateHtml(null); setCampaignButtonsJson(null) }} className="text-violet-400 hover:text-violet-600" title="Remove rich template">
+                  <button
+                    type="button"
+                    onClick={() => { setTemplateHtml(null); setCampaignButtonsJson(null); setBody(user?.email_signature ? `\n\n${user.email_signature}` : '') }}
+                    className="text-violet-400 hover:text-violet-600"
+                    title="Remove template"
+                  >
                     <X size={13} />
                   </button>
                 </div>
-                <div className="overflow-y-auto bg-white" style={{ maxHeight: '300px' }} dangerouslySetInnerHTML={{ __html: templateHtml }} />
-                <div className="border-t border-violet-100 px-3 py-2">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Add a personal note (appended as plain text)</p>
-                  <textarea
-                    className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-[inherit]"
-                    rows={3}
-                    value={body}
-                    onChange={e => setBody(e.target.value)}
-                    placeholder="Optional personal note…"
-                  />
-                </div>
+                <div className="overflow-y-auto bg-white pointer-events-none select-none" style={{ maxHeight: '340px' }} dangerouslySetInnerHTML={{ __html: templateHtml }} />
               </div>
             ) : (
               <textarea
