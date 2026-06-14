@@ -99,12 +99,19 @@ def inject_button_tracking(html_content: str, buttons: list[dict], token_map: di
     if not buttons or not token_map:
         return html_content
 
-    # Build text (lowercased, stripped) → tracking_url
+    def _norm(s: str) -> str:
+        # Unlayer wraps button labels in spans and pads them with &nbsp;, so the
+        # visible text is e.g. "&nbsp;&nbsp;Interested&nbsp;&nbsp;" across nested
+        # tags. Decode entities (&nbsp; → \xa0) and collapse all whitespace —
+        # including the non-breaking \xa0 — so it matches the plain button text.
+        return re.sub(r"\s+", " ", html.unescape(s)).strip().lower()
+
+    # Build text (entity-decoded, whitespace-collapsed, lowercased) → tracking_url
     text_to_url: dict[str, str] = {}
     for btn in buttons:
         btn_id = str(btn.get("id", ""))
         url = token_map.get(btn_id)
-        text = (btn.get("text") or "").strip().lower()
+        text = _norm(btn.get("text") or "")
         if url and text:
             text_to_url[text] = url
 
@@ -119,7 +126,7 @@ def inject_button_tracking(html_content: str, buttons: list[dict], token_map: di
     )
 
     def replacer(m: re.Match) -> str:
-        inner = re.sub(r'<[^>]+>', '', m.group(4)).strip().lower()
+        inner = _norm(re.sub(r'<[^>]+>', '', m.group(4)))
         if inner in text_to_url:
             return m.group(1) + html.escape(text_to_url[inner], quote=True) + m.group(3) + m.group(4) + m.group(5)
         return m.group(0)
