@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { X, Paperclip, Sparkles } from 'lucide-react'
+import { X, Paperclip, Sparkles, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
@@ -9,6 +9,7 @@ import { CompanyPicker } from '../../contacts/components/CompanyPicker'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { Skeleton } from '../../../shell/Skeleton'
+import { useMobile } from '../../../shell/useMobile'
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English', nl: 'Dutch', fr: 'French', de: 'German', es: 'Spanish',
@@ -275,6 +276,8 @@ export default function DraftReview() {
   const config = useTenantConfig()
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
   const { user } = useAuth()
+  const isMobile = useMobile()
+  const [emailExpanded, setEmailExpanded] = useState(false)
 
   const { data: ctx, isLoading } = useQuery({
     queryKey: ['draft', id],
@@ -532,6 +535,20 @@ export default function DraftReview() {
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
   if (isLoading || !draft) {
+    if (isMobile) {
+      return (
+        <div className="flex flex-col flex-1 overflow-auto bg-slate-50 p-4 gap-3" aria-hidden="true">
+          {[0, 1, 2].map(i => (
+            <div key={i} className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+              <Skeleton className="h-3 w-20 mb-4" />
+              <Skeleton className="h-4 w-40 mb-2" />
+              <Skeleton className="h-3 w-full mb-2" />
+              <Skeleton className="h-3 w-5/6" />
+            </div>
+          ))}
+        </div>
+      )
+    }
     return (
       <div className="flex flex-col flex-1 min-h-0 overflow-hidden bg-slate-50 p-3 gap-3" aria-hidden="true">
         <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-3 flex-1 min-h-0">
@@ -571,6 +588,201 @@ export default function DraftReview() {
     // Always show the modal so the user can confirm/edit dept and SLA
     setShowDeptReminder(true)
   }
+
+  // ── Mobile view ────────────────────────────────────────────────────────────
+  if (isMobile) {
+    const bodyPreview = msg?.raw_body?.slice(0, 200) ?? ''
+    const bodyFull = msg?.raw_body ?? ''
+    const bodyIsLong = bodyFull.length > 200
+
+    return (
+      <>
+        {showContactModal && msg && (
+          <NewContactModal
+            senderEmail={msg.sender}
+            draftId={id!}
+            onSuccess={() => setModalDismissed(true)}
+            onDismiss={() => setModalDismissed(true)}
+          />
+        )}
+        {showDeptReminder && (
+          <RouteAndApproveModal
+            departments={departments ?? []}
+            initialDeptId={selectedDeptId}
+            onApprove={(deptId, fud) => {
+              setShowDeptReminder(false)
+              reviewMutation.mutate({ action: 'approve', departmentId: deptId || undefined, modalFollowUpDays: fud })
+            }}
+            onCancel={() => setShowDeptReminder(false)}
+          />
+        )}
+
+        <div className="flex flex-col flex-1 overflow-auto bg-slate-50 pb-32">
+          {/* Back */}
+          <div className="px-4 pt-4 pb-2">
+            <Link to="/inbox" className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+              <ArrowLeft size={15} />
+              Inbox
+            </Link>
+          </div>
+
+          <div className="px-4 flex flex-col gap-3">
+            {/* Status banner (processed) */}
+            {isProcessed && (
+              <div className={`rounded-2xl p-4 border text-sm font-semibold flex items-center gap-2 ${
+                isForwarded ? 'bg-violet-50 border-violet-200 text-violet-700'
+                : draft.status === 'approved' ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
+                : 'bg-red-50 border-red-200 text-red-600'
+              }`}>
+                {isForwarded ? '→ Forwarded' : draft.status === 'approved' ? '✓ Approved' : '✗ Rejected'}
+                {!isForwarded && (
+                  <button
+                    onClick={() => undoReviewMutation.mutate()}
+                    disabled={undoReviewMutation.isPending}
+                    className="ml-auto shrink-0 text-xs font-semibold px-3 py-1.5 bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                  >
+                    {undoReviewMutation.isPending ? 'Undoing…' : 'Undo'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {linkedTicket && (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+                <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">Created Ticket</p>
+                <Link to={`/tickets/${linkedTicket.id}`} className="text-sm font-semibold text-slate-800 hover:text-yippie transition-colors block mb-2">
+                  {linkedTicket.subject}
+                </Link>
+                <div className="flex gap-1.5 flex-wrap">
+                  <Badge label={linkedTicket.status} color={STATUS_COLORS[linkedTicket.status] ?? '#64748b'} />
+                  <Badge label={linkedTicket.priority} color={PRIORITY_COLORS[linkedTicket.priority] ?? '#64748b'} />
+                </div>
+              </div>
+            )}
+
+            {/* Customer */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+              <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-3">Customer</p>
+              {contact ? (
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-yippie/15 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-yippie">{initials}</span>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-semibold text-slate-900 text-sm truncate">{contact.full_name}</p>
+                    {contact.company && <p className="text-xs text-slate-500 truncate">{contact.company}</p>}
+                    {contact.email && <p className="text-xs text-slate-500 truncate">{contact.email}</p>}
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
+                  <p className="text-xs text-amber-800 mb-2">Unknown sender — no matching contact.</p>
+                  {!isProcessed && (
+                    <button
+                      onClick={() => setModalDismissed(false)}
+                      className="text-xs font-semibold text-amber-700 bg-amber-100 border border-amber-200 rounded-lg px-3 py-1.5 hover:bg-amber-200 transition-colors"
+                    >
+                      + Add to Contacts
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Email body */}
+            <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Email</p>
+                {msg?.received_at && (
+                  <span className="text-[11px] text-slate-400">{new Date(msg.received_at).toLocaleString()}</span>
+                )}
+              </div>
+              {msg?.subject && <p className="text-sm font-semibold text-slate-900 mb-2">{msg.subject}</p>}
+              <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
+                {emailExpanded || !bodyIsLong ? bodyFull : bodyPreview + '…'}
+              </p>
+              {bodyIsLong && (
+                <button
+                  onClick={() => setEmailExpanded(v => !v)}
+                  className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-yippie hover:opacity-80 transition-opacity"
+                >
+                  {emailExpanded ? <><ChevronUp size={13} /> Show less</> : <><ChevronDown size={13} /> Show full email</>}
+                </button>
+              )}
+            </div>
+
+            {/* AI briefing */}
+            {draft.context_summary && (
+              <div className="rounded-2xl bg-blue-50 border border-blue-100 p-4">
+                <p className="text-[10px] font-bold tracking-widest text-blue-400 uppercase mb-2">AI Briefing</p>
+                <p className="text-xs text-blue-900 leading-relaxed">{draft.context_summary}</p>
+              </div>
+            )}
+            {aiEnabled && aiQueued && !draft.context_summary && (
+              <div className="rounded-2xl bg-blue-50 border border-blue-100 p-4">
+                <p className="text-xs text-blue-400 animate-pulse">AI is analyzing this email…</p>
+              </div>
+            )}
+
+            {/* Draft ticket fields — pending only */}
+            {!isProcessed && (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-4">
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Subject</label>
+                  <input
+                    value={subject || draft.ai_suggested_subject || ''}
+                    onChange={e => setSubject(e.target.value)}
+                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-500 mb-2">Priority</label>
+                  <div className="flex gap-2 flex-wrap">
+                    {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
+                      const active = (priority || draft.ai_suggested_priority) === p
+                      return (
+                        <button
+                          key={p}
+                          onClick={() => setPriority(p)}
+                          className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-all ${
+                            active ? 'text-white shadow-sm scale-105' : 'bg-slate-100 text-slate-500'
+                          }`}
+                          style={active ? { background: PRIORITY_COLORS[p] } : {}}
+                        >
+                          {p}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Sticky action bar */}
+        {!isProcessed && (
+          <div className="fixed bottom-16 inset-x-0 p-4 bg-white border-t border-slate-100 flex gap-3 z-30">
+            <button
+              onClick={() => reviewMutation.mutate({ action: 'reject' })}
+              disabled={reviewMutation.isPending}
+              className="flex-1 py-3 text-sm font-semibold text-red-500 bg-red-50 border border-red-200 rounded-2xl hover:bg-red-100 transition-colors disabled:opacity-50"
+            >
+              Reject
+            </button>
+            <button
+              onClick={handleApprove}
+              disabled={reviewMutation.isPending}
+              className="flex-[2] py-3 text-sm font-bold text-white bg-emerald-500 rounded-2xl hover:bg-emerald-600 transition-colors disabled:opacity-50"
+            >
+              {reviewMutation.isPending ? 'Creating…' : 'Approve & Create Ticket'}
+            </button>
+          </div>
+        )}
+      </>
+    )
+  }
+  // ── End mobile view ────────────────────────────────────────────────────────
 
   return (
     <>

@@ -157,7 +157,7 @@ export default function ContactDetail() {
   const newTicketUrl = `/tickets/new?contact_id=${id}&contact_name=${encodeURIComponent(contact.full_name)}`
 
   return (
-    <div className="flex gap-8 items-start">
+    <div className="flex flex-col md:flex-row gap-8 items-start">
       <div className="flex-1 min-w-0 max-w-2xl">
         <div className="flex items-start justify-between mb-1">
           <h1 className="text-2xl font-bold text-slate-900">{contact.full_name}</h1>

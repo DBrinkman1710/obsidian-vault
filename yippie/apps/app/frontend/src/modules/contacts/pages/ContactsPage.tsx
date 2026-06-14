@@ -401,6 +401,7 @@ function ContactsTab() {
       )}
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
@@ -410,10 +411,10 @@ function ContactsTab() {
               </th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Labels</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Phone</th>
-              <th className="px-4 py-3 w-10"></th>
+              <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
+              <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Labels</th>
+              <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Phone</th>
+              <th className="hidden md:table-cell px-4 py-3 w-10"></th>
             </tr>
           </thead>
           {isLoading ? (
@@ -435,14 +436,14 @@ function ContactsTab() {
                     </div>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>{c.email ?? '—'}</td>
-                  <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
+                  <td className="hidden md:table-cell px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
                     {c.company ? (
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200">
                         <Building2 size={10} />{c.company.name}
                       </span>
                     ) : <span className="text-sm text-slate-400">—</span>}
                   </td>
-                  <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
+                  <td className="hidden md:table-cell px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
                     {c.labels.length === 0 ? <span className="text-sm text-slate-400">—</span> : (
                       <div className="flex flex-wrap gap-1">
                         {c.labels.slice(0, 3).map(label => <LabelChip key={label.id} label={label} />)}
@@ -450,8 +451,8 @@ function ContactsTab() {
                       </div>
                     )}
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>{c.phone ?? '—'}</td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                  <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>{c.phone ?? '—'}</td>
+                  <td className="hidden md:table-cell px-4 py-3" onClick={e => e.stopPropagation()}>
                     <button onClick={() => setEditingContact(c)}
                       className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Edit">
                       <Pencil size={13} />
@@ -462,6 +463,7 @@ function ContactsTab() {
             </tbody>
           )}
         </table>
+        </div>
         {!isLoading && items.length === 0 && (
           <div className="py-12 text-center">
             <User size={32} className="text-slate-300 mx-auto mb-3" />
