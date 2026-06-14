@@ -250,10 +250,49 @@ function InviteModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+function DeleteUserModal({ user, onClose }: { user: TeamUser; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: () => api.delete(`/team/users/${user.id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['team-users'] }); onClose() },
+    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to delete user'),
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Delete team member</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+        </div>
+        <div className="p-6 flex flex-col gap-4">
+          <p className="text-sm text-slate-600">
+            Are you sure you want to delete <span className="font-semibold text-slate-900">{user.full_name}</span>? This cannot be undone.
+          </p>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex gap-3 pt-1">
+            <button
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending}
+              className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              {mutation.isPending ? 'Deleting…' : 'Delete'}
+            </button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function TeamSettingsPage() {
   const qc = useQueryClient()
   const { user: me } = useAuth()
   const [showInvite, setShowInvite] = useState(false)
+  const [deletingUser, setDeletingUser] = useState<TeamUser | null>(null)
   const [error, setError] = useState('')
 
   const { data: users, isLoading } = useQuery<TeamUser[]>({
@@ -331,17 +370,26 @@ export default function TeamSettingsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         {!locked && (
-                          <button
-                            onClick={() => updateMutation.mutate({ id: u.id, is_active: !u.is_active })}
-                            disabled={updateMutation.isPending}
-                            className={`px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors disabled:opacity-50 ${
-                              u.is_active
-                                ? 'text-slate-500 border-slate-200 hover:bg-slate-50'
-                                : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
-                            }`}
-                          >
-                            {u.is_active ? 'Deactivate' : 'Activate'}
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => updateMutation.mutate({ id: u.id, is_active: !u.is_active })}
+                              disabled={updateMutation.isPending}
+                              className={`px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors disabled:opacity-50 ${
+                                u.is_active
+                                  ? 'text-slate-500 border-slate-200 hover:bg-slate-50'
+                                  : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                              }`}
+                            >
+                              {u.is_active ? 'Deactivate' : 'Activate'}
+                            </button>
+                            <button
+                              onClick={() => setDeletingUser(u)}
+                              className="p-1.5 text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                              title="Delete"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         )}
                       </td>
                     </tr>
@@ -353,6 +401,7 @@ export default function TeamSettingsPage() {
         )}
 
         {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
+        {deletingUser && <DeleteUserModal user={deletingUser} onClose={() => setDeletingUser(null)} />}
       </div>
 
       {/* Departments panel */}

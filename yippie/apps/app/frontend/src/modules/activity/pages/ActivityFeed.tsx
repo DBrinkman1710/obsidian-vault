@@ -1,7 +1,16 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../../../api/client'
+
+interface PipelineStage {
+  id: string
+  name: string
+  color: string
+  display_order: number
+  contact_count: number
+}
 
 interface ActivityEventOut {
   id: string
@@ -29,11 +38,13 @@ const EVENT_LABELS: Record<string, string> = {
   'ticket_status_changed': 'Changed ticket status',
   'ticket_assigned':       'Assigned ticket',
   'ticket_commented':      'Added comment',
+  'pipeline_stage_changed': 'Moved pipeline stage',
 }
 
 const MODULE_DOT: Record<string, string> = {
-  inbox:   'bg-blue-500',
-  tickets: 'bg-violet-500',
+  inbox:    'bg-blue-500',
+  tickets:  'bg-violet-500',
+  pipeline: 'bg-emerald-500',
 }
 
 function humanize(key: string) {
@@ -47,8 +58,16 @@ function eventLink(ev: ActivityEventOut): string | null {
   return null
 }
 
+function eventLabel(ev: ActivityEventOut): string {
+  if (ev.event_type === 'pipeline_stage_changed') {
+    const stageName = ev.payload?.stage_name
+    if (typeof stageName === 'string') return `Moved to ${stageName}`
+  }
+  return EVENT_LABELS[ev.event_type] ?? humanize(ev.event_type)
+}
+
 function EventRow({ ev, last }: { ev: ActivityEventOut; last: boolean }) {
-  const label = EVENT_LABELS[ev.event_type] ?? humanize(ev.event_type)
+  const label = eventLabel(ev)
   const dot = MODULE_DOT[ev.module] ?? 'bg-slate-400'
   const href = eventLink(ev)
 
@@ -83,15 +102,25 @@ function EventRow({ ev, last }: { ev: ActivityEventOut; last: boolean }) {
 }
 
 export default function ActivityFeed() {
+  const [stageId, setStageId] = useState<string | null>(null)
+
   const { data: stats } = useQuery({
     queryKey: ['activity-stats'],
     queryFn: () => api.get('/activity/stats').then(r => r.data),
     refetchInterval: 30_000,
   })
 
+  const { data: stages = [] } = useQuery<PipelineStage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+  })
+
   const { data: events, isLoading } = useQuery<ActivityEventOut[]>({
-    queryKey: ['activity'],
-    queryFn: () => api.get('/activity').then(r => r.data),
+    queryKey: ['activity', stageId],
+    queryFn: () =>
+      api
+        .get('/activity', { params: stageId ? { pipeline_stage_id: stageId } : {} })
+        .then(r => r.data),
     refetchInterval: 30_000,
   })
 
@@ -111,6 +140,35 @@ export default function ActivityFeed() {
       </div>
 
       <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4">Recent Events</p>
+
+      {stages.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4">
+          <button
+            onClick={() => setStageId(null)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+              stageId === null
+                ? 'bg-slate-900 text-white border-slate-900'
+                : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            All
+          </button>
+          {stages.map(s => (
+            <button
+              key={s.id}
+              onClick={() => setStageId(s.id)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors ${
+                stageId === s.id
+                  ? 'bg-slate-900 text-white border-slate-900'
+                  : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s.color }} />
+              {s.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {isLoading && (

@@ -62,7 +62,9 @@ async def get_board(current_user: CurrentUser, db: DB):
 @router.put("/contacts/{contact_id}/stage", status_code=status.HTTP_204_NO_CONTENT)
 async def move_to_stage(contact_id: uuid.UUID, body: MoveToStage, current_user: CurrentUser, db: DB):
     try:
-        await service.move_contact_to_stage(db, current_user.tenant_id, contact_id, body.stage_id)
+        await service.move_contact_to_stage(
+            db, current_user.tenant_id, contact_id, body.stage_id, actor_id=current_user.id
+        )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

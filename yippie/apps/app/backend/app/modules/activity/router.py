@@ -21,9 +21,12 @@ async def list_activity(
     current_user: CurrentUser,
     db: DB,
     contact_id: Optional[uuid.UUID] = Query(None),
+    pipeline_stage_id: Optional[uuid.UUID] = Query(None),
     limit: int = Query(100, ge=1, le=500),
 ):
-    return await service.list_events(db, current_user.tenant_id, contact_id, limit)
+    return await service.list_events(
+        db, current_user.tenant_id, contact_id, limit, pipeline_stage_id=pipeline_stage_id
+    )
 
 
 @router.get("/stats")

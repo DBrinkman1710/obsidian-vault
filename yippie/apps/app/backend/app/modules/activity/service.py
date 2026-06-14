@@ -41,8 +41,10 @@ async def list_events(
     tenant_id: uuid.UUID,
     contact_id: Optional[uuid.UUID] = None,
     limit: int = 100,
+    pipeline_stage_id: Optional[uuid.UUID] = None,
 ) -> list[dict]:
     from app.core.models import User
+    from app.modules.pipeline.models import ContactPipelineEntry
 
     q = (
         select(ActivityEvent, User.full_name.label("actor_name"))
@@ -51,6 +53,14 @@ async def list_events(
     )
     if contact_id:
         q = q.where(ActivityEvent.contact_id == contact_id)
+    if pipeline_stage_id:
+        q = q.join(
+            ContactPipelineEntry,
+            ContactPipelineEntry.contact_id == ActivityEvent.contact_id,
+        ).where(
+            ContactPipelineEntry.stage_id == pipeline_stage_id,
+            ContactPipelineEntry.tenant_id == tenant_id,
+        )
     result = await db.execute(q.order_by(ActivityEvent.created_at.desc()).limit(limit))
     events = []
     for row in result.all():

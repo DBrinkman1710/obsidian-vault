@@ -6,6 +6,7 @@ from typing import Optional
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.modules.activity import service as activity_service
 from app.modules.contacts.models import Company, Contact
 from app.modules.pipeline.models import ContactPipelineEntry, PipelineStage
 from app.modules.pipeline.schemas import (
@@ -149,6 +150,7 @@ async def move_contact_to_stage(
     tenant_id: uuid.UUID,
     contact_id: uuid.UUID,
     stage_id: uuid.UUID,
+    actor_id: Optional[uuid.UUID] = None,
 ) -> None:
     exists = await db.scalar(
         select(Contact.id).where(Contact.tenant_id == tenant_id, Contact.id == contact_id)
@@ -156,13 +158,21 @@ async def move_contact_to_stage(
     if exists is None:
         raise ValueError("Contact not found")
 
-    stage_exists = await db.scalar(
-        select(PipelineStage.id).where(PipelineStage.tenant_id == tenant_id, PipelineStage.id == stage_id)
+    stage = await db.scalar(
+        select(PipelineStage).where(PipelineStage.tenant_id == tenant_id, PipelineStage.id == stage_id)
     )
-    if stage_exists is None:
+    if stage is None:
         raise ValueError("Stage not found")
 
     await _assign_stage(db, tenant_id, contact_id, stage_id)
+    await db.commit()
+
+    await activity_service.log_event(
+        db, tenant_id,
+        module="pipeline", event_type="pipeline_stage_changed", entity_type="pipeline_stage",
+        entity_id=stage.id, contact_id=contact_id, actor_id=actor_id,
+        payload={"stage_name": stage.name},
+    )
     await db.commit()
 
 
