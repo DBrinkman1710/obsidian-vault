@@ -38,12 +38,21 @@ export function Sidebar() {
     enabled: !!config,
   })
 
+  const { data: chatCountData } = useQuery({
+    queryKey: ['chat-open-count'],
+    queryFn: () => api.get('/chat/sessions/count').then(r => r.data),
+    refetchInterval: 60_000,
+    enabled: !!config && (config.enabled_modules ?? []).includes('chat'),
+  })
+
   const pendingCount: number = draftCount?.pending ?? 0
   const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
   const redCount: number = deadlineData?.red ?? 0
   const orangeCount: number = deadlineData?.orange ?? 0
   const redBadge = redCount === 0 ? null : redCount > 9 ? '9+' : String(redCount)
   const orangeBadge = orangeCount === 0 ? null : orangeCount > 9 ? '9+' : String(orangeCount)
+  const chatOpenCount: number = chatCountData?.open ?? 0
+  const chatBadge = chatOpenCount === 0 ? null : chatOpenCount > 9 ? '9+' : String(chatOpenCount)
 
   const location = useLocation()
   const SETTINGS_OWN = ['/settings/profile', '/settings/team', '/settings/superadmins']
@@ -118,6 +127,11 @@ export function Sidebar() {
                       </span>
                     )}
                   </div>
+                )}
+                {mod === 'chat' && chatBadge && (
+                  <span className="bg-green-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                    {chatBadge}
+                  </span>
                 )}
                 {mod === 'tickets' && (redBadge || orangeBadge) && (
                   <div className="flex items-center gap-1">

@@ -55,6 +55,62 @@ export default function ChatPage() {
     },
   })
 
+  // Agent WebSocket — real-time events for all sessions in this tenant
+  useEffect(() => {
+    if ('Notification' in window && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+
+    let ws: WebSocket | null = null
+    let reconnectTimer: ReturnType<typeof setTimeout>
+
+    function connect() {
+      const token = localStorage.getItem('access_token')
+      if (!token) return
+      const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+      ws = new WebSocket(`${proto}://${location.host}/api/v1/chat/ws/agent?token=${encodeURIComponent(token)}`)
+
+      ws.onmessage = (e) => {
+        try {
+          const data = JSON.parse(e.data) as { event: string; session_id?: string; sender_type?: string; body?: string }
+          if (data.event === 'message') {
+            qc.invalidateQueries({ queryKey: ['chat-messages', data.session_id] })
+            if (data.sender_type === 'visitor') {
+              qc.invalidateQueries({ queryKey: ['chat-sessions'] })
+              qc.invalidateQueries({ queryKey: ['chat-open-count'] })
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification('New chat message', {
+                  body: (data.body ?? '').slice(0, 100),
+                  icon: '/logo.svg',
+                })
+              }
+            }
+          } else if (data.event === 'new_session') {
+            qc.invalidateQueries({ queryKey: ['chat-sessions'] })
+            qc.invalidateQueries({ queryKey: ['chat-open-count'] })
+            if ('Notification' in window && Notification.permission === 'granted') {
+              new Notification('New chat session', {
+                body: 'A visitor has started a conversation.',
+                icon: '/logo.svg',
+              })
+            }
+          }
+        } catch { /* ignore malformed frames */ }
+      }
+
+      ws.onclose = () => {
+        reconnectTimer = setTimeout(connect, 5000)
+      }
+    }
+
+    connect()
+
+    return () => {
+      clearTimeout(reconnectTimer)
+      ws?.close()
+    }
+  }, [qc])
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])

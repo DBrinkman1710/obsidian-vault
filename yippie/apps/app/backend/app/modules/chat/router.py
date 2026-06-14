@@ -6,12 +6,14 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket, WebSocketDisconnect, status
+from jose import JWTError, jwt
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser
-from app.core.models import Tenant
+from app.config import get_settings
+from app.core.models import Tenant, User
 from app.core.tenant import resolve_tenant_by_slug
 from app.database import db_session, get_db, set_tenant_context
 from app.modules.chat import whatsapp_service
@@ -49,6 +51,17 @@ async def list_sessions(current_user: CurrentUser, db: DB):
         }
         for s in sessions
     ]
+
+
+@router.get("/sessions/count")
+async def count_open_sessions(current_user: CurrentUser, db: DB):
+    count = await db.scalar(
+        select(func.count(ChatSession.id)).where(
+            ChatSession.tenant_id == current_user.tenant_id,
+            ChatSession.is_open == True,  # noqa: E712
+        )
+    )
+    return {"open": count or 0}
 
 
 @router.get("/sessions/{session_id}/messages")
@@ -134,19 +147,18 @@ async def reply_to_session(
                 # Log but don't fail — message is already saved in DB
                 pass
 
-    # Also push to any connected WebSocket agents viewing this session
-    await manager.broadcast_to_session(
-        str(current_user.tenant_id),
-        str(session_id),
-        {
-            "event": "message",
-            "session_id": str(session_id),
-            "sender_type": "agent",
-            "sender_id": str(current_user.id),
-            "body": text,
-            "created_at": msg.created_at.isoformat(),
-        },
-    )
+    tenant_key = str(current_user.tenant_id)
+    event_data = {
+        "event": "message",
+        "session_id": str(session_id),
+        "sender_type": "agent",
+        "sender_id": str(current_user.id),
+        "body": text,
+        "created_at": msg.created_at.isoformat(),
+    }
+    # Push to visitor widget socket for this session and to all agent dashboards
+    await manager.broadcast_to_session(tenant_key, str(session_id), event_data)
+    await manager.broadcast_to_agents(tenant_key, event_data)
 
     return {"id": str(msg.id), "body": msg.body, "created_at": msg.created_at.isoformat()}
 
@@ -251,6 +263,10 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
             db.add(session)
             await db.commit()
             await db.refresh(session)
+            await manager.broadcast_to_agents(
+                tenant_key,
+                {"event": "new_session", "session_id": session_id},
+            )
 
     try:
         while True:
@@ -273,19 +289,55 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
                 db.add(msg)
                 await db.commit()
 
-            await manager.broadcast_to_session(
-                tenant_key,
-                session_id,
-                {
-                    "event": "message",
-                    "session_id": session_id,
-                    "sender_type": "visitor",
-                    "sender_id": session_id,
-                    "body": msg_body,
-                    "created_at": datetime.now(timezone.utc).isoformat(),
-                },
-            )
+            visitor_event = {
+                "event": "message",
+                "session_id": session_id,
+                "sender_type": "visitor",
+                "sender_id": session_id,
+                "body": msg_body,
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            }
+            await manager.broadcast_to_session(tenant_key, session_id, visitor_event)
+            await manager.broadcast_to_agents(tenant_key, visitor_event)
     except WebSocketDisconnect:
         manager.disconnect(websocket, tenant_key, session_id)
     except Exception:
         manager.disconnect(websocket, tenant_key, session_id)
+
+
+# ---------------------------------------------------------------------------
+# Agent WebSocket — authenticated; receives all tenant events in real time
+# ---------------------------------------------------------------------------
+
+@router.websocket("/ws/agent")
+async def agent_ws(websocket: WebSocket, token: str):
+    """Authenticated WebSocket for agent dashboards.
+
+    Connect with: wss://host/api/v1/chat/ws/agent?token={access_token}
+    Pushes 'message' and 'new_session' events for all sessions in the tenant.
+    """
+    settings = get_settings()
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        user_id: str | None = payload.get("sub")
+        if not user_id:
+            raise ValueError("missing sub")
+    except (JWTError, ValueError):
+        await websocket.close(code=4001)
+        return
+
+    async with db_session() as db:
+        user = await db.get(User, uuid.UUID(user_id))
+        if not user or not user.is_active:
+            await websocket.close(code=4001)
+            return
+        tenant_key = str(user.tenant_id)
+
+    await manager.connect_agent(websocket, tenant_key)
+    try:
+        while True:
+            await websocket.receive_text()  # keepalive pings — payload ignored
+    except WebSocketDisconnect:
+        manager.disconnect_agent(websocket, tenant_key)
+    except Exception:
+        manager.disconnect_agent(websocket, tenant_key)
