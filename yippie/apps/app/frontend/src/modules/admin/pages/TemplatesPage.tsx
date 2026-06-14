@@ -343,7 +343,10 @@ export default function TemplatesPage() {
 
           {/* Editor + bottom panels */}
           <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <div className="relative flex-1 min-h-0 mx-5 mt-5 border border-slate-200 rounded-t-xl overflow-hidden">
+            <p className="text-xs text-slate-400 mx-5 mb-1 mt-5">
+              💡 Tip: Use <strong className="font-semibold">AI → Compose</strong> to generate rich HTML content, then copy it here using the HTML source button.
+            </p>
+            <div className="relative flex-1 min-h-0 mx-5 border border-slate-200 rounded-t-xl overflow-hidden">
               {!editorReady && (
                 <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50">
                   <Loader2 size={22} className="text-blue-500 animate-spin mb-2" />
