@@ -87,6 +87,20 @@ class Settings(BaseSettings):
         # which React Router does not match.
         return v.rstrip("/")
 
+    @property
+    def effective_base_url(self) -> str:
+        """app_base_url, or derived from ENVIRONMENT when APP_BASE_URL is not set.
+        Always returns an absolute URL so tracking links in emails resolve correctly."""
+        if self.app_base_url:
+            return self.app_base_url
+        _env_urls: dict[str, str] = {
+            "production": "https://app.getyippie.com",
+            "dev": "https://dev.getyippie.com",
+            "sandbox": "https://sandbox.getyippie.com",
+            "devsandbox": "https://devsandbox.getyippie.com",
+        }
+        return _env_urls.get(self.environment, "")
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
     @property

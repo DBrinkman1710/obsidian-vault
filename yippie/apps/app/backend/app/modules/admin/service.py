@@ -371,7 +371,7 @@ async def broadcast_to_tenant(
     skipped_no_email = sum(1 for c in recipients if not (c.email and is_valid_email(c.email)))
     recipients = [c for c in recipients if c.email and is_valid_email(c.email)]
 
-    base_url = get_settings().app_base_url
+    base_url = get_settings().effective_base_url
     from_email = get_settings().resend_from or None
 
     sent = 0

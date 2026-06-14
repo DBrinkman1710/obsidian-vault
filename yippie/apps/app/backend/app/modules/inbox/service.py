@@ -770,7 +770,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                 campaign_buttons_html = ""
                 if c["campaign_buttons_json"] and c["contact_id"]:
                     buttons = json.loads(c["campaign_buttons_json"])
-                    base_url = _get_settings().app_base_url
+                    base_url = _get_settings().effective_base_url
                     token_map: dict[str, str] = {}
                     for btn in buttons:
                         btn_id = str(btn.get("id", ""))
