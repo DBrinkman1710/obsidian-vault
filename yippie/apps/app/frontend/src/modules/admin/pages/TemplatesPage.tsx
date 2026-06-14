@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import EmailEditor, { EditorRef } from 'react-email-editor'
 import { FileText, Loader2, MousePointerClick, Palette, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../../../api/client'
-import { useAuth } from '../../../auth/useAuth'
+import { useSignatures, pickDefaultSignature } from '../../../hooks/useSignatures'
 import { htmlToText } from '../../inbox/components/TemplatePicker'
 
 interface Template {
@@ -76,7 +76,8 @@ function parseButtons(raw: string | null): CampaignButton[] {
 
 export default function TemplatesPage() {
   const qc = useQueryClient()
-  const { user } = useAuth()
+  const { data: signatures } = useSignatures()
+  const defaultSig = pickDefaultSignature(signatures)
   const editorRef = useRef<EditorRef>(null)
   const pendingDesignRef = useRef<string | null | undefined>(undefined)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -373,8 +374,12 @@ export default function TemplatesPage() {
             {/* Signature preview */}
             <div className="mx-5 shrink-0 border border-t-0 border-slate-200 rounded-b-xl bg-white px-4 py-3">
               <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">— Signature</p>
-              {user?.email_signature ? (
-                <p className="text-xs text-slate-600 whitespace-pre-wrap">{user.email_signature}</p>
+              {defaultSig?.body ? (
+                /<img\s/i.test(defaultSig.body) ? (
+                  <div className="text-xs text-slate-600 [&_img]:max-h-12 [&_img]:inline-block" dangerouslySetInnerHTML={{ __html: defaultSig.body }} />
+                ) : (
+                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{defaultSig.body}</p>
+                )
               ) : (
                 <p className="text-xs text-slate-400 italic">No signature — add one in Profile settings.</p>
               )}

@@ -37,18 +37,50 @@ def _safe_int(value: object, default: int) -> int:
 
 _URL_RE = re.compile(r"(https?://[^\s<]+)")
 
+# Signature images (S2) are embedded in the plain-text body as a single inline
+# <img src="data:image/...;base64,..."> tag. The body is otherwise escaped for
+# safety, so we extract these strictly-validated tags first, escape everything
+# else, then re-insert the tags. Only data-URI sources for svg/png/jpeg are
+# allowed — no remote URLs, no other attributes, no script vectors.
+_SIG_IMG_RE = re.compile(
+    r'<img\s+src="(data:image/(?:svg\+xml|png|jpeg|jpg);base64,[A-Za-z0-9+/=\s]+)"'
+    r'(?:\s+[a-z-]+="[^"<>]*")*\s*/?>',
+    re.IGNORECASE,
+)
+
 
 def _paragraphs(text: str) -> str:
     """Escape and convert plain text to <p> blocks (blank line = new paragraph).
-    URLs become clickable links (matters for invite/reset mails)."""
-    escaped = html.escape(text.strip())
+    URLs become clickable links (matters for invite/reset mails). Inline
+    base64-image <img> tags (signature images, S2) are preserved verbatim
+    instead of being escaped."""
+    text = text.strip()
+
+    # Pull out allowlisted inline-image tags so html.escape() doesn't mangle
+    # them, replacing each with a placeholder we restore after escaping.
+    images: list[str] = []
+
+    def _stash(m: re.Match) -> str:
+        src = m.group(1)
+        images.append(
+            f'<img src="{src}" style="max-width:100%;height:auto;border:0;" />'
+        )
+        return f"\x00IMG{len(images) - 1}\x00"
+
+    stashed = _SIG_IMG_RE.sub(_stash, text)
+
+    escaped = html.escape(stashed)
     escaped = _URL_RE.sub(
         r'<a href="\1" style="color:#2563eb;word-break:break-all;">\1</a>', escaped
     )
     parts = [p.strip().replace("\n", "<br>") for p in re.split(r"\n\s*\n", escaped) if p.strip()]
-    return "".join(
+    rendered = "".join(
         f'<p style="margin:0 0 14px 0;line-height:1.55;">{p}</p>' for p in parts
     )
+    # Restore the safe image tags (placeholders survive html.escape untouched).
+    for i, img in enumerate(images):
+        rendered = rendered.replace(f"\x00IMG{i}\x00", img)
+    return rendered
 
 
 def render_campaign_buttons_html(buttons: list[dict], token_map: dict[str, str] | None = None) -> str:

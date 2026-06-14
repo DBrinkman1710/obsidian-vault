@@ -1,12 +1,13 @@
-import { useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
+import { useRef, useState } from 'react'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { Plus, Trash2, Star, ChevronUp, ChevronDown, Image as ImageIcon, Pencil, Check, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+import { useSignatures, readSignatureImage, signatureImageTag, type Signature } from '../../../hooks/useSignatures'
 
 export default function ProfileSettingsPage() {
   const { user, refreshUser } = useAuth()
   const [personalEmail, setPersonalEmail] = useState(user?.inbound_email ?? user?.reply_from_email ?? '')
-  const [signature, setSignature] = useState(user?.email_signature ?? '')
   const [hotkeysEnabled, setHotkeysEnabled] = useState(user?.hotkeys_enabled !== false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
@@ -16,7 +17,6 @@ export default function ProfileSettingsPage() {
     mutationFn: () => api.patch('/auth/me', {
       reply_from_email: personalEmail.trim() || null,
       inbound_email: personalEmail.trim() || null,
-      email_signature: signature.trim() || null,
       hotkeys_enabled: hotkeysEnabled,
     }).then(r => r.data),
     onSuccess: async () => {
@@ -62,15 +62,7 @@ export default function ProfileSettingsPage() {
         </div>
 
         <div className="border-t border-slate-100 pt-5">
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email signature</label>
-          <textarea
-            value={signature}
-            onChange={e => setSignature(e.target.value)}
-            rows={4}
-            placeholder={'e.g.\nBest regards,\nEddy — Support Team'}
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie resize-y"
-          />
-          <p className="mt-1.5 text-xs text-slate-400">Added automatically below your message when you compose or reply.</p>
+          <SignaturesSection />
         </div>
 
         <div className="flex items-start justify-between gap-4 border-t border-slate-100 pt-5">
@@ -173,5 +165,232 @@ function ChangePasswordCard() {
         {saved && <span className="text-sm text-emerald-600 font-medium">✓ Password updated</span>}
       </div>
     </form>
+  )
+}
+
+// ── Multi-signature management (S1/S2) ──────────────────────────────────────
+
+function SignaturesSection() {
+  const qc = useQueryClient()
+  const { data: signatures = [], isLoading } = useSignatures()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [adding, setAdding] = useState(false)
+  const [error, setError] = useState('')
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['signatures'] })
+
+  const createMutation = useMutation({
+    mutationFn: (payload: { name: string; body: string }) =>
+      api.post('/auth/me/signatures', payload).then(r => r.data),
+    onSuccess: () => { invalidate(); setAdding(false); setError('') },
+    onError: (err: any) => setError(err.response?.data?.detail ?? 'Could not save signature.'),
+  })
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, ...payload }: { id: string; name?: string; body?: string }) =>
+      api.patch(`/auth/me/signatures/${id}`, payload).then(r => r.data),
+    onSuccess: () => { invalidate(); setEditingId(null); setError('') },
+    onError: (err: any) => setError(err.response?.data?.detail ?? 'Could not save signature.'),
+  })
+
+  const setDefaultMutation = useMutation({
+    mutationFn: (id: string) => api.patch(`/auth/me/signatures/${id}`, { is_default: true }).then(r => r.data),
+    onSuccess: invalidate,
+  })
+
+  const reorderMutation = useMutation({
+    mutationFn: ({ id, display_order }: { id: string; display_order: number }) =>
+      api.patch(`/auth/me/signatures/${id}`, { display_order }).then(r => r.data),
+    onSuccess: invalidate,
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/auth/me/signatures/${id}`),
+    onSuccess: invalidate,
+  })
+
+  function move(index: number, dir: -1 | 1) {
+    const target = signatures[index + dir]
+    const current = signatures[index]
+    if (!target || !current) return
+    // Swap display_order between the two neighbours.
+    reorderMutation.mutate({ id: current.id, display_order: target.display_order })
+    reorderMutation.mutate({ id: target.id, display_order: current.display_order })
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-1.5">
+        <label className="block text-xs font-semibold text-slate-500">Email signatures</label>
+        {!adding && (
+          <button
+            type="button"
+            onClick={() => { setAdding(true); setEditingId(null); setError('') }}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-yippie hover:opacity-80 cursor-pointer"
+          >
+            <Plus size={13} /> Add signature
+          </button>
+        )}
+      </div>
+      <p className="mb-3 text-xs text-slate-400">
+        Your default signature is added automatically when you compose or reply. You can pick another from the message box.
+      </p>
+
+      {error && <p className="mb-2 text-xs text-red-500">{error}</p>}
+
+      {isLoading ? (
+        <p className="text-xs text-slate-400">Loading…</p>
+      ) : (
+        <div className="space-y-2">
+          {signatures.length === 0 && !adding && (
+            <p className="text-xs text-slate-400 italic">No signatures yet — add one to get started.</p>
+          )}
+
+          {signatures.map((sig, i) => (
+            editingId === sig.id ? (
+              <SignatureEditor
+                key={sig.id}
+                initial={sig}
+                saving={updateMutation.isPending}
+                onCancel={() => { setEditingId(null); setError('') }}
+                onSave={(name, body) => updateMutation.mutate({ id: sig.id, name, body })}
+              />
+            ) : (
+              <div key={sig.id} className="flex items-start gap-3 border border-slate-200 rounded-xl px-3 py-2.5">
+                <div className="flex flex-col gap-0.5 pt-0.5">
+                  <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
+                    className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default cursor-pointer" title="Move up">
+                    <ChevronUp size={14} />
+                  </button>
+                  <button type="button" onClick={() => move(i, 1)} disabled={i === signatures.length - 1}
+                    className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default cursor-pointer" title="Move down">
+                    <ChevronDown size={14} />
+                  </button>
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-semibold text-slate-800 truncate">{sig.name}</span>
+                    {sig.is_default && (
+                      <span className="text-[10px] px-1.5 py-0.5 bg-yippie/10 text-yippie rounded-full font-semibold">Default</span>
+                    )}
+                  </div>
+                  <SignaturePreview body={sig.body} />
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
+                  <button type="button" onClick={() => setDefaultMutation.mutate(sig.id)} disabled={sig.is_default}
+                    className={`p-1.5 rounded-lg cursor-pointer ${sig.is_default ? 'text-yippie' : 'text-slate-300 hover:text-yippie hover:bg-slate-50'}`}
+                    title={sig.is_default ? 'Default signature' : 'Set as default'}>
+                    <Star size={15} fill={sig.is_default ? 'currentColor' : 'none'} />
+                  </button>
+                  <button type="button" onClick={() => { setEditingId(sig.id); setAdding(false); setError('') }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 cursor-pointer" title="Edit">
+                    <Pencil size={15} />
+                  </button>
+                  <button type="button" onClick={() => { if (confirm(`Delete signature "${sig.name}"?`)) deleteMutation.mutate(sig.id) }}
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer" title="Delete">
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </div>
+            )
+          ))}
+
+          {adding && (
+            <SignatureEditor
+              initial={null}
+              saving={createMutation.isPending}
+              onCancel={() => { setAdding(false); setError('') }}
+              onSave={(name, body) => createMutation.mutate({ name, body })}
+            />
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SignaturePreview({ body }: { body: string }) {
+  // Body may contain a single inline <img data-uri>. Render images, escape the rest.
+  const hasImg = /<img\s/i.test(body)
+  if (hasImg) {
+    return <div className="mt-1 text-xs text-slate-500 [&_img]:max-h-12 [&_img]:inline-block"
+      dangerouslySetInnerHTML={{ __html: body }} />
+  }
+  return <p className="mt-1 text-xs text-slate-500 whitespace-pre-wrap line-clamp-3">{body || <span className="italic text-slate-400">Empty</span>}</p>
+}
+
+function SignatureEditor({ initial, saving, onSave, onCancel }: {
+  initial: Signature | null
+  saving: boolean
+  onSave: (name: string, body: string) => void
+  onCancel: () => void
+}) {
+  const [name, setName] = useState(initial?.name ?? '')
+  const [body, setBody] = useState(initial?.body ?? '')
+  const [imgError, setImgError] = useState('')
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  async function handleImage(file: File) {
+    setImgError('')
+    try {
+      const dataUri = await readSignatureImage(file)
+      setBody(prev => `${prev}${prev && !prev.endsWith('\n') ? '\n' : ''}${signatureImageTag(dataUri)}`)
+    } catch (err: any) {
+      setImgError(err.message ?? 'Could not add image.')
+    }
+  }
+
+  return (
+    <div className="border border-yippie/40 bg-yippie/5 rounded-xl p-3 space-y-2">
+      <input
+        value={name}
+        onChange={e => setName(e.target.value)}
+        placeholder="Signature name (e.g. Support, Sales)"
+        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+      />
+      <textarea
+        value={body}
+        onChange={e => setBody(e.target.value)}
+        rows={4}
+        placeholder={'e.g.\nBest regards,\nEddy — Support Team'}
+        className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie resize-y font-sans"
+      />
+      <div className="flex items-center justify-between gap-2">
+        <div>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
+          >
+            <ImageIcon size={13} /> Add image
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/svg+xml,image/png,image/jpeg"
+            className="hidden"
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleImage(f); e.target.value = '' }}
+          />
+          {imgError && <span className="ml-2 text-xs text-red-500">{imgError}</span>}
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+          >
+            <X size={13} /> Cancel
+          </button>
+          <button
+            type="button"
+            disabled={saving || !name.trim()}
+            onClick={() => onSave(name.trim(), body)}
+            className="inline-flex items-center gap-1 px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 cursor-pointer"
+          >
+            <Check size={13} /> {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

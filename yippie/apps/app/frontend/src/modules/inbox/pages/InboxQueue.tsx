@@ -8,6 +8,8 @@ import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { CardListSkeleton } from '../../../shell/Skeleton'
+import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
+import { SignaturePicker } from '../components/SignaturePicker'
 
 const SOURCE_ICON: Record<string, React.ReactNode> = {
   email: <Mail size={13} className="text-slate-400" />,
@@ -325,6 +327,10 @@ function ComposeModal({
   initialState?: ComposeInitialState | null
 }) {
   const { user } = useAuth()
+  const { data: signatures } = useSignatures()
+  const defaultSig = pickDefaultSignature(signatures)
+  // Track which signature body is currently appended, so the picker can swap it.
+  const [appliedSig, setAppliedSig] = useState<string | null>(defaultSig?.body ?? null)
   const [recipients, setRecipients] = useState<{ email: string; label: string }[]>(initialState?.recipients ?? [])
   const [subject, setSubject] = useState(initialState?.subject ?? '')
   const [aiPrompt, setAiPrompt] = useState('')
@@ -332,7 +338,26 @@ function ComposeModal({
   const [composeFiles, setComposeFiles] = useState<File[]>([])
   const [demoResult, setDemoResult] = useState<{ demo: true } | null>(null)
   const [usePersonalFrom, setUsePersonalFrom] = useState(initialState?.usePersonalFrom ?? false)
-  const [body, setBody] = useState(initialState?.body ?? (user?.email_signature ? `\n\n${user.email_signature}` : ''))
+  const [body, setBody] = useState(initialState?.body ?? '')
+  const sigPrefilledRef = useRef(false)
+
+  // Signatures load async; once the default is known, prefill the empty body
+  // with it (only when the compose box started blank — don't clobber a reply
+  // template or restored draft passed via initialState).
+  useEffect(() => {
+    if (sigPrefilledRef.current) return
+    if (initialState?.body) { sigPrefilledRef.current = true; return }
+    if (defaultSig) {
+      setBody(prev => (prev ? prev : `\n\n${defaultSig.body}`))
+      setAppliedSig(defaultSig.body)
+      sigPrefilledRef.current = true
+    }
+  }, [defaultSig, initialState?.body])
+
+  function pickSignature(sig: Signature) {
+    setBody(prev => swapSignature(prev, appliedSig, sig.body))
+    setAppliedSig(sig.body)
+  }
   const [templateHtml, setTemplateHtml] = useState<string | null>(initialState?.templateHtml ?? null)
   const [campaignButtonsJson, setCampaignButtonsJson] = useState<string | null>(initialState?.campaignButtonsJson ?? null)
 
@@ -359,7 +384,9 @@ function ComposeModal({
     mutationFn: () => api.post('/inbox/compose/suggest', { prompt: aiPrompt }).then(r => r.data),
     onSuccess: (data) => {
       if (data.subject) setSubject(data.subject)
-      if (data.body) setBody(user?.email_signature ? `${data.body}\n\n${user.email_signature}` : data.body)
+      if (data.body) {
+        setBody(appliedSig ? `${data.body}\n\n${appliedSig}` : data.body)
+      }
       setShowAiPrompt(false)
       setAiPrompt('')
     },
@@ -507,20 +534,23 @@ function ComposeModal({
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1.5">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Message</label>
-              <TemplatePicker
-                onSelect={(tmplBody, isHtml, buttons) => {
-                  const sig = user?.email_signature ? `\n\n${user.email_signature}` : ''
-                  if (isHtml) {
-                    setTemplateHtml(tmplBody)
-                    setCampaignButtonsJson(buttons ?? null)
-                    setBody(htmlToText(tmplBody) + sig)  // plain-text fallback, not shown in UI
-                  } else {
-                    setTemplateHtml(null)
-                    setCampaignButtonsJson(null)
-                    setBody(tmplBody + sig)
-                  }
-                }}
-              />
+              <div className="flex items-center gap-2">
+                <SignaturePicker onPick={pickSignature} />
+                <TemplatePicker
+                  onSelect={(tmplBody, isHtml, buttons) => {
+                    const sig = appliedSig ? `\n\n${appliedSig}` : ''
+                    if (isHtml) {
+                      setTemplateHtml(tmplBody)
+                      setCampaignButtonsJson(buttons ?? null)
+                      setBody(htmlToText(tmplBody) + sig)  // plain-text fallback, not shown in UI
+                    } else {
+                      setTemplateHtml(null)
+                      setCampaignButtonsJson(null)
+                      setBody(tmplBody + sig)
+                    }
+                  }}
+                />
+              </div>
             </div>
             {templateHtml !== null ? (
               <div className="border border-violet-200 rounded-xl overflow-hidden">
@@ -531,7 +561,7 @@ function ComposeModal({
                   </span>
                   <button
                     type="button"
-                    onClick={() => { setTemplateHtml(null); setCampaignButtonsJson(null); setBody(user?.email_signature ? `\n\n${user.email_signature}` : '') }}
+                    onClick={() => { setTemplateHtml(null); setCampaignButtonsJson(null); setBody(appliedSig ? `\n\n${appliedSig}` : '') }}
                     className="text-violet-400 hover:text-violet-600"
                     title="Remove template"
                   >
@@ -666,6 +696,8 @@ export default function InboxQueue() {
   const qc = useQueryClient()
   const config = useTenantConfig()
   const { user } = useAuth()
+  const { data: signatures } = useSignatures()
+  const defaultSigBody = pickDefaultSignature(signatures)?.body ?? null
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
@@ -877,7 +909,7 @@ export default function InboxQueue() {
                 setComposeInitial(mailbox === 'personal' && !!user?.inbound_email ? {
                   recipients: [],
                   subject: '',
-                  body: user?.email_signature ? `\n\n${user.email_signature}` : '',
+                  body: defaultSigBody ? `\n\n${defaultSigBody}` : '',
                   usePersonalFrom: true,
                 } : null)
                 setShowCompose(true)
@@ -896,7 +928,7 @@ export default function InboxQueue() {
                 setComposeInitial({
                   recipients: [],
                   subject: '',
-                  body: user?.email_signature ? `${text}\n\n${user.email_signature}` : text,
+                  body: defaultSigBody ? `${text}\n\n${defaultSigBody}` : text,
                   usePersonalFrom: false,
                   templateHtml: isHtml ? tmplBody : null,
                   campaignButtonsJson: isHtml ? (buttons ?? null) : null,

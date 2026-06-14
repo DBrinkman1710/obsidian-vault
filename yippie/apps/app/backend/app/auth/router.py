@@ -14,8 +14,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.core.email_html import render_email_html
 from app.core.mailer import ResendNotConfiguredError, send_email
-from app.core.models import Tenant, User, UserRole
-from app.core.schemas import UserOut
+from app.core.models import Tenant, User, UserRole, UserSignature
+from app.core.schemas import (
+    MAX_SIGNATURE_BODY_CHARS,
+    SignatureCreate,
+    SignatureOut,
+    SignatureUpdate,
+    UserOut,
+)
 from app.database import get_db
 from app.auth.dependencies import CurrentUser
 from app.auth.tokens import create_signed_token, verify_signed_token
@@ -218,3 +224,110 @@ async def update_me(
     await db.commit()
     await db.refresh(current_user)
     return UserOut.model_validate(current_user)
+
+
+# --- Multi-signature CRUD (S1) ----------------------------------------------
+# All routes are scoped to the current user; RLS (set_tenant_context in the
+# CurrentUser dependency) additionally guarantees tenant isolation.
+
+SIGNATURES_PREFIX = "/me/signatures"
+
+
+def _validate_signature_body(body: str) -> None:
+    if len(body) > MAX_SIGNATURE_BODY_CHARS:
+        # An embedded image (S2) pushed the signature over the inline size cap.
+        raise HTTPException(
+            status_code=400,
+            detail="Signature is too large — embedded images must be 500 KB or smaller.",
+        )
+
+
+async def _load_user_signatures(db: AsyncSession, user_id: uuid.UUID) -> list[UserSignature]:
+    result = await db.execute(
+        select(UserSignature)
+        .where(UserSignature.user_id == user_id)
+        .order_by(UserSignature.display_order, UserSignature.created_at)
+    )
+    return list(result.scalars().all())
+
+
+@router.get("/me/signatures", response_model=list[SignatureOut])
+async def list_signatures(current_user: CurrentUser, db: Annotated[AsyncSession, Depends(get_db)]):
+    return await _load_user_signatures(db, current_user.id)
+
+
+@router.post("/me/signatures", response_model=SignatureOut, status_code=status.HTTP_201_CREATED)
+async def create_signature(
+    body: SignatureCreate,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    _validate_signature_body(body.body)
+    existing = await _load_user_signatures(db, current_user.id)
+    sig = UserSignature(
+        user_id=current_user.id,
+        tenant_id=current_user.tenant_id,
+        name=(body.name or "").strip() or "Untitled",
+        body=body.body,
+        # First signature a user creates becomes their default automatically.
+        is_default=len(existing) == 0,
+        display_order=(max((s.display_order for s in existing), default=-1) + 1),
+    )
+    db.add(sig)
+    await db.commit()
+    await db.refresh(sig)
+    return sig
+
+
+@router.patch("/me/signatures/{signature_id}", response_model=SignatureOut)
+async def update_signature(
+    signature_id: uuid.UUID,
+    body: SignatureUpdate,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    sig = await db.get(UserSignature, signature_id)
+    if sig is None or sig.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Signature not found")
+
+    if body.body is not None:
+        _validate_signature_body(body.body)
+        sig.body = body.body
+    if body.name is not None:
+        sig.name = body.name.strip() or "Untitled"
+    if body.display_order is not None:
+        sig.display_order = body.display_order
+    if body.is_default is not None:
+        if body.is_default:
+            # Exactly one default per user: unset all others first.
+            for other in await _load_user_signatures(db, current_user.id):
+                if other.id != sig.id and other.is_default:
+                    other.is_default = False
+            sig.is_default = True
+        else:
+            sig.is_default = False
+
+    await db.commit()
+    await db.refresh(sig)
+    return sig
+
+
+@router.delete("/me/signatures/{signature_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_signature(
+    signature_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    sig = await db.get(UserSignature, signature_id)
+    if sig is None or sig.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Signature not found")
+    was_default = sig.is_default
+    await db.delete(sig)
+    await db.flush()
+    # Keep a default alive: if we removed the default, promote the next one.
+    if was_default:
+        remaining = await _load_user_signatures(db, current_user.id)
+        if remaining:
+            remaining[0].is_default = True
+    await db.commit()
+    return None

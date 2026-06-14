@@ -10,6 +10,8 @@ import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { Skeleton } from '../../../shell/Skeleton'
 import { useMobile } from '../../../shell/useMobile'
+import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
+import { SignaturePicker } from '../components/SignaturePicker'
 
 const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English', nl: 'Dutch', fr: 'French', de: 'German', es: 'Spanish',
@@ -276,6 +278,9 @@ export default function DraftReview() {
   const config = useTenantConfig()
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
   const { user } = useAuth()
+  const { data: signatures } = useSignatures()
+  const defaultSig = pickDefaultSignature(signatures)
+  const [appliedSig, setAppliedSig] = useState<string | null>(null)
   const isMobile = useMobile()
   const [emailExpanded, setEmailExpanded] = useState(false)
 
@@ -346,13 +351,14 @@ export default function DraftReview() {
   useEffect(() => {
     setSubject(''); setDescription(''); setPriority(''); setFollowUpDays('')
     setSelectedDeptId(''); setForwardedToName(''); setModalDismissed(false)
-    // Pre-fill the user's signature (editable per email — what you see is what's sent)
-    setReplyText(user?.email_signature ? `\n\n${user.email_signature}` : '')
+    // Pre-fill the user's default signature (editable per email — what you see is what's sent)
+    setReplyText(defaultSig ? `\n\n${defaultSig.body}` : '')
+    setAppliedSig(defaultSig?.body ?? null)
     setSuggestions([]); setReplyFiles([])
     setSentTo(''); setSendError(''); setActionError('')
     setUndoUntil(null); setUndoProgress(0); setUndoCancelled(false)
     if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
-  }, [id])
+  }, [id, defaultSig?.body])
 
   const showContactModal = !isLoading && !!ctx && !ctx.contact && !modalDismissed && !isProcessed
 
@@ -417,13 +423,19 @@ export default function DraftReview() {
     return () => window.removeEventListener('keydown', handler)
   }, [isProcessed, reviewMutation, replyText])
 
+  function pickSignature(sig: Signature) {
+    setReplyText(prev => swapSignature(prev, appliedSig, sig.body))
+    setAppliedSig(sig.body)
+    setSuggestions([])
+  }
+
   async function handleForward() {
     if (!selectedDeptId) return
     setForwardLoading(true)
     setActionError('')
     try {
       const res = await api.post(`/inbox/drafts/${id}/forward`, { department_id: selectedDeptId })
-      setReplyText(user?.email_signature ? `${res.data.suggestion}\n\n${user.email_signature}` : res.data.suggestion)
+      setReplyText(appliedSig ? `${res.data.suggestion}\n\n${appliedSig}` : res.data.suggestion)
       setForwardedToName(res.data.department.name)
       qc.invalidateQueries({ queryKey: ['drafts'] })
       qc.invalidateQueries({ queryKey: ['draft', id] })
@@ -440,7 +452,7 @@ export default function DraftReview() {
     setActionError('')
     try {
       const res = await api.post(`/inbox/drafts/${id}/suggest-reply`)
-      setReplyText(user?.email_signature ? `${res.data.suggestion}\n\n${user.email_signature}` : res.data.suggestion)
+      setReplyText(appliedSig ? `${res.data.suggestion}\n\n${appliedSig}` : res.data.suggestion)
       setSuggestions([])
     } catch {
       setActionError('Couldn\'t generate a reply — please try again.')
@@ -1177,6 +1189,7 @@ export default function DraftReview() {
                     </button>
                   </>
                 )}
+                <SignaturePicker onPick={pickSignature} />
                 <TemplatePicker
                   context={msg ? `${msg.subject ?? ''}\n\n${msg.raw_body ?? ''}` : ''}
                   onSelect={(body, isHtml) => {

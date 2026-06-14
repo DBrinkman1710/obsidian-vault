@@ -74,3 +74,35 @@ class User(Base):
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     tenant: Mapped[Tenant] = relationship("Tenant", back_populates="users")
+    signatures: Mapped[list[UserSignature]] = relationship(
+        "UserSignature", back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class UserSignature(Base):
+    """A named, reorderable email signature owned by a single user (S1/S2).
+
+    Replaces the single User.email_signature column with a list. The legacy
+    column is retained for backward compat and backfilled into a "Default" row.
+    The body is plain text but may embed a single base64 data-URI <img> tag
+    (S2 image upload); the send path renders that image through the HTML layout.
+    """
+
+    __tablename__ = "user_signatures"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    # tenant_id is carried directly so the standard RLS tenant_isolation policy applies.
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    name: Mapped[str] = mapped_column(String(120), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    display_order: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    user: Mapped[User] = relationship("User", back_populates="signatures")
