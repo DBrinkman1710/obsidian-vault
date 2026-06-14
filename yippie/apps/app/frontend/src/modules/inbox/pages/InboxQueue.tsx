@@ -336,6 +336,18 @@ function ComposeModal({
   const [templateHtml, setTemplateHtml] = useState<string | null>(initialState?.templateHtml ?? null)
   const [campaignButtonsJson, setCampaignButtonsJson] = useState<string | null>(initialState?.campaignButtonsJson ?? null)
 
+  // Contenteditable ref for the rich template editor.
+  // We manage innerHTML directly to avoid React overwriting user edits on re-render.
+  const templateEditorRef = useRef<HTMLDivElement>(null)
+  const templateEditFromEditor = useRef(false)
+
+  useEffect(() => {
+    if (templateEditorRef.current && !templateEditFromEditor.current) {
+      templateEditorRef.current.innerHTML = templateHtml ?? ''
+    }
+    templateEditFromEditor.current = false
+  }, [templateHtml])
+
   const addRecipient = (email: string, label: string) => {
     if (!recipients.find(r => r.email === email)) {
       setRecipients(prev => [...prev, { email, label }])
@@ -510,12 +522,12 @@ function ComposeModal({
                 }}
               />
             </div>
-            {templateHtml ? (
+            {templateHtml !== null ? (
               <div className="border border-violet-200 rounded-xl overflow-hidden">
                 <div className="flex items-center justify-between px-3 py-2 bg-violet-50 border-b border-violet-100">
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 uppercase tracking-wide">
                     <Palette size={11} />
-                    Rich template — this is your email
+                    Rich template — click to edit
                   </span>
                   <button
                     type="button"
@@ -526,7 +538,17 @@ function ComposeModal({
                     <X size={13} />
                   </button>
                 </div>
-                <div className="overflow-y-auto bg-white pointer-events-none select-none" style={{ maxHeight: '340px' }} dangerouslySetInnerHTML={{ __html: templateHtml }} />
+                <div
+                  ref={templateEditorRef}
+                  contentEditable
+                  suppressContentEditableWarning
+                  onInput={e => {
+                    templateEditFromEditor.current = true
+                    setTemplateHtml(e.currentTarget.innerHTML)
+                  }}
+                  className="bg-white overflow-y-auto focus:outline-none"
+                  style={{ maxHeight: '400px', minHeight: '120px' }}
+                />
               </div>
             ) : (
               <textarea
