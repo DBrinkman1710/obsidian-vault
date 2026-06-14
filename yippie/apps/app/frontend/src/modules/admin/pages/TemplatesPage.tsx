@@ -111,14 +111,18 @@ export default function TemplatesPage() {
 
   function syncButtonsFromDesign(design: object) {
     const detected = extractButtonsFromDesign(design)
-    setButtons(prev =>
-      detected.map(d => {
-        const existing = prev.find(b => b.text === d.text)
+    setButtons(prev => {
+      const consumed = new Set<string>()
+      return detected.map(d => {
+        const existing =
+          prev.find(b => b.id === d.id && !consumed.has(b.id)) ??
+          prev.find(b => b.text === d.text && !consumed.has(b.id))
+        if (existing) consumed.add(existing.id)
         return existing
-          ? { id: existing.id, text: d.text, action_type: existing.action_type, label_id: existing.label_id, stage_id: existing.stage_id }
+          ? { ...existing, id: d.id, text: d.text }
           : newCampaignButton(d.id, d.text)
       })
-    )
+    })
   }
 
   function loadIntoEditor(designJson: string | null) {
