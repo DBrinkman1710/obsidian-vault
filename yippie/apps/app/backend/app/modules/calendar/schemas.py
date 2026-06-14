@@ -15,6 +15,9 @@ class CalendarEventCreate(BaseModel):
     all_day: bool = False
     contact_id: Optional[uuid.UUID] = None
     ticket_id: Optional[uuid.UUID] = None
+    # Request-only: when True (default) and a contact is linked, the contact is
+    # emailed an invitation/notification. Not persisted to the DB.
+    notify_contact: bool = True
 
     @model_validator(mode="after")
     def _end_after_start(self) -> "CalendarEventCreate":
@@ -31,6 +34,8 @@ class CalendarEventUpdate(BaseModel):
     all_day: Optional[bool] = None
     contact_id: Optional[uuid.UUID] = None
     ticket_id: Optional[uuid.UUID] = None
+    # Request-only: suppress the contact notification on update. Not persisted.
+    notify_contact: bool = True
 
 
 class CalendarEventOut(BaseModel):

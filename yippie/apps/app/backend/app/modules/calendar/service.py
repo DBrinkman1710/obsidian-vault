@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import html as _html
+import logging
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -7,6 +9,9 @@ from typing import Optional
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.email_html import render_email_html
+from app.core.mailer import is_valid_email, send_email
+from app.core.models import Tenant
 from app.modules.calendar.models import CalendarEvent
 from app.modules.calendar.schemas import (
     CalendarEventCreate,
@@ -16,6 +21,8 @@ from app.modules.calendar.schemas import (
 )
 from app.modules.contacts.models import Contact
 from app.modules.tickets.models import Ticket, TicketStatus
+
+logger = logging.getLogger(__name__)
 
 
 class TenantScopeError(ValueError):
@@ -163,14 +170,93 @@ async def get_event(
     return await _to_event_out(db, event)
 
 
+_WEEKDAYS = ("Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday")
+_MONTHS = (
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December",
+)
+
+
+def _format_when(start_at: datetime, end_at: Optional[datetime], all_day: bool) -> str:
+    """Human-friendly date/time line, e.g. 'Monday 16 June 2026, 14:00–15:00'."""
+    day = f"{_WEEKDAYS[start_at.weekday()]} {start_at.day} {_MONTHS[start_at.month - 1]} {start_at.year}"
+    if all_day:
+        return f"{day} (all day)"
+    line = f"{day}, {start_at:%H:%M}"
+    if end_at is not None:
+        # Same-day events only show the end time; multi-day spell out the end date.
+        if end_at.date() == start_at.date():
+            line += f"–{end_at:%H:%M}"
+        else:
+            end_day = (
+                f"{_WEEKDAYS[end_at.weekday()]} {end_at.day} "
+                f"{_MONTHS[end_at.month - 1]} {end_at.year}"
+            )
+            line += f" – {end_day}, {end_at:%H:%M}"
+    return line
+
+
+async def _notify_contact(db: AsyncSession, event: CalendarEvent) -> None:
+    """Email the linked contact about ``event``. Never raises — failures are logged.
+
+    Caller is responsible for deciding *whether* to notify (contact_id set,
+    notify_contact flag, change detection); this just builds and sends.
+    """
+    try:
+        contact = await db.get(Contact, event.contact_id)
+        if contact is None or not contact.email or not is_valid_email(contact.email):
+            return
+
+        tenant = await db.get(Tenant, event.tenant_id)
+        tenant_name = tenant.name if tenant else "Yippie"
+        primary_color = tenant.primary_color if tenant else None
+
+        when = _format_when(event.start_at, event.end_at, event.all_day)
+        subject = f"You're invited: {event.title}"
+
+        text_lines = [event.title, "", when]
+        if event.description:
+            text_lines += ["", event.description]
+        text_lines += ["", f"This invitation was sent by {tenant_name} via Yippie."]
+        body_text = "\n".join(text_lines)
+
+        desc_html = (
+            f'<p style="margin:0 0 14px 0;line-height:1.55;">'
+            f"{_html.escape(event.description).replace(chr(10), '<br>')}</p>"
+            if event.description
+            else ""
+        )
+        content = (
+            f'<h2 style="margin:0 0 12px 0;font-size:20px;">{_html.escape(event.title)}</h2>'
+            f'<p style="margin:0 0 14px 0;font-weight:600;color:#374151;">{_html.escape(when)}</p>'
+            f"{desc_html}"
+            f'<p style="margin:18px 0 0 0;font-size:13px;color:#6b7280;">'
+            f"This invitation was sent by {_html.escape(tenant_name)} via Yippie.</p>"
+        )
+        html_body = render_email_html(
+            body_text,
+            tenant_name=tenant_name,
+            primary_color=primary_color,
+            prerendered_html=content,
+        )
+
+        await send_email(to=contact.email, subject=subject, body=body_text, html=html_body)
+    except Exception:  # noqa: BLE001 — notification must never break the request
+        logger.exception("Failed to send calendar invitation email for event %s", event.id)
+
+
 async def create_event(
     db: AsyncSession, tenant_id: uuid.UUID, created_by: uuid.UUID, data: CalendarEventCreate
 ) -> CalendarEventOut:
     await _validate_event_fks(db, tenant_id, contact_id=data.contact_id, ticket_id=data.ticket_id)
-    event = CalendarEvent(tenant_id=tenant_id, created_by=created_by, **data.model_dump())
+    notify = data.notify_contact
+    payload = data.model_dump(exclude={"notify_contact"})
+    event = CalendarEvent(tenant_id=tenant_id, created_by=created_by, **payload)
     db.add(event)
     await db.commit()
     await db.refresh(event)
+    if event.contact_id is not None and notify:
+        await _notify_contact(db, event)
     return await _to_event_out(db, event)
 
 
@@ -178,6 +264,7 @@ async def update_event(
     db: AsyncSession, event: CalendarEvent, data: CalendarEventUpdate
 ) -> CalendarEventOut:
     fields = data.model_dump(exclude_unset=True)
+    notify = fields.pop("notify_contact", True)
     await _validate_event_fks(
         db,
         event.tenant_id,
@@ -188,10 +275,20 @@ async def update_event(
     new_end = fields.get("end_at", event.end_at)
     if new_end is not None and new_end < new_start:
         raise ValueError("end_at must be after start_at")
+
+    prev_contact_id = event.contact_id
+    prev_start = event.start_at
     for field, value in fields.items():
         setattr(event, field, value)
     await db.commit()
     await db.refresh(event)
+
+    # Only notify when there's a linked contact, notify is on, and something the
+    # contact cares about changed: the contact link itself, or the start time.
+    contact_changed = "contact_id" in fields and event.contact_id != prev_contact_id
+    start_changed = "start_at" in fields and event.start_at != prev_start
+    if event.contact_id is not None and notify and (contact_changed or start_changed):
+        await _notify_contact(db, event)
     return await _to_event_out(db, event)
 
 
