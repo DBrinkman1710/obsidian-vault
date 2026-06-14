@@ -16,6 +16,14 @@ interface User {
   inbound_email?: string | null
   email_signature?: string | null
   hotkeys_enabled?: boolean
+  contact_column_prefs?: ContactColumnPref[] | null
+}
+
+export interface ContactColumnPref {
+  key: string
+  label: string
+  visible: boolean
+  order: number
 }
 
 interface Impersonation {

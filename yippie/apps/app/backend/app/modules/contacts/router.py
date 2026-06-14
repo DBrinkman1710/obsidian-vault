@@ -6,7 +6,7 @@ import json
 import uuid
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -25,8 +25,12 @@ from app.modules.contacts.schemas import (
     ContactList,
     ContactOut,
     ContactUpdate,
+    ImportPreview,
     ImportResult,
 )
+
+# Yippie contact fields a file column can be mapped onto. full_name is required.
+_IMPORT_TARGET_FIELDS = {"full_name", "email", "phone", "company", "notes"}
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])
 
@@ -178,8 +182,8 @@ async def delete_label(label_id: uuid.UUID, current_user: AdminUser, db: DB):
     await service.delete_label(db, label)
 
 
-@router.post("/import", response_model=ImportResult)
-async def import_contacts(
+@router.post("/import/preview", response_model=ImportPreview)
+async def import_preview(
     current_user: AdminUser,
     db: DB,
     file: UploadFile = File(...),
@@ -190,6 +194,47 @@ async def import_contacts(
     rows = _parse_import_file(file.filename or "", content)
     if not rows:
         raise HTTPException(status_code=400, detail="No rows found in file")
+    # Headers in first-seen order across the parsed rows (rows may have ragged keys).
+    headers: list[str] = []
+    for row in rows:
+        for k in row.keys():
+            if k and k not in headers:
+                headers.append(k)
+    return ImportPreview(headers=headers, preview_rows=rows[:3])
+
+
+@router.post("/import", response_model=ImportResult)
+async def import_contacts(
+    current_user: AdminUser,
+    db: DB,
+    file: UploadFile = File(...),
+    column_mapping: Optional[str] = Form(None),
+):
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=400, detail="Empty file")
+    rows = _parse_import_file(file.filename or "", content)
+    if not rows:
+        raise HTTPException(status_code=400, detail="No rows found in file")
+
+    if column_mapping:
+        try:
+            mapping = json.loads(column_mapping)
+        except json.JSONDecodeError:
+            raise HTTPException(status_code=400, detail="Invalid column_mapping JSON")
+        if not isinstance(mapping, dict):
+            raise HTTPException(status_code=400, detail="column_mapping must be an object")
+        # incoming_col -> yippie_field; only known target fields are applied.
+        pairs = [
+            (str(src), dst)
+            for src, dst in mapping.items()
+            if dst in _IMPORT_TARGET_FIELDS
+        ]
+        rows = [
+            {dst: row.get(src) for src, dst in pairs}
+            for row in rows
+        ]
+
     return await service.import_contacts(db, current_user.tenant_id, current_user.id, rows)
 
 

@@ -111,3 +111,8 @@ class ImportResult(BaseModel):
     skipped: int = 0
     errors: int = 0
     error_details: list[str] = []
+
+
+class ImportPreview(BaseModel):
+    headers: list[str]
+    preview_rows: list[dict]

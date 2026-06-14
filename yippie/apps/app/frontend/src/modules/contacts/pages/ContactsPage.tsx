@@ -7,6 +7,8 @@ import { useAuth } from '../../../auth/useAuth'
 import { TableSkeleton, CardListSkeleton } from '../../../shell/Skeleton'
 import { LabelChip, fetchLabels, type ContactLabel } from '../components/LabelChip'
 import { fetchCompanies, type Company } from '../components/CompanyBadge'
+import { ColumnPicker, resolveColumns } from '../components/ColumnPicker'
+import type { ContactColumnPref } from '../../../auth/useAuth'
 
 interface ImportResult {
   imported: number
@@ -313,10 +315,20 @@ function EditContactModal({ contact, companies, onClose }: {
 function ContactsTab() {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const { user, refreshUser } = useAuth()
   const [search, setSearch] = useState('')
   const [labelFilter, setLabelFilter] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
+
+  const columns = resolveColumns(user?.contact_column_prefs)
+  const visibleColumns = columns.filter(c => c.visible)
+
+  const prefsMutation = useMutation({
+    mutationFn: (prefs: ContactColumnPref[]) =>
+      api.patch('/auth/me', { contact_column_prefs: prefs }).then(r => r.data),
+    onSuccess: () => { refreshUser() },
+  })
 
   const { data: labels } = useQuery({ queryKey: ['contact-labels'], queryFn: fetchLabels })
   const { data: companies } = useQuery<Company[]>({ queryKey: ['companies'], queryFn: fetchCompanies })
@@ -353,13 +365,18 @@ function ContactsTab() {
 
   return (
     <div>
-      <div className="relative mb-5 max-w-sm">
-        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-        <input
-          placeholder="Search by name, email, or company…"
-          value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        />
+      <div className="flex items-center gap-2 mb-5">
+        <div className="relative flex-1 max-w-sm">
+          <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <input
+            placeholder="Search by name, email, or company…"
+            value={search} onChange={e => setSearch(e.target.value)}
+            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+        <div className="ml-auto">
+          <ColumnPicker value={columns} onChange={prefs => prefsMutation.mutate(prefs)} saving={prefsMutation.isPending} />
+        </div>
       </div>
 
       {labels && labels.length > 0 && (
@@ -409,16 +426,17 @@ function ContactsTab() {
                 <input type="checkbox" checked={allSelected} onChange={toggleAll}
                   className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
               </th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
-              <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
-              <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Labels</th>
-              <th className="hidden md:table-cell px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Phone</th>
+              {visibleColumns.map(col => (
+                <th key={col.key}
+                  className={`px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left ${col.key === 'name' || col.key === 'email' ? '' : 'hidden md:table-cell'}`}>
+                  {col.label}
+                </th>
+              ))}
               <th className="hidden md:table-cell px-4 py-3 w-10"></th>
             </tr>
           </thead>
           {isLoading ? (
-            <TableSkeleton cols={7} />
+            <TableSkeleton cols={visibleColumns.length + 2} />
           ) : (
             <tbody className="divide-y divide-slate-100">
               {items.map(c => (
@@ -427,31 +445,45 @@ function ContactsTab() {
                     <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)}
                       className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
                   </td>
-                  <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                        <User size={13} className="text-blue-600" />
-                      </div>
-                      <span className="text-sm font-medium text-blue-600">{c.full_name}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3 text-sm text-slate-600 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>{c.email ?? '—'}</td>
-                  <td className="hidden md:table-cell px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
-                    {c.company ? (
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200">
-                        <Building2 size={10} />{c.company.name}
-                      </span>
-                    ) : <span className="text-sm text-slate-400">—</span>}
-                  </td>
-                  <td className="hidden md:table-cell px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
-                    {c.labels.length === 0 ? <span className="text-sm text-slate-400">—</span> : (
-                      <div className="flex flex-wrap gap-1">
-                        {c.labels.slice(0, 3).map(label => <LabelChip key={label.id} label={label} />)}
-                        {c.labels.length > 3 && <span className="text-xs text-slate-400 self-center">+{c.labels.length - 3}</span>}
-                      </div>
-                    )}
-                  </td>
-                  <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>{c.phone ?? '—'}</td>
+                  {visibleColumns.map(col => {
+                    const responsive = col.key === 'name' || col.key === 'email' ? '' : 'hidden md:table-cell'
+                    if (col.key === 'name') return (
+                      <td key={col.key} className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
+                            <User size={13} className="text-blue-600" />
+                          </div>
+                          <span className="text-sm font-medium text-blue-600">{c.full_name}</span>
+                        </div>
+                      </td>
+                    )
+                    if (col.key === 'email') return (
+                      <td key={col.key} className="px-4 py-3 text-sm text-slate-600 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>{c.email ?? '—'}</td>
+                    )
+                    if (col.key === 'company') return (
+                      <td key={col.key} className={`${responsive} px-4 py-3 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>
+                        {c.company ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200">
+                            <Building2 size={10} />{c.company.name}
+                          </span>
+                        ) : <span className="text-sm text-slate-400">—</span>}
+                      </td>
+                    )
+                    if (col.key === 'labels') return (
+                      <td key={col.key} className={`${responsive} px-4 py-3 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>
+                        {c.labels.length === 0 ? <span className="text-sm text-slate-400">—</span> : (
+                          <div className="flex flex-wrap gap-1">
+                            {c.labels.slice(0, 3).map(label => <LabelChip key={label.id} label={label} />)}
+                            {c.labels.length > 3 && <span className="text-xs text-slate-400 self-center">+{c.labels.length - 3}</span>}
+                          </div>
+                        )}
+                      </td>
+                    )
+                    if (col.key === 'phone') return (
+                      <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-600 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>{c.phone ?? '—'}</td>
+                    )
+                    return null
+                  })}
                   <td className="hidden md:table-cell px-4 py-3" onClick={e => e.stopPropagation()}>
                     <button onClick={() => setEditingContact(c)}
                       className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Edit">
@@ -482,6 +514,30 @@ function ContactsTab() {
   )
 }
 
+const IMPORT_TARGET_FIELDS: { value: string; label: string }[] = [
+  { value: 'full_name', label: 'Full name *' },
+  { value: 'email', label: 'Email' },
+  { value: 'phone', label: 'Phone' },
+  { value: 'company', label: 'Company' },
+  { value: 'notes', label: 'Notes' },
+]
+
+interface ImportPreview { headers: string[]; preview_rows: Record<string, unknown>[] }
+
+const normalizeHeader = (h: string) => h.toLowerCase().replace(/[\s_]/g, '')
+
+function autoMap(headers: string[]): Record<string, string> {
+  const fieldByNorm = new Map(IMPORT_TARGET_FIELDS.map(f => [normalizeHeader(f.value), f.value]))
+  // Common aliases that don't match the field name verbatim.
+  const aliases: Record<string, string> = { name: 'full_name', fullname: 'full_name', company: 'company', organisation: 'company', organization: 'company', tel: 'phone', telephone: 'phone', mobile: 'phone', note: 'notes' }
+  const mapping: Record<string, string> = {}
+  for (const h of headers) {
+    const norm = normalizeHeader(h)
+    mapping[h] = fieldByNorm.get(norm) ?? aliases[norm] ?? ''
+  }
+  return mapping
+}
+
 export default function ContactsPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
@@ -491,12 +547,26 @@ export default function ContactsPage() {
   const [showImport, setShowImport] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
+  const [pendingFile, setPendingFile] = useState<File | null>(null)
+  const [preview, setPreview] = useState<ImportPreview | null>(null)
+  const [mapping, setMapping] = useState<Record<string, string>>({})
   const fileRef = useRef<HTMLInputElement>(null)
 
-  const importMutation = useMutation({
+  const previewMutation = useMutation({
     mutationFn: (file: File) => {
       const form = new FormData()
       form.append('file', file)
+      return api.post<ImportPreview>('/contacts/import/preview', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+    },
+    onSuccess: (data) => { setPreview(data); setMapping(autoMap(data.headers)); setImportError(null) },
+    onError: (err: any) => { setImportError(err?.response?.data?.detail ?? 'Could not read file') },
+  })
+
+  const importMutation = useMutation({
+    mutationFn: ({ file, map }: { file: File; map: Record<string, string> }) => {
+      const form = new FormData()
+      form.append('file', file)
+      form.append('column_mapping', JSON.stringify(map))
       return api.post<ImportResult>('/contacts/import', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
     },
     onSuccess: (result) => { setImportResult(result); setImportError(null); qc.invalidateQueries({ queryKey: ['contacts'] }) },
@@ -505,11 +575,24 @@ export default function ContactsPage() {
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
-    if (file) importMutation.mutate(file)
+    if (file) { setPendingFile(file); previewMutation.mutate(file) }
     e.target.value = ''
   }
 
-  function closeImport() { setShowImport(false); setImportResult(null); setImportError(null) }
+  const mappedToFullName = Object.values(mapping).includes('full_name')
+
+  function runImport() {
+    if (!pendingFile) return
+    // Drop "— skip —" columns from the mapping before sending.
+    const map = Object.fromEntries(Object.entries(mapping).filter(([, v]) => v))
+    importMutation.mutate({ file: pendingFile, map })
+  }
+
+  function closeImport() {
+    setShowImport(false); setImportResult(null); setImportError(null)
+    setPendingFile(null); setPreview(null); setMapping({})
+    previewMutation.reset(); importMutation.reset()
+  }
 
   async function exportAll() {
     const res = await api.get('/contacts/export', { responseType: 'blob' })
@@ -599,7 +682,7 @@ export default function ContactsPage() {
             </div>
             <p className="text-sm text-slate-500 mb-5">Upload a CSV, JSON, or XLSX file.</p>
 
-            {!importResult ? (
+            {!importResult && !preview ? (
               <>
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4">
                   <p className="text-xs text-slate-500 mb-2">
@@ -613,13 +696,51 @@ export default function ContactsPage() {
                 {importError && (
                   <div className="mb-4 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{importError}</div>
                 )}
-                <button onClick={() => fileRef.current?.click()} disabled={importMutation.isPending}
+                <button onClick={() => fileRef.current?.click()} disabled={previewMutation.isPending}
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-60">
                   <Upload size={15} strokeWidth={2.5} />
-                  {importMutation.isPending ? 'Importing…' : 'Choose file'}
+                  {previewMutation.isPending ? 'Reading…' : 'Choose file'}
                 </button>
               </>
-            ) : (
+            ) : !importResult && preview ? (
+              <>
+                <p className="text-xs text-slate-500 mb-3">Match each column in your file to a Yippie field.</p>
+                <div className="max-h-64 overflow-y-auto flex flex-col gap-2 mb-4 pr-1">
+                  {preview.headers.map(h => (
+                    <div key={h} className="flex items-center gap-2">
+                      <span className="flex-1 min-w-0 truncate text-sm font-medium text-slate-700" title={h}>{h}</span>
+                      <span className="text-slate-300 text-xs">→</span>
+                      <select
+                        value={mapping[h] ?? ''}
+                        onChange={e => setMapping(p => ({ ...p, [h]: e.target.value }))}
+                        className="w-40 shrink-0 px-2 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        <option value="">— skip —</option>
+                        {IMPORT_TARGET_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+                {!mappedToFullName && (
+                  <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
+                    Map one column to <span className="font-semibold">Full name</span> to continue.
+                  </div>
+                )}
+                {importError && (
+                  <div className="mb-3 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{importError}</div>
+                )}
+                <div className="flex gap-3">
+                  <button onClick={runImport} disabled={!mappedToFullName || importMutation.isPending}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors">
+                    <Upload size={15} strokeWidth={2.5} />
+                    {importMutation.isPending ? 'Importing…' : 'Import'}
+                  </button>
+                  <button onClick={() => { setPreview(null); setPendingFile(null); setImportError(null); previewMutation.reset() }}
+                    className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                    Back
+                  </button>
+                </div>
+              </>
+            ) : importResult ? (
               <>
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4 text-sm text-slate-700">
                   <span className="font-semibold text-green-700">{importResult.imported} imported</span>{', '}
@@ -636,7 +757,7 @@ export default function ContactsPage() {
                   Done
                 </button>
               </>
-            )}
+            ) : null}
           </div>
         </div>
       )}

@@ -180,6 +180,7 @@ class UserSelfUpdate(BaseModel):
     inbound_email: Optional[str] = None
     email_signature: Optional[str] = None
     hotkeys_enabled: Optional[bool] = None
+    contact_column_prefs: Optional[list[dict]] = None
 
 
 @router.patch("/me", response_model=UserOut)
@@ -212,6 +213,8 @@ async def update_me(
             current_user.inbound_email = None
     if body.hotkeys_enabled is not None:
         current_user.hotkeys_enabled = body.hotkeys_enabled
+    if "contact_column_prefs" in body.model_fields_set:
+        current_user.contact_column_prefs = body.contact_column_prefs
     await db.commit()
     await db.refresh(current_user)
     return UserOut.model_validate(current_user)
