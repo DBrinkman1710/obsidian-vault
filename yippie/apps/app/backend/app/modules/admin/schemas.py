@@ -31,6 +31,9 @@ class TenantUpdate(BaseModel):
     is_demo: Optional[bool] = None
     go_live_at: Optional[datetime] = None
     inbound_email: Optional[str] = None
+    whatsapp_phone_number_id: Optional[str] = None
+    whatsapp_access_token: Optional[str] = None
+    whatsapp_verify_token: Optional[str] = None
 
 
 class TenantOut(BaseModel):
@@ -44,6 +47,9 @@ class TenantOut(BaseModel):
     is_demo: bool
     go_live_at: Optional[datetime]
     inbound_email: Optional[str]
+    whatsapp_phone_number_id: Optional[str]
+    whatsapp_access_token: Optional[str]
+    whatsapp_verify_token: Optional[str]
     user_count: int
     created_at: datetime
 

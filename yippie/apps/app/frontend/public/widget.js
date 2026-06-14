@@ -1,9 +1,10 @@
 (function () {
   'use strict';
 
-  const cfg = window.__SMB_CHAT_CONFIG__ || {};
+  const cfg = window.__YIPPIE_CHAT_CONFIG__ || window.__SMB_CHAT_CONFIG__ || {};
   const tenantSlug = cfg.tenant || document.currentScript?.getAttribute('data-tenant');
-  const wsBase = cfg.wsBase || (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + location.host;
+  const defaultHost = cfg.host || 'app.getyippie.com';
+  const wsBase = cfg.wsBase || (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + defaultHost;
   const sessionId = sessionStorage.getItem('smb_chat_sid') || crypto.randomUUID();
   sessionStorage.setItem('smb_chat_sid', sessionId);
 

@@ -41,6 +41,10 @@ class Tenant(Base):
     # Red = overdue or due within deadline_red_days; orange = due within deadline_orange_days.
     deadline_red_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     deadline_orange_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2")
+    # WhatsApp Business (Meta Cloud API) credentials — set per tenant via superadmin edit modal
+    whatsapp_phone_number_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    whatsapp_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    whatsapp_verify_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     users: Mapped[list[User]] = relationship("User", back_populates="tenant")

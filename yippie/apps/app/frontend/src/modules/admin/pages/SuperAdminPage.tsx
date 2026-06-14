@@ -28,6 +28,9 @@ interface Tenant {
   is_demo: boolean
   go_live_at: string | null
   inbound_email: string | null
+  whatsapp_phone_number_id: string | null
+  whatsapp_access_token: string | null
+  whatsapp_verify_token: string | null
   user_count: number
   created_at: string
 }
@@ -405,7 +408,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-type EditTab = 'info' | 'modules' | 'branding' | 'users' | 'actions'
+type EditTab = 'info' | 'modules' | 'branding' | 'whatsapp' | 'users' | 'actions'
 
 function EditClientModal({
   tenant,
@@ -438,6 +441,9 @@ function EditClientModal({
     enabled_modules: ALL_MODULES.filter(m => tenant.enabled_modules.includes(m)),
     primary_color: tenant.primary_color,
     logo_url: tenant.logo_url ?? '',
+    whatsapp_phone_number_id: tenant.whatsapp_phone_number_id ?? '',
+    whatsapp_access_token: tenant.whatsapp_access_token ?? '',
+    whatsapp_verify_token: tenant.whatsapp_verify_token ?? '',
   })
   const [error, setError] = useState('')
   const [showAddAdmin, setShowAddAdmin] = useState(false)
@@ -472,6 +478,12 @@ function EditClientModal({
     if (form.primary_color !== tenant.primary_color) patch.primary_color = form.primary_color
     const logo = form.logo_url.trim() || null
     if (logo !== tenant.logo_url) patch.logo_url = logo
+    const waPhone = form.whatsapp_phone_number_id.trim() || null
+    if (waPhone !== tenant.whatsapp_phone_number_id) patch.whatsapp_phone_number_id = waPhone
+    const waToken = form.whatsapp_access_token.trim() || null
+    if (waToken !== tenant.whatsapp_access_token) patch.whatsapp_access_token = waToken
+    const waVerify = form.whatsapp_verify_token.trim() || null
+    if (waVerify !== tenant.whatsapp_verify_token) patch.whatsapp_verify_token = waVerify
     if (Object.keys(patch).length === 0) { onClose(); return }
     setError('')
     mutation.mutate(patch)
@@ -481,6 +493,7 @@ function EditClientModal({
     { key: 'info', label: 'Info' },
     { key: 'modules', label: 'Modules' },
     { key: 'branding', label: 'Branding' },
+    { key: 'whatsapp', label: 'WhatsApp' },
     { key: 'users', label: 'Users' },
     { key: 'actions', label: 'Actions' },
   ]
@@ -613,6 +626,46 @@ function EditClientModal({
                   )}
                 </div>
               )}
+            </>
+          )}
+
+          {tab === 'whatsapp' && (
+            <>
+              <p className="text-xs text-slate-400 -mt-1 mb-1">
+                Meta Cloud API credentials for this client's WhatsApp Business account.
+                Webhook URL to register in Meta: <span className="font-mono">https://app.getyippie.com/api/v1/chat/webhooks/{tenant.slug}/whatsapp</span>
+              </p>
+              <div>
+                <label className={labelCls}>Phone Number ID</label>
+                <input
+                  className={inputCls}
+                  value={form.whatsapp_phone_number_id}
+                  onChange={e => setForm(p => ({ ...p, whatsapp_phone_number_id: e.target.value }))}
+                  placeholder="123456789012345"
+                />
+                <p className="mt-1 text-xs text-slate-400">From Meta Developer Console → WhatsApp → API Setup.</p>
+              </div>
+              <div>
+                <label className={labelCls}>Access Token</label>
+                <input
+                  className={inputCls}
+                  type="password"
+                  value={form.whatsapp_access_token}
+                  onChange={e => setForm(p => ({ ...p, whatsapp_access_token: e.target.value }))}
+                  placeholder="EAAxxxxx…"
+                />
+                <p className="mt-1 text-xs text-slate-400">Permanent system user token from Meta Business Manager.</p>
+              </div>
+              <div>
+                <label className={labelCls}>Verify Token</label>
+                <input
+                  className={inputCls}
+                  value={form.whatsapp_verify_token}
+                  onChange={e => setForm(p => ({ ...p, whatsapp_verify_token: e.target.value }))}
+                  placeholder="any-secret-string-you-choose"
+                />
+                <p className="mt-1 text-xs text-slate-400">Any string you set when configuring the webhook in Meta.</p>
+              </div>
             </>
           )}
 

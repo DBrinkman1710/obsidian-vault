@@ -3,17 +3,17 @@ from __future__ import annotations
 import json
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated, Optional
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket, WebSocketDisconnect, status
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser
-from app.config import load_tenant_config
+from app.core.models import Tenant
 from app.core.tenant import resolve_tenant_by_slug
-from app.database import db_session, get_db
+from app.database import db_session, get_db, set_tenant_context
 from app.modules.chat import whatsapp_service
 from app.modules.chat.manager import manager
 from app.modules.chat.models import ChatMessage, ChatSession
@@ -121,24 +121,22 @@ async def reply_to_session(
 
     # Dispatch via WhatsApp if this session came from WhatsApp
     if session.source == "whatsapp" and session.whatsapp_phone:
-        cfg = load_tenant_config()
-        wa = cfg.whatsapp
-        if wa.phone_number_id and wa.access_token:
+        tenant = await db.get(Tenant, current_user.tenant_id)
+        if tenant and tenant.whatsapp_phone_number_id and tenant.whatsapp_access_token:
             try:
                 await whatsapp_service.send_whatsapp_message(
                     phone=session.whatsapp_phone,
                     body=text,
-                    phone_number_id=wa.phone_number_id,
-                    access_token=wa.access_token,
+                    phone_number_id=tenant.whatsapp_phone_number_id,
+                    access_token=tenant.whatsapp_access_token,
                 )
             except Exception:
                 # Log but don't fail — message is already saved in DB
                 pass
 
     # Also push to any connected WebSocket agents viewing this session
-    cfg = load_tenant_config()
     await manager.broadcast_to_session(
-        cfg.tenant_id,
+        str(current_user.tenant_id),
         str(session_id),
         {
             "event": "message",
@@ -175,15 +173,20 @@ async def close_session(session_id: uuid.UUID, current_user: CurrentUser, db: DB
 # Meta Cloud API webhook endpoints (no auth — called by Meta)
 # ---------------------------------------------------------------------------
 
-@router.get("/webhooks/whatsapp")
-async def whatsapp_verify(request: Request):
-    """Meta webhook verification handshake."""
+@router.get("/webhooks/{tenant_slug}/whatsapp")
+async def whatsapp_verify(tenant_slug: str, request: Request, db: DB):
+    """Meta webhook verification handshake (slug-scoped — use same URL as the POST endpoint)."""
     mode = request.query_params.get("hub.mode")
     token = request.query_params.get("hub.verify_token")
     challenge = request.query_params.get("hub.challenge")
 
-    cfg = load_tenant_config()
-    if mode == "subscribe" and token and token == cfg.whatsapp.verify_token:
+    try:
+        tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
+    except Exception:
+        raise HTTPException(status_code=403, detail="Verification failed")
+
+    tenant = await db.get(Tenant, tenant_id)
+    if mode == "subscribe" and token and tenant and token == tenant.whatsapp_verify_token:
         return Response(content=challenge, media_type="text/plain")
     raise HTTPException(status_code=403, detail="Verification failed")
 
@@ -201,6 +204,7 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
         return {"status": "ignored"}
 
     tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
+    await set_tenant_context(db, tenant_id)
     await whatsapp_service.handle_incoming_webhook(db, tenant_id, payload)
     return {"status": "ok"}
 
@@ -210,23 +214,25 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
 # ---------------------------------------------------------------------------
 
 @router.websocket("/ws/{tenant_slug}/{session_id}")
-async def chat_ws(websocket, tenant_slug: str, session_id: str):
+async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
     """
     WebSocket endpoint for the embeddable website chat widget.
-    Visitors connect with: ws://host/api/v1/chat/ws/{tenant_slug}/{session_id}
+    Visitors connect with: wss://host/api/v1/chat/ws/{tenant_slug}/{session_id}
     session_id is generated client-side on first connect, then reused.
     """
-    from fastapi import WebSocket, WebSocketDisconnect
-
-    tenant_cfg = load_tenant_config()
-    if tenant_cfg.tenant_id != tenant_slug:
+    # Resolve tenant by slug — rejects unknown slugs cleanly
+    try:
+        async with db_session() as db:
+            tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
+    except Exception:
         await websocket.close(code=4004)
         return
 
-    await manager.connect(websocket, tenant_slug, session_id)
+    tenant_key = str(tenant_id)
+    await manager.connect(websocket, tenant_key, session_id)
 
     async with db_session() as db:
-        tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
+        await set_tenant_context(db, tenant_id)
         result = await db.execute(
             select(ChatSession).where(
                 ChatSession.visitor_id == session_id,
@@ -251,34 +257,35 @@ async def chat_ws(websocket, tenant_slug: str, session_id: str):
             raw = await websocket.receive_text()
             data = json.loads(raw)
             msg_body = data.get("body", "").strip()
-            sender_type = "visitor"
-            sender_id = session_id
 
             if not msg_body:
                 continue
 
             async with db_session() as db:
+                await set_tenant_context(db, tenant_id)
                 msg = ChatMessage(
                     tenant_id=session.tenant_id,
                     session_id=session.id,
-                    sender_type=sender_type,
-                    sender_id=sender_id,
+                    sender_type="visitor",
+                    sender_id=session_id,
                     body=msg_body,
                 )
                 db.add(msg)
                 await db.commit()
 
             await manager.broadcast_to_session(
-                tenant_slug,
+                tenant_key,
                 session_id,
                 {
                     "event": "message",
                     "session_id": session_id,
-                    "sender_type": sender_type,
-                    "sender_id": sender_id,
+                    "sender_type": "visitor",
+                    "sender_id": session_id,
                     "body": msg_body,
                     "created_at": datetime.now(timezone.utc).isoformat(),
                 },
             )
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, tenant_key, session_id)
     except Exception:
-        manager.disconnect(websocket, tenant_slug, session_id)
+        manager.disconnect(websocket, tenant_key, session_id)
