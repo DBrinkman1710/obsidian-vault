@@ -41,6 +41,15 @@ async def update_team_user(current_user: AdminUser, db: DB, user_id: uuid.UUID, 
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.patch("/branding")
+async def update_branding(current_user: AdminUser, db: DB, data: schemas.BrandingUpdate):
+    try:
+        await service.update_branding(db, current_user.tenant_id, data.primary_color)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"ok": True}
+
+
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_team_user(current_user: AdminUser, db: DB, user_id: uuid.UUID):
     try:

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, Tag } from 'lucide-react'
+import { Plus, Pencil, Trash2, Tag, Palette } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+import { useTenantConfig } from '../../../App'
 import { LabelChip, type ContactLabel } from '../../contacts/components/LabelChip'
 
 interface FormState {
@@ -14,6 +15,59 @@ const EMPTY: FormState = { name: '', color: '#64748b' }
 
 const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
+
+const DEFAULT_COLOR = '#5BA4F5'
+
+function BrandingSection() {
+  const config = useTenantConfig()
+  const [color, setColor] = useState(config?.branding?.primary_color ?? DEFAULT_COLOR)
+  const [saved, setSaved] = useState(false)
+
+  const mutation = useMutation({
+    mutationFn: () => api.patch('/team/branding', { primary_color: color }),
+    onSuccess: () => {
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2500)
+      window.location.reload()
+    },
+  })
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <Palette size={16} className="text-slate-400" />
+        <h2 className="text-base font-semibold text-slate-900">Brand colour</h2>
+      </div>
+      <p className="text-sm text-slate-500 mb-4">
+        The accent colour used throughout the sidebar and interface for your workspace.
+      </p>
+      <div className="flex items-center gap-3">
+        <input
+          type="color"
+          value={color}
+          onChange={e => { setColor(e.target.value); setSaved(false) }}
+          className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer p-0.5"
+        />
+        <span className="text-sm text-slate-500 font-mono">{color}</span>
+        <button
+          type="button"
+          onClick={() => { setColor(DEFAULT_COLOR); setSaved(false) }}
+          className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 px-2.5 py-1 rounded-lg transition-colors"
+        >
+          Reset to default
+        </button>
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending || color === (config?.branding?.primary_color ?? DEFAULT_COLOR)}
+          className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          {mutation.isPending ? 'Saving…' : saved ? 'Saved!' : 'Save'}
+        </button>
+      </div>
+      {mutation.isError && <p className="mt-2 text-xs text-red-500">Failed to save — try again.</p>}
+    </div>
+  )
+}
 
 function errorDetail(err: unknown): string {
   const detail = (err as any)?.response?.data?.detail
@@ -120,6 +174,8 @@ export default function LabelsPage() {
 
   return (
     <div className="max-w-3xl">
+      <BrandingSection />
+
       <div className="flex items-start justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1">Contact labels</h1>

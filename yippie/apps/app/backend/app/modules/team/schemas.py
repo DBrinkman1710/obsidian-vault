@@ -28,3 +28,7 @@ class TeamInviteRequest(BaseModel):
 class TeamUserUpdate(BaseModel):
     is_active: Optional[bool] = None
     role: Optional[str] = None  # agent | admin | viewer
+
+
+class BrandingUpdate(BaseModel):
+    primary_color: str

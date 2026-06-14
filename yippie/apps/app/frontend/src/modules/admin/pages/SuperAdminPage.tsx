@@ -601,6 +601,13 @@ function EditClientModal({
                     className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer p-0.5"
                   />
                   <span className="text-sm text-slate-500 font-mono">{form.primary_color}</span>
+                  <button
+                    type="button"
+                    onClick={() => setForm(p => ({ ...p, primary_color: '#5BA4F5' }))}
+                    className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 px-2.5 py-1 rounded-lg transition-colors"
+                  >
+                    Reset to default
+                  </button>
                 </div>
               </div>
               <div>

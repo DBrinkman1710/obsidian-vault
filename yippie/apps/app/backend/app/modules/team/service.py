@@ -72,6 +72,14 @@ async def update_user(
     return user
 
 
+async def update_branding(db: AsyncSession, tenant_id: uuid.UUID, primary_color: str) -> None:
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise LookupError("Tenant not found")
+    tenant.primary_color = primary_color
+    await db.commit()
+
+
 async def delete_user(
     db: AsyncSession,
     tenant_id: uuid.UUID,

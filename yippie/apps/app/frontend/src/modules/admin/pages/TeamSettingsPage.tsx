@@ -128,7 +128,7 @@ function DepartmentsPanel() {
   })
 
   return (
-    <div className="w-72 flex-shrink-0">
+    <div className="w-80 flex-shrink-0">
       {/* Header row — mirrors the Team header for vertical alignment */}
       <div className="flex items-center justify-between mb-8">
         <div>
@@ -144,7 +144,6 @@ function DepartmentsPanel() {
         </button>
       </div>
 
-      {/* Card — same style as the team table card */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {isLoading && (
           <p className="text-xs text-slate-400 px-4 py-6 text-center">Loading…</p>
