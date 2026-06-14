@@ -1008,6 +1008,12 @@ export default function InboxQueue() {
                           </span>
                         </div>
                         <p className="text-xs text-slate-500">To: {em.to_email}</p>
+                        {em.delivered_at && (
+                          <p className="text-xs text-slate-400 mt-0.5">Delivered: {new Date(em.delivered_at).toLocaleString()}</p>
+                        )}
+                        {em.opened_at && (
+                          <p className="text-xs text-blue-500 mt-0.5">Opened: {new Date(em.opened_at).toLocaleString()}</p>
+                        )}
                       </div>
                       <p className="text-xs text-slate-400 shrink-0">{new Date(em.created_at).toLocaleString()}</p>
                     </CardEl>

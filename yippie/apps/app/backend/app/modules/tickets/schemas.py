@@ -83,7 +83,9 @@ class CommentOut(BaseModel):
 class CampaignButton(BaseModel):
     id: str  # client-generated UUID string
     text: str  # display label on the button
-    label_id: str | None = None  # Yippie contact label UUID (for Phase 9C)
+    action_type: str = "label"  # 'label' or 'pipeline_stage'
+    label_id: str | None = None
+    stage_id: str | None = None
     multiple_allowed: bool = False  # can a contact click multiple buttons?
     bg_color: str = "#5BA4F5"
     text_color: str = "#ffffff"
