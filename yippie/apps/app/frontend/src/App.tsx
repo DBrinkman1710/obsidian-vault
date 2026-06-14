@@ -1,5 +1,6 @@
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Toaster } from 'sonner'
 import { fetchTenantConfig, TenantConfig } from './api/tenant'
 import { useAuth } from './auth/useAuth'
 import { ModuleGate } from './shell/ModuleGate'
@@ -211,6 +212,7 @@ export default function App() {
           </Suspense>
         </main>
         <BottomNav />
+        <Toaster position="bottom-right" richColors />
       </div>
     </TenantConfigContext.Provider>
   )

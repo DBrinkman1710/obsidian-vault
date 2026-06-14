@@ -1,5 +1,7 @@
-import { NavLink, useLocation } from 'react-router-dom'
+import { useEffect, useRef } from 'react'
+import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
+import { toast } from 'sonner'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
@@ -23,6 +25,7 @@ const MODULE_MAP: Record<string, { label: string; Icon: LucideIcon; path: string
 export function Sidebar() {
   const config = useTenantConfig()
   const { user, logout } = useAuth()
+  const navigate = useNavigate()
 
   const { data: draftCount, isFetching: inboxFetching } = useQuery({
     queryKey: ['drafts', 'count'],
@@ -51,6 +54,18 @@ export function Sidebar() {
   const orangeCount: number = deadlineData?.orange ?? 0
   const redBadge = redCount === 0 ? null : redCount > 9 ? '9+' : String(redCount)
   const orangeBadge = orangeCount === 0 ? null : orangeCount > 9 ? '9+' : String(orangeCount)
+
+  const toastShownRef = useRef(false)
+  useEffect(() => {
+    if (toastShownRef.current) return
+    if (redCount > 0) {
+      toastShownRef.current = true
+      toast.warning(
+        `${redCount} overdue ticket${redCount > 1 ? 's' : ''} need attention`,
+        { duration: 8000, action: { label: 'View', onClick: () => navigate('/tickets') } }
+      )
+    }
+  }, [redCount, navigate])
   const chatOpenCount: number = chatCountData?.open ?? 0
   const chatBadge = chatOpenCount === 0 ? null : chatOpenCount > 9 ? '9+' : String(chatOpenCount)
 

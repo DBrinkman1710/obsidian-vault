@@ -336,6 +336,7 @@ export default function DraftReview() {
   const [undoCancelled, setUndoCancelled] = useState(false)
   const [demoNotice, setDemoNotice] = useState(false)
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
   const [replyFiles, setReplyFiles] = useState<File[]>([])
   const [usePersonalFrom, setUsePersonalFrom] = useState(false)
   const [actionError, setActionError] = useState('')
@@ -401,6 +402,20 @@ export default function DraftReview() {
       navigate('/inbox')
     },
   })
+
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement).isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'r') replyTextareaRef.current?.focus()
+      if (e.key === 'e' && !isProcessed && !reviewMutation.isPending && !replyText.trim()) {
+        reviewMutation.mutate({ action: 'approve' })
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [isProcessed, reviewMutation, replyText])
 
   async function handleForward() {
     if (!selectedDeptId) return
@@ -1174,6 +1189,7 @@ export default function DraftReview() {
 
             <div className="flex-1 overflow-hidden flex flex-col p-3 gap-2 min-h-0">
               <textarea
+                ref={replyTextareaRef}
                 value={replyText}
                 onChange={e => { setReplyText(e.target.value); setSuggestions([]) }}
                 onKeyDown={e => {

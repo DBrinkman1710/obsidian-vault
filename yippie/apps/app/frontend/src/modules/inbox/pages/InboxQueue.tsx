@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette } from 'lucide-react'
 import { api } from '../../../api/client'
@@ -652,6 +652,8 @@ const PAGE_SIZE = 9
 export default function InboxQueue() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [mailbox, setMailbox] = useState<Mailbox>('shared')
+  const [focusedIdx, setFocusedIdx] = useState<number>(-1)
+  const navigate = useNavigate()
   const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all')
   const [showCompose, setShowCompose] = useState(false)
   const [composeInitial, setComposeInitial] = useState<ComposeInitialState | null>(null)
@@ -667,6 +669,8 @@ export default function InboxQueue() {
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
+
+  useEffect(() => { setFocusedIdx(-1) }, [activeTab, mailbox])
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -789,6 +793,22 @@ export default function InboxQueue() {
   const pageCount = Math.max(1, Math.ceil(drafts.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
   const pageDrafts = drafts.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+
+  useEffect(() => {
+    function handler(e: KeyboardEvent) {
+      if (user?.hotkeys_enabled === false) return
+      const tag = (e.target as HTMLElement).tagName
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || (e.target as HTMLElement).isContentEditable) return
+      if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'j') setFocusedIdx(i => Math.min(i + 1, pageDrafts.length - 1))
+      if (e.key === 'k') setFocusedIdx(i => Math.max(i - 1, 0))
+      if (e.key === 'r' && focusedIdx >= 0 && pageDrafts[focusedIdx]) {
+        navigate(`/inbox/drafts/${pageDrafts[focusedIdx].id}`)
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [user?.hotkeys_enabled, pageDrafts, focusedIdx, navigate])
 
   const bulkMutation = useMutation({
     mutationFn: ({ ids, action }: { ids: string[]; action: 'bin' | 'spam' }) =>
@@ -1099,16 +1119,17 @@ export default function InboxQueue() {
 
 
             <div className="flex flex-col gap-3">
-              {pageDrafts.map((d: any) => {
+              {pageDrafts.map((d: any, index: number) => {
                 const isFollowUp = d.status === 'approved' && d.follow_up_at
                 const followUpDate = isFollowUp ? new Date(d.follow_up_at) : null
                 const isUrgent = followUpDate && (followUpDate.getTime() - Date.now()) <= 24 * 60 * 60 * 1000
                 const isSelected = selected.has(d.id)
+                const isFocused = focusedIdx === index
                 return (
                   <div
                     key={d.id}
                     className={`bg-white rounded-xl border shadow-sm p-4 flex items-start gap-3 transition-all ${
-                      isSelected ? 'border-blue-300 ring-1 ring-blue-200' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'
+                      isFocused ? 'border-blue-400 ring-2 ring-blue-200' : isSelected ? 'border-blue-300 ring-1 ring-blue-200' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'
                     }`}
                   >
                     {/* Checkbox */}
