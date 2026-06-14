@@ -112,14 +112,12 @@ export default function TemplatesPage() {
   function syncButtonsFromDesign(design: object) {
     const detected = extractButtonsFromDesign(design)
     setButtons(prev => {
-      const consumed = new Set<string>()
+      const consumed = new Set<string | undefined>()
       return detected.map(d => {
-        const existing =
-          prev.find(b => b.id === d.id && !consumed.has(b.id)) ??
-          prev.find(b => b.text === d.text && !consumed.has(b.id))
+        const existing = prev.find(b => b.text === d.text && !consumed.has(b.id))
         if (existing) consumed.add(existing.id)
         return existing
-          ? { ...existing, id: d.id, text: d.text }
+          ? { id: existing.id, text: d.text, action_type: existing.action_type, label_id: existing.label_id, stage_id: existing.stage_id }
           : newCampaignButton(d.id, d.text)
       })
     })

@@ -510,24 +510,38 @@ function ComposeModal({
                 }}
               />
             </div>
-            {templateHtml && (
-              <div className="flex items-center justify-between px-3 py-2 mb-2 bg-violet-50 border border-violet-200 rounded-xl">
-                <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 uppercase tracking-wide">
-                  <Palette size={11} />
-                  Rich template applied
-                </span>
-                <button type="button" onClick={() => { setTemplateHtml(null); setCampaignButtonsJson(null) }} className="text-violet-400 hover:text-violet-600" title="Remove rich template">
-                  <X size={13} />
-                </button>
+            {templateHtml ? (
+              <div className="border border-violet-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 bg-violet-50 border-b border-violet-100">
+                  <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 uppercase tracking-wide">
+                    <Palette size={11} />
+                    Rich template — this is your email
+                  </span>
+                  <button type="button" onClick={() => { setTemplateHtml(null); setCampaignButtonsJson(null) }} className="text-violet-400 hover:text-violet-600" title="Remove rich template">
+                    <X size={13} />
+                  </button>
+                </div>
+                <div className="overflow-y-auto bg-white" style={{ maxHeight: '300px' }} dangerouslySetInnerHTML={{ __html: templateHtml }} />
+                <div className="border-t border-violet-100 px-3 py-2">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Add a personal note (appended as plain text)</p>
+                  <textarea
+                    className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-[inherit]"
+                    rows={3}
+                    value={body}
+                    onChange={e => setBody(e.target.value)}
+                    placeholder="Optional personal note…"
+                  />
+                </div>
               </div>
+            ) : (
+              <textarea
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-[inherit]"
+                rows={14}
+                value={body}
+                onChange={e => setBody(e.target.value)}
+                placeholder="Write your message…"
+              />
             )}
-            <textarea
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-[inherit]"
-              rows={templateHtml ? 10 : 14}
-              value={body}
-              onChange={e => setBody(e.target.value)}
-              placeholder="Write your message…"
-            />
           </div>
         </div>
 
