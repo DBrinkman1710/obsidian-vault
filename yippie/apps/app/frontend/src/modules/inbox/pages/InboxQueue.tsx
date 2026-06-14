@@ -234,6 +234,7 @@ interface ComposeInitialState {
   body: string
   usePersonalFrom: boolean
   templateHtml?: string | null
+  campaignButtonsJson?: string | null
 }
 
 interface SendQueuedPayload {
@@ -263,7 +264,7 @@ function ComposeModal({
   const [usePersonalFrom, setUsePersonalFrom] = useState(initialState?.usePersonalFrom ?? false)
   const [body, setBody] = useState(initialState?.body ?? (user?.email_signature ? `\n\n${user.email_signature}` : ''))
   const [templateHtml, setTemplateHtml] = useState<string | null>(initialState?.templateHtml ?? null)
-  const [campaignButtonsJson, setCampaignButtonsJson] = useState<string | null>(null)
+  const [campaignButtonsJson, setCampaignButtonsJson] = useState<string | null>(initialState?.campaignButtonsJson ?? null)
 
   const addRecipient = (email: string, label: string) => {
     if (!recipients.find(r => r.email === email)) {
@@ -309,7 +310,7 @@ function ComposeModal({
       onSendQueued({
         composeId: data.compose_id,
         recipientCount: data.recipients ?? 1,
-        restoreData: { recipients, subject, body, usePersonalFrom, templateHtml },
+        restoreData: { recipients, subject, body, usePersonalFrom, templateHtml, campaignButtonsJson },
       })
       onClose()
     },
@@ -772,7 +773,7 @@ export default function InboxQueue() {
               direction="down"
               triggerIconSize={14}
               triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors w-full"
-              onSelect={(tmplBody, isHtml) => {
+              onSelect={(tmplBody, isHtml, buttons) => {
                 const text = isHtml ? htmlToText(tmplBody) : tmplBody
                 setComposeInitial({
                   recipients: [],
@@ -780,6 +781,7 @@ export default function InboxQueue() {
                   body: user?.email_signature ? `${text}\n\n${user.email_signature}` : text,
                   usePersonalFrom: false,
                   templateHtml: isHtml ? tmplBody : null,
+                  campaignButtonsJson: isHtml ? (buttons ?? null) : null,
                 })
                 setShowCompose(true)
               }}
