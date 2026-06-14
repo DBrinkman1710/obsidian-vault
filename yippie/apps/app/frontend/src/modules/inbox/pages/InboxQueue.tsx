@@ -440,27 +440,28 @@ function ComposeModal({
                 }}
               />
             </div>
-            {templateHtml && (
-              <div className="mb-2 border border-violet-200 rounded-xl overflow-hidden">
-                <div className="flex items-center justify-between px-3 py-1.5 bg-violet-50 border-b border-violet-100">
+            {templateHtml ? (
+              <div className="border border-violet-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 bg-violet-50 border-b border-violet-100">
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 uppercase tracking-wide">
                     <Palette size={11} />
-                    Rich template
+                    Rich template — this is your email
                   </span>
                   <button type="button" onClick={() => { setTemplateHtml(null); setCampaignButtonsJson(null) }} className="text-violet-400 hover:text-violet-600" title="Remove rich template">
                     <X size={13} />
                   </button>
                 </div>
-                <div className="max-h-44 overflow-y-auto p-3 bg-white" dangerouslySetInnerHTML={{ __html: templateHtml }} />
+                <div className="overflow-y-auto bg-white" style={{ maxHeight: '420px' }} dangerouslySetInnerHTML={{ __html: templateHtml }} />
               </div>
+            ) : (
+              <textarea
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-[inherit]"
+                rows={14}
+                value={body}
+                onChange={e => setBody(e.target.value)}
+                placeholder="Write your message…"
+              />
             )}
-            <textarea
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-[inherit]"
-              rows={14}
-              value={body}
-              onChange={e => setBody(e.target.value)}
-              placeholder="Write your message…"
-            />
           </div>
         </div>
 

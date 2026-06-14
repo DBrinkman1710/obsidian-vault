@@ -810,13 +810,18 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                         # Plain text template: append buttons below body as before
                         campaign_buttons_html = render_campaign_buttons_html(buttons, token_map=token_map)
 
-                html_body = render_email_html(
-                    c["reply_text"],
-                    tenant_name=tenant.name if tenant else None,
-                    primary_color=tenant.primary_color if tenant else None,
-                    prerendered_html=c["prerendered_html"],
-                    campaign_buttons_html=campaign_buttons_html,
-                )
+                # Unlayer templates are complete HTML documents — send them directly
+                # instead of nesting them inside the Yippie email shell wrapper,
+                # which produces invalid double-nested HTML and breaks the template.
+                if c["prerendered_html"]:
+                    html_body = c["prerendered_html"]
+                else:
+                    html_body = render_email_html(
+                        c["reply_text"],
+                        tenant_name=tenant.name if tenant else None,
+                        primary_color=tenant.primary_color if tenant else None,
+                        campaign_buttons_html=campaign_buttons_html,
+                    )
                 resend_id = await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body)
                 # Record outbound email for tracking
                 from app.modules.emailtracking.service import create_outbound_email
