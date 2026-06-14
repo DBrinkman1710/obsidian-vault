@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import base64
 import os
 import uuid
 
@@ -8,7 +10,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant, User, UserRole
-from app.modules.admin.schemas import AddAdminRequest, TenantCreate, TenantUpdate
+from app.modules.admin.schemas import (
+    AddAdminRequest,
+    BroadcastRequest,
+    BroadcastResult,
+    TenantCreate,
+    TenantUpdate,
+)
+from app.modules.contacts.models import Contact
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -320,6 +329,99 @@ async def bulk_toggle_module(db: AsyncSession, module: str, enabled: bool) -> di
         tenant.enabled_modules = list(mods)
     await db.commit()
     return {"module": module, "enabled": enabled, "tenants_updated": len(tenants)}
+
+
+BROADCAST_BATCH_SIZE = 10
+
+
+def encode_unsubscribe_token(contact_id: uuid.UUID) -> str:
+    return base64.urlsafe_b64encode(contact_id.bytes).decode("ascii").rstrip("=")
+
+
+def decode_unsubscribe_token(token: str) -> uuid.UUID:
+    padded = token + "=" * (-len(token) % 4)
+    return uuid.UUID(bytes=base64.urlsafe_b64decode(padded))
+
+
+async def broadcast_to_tenant(
+    db: AsyncSession, tenant_id: uuid.UUID, data: BroadcastRequest
+) -> BroadcastResult:
+    """Send a bulk email to every active contact of a tenant via Resend.
+
+    Sends in batches of 10 with a 1s pause between batches to stay under the
+    Resend free-tier rate limit (~10 req/s). Each email carries an unsubscribe
+    link that flips broadcast_opted_out; opted-out contacts are skipped here.
+    """
+    from app.config import get_settings
+    from app.core.email_html import render_email_html
+    from app.core.mailer import is_valid_email, send_email
+
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise LookupError("Tenant not found")
+    if tenant.is_demo:
+        raise ValueError("Cannot broadcast to a demo tenant")
+
+    result = await db.execute(select(Contact).where(Contact.tenant_id == tenant_id))
+    contacts = result.scalars().all()
+
+    skipped_opted_out = sum(1 for c in contacts if c.broadcast_opted_out)
+    recipients = [c for c in contacts if not c.broadcast_opted_out]
+
+    skipped_no_email = sum(1 for c in recipients if not (c.email and is_valid_email(c.email)))
+    recipients = [c for c in recipients if c.email and is_valid_email(c.email)]
+
+    base_url = get_settings().app_base_url
+    from_email = get_settings().resend_from or None
+
+    sent = 0
+    failed = 0
+    for i in range(0, len(recipients), BROADCAST_BATCH_SIZE):
+        batch = recipients[i : i + BROADCAST_BATCH_SIZE]
+        for contact in batch:
+            token = encode_unsubscribe_token(contact.id)
+            unsubscribe_url = f"{base_url}/api/v1/admin/unsubscribe/{token}"
+            text_footer = f"\n\n—\nUnsubscribe from these emails: {unsubscribe_url}"
+            html_body = render_email_html(
+                data.body + text_footer,
+                tenant_name=data.from_name or tenant.name,
+                primary_color=tenant.primary_color,
+            )
+            try:
+                await send_email(
+                    to=contact.email,
+                    subject=data.subject,
+                    body=data.body + text_footer,
+                    from_email=from_email,
+                    html=html_body,
+                )
+                sent += 1
+            except Exception:
+                failed += 1
+        # Pause between batches, not after the final one.
+        if i + BROADCAST_BATCH_SIZE < len(recipients):
+            await asyncio.sleep(1)
+
+    return BroadcastResult(
+        sent=sent,
+        skipped_no_email=skipped_no_email,
+        skipped_opted_out=skipped_opted_out,
+        failed=failed,
+    )
+
+
+async def opt_out_contact(db: AsyncSession, token: str) -> bool:
+    """Flip broadcast_opted_out for the contact encoded in the unsubscribe token."""
+    try:
+        contact_id = decode_unsubscribe_token(token)
+    except Exception:
+        return False
+    contact = await db.get(Contact, contact_id)
+    if contact is None:
+        return False
+    contact.broadcast_opted_out = True
+    await db.commit()
+    return True
 
 
 async def promote_superadmin(

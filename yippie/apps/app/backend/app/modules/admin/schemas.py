@@ -105,3 +105,16 @@ class InviteSuperadminRequest(BaseModel):
 class BulkModuleRequest(BaseModel):
     module: str
     enabled: bool
+
+
+class BroadcastRequest(BaseModel):
+    subject: str
+    body: str  # plain text; HTML wrapper applied server-side
+    from_name: str = "Yippie"
+
+
+class BroadcastResult(BaseModel):
+    sent: int
+    skipped_no_email: int
+    skipped_opted_out: int
+    failed: int

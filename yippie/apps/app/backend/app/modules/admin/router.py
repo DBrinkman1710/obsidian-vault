@@ -159,6 +159,27 @@ async def bulk_toggle_module(_: SuperAdminUser, db: DB, data: schemas.BulkModule
     return await service.bulk_toggle_module(db, data.module, data.enabled)
 
 
+@router.post("/tenants/{tenant_id}/broadcast", response_model=schemas.BroadcastResult)
+async def broadcast_to_tenant(
+    _: SuperAdminUser, db: DB, tenant_id: uuid.UUID, data: schemas.BroadcastRequest
+):
+    """Send a bulk email to all opted-in contacts of a tenant. Superadmin-only."""
+    try:
+        return await service.broadcast_to_tenant(db, tenant_id, data)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/unsubscribe/{token}")
+async def unsubscribe(token: str, db: DB):
+    """Public — a contact clicks this from a broadcast email to opt out. No auth."""
+    await service.opt_out_contact(db, token)
+    # Always report success to avoid leaking whether a token maps to a contact.
+    return {"unsubscribed": True}
+
+
 @router.get("/resend-check")
 async def resend_check(_: SuperAdminUser):
     """Diagnostic: shows exactly what the Resend receiving API returns for the most recent email."""
