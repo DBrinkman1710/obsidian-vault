@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Users, X, Building2, UserPlus,
   ToggleLeft, ToggleRight, Rocket, FlaskConical, CheckSquare, Square,
-  Clipboard, Check, Eye, Trash2, Pencil,
+  Clipboard, Check, Eye, Trash2, Pencil, Lock,
 } from 'lucide-react'
 import { api } from '../../../api/client'
 import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
@@ -420,6 +420,7 @@ function EditClientModal({
   onRequestDelete,
   onGoLive,
   goingLive,
+  isOwnTenant,
 }: {
   tenant: Tenant
   onClose: () => void
@@ -430,6 +431,7 @@ function EditClientModal({
   onRequestDelete: () => void
   onGoLive?: () => void
   goingLive?: boolean
+  isOwnTenant?: boolean
 }) {
   const qc = useQueryClient()
   const { user } = useAuth()
@@ -713,52 +715,61 @@ function EditClientModal({
 
           {tab === 'actions' && (
             <div className="flex flex-col gap-4">
-              {tenant.is_demo && (
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-semibold text-emerald-700">Go live</p>
-                    <p className="text-xs text-slate-400">Ends demo mode and enables real email sending.</p>
+              {isOwnTenant ? (
+                <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
+                  <Lock size={14} className="text-slate-400 shrink-0" />
+                  <p className="text-sm text-slate-500">This is your own environment — it cannot be deactivated, set to demo, or deleted.</p>
+                </div>
+              ) : (
+                <>
+                  {tenant.is_demo && (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-semibold text-emerald-700">Go live</p>
+                        <p className="text-xs text-slate-400">Ends demo mode and enables real email sending.</p>
+                      </div>
+                      <button
+                        onClick={() => { onGoLive?.(); onClose() }}
+                        disabled={goingLive}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
+                      >
+                        <Rocket size={13} />
+                        Go live
+                      </button>
+                    </div>
+                  )}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-700">{tenant.is_active ? 'Active' : 'Inactive'}</p>
+                      <p className="text-xs text-slate-400">{tenant.is_active ? 'Users can log in and send mail.' : 'Login is blocked for this client.'}</p>
+                    </div>
+                    <button
+                      onClick={() => { onToggleActive(); onClose() }}
+                      disabled={togglingActive}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+                    >
+                      {tenant.is_active
+                        ? <><ToggleRight size={14} className="text-emerald-500" /> Deactivate</>
+                        : <><ToggleLeft size={14} className="text-slate-400" /> Activate</>}
+                    </button>
                   </div>
-                  <button
-                    onClick={() => { onGoLive?.(); onClose() }}
-                    disabled={goingLive}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
-                  >
-                    <Rocket size={13} />
-                    Go live
-                  </button>
-                </div>
-              )}
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-slate-700">{tenant.is_active ? 'Active' : 'Inactive'}</p>
-                  <p className="text-xs text-slate-400">{tenant.is_active ? 'Users can log in and send mail.' : 'Login is blocked for this client.'}</p>
-                </div>
-                <button
-                  onClick={() => { onToggleActive(); onClose() }}
-                  disabled={togglingActive}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-                >
-                  {tenant.is_active
-                    ? <><ToggleRight size={14} className="text-emerald-500" /> Deactivate</>
-                    : <><ToggleLeft size={14} className="text-slate-400" /> Activate</>}
-                </button>
-              </div>
 
-              {isRootOwner && (
-                <div className="flex items-center justify-between border-t border-slate-100 pt-4">
-                  <div>
-                    <p className="text-sm font-semibold text-red-600">Delete client</p>
-                    <p className="text-xs text-slate-400">Removes this client and all its data — irreversible.</p>
-                  </div>
-                  <button
-                    onClick={onRequestDelete}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-                  >
-                    <Trash2 size={13} />
-                    Delete
-                  </button>
-                </div>
+                  {isRootOwner && (
+                    <div className="flex items-center justify-between border-t border-slate-100 pt-4">
+                      <div>
+                        <p className="text-sm font-semibold text-red-600">Delete client</p>
+                        <p className="text-xs text-slate-400">Removes this client and all its data — irreversible.</p>
+                      </div>
+                      <button
+                        onClick={onRequestDelete}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                      >
+                        <Trash2 size={13} />
+                        Delete
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           )}
@@ -1048,8 +1059,9 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
     queryFn: () => api.get('/admin/tenants').then(r => r.data),
   })
 
-  // Hide own environment — config.tenant_id is the tenant *slug*, not its UUID
-  const tenants = (allTenants ?? []).filter(t => t.slug !== config?.tenant_id)
+  const ownSlug = config?.tenant_id
+  const isOwnTenant = (t: Tenant) => !!ownSlug && t.slug === ownSlug
+  const tenants = (allTenants ?? [])
 
   const counts = {
     all: tenants.length,
@@ -1115,15 +1127,17 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
     })
   }
 
+  const selectableVisible = visible.filter(t => !isOwnTenant(t))
+
   function toggleAll() {
-    if (selectedIds.size === visible.length) {
+    if (selectedIds.size === selectableVisible.length && selectableVisible.length > 0) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(visible.map(t => t.id)))
+      setSelectedIds(new Set(selectableVisible.map(t => t.id)))
     }
   }
 
-  const allSelected = visible.length > 0 && selectedIds.size === visible.length
+  const allSelected = selectableVisible.length > 0 && selectedIds.size === selectableVisible.length
   const someSelected = selectedIds.size > 0
 
   function copyInboundEmail(slug: string, email: string) {
@@ -1252,15 +1266,20 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
               {visible.map(t => {
                 const status = statusOf(t)
                 const isSelected = selectedIds.has(t.id)
+                const own = isOwnTenant(t)
                 return (
                   <tr
                     key={t.id}
                     className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50/40' : ''} ${!t.is_active ? 'opacity-60' : ''}`}
                   >
                     <td className="pl-4 pr-2 py-3 w-8">
-                      <button onClick={() => toggleRow(t.id)} className="text-slate-400 hover:text-slate-600 transition-colors">
-                        {isSelected ? <CheckSquare size={15} className="text-blue-600" /> : <Square size={15} />}
-                      </button>
+                      {own ? (
+                        <Lock size={13} className="text-slate-300 mx-auto" />
+                      ) : (
+                        <button onClick={() => toggleRow(t.id)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                          {isSelected ? <CheckSquare size={15} className="text-blue-600" /> : <Square size={15} />}
+                        </button>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
@@ -1272,16 +1291,20 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      <select
-                        value={status}
-                        onChange={e => setStatusMutation.mutate({ id: t.id, status: e.target.value as 'active' | 'demo' | 'inactive' })}
-                        disabled={setStatusMutation.isPending}
-                        className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-slate-300 disabled:opacity-50 ${STATUS_PILL[status]}`}
-                      >
-                        <option value="active">active</option>
-                        <option value="demo">demo</option>
-                        <option value="inactive">inactive</option>
-                      </select>
+                      {own ? (
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_PILL[status]}`}>{status}</span>
+                      ) : (
+                        <select
+                          value={status}
+                          onChange={e => setStatusMutation.mutate({ id: t.id, status: e.target.value as 'active' | 'demo' | 'inactive' })}
+                          disabled={setStatusMutation.isPending}
+                          className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-slate-300 disabled:opacity-50 ${STATUS_PILL[status]}`}
+                        >
+                          <option value="active">active</option>
+                          <option value="demo">demo</option>
+                          <option value="inactive">inactive</option>
+                        </select>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex flex-wrap gap-1">
@@ -1301,7 +1324,7 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        {status === 'active' && (
+                        {status === 'active' && !own && (
                           <button
                             onClick={() => toggleDemoMutation.mutate({ id: t.id, is_demo: true })}
                             disabled={toggleDemoMutation.isPending}
@@ -1310,7 +1333,7 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
                             Set demo
                           </button>
                         )}
-                        {t.is_active && (
+                        {t.is_active && !own && (
                           <button
                             onClick={() => impersonateMutation.mutate(t.id)}
                             disabled={impersonateMutation.isPending}
@@ -1321,7 +1344,6 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
                             View as
                           </button>
                         )}
-{/* Active/Inactive toggle, Copy email and Delete now live in the Edit modal's Actions tab */}
                         <button
                           onClick={() => setEditingTenant(t)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
@@ -1353,6 +1375,7 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
           onRequestDelete={() => { setEditingTenant(null); setDeletingTenant(editingTenant) }}
           onGoLive={() => goLiveMutation.mutate(editingTenant.id)}
           goingLive={goLiveMutation.isPending}
+          isOwnTenant={isOwnTenant(editingTenant)}
         />
       )}
       {deletingTenant && <DeleteClientModal tenant={deletingTenant} onClose={() => setDeletingTenant(null)} />}
