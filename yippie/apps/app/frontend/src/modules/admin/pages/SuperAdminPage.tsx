@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Plus, Users, X, Building2, UserPlus,
   ToggleLeft, ToggleRight, Rocket, FlaskConical, CheckSquare, Square,
-  Clipboard, Check, Eye, Trash2, Pencil, Megaphone,
+  Clipboard, Check, Eye, Trash2, Pencil,
 } from 'lucide-react'
 import { api } from '../../../api/client'
 import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
@@ -929,100 +929,6 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
   )
 }
 
-interface BroadcastResult {
-  sent: number
-  skipped_no_email: number
-  skipped_opted_out: number
-  failed: number
-}
-
-function BroadcastModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
-  const [subject, setSubject] = useState('')
-  const [body, setBody] = useState('')
-  const [error, setError] = useState('')
-  const [result, setResult] = useState<BroadcastResult | null>(null)
-
-  const mutation = useMutation({
-    mutationFn: () =>
-      api.post<BroadcastResult>(`/admin/tenants/${tenant.id}/broadcast`, {
-        subject: subject.trim(),
-        body: body.trim(),
-        from_name: tenant.name,
-      }).then(r => r.data),
-    onSuccess: (data) => setResult(data),
-    onError: (err: { response?: { data?: { detail?: unknown } } }) => {
-      const detail = err.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Failed to send broadcast')
-    },
-  })
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    if (!subject.trim()) { setError('Subject is required'); return }
-    if (!body.trim()) { setError('Message body is required'); return }
-    setError('')
-    mutation.mutate()
-  }
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Broadcast email</h2>
-            <p className="text-sm text-slate-400 mt-0.5">{tenant.name} — all active contacts</p>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
-        </div>
-        {result ? (
-          <div className="p-6 flex flex-col gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
-                <Check size={16} className="text-emerald-600" />
-              </div>
-              <p className="text-sm text-slate-700">
-                Sent to <strong>{result.sent}</strong> contact{result.sent !== 1 ? 's' : ''}
-                {' '}({result.skipped_no_email + result.skipped_opted_out + result.failed} skipped)
-              </p>
-            </div>
-            <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs text-slate-500 flex flex-col gap-0.5">
-              <span>No email: {result.skipped_no_email}</span>
-              <span>Opted out: {result.skipped_opted_out}</span>
-              <span>Failed: {result.failed}</span>
-            </div>
-            <div className="flex justify-end">
-              <button onClick={onClose} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">Done</button>
-            </div>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-            <div>
-              <label className={labelCls}>Subject *</label>
-              <input className={inputCls} value={subject} onChange={e => setSubject(e.target.value)} placeholder="A message from us" autoFocus />
-            </div>
-            <div>
-              <label className={labelCls}>Message *</label>
-              <textarea
-                className={`${inputCls} min-h-[140px] resize-y`}
-                value={body}
-                onChange={e => setBody(e.target.value)}
-                placeholder="Write your broadcast message…"
-              />
-              <p className="mt-1 text-xs text-slate-400">Plain text — an unsubscribe link is added automatically.</p>
-            </div>
-            {error && <p className="text-sm text-red-500">{error}</p>}
-            <div className="flex gap-3 justify-end pt-1">
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
-              <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
-                {mutation.isPending ? 'Sending…' : 'Send broadcast'}
-              </button>
-            </div>
-          </form>
-        )}
-      </div>
-    </div>
-  )
-}
 
 function ResendDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
@@ -1080,8 +986,7 @@ export default function SuperAdminPage() {
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
   const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null)
-  const [broadcastTenant, setBroadcastTenant] = useState<Tenant | null>(null)
-  const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(null)
+const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(null)
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
 
@@ -1363,17 +1268,7 @@ export default function SuperAdminPage() {
                             View as
                           </button>
                         )}
-                        {t.is_active && !t.is_demo && (
-                          <button
-                            onClick={() => setBroadcastTenant(t)}
-                            className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                            title="Send a broadcast email to all contacts"
-                          >
-                            <Megaphone size={11} />
-                            Broadcast
-                          </button>
-                        )}
-                        {/* Active/Inactive toggle, Copy email and Delete now live in the Edit modal's Actions tab */}
+{/* Active/Inactive toggle, Copy email and Delete now live in the Edit modal's Actions tab */}
                         <button
                           onClick={() => setEditingTenant(t)}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
@@ -1408,8 +1303,7 @@ export default function SuperAdminPage() {
         />
       )}
       {deletingTenant && <DeleteClientModal tenant={deletingTenant} onClose={() => setDeletingTenant(null)} />}
-      {broadcastTenant && <BroadcastModal tenant={broadcastTenant} onClose={() => setBroadcastTenant(null)} />}
-      {bulkDeletingTenants && (
+{bulkDeletingTenants && (
         <BulkDeleteClientsModal
           tenants={bulkDeletingTenants}
           onClose={() => { setBulkDeletingTenants(null); setSelectedIds(new Set()) }}
