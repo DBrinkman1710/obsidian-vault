@@ -836,6 +836,14 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                         stage_id_str = btn.get("stage_id")
                         if not btn_id:
                             continue
+                        # Direct-link actions (website / email / phone) render as
+                        # plain <a> links — no tracking token, no DB row.
+                        if action_type in ("open_website", "send_mail", "call_phone"):
+                            from app.core.email_html import build_direct_action_href
+                            href = build_direct_action_href(action_type, btn.get("action_value"))
+                            if href:
+                                token_map[btn_id] = href
+                            continue
                         # Only generate a token when there is a configured action
                         if action_type == "pipeline_stage" and stage_id_str:
                             tok = LabelClickToken(
