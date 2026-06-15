@@ -9,10 +9,18 @@ import SendBookingModal from '../../booking/SendBookingModal'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'resolved', 'closed']
 
+const STATUS_LABELS: Record<string, string> = {
+  open:        'Open',
+  in_progress: 'In progress',
+  waiting:     'Waiting for customer',
+  resolved:    'Resolved',
+  closed:      'Closed',
+}
+
 const STATUS_STYLES: Record<string, string> = {
   open:        'bg-blue-600 text-white border-blue-600',
   in_progress: 'bg-amber-500 text-white border-amber-500',
-  waiting:     'bg-violet-600 text-white border-violet-600',
+  waiting:     'bg-amber-500 text-white border-amber-500',
   resolved:    'bg-green-600 text-white border-green-600',
   closed:      'bg-slate-500 text-white border-slate-500',
 }
@@ -80,7 +88,7 @@ export default function TicketDetail() {
     <div className="flex-1 min-w-0 max-w-2xl">
       {confirmingDelete && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
               <h2 className="text-lg font-bold text-red-600">Delete ticket</h2>
               <button onClick={() => setConfirmingDelete(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
@@ -91,11 +99,11 @@ export default function TicketDetail() {
               </p>
               {deleteError && <p className="text-sm text-red-500">{deleteError}</p>}
               <div className="flex gap-3 justify-end">
-                <button onClick={() => setConfirmingDelete(false)} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+                <button onClick={() => setConfirmingDelete(false)} className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Cancel</button>
                 <button
                   onClick={() => deleteMutation.mutate()}
                   disabled={deleteMutation.isPending}
-                  className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+                  className="bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed"
                 >
                   {deleteMutation.isPending ? 'Deleting…' : 'Delete ticket'}
                 </button>
@@ -117,7 +125,7 @@ export default function TicketDetail() {
       })()}
 
       <div className="flex items-start justify-between gap-4 mb-2">
-        <h1 className="text-xl font-bold text-slate-900">{ticket.subject}</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{ticket.subject}</h1>
         <div className="flex items-center gap-2 flex-shrink-0">
           {bookingEnabled && ticket.contact_id && ticketContact && (
             <button
@@ -149,7 +157,7 @@ export default function TicketDetail() {
       )}
 
       <div className="flex gap-3 mb-6 text-sm text-slate-600">
-        <span>Status: <strong className="text-slate-900">{ticket.status}</strong></span>
+        <span>Status: <strong className="text-slate-900">{STATUS_LABELS[ticket.status] ?? ticket.status}</strong></span>
         <span>Priority: <strong className="text-slate-900">{ticket.priority}</strong></span>
         <span>Source: <strong className="text-slate-900">{ticket.source}</strong></span>
       </div>
@@ -165,9 +173,10 @@ export default function TicketDetail() {
           <button
             key={s}
             onClick={() => statusMutation.mutate(s)}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors capitalize ${ticket.status === s ? STATUS_STYLES[s] : STATUS_INACTIVE}`}
+            disabled={statusMutation.isPending}
+            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors capitalize disabled:opacity-50 disabled:cursor-not-allowed ${ticket.status === s ? STATUS_STYLES[s] : STATUS_INACTIVE}`}
           >
-            {s.replace('_', ' ')}
+            {STATUS_LABELS[s] ?? s.replace('_', ' ')}
           </button>
         ))}
       </div>
@@ -218,6 +227,7 @@ export default function TicketDetail() {
           >
             <Send size={13} />
             Send
+            {commentMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
           </button>
         </div>
       </div>
@@ -277,7 +287,7 @@ function CustomerPanel({ contactId }: { contactId: string }) {
 
   return (
     <aside className="w-72 shrink-0">
-      <div className="bg-white rounded-2xl border border-slate-200 p-4">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
         <div className="flex items-start gap-3">
           <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0">
             {initials(contact?.full_name)}
@@ -285,6 +295,7 @@ function CustomerPanel({ contactId }: { contactId: string }) {
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold text-slate-900 truncate">{contact?.full_name ?? '…'}</p>
             {contact?.email && <p className="text-xs text-slate-500 truncate">{contact.email}</p>}
+            {contact?.phone && <p className="text-xs text-slate-400 truncate">{contact.phone}</p>}
           </div>
         </div>
 
@@ -321,7 +332,7 @@ function CustomerPanel({ contactId }: { contactId: string }) {
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 p-4 mt-4">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mt-4">
         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
           Recent correspondence
         </h3>
@@ -342,7 +353,7 @@ function CustomerPanel({ contactId }: { contactId: string }) {
 
       {openDraft && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
               <h2 className="text-base font-bold text-slate-900 truncate pr-2">{draftSubject(openDraft)}</h2>
               <button onClick={() => setOpenDraft(null)} className="text-slate-400 hover:text-slate-600 shrink-0">

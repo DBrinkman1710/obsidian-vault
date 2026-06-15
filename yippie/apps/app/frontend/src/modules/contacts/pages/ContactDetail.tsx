@@ -197,7 +197,6 @@ export default function ContactDetail() {
         <div className="grid grid-cols-2 gap-4 mb-8">
           <Field label="Email" value={contact.email} />
           <Field label="Phone" value={contact.phone} />
-          {contact.tags?.length > 0 && <Field label="Legacy tags" value={contact.tags.join(', ')} />}
         </div>
 
         <CompanyBlock contactId={id!} company={contact.company ?? null} />
@@ -302,9 +301,10 @@ function CompanyBlock({ contactId, company }: { contactId: string; company: Comp
               type="button"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
             >
               {saveMutation.isPending ? 'Saving…' : 'Save'}
+              {saveMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
             </button>
             <button
               type="button"
@@ -364,9 +364,10 @@ function LabelsBlock({ contactId, labels }: { contactId: string; labels: Contact
               type="button"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
             >
               {saveMutation.isPending ? 'Saving…' : 'Save'}
+              {saveMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
             </button>
             <button
               type="button"

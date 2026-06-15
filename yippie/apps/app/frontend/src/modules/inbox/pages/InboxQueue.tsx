@@ -11,6 +11,48 @@ import { CardListSkeleton } from '../../../shell/Skeleton'
 import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
 import { SignaturePicker } from '../components/SignaturePicker'
 
+const INBOX_FACTS = [
+  "Studies show clearing your inbox reduces stress by up to 38%.",
+  "The average support ticket takes 12 minutes to resolve. You're on top of it.",
+  "Teams that respond within 1 hour are 7× more likely to have meaningful conversations.",
+  "You've handled everything. Take a breath — the next message will arrive soon.",
+  "Empty inbox = full focus. Use this moment for deep work.",
+  "Customers who get fast replies are 3× more likely to recommend a business.",
+  "Zero unread. You're in the top 5% of inbox managers.",
+  "An organized inbox saves an average of 30 minutes per day.",
+  "Quick responses build trust. You're already doing great.",
+  "Inbox zero is a superpower. You have it.",
+  "Every ticket resolved is a customer relationship strengthened.",
+  "Response time under 4 hours boosts customer satisfaction by 25%.",
+  "You're making someone's day better, one reply at a time.",
+  "The best time to handle a ticket is now. You already did.",
+  "Teams using structured inboxes resolve issues 40% faster.",
+  "Great support isn't a cost centre — it's a growth engine.",
+  "Customer retention is 5× cheaper than acquisition. Your inbox work matters.",
+  "You've earned this moment of calm. Enjoy it.",
+  "The next great support interaction starts with an empty inbox.",
+  "Consistent response time builds brand loyalty. You're building it.",
+]
+
+function AllCaughtUp() {
+  const [fact, setFact] = useState(() => INBOX_FACTS[Math.floor(Math.random() * INBOX_FACTS.length)])
+  useEffect(() => {
+    const id = setInterval(() => {
+      setFact(INBOX_FACTS[Math.floor(Math.random() * INBOX_FACTS.length)])
+    }, 120_000)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+      <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center">
+        <CheckSquare size={32} className="text-green-500" strokeWidth={1.5} />
+      </div>
+      <h3 className="text-lg font-semibold text-slate-700">All caught up!</h3>
+      <p className="text-sm text-slate-400 max-w-xs leading-relaxed">{fact}</p>
+    </div>
+  )
+}
+
 const SOURCE_ICON: Record<string, React.ReactNode> = {
   email: <Mail size={13} className="text-slate-400" />,
   whatsapp: <MessageSquare size={13} className="text-green-500" />,
@@ -1240,11 +1282,14 @@ export default function InboxQueue() {
         )}
 
         {activeTab !== 'sent' && isLoading && <CardListSkeleton rows={5} />}
-        {activeTab !== 'sent' && !isLoading && allDrafts.length === 0 && (
+        {!isLoading && pageDrafts.length === 0 && activeTab === 'pending' && (
+          <AllCaughtUp />
+        )}
+        {activeTab === 'processed' && !isLoading && allDrafts.length === 0 && (
           <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
             <Mail size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-sm text-slate-400 font-medium">
-              {activeTab === 'pending' ? 'No pending messages' : 'No processed messages yet'}
+              No processed messages yet
             </p>
           </div>
         )}
