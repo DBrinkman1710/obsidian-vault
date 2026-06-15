@@ -838,7 +838,7 @@ export default function InboxQueue() {
     queryFn: () => api.get('/activity', { params: { limit: 500 } }).then(r =>
       (r.data as any[]).filter((e: any) => e.event_type === 'email.replied' || e.event_type === 'email.composed')
     ),
-    enabled: activeTab === 'sent' && !trackingEnabled,
+    enabled: activeTab === 'sent',
   })
 
   const { data: outboundEmails, isLoading: outboundLoading } = useQuery({
@@ -917,7 +917,9 @@ export default function InboxQueue() {
 
   // Sent tab pagination — 9 mails/page, mirroring the Pending cadence (PAGE_SIZE).
   const sentList: any[] = activeTab === 'sent'
-    ? (trackingEnabled ? (outboundEmails ?? []) : filteredSentEvents)
+    ? (trackingEnabled && (outboundEmails ?? []).length > 0
+        ? outboundEmails!
+        : filteredSentEvents ?? [])
     : []
   const sentPageCount = Math.max(1, Math.ceil(sentList.length / PAGE_SIZE))
   const sentSafePage = Math.min(page, sentPageCount - 1)
@@ -1188,66 +1190,44 @@ export default function InboxQueue() {
                 </p>
               </div>
             )}
-            {trackingEnabled && sentList.length > 0 && (
+            {sentList.length > 0 && (
               <div className="flex flex-col gap-3">
-                {pageSentList.map((em: any) => {
-                  const CardEl = em.draft_id ? Link : 'div'
-                  const cardProps = em.draft_id ? { to: `/inbox/drafts/${em.draft_id}` } : {}
-                  return (
-                    <CardEl
-                      key={em.id}
-                      {...(cardProps as any)}
-                      className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-3 transition-all hover:border-blue-300 hover:shadow-md cursor-pointer"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <Send size={13} className="text-slate-400 shrink-0" />
-                          <span className="text-sm font-semibold text-slate-900 truncate">{em.subject ?? '(no subject)'}</span>
-                          {statusBadge(em.status)}
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${em.kind === 'compose' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                            {em.kind === 'compose' ? 'Composed' : 'Reply'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500">To: {em.to_email}</p>
-                        {em.delivered_at && (
-                          <p className="text-xs text-slate-400 mt-0.5">Delivered: {new Date(em.delivered_at).toLocaleString()}</p>
-                        )}
-                        {em.opened_at && (
-                          <p className="text-xs text-blue-500 mt-0.5">Opened: {new Date(em.opened_at).toLocaleString()}</p>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-400 shrink-0">{new Date(em.created_at).toLocaleString()}</p>
-                    </CardEl>
-                  )
-                })}
-              </div>
-            )}
-            {!trackingEnabled && sentList.length > 0 && (
-              <div className="flex flex-col gap-3">
-                {pageSentList.map((ev: any) => {
-                  const draftId = ev.payload?.draft_id
+                {pageSentList.map((item: any) => {
+                  const isActivityEvent = !!item.event_type
+                  const draftId = isActivityEvent ? item.payload?.draft_id : item.draft_id
                   const CardEl = draftId ? Link : 'div'
                   const cardProps = draftId ? { to: `/inbox/drafts/${draftId}` } : {}
+                  const subject = isActivityEvent ? (item.payload?.subject ?? '(no subject)') : (item.subject ?? '(no subject)')
+                  const toAddr = isActivityEvent ? item.payload?.to : item.to_email
+                  const kind = isActivityEvent ? item.event_type : item.kind
+                  const isCompose = isActivityEvent ? kind === 'email.composed' : kind === 'compose'
                   return (
                     <CardEl
-                      key={ev.id}
+                      key={item.id}
                       {...(cardProps as any)}
                       className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-3 transition-all hover:border-blue-300 hover:shadow-md cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <Send size={13} className="text-slate-400 shrink-0" />
-                          <span className="text-sm font-semibold text-slate-900 truncate">
-                            {ev.payload?.subject ?? '(no subject)'}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${ev.event_type === 'email.composed' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                            {ev.event_type === 'email.composed' ? 'Composed' : 'Reply'}
+                          <span className="text-sm font-semibold text-slate-900 truncate">{subject}</span>
+                          {!isActivityEvent && statusBadge(item.status)}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${isCompose ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {isCompose ? 'Composed' : 'Reply'}
                           </span>
                         </div>
-                        {ev.payload?.to && <p className="text-xs text-slate-500">To: {ev.payload.to}</p>}
-                        {ev.payload?.preview && <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{ev.payload.preview}</p>}
+                        {toAddr && <p className="text-xs text-slate-500">To: {toAddr}</p>}
+                        {isActivityEvent && item.payload?.preview && (
+                          <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{item.payload.preview}</p>
+                        )}
+                        {!isActivityEvent && item.delivered_at && (
+                          <p className="text-xs text-slate-400 mt-0.5">Delivered: {new Date(item.delivered_at).toLocaleString()}</p>
+                        )}
+                        {!isActivityEvent && item.opened_at && (
+                          <p className="text-xs text-blue-500 mt-0.5">Opened: {new Date(item.opened_at).toLocaleString()}</p>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-400 shrink-0">{new Date(ev.created_at).toLocaleString()}</p>
+                      <p className="text-xs text-slate-400 shrink-0">{new Date(item.created_at).toLocaleString()}</p>
                     </CardEl>
                   )
                 })}

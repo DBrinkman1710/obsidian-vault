@@ -17,7 +17,7 @@ interface Template {
   created_at: string
 }
 
-type ButtonAction = 'label' | 'pipeline_stage' | 'open_website' | 'send_mail' | 'call_phone'
+type ButtonAction = 'pipeline_stage'
 
 interface CampaignButton {
   id: string
@@ -28,11 +28,10 @@ interface CampaignButton {
   action_value: string | null
 }
 
-interface ContactLabel { id: string; name: string; color: string }
 interface PipelineStage { id: string; name: string; color: string }
 
 function newCampaignButton(id: string, text: string): CampaignButton {
-  return { id, text, action_type: 'label', label_id: null, stage_id: null, action_value: null }
+  return { id, text, action_type: 'pipeline_stage', label_id: null, stage_id: null, action_value: null }
 }
 
 function stripHtml(text: string): string {
@@ -70,7 +69,7 @@ function parseButtons(raw: string | null): CampaignButton[] {
     if (!Array.isArray(parsed)) return []
     return parsed.map(b => ({
       ...b,
-      action_type: b.action_type ?? 'label',
+      action_type: 'pipeline_stage' as ButtonAction,
       stage_id: b.stage_id ?? null,
       action_value: b.action_value ?? null,
     }))
@@ -98,11 +97,6 @@ export default function TemplatesPage() {
   const { data: templates, isLoading } = useQuery<Template[]>({
     queryKey: ['templates'],
     queryFn: () => api.get('/tickets/templates').then(r => r.data),
-  })
-
-  const { data: labels } = useQuery<ContactLabel[]>({
-    queryKey: ['labels'],
-    queryFn: () => api.get('/contacts/labels').then(r => r.data),
   })
 
   const { data: stages = [] } = useQuery<PipelineStage[]>({
@@ -406,46 +400,14 @@ export default function TemplatesPage() {
                     <span className="inline-block max-w-full truncate px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-semibold" title={b.text}>
                       {b.text}
                     </span>
-                    <div className="flex gap-2">
-                      <select
-                        className="w-32 shrink-0 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                        value={b.action_type}
-                        onChange={e => updateButton(b.id, { action_type: e.target.value as ButtonAction, label_id: null, stage_id: null, action_value: null })}
-                      >
-                        <option value="label">Apply label</option>
-                        <option value="pipeline_stage">Pipeline stage</option>
-                        <option value="open_website">Open website</option>
-                        <option value="send_mail">Send mail</option>
-                        <option value="call_phone">Call number</option>
-                      </select>
-                      {b.action_type === 'label' ? (
-                        <select
-                          className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                          value={b.label_id ?? ''}
-                          onChange={e => updateButton(b.id, { label_id: e.target.value || null })}
-                        >
-                          <option value="">No label</option>
-                          {labels?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                        </select>
-                      ) : b.action_type === 'pipeline_stage' ? (
-                        <select
-                          className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                          value={b.stage_id ?? ''}
-                          onChange={e => updateButton(b.id, { stage_id: e.target.value || null })}
-                        >
-                          <option value="">No stage</option>
-                          {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                      ) : (
-                        <input
-                          className="flex-1 min-w-0 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                          type={b.action_type === 'send_mail' ? 'email' : b.action_type === 'call_phone' ? 'tel' : 'url'}
-                          placeholder={b.action_type === 'send_mail' ? 'name@example.com' : b.action_type === 'call_phone' ? '+31 6 12345678' : 'https://example.com'}
-                          value={b.action_value ?? ''}
-                          onChange={e => updateButton(b.id, { action_value: e.target.value || null })}
-                        />
-                      )}
-                    </div>
+                    <select
+                      className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                      value={b.stage_id ?? ''}
+                      onChange={e => updateButton(b.id, { stage_id: e.target.value || null })}
+                    >
+                      <option value="">No stage</option>
+                      {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
                   </div>
                 ))
               )}

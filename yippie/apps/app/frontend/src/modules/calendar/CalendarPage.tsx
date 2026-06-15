@@ -319,7 +319,7 @@ interface CalendarSettings {
   post_booking_stage_id: string | null
 }
 
-function BookingsPanel({ onClose }: { onClose: () => void }) {
+function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () => void; onNewBooking: () => void; onOpenSettings: () => void }) {
   const qc = useQueryClient()
   const [tab, setTab] = useState<'pending' | 'booked' | 'expired'>('pending')
 
@@ -344,7 +344,18 @@ function BookingsPanel({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-base font-bold text-slate-900">Booking links</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { onClose(); onNewBooking() }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yippie hover:opacity-90 text-white text-xs font-semibold rounded-lg transition-opacity"
+            >
+              <Plus size={13} strokeWidth={2.5} /> New booking
+            </button>
+            <button onClick={onOpenSettings} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors" title="Booking settings">
+              <Settings2 size={15} />
+            </button>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          </div>
         </div>
 
         <div className="flex gap-1 px-4 py-3 border-b border-slate-100 shrink-0">
@@ -597,7 +608,13 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {bookingEnabled && bookingsOpen && <BookingsPanel onClose={() => setBookingsOpen(false)} />}
+      {bookingEnabled && bookingsOpen && (
+        <BookingsPanel
+          onClose={() => setBookingsOpen(false)}
+          onNewBooking={() => setNewBookingOpen(true)}
+          onOpenSettings={() => setBookingSettingsOpen(true)}
+        />
+      )}
 
       {/* Month card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
