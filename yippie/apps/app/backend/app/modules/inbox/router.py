@@ -9,7 +9,7 @@ from typing import Annotated, List, Optional
 
 import httpx
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile, status  # noqa: F401
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status  # noqa: F401
 from fastapi.responses import Response
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -127,6 +127,7 @@ async def list_drafts(
     status: Optional[DraftStatus] = DraftStatus.pending,
     mailbox: str = "shared",
     q: Optional[str] = None,
+    contact_id: Optional[uuid.UUID] = Query(None),
 ):
     if mailbox == "personal":
         # Personal mailbox: only mail sent to this user's own inbound address.
@@ -134,12 +135,14 @@ async def list_drafts(
             return []
         rows = await service.list_drafts(
             db, current_user.tenant_id, status, current_user.inbound_email,
-            include_legacy=False, search=q,
+            include_legacy=False, search=q, contact_id=contact_id,
         )
         return _enrich_drafts(rows)
     tenant = await db.get(Tenant, current_user.tenant_id)
     inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
-    rows = await service.list_drafts(db, current_user.tenant_id, status, inbound_email, search=q)
+    rows = await service.list_drafts(
+        db, current_user.tenant_id, status, inbound_email, search=q, contact_id=contact_id,
+    )
     return _enrich_drafts(rows)
 
 

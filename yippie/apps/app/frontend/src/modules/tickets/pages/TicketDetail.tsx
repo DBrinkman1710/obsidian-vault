@@ -65,7 +65,8 @@ export default function TicketDetail() {
   if (!ticket) return <p className="text-sm text-slate-400">Loading…</p>
 
   return (
-    <div className="max-w-2xl">
+    <div className={ticket.contact_id ? 'flex gap-6 items-start' : 'max-w-2xl'}>
+    <div className="flex-1 min-w-0 max-w-2xl">
       {confirmingDelete && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
@@ -191,5 +192,156 @@ export default function TicketDetail() {
         </div>
       </div>
     </div>
+    {ticket.contact_id && <CustomerPanel contactId={ticket.contact_id} />}
+    </div>
+  )
+}
+
+function initials(name?: string): string {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60_000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  const weeks = Math.floor(days / 7)
+  if (weeks < 5) return `${weeks}w ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months}mo ago`
+  return `${Math.floor(days / 365)}y ago`
+}
+
+function draftSubject(d: any): string {
+  return d.final_subject ?? d.ai_suggested_subject ?? d.inbound_subject ?? '(no subject)'
+}
+
+function CustomerPanel({ contactId }: { contactId: string }) {
+  const navigate = useNavigate()
+  const [openDraft, setOpenDraft] = useState<any | null>(null)
+
+  const { data: contact } = useQuery({
+    queryKey: ['contact', contactId],
+    queryFn: () => api.get(`/contacts/${contactId}`).then(r => r.data),
+  })
+  const { data: drafts } = useQuery({
+    queryKey: ['contact-correspondence', contactId],
+    queryFn: () =>
+      api.get(`/inbox/drafts`, { params: { contact_id: contactId, status: 'processed' } }).then(r => r.data),
+  })
+  const { data: ticketsData } = useQuery({
+    queryKey: ['contact-tickets', contactId],
+    queryFn: () => api.get(`/tickets`, { params: { contact_id: contactId } }).then(r => r.data),
+  })
+
+  const recent = (drafts ?? []).slice(0, 5)
+  const ticketCount = ticketsData?.total ?? 0
+
+  return (
+    <aside className="w-72 shrink-0">
+      <div className="bg-white rounded-2xl border border-slate-200 p-4">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0">
+            {initials(contact?.full_name)}
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-bold text-slate-900 truncate">{contact?.full_name ?? '…'}</p>
+            {contact?.email && <p className="text-xs text-slate-500 truncate">{contact.email}</p>}
+          </div>
+        </div>
+
+        {contact?.company?.name && (
+          <p className="text-xs text-slate-600 mt-3 flex items-center gap-1.5">
+            <span>🏢</span>
+            <span className="truncate">{contact.company.name}</span>
+          </p>
+        )}
+
+        {contact?.labels && contact.labels.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-3">
+            {contact.labels.map((l: any) => (
+              <span
+                key={l.id}
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                style={{ backgroundColor: `${l.color}20`, color: l.color }}
+              >
+                {l.name}
+              </span>
+            ))}
+          </div>
+        )}
+
+        <p className="text-xs text-slate-500 mt-3">
+          {ticketCount} ticket{ticketCount === 1 ? '' : 's'} total
+        </p>
+
+        <button
+          onClick={() => navigate(`/contacts/${contactId}`)}
+          className="mt-3 text-xs font-semibold text-blue-600 hover:text-blue-700"
+        >
+          → View contact
+        </button>
+      </div>
+
+      <div className="bg-white rounded-2xl border border-slate-200 p-4 mt-4">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
+          Recent correspondence
+        </h3>
+        {recent.length === 0 && <p className="text-xs text-slate-400">No correspondence yet.</p>}
+        <div className="flex flex-col gap-0.5">
+          {recent.map((d: any) => (
+            <button
+              key={d.id}
+              onClick={() => setOpenDraft(d)}
+              className="text-left hover:bg-slate-50 cursor-pointer rounded-lg px-2 py-1.5 flex items-center justify-between gap-2"
+            >
+              <span className="text-xs text-slate-700 truncate">{draftSubject(d)}</span>
+              <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(d.created_at)}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {openDraft && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900 truncate pr-2">{draftSubject(openDraft)}</h2>
+              <button onClick={() => setOpenDraft(null)} className="text-slate-400 hover:text-slate-600 shrink-0">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <div className="text-xs text-slate-500">
+                {contact?.email && <span>{contact.email}</span>}
+                {' · '}
+                <span>{new Date(openDraft.created_at).toLocaleString()}</span>
+              </div>
+              <p className="text-sm text-slate-700 whitespace-pre-wrap">
+                {openDraft.ai_suggested_description
+                  ? openDraft.ai_suggested_description.slice(0, 500)
+                  : '(no preview available)'}
+              </p>
+              <div className="flex justify-end pt-2 border-t border-slate-100">
+                <button
+                  onClick={() => navigate(`/inbox/drafts/${openDraft.id}`)}
+                  className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  Open in inbox →
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </aside>
   )
 }

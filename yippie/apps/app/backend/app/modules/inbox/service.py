@@ -445,6 +445,7 @@ async def list_drafts(
     inbound_email: Optional[str] = None,
     include_legacy: bool = True,
     search: Optional[str] = None,
+    contact_id: Optional[uuid.UUID] = None,
 ) -> list[tuple[DraftTicket, Optional[str], Optional[str]]]:
     # Always join InboundMessage to include the original email subject and the
     # address the mail was routed to (mailbox diagnostics).
@@ -488,6 +489,12 @@ async def list_drafts(
         )
     elif status:
         q = q.where(DraftTicket.status == status)
+
+    if contact_id:
+        q = q.where(
+            or_(DraftTicket.contact_id == contact_id, DraftTicket.matched_contact_id == contact_id)
+        )
+
     result = await db.execute(q.order_by(DraftTicket.created_at.desc()))
     return [(row[0], row[1], row[2]) for row in result.all()]
 
