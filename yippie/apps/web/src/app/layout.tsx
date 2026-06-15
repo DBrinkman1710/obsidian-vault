@@ -5,11 +5,22 @@ export const metadata: Metadata = {
   title: "Yippie — Customer support, made easy",
   description: "Give SMB owners time back for what matters. Yippie automates your support inbox, tickets, and live chat.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_WEB_URL ?? "https://getyippie.com"),
+  keywords: [
+    "customer service",
+    "SMB",
+    "inbox management",
+    "ticket system",
+    "AI support",
+    "helpdesk",
+  ],
   openGraph: {
     title: "Yippie — Customer support, made easy",
     description: "Give SMB owners time back for what matters.",
     url: "https://getyippie.com",
     siteName: "Yippie",
+  },
+  twitter: {
+    card: "summary_large_image",
   },
 };
 
