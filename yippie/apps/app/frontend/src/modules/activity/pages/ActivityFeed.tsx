@@ -108,7 +108,7 @@ function KpiRow({ label, value }: { label: string; value: string }) {
 export default function ActivityFeed() {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
 
-  const { data: kpis, isLoading } = useQuery<Kpis>({
+  const { data: kpis, isLoading, isError } = useQuery<Kpis>({
     queryKey: ['activity-kpis'],
     queryFn: () => api.get('/activity/kpis').then(r => r.data),
     refetchInterval: 60_000,
@@ -134,6 +134,12 @@ export default function ActivityFeed() {
       <h1 className="text-2xl font-bold text-slate-900 mb-6">Activity</h1>
 
       {isLoading && <LoadingState />}
+
+      {!isLoading && isError && (
+        <div className={`${CARD} text-sm text-slate-500 py-8 text-center`}>
+          Could not load activity data. Please refresh.
+        </div>
+      )}
 
       {!isLoading && kpis && (
         <div className="space-y-8">

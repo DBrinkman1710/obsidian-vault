@@ -134,15 +134,43 @@ async def _assign_stage(
     tenant_id: uuid.UUID,
     contact_id: uuid.UUID,
     stage_id: uuid.UUID,
+    actor_id: Optional[uuid.UUID] = None,
 ) -> None:
-    """Write the stage assignment without committing. Caller must commit."""
+    """Write the stage assignment without committing. Caller must commit.
+
+    Logs a ``pipeline_stage_changed`` activity event whenever the contact
+    actually lands in a new stage. Every path that moves a contact between
+    stages flows through here (kanban drag, booking auto-move, tracking link
+    clicks), so the activity feed shows the full transition history inline.
+    """
     existing = await db.scalar(
         select(ContactPipelineEntry).where(ContactPipelineEntry.contact_id == contact_id)
     )
+    changed = False
     if existing is None:
         db.add(ContactPipelineEntry(contact_id=contact_id, stage_id=stage_id, tenant_id=tenant_id))
-    else:
+        changed = True
+    elif existing.stage_id != stage_id:
         existing.stage_id = stage_id
+        changed = True
+
+    if not changed:
+        return
+
+    stage_name = await db.scalar(
+        select(PipelineStage.name).where(PipelineStage.id == stage_id)
+    )
+    await activity_service.log_event(
+        db,
+        tenant_id,
+        module="pipeline",
+        event_type="pipeline_stage_changed",
+        entity_type="pipeline_stage",
+        entity_id=stage_id,
+        contact_id=contact_id,
+        actor_id=actor_id,
+        payload={"stage_name": stage_name, "body": f"Moved to {stage_name}"},
+    )
 
 
 async def move_contact_to_stage(
@@ -164,15 +192,9 @@ async def move_contact_to_stage(
     if stage is None:
         raise ValueError("Stage not found")
 
-    await _assign_stage(db, tenant_id, contact_id, stage_id)
-    await db.commit()
-
-    await activity_service.log_event(
-        db, tenant_id,
-        module="pipeline", event_type="pipeline_stage_changed", entity_type="pipeline_stage",
-        entity_id=stage.id, contact_id=contact_id, actor_id=actor_id,
-        payload={"stage_name": stage.name},
-    )
+    # _assign_stage logs the pipeline_stage_changed activity event itself
+    # (only when the stage actually changes), so we don't log again here.
+    await _assign_stage(db, tenant_id, contact_id, stage_id, actor_id=actor_id)
     await db.commit()
 
 
