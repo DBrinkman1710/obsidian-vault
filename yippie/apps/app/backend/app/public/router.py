@@ -14,7 +14,8 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.database import get_db
+from app.database import get_db, set_tenant_context
+from app.modules.booking.schemas import BookingConfirm
 
 # Public, unauthenticated endpoints — consumed by the marketing site (getyippie.com).
 # Mounted in main.py WITHOUT auth dependencies. Never expose tenant-level data here;
@@ -223,3 +224,80 @@ async def request_demo(
     await db.commit()
 
     return {"tenant_id": str(tenant_id), "slug": slug, "invited": True}
+
+
+# --------------------------------------------------------------------------- #
+# Public booking (BK1) — customer-facing, no auth. Tenant context is set from
+# the token's own tenant_id once the token is resolved.
+# --------------------------------------------------------------------------- #
+@router.get("/booking/{token_id}")
+async def public_get_booking(
+    token_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.core.models import Tenant
+    from app.modules.booking import service as booking_service
+    from app.modules.booking.schemas import PublicBookingOut, SlotProposal
+    from app.modules.contacts.models import Contact
+
+    token = await booking_service.get_token(db, token_id)
+    if token is None or booking_service.token_status(token) != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This booking link has expired or has already been used.",
+        )
+
+    # Scope the rest of the request to the token's tenant (activates RLS).
+    await set_tenant_context(db, str(token.tenant_id))
+
+    tenant = await db.get(Tenant, token.tenant_id)
+    contact = await db.get(Contact, token.contact_id)
+    settings = await booking_service.get_or_create_settings(db, token.tenant_id)
+    days_ahead = max(settings.booking_expiry_days, 14)
+    available = await booking_service.get_available_slots(
+        db, token.tenant_id, settings, days_ahead
+    )
+
+    proposed = (
+        [SlotProposal(start=s["start"], end=s["end"]) for s in token.proposed_slots]
+        if token.proposed_slots
+        else None
+    )
+    first_name = ((contact.full_name if contact else "") or "there").split(" ")[0]
+
+    return PublicBookingOut(
+        tenant_name=tenant.name if tenant else "Yippie",
+        contact_first_name=first_name,
+        mode=token.mode,
+        proposed_slots=proposed,
+        message=token.message,
+        expires_at=token.expires_at,
+        available_slots=available,
+    )
+
+
+@router.post("/booking/{token_id}/confirm")
+async def public_confirm_booking(
+    token_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    body: BookingConfirm,
+):
+    from app.modules.booking import service as booking_service
+
+    token = await booking_service.get_token(db, token_id)
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This booking link has expired or has already been used.",
+        )
+
+    await set_tenant_context(db, str(token.tenant_id))
+
+    try:
+        event = await booking_service.confirm_booking(
+            db, token, body.slot_start, body.slot_end
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    return {"event_id": str(event.id), "start_at": event.start_at, "end_at": event.end_at}

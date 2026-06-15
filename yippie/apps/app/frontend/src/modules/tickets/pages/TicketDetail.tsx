@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Lock, Trash2, X } from 'lucide-react'
+import { Send, Lock, Trash2, X, CalendarClock } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+import { useTenantConfig } from '../../../App'
+import SendBookingModal from '../../booking/SendBookingModal'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'resolved', 'closed']
 
@@ -22,15 +24,24 @@ export default function TicketDetail() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const config = useTenantConfig()
+  const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const canDelete = user?.role === 'admin' || user?.role === 'superadmin'
   const [comment, setComment] = useState('')
   const [isInternal, setIsInternal] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleteError, setDeleteError] = useState('')
+  const [bookingOpen, setBookingOpen] = useState(false)
 
   const { data: ticket } = useQuery({
     queryKey: ['ticket', id],
     queryFn: () => api.get(`/tickets/${id}`).then(r => r.data),
+  })
+
+  const { data: ticketContact } = useQuery({
+    queryKey: ['contact', ticket?.contact_id],
+    queryFn: () => api.get(`/contacts/${ticket.contact_id}`).then(r => r.data),
+    enabled: !!ticket?.contact_id && bookingEnabled,
   })
   const { data: comments } = useQuery({
     queryKey: ['ticket-comments', id],
@@ -107,16 +118,35 @@ export default function TicketDetail() {
 
       <div className="flex items-start justify-between gap-4 mb-2">
         <h1 className="text-xl font-bold text-slate-900">{ticket.subject}</h1>
-        {canDelete && (
-          <button
-            onClick={() => { setDeleteError(''); setConfirmingDelete(true) }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors flex-shrink-0"
-          >
-            <Trash2 size={12} />
-            Delete
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {bookingEnabled && ticket.contact_id && ticketContact && (
+            <button
+              onClick={() => setBookingOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+            >
+              <CalendarClock size={12} />
+              Send booking link
+            </button>
+          )}
+          {canDelete && (
+            <button
+              onClick={() => { setDeleteError(''); setConfirmingDelete(true) }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+            >
+              <Trash2 size={12} />
+              Delete
+            </button>
+          )}
+        </div>
       </div>
+
+      {bookingEnabled && ticketContact && (
+        <SendBookingModal
+          contacts={[{ id: ticketContact.id, full_name: ticketContact.full_name }]}
+          open={bookingOpen}
+          onClose={() => setBookingOpen(false)}
+        />
+      )}
 
       <div className="flex gap-3 mb-6 text-sm text-slate-600">
         <span>Status: <strong className="text-slate-900">{ticket.status}</strong></span>

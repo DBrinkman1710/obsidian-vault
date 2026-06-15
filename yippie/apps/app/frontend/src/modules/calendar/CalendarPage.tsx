@@ -1,8 +1,9 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react'
+import { CalendarClock, ChevronDown, ChevronLeft, ChevronRight, Plus, Settings2, Trash2, X } from 'lucide-react'
 import { api } from '../../api/client'
+import { useTenantConfig } from '../../App'
 
 interface CalendarItem {
   kind: 'event' | 'deadline'
@@ -295,16 +296,237 @@ function EventModal({ event, onClose, onSaved }: {
 }
 
 // ---------------------------------------------------------------------------
+// Bookings (BK1)
+// ---------------------------------------------------------------------------
+
+interface BookingToken {
+  id: string
+  contact_id: string
+  contact_name: string | null
+  created_by_name: string | null
+  mode: string
+  expires_at: string
+  booked_at: string | null
+  status: 'pending' | 'booked' | 'expired'
+}
+
+interface CalendarSettings {
+  work_start_hour: number
+  work_end_hour: number
+  slot_minutes: number
+  booking_expiry_days: number
+  post_booking_stage_id: string | null
+}
+
+function BookingsPanel({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient()
+  const [tab, setTab] = useState<'pending' | 'booked' | 'expired'>('pending')
+
+  const { data: tokens = [] } = useQuery<BookingToken[]>({
+    queryKey: ['booking-tokens'],
+    queryFn: () => api.get('/booking/tokens').then(r => r.data),
+  })
+
+  const revokeMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/booking/tokens/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['booking-tokens'] }),
+  })
+
+  const filtered = tokens.filter(t => t.status === tab)
+
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/20" />
+      <div
+        className="absolute right-0 top-0 h-full w-96 bg-white shadow-2xl flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-base font-bold text-slate-900">Booking links</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+
+        <div className="flex gap-1 px-4 py-3 border-b border-slate-100 shrink-0">
+          {(['pending', 'booked', 'expired'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg capitalize transition-colors ${
+                tab === t ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+              {t} ({tokens.filter(x => x.status === t).length})
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+          {filtered.length === 0 && (
+            <p className="px-5 py-8 text-sm text-slate-400 text-center">No {tab} booking links.</p>
+          )}
+          {filtered.map(t => (
+            <div key={t.id} className="px-5 py-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-slate-800 truncate">
+                    {t.contact_name ?? 'Unknown contact'}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    Sent by {t.created_by_name ?? '—'}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {t.status === 'booked' && t.booked_at
+                      ? `Booked ${new Date(t.booked_at).toLocaleString()}`
+                      : `Expires ${new Date(t.expires_at).toLocaleString()}`}
+                  </p>
+                </div>
+                {t.status === 'pending' && (
+                  <button
+                    onClick={() => { if (confirm('Revoke this booking link?')) revokeMut.mutate(t.id) }}
+                    className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-600"
+                  >
+                    Revoke
+                  </button>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BookingSettingsSection() {
+  const qc = useQueryClient()
+  const [open, setOpen] = useState(false)
+  const [saved, setSaved] = useState(false)
+
+  const { data: settings } = useQuery<CalendarSettings>({
+    queryKey: ['booking-settings'],
+    queryFn: () => api.get('/booking/settings').then(r => r.data),
+    enabled: open,
+  })
+  const { data: stages = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    enabled: open,
+  })
+
+  const [form, setForm] = useState<CalendarSettings | null>(null)
+  const current = form ?? settings ?? null
+
+  const saveMut = useMutation({
+    mutationFn: (body: Partial<CalendarSettings>) => api.patch('/booking/settings', body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['booking-settings'] })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    },
+  })
+
+  function update(patch: Partial<CalendarSettings>) {
+    setForm({ ...(current as CalendarSettings), ...patch })
+  }
+
+  const hourOptions = Array.from({ length: 25 }, (_, i) => i)
+
+  return (
+    <div className="mt-6 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors"
+      >
+        <span className="flex items-center gap-2 text-sm font-bold text-slate-800">
+          <Settings2 size={15} className="text-slate-400" /> Booking settings
+        </span>
+        <ChevronDown size={16} className={`text-slate-400 transition-transform ${open ? 'rotate-180' : ''}`} />
+      </button>
+
+      {open && current && (
+        <div className="px-6 py-5 border-t border-gray-100 space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Work start hour</label>
+              <select className={inputCls} value={current.work_start_hour}
+                onChange={e => update({ work_start_hour: Number(e.target.value) })}>
+                {hourOptions.slice(0, 24).map(h => <option key={h} value={h}>{pad(h)}:00</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Work end hour</label>
+              <select className={inputCls} value={current.work_end_hour}
+                onChange={e => update({ work_end_hour: Number(e.target.value) })}>
+                {hourOptions.slice(1).map(h => <option key={h} value={h}>{pad(h)}:00</option>)}
+              </select>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={labelCls}>Slot size</label>
+              <select className={inputCls} value={current.slot_minutes}
+                onChange={e => update({ slot_minutes: Number(e.target.value) })}>
+                {[15, 30, 60].map(m => <option key={m} value={m}>{m} min</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Link expiry</label>
+              <select className={inputCls} value={current.booking_expiry_days}
+                onChange={e => update({ booking_expiry_days: Number(e.target.value) })}>
+                {[1, 2, 3, 5, 7].map(d => <option key={d} value={d}>{d} day{d !== 1 ? 's' : ''}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className={labelCls}>Move to stage after booking</label>
+            <select className={inputCls} value={current.post_booking_stage_id ?? ''}
+              onChange={e => update({ post_booking_stage_id: e.target.value || null })}>
+              <option value="">— None —</option>
+              {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => saveMut.mutate({
+                work_start_hour: current.work_start_hour,
+                work_end_hour: current.work_end_hour,
+                slot_minutes: current.slot_minutes,
+                booking_expiry_days: current.booking_expiry_days,
+                post_booking_stage_id: current.post_booking_stage_id,
+              })}
+              disabled={saveMut.isPending}
+              className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-opacity"
+            >
+              {saveMut.isPending ? 'Saving…' : 'Save settings'}
+            </button>
+            {saved && <span className="text-sm text-green-600 font-medium">Saved!</span>}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Calendar page
 // ---------------------------------------------------------------------------
 
 export default function CalendarPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const config = useTenantConfig()
+  const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth()) // 0-based
   const [modal, setModal] = useState<{ open: boolean; event: CalendarItem | null }>({ open: false, event: null })
+  const [bookingsOpen, setBookingsOpen] = useState(false)
+
+  const { data: bookingTokens } = useQuery<BookingToken[]>({
+    queryKey: ['booking-tokens'],
+    queryFn: () => api.get('/booking/tokens').then(r => r.data),
+    enabled: bookingEnabled,
+  })
+  const pendingCount = (bookingTokens ?? []).filter(t => t.status === 'pending').length
 
   const days = useMemo(() => monthGrid(year, month), [year, month])
   const rangeStart = days[0]
@@ -341,11 +563,26 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
-        <button onClick={() => setModal({ open: true, event: null })}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-lg transition-opacity">
-          <Plus size={15} strokeWidth={2.5} /> New event
-        </button>
+        <div className="flex items-center gap-2">
+          {bookingEnabled && (
+            <button onClick={() => setBookingsOpen(true)}
+              className="relative inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+              <CalendarClock size={15} strokeWidth={2.5} /> Bookings
+              {pendingCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-blue-600 rounded-full">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
+          )}
+          <button onClick={() => setModal({ open: true, event: null })}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-lg transition-opacity">
+            <Plus size={15} strokeWidth={2.5} /> New event
+          </button>
+        </div>
       </div>
+
+      {bookingEnabled && bookingsOpen && <BookingsPanel onClose={() => setBookingsOpen(false)} />}
 
       {/* Month card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -446,6 +683,8 @@ export default function CalendarPage() {
           <span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Due within 24h / overdue
         </span>
       </div>
+
+      {bookingEnabled && <BookingSettingsSection />}
 
       {modal.open && (
         <EventModal

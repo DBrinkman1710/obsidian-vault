@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Clock, Pencil, Kanban } from 'lucide-react'
+import { Plus, Clock, Pencil, Kanban, CalendarClock } from 'lucide-react'
 import { api } from '../../../api/client'
 import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelChip'
 import { CompanyBadge, type CompanyRef } from '../components/CompanyBadge'
 import { CompanyPicker } from '../components/CompanyPicker'
 import { useTenantConfig } from '../../../App'
+import SendBookingModal from '../../booking/SendBookingModal'
 
 function formatEventType(s: string): string {
   return s.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -135,6 +136,9 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
 
 export default function ContactDetail() {
   const { id } = useParams<{ id: string }>()
+  const config = useTenantConfig()
+  const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
+  const [bookingOpen, setBookingOpen] = useState(false)
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ['contact', id],
@@ -159,16 +163,35 @@ export default function ContactDetail() {
   return (
     <div className="flex flex-col md:flex-row gap-8 items-start">
       <div className="flex-1 min-w-0 max-w-2xl">
-        <div className="flex items-start justify-between mb-1">
+        <div className="flex items-start justify-between gap-2 mb-1">
           <h1 className="text-2xl font-bold text-slate-900">{contact.full_name}</h1>
-          <Link
-            to={newTicketUrl}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors flex-shrink-0"
-          >
-            <Plus size={14} strokeWidth={2.5} />
-            New Ticket
-          </Link>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {bookingEnabled && (
+              <button
+                onClick={() => setBookingOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                <CalendarClock size={14} strokeWidth={2.5} />
+                Send booking link
+              </button>
+            )}
+            <Link
+              to={newTicketUrl}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              New Ticket
+            </Link>
+          </div>
         </div>
+
+        {bookingEnabled && (
+          <SendBookingModal
+            contacts={[{ id: id!, full_name: contact.full_name }]}
+            open={bookingOpen}
+            onClose={() => setBookingOpen(false)}
+          />
+        )}
         {contact.company && <p className="text-sm text-slate-500 mb-6">{contact.company.name}</p>}
 
         <div className="grid grid-cols-2 gap-4 mb-8">
