@@ -958,58 +958,26 @@ export default function InboxQueue() {
               ))}
             </div>
           </div>
-          <div className="flex flex-col items-stretch gap-2">
-            <button
-              onClick={() => {
-                setComposeInitial(mailbox === 'personal' && !!user?.inbound_email ? {
-                  recipients: [],
-                  subject: '',
-                  body: defaultSigBody ? `\n\n${defaultSigBody}` : '',
-                  usePersonalFrom: true,
-                } : null)
-                setShowCompose(true)
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-            >
-              <Pencil size={14} />
-              Compose
-            </button>
-            <TemplatePicker
-              direction="down"
-              triggerIconSize={14}
-              triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors w-full"
-              onSelect={(tmplBody, isHtml, buttons) => {
-                const text = isHtml ? htmlToText(tmplBody) : tmplBody
-                setComposeInitial({
-                  recipients: [],
-                  subject: '',
-                  body: defaultSigBody ? `${text}\n\n${defaultSigBody}` : text,
-                  usePersonalFrom: false,
-                  templateHtml: isHtml ? tmplBody : null,
-                  campaignButtonsJson: isHtml ? (buttons ?? null) : null,
-                })
-                setShowCompose(true)
-              }}
-            />
-          </div>
+          <button
+            onClick={() => {
+              setComposeInitial(mailbox === 'personal' && !!user?.inbound_email ? {
+                recipients: [],
+                subject: '',
+                body: defaultSigBody ? `\n\n${defaultSigBody}` : '',
+                usePersonalFrom: true,
+              } : null)
+              setShowCompose(true)
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <Pencil size={14} />
+            Compose
+          </button>
         </div>
 
-        {/* Tabs + inline search (shared across all three tabs) */}
-        <div className="flex items-center gap-2 mb-0">
-          {(['pending', 'processed', 'sent'] as Tab[]).map(tab => (
-            <button
-              key={tab}
-              onClick={() => handleTabSwitch(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
-                activeTab === tab
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-          <div className="relative ml-auto w-72 max-w-full">
+        {/* Search bar + Templates — same row */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="relative w-72 max-w-full">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
@@ -1028,6 +996,40 @@ export default function InboxQueue() {
               </button>
             )}
           </div>
+          <TemplatePicker
+            direction="down"
+            triggerIconSize={14}
+            triggerClassName="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            onSelect={(tmplBody, isHtml, buttons) => {
+              const text = isHtml ? htmlToText(tmplBody) : tmplBody
+              setComposeInitial({
+                recipients: [],
+                subject: '',
+                body: defaultSigBody ? `${text}\n\n${defaultSigBody}` : text,
+                usePersonalFrom: false,
+                templateHtml: isHtml ? tmplBody : null,
+                campaignButtonsJson: isHtml ? (buttons ?? null) : null,
+              })
+              setShowCompose(true)
+            }}
+          />
+        </div>
+
+        {/* Tabs (shared across all three tabs) */}
+        <div className="flex items-center gap-2 mb-0">
+          {(['pending', 'processed', 'sent'] as Tab[]).map(tab => (
+            <button
+              key={tab}
+              onClick={() => handleTabSwitch(tab)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
+                activeTab === tab
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
 
         {/* Trending topics — shown when the search box is empty */}

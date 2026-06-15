@@ -21,21 +21,13 @@ async def main():
     admin_password = os.getenv("ADMIN_PASSWORD", "changeme123")
 
     async with db_session() as db:
-        # Guard 1: tenant already exists — sync branding from config but skip user creation
+        # Guard 1: tenant already exists — skip. Branding (primary_color/logo_url) is
+        # user-editable in Settings (PATCH /team/branding), so it must NOT be re-synced
+        # from the config file here — doing so clobbered the user's chosen colour on
+        # every deploy. The config branding only seeds a brand-new tenant (below).
         existing_tenant = await db.scalar(select(Tenant).where(Tenant.slug == cfg.tenant_id))
         if existing_tenant:
-            changed = False
-            if existing_tenant.primary_color != cfg.branding.primary_color:
-                existing_tenant.primary_color = cfg.branding.primary_color
-                changed = True
-            if existing_tenant.logo_url != cfg.branding.logo_url:
-                existing_tenant.logo_url = cfg.branding.logo_url
-                changed = True
-            if changed:
-                await db.commit()
-                print(f"Tenant '{cfg.tenant_id}' branding updated from config.")
-            else:
-                print(f"Tenant '{cfg.tenant_id}' already exists — skipping.")
+            print(f"Tenant '{cfg.tenant_id}' already exists — skipping (branding left as set in-app).")
             return
 
         # Guard 2: user with this email already exists anywhere in the system
