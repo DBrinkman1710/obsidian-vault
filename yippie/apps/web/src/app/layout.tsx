@@ -19,9 +19,6 @@ export const metadata: Metadata = {
     url: "https://getyippie.com",
     siteName: "Yippie",
   },
-  twitter: {
-    card: "summary_large_image",
-  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
