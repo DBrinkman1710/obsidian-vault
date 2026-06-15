@@ -999,7 +999,7 @@ export default function InboxQueue() {
           <TemplatePicker
             direction="down"
             triggerIconSize={14}
-            triggerClassName="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-white border border-blue-600 text-blue-600 hover:bg-blue-50 text-sm font-semibold rounded-lg transition-colors"
+            triggerClassName="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
             onSelect={(tmplBody, isHtml, buttons) => {
               const text = isHtml ? htmlToText(tmplBody) : tmplBody
               setComposeInitial({
