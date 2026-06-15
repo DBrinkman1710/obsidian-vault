@@ -996,23 +996,25 @@ export default function InboxQueue() {
               </button>
             )}
           </div>
-          <TemplatePicker
-            direction="down"
-            triggerIconSize={14}
-            triggerClassName="ml-auto inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-            onSelect={(tmplBody, isHtml, buttons) => {
-              const text = isHtml ? htmlToText(tmplBody) : tmplBody
-              setComposeInitial({
-                recipients: [],
-                subject: '',
-                body: defaultSigBody ? `${text}\n\n${defaultSigBody}` : text,
-                usePersonalFrom: false,
-                templateHtml: isHtml ? tmplBody : null,
-                campaignButtonsJson: isHtml ? (buttons ?? null) : null,
-              })
-              setShowCompose(true)
-            }}
-          />
+          <div className="ml-auto">
+            <TemplatePicker
+              direction="down"
+              triggerIconSize={14}
+              triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              onSelect={(tmplBody, isHtml, buttons) => {
+                const text = isHtml ? htmlToText(tmplBody) : tmplBody
+                setComposeInitial({
+                  recipients: [],
+                  subject: '',
+                  body: defaultSigBody ? `${text}\n\n${defaultSigBody}` : text,
+                  usePersonalFrom: false,
+                  templateHtml: isHtml ? tmplBody : null,
+                  campaignButtonsJson: isHtml ? (buttons ?? null) : null,
+                })
+                setShowCompose(true)
+              }}
+            />
+          </div>
         </div>
 
         {/* Tabs (shared across all three tabs) */}
