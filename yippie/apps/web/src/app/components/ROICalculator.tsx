@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
-import type { CSSProperties } from "react";
+import { useRef, useState } from "react";
+import type { CSSProperties, ChangeEvent, DragEvent } from "react";
 import styles from "./ROICalculator.module.css";
 
 const PLAN_PRICE = 29; // cheapest Yippie plan, €/mo
 const HOURS_PER_FTE_MONTH = 160;
+
+const TICKETS_MIN = 10;
+const TICKETS_MAX = 2000;
 
 type InputKey = "tickets" | "minutes" | "staff" | "rate" | "automatable";
 
@@ -71,6 +74,118 @@ const defaults: Values = {
   automatable: 60,
 };
 
+/* ── CSV parsing (pure browser, no deps) ──────────────────────── */
+
+// Split a single CSV line into fields, honouring double-quoted values.
+function parseCsvLine(line: string): string[] {
+  const fields: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line.charAt(i);
+    if (inQuotes) {
+      if (char === '"') {
+        if (line.charAt(i + 1) === '"') {
+          current += '"';
+          i++; // escaped quote
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        current += char;
+      }
+    } else if (char === '"') {
+      inQuotes = true;
+    } else if (char === ",") {
+      fields.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  fields.push(current);
+  return fields;
+}
+
+// Header candidates that usually hold a date we can use, ranked by preference.
+const DATE_HEADER_HINTS = [
+  "received",
+  "date received",
+  "sent",
+  "date sent",
+  "date",
+  "time",
+  "datetime",
+  "received date",
+  "delivery-time",
+];
+
+type ParsedScan = {
+  emailCount: number;
+  dateRangeMonths: number;
+  ticketsPerMonth: number;
+};
+
+function parseEmailCsv(raw: string): ParsedScan | null {
+  // Normalise Windows / old-Mac line endings and drop empty trailing lines.
+  const text = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+  const lines = text.split("\n").filter((l) => l.trim().length > 0);
+  if (lines.length < 2) return null;
+
+  const header = parseCsvLine(lines[0] ?? "").map((h) => h.trim().toLowerCase());
+
+  // Find the best date column from the header hints.
+  let dateIdx = -1;
+  for (const hint of DATE_HEADER_HINTS) {
+    const idx = header.findIndex((h) => h === hint);
+    if (idx !== -1) {
+      dateIdx = idx;
+      break;
+    }
+  }
+  if (dateIdx === -1) {
+    // Looser match: any header that contains "date" or "received" / "sent".
+    dateIdx = header.findIndex(
+      (h) => h.includes("date") || h.includes("received") || h.includes("sent")
+    );
+  }
+
+  const rows = lines.slice(1);
+  const emailCount = rows.length;
+  if (emailCount === 0) return null;
+
+  let dateRangeMonths = 1;
+
+  if (dateIdx !== -1) {
+    let minTime = Infinity;
+    let maxTime = -Infinity;
+    for (const row of rows) {
+      const cells = parseCsvLine(row);
+      const cell = dateIdx < cells.length ? cells[dateIdx] : undefined;
+      if (!cell) continue;
+      const t = Date.parse(cell.trim());
+      if (!Number.isNaN(t)) {
+        if (t < minTime) minTime = t;
+        if (t > maxTime) maxTime = t;
+      }
+    }
+    if (Number.isFinite(minTime) && Number.isFinite(maxTime) && maxTime >= minTime) {
+      const ms = maxTime - minTime;
+      const months = ms / (1000 * 60 * 60 * 24 * 30.44);
+      dateRangeMonths = Math.max(1, Math.round(months));
+    }
+  }
+
+  const rawPerMonth = emailCount / dateRangeMonths;
+  const ticketsPerMonth = Math.min(
+    TICKETS_MAX,
+    Math.max(TICKETS_MIN, Math.round(rawPerMonth / 10) * 10)
+  );
+
+  return { emailCount, dateRangeMonths, ticketsPerMonth };
+}
+
 function formatPayback(savedPerMonth: number): { value: string; sub: string } {
   if (savedPerMonth <= 0) {
     return { value: "—", sub: "no savings yet" };
@@ -87,11 +202,56 @@ function formatPayback(savedPerMonth: number): { value: string; sub: string } {
   return { value: `${display} months`, sub: `to earn back the €${PLAN_PRICE}/mo plan` };
 }
 
+type Mode = "manual" | "inbox";
+
 export default function ROICalculator({ appUrl }: { appUrl: string }) {
   const [values, setValues] = useState<Values>(defaults);
+  const [mode, setMode] = useState<Mode>("manual");
+  const [scan, setScan] = useState<ParsedScan | null>(null);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dragging, setDragging] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const set = (key: InputKey, value: number) =>
     setValues((prev) => ({ ...prev, [key]: value }));
+
+  const handleFile = (file: File) => {
+    setUploadError(null);
+    const reader = new FileReader();
+    reader.onerror = () =>
+      setUploadError("We couldn't read that file — try a different export format.");
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      const result = parseEmailCsv(text);
+      if (!result) {
+        setScan(null);
+        setUploadError("We couldn't read that file — try a different export format.");
+        return;
+      }
+      setScan(result);
+      set("tickets", result.ticketsPerMonth);
+    };
+    reader.readAsText(file);
+  };
+
+  const onFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const onDrop = (e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setDragging(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) handleFile(file);
+  };
+
+  const clearScan = () => {
+    setScan(null);
+    setUploadError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+    setValues((prev) => ({ ...prev, tickets: defaults.tickets }));
+  };
 
   const hoursSaved = (values.tickets * values.minutes * (values.automatable / 100)) / 60;
   const euroSaved = hoursSaved * values.rate;
@@ -108,7 +268,81 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
     <section id="calculator" className={styles.section}>
       <p className={styles.eyebrow}>ROI Calculator</p>
       <h2 className={styles.title}>See how much time Yippie saves you</h2>
-      <p className={styles.sub}>Move the sliders — your numbers update instantly.</p>
+      <p className={styles.sub}>
+        Move the sliders — or connect your inbox for a personalised estimate.
+      </p>
+
+      <div className={styles.tabs} role="tablist" aria-label="ROI estimate mode">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "manual"}
+          className={`${styles.tab} ${mode === "manual" ? styles.tabActive : ""}`}
+          onClick={() => setMode("manual")}
+        >
+          Manual estimate
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mode === "inbox"}
+          className={`${styles.tab} ${mode === "inbox" ? styles.tabActive : ""}`}
+          onClick={() => setMode("inbox")}
+        >
+          Use my inbox
+        </button>
+      </div>
+
+      {mode === "inbox" && (
+        <div className={styles.uploadWrap}>
+          {scan ? (
+            <div className={styles.scanResult}>
+              <span className={styles.scanBadge}>
+                Estimated from {scan.emailCount.toLocaleString("en-US")} emails over{" "}
+                {scan.dateRangeMonths} {scan.dateRangeMonths === 1 ? "month" : "months"}
+              </span>
+              <button type="button" className={styles.clearLink} onClick={clearScan}>
+                Clear / try again
+              </button>
+            </div>
+          ) : (
+            <>
+              <div
+                className={`${styles.dropzone} ${dragging ? styles.dropzoneActive : ""}`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={onDrop}
+                onClick={() => fileInputRef.current?.click()}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    fileInputRef.current?.click();
+                  }
+                }}
+              >
+                <p className={styles.dropTitle}>Drop your email CSV export here</p>
+                <p className={styles.dropHint}>
+                  or click to choose a file (Outlook, Gmail Takeout or generic CSV)
+                </p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className={styles.fileInput}
+                  onChange={onFileChange}
+                />
+              </div>
+              {uploadError && <p className={styles.uploadError}>{uploadError}</p>}
+            </>
+          )}
+          <p className={styles.privacyStrong}>We never read your email content.</p>
+        </div>
+      )}
 
       <div className={styles.grid}>
         {/* Inputs */}
