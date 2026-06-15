@@ -355,6 +355,10 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
         placeholder={'e.g.\nBest regards,\nEddy — Support Team'}
         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie resize-y font-sans"
       />
+      {/<img\s/i.test(body) && (
+        <div className="px-2 py-1.5 bg-white border border-slate-100 rounded-lg text-xs text-slate-500 [&_img]:max-h-16 [&_img]:inline-block whitespace-pre-wrap"
+          dangerouslySetInnerHTML={{ __html: body }} />
+      )}
       <div className="flex items-center justify-between gap-2">
         <div>
           <button
