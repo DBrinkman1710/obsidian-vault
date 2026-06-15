@@ -1,5 +1,22 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../../api/client'
+
+interface PipelineStage {
+  id: string
+  name: string
+  color: string
+  display_order: number
+}
+
+interface ActivityEvent {
+  id: string
+  contact_id: string | null
+  actor_name: string | null
+  module: string
+  event_type: string
+  created_at: string
+}
 
 interface PipelineKpi {
   stage_id: string
@@ -89,10 +106,27 @@ function KpiRow({ label, value }: { label: string; value: string }) {
 }
 
 export default function ActivityFeed() {
+  const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
+
   const { data: kpis, isLoading } = useQuery<Kpis>({
     queryKey: ['activity-kpis'],
     queryFn: () => api.get('/activity/kpis').then(r => r.data),
     refetchInterval: 60_000,
+  })
+
+  const { data: stages } = useQuery<PipelineStage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+  })
+
+  const { data: events } = useQuery<ActivityEvent[]>({
+    queryKey: ['activity-events', selectedStageId],
+    queryFn: () =>
+      api
+        .get('/activity', {
+          params: { pipeline_stage_id: selectedStageId || undefined, limit: 100 },
+        })
+        .then(r => r.data),
   })
 
   return (
@@ -173,6 +207,53 @@ export default function ActivityFeed() {
               </div>
             </div>
           </div>
+
+          {/* Recent activity */}
+          <section>
+            <p className={SECTION_HEADER}>Recent activity</p>
+
+            {stages && stages.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 mb-4">
+                <button
+                  onClick={() => setSelectedStageId(null)}
+                  className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${selectedStageId === null ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'}`}
+                >
+                  All
+                </button>
+                {stages.map(stage => (
+                  <button
+                    key={stage.id}
+                    onClick={() => setSelectedStageId(selectedStageId === stage.id ? null : stage.id)}
+                    className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${selectedStageId === stage.id ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'}`}
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
+                    {stage.name}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <div className={CARD}>
+              {!events || events.length === 0 ? (
+                <p className="text-sm text-slate-400">No activity to show</p>
+              ) : (
+                <ul className="divide-y divide-slate-100">
+                  {events.map(event => (
+                    <li key={event.id} className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+                      <span className="text-sm text-slate-700 truncate">
+                        <span className="font-semibold text-slate-900">{event.actor_name ?? 'System'}</span>
+                        {' '}
+                        <span className="text-slate-500">{event.event_type.replace(/[._]/g, ' ')}</span>
+                      </span>
+                      <span className="text-xs text-slate-400 shrink-0 tabular-nums">
+                        {new Date(event.created_at).toLocaleString()}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </section>
         </div>
       )}
     </div>
