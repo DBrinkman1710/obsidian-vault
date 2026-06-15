@@ -126,19 +126,29 @@ async def list_drafts(
     db: DB,
     status: Optional[DraftStatus] = DraftStatus.pending,
     mailbox: str = "shared",
+    q: Optional[str] = None,
 ):
     if mailbox == "personal":
         # Personal mailbox: only mail sent to this user's own inbound address.
         if not current_user.inbound_email:
             return []
         rows = await service.list_drafts(
-            db, current_user.tenant_id, status, current_user.inbound_email, include_legacy=False
+            db, current_user.tenant_id, status, current_user.inbound_email,
+            include_legacy=False, search=q,
         )
         return _enrich_drafts(rows)
     tenant = await db.get(Tenant, current_user.tenant_id)
     inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
-    rows = await service.list_drafts(db, current_user.tenant_id, status, inbound_email)
+    rows = await service.list_drafts(db, current_user.tenant_id, status, inbound_email, search=q)
     return _enrich_drafts(rows)
+
+
+@router.get("/trending")
+async def trending_topics(current_user: CurrentUser, db: DB):
+    """Most frequent subject words across the tenant's recent drafts — shown as
+    light-grey 'trending topics' under the inbox search box when it is empty."""
+    topics = await service.trending_topics(db, current_user.tenant_id)
+    return {"topics": topics}
 
 
 @router.get("/drafts/count")

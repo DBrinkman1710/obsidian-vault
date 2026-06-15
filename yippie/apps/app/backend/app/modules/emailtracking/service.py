@@ -64,11 +64,18 @@ async def handle_event(db: AsyncSession, resend_email_id: str, event_type: str, 
     await db.flush()
     return True
 
-async def list_outbound(db: AsyncSession, tenant_id: uuid.UUID, limit: int = 200) -> list[OutboundEmail]:
-    result = await db.execute(
-        select(OutboundEmail)
-        .where(OutboundEmail.tenant_id == tenant_id)
-        .order_by(OutboundEmail.created_at.desc())
-        .limit(limit)
-    )
+async def list_outbound(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    limit: int = 200,
+    search: str | None = None,
+) -> list[OutboundEmail]:
+    from sqlalchemy import or_
+
+    q = select(OutboundEmail).where(OutboundEmail.tenant_id == tenant_id)
+    if search and search.strip():
+        # Case-insensitive search across subject and recipient email (pg_trgm friendly).
+        term = f"%{search.strip()}%"
+        q = q.where(or_(OutboundEmail.subject.ilike(term), OutboundEmail.to_email.ilike(term)))
+    result = await db.execute(q.order_by(OutboundEmail.created_at.desc()).limit(limit))
     return list(result.scalars().all())

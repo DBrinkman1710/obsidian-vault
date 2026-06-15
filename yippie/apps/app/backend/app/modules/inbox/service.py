@@ -444,6 +444,7 @@ async def list_drafts(
     status: Optional[DraftStatus] = DraftStatus.pending,
     inbound_email: Optional[str] = None,
     include_legacy: bool = True,
+    search: Optional[str] = None,
 ) -> list[tuple[DraftTicket, Optional[str], Optional[str]]]:
     # Always join InboundMessage to include the original email subject and the
     # address the mail was routed to (mailbox diagnostics).
@@ -452,6 +453,21 @@ async def list_drafts(
         .join(InboundMessage, DraftTicket.inbound_message_id == InboundMessage.id)
         .where(DraftTicket.tenant_id == tenant_id)
     )
+
+    if search and search.strip():
+        # Case-insensitive search across subject (AI + original), sender email and
+        # body/preview text. ILIKE patterns are trigram-index friendly (pg_trgm).
+        term = f"%{search.strip()}%"
+        q = q.where(
+            or_(
+                DraftTicket.ai_suggested_subject.ilike(term),
+                DraftTicket.ai_suggested_description.ilike(term),
+                DraftTicket.final_subject.ilike(term),
+                InboundMessage.subject.ilike(term),
+                InboundMessage.sender.ilike(term),
+                InboundMessage.raw_body.ilike(term),
+            )
+        )
 
     if inbound_email:
         # Filter to this mailbox's inbound address; include_legacy keeps pre-inbound_to rows.
@@ -474,6 +490,47 @@ async def list_drafts(
         q = q.where(DraftTicket.status == status)
     result = await db.execute(q.order_by(DraftTicket.created_at.desc()))
     return [(row[0], row[1], row[2]) for row in result.all()]
+
+
+# Words too common/generic to surface as a "trending topic".
+_TRENDING_STOPWORDS = {
+    "the", "and", "for", "you", "your", "with", "this", "that", "from", "have",
+    "are", "was", "but", "not", "all", "can", "our", "out", "has", "his", "her",
+    "they", "their", "would", "could", "should", "about", "there", "what", "when",
+    "will", "been", "were", "into", "than", "then", "them", "some", "more", "very",
+    "just", "like", "also", "any", "how", "who", "why", "did", "does", "had",
+    "re", "fwd", "fw", "hi", "hello", "dear", "regards", "thanks", "thank", "please",
+    "no", "subject", "message", "email", "mail", "get", "got", "new", "see", "via",
+}
+
+
+async def trending_topics(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    limit: int = 6,
+    sample: int = 200,
+) -> list[str]:
+    """Derive 'trending topics' from the most frequent words in recent draft
+    subjects across the tenant. Cheap in-Python aggregation over a bounded sample
+    of recent rows — no extra indexes needed."""
+    import re
+    from collections import Counter
+
+    result = await db.execute(
+        select(DraftTicket.ai_suggested_subject, DraftTicket.final_subject)
+        .where(DraftTicket.tenant_id == tenant_id)
+        .order_by(DraftTicket.created_at.desc())
+        .limit(sample)
+    )
+    counter: Counter[str] = Counter()
+    for ai_subject, final_subject in result.all():
+        text = (final_subject or ai_subject or "").lower()
+        for word in re.findall(r"[a-z][a-z']{2,}", text):
+            if word in _TRENDING_STOPWORDS:
+                continue
+            counter[word] += 1
+    # Only surface words seen more than once so a single email doesn't "trend".
+    return [word for word, count in counter.most_common(limit) if count > 1]
 
 
 async def get_draft(db: AsyncSession, tenant_id: uuid.UUID, draft_id: uuid.UUID) -> Optional[DraftTicket]:

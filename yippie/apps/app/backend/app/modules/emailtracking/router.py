@@ -11,5 +11,5 @@ router = APIRouter(prefix="/emailtracking", tags=["emailtracking"])
 DB = Annotated[AsyncSession, Depends(get_db)]
 
 @router.get("/outbound", response_model=list[OutboundEmailOut])
-async def list_outbound(current_user: CurrentUser, db: DB, limit: int = 200):
-    return await service.list_outbound(db, tenant_id=current_user.tenant_id, limit=limit)
+async def list_outbound(current_user: CurrentUser, db: DB, limit: int = 200, q: str | None = None):
+    return await service.list_outbound(db, tenant_id=current_user.tenant_id, limit=limit, search=q)

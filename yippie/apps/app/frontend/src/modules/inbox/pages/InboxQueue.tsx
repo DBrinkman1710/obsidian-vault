@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
@@ -689,6 +689,11 @@ export default function InboxQueue() {
   const [composeInitial, setComposeInitial] = useState<ComposeInitialState | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(0)
+  // Shared search query — persists across Pending/Processed/Sent tab switches.
+  const [search, setSearch] = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  const [showProcessedFilter, setShowProcessedFilter] = useState(false)
+  const processedFilterRef = useRef<HTMLDivElement>(null)
   // Undo bar state (lives here so the modal can close immediately on send)
   const [pendingCompose, setPendingCompose] = useState<{ composeId: string; recipientCount: number; restoreData: ComposeInitialState } | null>(null)
   const [undoProgress, setUndoProgress] = useState(0)
@@ -703,6 +708,35 @@ export default function InboxQueue() {
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
   useEffect(() => { setFocusedIdx(-1) }, [activeTab, mailbox])
+
+  // Debounce the search box so each keystroke doesn't fire a backend query.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedSearch(search.trim()), 300)
+    return () => clearTimeout(t)
+  }, [search])
+
+  // Reset to the first page whenever the search term changes.
+  useEffect(() => { setPage(0) }, [debouncedSearch])
+
+  // Close the Processed filter dropdown on outside click.
+  useEffect(() => {
+    function handler(e: MouseEvent) {
+      if (processedFilterRef.current && !processedFilterRef.current.contains(e.target as Node)) {
+        setShowProcessedFilter(false)
+      }
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  // Trending topics — derived from recent draft subjects, refreshed every 15 min.
+  const { data: trending } = useQuery({
+    queryKey: ['inbox-trending'],
+    queryFn: () => api.get<{ topics: string[] }>('/inbox/trending').then(r => r.data.topics),
+    staleTime: 15 * 60_000,
+    refetchInterval: 15 * 60_000,
+    refetchIntervalInBackground: false,
+  })
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -755,6 +789,8 @@ export default function InboxQueue() {
 
   const trackingEnabled = config?.enabled_modules?.includes('emailtracking')
 
+  const searchParam = debouncedSearch || undefined
+
   const { data: sentEvents, isLoading: sentLoading } = useQuery({
     queryKey: ['activity-sent'],
     queryFn: () => api.get('/activity', { params: { limit: 500 } }).then(r =>
@@ -764,48 +800,48 @@ export default function InboxQueue() {
   })
 
   const { data: outboundEmails, isLoading: outboundLoading } = useQuery({
-    queryKey: ['outbound-emails'],
-    queryFn: () => api.get('/emailtracking/outbound', { params: { limit: 200 } }).then(r => r.data as any[]),
+    queryKey: ['outbound-emails', searchParam],
+    queryFn: () => api.get('/emailtracking/outbound', { params: { limit: 200, q: searchParam } }).then(r => r.data as any[]),
     enabled: activeTab === 'sent' && !!trackingEnabled,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   })
 
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
-    queryKey: ['drafts', mailbox, 'pending'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending', mailbox } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'pending', searchParam],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending', mailbox, q: searchParam } }).then(r => r.data),
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
     enabled: activeTab === 'pending',
   })
 
   const { data: approvedDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'approved'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'approved', mailbox } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'approved', searchParam],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'approved', mailbox, q: searchParam } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: rejectedDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'rejected'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'rejected', mailbox } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'rejected', searchParam],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'rejected', mailbox, q: searchParam } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: forwardedDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'forwarded'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'forwarded', mailbox } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'forwarded', searchParam],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'forwarded', mailbox, q: searchParam } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: spamDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'spam'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'spam', mailbox } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'spam', searchParam],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'spam', mailbox, q: searchParam } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: binDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'bin'],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'bin', mailbox } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'bin', searchParam],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'bin', mailbox, q: searchParam } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
@@ -817,14 +853,33 @@ export default function InboxQueue() {
     : allProcessed.filter((d: any) => d.status === processedFilter)
 
   const allDrafts = activeTab === 'pending' ? (pendingDrafts ?? []) : activeTab === 'sent' ? [] : processedDrafts
-  const totalPages = Math.ceil(allDrafts.length / PAGE_SIZE)
-  const drafts = allDrafts.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE)
   const isLoading = activeTab === 'pending' ? pendingLoading : activeTab === 'sent' ? (trackingEnabled ? outboundLoading : sentLoading) : false
 
   // Client-side pagination — the full filtered list is already in memory.
-  const pageCount = Math.max(1, Math.ceil(drafts.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(allDrafts.length / PAGE_SIZE))
+  const pageCount = totalPages
   const safePage = Math.min(page, pageCount - 1)
-  const pageDrafts = drafts.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+  const pageDrafts = allDrafts.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+
+  // Sent tab: the non-tracking (activity) path has no backend search, so filter
+  // it client-side to keep search behaviour consistent across all three tabs.
+  const filteredSentEvents = (sentEvents ?? []).filter((ev: any) => {
+    if (!debouncedSearch) return true
+    const q = debouncedSearch.toLowerCase()
+    return (
+      (ev.payload?.subject ?? '').toLowerCase().includes(q) ||
+      (ev.payload?.to ?? '').toLowerCase().includes(q) ||
+      (ev.payload?.preview ?? '').toLowerCase().includes(q)
+    )
+  })
+
+  // Sent tab pagination — 9 mails/page, mirroring the Pending cadence (PAGE_SIZE).
+  const sentList: any[] = activeTab === 'sent'
+    ? (trackingEnabled ? (outboundEmails ?? []) : filteredSentEvents)
+    : []
+  const sentPageCount = Math.max(1, Math.ceil(sentList.length / PAGE_SIZE))
+  const sentSafePage = Math.min(page, sentPageCount - 1)
+  const pageSentList = sentList.slice(sentSafePage * PAGE_SIZE, (sentSafePage + 1) * PAGE_SIZE)
 
   useEffect(() => {
     function handler(e: KeyboardEvent) {
@@ -939,8 +994,8 @@ export default function InboxQueue() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-2 mb-0">
+        {/* Tabs + inline search (shared across all three tabs) */}
+        <div className="flex items-center gap-2 mb-0">
           {(['pending', 'processed', 'sent'] as Tab[]).map(tab => (
             <button
               key={tab}
@@ -954,7 +1009,42 @@ export default function InboxQueue() {
               {tab}
             </button>
           ))}
+          <div className="relative ml-auto w-72 max-w-full">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+            <input
+              type="text"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search inbox…"
+              className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie focus:border-transparent transition-colors"
+            />
+            {search && (
+              <button
+                onClick={() => setSearch('')}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+                aria-label="Clear search"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
         </div>
+
+        {/* Trending topics — shown when the search box is empty */}
+        {!search && trending && trending.length > 0 && (
+          <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-2">
+            <span className="text-xs text-slate-300">Trending:</span>
+            {trending.map(topic => (
+              <button
+                key={topic}
+                onClick={() => setSearch(topic)}
+                className="text-xs text-slate-400 hover:text-slate-600 transition-colors"
+              >
+                {topic}
+              </button>
+            ))}
+          </div>
+        )}
 
         {/* Personal mailbox without an address configured */}
         {mailbox === 'personal' && !user?.inbound_email && (
@@ -967,22 +1057,33 @@ export default function InboxQueue() {
           </div>
         )}
 
-        {/* Processed filter pills */}
+        {/* Processed filter — single dropdown (same options as the old pills) */}
         {activeTab === 'processed' && (
-          <div className="flex gap-1.5 mt-3">
-            {PROCESSED_FILTERS.map(f => (
-              <button
-                key={f.value}
-                onClick={() => { setProcessedFilter(f.value); setPage(0) }}
-                className={`px-3 py-1 rounded-full text-xs font-semibold transition-colors ${
-                  processedFilter === f.value
-                    ? 'bg-slate-800 text-white'
-                    : 'bg-white border border-slate-200 text-slate-500 hover:bg-slate-50'
-                }`}
-              >
-                {f.label}
-              </button>
-            ))}
+          <div ref={processedFilterRef} className="relative mt-3 inline-block">
+            <button
+              onClick={() => setShowProcessedFilter(o => !o)}
+              className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
+            >
+              {PROCESSED_FILTERS.find(f => f.value === processedFilter)?.label ?? 'All'}
+              <ChevronDown size={13} className={`text-slate-400 transition-transform ${showProcessedFilter ? 'rotate-180' : ''}`} />
+            </button>
+            {showProcessedFilter && (
+              <div className="absolute left-0 top-full mt-1 z-20 w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                {PROCESSED_FILTERS.map(f => (
+                  <button
+                    key={f.value}
+                    onClick={() => { setProcessedFilter(f.value); setPage(0); setShowProcessedFilter(false) }}
+                    className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${
+                      processedFilter === f.value
+                        ? 'bg-slate-800 text-white'
+                        : 'text-slate-600 hover:bg-slate-50'
+                    }`}
+                  >
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1033,15 +1134,17 @@ export default function InboxQueue() {
         {activeTab === 'sent' && (
           <>
             {isLoading && <CardListSkeleton rows={5} />}
-            {!isLoading && (trackingEnabled ? (!outboundEmails || outboundEmails.length === 0) : (!sentEvents || sentEvents.length === 0)) && (
+            {!isLoading && sentList.length === 0 && (
               <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
                 <Send size={32} className="text-slate-300 mx-auto mb-3" />
-                <p className="text-sm text-slate-400 font-medium">No sent mail yet</p>
+                <p className="text-sm text-slate-400 font-medium">
+                  {debouncedSearch ? 'No sent mail matches your search' : 'No sent mail yet'}
+                </p>
               </div>
             )}
-            {trackingEnabled && outboundEmails && outboundEmails.length > 0 && (
+            {trackingEnabled && sentList.length > 0 && (
               <div className="flex flex-col gap-3">
-                {outboundEmails.map((em: any) => {
+                {pageSentList.map((em: any) => {
                   const CardEl = em.draft_id ? Link : 'div'
                   const cardProps = em.draft_id ? { to: `/inbox/drafts/${em.draft_id}` } : {}
                   return (
@@ -1073,9 +1176,9 @@ export default function InboxQueue() {
                 })}
               </div>
             )}
-            {!trackingEnabled && sentEvents && sentEvents.length > 0 && (
+            {!trackingEnabled && sentList.length > 0 && (
               <div className="flex flex-col gap-3">
-                {sentEvents.map((ev: any) => {
+                {pageSentList.map((ev: any) => {
                   const draftId = ev.payload?.draft_id
                   const CardEl = draftId ? Link : 'div'
                   const cardProps = draftId ? { to: `/inbox/drafts/${draftId}` } : {}
@@ -1104,11 +1207,36 @@ export default function InboxQueue() {
                 })}
               </div>
             )}
+
+            {/* Sent pagination — 9 mails per page (matches Pending cadence) */}
+            {sentList.length > PAGE_SIZE && (
+              <div className="flex items-center justify-center gap-4 mt-5">
+                <button
+                  onClick={() => setPage(p => Math.max(0, p - 1))}
+                  disabled={sentSafePage === 0}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={14} />
+                  Prev
+                </button>
+                <span className="text-xs text-slate-500 font-medium">
+                  Page {sentSafePage + 1} of {sentPageCount}
+                </span>
+                <button
+                  onClick={() => setPage(p => Math.min(sentPageCount - 1, p + 1))}
+                  disabled={sentSafePage >= sentPageCount - 1}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  Next
+                  <ChevronRight size={14} />
+                </button>
+              </div>
+            )}
           </>
         )}
 
         {activeTab !== 'sent' && isLoading && <CardListSkeleton rows={5} />}
-        {activeTab !== 'sent' && !isLoading && drafts.length === 0 && (
+        {activeTab !== 'sent' && !isLoading && allDrafts.length === 0 && (
           <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
             <Mail size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-sm text-slate-400 font-medium">
@@ -1229,7 +1357,7 @@ export default function InboxQueue() {
             </div>
 
             {/* Pagination — only when the list overflows one page */}
-            {drafts.length > PAGE_SIZE && (
+            {allDrafts.length > PAGE_SIZE && (
               <div className="flex items-center justify-center gap-4 mt-5">
                 <button
                   onClick={() => setPage(p => Math.max(0, p - 1))}
