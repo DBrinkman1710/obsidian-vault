@@ -3,9 +3,10 @@ from __future__ import annotations
 import csv
 import io
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.contacts.models import Company, Contact, ContactLabel
@@ -29,7 +30,7 @@ async def list_contacts(
     label_id: Optional[uuid.UUID] = None,
     company_id: Optional[uuid.UUID] = None,
 ) -> tuple[list[Contact], int]:
-    q = select(Contact).where(Contact.tenant_id == tenant_id)
+    q = select(Contact).where(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
     if search:
         term = f"%{search}%"
         q = q.where(
@@ -49,7 +50,7 @@ async def list_contacts(
 
 async def get_contact(db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> Optional[Contact]:
     result = await db.execute(
-        select(Contact).where(Contact.tenant_id == tenant_id, Contact.id == contact_id)
+        select(Contact).where(Contact.tenant_id == tenant_id, Contact.id == contact_id, Contact.deleted_at.is_(None))
     )
     return result.scalar_one_or_none()
 
@@ -113,8 +114,31 @@ async def update_contact(
 
 
 async def delete_contact(db: AsyncSession, contact: Contact) -> None:
-    await db.delete(contact)
+    contact.deleted_at = datetime.now(timezone.utc)
     await db.commit()
+
+
+async def restore_contact(db: AsyncSession, contact: Contact) -> None:
+    contact.deleted_at = None
+    await db.commit()
+
+
+async def list_deleted_contacts(db: AsyncSession, tenant_id: uuid.UUID) -> list[Contact]:
+    result = await db.execute(
+        select(Contact)
+        .where(Contact.tenant_id == tenant_id, Contact.deleted_at.is_not(None))
+        .order_by(Contact.deleted_at.desc())
+    )
+    return result.scalars().all()
+
+
+async def purge_old_deleted_contacts(db: AsyncSession) -> int:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    result = await db.execute(
+        delete(Contact).where(Contact.deleted_at < cutoff)
+    )
+    await db.commit()
+    return result.rowcount
 
 
 # --- Contact labels (item 38) ---
@@ -254,7 +278,7 @@ async def list_company_contacts(
 ) -> list[Contact]:
     result = await db.execute(
         select(Contact)
-        .where(Contact.tenant_id == tenant_id, Contact.company_id == company_id)
+        .where(Contact.tenant_id == tenant_id, Contact.company_id == company_id, Contact.deleted_at.is_(None))
         .order_by(Contact.full_name)
     )
     return result.scalars().all()
@@ -368,7 +392,7 @@ async def export_contacts_csv(
     contact_ids: Optional[list[uuid.UUID]] = None,
 ) -> str:
     """Return all matching contacts serialized as a CSV string."""
-    q = select(Contact).where(Contact.tenant_id == tenant_id)
+    q = select(Contact).where(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
     if contact_ids:
         q = q.where(Contact.id.in_(contact_ids))
     elif search:

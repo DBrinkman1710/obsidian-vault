@@ -97,6 +97,7 @@ class ContactOut(BaseModel):
     labels: list[ContactLabelOut] = []
     created_at: datetime
     updated_at: datetime
+    deleted_at: Optional[datetime] = None
 
     model_config = {"from_attributes": True}
 

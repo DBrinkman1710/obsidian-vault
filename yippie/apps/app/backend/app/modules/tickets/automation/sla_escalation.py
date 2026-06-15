@@ -99,6 +99,17 @@ async def demo_expiry_check():
             await db.commit()
 
 
+@scheduler.scheduled_job("interval", hours=1, id="contact_retention_purge")
+async def contact_retention_purge():
+    """Hard-delete contacts that have been soft-deleted for more than 30 days."""
+    from app.modules.contacts import service as contacts_service
+
+    async with db_session() as db:
+        count = await contacts_service.purge_old_deleted_contacts(db)
+        if count:
+            log.info("Purged %d contact(s) older than 30 days", count)
+
+
 def start_scheduler():
     if not scheduler.running:
         scheduler.start()

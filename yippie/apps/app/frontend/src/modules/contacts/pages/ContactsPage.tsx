@@ -27,7 +27,7 @@ function downloadBlob(data: BlobPart, filename: string, type: string) {
   URL.revokeObjectURL(url)
 }
 
-type Tab = 'companies' | 'contacts'
+type Tab = 'companies' | 'contacts' | 'trash'
 
 interface Contact {
   id: string
@@ -39,6 +39,7 @@ interface Contact {
   notes: string | null
   created_at: string
   updated_at: string
+  deleted_at: string | null
 }
 
 interface FormState { name: string; domain: string; notes: string }
@@ -528,6 +529,74 @@ function ContactsTab() {
   )
 }
 
+function TrashTab() {
+  const qc = useQueryClient()
+  const { data: trashed, isLoading } = useQuery<Contact[]>({
+    queryKey: ['contacts-trash'],
+    queryFn: () => api.get<Contact[]>('/contacts/trash').then(r => r.data),
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/contacts/${id}/restore`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      qc.invalidateQueries({ queryKey: ['contacts-trash'] })
+    },
+  })
+
+  if (isLoading) return <TableSkeleton cols={4} />
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Deleted on</th>
+              <th className="px-4 py-3 w-24"></th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {(trashed ?? []).map(c => (
+              <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
+                      <User size={13} className="text-slate-400" />
+                    </div>
+                    <span className="text-sm font-medium text-slate-700">{c.full_name}</span>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-sm text-slate-500">{c.email ?? '—'}</td>
+                <td className="px-4 py-3 text-sm text-slate-500">
+                  {c.deleted_at ? new Date(c.deleted_at).toLocaleDateString('nl-NL') : '—'}
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => restoreMutation.mutate(c.id)}
+                    disabled={restoreMutation.isPending}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    Restore
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {!isLoading && (trashed ?? []).length === 0 && (
+        <div className="py-12 text-center">
+          <Trash2 size={32} className="text-slate-300 mx-auto mb-3" />
+          <p className="text-sm text-slate-400 font-medium">Trash is empty</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 const IMPORT_TARGET_FIELDS: { value: string; label: string }[] = [
   { value: 'full_name', label: 'Full name *' },
   { value: 'email', label: 'Email' },
@@ -669,6 +738,18 @@ export default function ContactsPage() {
               {tab}
             </button>
           ))}
+          {isAdmin && (
+            <button
+              onClick={() => setActiveTab('trash')}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
+                activeTab === 'trash'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              Trash
+            </button>
+          )}
         </div>
       </div>
 
@@ -682,6 +763,9 @@ export default function ContactsPage() {
         )}
         {activeTab === 'contacts' && (
           <ContactsTab />
+        )}
+        {activeTab === 'trash' && (
+          <TrashTab />
         )}
       </div>
 
