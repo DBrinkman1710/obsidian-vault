@@ -36,6 +36,9 @@ interface Contact {
   company: { id: string; name: string } | null
   phone: string | null
   labels: ContactLabel[]
+  notes: string | null
+  created_at: string
+  updated_at: string
 }
 
 interface FormState { name: string; domain: string; notes: string }
@@ -481,6 +484,17 @@ function ContactsTab() {
                     )
                     if (col.key === 'phone') return (
                       <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-600 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>{c.phone ?? '—'}</td>
+                    )
+                    if (col.key === 'notes') return (
+                      <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-600 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)} title={c.notes ?? undefined}>
+                        {c.notes ? (c.notes.length > 40 ? `${c.notes.slice(0, 40)}…` : c.notes) : '—'}
+                      </td>
+                    )
+                    if (col.key === 'created_at') return (
+                      <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-600 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>{c.created_at ? new Date(c.created_at).toLocaleDateString('nl-NL') : '—'}</td>
+                    )
+                    if (col.key === 'updated_at') return (
+                      <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-600 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>{c.updated_at ? new Date(c.updated_at).toLocaleDateString('nl-NL') : '—'}</td>
                     )
                     return null
                   })}
