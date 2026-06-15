@@ -233,12 +233,16 @@ async def request_demo(
 @router.get("/booking/{token_id}")
 async def public_get_booking(
     token_id: uuid.UUID,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     from app.core.models import Tenant
     from app.modules.booking import service as booking_service
     from app.modules.booking.schemas import PublicBookingOut, SlotProposal
     from app.modules.contacts.models import Contact
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
 
     token = await booking_service.get_token(db, token_id)
     if token is None or booking_service.token_status(token) != "pending":
@@ -279,10 +283,14 @@ async def public_get_booking(
 @router.post("/booking/{token_id}/confirm")
 async def public_confirm_booking(
     token_id: uuid.UUID,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
     body: BookingConfirm,
 ):
     from app.modules.booking import service as booking_service
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
 
     token = await booking_service.get_token(db, token_id)
     if token is None:

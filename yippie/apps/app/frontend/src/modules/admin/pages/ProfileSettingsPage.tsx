@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import DOMPurify from 'dompurify'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Star, ChevronUp, ChevronDown, Image as ImageIcon, Pencil, Check, X } from 'lucide-react'
 import { api } from '../../../api/client'
@@ -314,7 +315,7 @@ function SignaturePreview({ body }: { body: string }) {
   const hasImg = /<img\s/i.test(body)
   if (hasImg) {
     return <div className="mt-1 text-xs text-slate-500 [&_img]:max-h-12 [&_img]:inline-block"
-      dangerouslySetInnerHTML={{ __html: body }} />
+      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(body) }} />
   }
   return <p className="mt-1 text-xs text-slate-500 whitespace-pre-wrap line-clamp-3">{body || <span className="italic text-slate-400">Empty</span>}</p>
 }
@@ -357,7 +358,7 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
       />
       {/<img\s/i.test(body) && (
         <div className="px-2 py-1.5 bg-white border border-slate-100 rounded-lg text-xs text-slate-500 [&_img]:max-h-16 [&_img]:inline-block whitespace-pre-wrap"
-          dangerouslySetInnerHTML={{ __html: body }} />
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(body) }} />
       )}
       <div className="flex items-center justify-between gap-2">
         <div>

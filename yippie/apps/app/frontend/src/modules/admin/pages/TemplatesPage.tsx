@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import DOMPurify from 'dompurify'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import EmailEditor, { EditorRef } from 'react-email-editor'
 import { FileText, Loader2, MousePointerClick, Palette, Plus, Trash2, X } from 'lucide-react'
@@ -380,7 +381,7 @@ export default function TemplatesPage() {
               <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">— Signature</p>
               {defaultSig?.body ? (
                 /<img\s/i.test(defaultSig.body) ? (
-                  <div className="text-xs text-slate-600 [&_img]:max-h-12 [&_img]:inline-block" dangerouslySetInnerHTML={{ __html: defaultSig.body }} />
+                  <div className="text-xs text-slate-600 [&_img]:max-h-12 [&_img]:inline-block" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(defaultSig.body) }} />
                 ) : (
                   <p className="text-xs text-slate-600 whitespace-pre-wrap">{defaultSig.body}</p>
                 )

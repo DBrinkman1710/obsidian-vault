@@ -21,9 +21,14 @@ def _verify_signature(
     svix_signature: str | None,
 ) -> bool:
     import base64
-    secret = get_settings().resend_webhook_secret
+    settings = get_settings()
+    secret = settings.resend_webhook_secret
     if not secret:
-        return True  # not configured — skip verification
+        # Only skip verification in local/dev/test; in any deployed environment a
+        # missing secret must hard-fail rather than accept unsigned webhooks.
+        if settings.environment in ("development", "local", "test"):
+            return True
+        return False
     if not svix_id or not svix_timestamp or not svix_signature:
         return False
     try:
@@ -45,7 +50,7 @@ async def resend_webhook(request: Request, db: DB):
     svix_timestamp = request.headers.get("svix-timestamp")
     svix_sig = request.headers.get("svix-signature")
     if not _verify_signature(body, svix_id, svix_timestamp, svix_sig):
-        return Response(status_code=400, content="Invalid signature")
+        return Response(status_code=403, content="Invalid signature")
     try:
         payload: dict[str, Any] = await request.json()
     except Exception:

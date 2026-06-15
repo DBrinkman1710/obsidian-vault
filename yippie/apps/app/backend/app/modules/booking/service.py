@@ -263,6 +263,15 @@ async def confirm_booking(
     if slot_end.tzinfo is None:
         slot_end = slot_end.replace(tzinfo=timezone.utc)
 
+    # Row-lock the token for the rest of this transaction so two concurrent
+    # confirmations of the same link can't both pass the "already used" check
+    # and double-book the slot.
+    token = await db.scalar(
+        select(BookingToken).where(BookingToken.id == token.id).with_for_update()
+    )
+    if token is None:
+        raise ValueError("This booking link has expired or has already been used.")
+
     expires = token.expires_at
     if expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)
