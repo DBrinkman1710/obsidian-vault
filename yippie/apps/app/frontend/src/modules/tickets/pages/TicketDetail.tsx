@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send, Lock, Trash2, X, CalendarClock } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
@@ -58,11 +59,32 @@ export default function TicketDetail() {
 
   const statusMutation = useMutation({
     mutationFn: (status: string) => api.patch(`/tickets/${id}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
+    onMutate: async (status) => {
+      await qc.cancelQueries({ queryKey: ['ticket', id] })
+      const prev = qc.getQueryData(['ticket', id])
+      qc.setQueryData(['ticket', id], (old: any) => old ? { ...old, status } : old)
+      return { prev }
+    },
+    onError: (_err, _status, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
+      toast.error('Failed to update status.')
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
   })
 
   const commentMutation = useMutation({
     mutationFn: () => api.post(`/tickets/${id}/comments`, { body: comment, is_internal: isInternal }),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ['ticket-comments', id] })
+      const prev = qc.getQueryData(['ticket-comments', id])
+      const optimistic = { id: 'temp-' + Date.now(), body: comment, is_internal: isInternal, created_at: new Date().toISOString(), author_name: user?.full_name ?? 'You' }
+      qc.setQueryData(['ticket-comments', id], (old: any[]) => [optimistic, ...(old ?? [])])
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(['ticket-comments', id], ctx.prev)
+      toast.error('Failed to post comment.')
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ticket-comments', id] })
       setComment('')

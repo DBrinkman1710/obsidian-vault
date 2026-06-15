@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Clock, Pencil, Kanban, CalendarClock } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelChip'
 import { CompanyBadge, type CompanyRef } from '../components/CompanyBadge'
@@ -58,6 +59,17 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
 
   const moveMut = useMutation({
     mutationFn: (stageId: string) => api.put(`/pipeline/contacts/${contactId}/stage`, { stage_id: stageId }),
+    onMutate: async (stageId) => {
+      await qc.cancelQueries({ queryKey: ['contact-pipeline-stage', contactId] })
+      const prev = qc.getQueryData(['contact-pipeline-stage', contactId])
+      const target = allStages.find(s => s.id === stageId)
+      if (target) qc.setQueryData(['contact-pipeline-stage', contactId], target)
+      return { prev }
+    },
+    onError: (_err, _stageId, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(['contact-pipeline-stage', contactId], ctx.prev)
+      toast.error('Failed to update stage.')
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['contact-pipeline-stage', contactId] }); qc.invalidateQueries({ queryKey: ['pipeline-board'] }); setEditing(false) },
   })
 
@@ -331,6 +343,20 @@ function LabelsBlock({ contactId, labels }: { contactId: string; labels: Contact
 
   const saveMutation = useMutation({
     mutationFn: () => api.patch(`/contacts/${contactId}`, { label_ids: selectedIds }),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ['contact', contactId] })
+      const prev = qc.getQueryData(['contact', contactId])
+      const allLabels = qc.getQueryData<ContactLabel[]>(['contact-labels']) ?? []
+      const nextLabels = selectedIds
+        .map(lid => allLabels.find(l => l.id === lid))
+        .filter((l): l is ContactLabel => !!l)
+      qc.setQueryData(['contact', contactId], (old: any) => old ? { ...old, labels: nextLabels } : old)
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(['contact', contactId], ctx.prev)
+      toast.error('Failed to update label.')
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact', contactId] })
       qc.invalidateQueries({ queryKey: ['contacts'] })

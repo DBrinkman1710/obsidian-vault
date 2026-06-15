@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Paperclip, Sparkles, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
@@ -372,6 +373,18 @@ export default function DraftReview() {
         follow_up_days: modalFollowUpDays ?? (followUpDays ? parseInt(followUpDays) : undefined),
         department_id: departmentId || selectedDeptId || undefined,
       }),
+    onMutate: async ({ action }) => {
+      await qc.cancelQueries({ queryKey: ['draft', id] })
+      const prev = qc.getQueryData(['draft', id])
+      // Optimistically flip the single draft's status so the processed view shows immediately
+      qc.setQueryData(['draft', id], (old: any) =>
+        old?.draft ? { ...old, draft: { ...old.draft, status: action === 'approve' ? 'approved' : 'rejected' } } : old)
+      return { prev }
+    },
+    onError: (_err, _body, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['draft', id], ctx.prev)
+      toast.error('Action failed. Please try again.')
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drafts'] })
       qc.invalidateQueries({ queryKey: ['draft', id] })
