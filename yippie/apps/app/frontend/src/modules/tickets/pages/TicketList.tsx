@@ -8,9 +8,17 @@ import { CardListSkeleton } from '../../../shell/Skeleton'
 const STATUS_STYLES: Record<string, string> = {
   open:        'bg-blue-100 text-blue-700',
   in_progress: 'bg-amber-100 text-amber-700',
-  waiting:     'bg-violet-100 text-violet-700',
+  waiting:     'bg-amber-100 text-amber-700',
   resolved:    'bg-green-100 text-green-700',
   closed:      'bg-slate-100 text-slate-600',
+}
+
+const STATUS_LABELS: Record<string, string> = {
+  open:        'Open',
+  in_progress: 'In progress',
+  waiting:     'Waiting for customer',
+  resolved:    'Resolved',
+  closed:      'Closed',
 }
 
 // Badge styles — mirrors the inbox draft cards so the two lists look consistent.
@@ -78,7 +86,7 @@ export default function TicketList() {
         <option value="">All statuses</option>
         <option value="open">Open</option>
         <option value="in_progress">In progress</option>
-        <option value="waiting">Waiting</option>
+        <option value="waiting">Waiting for customer</option>
         <option value="resolved">Resolved</option>
         <option value="closed">Closed</option>
       </select>
@@ -140,7 +148,7 @@ export default function TicketList() {
                     {t.priority}
                   </span>
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${STATUS_STYLES[t.status] ?? 'bg-slate-100 text-slate-600'}`}>
-                    {t.status.replace('_', ' ')}
+                    {STATUS_LABELS[t.status] ?? t.status.replace('_', ' ')}
                   </span>
                   {t.department_name && (
                     <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">

@@ -80,11 +80,11 @@ function CompanyForm({ initial, onSave, onCancel, isPending, serverError }: {
       {(error || serverError) && <p className="text-sm text-red-500">{error || serverError}</p>}
       <div className="flex gap-3">
         <button type="submit" disabled={isPending}
-          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors">
+          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
           {isPending ? 'Saving…' : 'Save'}
         </button>
         <button type="button" onClick={onCancel}
-          className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+          className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
           Cancel
         </button>
       </div>
@@ -270,7 +270,7 @@ function EditContactModal({ contact, companies, onClose }: {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Edit contact</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
@@ -301,11 +301,11 @@ function EditContactModal({ contact, companies, onClose }: {
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={mutation.isPending}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors">
+              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
               {mutation.isPending ? 'Saving…' : 'Save'}
             </button>
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+              className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
               Cancel
             </button>
           </div>
@@ -689,7 +689,7 @@ export default function ContactsPage() {
 
       {showImport && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeImport}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8" onClick={e => e.stopPropagation()}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-bold text-slate-900">Import contacts</h2>
               <button onClick={closeImport} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
@@ -749,7 +749,7 @@ export default function ContactsPage() {
                     {importMutation.isPending ? 'Importing…' : 'Import'}
                   </button>
                   <button onClick={() => { setPreview(null); setPendingFile(null); setImportError(null); previewMutation.reset() }}
-                    className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                    className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
                     Back
                   </button>
                 </div>
