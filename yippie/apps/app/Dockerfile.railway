@@ -1,10 +1,11 @@
 ## Stage 1: build the Vite/React frontend
 FROM node:20-slim AS frontend-builder
 WORKDIR /frontend
-COPY frontend/package.json ./
-RUN npm install
+RUN npm install -g pnpm
+COPY frontend/package.json frontend/pnpm-lock.yaml ./
+RUN pnpm install --frozen-lockfile
 COPY frontend/ .
-RUN npm run build
+RUN pnpm run build
 
 ## Stage 2: build Python packages (needs gcc for C extensions)
 FROM python:3.12-slim AS python-builder
