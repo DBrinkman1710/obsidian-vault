@@ -61,3 +61,7 @@ class TenantConfigOut(BaseModel):
     environment: str = "production"
     is_demo: bool = False
     is_active: bool = True
+    # Tenant's SaaS plan tier and the feature set it unlocks. The frontend gates
+    # a feature only when it is in BOTH enabled_modules AND allowed_features.
+    plan: str = "enterprise"
+    allowed_features: list[str] = []

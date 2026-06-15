@@ -10,6 +10,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant, User, UserRole
+from app.core.plans import PlanTier
 from app.modules.admin.schemas import (
     AddAdminRequest,
     BroadcastRequest,
@@ -21,7 +22,7 @@ from app.modules.contacts.models import Contact
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-TENANT_SAFE_FIELDS = {"name", "enabled_modules", "primary_color", "logo_url", "is_active", "is_demo", "go_live_at", "inbound_email"}
+TENANT_SAFE_FIELDS = {"name", "enabled_modules", "plan", "primary_color", "logo_url", "is_active", "is_demo", "go_live_at", "inbound_email"}
 
 # The platform owner's account — same default as promote_superadmin.py / seed.py.
 # No one, including other superadmins, may deactivate it.
@@ -124,6 +125,9 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
     for field, value in data.model_dump(exclude_none=True).items():
         if field not in TENANT_SAFE_FIELDS:
             continue  # explicit safelist — never write unexpected fields to the Tenant model
+        # plan arrives as a PlanTier enum; the column stores its string value.
+        if field == "plan" and isinstance(value, PlanTier):
+            value = value.value
         setattr(tenant, field, value)
     await db.commit()
     await db.refresh(tenant)

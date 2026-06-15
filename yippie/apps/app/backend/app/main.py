@@ -7,10 +7,11 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentUser, require_module
+from app.auth.dependencies import CurrentUser, require_feature, require_module
 from app.auth.router import router as auth_router
 from app.config import ALL_MODULES, get_settings, load_tenant_config
 from app.core.models import Tenant
+from app.core.plans import ADVANCED_FEATURES, features_for_plan
 from app.core.schemas import TenantConfigOut
 from app.database import get_db
 from app.modules import MODULES
@@ -84,6 +85,9 @@ def create_app() -> FastAPI:
         settings = get_settings()
         stored = tenant.enabled_modules or []
         ordered_modules = [m for m in ALL_MODULES if m in stored] + [m for m in stored if m not in ALL_MODULES]
+        # allowed_features = what the plan unlocks; the frontend gates a feature
+        # only when it is BOTH enabled (in enabled_modules) AND plan-allowed.
+        allowed_features = sorted(features_for_plan(tenant.plan))
         return TenantConfigOut(
             tenant_id=tenant.slug,
             tenant_name=tenant.name,
@@ -92,14 +96,21 @@ def create_app() -> FastAPI:
             environment=settings.environment,
             is_demo=tenant.is_demo,
             is_active=tenant.is_active,
+            plan=tenant.plan,
+            allowed_features=allowed_features,
         )
 
-    # Module routes — all mounted, each gated per-request by tenant's enabled_modules
+    # Module routes — all mounted, each gated per-request by tenant's enabled_modules.
+    # Advanced modules also get a plan gate: require_feature returns 402 when the
+    # tenant's plan doesn't unlock the feature, on top of the 403 module gate.
     for name, module_router in MODULES.items():
+        deps = [Depends(require_module(name))]
+        if name in ADVANCED_FEATURES:
+            deps.append(Depends(require_feature(name)))
         app.include_router(
             module_router,
             prefix="/api/v1",
-            dependencies=[Depends(require_module(name))],
+            dependencies=deps,
         )
 
     return app

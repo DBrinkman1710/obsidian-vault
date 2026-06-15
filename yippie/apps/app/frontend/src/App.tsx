@@ -4,6 +4,7 @@ import { Toaster } from 'sonner'
 import { fetchTenantConfig, TenantConfig } from './api/tenant'
 import { useAuth } from './auth/useAuth'
 import { ModuleGate } from './shell/ModuleGate'
+import { PlanGate } from './shell/PlanGate'
 import { Sidebar } from './shell/Sidebar'
 import { BottomNav } from './shell/BottomNav'
 
@@ -179,15 +180,15 @@ export default function App() {
               } />
 
               <Route path="/calendar" element={
-                <ModuleGate module="calendar"><PagePad><CalendarPage /></PagePad></ModuleGate>
+                <ModuleGate module="calendar"><PlanGate feature="calendar"><PagePad><CalendarPage /></PagePad></PlanGate></ModuleGate>
               } />
 
               <Route path="/pipeline" element={
-                <ModuleGate module="pipeline"><PagePad><PipelinePage /></PagePad></ModuleGate>
+                <ModuleGate module="pipeline"><PlanGate feature="pipeline"><PagePad><PipelinePage /></PagePad></PlanGate></ModuleGate>
               } />
 
               <Route path="/chat" element={
-                <ModuleGate module="chat"><PagePad><ChatPage /></PagePad></ModuleGate>
+                <ModuleGate module="chat"><PlanGate feature="chat"><PagePad><ChatPage /></PagePad></PlanGate></ModuleGate>
               } />
 
               <Route path="/billing" element={

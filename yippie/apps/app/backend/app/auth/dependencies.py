@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.models import Tenant, User, UserRole
+from app.core.plans import plan_allows
 from app.database import get_db, set_tenant_context
 
 bearer_scheme = HTTPBearer()
@@ -93,6 +94,35 @@ def require_module(module_name: str):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={"error": "module_disabled", "module": module_name},
+            )
+    return _check
+
+
+def require_feature(feature: str):
+    """Dependency factory — gates an advanced feature behind BOTH the module
+    being enabled for the tenant AND the tenant's plan unlocking the feature.
+
+    - Module disabled  -> 403 (matches require_module).
+    - Plan too low      -> 402 Payment Required, so the frontend can surface an
+                           upgrade gate distinct from a plain "module off" state.
+
+    Use alongside require_module so the two compose cleanly:
+        dependencies=[Depends(require_module("ai")), Depends(require_feature("ai"))]
+    """
+    async def _check(
+        current_user: Annotated[User, Depends(get_current_user)],
+        db: Annotated[AsyncSession, Depends(get_db)],
+    ) -> None:
+        tenant = await db.get(Tenant, current_user.tenant_id)
+        if not tenant or feature not in (tenant.enabled_modules or []):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": "module_disabled", "module": feature},
+            )
+        if not plan_allows(tenant.plan, feature):
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail={"error": "plan_upgrade_required", "feature": feature, "plan": tenant.plan},
             )
     return _check
 

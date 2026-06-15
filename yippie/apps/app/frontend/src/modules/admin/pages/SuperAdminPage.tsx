@@ -15,6 +15,10 @@ const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'ac
 const MODULE_LABELS: Record<string, string> = { ai: 'AI' }
 const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod
 
+// SaaS plan tiers — mirrors PlanTier on the backend (app/core/plans.py).
+const PLAN_TIERS = ['free', 'starter', 'pro', 'enterprise'] as const
+const planLabel = (p: string) => p.charAt(0).toUpperCase() + p.slice(1)
+
 type FilterStatus = 'all' | 'active' | 'demo' | 'inactive'
 
 interface Tenant {
@@ -22,6 +26,7 @@ interface Tenant {
   slug: string
   name: string
   enabled_modules: string[]
+  plan: string
   primary_color: string
   logo_url: string | null
   is_active: boolean
@@ -441,6 +446,7 @@ function EditClientModal({
     name: tenant.name,
     inbound_email: tenant.inbound_email ?? '',
     enabled_modules: ALL_MODULES.filter(m => tenant.enabled_modules.includes(m)),
+    plan: tenant.plan,
     primary_color: tenant.primary_color,
     logo_url: tenant.logo_url ?? '',
     whatsapp_phone_number_id: tenant.whatsapp_phone_number_id ?? '',
@@ -477,6 +483,7 @@ function EditClientModal({
     const newMods = JSON.stringify([...form.enabled_modules].sort())
     const oldMods = JSON.stringify([...tenant.enabled_modules].sort())
     if (newMods !== oldMods) patch.enabled_modules = form.enabled_modules
+    if (form.plan !== tenant.plan) patch.plan = form.plan
     if (form.primary_color !== tenant.primary_color) patch.primary_color = form.primary_color
     const logo = form.logo_url.trim() || null
     if (logo !== tenant.logo_url) patch.logo_url = logo
@@ -563,6 +570,19 @@ function EditClientModal({
                 <label className={labelCls}>Slug</label>
                 <input className={`${inputCls} opacity-50 cursor-not-allowed`} value={tenant.slug} disabled />
                 <p className="mt-1 text-xs text-slate-400">Slug cannot be changed after creation.</p>
+              </div>
+              <div>
+                <label className={labelCls}>Plan</label>
+                <select
+                  className={inputCls}
+                  value={form.plan}
+                  onChange={e => setForm(p => ({ ...p, plan: e.target.value }))}
+                >
+                  {PLAN_TIERS.map(p => (
+                    <option key={p} value={p}>{planLabel(p)}</option>
+                  ))}
+                </select>
+                <p className="mt-1 text-xs text-slate-400">Higher tiers unlock advanced features (chat, calendar, pipeline, email tracking, AI).</p>
               </div>
             </>
           )}

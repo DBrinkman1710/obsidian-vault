@@ -6,6 +6,8 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
+from app.core.plans import PlanTier
+
 
 class TenantCreate(BaseModel):
     name: str
@@ -25,6 +27,7 @@ class TenantCreate(BaseModel):
 class TenantUpdate(BaseModel):
     name: Optional[str] = None
     enabled_modules: Optional[list[str]] = None
+    plan: Optional[PlanTier] = None
     primary_color: Optional[str] = None
     logo_url: Optional[str] = None
     is_active: Optional[bool] = None
@@ -41,6 +44,7 @@ class TenantOut(BaseModel):
     slug: str
     name: str
     enabled_modules: list[str]
+    plan: str
     primary_color: str
     logo_url: Optional[str]
     is_active: bool
