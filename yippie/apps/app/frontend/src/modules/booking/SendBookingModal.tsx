@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -12,9 +12,10 @@ interface CalendarSettings {
 }
 
 interface SlotProposal { start: string; end: string }
+interface ContactOption { id: string; full_name: string; email?: string | null }
 
 interface Props {
-  contacts: { id: string; full_name: string }[]
+  contacts?: { id: string; full_name: string }[]
   bulk?: boolean
   open: boolean
   onClose: () => void
@@ -24,7 +25,6 @@ const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const pad = (n: number) => String(n).padStart(2, '0')
 const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
-/** Monday-start grid: 6 full weeks covering the given month. */
 function monthGrid(year: number, month: number): Date[] {
   const first = new Date(year, month, 1)
   const offset = (first.getDay() + 6) % 7
@@ -39,7 +39,7 @@ function fmtSlot(start: Date, end: Date): string {
   return `${day} ${t(start)}–${t(end)}`
 }
 
-export default function SendBookingModal({ contacts, bulk = false, open, onClose }: Props) {
+export default function SendBookingModal({ contacts = [], bulk = false, open, onClose }: Props) {
   const today = new Date()
   const [mode, setMode] = useState<'open' | 'propose'>('open')
   const [message, setMessage] = useState('')
@@ -49,17 +49,34 @@ export default function SendBookingModal({ contacts, bulk = false, open, onClose
   const [activeDay, setActiveDay] = useState<string | null>(null)
   const [slots, setSlots] = useState<SlotProposal[]>([])
 
+  // Contact picker — shown when no contacts are pre-provided
+  const [pickedContact, setPickedContact] = useState<ContactOption | null>(null)
+  const [contactQuery, setContactQuery] = useState('')
+  const [contactDropOpen, setContactDropOpen] = useState(false)
+  const blurTimer = useRef<number | undefined>(undefined)
+
+  const needsPicker = contacts.length === 0 && !bulk
+  const effectiveContacts = needsPicker
+    ? (pickedContact ? [pickedContact] : [])
+    : contacts
+
   const { data: settings } = useQuery<CalendarSettings>({
     queryKey: ['booking-settings'],
     queryFn: () => api.get('/booking/settings').then(r => r.data),
     enabled: open,
   })
 
+  const { data: contactResults, isFetching: searchingContacts } = useQuery<ContactOption[]>({
+    queryKey: ['booking-contact-search', contactQuery],
+    queryFn: () => api.get('/contacts', { params: { search: contactQuery, limit: 10 } })
+      .then(r => r.data.items.map((c: any) => ({ id: c.id, full_name: c.full_name, email: c.email }))),
+    enabled: needsPicker && contactQuery.trim().length > 0,
+  })
+
   const days = useMemo(() => monthGrid(year, month), [year, month])
   const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
   const todayKey = dateKey(today)
 
-  // Build the time chips for the active day from the tenant's work hours.
   const dayChips = useMemo(() => {
     if (!activeDay || !settings) return []
     const [y, m, d] = activeDay.split('-').map(Number)
@@ -89,7 +106,10 @@ export default function SendBookingModal({ contacts, bulk = false, open, onClose
   }
 
   async function handleSend() {
-    if (contacts.length === 0) return
+    if (effectiveContacts.length === 0) {
+      toast.error('Please select a contact first.')
+      return
+    }
     const useMode = bulk ? 'open' : mode
     if (useMode === 'propose' && slots.length === 0) {
       toast.error('Add at least one proposed time first.')
@@ -105,7 +125,7 @@ export default function SendBookingModal({ contacts, bulk = false, open, onClose
           : undefined,
       }
       await Promise.all(
-        contacts.map(c => api.post('/booking/send', { ...payload, contact_id: c.id })),
+        effectiveContacts.map(c => api.post('/booking/send', { ...payload, contact_id: c.id })),
       )
       toast.success('Booking link sent!')
       reset()
@@ -120,13 +140,14 @@ export default function SendBookingModal({ contacts, bulk = false, open, onClose
   function reset() {
     setMode('open'); setMessage(''); setSlots([]); setActiveDay(null)
     setYear(today.getFullYear()); setMonth(today.getMonth())
+    setPickedContact(null); setContactQuery('')
   }
 
   if (!open) return null
 
   const sendingTo = bulk
     ? `${contacts.length} contact${contacts.length !== 1 ? 's' : ''}`
-    : contacts[0]?.full_name ?? '—'
+    : effectiveContacts[0]?.full_name ?? null
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
@@ -139,9 +160,62 @@ export default function SendBookingModal({ contacts, bulk = false, open, onClose
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">
-          <p className="text-sm text-slate-600">
-            Sending to: <span className="font-semibold text-slate-900">{sendingTo}</span>
-          </p>
+          {/* Contact picker — only when no contact pre-selected */}
+          {needsPicker && (
+            <div className="relative">
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                Contact *
+              </label>
+              {pickedContact ? (
+                <div className="flex items-center justify-between gap-2 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50">
+                  <span className="text-slate-800 truncate">
+                    {pickedContact.full_name}{pickedContact.email ? ` — ${pickedContact.email}` : ''}
+                  </span>
+                  <button type="button"
+                    onClick={() => { setPickedContact(null); setContactQuery('') }}
+                    className="text-slate-400 hover:text-slate-600 shrink-0">
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <input
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Search contacts…"
+                  value={contactQuery}
+                  onChange={e => { setContactQuery(e.target.value); setContactDropOpen(true) }}
+                  onFocus={() => setContactDropOpen(true)}
+                  onBlur={() => { blurTimer.current = window.setTimeout(() => setContactDropOpen(false), 150) }}
+                  autoFocus
+                />
+              )}
+              {contactDropOpen && !pickedContact && contactQuery.trim().length > 0 && (
+                <div className="absolute z-10 mt-1 w-full max-h-44 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
+                  {searchingContacts ? (
+                    <p className="px-3 py-2 text-sm text-slate-400">Searching…</p>
+                  ) : (contactResults ?? []).length === 0 ? (
+                    <p className="px-3 py-2 text-sm text-slate-400">No matches</p>
+                  ) : (contactResults ?? []).map(c => (
+                    <button key={c.id} type="button"
+                      onMouseDown={() => {
+                        window.clearTimeout(blurTimer.current)
+                        setPickedContact(c)
+                        setContactDropOpen(false)
+                      }}
+                      className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 truncate">
+                      {c.full_name}{c.email ? ` — ${c.email}` : ''}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sending-to label — when contact is pre-selected */}
+          {!needsPicker && sendingTo && (
+            <p className="text-sm text-slate-600">
+              Sending to: <span className="font-semibold text-slate-900">{sendingTo}</span>
+            </p>
+          )}
 
           {!bulk && (
             <div className="flex gap-2">
@@ -273,7 +347,7 @@ export default function SendBookingModal({ contacts, bulk = false, open, onClose
         <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
           <button
             onClick={handleSend}
-            disabled={sending || contacts.length === 0}
+            disabled={sending || effectiveContacts.length === 0}
             className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
           >
             {sending ? 'Sending…' : 'Send booking link'}
