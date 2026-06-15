@@ -106,7 +106,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`hidden md:flex md:flex-col fixed left-0 top-0 bottom-0 z-40 bg-yippie text-white overflow-y-auto transition-all duration-200 shadow-lg ${
+      className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 overflow-y-auto transition-all duration-200 ${
         collapsed ? 'w-14' : 'w-56'
       }`}
       style={primaryColor ? { backgroundColor: primaryColor } : undefined}
@@ -168,11 +168,7 @@ export function Sidebar() {
                     )}
                   </div>
                 )}
-                {collapsed && mod === 'inbox' && badgeLabel && (
-                  <span className="absolute top-0 right-0 bg-white text-yippie text-[8px] font-bold min-w-[14px] h-[14px] rounded-full flex items-center justify-center px-0.5">
-                    {badgeLabel}
-                  </span>
-                )}
+
                 {!collapsed && mod === 'chat' && chatBadge && (
                   <span className="bg-green-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
                     {chatBadge}
