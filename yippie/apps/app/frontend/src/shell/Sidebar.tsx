@@ -106,7 +106,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 overflow-y-auto transition-all duration-200 ${
+      className={`hidden md:flex md:flex-col fixed left-0 top-0 bottom-0 z-40 bg-yippie text-white overflow-y-auto transition-all duration-200 shadow-lg ${
         collapsed ? 'w-14' : 'w-56'
       }`}
       style={primaryColor ? { backgroundColor: primaryColor } : undefined}
