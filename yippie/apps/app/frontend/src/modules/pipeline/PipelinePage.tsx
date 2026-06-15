@@ -87,7 +87,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-[520px] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">Manage Pipeline Stages</h2>
+          <h2 className="text-sm font-bold text-slate-900">Manage Kanban Stages</h2>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
             <X size={16} />
           </button>
@@ -223,7 +223,7 @@ function AddContactModal({
         <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
           {available.length === 0 && (
             <p className="px-5 py-8 text-sm text-slate-400 text-center">
-              {contacts.length === 0 ? 'No contacts found' : 'All matching contacts are already in the pipeline'}
+              {contacts.length === 0 ? 'No contacts found' : 'All matching contacts are already in the kanban'}
             </p>
           )}
           {available.map(c => (
@@ -289,7 +289,7 @@ function ContactCard({
         <button
           onClick={onRemove}
           className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-300 hover:text-red-400 rounded transition-all shrink-0"
-          title="Remove from pipeline"
+          title="Remove from kanban"
           draggable={false}
         >
           <X size={12} />
@@ -365,9 +365,9 @@ export default function PipelinePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Pipeline</h1>
+          <h1 className="text-xl font-bold text-slate-900">Kanban</h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            {allContactIds.size} contact{allContactIds.size !== 1 ? 's' : ''} in pipeline
+            {allContactIds.size} contact{allContactIds.size !== 1 ? 's' : ''} in kanban
           </p>
         </div>
         {isAdmin && (
@@ -386,9 +386,9 @@ export default function PipelinePage() {
           <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
             <GripVertical size={24} className="text-slate-300" />
           </div>
-          <p className="text-sm font-semibold text-slate-600 mb-1">No pipeline stages yet</p>
+          <p className="text-sm font-semibold text-slate-600 mb-1">No kanban stages yet</p>
           <p className="text-xs text-slate-400 mb-4">
-            {isAdmin ? 'Create stages to start tracking contacts through your pipeline.' : 'Ask an admin to set up pipeline stages.'}
+            {isAdmin ? 'Create stages to start tracking contacts through your kanban.' : 'Ask an admin to set up kanban stages.'}
           </p>
           {isAdmin && (
             <button

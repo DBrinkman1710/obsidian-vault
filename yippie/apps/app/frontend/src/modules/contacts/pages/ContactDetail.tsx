@@ -71,7 +71,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
     <div className="mb-6">
       <div className="flex items-center gap-2 mb-2">
         <Kanban size={12} className="text-slate-400" />
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pipeline</p>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Kanban</p>
         {stage && !editing && (
           <button
             onClick={() => { setSelectedId(stage.id); setEditing(true) }}
@@ -115,7 +115,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
           <span className="text-sm font-semibold text-slate-700">{stage.name}</span>
           <button
-            onClick={() => { if (confirm('Remove from pipeline?')) removeMut.mutate() }}
+            onClick={() => { if (confirm('Remove from kanban?')) removeMut.mutate() }}
             className="ml-auto text-xs text-slate-400 hover:text-red-500 transition-colors"
           >
             Remove
@@ -126,7 +126,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
           onClick={() => { setSelectedId(''); setEditing(true) }}
           className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
         >
-          + Add to pipeline
+          + Add to kanban
         </button>
       )}
     </div>

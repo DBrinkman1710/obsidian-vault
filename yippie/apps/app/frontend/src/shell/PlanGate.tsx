@@ -9,7 +9,7 @@ export const PLAN_GATED_FEATURES = ['chat', 'calendar', 'pipeline', 'emailtracki
 const FEATURE_LABELS: Record<string, string> = {
   chat: 'Live chat',
   calendar: 'Calendar',
-  pipeline: 'Pipeline',
+  pipeline: 'Kanban',
   emailtracking: 'Email tracking',
   ai: 'AI',
 }
