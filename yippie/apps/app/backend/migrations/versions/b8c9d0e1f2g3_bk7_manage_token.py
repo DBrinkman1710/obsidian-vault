@@ -1,7 +1,7 @@
 """BK7 — add manage_token to booking_tokens and cancel_edit_hours_before to calendar_settings
 
 Revision ID: b8c9d0e1f2g3
-Revises: a7b8c9d0e1f2
+Revises: 478e0aa6c080
 Create Date: 2026-06-16
 
 Adds:
@@ -16,7 +16,7 @@ from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
 revision: str = 'b8c9d0e1f2g3'
-down_revision: Union[str, None] = 'a7b8c9d0e1f2'
+down_revision: Union[str, None] = '478e0aa6c080'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

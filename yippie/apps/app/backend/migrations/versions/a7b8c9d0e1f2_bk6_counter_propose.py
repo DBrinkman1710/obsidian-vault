@@ -1,6 +1,6 @@
 """BK6 — add customer_proposed_slots and status_override to booking_tokens
 
-Revision ID: a7b8c9d0e1f2
+Revision ID: 478e0aa6c080
 Revises: z6a7b8c9d0e1
 Create Date: 2026-06-16
 
@@ -17,7 +17,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB
 
-revision: str = 'a7b8c9d0e1f2'
+revision: str = '478e0aa6c080'
 down_revision: Union[str, None] = 'z6a7b8c9d0e1'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
