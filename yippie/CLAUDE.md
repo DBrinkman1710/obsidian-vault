@@ -79,6 +79,7 @@ Set these env vars in Railway per environment:
 - `ANTHROPIC_API_KEY` — for inbox AI scanning
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` — superadmin credentials
 - `ENVIRONMENT` — set to `devsandbox`, `sandbox`, `dev`, or `production`
+- `EVOLUTION_API_URL` / `EVOLUTION_API_TOKEN` — WhatsApp gateway (Evolution API instance base URL + global API token); required for Live Chat's WhatsApp send/receive and the QR pairing card to work
 
 **Critical:** the two staging services (`Dev Sandbox` + `Sandbox`, both in the Sandbox Railway env) must share the same `DATABASE_URL` (the Sandbox DB). `ENVIRONMENT` is still set per service to `devsandbox`, `sandbox`, `dev`, or `production`.
 
