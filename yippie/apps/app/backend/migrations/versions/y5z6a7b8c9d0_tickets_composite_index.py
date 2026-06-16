@@ -1,6 +1,6 @@
 """add composite index on tickets (tenant_id, status, sla_due_at)
 
-Revision ID: w3x4y5z6a7b8
+Revision ID: y5z6a7b8c9d0
 Revises: v2w3x4y5z6a7
 Create Date: 2026-06-15
 
@@ -11,7 +11,7 @@ from typing import Sequence, Union
 
 from alembic import op
 
-revision: str = 'w3x4y5z6a7b8'
+revision: str = 'y5z6a7b8c9d0'
 down_revision: Union[str, None] = 'v2w3x4y5z6a7'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
