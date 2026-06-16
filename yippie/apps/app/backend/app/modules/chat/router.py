@@ -7,6 +7,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Annotated, Optional
 
+import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from jose import JWTError, jwt
 from pydantic import BaseModel
@@ -274,6 +275,42 @@ async def mark_session_read(session_id: uuid.UUID, current_user: CurrentUser, db
         {"event": "unread_update", "session_id": str(session_id), "unread_count": 0},
     )
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# WhatsApp pairing
+# ---------------------------------------------------------------------------
+
+@router.get("/whatsapp/qr")
+async def get_whatsapp_qr(current_user: CurrentUser, db: DB):
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    try:
+        data = await whatsapp_service.get_pairing_qr(tenant.slug)
+    except (httpx.HTTPError, Exception):
+        raise HTTPException(status_code=502, detail="Could not reach Evolution API or instance unavailable")
+
+    return {
+        "base64": data.get("base64"),
+        "code": data.get("code"),
+        "pairing_code": data.get("pairingCode"),
+    }
+
+
+@router.get("/whatsapp/status")
+async def get_whatsapp_status(current_user: CurrentUser, db: DB):
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    try:
+        state = await whatsapp_service.get_connection_state(tenant.slug)
+    except Exception:
+        return {"state": ""}
+
+    return {"state": state or ""}
 
 
 # ---------------------------------------------------------------------------

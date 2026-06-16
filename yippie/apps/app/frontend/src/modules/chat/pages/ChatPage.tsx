@@ -42,6 +42,21 @@ export default function ChatPage() {
     refetchInterval: 10_000,
   })
 
+  const { data: whatsappStatus } = useQuery({
+    queryKey: ['whatsapp-status'],
+    queryFn: () => api.get('/chat/whatsapp/status').then(r => r.data),
+    refetchInterval: 5_000,
+  })
+
+  const isConnected = whatsappStatus?.state === 'open'
+
+  const { data: qrData, isLoading: qrLoading, isError: qrError } = useQuery({
+    queryKey: ['whatsapp-qr'],
+    queryFn: () => api.get('/chat/whatsapp/qr').then(r => r.data),
+    enabled: !isConnected,
+    refetchInterval: isConnected ? false : 15_000,
+  })
+
   const { data: contactResults = [], isLoading: contactsLoading } = useQuery({
     queryKey: ['contact-search', debouncedQuery],
     queryFn: () => api.get('/contacts', { params: { search: debouncedQuery, limit: 20 } }).then(r => r.data.items ?? r.data),
@@ -205,6 +220,25 @@ export default function ChatPage() {
           </>
         )}
       </div>
+      {!isConnected && (
+        <div className="mx-4 mt-4 bg-white border border-slate-200 rounded-xl p-4 text-center flex-shrink-0">
+          <h2 className="text-sm font-bold text-slate-900 mb-1">Connect WhatsApp</h2>
+          <p className="text-xs text-slate-500 mb-3">Scan with WhatsApp to connect</p>
+          {qrLoading && <p className="text-xs text-slate-400 py-6">Loading QR code…</p>}
+          {!qrLoading && qrError && <p className="text-xs text-red-500 py-6">Could not load QR code. Retrying…</p>}
+          {!qrLoading && !qrError && qrData?.base64 && (
+            <>
+              <img src={qrData.base64} alt="WhatsApp pairing QR code" className="w-40 h-40 mx-auto" />
+              {qrData.pairing_code && (
+                <p className="text-xs text-slate-500 mt-2 font-mono">{qrData.pairing_code}</p>
+              )}
+            </>
+          )}
+          {!qrLoading && !qrError && !qrData?.base64 && (
+            <p className="text-xs text-slate-400 py-6">Waiting for QR code…</p>
+          )}
+        </div>
+      )}
       <div className="flex-1 overflow-y-auto">
         {sidebarMode === 'search' ? (
           <>
