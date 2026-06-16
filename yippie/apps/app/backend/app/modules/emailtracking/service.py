@@ -66,6 +66,77 @@ async def handle_event(db: AsyncSession, resend_email_id: str, event_type: str, 
     await db.flush()
     return True
 
+_RESEND_LAST_EVENT_MAP = {
+    "delivered": "email.delivered",
+    "opened": "email.opened",
+    "clicked": "email.clicked",
+    "bounced": "email.bounced",
+}
+
+async def list_pending_sync(db: AsyncSession, max_age_days: int = 7) -> list[OutboundEmail]:
+    """Return 'sent' emails with a Resend ID that haven't been delivered yet."""
+    from datetime import timedelta
+    from sqlalchemy import and_
+    cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
+    result = await db.execute(
+        select(OutboundEmail)
+        .where(
+            and_(
+                OutboundEmail.status == "sent",
+                OutboundEmail.resend_email_id.is_not(None),
+                OutboundEmail.created_at > cutoff,
+            )
+        )
+        .limit(50)
+    )
+    return list(result.scalars().all())
+
+async def sync_status_from_resend(db: AsyncSession, api_key: str) -> int:
+    """Poll Resend API for each undelivered email and update status. Returns count updated."""
+    import httpx
+    pending = await list_pending_sync(db)
+    if not pending:
+        return 0
+    updated = 0
+    now = datetime.now(timezone.utc)
+    async with httpx.AsyncClient(timeout=10) as client:
+        for record in pending:
+            try:
+                resp = await client.get(
+                    f"https://api.resend.com/emails/{record.resend_email_id}",
+                    headers={"Authorization": f"Bearer {api_key}"},
+                )
+                if resp.status_code != 200:
+                    continue
+                last_event = resp.json().get("last_event", "")
+                event_type = _RESEND_LAST_EVENT_MAP.get(last_event)
+                if not event_type:
+                    continue
+                if event_type == "email.delivered" and not record.delivered_at:
+                    record.delivered_at = now
+                    record.status = "delivered"
+                    updated += 1
+                elif event_type == "email.opened" and not record.opened_at:
+                    record.opened_at = now
+                    if not record.delivered_at:
+                        record.delivered_at = now
+                    record.status = "opened"
+                    updated += 1
+                elif event_type == "email.clicked" and not record.clicked_at:
+                    record.clicked_at = now
+                    record.clicked_count += 1
+                    if not record.delivered_at:
+                        record.delivered_at = now
+                    record.status = "clicked"
+                    updated += 1
+                elif event_type == "email.bounced" and not record.bounced_at:
+                    record.bounced_at = now
+                    record.status = "bounced"
+                    updated += 1
+            except Exception:
+                pass
+    return updated
+
 async def list_outbound(
     db: AsyncSession,
     tenant_id: uuid.UUID,

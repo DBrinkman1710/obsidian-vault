@@ -351,6 +351,24 @@ async def go_live_job() -> None:
             log.info("go_live_job: activated %d tenant(s)", result.rowcount)
 
 
+@scheduler.scheduled_job("interval", minutes=5, id="sync_email_delivery", max_instances=1, coalesce=True)
+async def sync_email_delivery_job() -> None:
+    """Poll Resend API for delivery/open status on recently sent emails."""
+    from app.config import get_settings
+    from app.modules.emailtracking.service import sync_status_from_resend
+    settings = get_settings()
+    if not settings.resend_api_key:
+        return
+    try:
+        async with db_session() as db:
+            count = await sync_status_from_resend(db, settings.resend_api_key)
+            await db.commit()
+            if count:
+                log.info("sync_email_delivery: updated %d email status(es)", count)
+    except Exception:
+        log.exception("sync_email_delivery failed")
+
+
 def start_scheduler() -> None:
     if not scheduler.running:
         scheduler.start()
