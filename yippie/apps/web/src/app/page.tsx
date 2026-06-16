@@ -59,27 +59,35 @@ const steps = [
 
 const plans = [
   {
+    tier: "Founder",
+    price: "€9",
+    desc: "For early adopters",
+    features: ["2 users", "1,000 contacts", "Inbox + Contacts", "Add-ons à la carte", "Email support"],
+    cta: "Request demo",
+    featured: false,
+  },
+  {
     tier: "Starter",
     price: "€29",
-    desc: "For solo founders getting started",
-    features: ["1 user", "500 contacts", "Inbox + Tickets", "Live chat widget", "Email support"],
-    cta: "Get started",
+    desc: "For small teams",
+    features: ["5 users", "5,000 contacts", "Inbox + Contacts", "Add-ons à la carte", "Email support"],
+    cta: "Request demo",
     featured: false,
   },
   {
     tier: "Growth",
-    price: "€79",
-    desc: "For teams handling more volume",
-    features: ["5 users", "5,000 contacts", "All modules", "Activity feed", "Priority support"],
-    cta: "Get started",
+    price: "€69",
+    desc: "For growing businesses",
+    features: ["15 users", "25,000 contacts", "Inbox + Contacts", "Add-ons à la carte", "Priority support"],
+    cta: "Request demo",
     featured: true,
   },
   {
     tier: "Pro",
-    price: "€199",
-    desc: "For businesses at scale",
-    features: ["Unlimited users", "Unlimited contacts", "All modules", "API access", "Dedicated support"],
-    cta: "Contact us",
+    price: "€99",
+    desc: "For established companies — everything included",
+    features: ["Unlimited users", "Unlimited contacts", "All modules included", "Dedicated support"],
+    cta: "Request demo",
     featured: false,
   },
 ];
@@ -99,9 +107,10 @@ export default function HomePage() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="Yippie" className={styles.navLogo} />
         <ul className={styles.navLinks}>
-          <li><a href="#features">Features</a></li>
+          <li><a href="/features">Features</a></li>
           <li><a href="#how-it-works">How it works</a></li>
-          <li><a href="#pricing">Pricing</a></li>
+          <li><a href="/blog">Blog</a></li>
+          <li><a href="/pricing">Pricing</a></li>
           <li><a href={APP_URL} className={styles.navLogin}>Log in</a></li>
           <li>
             <a href={DEMO_URL} className={styles.navCta}>Request demo →</a>
@@ -275,8 +284,9 @@ export default function HomePage() {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logo.svg" alt="Yippie" className={styles.footerLogo} />
         <div className={styles.footerRight}>
-          <a href="#features" className={styles.footerLink}>Features</a>
-          <a href="#pricing" className={styles.footerLink}>Pricing</a>
+          <a href="/features" className={styles.footerLink}>Features</a>
+          <a href="/blog" className={styles.footerLink}>Blog</a>
+          <a href="/pricing" className={styles.footerLink}>Pricing</a>
           <a href={APP_URL} className={styles.footerLink}>Log in</a>
           <span className={styles.footerCopy}>© {new Date().getFullYear()} Yippie</span>
         </div>
