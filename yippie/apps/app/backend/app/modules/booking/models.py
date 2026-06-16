@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -27,6 +27,13 @@ class CalendarSettings(Base):
         ForeignKey("pipeline_stages.id", ondelete="SET NULL"),
         nullable=True,
     )
+    weekly_slots: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    use_weekly_slots: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False, server_default="false"
+    )
+    cancel_edit_hours_before: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=24, server_default="24"
+    )
 
 
 class BookingToken(Base):
@@ -49,6 +56,11 @@ class BookingToken(Base):
     booked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     event_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("calendar_events.id", ondelete="SET NULL"), nullable=True
+    )
+    customer_proposed_slots: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    status_override: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    manage_token: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), nullable=True, unique=True
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

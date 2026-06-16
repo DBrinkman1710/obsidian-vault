@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { api } from '../api/client'
 
 interface Slot { start: string; end: string }
@@ -59,6 +59,133 @@ function Shell({ children }: { children: React.ReactNode }) {
   )
 }
 
+// ---------------------------------------------------------------------------
+// Counter-propose form
+// ---------------------------------------------------------------------------
+
+interface ProposedRow {
+  date: string   // YYYY-MM-DD
+  time: string   // HH:MM
+  duration: number  // minutes: 30 | 60 | 90
+}
+
+function emptyRow(): ProposedRow {
+  return { date: '', time: '', duration: 30 }
+}
+
+function CounterProposeForm({ onSuccess }: { onSuccess: () => void }) {
+  const { token } = useParams<{ token: string }>()
+  const [rows, setRows] = useState<ProposedRow[]>([emptyRow()])
+  const [submitting, setSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  function updateRow(idx: number, patch: Partial<ProposedRow>) {
+    setRows(prev => prev.map((r, i) => i === idx ? { ...r, ...patch } : r))
+  }
+
+  function removeRow(idx: number) {
+    setRows(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  function addRow() {
+    if (rows.length < 3) setRows(prev => [...prev, emptyRow()])
+  }
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    setError(null)
+
+    const filled = rows.filter(r => r.date && r.time)
+    if (filled.length === 0) {
+      setError('Please fill in at least one date and time.')
+      return
+    }
+
+    const slots = filled.map(r => {
+      const start = new Date(`${r.date}T${r.time}:00`)
+      const end = new Date(start.getTime() + r.duration * 60 * 1000)
+      return { start: start.toISOString(), end: end.toISOString() }
+    })
+
+    setSubmitting(true)
+    try {
+      await api.post(`/public/booking/${token}/counter-propose`, { slots })
+      onSuccess()
+    } catch (e: any) {
+      setError(e?.response?.data?.detail || 'Could not send your proposal. Please try again.')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-4">
+      <p className="text-sm font-semibold text-slate-700 mb-3">Suggest up to 3 times that work for you</p>
+
+      <div className="flex flex-col gap-3">
+        {rows.map((row, idx) => (
+          <div key={idx} className="flex items-center gap-2 flex-wrap">
+            <input
+              type="date"
+              value={row.date}
+              onChange={e => updateRow(idx, { date: e.target.value })}
+              className="flex-1 min-w-[130px] px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <input
+              type="time"
+              value={row.time}
+              onChange={e => updateRow(idx, { time: e.target.value })}
+              className="w-28 px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+            <select
+              value={row.duration}
+              onChange={e => updateRow(idx, { duration: Number(e.target.value) })}
+              className="w-24 px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            >
+              <option value={30}>30 min</option>
+              <option value={60}>60 min</option>
+              <option value={90}>90 min</option>
+            </select>
+            {rows.length > 1 && (
+              <button
+                type="button"
+                onClick={() => removeRow(idx)}
+                className="p-1.5 text-slate-400 hover:text-red-500 transition-colors"
+              >
+                <X size={15} />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {rows.length < 3 && (
+        <button
+          type="button"
+          onClick={addRow}
+          className="mt-2 text-xs font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+        >
+          + Add another time
+        </button>
+      )}
+
+      {error && (
+        <p className="mt-3 text-sm text-red-500">{error}</p>
+      )}
+
+      <div className="flex items-center gap-3 mt-4">
+        <button
+          type="submit"
+          disabled={submitting}
+          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          {submitting ? 'Sending…' : 'Send proposal'}
+        </button>
+      </div>
+    </form>
+  )
+}
+
 export default function BookingPage() {
   const { token } = useParams<{ token: string }>()
   const today = new Date()
@@ -67,6 +194,8 @@ export default function BookingPage() {
   const [activeDay, setActiveDay] = useState<string | null>(null)
   const [picked, setPicked] = useState<Slot | null>(null)
   const [showPicker, setShowPicker] = useState(false)
+  const [showCounterPropose, setShowCounterPropose] = useState(false)
+  const [counterProposeSent, setCounterProposeSent] = useState(false)
   const [success, setSuccess] = useState(false)
   const [confirming, setConfirming] = useState(false)
   const [confirmError, setConfirmError] = useState<string | null>(null)
@@ -149,7 +278,25 @@ export default function BookingPage() {
     )
   }
 
-  const showProposals = data.mode === 'propose' && !showPicker && (data.proposed_slots?.length ?? 0) > 0
+  if (counterProposeSent) {
+    return (
+      <Shell>
+        <div className="text-center">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-full bg-amber-100 flex items-center justify-center">
+            <svg viewBox="0 0 24 24" className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <path d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <h1 className="text-lg font-bold text-slate-900 mb-2">Proposal sent!</h1>
+          <p className="text-sm text-slate-500">
+            Your proposed times have been sent to {data.tenant_name}. They&apos;ll get back to you shortly.
+          </p>
+        </div>
+      </Shell>
+    )
+  }
+
+  const showProposals = data.mode === 'propose' && !showPicker && !showCounterPropose && (data.proposed_slots?.length ?? 0) > 0
   const dayChips = activeDay ? slotsByDay.get(activeDay) ?? [] : []
 
   return (
@@ -191,10 +338,32 @@ export default function BookingPage() {
           >
             None of these work? Pick your own time →
           </button>
+          {data.mode === 'propose' && (
+            <button
+              onClick={() => setShowCounterPropose(true)}
+              className="text-sm text-slate-500 hover:text-amber-600 transition-colors"
+            >
+              Propose your own times →
+            </button>
+          )}
         </div>
       )}
 
-      {(!showProposals) && (
+      {showCounterPropose && (
+        <div>
+          <button
+            onClick={() => setShowCounterPropose(false)}
+            className="text-xs text-slate-400 hover:text-slate-600 transition-colors mb-3"
+          >
+            ← Back to proposed times
+          </button>
+          <CounterProposeForm
+            onSuccess={() => setCounterProposeSent(true)}
+          />
+        </div>
+      )}
+
+      {(!showProposals && !showCounterPropose) && (
         <div>
           <div className="border border-slate-200 rounded-xl overflow-hidden">
             <div className="flex items-center justify-between px-4 py-2.5 border-b border-slate-100">

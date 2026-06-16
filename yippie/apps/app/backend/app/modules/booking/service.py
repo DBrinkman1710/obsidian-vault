@@ -19,6 +19,7 @@ from app.modules.booking.schemas import (
     AvailableSlot,
     BookingTokenCreate,
     CalendarSettingsUpdate,
+    SlotProposal,
 )
 from app.modules.calendar.models import CalendarEvent
 from app.modules.contacts.models import Contact
@@ -81,37 +82,79 @@ async def get_available_slots(
 ) -> list[AvailableSlot]:
     """Generate open/closed slots for the next ``days_ahead`` weekdays.
 
+    When use_weekly_slots is True, slots come from the weekly_slots JSONB
+    (keyed "0"–"6" Mon–Sun, each value an array of {time, capacity} dicts).
+    When False, falls back to the legacy work_start_hour/work_end_hour/slot_minutes model.
+
     Only availability (a boolean) is exposed — never event details.
     """
     now = _now()
     today = now.date()
-    step = timedelta(minutes=settings.slot_minutes)
 
     # Build the candidate slot list first, then bulk-check overlap against events.
-    slots: list[tuple[datetime, datetime]] = []
+    # Each entry is (slot_start, slot_end, capacity) where capacity is the max
+    # bookings per slot (weekly mode) or unlimited (legacy mode uses capacity=0).
+    slots: list[tuple[datetime, datetime, int]] = []
     window_start: Optional[datetime] = None
     window_end: Optional[datetime] = None
 
-    for offset in range(1, days_ahead + 1):
-        day = today + timedelta(days=offset)
-        # Skip weekends (Saturday=5, Sunday=6)
-        if day.weekday() >= 5:
-            continue
-        cursor = datetime.combine(day, time(hour=settings.work_start_hour), tzinfo=timezone.utc)
-        day_end = datetime.combine(day, time(hour=0), tzinfo=timezone.utc) + timedelta(
-            hours=settings.work_end_hour
-        )
-        while cursor + step <= day_end:
-            slot_start = cursor
-            slot_end = cursor + step
-            cursor = slot_end
-            if slot_start <= now:
-                continue  # skip past slots
-            slots.append((slot_start, slot_end))
-            if window_start is None or slot_start < window_start:
-                window_start = slot_start
-            if window_end is None or slot_end > window_end:
-                window_end = slot_end
+    use_weekly = bool(getattr(settings, "use_weekly_slots", False))
+    weekly_slots_map: dict = {}
+    if use_weekly and settings.weekly_slots:
+        # Normalise: the JSONB comes back as a list of dicts keyed by day index,
+        # or as a dict keyed by string day numbers.
+        raw = settings.weekly_slots
+        if isinstance(raw, dict):
+            weekly_slots_map = raw
+        # (list form not expected, but guard anyway)
+
+    if use_weekly and weekly_slots_map:
+        # Weekly schedule mode
+        for offset in range(1, days_ahead + 1):
+            day = today + timedelta(days=offset)
+            # Skip weekends (Saturday=5, Sunday=6)
+            if day.weekday() >= 5:
+                continue
+            day_key = str(day.weekday())  # "0" = Monday … "6" = Sunday
+            day_entries = weekly_slots_map.get(day_key) or []
+            for entry in day_entries:
+                raw_time = entry.get("time", "")
+                capacity = int(entry.get("capacity", 1))
+                try:
+                    h, m = (int(x) for x in raw_time.split(":"))
+                except (ValueError, AttributeError):
+                    continue  # skip malformed entries
+                slot_start = datetime.combine(day, time(hour=h, minute=m), tzinfo=timezone.utc)
+                slot_end = slot_start + timedelta(minutes=30)
+                if slot_start <= now:
+                    continue  # skip past slots
+                slots.append((slot_start, slot_end, capacity))
+                if window_start is None or slot_start < window_start:
+                    window_start = slot_start
+                if window_end is None or slot_end > window_end:
+                    window_end = slot_end
+    else:
+        # Legacy uniform-hours mode
+        step = timedelta(minutes=settings.slot_minutes)
+        for offset in range(1, days_ahead + 1):
+            day = today + timedelta(days=offset)
+            if day.weekday() >= 5:
+                continue
+            cursor = datetime.combine(day, time(hour=settings.work_start_hour), tzinfo=timezone.utc)
+            day_end = datetime.combine(day, time(hour=0), tzinfo=timezone.utc) + timedelta(
+                hours=settings.work_end_hour
+            )
+            while cursor + step <= day_end:
+                slot_start = cursor
+                slot_end = cursor + step
+                cursor = slot_end
+                if slot_start <= now:
+                    continue  # skip past slots
+                slots.append((slot_start, slot_end, 0))  # 0 = unlimited
+                if window_start is None or slot_start < window_start:
+                    window_start = slot_start
+                if window_end is None or slot_end > window_end:
+                    window_end = slot_end
 
     if not slots:
         return []
@@ -127,9 +170,20 @@ async def get_available_slots(
     events = [(r.start_at, r.end_at) for r in result.all() if r.end_at is not None]
 
     out: list[AvailableSlot] = []
-    for slot_start, slot_end in slots:
+    for slot_start, slot_end, capacity in slots:
         overlap = any(ev_start < slot_end and ev_end > slot_start for ev_start, ev_end in events)
-        out.append(AvailableSlot(start=slot_start, end=slot_end, available=not overlap))
+        if overlap:
+            out.append(AvailableSlot(start=slot_start, end=slot_end, available=False))
+        elif capacity > 0:
+            # Weekly mode: count how many existing events start on this same day
+            # (capacity = max bookings per slot/day; we count per slot here)
+            booked_count = sum(
+                1 for ev_start, ev_end in events
+                if ev_start.date() == slot_start.date()
+            )
+            out.append(AvailableSlot(start=slot_start, end=slot_end, available=booked_count < capacity))
+        else:
+            out.append(AvailableSlot(start=slot_start, end=slot_end, available=True))
     return out
 
 
@@ -181,6 +235,8 @@ async def create_booking_token(
 def token_status(token: BookingToken) -> str:
     if token.booked_at is not None:
         return "booked"
+    if getattr(token, "status_override", None) == "counter_proposed":
+        return "counter_proposed"
     expires = token.expires_at
     if expires.tzinfo is None:
         expires = expires.replace(tzinfo=timezone.utc)
@@ -225,6 +281,7 @@ async def list_tokens(db: AsyncSession, tenant_id: uuid.UUID) -> list[dict]:
                 "expires_at": t.expires_at,
                 "booked_at": t.booked_at,
                 "event_id": t.event_id,
+                "customer_proposed_slots": t.customer_proposed_slots,
                 "created_at": t.created_at,
                 "status": token_status(t),
             }
@@ -310,6 +367,7 @@ async def confirm_booking(
 
     token.booked_at = _now()
     token.event_id = event.id
+    token.manage_token = uuid.uuid4()
 
     # Move contact to the configured post-booking pipeline stage, if any.
     settings = await db.scalar(
@@ -327,7 +385,7 @@ async def confirm_booking(
 
     tenant = await db.get(Tenant, token.tenant_id)
     agent = await db.get(User, token.created_by)
-    asyncio.create_task(_notify_customer_confirmed(event, contact, tenant))
+    asyncio.create_task(_notify_customer_confirmed(event, contact, tenant, token))
     asyncio.create_task(_notify_agent_confirmed(event, contact, agent))
     return event
 
@@ -406,7 +464,10 @@ async def _send_booking_invitation(
 
 
 async def _notify_customer_confirmed(
-    event: CalendarEvent, contact: Contact, tenant: Optional[Tenant]
+    event: CalendarEvent,
+    contact: Contact,
+    tenant: Optional[Tenant],
+    token: Optional[BookingToken] = None,
 ) -> None:
     try:
         if contact is None or not contact.email or not is_valid_email(contact.email):
@@ -416,20 +477,49 @@ async def _notify_customer_confirmed(
         when = _format_slot(event.start_at, event.end_at)
         subject = f"Your meeting with {tenant_name} is confirmed"
 
+        manage_token = getattr(token, "manage_token", None) if token else None
+        manage_url = (
+            f"{CLIENT_BASE_URL}/book/manage/{manage_token}"
+            if manage_token else None
+        )
+
+        manage_text_lines = (
+            [
+                "",
+                "Need to reschedule or cancel?",
+                manage_url,
+            ]
+            if manage_url else []
+        )
+
         body_text = "\n".join(
             [
                 f"Your meeting with {tenant_name} is confirmed.",
                 "",
                 when,
+            ]
+            + manage_text_lines
+            + [
                 "",
                 f"Confirmed via {tenant_name} on Yippie.",
             ]
         )
+
+        manage_html = (
+            f'<p style="margin:14px 0 0 0;">'
+            f'<a href="{_html.escape(manage_url, quote=True)}" '
+            f'style="display:inline-block;padding:10px 20px;background:#f1f5f9;color:#374151;'
+            f'border-radius:6px;text-decoration:none;font-weight:600;border:1px solid #e2e8f0;">'
+            f'Reschedule or cancel</a></p>'
+            if manage_url else ""
+        )
+
         content = (
             f'<h2 style="margin:0 0 12px 0;font-size:20px;">You\'re booked!</h2>'
             f'<p style="margin:0 0 14px 0;">Your meeting with '
             f"{_html.escape(tenant_name)} is confirmed.</p>"
             f'<p style="margin:0 0 14px 0;font-weight:600;color:#374151;">{_html.escape(when)}</p>'
+            f"{manage_html}"
             f'<p style="margin:18px 0 0 0;font-size:13px;color:#6b7280;">'
             f"Confirmed via {_html.escape(tenant_name)} on Yippie.</p>"
         )
@@ -442,6 +532,275 @@ async def _notify_customer_confirmed(
         await send_email(to=contact.email, subject=subject, body=body_text, html=html_body)
     except Exception:  # noqa: BLE001
         logger.exception("Failed to send customer confirmation for event %s", getattr(event, "id", "?"))
+
+
+async def counter_propose(
+    db: AsyncSession,
+    token: BookingToken,
+    slots: list[SlotProposal],
+) -> None:
+    """Record the customer's counter-proposed slots and notify the agent."""
+    token.customer_proposed_slots = [
+        {"start": s.start.isoformat(), "end": s.end.isoformat()} for s in slots
+    ]
+    token.status_override = "counter_proposed"
+    await db.commit()
+
+    contact = await db.get(Contact, token.contact_id)
+    agent = await db.get(User, token.created_by)
+    asyncio.create_task(_notify_agent_counter_proposed(token, slots, contact, agent))
+
+
+async def _notify_agent_counter_proposed(
+    token: BookingToken,
+    slots: list[SlotProposal],
+    contact: Optional[Contact],
+    agent_user: Optional[User],
+) -> None:
+    try:
+        if agent_user is None:
+            return
+        to_addr = agent_user.inbound_email or agent_user.email
+        if not to_addr or not is_valid_email(to_addr):
+            return
+        contact_name = contact.full_name if contact else "A contact"
+        subject = f"{contact_name} proposed new meeting times"
+
+        slot_lines = [f"  • {_format_slot(s.start, s.end)}" for s in slots]
+        body_text = "\n".join(
+            [f"{contact_name} has proposed the following times for a meeting:", ""]
+            + slot_lines
+            + ["", "Log in to accept one of these times."]
+        )
+
+        items_html = "".join(
+            f'<li style="margin:0 0 6px 0;">{_html.escape(_format_slot(s.start, s.end))}</li>'
+            for s in slots
+        )
+        content = (
+            f'<h2 style="margin:0 0 12px 0;font-size:20px;">'
+            f"{_html.escape(contact_name)} proposed new meeting times</h2>"
+            f'<p style="margin:0 0 8px 0;">They suggested the following times:</p>'
+            f'<ul style="margin:0 0 14px 0;padding-left:20px;">{items_html}</ul>'
+            f'<p style="margin:0 0 0 0;font-size:13px;color:#6b7280;">Log in to accept one of these times.</p>'
+        )
+        html_body = render_email_html(body_text, prerendered_html=content)
+        await send_email(to=to_addr, subject=subject, body=body_text, html=html_body)
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "Failed to send counter-propose notification for token %s", getattr(token, "id", "?")
+        )
+
+
+# --------------------------------------------------------------------------- #
+# Manage token helpers (BK7)
+# --------------------------------------------------------------------------- #
+async def get_manage_token(
+    db: AsyncSession, manage_token_uuid: uuid.UUID
+) -> Optional[BookingToken]:
+    """Return BookingToken by manage_token field, or None if not found."""
+    return await db.scalar(
+        select(BookingToken).where(BookingToken.manage_token == manage_token_uuid)
+    )
+
+
+def _is_locked(event_start_at: datetime, cancel_edit_hours_before: int) -> bool:
+    """Return True when the booking is within the lock window."""
+    start = event_start_at
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=timezone.utc)
+    return start - _now() <= timedelta(hours=cancel_edit_hours_before)
+
+
+async def reschedule_booking(
+    db: AsyncSession,
+    token: BookingToken,
+    slot_start: datetime,
+    slot_end: datetime,
+) -> CalendarEvent:
+    """Move the booking to a new time slot.
+
+    Raises ValueError when locked or when the new slot conflicts.
+    """
+    if slot_start.tzinfo is None:
+        slot_start = slot_start.replace(tzinfo=timezone.utc)
+    if slot_end.tzinfo is None:
+        slot_end = slot_end.replace(tzinfo=timezone.utc)
+    if slot_end <= slot_start:
+        raise ValueError("Invalid time slot.")
+
+    settings = await db.scalar(
+        select(CalendarSettings).where(CalendarSettings.tenant_id == token.tenant_id)
+    )
+    hours_before = settings.cancel_edit_hours_before if settings else 24
+
+    event = await db.get(CalendarEvent, token.event_id)
+    if event is None:
+        raise ValueError("No calendar event associated with this booking.")
+
+    if _is_locked(event.start_at, hours_before):
+        raise ValueError(
+            f"Changes are locked — the meeting starts within {hours_before} hours."
+        )
+
+    # Conflict-check the new slot (exclude the current event from the check).
+    conflict = await db.scalar(
+        select(CalendarEvent.id).where(
+            CalendarEvent.tenant_id == token.tenant_id,
+            CalendarEvent.id != event.id,
+            CalendarEvent.start_at < slot_end,
+            CalendarEvent.end_at > slot_start,
+        )
+    )
+    if conflict is not None:
+        raise ValueError("That time is no longer available. Please pick another slot.")
+
+    event.start_at = slot_start
+    event.end_at = slot_end
+    await db.commit()
+    await db.refresh(event)
+
+    contact = await db.get(Contact, token.contact_id)
+    agent = await db.get(User, token.created_by)
+    tenant = await db.get(Tenant, token.tenant_id)
+    asyncio.create_task(_notify_customer_rescheduled(event, contact, tenant))
+    asyncio.create_task(_notify_agent_rescheduled(event, contact, agent))
+    return event
+
+
+async def cancel_booking(db: AsyncSession, token: BookingToken) -> None:
+    """Cancel the booking: delete the calendar event, revoke manage link.
+
+    Raises ValueError when locked.
+    """
+    settings = await db.scalar(
+        select(CalendarSettings).where(CalendarSettings.tenant_id == token.tenant_id)
+    )
+    hours_before = settings.cancel_edit_hours_before if settings else 24
+
+    event = await db.get(CalendarEvent, token.event_id)
+    if event is None:
+        raise ValueError("No calendar event associated with this booking.")
+
+    if _is_locked(event.start_at, hours_before):
+        raise ValueError(
+            f"Changes are locked — the meeting starts within {hours_before} hours."
+        )
+
+    contact = await db.get(Contact, token.contact_id)
+    agent = await db.get(User, token.created_by)
+
+    # Delete the event — FK on booking_tokens.event_id is SET NULL, so the token survives.
+    await db.delete(event)
+
+    # Revoke the booking state and manage link.
+    token.booked_at = None
+    token.manage_token = None
+    token.event_id = None
+
+    await db.commit()
+
+    asyncio.create_task(_notify_agent_cancelled(contact, agent))
+
+
+# --------------------------------------------------------------------------- #
+# Reschedule / cancel email helpers
+# --------------------------------------------------------------------------- #
+async def _notify_customer_rescheduled(
+    event: CalendarEvent, contact: Optional[Contact], tenant: Optional[Tenant]
+) -> None:
+    try:
+        if contact is None or not contact.email or not is_valid_email(contact.email):
+            return
+        tenant_name = tenant.name if tenant else "Yippie"
+        primary_color = tenant.primary_color if tenant else None
+        when = _format_slot(event.start_at, event.end_at)
+        subject = f"Your meeting with {tenant_name} has been rescheduled"
+        body_text = "\n".join(
+            [
+                f"Your meeting with {tenant_name} has been rescheduled.",
+                "",
+                f"New time: {when}",
+                "",
+                f"Via {tenant_name} on Yippie.",
+            ]
+        )
+        content = (
+            f'<h2 style="margin:0 0 12px 0;font-size:20px;">Meeting rescheduled</h2>'
+            f'<p style="margin:0 0 14px 0;">Your meeting with '
+            f"{_html.escape(tenant_name)} has been rescheduled.</p>"
+            f'<p style="margin:0 0 14px 0;font-weight:600;color:#374151;">'
+            f'New time: {_html.escape(when)}</p>'
+            f'<p style="margin:18px 0 0 0;font-size:13px;color:#6b7280;">'
+            f"Via {_html.escape(tenant_name)} on Yippie.</p>"
+        )
+        html_body = render_email_html(
+            body_text,
+            tenant_name=tenant_name,
+            primary_color=primary_color,
+            prerendered_html=content,
+        )
+        await send_email(to=contact.email, subject=subject, body=body_text, html=html_body)
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "Failed to send customer reschedule notification for event %s",
+            getattr(event, "id", "?"),
+        )
+
+
+async def _notify_agent_rescheduled(
+    event: CalendarEvent, contact: Optional[Contact], agent_user: Optional[User]
+) -> None:
+    try:
+        if agent_user is None:
+            return
+        to_addr = agent_user.inbound_email or agent_user.email
+        if not to_addr or not is_valid_email(to_addr):
+            return
+        when = _format_slot(event.start_at, event.end_at)
+        contact_name = contact.full_name if contact else "A contact"
+        subject = f"{contact_name} rescheduled their meeting — {when}"
+        body_text = "\n".join(
+            [f"{contact_name} rescheduled their meeting.", "", f"New time: {when}"]
+        )
+        content = (
+            f'<h2 style="margin:0 0 12px 0;font-size:20px;">'
+            f"{_html.escape(contact_name)} rescheduled</h2>"
+            f'<p style="margin:0 0 14px 0;font-weight:600;color:#374151;">'
+            f'New time: {_html.escape(when)}</p>'
+        )
+        html_body = render_email_html(body_text, prerendered_html=content)
+        await send_email(to=to_addr, subject=subject, body=body_text, html=html_body)
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "Failed to send agent reschedule notification for event %s",
+            getattr(event, "id", "?"),
+        )
+
+
+async def _notify_agent_cancelled(
+    contact: Optional[Contact], agent_user: Optional[User]
+) -> None:
+    try:
+        if agent_user is None:
+            return
+        to_addr = agent_user.inbound_email or agent_user.email
+        if not to_addr or not is_valid_email(to_addr):
+            return
+        contact_name = contact.full_name if contact else "A contact"
+        subject = f"{contact_name} cancelled their meeting"
+        body_text = f"{contact_name} cancelled their meeting."
+        content = (
+            f'<h2 style="margin:0 0 12px 0;font-size:20px;">'
+            f"{_html.escape(contact_name)} cancelled their meeting</h2>"
+        )
+        html_body = render_email_html(body_text, prerendered_html=content)
+        await send_email(to=to_addr, subject=subject, body=body_text, html=html_body)
+    except Exception:  # noqa: BLE001
+        logger.exception(
+            "Failed to send agent cancellation notification for contact %s",
+            getattr(contact, "id", "?"),
+        )
 
 
 async def _notify_agent_confirmed(

@@ -7,6 +7,11 @@ from typing import Literal, Optional
 from pydantic import BaseModel, Field, model_validator
 
 
+class WeeklySlotEntry(BaseModel):
+    time: str  # HH:MM
+    capacity: int = Field(ge=1)
+
+
 class CalendarSettingsOut(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
@@ -15,6 +20,9 @@ class CalendarSettingsOut(BaseModel):
     slot_minutes: int
     booking_expiry_days: int
     post_booking_stage_id: Optional[uuid.UUID] = None
+    weekly_slots: Optional[list] = None
+    use_weekly_slots: bool = False
+    cancel_edit_hours_before: int = 24
 
     model_config = {"from_attributes": True}
 
@@ -25,6 +33,9 @@ class CalendarSettingsUpdate(BaseModel):
     slot_minutes: Optional[int] = Field(default=None, ge=5, le=240)
     booking_expiry_days: Optional[int] = Field(default=None, ge=1, le=60)
     post_booking_stage_id: Optional[uuid.UUID] = None
+    weekly_slots: Optional[list] = None
+    use_weekly_slots: Optional[bool] = None
+    cancel_edit_hours_before: Optional[int] = Field(default=None, ge=1, le=720)
 
 
 class SlotProposal(BaseModel):
@@ -63,10 +74,15 @@ class BookingTokenOut(BaseModel):
     expires_at: datetime
     booked_at: Optional[datetime] = None
     event_id: Optional[uuid.UUID] = None
+    customer_proposed_slots: Optional[list] = None
     created_at: datetime
-    status: Literal["pending", "booked", "expired"]
+    status: Literal["pending", "booked", "expired", "counter_proposed"]
 
     model_config = {"from_attributes": True}
+
+
+class CounterProposeRequest(BaseModel):
+    slots: list[SlotProposal] = Field(min_length=1, max_length=3)
 
 
 class PublicBookingOut(BaseModel):
@@ -77,6 +93,21 @@ class PublicBookingOut(BaseModel):
     message: Optional[str] = None
     expires_at: datetime
     available_slots: list[AvailableSlot]
+
+
+class ManageBookingOut(BaseModel):
+    tenant_name: str
+    contact_first_name: str
+    start_at: datetime
+    end_at: datetime
+    locked: bool
+    available_slots: list[AvailableSlot]
+    cancel_edit_hours_before: int
+
+
+class RescheduleRequest(BaseModel):
+    slot_start: datetime
+    slot_end: datetime
 
 
 class BookingConfirm(BaseModel):
