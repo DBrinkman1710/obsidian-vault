@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     resend_from: str = ""
     resend_webhook_secret: str = ""
     inbound_email: str = ""
+    # Evolution API (WhatsApp) — self-hosted gateway, one instance per tenant slug.
+    evolution_api_url: str = ""
+    evolution_api_token: str = ""
     # Public URL of this environment's client app (e.g. https://sandbox.getyippie.com)
     # — used for links in invite and password-reset emails.
     app_base_url: str = ""
