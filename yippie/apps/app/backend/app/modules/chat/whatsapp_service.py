@@ -32,6 +32,17 @@ async def get_connection_state(instance_name: str) -> str:
         return ""
 
 
+async def get_pairing_qr(instance_name: str) -> dict:
+    settings = get_settings()
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.get(
+            f"{settings.evolution_api_url}/instance/connect/{instance_name}",
+            headers=_headers(),
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+
 async def send_text(instance_name: str, number: str, text: str) -> None:
     settings = get_settings()
     async with httpx.AsyncClient(timeout=10) as client:
