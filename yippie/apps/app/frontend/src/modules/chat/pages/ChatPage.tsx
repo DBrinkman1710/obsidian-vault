@@ -225,7 +225,11 @@ export default function ChatPage() {
           <h2 className="text-sm font-bold text-slate-900 mb-1">Connect WhatsApp</h2>
           <p className="text-xs text-slate-500 mb-3">Scan with WhatsApp to connect</p>
           {qrLoading && <p className="text-xs text-slate-400 py-6">Loading QR code…</p>}
-          {!qrLoading && qrError && <p className="text-xs text-red-500 py-6">Could not load QR code. Retrying…</p>}
+          {!qrLoading && qrError && (
+            <p className="text-xs text-red-500 py-6">
+              Couldn't load the WhatsApp QR — check Evolution API is configured for this environment.
+            </p>
+          )}
           {!qrLoading && !qrError && qrData?.base64 && (
             <>
               <img src={qrData.base64} alt="WhatsApp pairing QR code" className="w-40 h-40 mx-auto" />
