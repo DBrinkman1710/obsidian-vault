@@ -38,7 +38,7 @@ environment / deploy reference lives in **Appendix B**.
 - ~~**Inbox fetch dot**~~ ✅ **DONE (session 29)** — grey when idle, solid green when fetching, no glow.
 - ~~**Hotkeys on/off toggle**~~ ✅ **DONE (session 27)** — per-user toggle in Profile.
 - ~~**Activity page blank**~~ ✅ **DONE (session 42)** — rebuilt `ActivityFeed.tsx`: stat cards now show real activity counts (today/this week/all time) via new `service.get_activity_stats()`; event rows humanized with actor name, colored module dot, clickable links to tickets/inbox drafts; typed `ActivityEventOut` interface (no more `any`). Removed `ticket_service` proxy from `/activity/stats`. Tickets now emit `ticket_created`, `ticket_status_changed`, `ticket_assigned`, `ticket_commented` events via `activity_service.log_event` in `tickets/router.py`. `list_events()` LEFT JOINs users table to resolve `actor_name`.
-- **Attachments** — forward now carries attachments, pickers enforce 10/25 MB caps. **Verify in sandbox**.
+- ~~**Attachments**~~ ✅ **DONE** — forward carries attachments, pickers enforce 10/25 MB caps; verified in sandbox.
 
 **New items collected (session 30 — 2026-06-11):**
 
@@ -98,25 +98,25 @@ environment / deploy reference lives in **Appendix B**.
 - **[C1] Column customisation — Contacts & Companies** — Opus — not built. Users can add, remove, and reorder columns in both the Contacts list and the Companies list. A settings cog (⚙) beneath the "+New contact" / "+New company" button opens a column-picker panel. Visibility and order persisted per-user (or per-tenant as a starting point). See Tier 2.
 - **[C2] Pre-import column mapping** — Opus — not built. Before an import runs, show a mapping step where the user matches incoming CSV/JSON/XLSX columns to Yippie contact fields (name, email, phone, company, etc.). Alternative to requiring users to pre-format the file. Build alongside `[29]`/`[40]`. See Tier 2.
 - ~~**[I1] Inbox search**~~ ✅ **DONE (session 51)** — see Tier 2 entry for the build summary.
-- **[W1] Klimaatexamen primary colour not applied** — Opus — user edited `primary_color` via Clients → Edit → Branding tab but the colour does not appear in the app for that tenant. Likely a cache/stale-config issue — the `GET /tenant/config` response may not be re-fetched after the superadmin PATCH, or the sidebar inline style is not picking up the new value for that tenant session. Investigate and fix. See Tier 2.
+- ~~**[W1] Klimaatexamen primary colour not applied**~~ ✅ **DONE** — fixed.
 - **[V2] All contacts button in compose broken** — already tracked as Tier 3 (see below). No change needed.
 
 **Additional bugs reported (pre-session-28 — fix alongside the above):**
 - ~~**Outbound from-address wrong in ndugu environment**~~ ✅ **DONE** — `queue_send` now resolves `from_email` to `tenant.inbound_email` before `RESEND_FROM`.
-- **Settings page broken** — Code-audited; all routes compile clean. **Needs sandbox repro** — which tab, exact error.
+- ~~**Settings page broken**~~ ✅ **DONE** — fixed.
 - ~~**Client page: too many buttons per row**~~ ✅ **DONE (session 29)** — row shows only View as / Set demo / Edit; toggle/copy/delete in Edit modal's Actions tab.
 - ~~**Compose modal: Send/Quit buttons shift on send**~~ ✅ **DONE (session 29)** — `min-w-0` + stable layout.
 - ~~**Email sent popup still appears after compose send**~~ ✅ **DONE (session 29)** — modal closes immediately on send; only undo bar shows.
 - ~~**Compose modal: close on send, restore on undo**~~ ✅ **DONE (session 29)** — closes immediately, undo bar in parent; undo reopens modal with content restored.
 
 **Legacy open bugs (from before session 27):**
-- **New agent arrived as admin** — code-verified clean session 19; most likely an older invite token. Re-test with a fresh invite.
-- **Personal inbox leaks across users** — check whether `diederik1710@icloud.com` has `users.inbound_email` set to Joost's address; clear if so.
-- **Personal address only receives after first send** — likely test confusion; saving Profile should be sufficient.
+- ~~**New agent arrived as admin**~~ ✅ **DONE** — fixed.
+- ~~**Personal inbox leaks across users**~~ ✅ **DONE** — fixed.
+- ~~**Personal address only receives after first send**~~ ✅ **DONE** — fixed.
 
 **Manual / ops (Diederik):**
 - ~~Cloudflare: delete the duplicate bare DMARC TXT at `_dmarc.getyippie.com`; keep only the one DKIM key shown in Resend at `resend._domainkey.getyippie.com`.~~ ✅ **DONE (2026-06-11)** — single DMARC record with Cloudflare `rua=` reporting, single DKIM verified, SPF verified.
-- klimaatexamen tenant `inbound_email` is NULL → use Clients → Edit → Info tab (now available via [38c]).
+- ~~klimaatexamen tenant `inbound_email` is NULL~~ ✅ **DONE** — set via Clients → Edit → Info tab.
 - Set `INBOUND_EMAIL` in both live Railway envs before go-live.
 
 **New items collected (2026-06-13):**
@@ -134,7 +134,8 @@ environment / deploy reference lives in **Appendix B**.
 - **[BK6] Customer counter-propose dates** — `Opus` — when the contact receives a booking link (open or propose mode), they should be able to **propose their own date/time options** back to the agent instead of only accepting or declining. On the public `/book/:token` page: add a "Propose different times" option that shows a date/time picker where the customer can submit 1–3 alternative slots. Backend: `booking_tokens` gains a `customer_proposed_slots JSONB` array + `status = 'counter_proposed'`; `POST /public/booking/{token}/counter-propose` stores the slots and emails the agent (similar to the existing accept notification). Agent sees counter-proposed tokens in the Bookings panel (new "Waiting" sub-tab or badge) and can click to accept one of the customer's slots (which creates a CalendarEvent) or re-propose. See Tier 2.
 - **[ACT3] Activity page pagination** — `Sonnet` — activity feed currently loads all events at once. Cap at 10 rows per page with next/prev pagination (same pattern as the inbox Sent tab). See Tier 3.
 - **[SIDE1] Sidebar collapse: pages stay at same x position** — `Sonnet` — when the sidebar collapses/expands the main content area shifts left/right because the sidebar is in the flex flow. Pages should remain at the same x position regardless of sidebar state. Attempted fixed-overlay approach (commit 150bbd0) didn't solve it — revisit. See Tier 3.
-- **[BK4] Proposed booking slots: block in calendar** — `Opus` — when the agent proposes specific date/time slots in "Propose times" mode, those slots should appear as tentative/blocked events on the calendar grid until the contact responds. Block when the `booking_token` is created with `proposed_slots`; unblock when: (a) the contact accepts one slot (the accepted slot becomes a confirmed CalendarEvent, all others are freed), (b) the contact declines all, or (c) the token expires. Render tentative slots in the calendar with a distinct style (e.g. dashed border, lighter colour). See Tier 2.
+- ~~**[BK4] Proposed booking slots: block in calendar**~~ ✅ **DONE** — tentative slots blocked in calendar until contact responds.
+- **[BK7] Booking confirmation: customer edit/cancel link** — `Opus` — the confirmation email sent to the customer after a booking is accepted should include an **Edit / Cancel** button. Clicking it takes the customer to a public page (`/book/manage/:token`) where they can reschedule (pick a new slot from the available grid) or cancel outright. Cancellation deletes the `CalendarEvent` and notifies the agent via inbox. Reschedule replaces the event and sends a new confirmation to both parties. A new `cancel_edit_hours_before` field on `calendar_settings` (integer, default 24) controls the cutoff: the manage link is deactivated and shows "Changes can no longer be made — please contact us" when the appointment is within that many hours. Configurable in `BookingSettingsModal`. Backend: `booking_tokens` gains a `manage_token` UUID (generated at confirm time); `GET /public/booking/manage/:manage_token` returns booking details + available slots; `POST /public/booking/manage/:manage_token/reschedule` + `POST /public/booking/manage/:manage_token/cancel`. See Tier 2.
 - **[TK-PAGE] Ticket page full improvement pass** — `Opus` — comprehensive rework of the ticket detail page: (1) **customer panel** in the empty right-side dead space — contact card (name, email, company, labels, recent ticket count) using `GET /contacts/{id}`, extends existing [TK4]; (2) **layout/visual redesign** — better info hierarchy, cleaner section grouping, more breathing room; (3) **additional actions** directly on the ticket — reassign to another agent, merge tickets, escalate priority. Merge and reassign likely need new or extended backend endpoints. See Tier 2.
 
 **Deploy reminder:** both staging envs build the **`sandbox`** branch — ship with
@@ -188,10 +189,12 @@ The heavy lifts: brand-new modules, cross-cutting features, and the creative/mar
 - **Customer data + AI briefing** *(architecture decision)* — `Fable` — define where full contact history is stored; the AI briefing (already running) must pull complete history.
 
 ### Booking & scheduling
+- **[BK7] Booking confirmation: customer edit/cancel link** — `Opus` — confirmation email includes an **Edit / Cancel** button linking to `/book/manage/:manage_token`. Customer can reschedule (new slot from the availability grid) or cancel; cancellation deletes the CalendarEvent + notifies the agent; reschedule replaces it + sends updated confirmations. `cancel_edit_hours_before` setting (default 24h) locks the link when the appointment is within the cutoff window. Backend: `booking_tokens.manage_token` UUID; `GET/POST /public/booking/manage/:manage_token` (details + available slots → reschedule/cancel). `cancel_edit_hours_before` added to `calendar_settings` + exposed in `BookingSettingsModal`. See Tier 2.
 - ~~**[BK1] Booking system**~~ ✅ **DONE (session 55)** — `calendar_settings` (work hours 9–17, slot size, expiry days, post-booking stage) + `booking_tokens` tables (migration `v2w3x4y5z6a7`); booking module: `GET/PATCH /booking/settings`, `POST /booking/send`, `GET/DELETE /booking/tokens`, public `GET /public/booking/{token}` + `POST /public/booking/{token}/confirm`; on confirm: CalendarEvent created, customer confirmation email, agent inbox notification, contact moved to configurable Kanban stage; public `/book/:token` BookingPage (propose-mode accept/decline + open slot picker with green/grey chips); `SendBookingModal` shared component; "Send booking link" on ContactDetail + TicketDetail; Kanban multi-select checkboxes + bulk action bar (open mode); Calendar page Bookings slide-over panel (Pending/Booked/Expired) + collapsible booking settings section. Commit `38c9c6d` — **pending sandbox verification**.
 
 ### Product strategy
-- **[PRICE1] Modular pricing restructure** — `Fable` — *not built.* Define 3 base plans (e.g. Starter / Growth / Pro). Most modules (Tickets, Calendar, Kanban, Chat, etc.) become paid add-ons beyond the base inbox. Update billing model backend (`Tenant.plan` field — extends existing "Billing / plans" item). Add pricing page to `getyippie.com` with plan comparison + module add-on pricing. Coordinate with [WEB1].
+- ~~**[PRICE1] Modular pricing restructure**~~ ✅ **DONE (session 58)** — `PlanTier` enum → `founder|starter|growth|pro` (merge migration `x4y5z6a7b8c9`; `enterprise`→`pro`, `free`→`founder` data update). `PLAN_LIMITS` dict (users/contacts/prices) + `MODULE_PRICES` dict (tickets €15, ai €19, calendar €12, kanban €12, emailtracking €9) in `plans.py`. All features unlocked on all tiers — limits are the differentiator, not feature gating. `GET /tenant/config` returns `plan_limits` + `module_prices`. SuperAdminPage plan dropdown updated to Founder/Starter/Growth/Pro. `/pricing` page on getyippie.com: annual/monthly toggle (10% off), 4 plan cards, Growth "Most popular", module add-on cards, FAQ, final CTA. Commits `81bab34` + `2125546`.
+- **[CUSTOM1] Bespoke package configurator** — `Fable` — *not built.* Public page on `getyippie.com` (`/custom` or `/get-a-plan`) where a potential customer answers a short guided questionnaire (team size, industry, which problems they want to solve, current tools, budget). Output: a recommended Yippie plan + suggested module add-ons with pricing breakdown, plus a prominent "Book a call" CTA (calendar booking or Calendly link). Coordinate with [PRICE1] (plan data) and [WEB1] (design language). Add booking/scheduling mechanic in a future session — for now just the questionnaire flow and recommendation output.
 - **[B2X1] B2B vs B2C client split** — `Fable` — *not built.* Flag per tenant (`client_type: b2b | b2c`). B2B mode: company-centric views, Kanban, account management focus. B2C mode: individual contacts, fast ticket resolution, high-volume inbox. Needs a UX prototype and design pass before building.
 - **[INSIGHT1] Tenant performance analytics** — `Fable` — *not built.* Superadmin dashboard showing per-tenant metrics: tickets open/closed/overdue, inbox response times, AI usage, feature adoption. Highlight "opportunity tenants" with low feature adoption or degrading SLAs to surface upsell suggestions.
 
@@ -212,9 +215,9 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 - ~~**[29] Contact CSV import**~~ ✅ **DONE (session 36b)** — `POST /contacts/import` multipart (CSV + JSON + XLSX), validate, dedupe by email, bulk insert; import widget in ContactsPage.
 - ~~**[40] Contact import — JSON + Excel**~~ ✅ **DONE (session 36b)** — bundled with [29]; same endpoint handles JSON and `.xlsx`.
 - ~~**[C2] Pre-import column mapping**~~ ✅ **DONE (session 49)** — Column mapping step added to the import flow — users match CSV/XLSX columns to Yippie contact fields before the import runs (commit `9aac876`).
-- **[37] Import users / staff from CSV** — `Opus` — `POST /admin/users/import` (own tenant) / `POST /admin/tenants/{id}/users/import` (superadmin); columns name/email/role; validate, dedupe, bulk-invite via Resend; upload widget in Settings → Team. (Platform users, not contacts.)
+- ~~**[37] Import users / staff from CSV**~~ ✅ **DONE** — `POST /admin/users/import` + superadmin path, bulk-invite via Resend, upload widget in Settings → Team.
 - ~~**[20] Multi-select contacts**~~ ✅ **DONE (session 36b)** — checkbox per row + action bar (admins/superadmins): Compose (prefill emails), Export CSV, Label, Delete (soft). Wired into `ContactsPage.tsx` (`f0e4906`).
-- **[39] Contact soft-delete + retention** — `Opus` — add `contacts.deleted_at` (reuse the `tickets.deleted_at` pattern, session 17): retain 1 month, filter/restore within the window, scheduled purge after.
+- ~~**[39] Contact soft-delete + retention**~~ ✅ **DONE** — `contacts.deleted_at`, 1-month retention window, scheduled purge.
 - ~~**[C1] Column customisation — Contacts & Companies**~~ ✅ **DONE (session 49)** — `ColumnPicker.tsx` component + `contact_column_prefs` field on users (migration `r8s9t0u1v2w3_add_contact_column_prefs`); users can toggle/reorder columns in the Contacts list; preferences persisted via `PATCH /auth/me`; gear icon beneath "+New contact" opens picker (commit `9aac876`).
 
 ### Calendar
@@ -234,20 +237,20 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 
 ### Bugs & config
 - ~~**[ACT2] Activity page regression**~~ ✅ **DONE (session 57)** — root cause: `get_kpis()` in `activity/service.py` called `func.count(ContactPipelineEntry.id)`, but `ContactPipelineEntry` has no `id` column (its PK is `contact_id`). This raised `AttributeError: type object 'ContactPipelineEntry' has no attribute 'id'` → `/activity/kpis` returned 500 → the frontend (which only rendered when `kpis` was truthy) showed a blank page. Fixed by counting `contact_id`, and hardened `ActivityFeed.tsx` to render an error state on query failure instead of blanking. Confirmed the 500 in sandbox logs before fixing.
-- **[W1] Klimaatexamen primary colour not applied** — `Opus` — user changed `primary_color` via Clients → Edit → Branding tab but the colour does not appear in the app for that tenant. Likely a stale-config issue: `GET /tenant/config` may not be re-fetched after the superadmin PATCH, or the sidebar inline style isn't picking up the new value for that tenant's session. Investigate and fix.
+- ~~**[W1] Klimaatexamen primary colour not applied**~~ ✅ **DONE** — fixed.
 
 ### Superadmin / client management
 - **[38c] Per-client edit modal (UX redesign)** — ✅ **DONE (session 27).** "Edit modules" button replaced with "Edit" opening a 3-tab modal: Info (name, inbound_email, slug readonly), Modules (module toggles), Branding (primary_color, logo_url + preview). All fields patch via the existing `PATCH /admin/tenants/{id}`. Status buttons kept inline.
-- **[38d] Manage client users from the edit modal** — `Opus` — *partial:* a separate `TenantUsersModal` already lists/adds users; the work is folding add/remove/inactivate into the unified `[38c]` Edit modal (reuse `GET /team/users`, `POST /team/invite`, `PATCH /team/users/{id}`).
-- **[31] Demo environments (template data)** — `Opus` — *partial:* demo mode exists; still need a seed template dataset per demo tenant + a superadmin "Reset to demo" that wipes real data and restores the seed.
+- ~~**[38d] Manage client users from the edit modal**~~ ✅ **DONE** — add/remove/inactivate folded into the unified Edit modal.
+- ~~**[31] Demo environments (template data)**~~ ✅ **DONE** — seed dataset + superadmin "Reset to demo" shipped.
 
 ### Branding & marketing
-- **[SEO1] SEO foundation** — `Opus` — *not built.* Add `<meta>` tags (description, keywords), Open Graph tags, Twitter Card tags, JSON-LD structured data (Organization, WebSite), `sitemap.xml`, `robots.txt` to `apps/web/`. Improve Core Web Vitals scores (LCP, CLS, FID). Target SMB customer-service keywords. Do SEO infrastructure first so the [WEB1] remodel inherits it.
+- ~~**[SEO1] SEO foundation + content pages**~~ ✅ **DONE (session 58)** — Site-wide Open Graph, Twitter Card, `Organization` JSON-LD in `layout.tsx`; `sitemap.ts` + `robots.txt` updated. New pages: `/features` (12-feature 3-col grid), `/for-smbs`, `/for-agencies` (pain/solution rows), `/blog` + 2 posts with `Article` JSON-LD, `/vs-zendesk` comparison table. Shared `SiteNav.tsx` + `SiteFooter.tsx`. All pages have page-level `metadata` exports. Build + `tsc --noEmit` clean. Commit `81bab34`. **Open**: `/vs-freshdesk` still to build.
 - **Branding wiring into the app shell** — ✅ **DONE (session 27).** Sidebar background now reads `primary_color` from tenant config via inline style; the Yippie SVG mark always shows, client `logo_url` appears below it when set. Seed.py now syncs `primary_color` + `logo_url` from config on every deploy; all defaults updated to `#5BA4F5`.
 - **[Phase 11 C — Tier 1] On-page ROI calculator** — ✅ **DONE (session 26)** — see Tier 1 entry above.
 
 ### Promotion & identity (Phase 13)
-- **Promotion: devsandbox → sandbox → live** — `Opus` — push prototype 2.0 to `dev` + `app`; set `diederik@getyippie.com` (individual) + `support@getyippie.com` (shared) on `dev`; sandbox keeps `sb-support@`.
+- ~~**Promotion: devsandbox → sandbox → live**~~ ✅ **DONE** — no longer applicable; deploy flow restructured (see CLAUDE.md).
 - **Send-from aliases + app tour** — `Opus` — single personal mailbox already shipped (`reply_from_email`/`inbound_email`); add a Profile setting for extra "send from" aliases; build a guided in-app tour after first login (welcome email already shipped).
 
 ### Template editor
@@ -303,7 +306,7 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 - ~~**[48] Clickable rows everywhere**~~ ✅ **DONE (session 49)** — TicketList rows already use `<Link to={/tickets/${t.id}}>` for full-row click — confirmed in code. Convention complete across inbox cards, contact rows, and ticket rows.
 - ~~**[8c] Status column labels**~~ ✅ **DONE (session 32)** — Clients table status column replaced with a `<select>` dropdown (active/demo/inactive); clicking fires `PATCH /admin/tenants/{id}`; disabled during mutation.
 - ~~**[6c] Bulk delete clients**~~ ✅ **DONE (session 29)** — Delete button in bulk action bar (root owner only); `BulkDeleteClientsModal` with password gate, calls `POST /admin/tenants/{id}/delete` for each selected client.
-- **Spam → Resend sender block** — `Sonnet` — bulk "spam" already moves drafts to the spam status + retention; still add the call to block the sender in Resend (the one remaining piece of `[12]`).
+- ~~**Spam → Resend sender block**~~ ✅ **DONE** — sender block call to Resend shipped.
 - ~~**[U1] Inbox: remove duplicate select-all**~~ ✅ **DONE (session 32)** — header copy removed; sticky select-all row in scrollable section kept.
 - ~~**[U2] Inbox: add Sent tab**~~ ✅ **DONE (session 32)** — Sent tab filters `/activity` log for `email.replied`/`email.composed` events; shows subject, to, preview, timestamp.
 - ~~**[U3] Client info page: remove Inactivate + Delete**~~ ✅ **DONE (session 32)** — removed from Info tab; they live only in Actions tab.
