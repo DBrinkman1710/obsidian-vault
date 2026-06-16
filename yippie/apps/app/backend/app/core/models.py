@@ -33,10 +33,10 @@ class Tenant(Base):
     )
     primary_color: Mapped[str] = mapped_column(String(20), nullable=False, default="#5BB8E8")
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    # SaaS plan tier for this tenant's own Yippie subscription. Gates advanced
-    # features on top of enabled_modules (see app.core.plans). Stored as the
-    # PlanTier value string; defaults to enterprise so existing access is kept.
-    plan: Mapped[str] = mapped_column(String(20), nullable=False, server_default="enterprise")
+    # SaaS plan tier for this tenant's own Yippie subscription. Plans govern
+    # user/contact limits; modules are à la carte add-ons (see app.core.plans).
+    # Stored as the PlanTier value string; new tenants default to the founder tier.
+    plan: Mapped[str] = mapped_column(String(20), nullable=False, server_default="founder")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     go_live_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

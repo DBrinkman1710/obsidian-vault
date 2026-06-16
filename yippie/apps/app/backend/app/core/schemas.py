@@ -63,5 +63,9 @@ class TenantConfigOut(BaseModel):
     is_active: bool = True
     # Tenant's SaaS plan tier and the feature set it unlocks. The frontend gates
     # a feature only when it is in BOTH enabled_modules AND allowed_features.
-    plan: str = "enterprise"
+    plan: str = "pro"
     allowed_features: list[str] = []
+    # Seat/contact caps for the tenant's plan (None == unlimited) and the
+    # à la carte module add-on prices (euros/month), surfaced for in-app upsell.
+    plan_limits: dict = {}
+    module_prices: dict = {}

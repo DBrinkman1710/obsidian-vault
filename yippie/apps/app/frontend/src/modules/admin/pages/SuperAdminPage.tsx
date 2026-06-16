@@ -16,7 +16,7 @@ const MODULE_LABELS: Record<string, string> = { ai: 'AI', booking: 'Booking' }
 const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod
 
 // SaaS plan tiers — mirrors PlanTier on the backend (app/core/plans.py).
-const PLAN_TIERS = ['free', 'starter', 'pro', 'enterprise'] as const
+const PLAN_TIERS = ['founder', 'starter', 'growth', 'pro'] as const
 const planLabel = (p: string) => p.charAt(0).toUpperCase() + p.slice(1)
 
 type FilterStatus = 'all' | 'active' | 'demo' | 'inactive'
