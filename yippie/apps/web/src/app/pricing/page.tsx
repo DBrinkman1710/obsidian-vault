@@ -15,6 +15,7 @@ type Plan = {
   users: string;
   contacts: string;
   included: string[];
+  allModules?: boolean; // all add-ons bundled — no à la carte needed
   featured?: boolean;
 };
 
@@ -23,7 +24,7 @@ const plans: Plan[] = [
     tier: "Founder",
     tagline: "For early adopters",
     monthly: 9,
-    annual: 8,
+    annual: Math.round(9 * 12 * 0.9),       // 97 billed annually
     users: "2 users",
     contacts: "1,000 contacts",
     included: ["Inbox", "Contacts", "2 users", "1,000 contacts", "Add-ons à la carte"],
@@ -32,7 +33,7 @@ const plans: Plan[] = [
     tier: "Starter",
     tagline: "For small teams",
     monthly: 29,
-    annual: 26,
+    annual: Math.round(29 * 12 * 0.9),      // 313 billed annually
     users: "5 users",
     contacts: "5,000 contacts",
     included: ["Inbox", "Contacts", "5 users", "5,000 contacts", "Add-ons à la carte"],
@@ -41,7 +42,7 @@ const plans: Plan[] = [
     tier: "Growth",
     tagline: "For growing businesses",
     monthly: 69,
-    annual: 62,
+    annual: Math.round(69 * 12 * 0.9),      // 745 billed annually
     users: "15 users",
     contacts: "25,000 contacts",
     included: ["Inbox", "Contacts", "15 users", "25,000 contacts", "Add-ons à la carte"],
@@ -49,12 +50,22 @@ const plans: Plan[] = [
   },
   {
     tier: "Pro",
-    tagline: "For established companies",
-    monthly: 129,
-    annual: 116,
+    tagline: "For established companies — everything included",
+    monthly: 99,
+    annual: Math.round(99 * 12 * 0.9),      // 1069 billed annually
     users: "Unlimited users",
     contacts: "Unlimited contacts",
-    included: ["Inbox", "Contacts", "Unlimited users", "Unlimited contacts", "Add-ons à la carte"],
+    included: [
+      "Inbox + Contacts",
+      "Tickets",
+      "AI auto-drafting",
+      "Calendar + Booking",
+      "Kanban pipeline",
+      "Email tracking",
+      "Unlimited users",
+      "Unlimited contacts",
+    ],
+    allModules: true,
   },
 ];
 
@@ -136,7 +147,8 @@ export default function PricingPage() {
       ? recommendedPlan.annual
       : recommendedPlan.monthly
     : 0;
-  const addOnsTotal = chosenAddOns.reduce((sum, a) => sum + a.price, 0);
+  const proIncludesAll = recommendedPlan?.allModules ?? false;
+  const addOnsTotal = proIncludesAll ? 0 : chosenAddOns.reduce((sum, a) => sum + a.price, 0);
   const estimatedTotal = planPrice + addOnsTotal;
 
   return (
@@ -151,7 +163,8 @@ export default function PricingPage() {
         <h1 className={styles.heroTitle}>Pricing that grows with you</h1>
         <p className={styles.heroSub}>
           Every plan includes the Inbox and Contacts core. Add the modules you
-          need, à la carte. No hidden fees, cancel anytime.
+          need à la carte — or go Pro and get everything in one flat price.
+          No hidden fees, cancel anytime.
         </p>
 
         <div className={styles.toggle}>
@@ -185,8 +198,13 @@ export default function PricingPage() {
               <p className={styles.planTagline}>{plan.tagline}</p>
               <p className={styles.planPrice}>
                 €{annual ? plan.annual : plan.monthly}
-                <sub>/mo</sub>
+                <sub>{annual ? "/yr" : "/mo"}</sub>
               </p>
+              {annual && (
+                <p className={styles.planDiscount}>
+                  10% off — was €{plan.monthly * 12}/yr
+                </p>
+              )}
               <p className={styles.planBilling}>
                 {annual ? "billed annually" : "billed monthly"}
               </p>
@@ -279,19 +297,26 @@ export default function PricingPage() {
                     <span>{recommendedPlan.tier} plan</span>
                     <span>€{planPrice}/mo</span>
                   </div>
-                  {chosenAddOns.map((a) => (
-                    <div key={a.key} className={styles.quizRow}>
-                      <span>+ {a.label}</span>
-                      <span>€{a.price}/mo</span>
+                  {proIncludesAll ? (
+                    <div className={styles.quizRow}>
+                      <span>All modules included</span>
+                      <span>✓</span>
                     </div>
-                  ))}
+                  ) : (
+                    chosenAddOns.map((a) => (
+                      <div key={a.key} className={styles.quizRow}>
+                        <span>+ {a.label}</span>
+                        <span>€{a.price}/mo</span>
+                      </div>
+                    ))
+                  )}
                   <div className={`${styles.quizRow} ${styles.quizTotal}`}>
                     <span>Estimated total</span>
-                    <span>€{estimatedTotal}/mo</span>
+                    <span>€{estimatedTotal}{annual ? "/yr" : "/mo"}</span>
                   </div>
                 </div>
                 <p className={styles.quizResultNote}>
-                  {annual ? "Annual pricing (billed yearly)." : "Monthly pricing."}{" "}
+                  {annual ? "Billed annually (10% off). Add-ons also discounted × 12 × 0.9." : "Billed monthly."}{" "}
                   Add-ons are per workspace.
                 </p>
                 <a href={DEMO_PATH} className={styles.quizResultBtn}>

@@ -65,11 +65,12 @@ PLAN_FEATURES: dict[PlanTier, set[str]] = {
 
 
 # Per-plan seat/contact caps and pricing (euros). ``None`` means unlimited.
+# price_annual = monthly * 12 * 0.9 (10% discount, billed as a single yearly charge)
 PLAN_LIMITS: dict[PlanTier, dict[str, "int | None"]] = {
-    PlanTier.founder: {"users": 2, "contacts": 1_000, "price_monthly": 9, "price_annual": 8},
-    PlanTier.starter: {"users": 5, "contacts": 5_000, "price_monthly": 29, "price_annual": 26},
-    PlanTier.growth: {"users": 15, "contacts": 25_000, "price_monthly": 69, "price_annual": 62},
-    PlanTier.pro: {"users": None, "contacts": None, "price_monthly": 129, "price_annual": 116},
+    PlanTier.founder: {"users": 2,    "contacts": 1_000,  "price_monthly": 9,   "price_annual": round(9   * 12 * 0.9)},
+    PlanTier.starter: {"users": 5,    "contacts": 5_000,  "price_monthly": 29,  "price_annual": round(29  * 12 * 0.9)},
+    PlanTier.growth:  {"users": 15,   "contacts": 25_000, "price_monthly": 69,  "price_annual": round(69  * 12 * 0.9)},
+    PlanTier.pro:     {"users": None, "contacts": None,   "price_monthly": 99,  "price_annual": round(99  * 12 * 0.9)},
 }
 
 

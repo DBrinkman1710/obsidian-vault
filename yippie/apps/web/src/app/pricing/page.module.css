@@ -186,6 +186,13 @@
   vertical-align: baseline;
 }
 
+.planDiscount {
+  font-size: 12px;
+  font-weight: 600;
+  color: #16a34a;
+  margin: 2px 0 0;
+}
+
 .planBilling {
   font-size: 12px;
   color: var(--muted);

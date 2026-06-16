@@ -84,9 +84,9 @@ const plans = [
   },
   {
     tier: "Pro",
-    price: "€129",
-    desc: "For established companies",
-    features: ["Unlimited users", "Unlimited contacts", "Inbox + Contacts", "Add-ons à la carte", "Dedicated support"],
+    price: "€99",
+    desc: "For established companies — everything included",
+    features: ["Unlimited users", "Unlimited contacts", "All modules included", "Dedicated support"],
     cta: "Request demo",
     featured: false,
   },
