@@ -7,7 +7,7 @@ export default function SiteFooter() {
     <footer className={styles.footer}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <a href="/">
-        <img src="/logo.svg" alt="Yippie" className={styles.footerLogo} />
+        <img src="/logo-black-bg.svg" alt="Yippie" className={styles.footerLogo} />
       </a>
       <div className={styles.footerRight}>
         <a href="/features" className={styles.footerLink}>Features</a>

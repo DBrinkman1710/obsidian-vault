@@ -8,7 +8,7 @@ export default function SiteNav() {
     <nav className={styles.nav}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <a href="/">
-        <img src="/logo.svg" alt="Yippie" className={styles.navLogo} />
+        <img src="/logo-black-bg.svg" alt="Yippie" className={styles.navLogo} />
       </a>
       <ul className={styles.navLinks}>
         <li><a href="/features">Features</a></li>
