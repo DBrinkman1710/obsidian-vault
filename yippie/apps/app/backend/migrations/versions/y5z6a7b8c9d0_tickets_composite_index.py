@@ -22,6 +22,7 @@ def upgrade() -> None:
         'ix_tickets_tenant_status_sla',
         'tickets',
         ['tenant_id', 'status', 'sla_due_at'],
+        if_not_exists=True,
     )
 
 
