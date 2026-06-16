@@ -625,7 +625,7 @@ export default function ContactsPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
-  const [activeTab, setActiveTab] = useState<Tab>('companies')
+  const [activeTab, setActiveTab] = useState<Tab>('contacts')
   const [triggerCreate, setTriggerCreate] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)

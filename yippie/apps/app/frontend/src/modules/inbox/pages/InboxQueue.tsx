@@ -1204,7 +1204,17 @@ export default function InboxQueue() {
                   const toAddr = isActivityEvent ? item.payload?.to : item.to_email
                   const kind = isActivityEvent ? item.event_type : item.kind
                   const isCompose = isActivityEvent ? kind === 'email.composed' : kind === 'compose'
-                  const handleCardClick = !isActivityEvent ? () => setSelectedSentItem(item) : undefined
+                  const handleCardClick = !isActivityEvent
+                    ? () => setSelectedSentItem(item)
+                    : (!draftId ? () => setSelectedSentItem({
+                        subject: item.payload?.subject,
+                        to_email: item.payload?.to,
+                        created_at: item.created_at,
+                        status: null,
+                        body: item.payload?.preview || null,
+                        kind: 'compose',
+                        draft_id: null,
+                      }) : undefined)
                   return (
                     <CardEl
                       key={item.id}

@@ -277,13 +277,14 @@ export default function DraftReview() {
   const isMobile = useMobile()
   const [emailExpanded, setEmailExpanded] = useState(false)
 
-  const { data: ctx, isLoading } = useQuery({
+  const { data: ctx, isLoading, isError } = useQuery({
     queryKey: ['draft', id],
     queryFn: () => api.get(`/inbox/drafts/${id}`).then(r => r.data),
     // While the background AI enrichment is running, poll so the suggestions
     // and briefing fill in on their own.
     refetchInterval: (query) =>
       (query.state.data as any)?.draft?.ai_status === 'queued' ? 3_000 : false,
+    retry: 1,
   })
 
   const draft = ctx?.draft
@@ -565,6 +566,17 @@ export default function DraftReview() {
   }
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
+
+  if (isError) {
+    return (
+      <div className="flex flex-col flex-1 items-center justify-center bg-slate-50 gap-3 p-8 text-center">
+        <p className="text-slate-500 font-medium">Couldn't load this email.</p>
+        <button onClick={() => navigate('/inbox')} className="text-sm text-blue-600 underline underline-offset-2">
+          Back to Inbox
+        </button>
+      </div>
+    )
+  }
 
   if (isLoading || !draft) {
     if (isMobile) {

@@ -93,9 +93,14 @@ async def create_contact(
     if data.label_ids is not None:
         contact.labels = await _resolve_labels(db, tenant_id, data.label_ids)
     db.add(contact)
+    # Flush first (INSERT sent to DB, transaction still open) so the re-fetch
+    # runs within the same transaction where SET LOCAL tenant context is still
+    # active.  Committing before re-fetching would revert SET LOCAL, making
+    # the SELECT invisible to RLS.
+    await db.flush()
+    fetched = await get_contact(db, tenant_id, contact.id)
     await db.commit()
-    # Re-fetch so the labels relationship is loaded for serialization.
-    return await get_contact(db, tenant_id, contact.id)
+    return fetched
 
 
 async def update_contact(
@@ -109,8 +114,10 @@ async def update_contact(
         contact.company_id = await _resolve_company_id(db, contact.tenant_id, data.company_id)
     if "label_ids" in provided:
         contact.labels = await _resolve_labels(db, contact.tenant_id, data.label_ids or [])
+    await db.flush()
+    fetched = await get_contact(db, contact.tenant_id, contact.id)
     await db.commit()
-    return await get_contact(db, contact.tenant_id, contact.id)
+    return fetched
 
 
 async def delete_contact(db: AsyncSession, contact: Contact) -> None:
