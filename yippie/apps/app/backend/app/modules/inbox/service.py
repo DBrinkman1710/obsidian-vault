@@ -903,6 +903,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                     resend_email_id=resend_id,
                     to_email=c["to_email"],
                     subject=c["subject"],
+                    body=c["reply_text"],
                     actor_id=c["actor_id"],
                     contact_id=c["contact_id"],
                     draft_id=c["draft_id"],

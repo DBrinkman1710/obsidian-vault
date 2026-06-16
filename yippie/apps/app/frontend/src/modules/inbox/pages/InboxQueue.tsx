@@ -731,6 +731,7 @@ export default function InboxQueue() {
   const [composeInitial, setComposeInitial] = useState<ComposeInitialState | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(0)
+  const [selectedSentItem, setSelectedSentItem] = useState<any | null>(null)
   // Shared search query — persists across Pending/Processed/Sent tab switches.
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -1194,17 +1195,21 @@ export default function InboxQueue() {
               <div className="flex flex-col gap-3">
                 {pageSentList.map((item: any) => {
                   const isActivityEvent = !!item.event_type
-                  const draftId = isActivityEvent ? item.payload?.draft_id : item.draft_id
+                  // Activity events have a real draft_id in payload → link to DraftReview.
+                  // Tracking-path OutboundEmail items → open body modal instead.
+                  const draftId = isActivityEvent ? item.payload?.draft_id : null
                   const CardEl = draftId ? Link : 'div'
                   const cardProps = draftId ? { to: `/inbox/drafts/${draftId}` } : {}
                   const subject = isActivityEvent ? (item.payload?.subject ?? '(no subject)') : (item.subject ?? '(no subject)')
                   const toAddr = isActivityEvent ? item.payload?.to : item.to_email
                   const kind = isActivityEvent ? item.event_type : item.kind
                   const isCompose = isActivityEvent ? kind === 'email.composed' : kind === 'compose'
+                  const handleCardClick = !isActivityEvent ? () => setSelectedSentItem(item) : undefined
                   return (
                     <CardEl
                       key={item.id}
                       {...(cardProps as any)}
+                      onClick={handleCardClick}
                       className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-3 transition-all hover:border-blue-300 hover:shadow-md cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
@@ -1420,6 +1425,46 @@ export default function InboxQueue() {
           onSendQueued={handleSendQueued}
           initialState={composeInitial}
         />
+      )}
+
+      {/* Sent mail body modal — for tracking-path OutboundEmail items */}
+      {selectedSentItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900 truncate pr-2">
+                {selectedSentItem.subject ?? '(no subject)'}
+              </h2>
+              <button onClick={() => setSelectedSentItem(null)} className="text-slate-400 hover:text-slate-600 shrink-0">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <div className="text-xs text-slate-500 flex flex-wrap gap-3">
+                <span>To: <strong className="text-slate-700">{selectedSentItem.to_email}</strong></span>
+                <span>{new Date(selectedSentItem.created_at).toLocaleString()}</span>
+                {statusBadge(selectedSentItem.status)}
+              </div>
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 max-h-64 overflow-y-auto">
+                {selectedSentItem.body
+                  ? <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">{selectedSentItem.body}</p>
+                  : <p className="text-sm text-slate-400 italic">Body not available for this email</p>
+                }
+              </div>
+              {selectedSentItem.kind === 'reply' && selectedSentItem.draft_id && (
+                <div className="flex justify-end pt-2 border-t border-slate-100">
+                  <Link
+                    to={`/inbox/drafts/${selectedSentItem.draft_id}`}
+                    onClick={() => setSelectedSentItem(null)}
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    View original email →
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Undo bar — shown after compose send, outside the modal */}

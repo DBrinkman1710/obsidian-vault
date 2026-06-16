@@ -35,6 +35,7 @@ const TemplatesPage            = lazy(() => import('./modules/admin/pages/Templa
 const TrackConfirmPage = lazy(() => import('./pages/TrackConfirmPage'))
 const RequestDemoPage = lazy(() => import('./pages/RequestDemoPage'))
 const BookingPage = lazy(() => import('./pages/BookingPage'))
+const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -80,12 +81,13 @@ export default function App() {
   const [configError, setConfigError] = useState(false)
   useGlobalHotkeys()
 
-  // Public booking page is standalone — render it without the app shell or auth,
+  // Public booking pages are standalone — render without the app shell or auth,
   // regardless of whether someone is logged in.
   if (window.location.pathname.startsWith('/book/')) {
     return (
       <Suspense fallback={null}>
         <Routes>
+          <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
           <Route path="/book/:token" element={<BookingPage />} />
         </Routes>
       </Suspense>
@@ -113,6 +115,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/track/confirm" element={<TrackConfirmPage />} />
           <Route path="/request-demo" element={<RequestDemoPage />} />
+          <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
           <Route path="/book/:token" element={<BookingPage />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
@@ -140,7 +143,7 @@ export default function App() {
     <TenantConfigContext.Provider value={config}>
       <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
         <Sidebar />
-        <main className="flex-1 overflow-hidden flex flex-col pb-16 md:pb-0">
+        <main className="flex-1 overflow-hidden flex flex-col pb-16 md:pb-0 md:ml-14">
           {impersonating && (
             <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4 flex items-center justify-center gap-3">
               <span>

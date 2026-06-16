@@ -105,8 +105,11 @@ function KpiRow({ label, value }: { label: string; value: string }) {
   )
 }
 
+const EVENTS_PER_PAGE = 10
+
 export default function ActivityFeed() {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
+  const [eventsPage, setEventsPage] = useState(0)
 
   const { data: kpis, isLoading, isError } = useQuery<Kpis>({
     queryKey: ['activity-kpis'],
@@ -124,10 +127,15 @@ export default function ActivityFeed() {
     queryFn: () =>
       api
         .get('/activity', {
-          params: { pipeline_stage_id: selectedStageId || undefined, limit: 100 },
+          params: { pipeline_stage_id: selectedStageId || undefined, limit: 500 },
         })
         .then(r => r.data),
   })
+
+  const allEvents = events ?? []
+  const eventPageCount = Math.max(1, Math.ceil(allEvents.length / EVENTS_PER_PAGE))
+  const safePage = Math.min(eventsPage, eventPageCount - 1)
+  const pageEvents = allEvents.slice(safePage * EVENTS_PER_PAGE, (safePage + 1) * EVENTS_PER_PAGE)
 
   return (
     <div>
@@ -221,7 +229,7 @@ export default function ActivityFeed() {
             {stages && stages.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 mb-4">
                 <button
-                  onClick={() => setSelectedStageId(null)}
+                  onClick={() => { setSelectedStageId(null); setEventsPage(0) }}
                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${selectedStageId === null ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'}`}
                 >
                   All
@@ -229,7 +237,7 @@ export default function ActivityFeed() {
                 {stages.map(stage => (
                   <button
                     key={stage.id}
-                    onClick={() => setSelectedStageId(selectedStageId === stage.id ? null : stage.id)}
+                    onClick={() => { setSelectedStageId(selectedStageId === stage.id ? null : stage.id); setEventsPage(0) }}
                     className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${selectedStageId === stage.id ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'}`}
                   >
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
@@ -240,23 +248,46 @@ export default function ActivityFeed() {
             )}
 
             <div className={CARD}>
-              {!events || events.length === 0 ? (
+              {allEvents.length === 0 ? (
                 <p className="text-sm text-slate-400">No activity to show</p>
               ) : (
-                <ul className="divide-y divide-slate-100">
-                  {events.map(event => (
-                    <li key={event.id} className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-                      <span className="text-sm text-slate-700 truncate">
-                        <span className="font-semibold text-slate-900">{event.actor_name ?? 'System'}</span>
-                        {' '}
-                        <span className="text-slate-500">{event.event_type.replace(/[._]/g, ' ')}</span>
+                <>
+                  <ul className="divide-y divide-slate-100">
+                    {pageEvents.map(event => (
+                      <li key={event.id} className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+                        <span className="text-sm text-slate-700 truncate">
+                          <span className="font-semibold text-slate-900">{event.actor_name ?? 'System'}</span>
+                          {' '}
+                          <span className="text-slate-500">{event.event_type.replace(/[._]/g, ' ')}</span>
+                        </span>
+                        <span className="text-xs text-slate-400 shrink-0 tabular-nums">
+                          {new Date(event.created_at).toLocaleString()}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                  {eventPageCount > 1 && (
+                    <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-slate-100">
+                      <button
+                        onClick={() => setEventsPage(p => Math.max(0, p - 1))}
+                        disabled={safePage === 0}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        ← Prev
+                      </button>
+                      <span className="text-xs text-slate-500 font-medium">
+                        {safePage + 1} / {eventPageCount}
                       </span>
-                      <span className="text-xs text-slate-400 shrink-0 tabular-nums">
-                        {new Date(event.created_at).toLocaleString()}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
+                      <button
+                        onClick={() => setEventsPage(p => Math.min(eventPageCount - 1, p + 1))}
+                        disabled={safePage >= eventPageCount - 1}
+                        className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </section>

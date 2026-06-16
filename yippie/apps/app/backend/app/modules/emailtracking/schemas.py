@@ -9,6 +9,7 @@ class OutboundEmailOut(BaseModel):
     resend_email_id: str | None
     to_email: str
     subject: str
+    body: str | None
     actor_id: uuid.UUID | None
     contact_id: uuid.UUID | None
     draft_id: uuid.UUID | None
