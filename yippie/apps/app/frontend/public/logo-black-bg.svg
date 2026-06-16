@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 680 400" width="680" height="400">
-<rect width="680" height="400" fill="#FFFFFF"/>
+<rect width="680" height="400" fill="#0F172A"/>
 
   <defs>
     <linearGradient id="ag1" x1="0" y1="1" x2="0" y2="0" gradientUnits="objectBoundingBox">
@@ -179,6 +179,6 @@
   <line x1="265" y1="107" x2="329" y2="120" stroke="#5BA4F5"  stroke-width="0.8" opacity="0.18"/>
   <line x1="290" y1="262" x2="350" y2="200" stroke="#7BBCFF" stroke-width="0.8" opacity="0.18"/>
   <line x1="237" y1="200" x2="303" y2="313" stroke="#5BA4F5"  stroke-width="0.8" opacity="0.15"/>
-  <text x="400" y="188" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="700" fill="#1E293B" letter-spacing="-1.5">yippie</text>
-  <text x="402" y="220" font-family="system-ui,-apple-system,sans-serif" font-size="11" font-weight="400" fill="#94A3B8" letter-spacing="4">CUSTOMER PLATFORM</text>
+  <text x="400" y="188" font-family="system-ui,-apple-system,sans-serif" font-size="42" font-weight="700" fill="#FFFFFF" letter-spacing="-1.5">yippie</text>
+  <text x="402" y="220" font-family="system-ui,-apple-system,sans-serif" font-size="11" font-weight="400" fill="#FFFFFF" opacity="0.65" letter-spacing="4">CUSTOMER PLATFORM</text>
 </svg>

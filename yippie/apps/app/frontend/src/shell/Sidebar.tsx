@@ -114,14 +114,11 @@ export function Sidebar() {
 
       {/* Logo + tenant */}
       <div className={`pt-6 pb-5 ${collapsed ? 'px-3' : 'px-5'}`}>
-        <div className="flex items-center gap-2 mb-1">
-          <svg viewBox="0 0 36 36" className="w-7 h-7 shrink-0" fill="white">
-            <circle cx="10" cy="8" r="4" />
-            <path d="M4 28 Q10 36 18 30" strokeWidth="3.5" stroke="white" fill="none" strokeLinecap="round"/>
-            <circle cx="21" cy="5" r="2.5" />
-          </svg>
-          {!collapsed && (
-            <span className="text-white font-bold text-xl tracking-tight">yippie</span>
+        <div className="flex items-center mb-1">
+          {collapsed ? (
+            <img src="/logo-blue-bg-mark.svg" alt="Yippie" className="h-8 w-8 shrink-0" />
+          ) : (
+            <img src="/logo-blue-bg.svg" alt="Yippie" className="h-10 w-auto" />
           )}
         </div>
         {!collapsed && config.branding.logo_url && (

@@ -3,13 +3,8 @@ export function AuthShell({ subtitle, children }: { subtitle: string; children: 
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="mb-8 text-center">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <svg viewBox="0 0 36 36" className="w-8 h-8" fill="#5BA4F5">
-              <circle cx="10" cy="8" r="4" />
-              <path d="M4 28 Q10 36 18 30" strokeWidth="3.5" stroke="#5BA4F5" fill="none" strokeLinecap="round"/>
-              <circle cx="21" cy="5" r="2.5" />
-            </svg>
-            <span className="text-2xl font-bold text-slate-900">yippie</span>
+          <div className="flex justify-center mb-3">
+            <img src="/logo.svg" alt="Yippie" className="h-12 w-auto" />
           </div>
           <p className="text-sm text-slate-500">{subtitle}</p>
         </div>
