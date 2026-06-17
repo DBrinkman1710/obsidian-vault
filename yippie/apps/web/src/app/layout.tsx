@@ -31,10 +31,6 @@ export const metadata: Metadata = {
   description:
     "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.",
   metadataBase: new URL(SITE_URL),
-  icons: {
-    icon: "/favicon.svg",
-    shortcut: "/favicon.svg",
-  },
   keywords: [
     "customer service",
     "SMB",
@@ -83,8 +79,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
       <head>
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="shortcut icon" href="/favicon.svg" />
         <Analytics />
       </head>
       <body>
