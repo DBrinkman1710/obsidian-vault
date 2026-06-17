@@ -212,6 +212,11 @@ async def request_demo(
     except Exception:
         pass  # demo is created; email failure must not fail the response
 
+    # All remaining writes are in the root tenant — set RLS context so
+    # pipeline_stages INSERT/SELECT passes the tenant_isolation policy.
+    from app.database import set_tenant_context
+    await set_tenant_context(db, str(root_tenant_id))
+
     # File a follow-up Contact + Ticket in the root owner's own tenant.
     label = await _ensure_demo_label(db, root_tenant_id)
     contact = Contact(
