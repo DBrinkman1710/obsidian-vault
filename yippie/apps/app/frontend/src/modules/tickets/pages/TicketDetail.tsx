@@ -389,6 +389,12 @@ function CustomerPanel({ contactId, ticket }: { contactId: string | null; ticket
 
   return (
     <aside className="w-96 flex-shrink-0">
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">Contact</h2>
+          <p className="text-sm text-slate-500">Customer context &amp; history.</p>
+        </div>
+      </div>
       {/* Contact card */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {!contactId ? (
