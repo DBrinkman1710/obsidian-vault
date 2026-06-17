@@ -312,7 +312,12 @@ async def get_whatsapp_qr(current_user: CurrentUser, db: DB):
         )
         raise HTTPException(status_code=502, detail="Evolution API error — check server logs")
     except Exception as exc:
-        logger.error("Could not reach Evolution API for tenant '%s': %s", tenant.slug, exc)
+        logger.error(
+            "Could not reach Evolution API for tenant '%s': %s: %s",
+            tenant.slug,
+            type(exc).__name__,
+            exc,
+        )
         raise HTTPException(status_code=502, detail="Could not reach Evolution API")
 
     return {
