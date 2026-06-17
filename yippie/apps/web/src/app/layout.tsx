@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
-import { GoogleAnalytics } from "@next/third-parties/google";
+import Script from "next/script";
 import ConsentDefaults from "./components/ConsentDefaults";
 import CookieBanner from "./components/CookieBanner";
 import "./globals.css";
@@ -90,7 +90,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <CookieBanner />
       </body>
-      <GoogleAnalytics gaId="G-L5HHNHVNQD" />
+      {/* beforeInteractive injects a literal <script> in the server HTML so Google Tag Assistant detects it */}
+      <Script strategy="beforeInteractive" src="https://www.googletagmanager.com/gtag/js?id=G-L5HHNHVNQD" />
+      <Script id="gtag-config" strategy="beforeInteractive">
+        {`gtag('js', new Date()); gtag('config', 'G-L5HHNHVNQD');`}
+      </Script>
     </html>
   );
 }
