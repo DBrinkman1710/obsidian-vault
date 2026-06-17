@@ -74,7 +74,12 @@ def _parse_import_file(filename: str, content: bytes) -> list[dict]:
         for raw in rows_iter:
             if raw is None or all(v is None for v in raw):
                 continue
-            out.append({keys[i]: raw[i] for i in range(len(keys)) if keys[i]})
+            # Use min() to guard against short rows (read_only mode omits trailing empty cells)
+            out.append({
+                keys[i]: (str(raw[i]) if raw[i] is not None else None)
+                for i in range(min(len(keys), len(raw)))
+                if keys[i]
+            })
         return out
 
     # default: CSV

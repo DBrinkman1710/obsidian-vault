@@ -322,6 +322,7 @@ function ContactsTab() {
   const { user, refreshUser } = useAuth()
   const [search, setSearch] = useState('')
   const [labelFilter, setLabelFilter] = useState<string | null>(null)
+  const [companyFilter, setCompanyFilter] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
 
@@ -337,9 +338,9 @@ function ContactsTab() {
   const { data: labels } = useQuery({ queryKey: ['contact-labels'], queryFn: fetchLabels })
   const { data: companies } = useQuery<Company[]>({ queryKey: ['companies'], queryFn: fetchCompanies })
   const { data, isLoading } = useQuery({
-    queryKey: ['contacts', search, labelFilter],
+    queryKey: ['contacts', search, labelFilter, companyFilter],
     queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', {
-      params: { search: search || undefined, label_id: labelFilter || undefined },
+      params: { search: search || undefined, label_id: labelFilter || undefined, company_id: companyFilter || undefined },
     }).then(r => r.data),
   })
 
@@ -396,6 +397,18 @@ function ContactsTab() {
         </div>
       )}
 
+      {companyFilter && companies && (
+        <div className="flex items-center gap-1.5 mb-4">
+          <span className="text-xs text-slate-500 font-medium">Company:</span>
+          <button
+            onClick={() => setCompanyFilter(null)}
+            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
+            <Building2 size={10} />
+            {companies.find(co => co.id === companyFilter)?.name ?? 'Company'}
+            <X size={10} className="ml-0.5" />
+          </button>
+        </div>
+      )}
 
       {selected.size > 0 && (
         <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
@@ -467,7 +480,10 @@ function ContactsTab() {
                     if (col.key === 'company') return (
                       <td key={col.key} className={`${responsive} px-4 py-3 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>
                         {c.company ? (
-                          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200">
+                          <span
+                            onClick={e => { e.stopPropagation(); setCompanyFilter(companyFilter === c.company!.id ? null : c.company!.id) }}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors cursor-pointer"
+                            title={`Filter by ${c.company.name}`}>
                             <Building2 size={10} />{c.company.name}
                           </span>
                         ) : <span className="text-sm text-slate-400">—</span>}

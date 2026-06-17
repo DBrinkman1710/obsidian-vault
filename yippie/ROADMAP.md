@@ -37,9 +37,9 @@ Everything below must be done **before** going live. Items not listed here are d
 
 **Tier 3 / ops (quick):**
 - [ ] [LIVECHAT-QR] Fix WhatsApp QR code
-- [ ] [CO-CLICK] Companies clickable → contact list
-- [ ] [36b-6] XLSX import fix
-- [ ] [V4] Profile: narrow email/signature box
+- [x] [CO-CLICK] Companies clickable → contact list ✅ session 60
+- [x] [36b-6] XLSX import fix ✅ session 60
+- [x] [V4] Profile: narrow email/signature box ✅ session 60
 - [ ] [PRIV1] Railway private DB URL (env var, no code)
 - [ ] [Phase 13] Set invite-link base URL env vars
 - [ ] Set `INBOUND_EMAIL` + `diederik@getyippie.com` in live Railway envs
