@@ -18,15 +18,21 @@ const STATUS_LABELS: Record<string, string> = {
   closed:      'Closed',
 }
 
-const STATUS_STYLES: Record<string, string> = {
-  open:        'bg-blue-600 text-white border-blue-600',
-  in_progress: 'bg-amber-500 text-white border-amber-500',
-  waiting:     'bg-amber-500 text-white border-amber-500',
-  resolved:    'bg-green-600 text-white border-green-600',
-  closed:      'bg-slate-500 text-white border-slate-500',
+const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent']
+
+const PRIORITY_LABELS: Record<string, string> = {
+  low:    'Low',
+  medium: 'Medium',
+  high:   'High',
+  urgent: 'Urgent',
 }
 
-const STATUS_INACTIVE = 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+const PRIORITY_TEXT: Record<string, string> = {
+  low:    'text-slate-600',
+  medium: 'text-blue-600',
+  high:   'text-amber-600',
+  urgent: 'text-red-600',
+}
 
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>()
@@ -37,7 +43,8 @@ export default function TicketDetail() {
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const canDelete = user?.role === 'admin' || user?.role === 'superadmin'
   const [comment, setComment] = useState('')
-  const [isInternal, setIsInternal] = useState(false)
+  const [activeTab, setActiveTab] = useState<'reply' | 'internal'>('reply')
+  const isInternal = activeTab === 'internal'
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [bookingOpen, setBookingOpen] = useState(false)
@@ -68,6 +75,37 @@ export default function TicketDetail() {
     onError: (_err, _status, ctx) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
       toast.error('Failed to update status.')
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
+  })
+
+  const priorityMutation = useMutation({
+    mutationFn: (priority: string) => api.patch(`/tickets/${id}`, { priority }),
+    onMutate: async (priority) => {
+      await qc.cancelQueries({ queryKey: ['ticket', id] })
+      const prev = qc.getQueryData(['ticket', id])
+      qc.setQueryData(['ticket', id], (old: any) => old ? { ...old, priority } : old)
+      return { prev }
+    },
+    onError: (_err, _priority, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
+      toast.error('Failed to update priority.')
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
+  })
+
+  const snoozeMutation = useMutation({
+    mutationFn: () => api.post(`/tickets/${id}/snooze`),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ['ticket', id] })
+      const prev = qc.getQueryData(['ticket', id])
+      qc.setQueryData(['ticket', id], (old: any) =>
+        old ? { ...old, sla_due_at: new Date(Date.now() + 86400000).toISOString() } : old)
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
+      toast.error('Failed to snooze ticket.')
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
   })
@@ -139,9 +177,30 @@ export default function TicketDetail() {
         const due = new Date(ticket.sla_due_at)
         const hoursLeft = (due.getTime() - Date.now()) / 3_600_000
         if (hoursLeft > 24) return null
+        const overdue = hoursLeft < 0
         return (
-          <div className={`mb-4 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center gap-2 ${hoursLeft < 0 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
-            ⚠ {hoursLeft < 0 ? `SLA overdue (was due ${due.toLocaleString()})` : `SLA due in ${Math.ceil(hoursLeft)}h — ${due.toLocaleString()}`}
+          <div className={`mb-4 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-3 ${overdue ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
+            <span className="flex items-center gap-2 min-w-0">
+              ⚠ {overdue ? `SLA overdue (was due ${due.toLocaleString()})` : `SLA due in ${Math.ceil(hoursLeft)}h — ${due.toLocaleString()}`}
+            </span>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => snoozeMutation.mutate()}
+                disabled={snoozeMutation.isPending}
+                className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 ${overdue ? 'border-red-300 text-red-700 hover:bg-red-100' : 'border-orange-300 text-orange-700 hover:bg-orange-100'}`}
+              >
+                Snooze 24h
+              </button>
+              {ticket.priority !== 'urgent' && (
+                <button
+                  onClick={() => priorityMutation.mutate('urgent')}
+                  disabled={priorityMutation.isPending}
+                  className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 ${overdue ? 'border-red-300 text-red-700 hover:bg-red-100' : 'border-orange-300 text-orange-700 hover:bg-orange-100'}`}
+                >
+                  Escalate
+                </button>
+              )}
+            </div>
           </div>
         )
       })()}
@@ -149,6 +208,26 @@ export default function TicketDetail() {
       <div className="flex items-start justify-between gap-4 mb-2">
         <h1 className="text-2xl font-bold text-slate-900">{ticket.subject}</h1>
         <div className="flex items-center gap-2 flex-shrink-0">
+          <select
+            value={ticket.status}
+            onChange={e => statusMutation.mutate(e.target.value)}
+            disabled={statusMutation.isPending}
+            className="text-xs px-2 py-1 rounded-lg border border-slate-200 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50"
+          >
+            {STATUS_OPTIONS.map(s => (
+              <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>
+            ))}
+          </select>
+          <select
+            value={ticket.priority}
+            onChange={e => priorityMutation.mutate(e.target.value)}
+            disabled={priorityMutation.isPending}
+            className={`text-xs px-2 py-1 rounded-lg border border-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 ${PRIORITY_TEXT[ticket.priority] ?? 'text-slate-600'}`}
+          >
+            {PRIORITY_OPTIONS.map(p => (
+              <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>
+            ))}
+          </select>
           {bookingEnabled && ticket.contact_id && ticketContact && (
             <button
               onClick={() => setBookingOpen(true)}
@@ -179,8 +258,6 @@ export default function TicketDetail() {
       )}
 
       <div className="flex gap-3 mb-6 text-sm text-slate-600">
-        <span>Status: <strong className="text-slate-900">{STATUS_LABELS[ticket.status] ?? ticket.status}</strong></span>
-        <span>Priority: <strong className="text-slate-900">{ticket.priority}</strong></span>
         <span>Source: <strong className="text-slate-900">{ticket.source}</strong></span>
       </div>
 
@@ -189,19 +266,6 @@ export default function TicketDetail() {
           {ticket.description}
         </p>
       )}
-
-      <div className="flex gap-2 mb-8 flex-wrap">
-        {STATUS_OPTIONS.map(s => (
-          <button
-            key={s}
-            onClick={() => statusMutation.mutate(s)}
-            disabled={statusMutation.isPending}
-            className={`px-3 py-1.5 rounded-full text-xs font-semibold border transition-colors capitalize disabled:opacity-50 disabled:cursor-not-allowed ${ticket.status === s ? STATUS_STYLES[s] : STATUS_INACTIVE}`}
-          >
-            {STATUS_LABELS[s] ?? s.replace('_', ' ')}
-          </button>
-        ))}
-      </div>
 
       <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Comments</h3>
 
@@ -224,24 +288,29 @@ export default function TicketDetail() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+        <div className="flex items-center gap-1 mb-2">
+          <button
+            onClick={() => setActiveTab('reply')}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-t-lg border border-b-0 transition-colors ${activeTab === 'reply' ? 'bg-white text-slate-900 border-slate-200' : 'bg-slate-50 text-slate-500 border-transparent hover:text-slate-700'}`}
+          >
+            Reply
+          </button>
+          <button
+            onClick={() => setActiveTab('internal')}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg border border-b-0 transition-colors ${activeTab === 'internal' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-500 border-transparent hover:text-slate-700'}`}
+          >
+            <Lock size={11} />
+            Internal Note
+          </button>
+        </div>
         <textarea
           value={comment}
           onChange={e => setComment(e.target.value)}
-          placeholder="Write a reply or note…"
+          placeholder={isInternal ? 'Write an internal note…' : 'Write a reply…'}
           rows={4}
-          className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400"
+          className={`w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 rounded-lg p-2 ${isInternal ? 'bg-amber-50' : 'bg-white'}`}
         />
-        <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
-          <label className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={isInternal}
-              onChange={e => setIsInternal(e.target.checked)}
-              className="rounded border-slate-300"
-            />
-            <Lock size={12} className="text-slate-400" />
-            Internal note
-          </label>
+        <div className="flex items-center justify-end mt-3 pt-3 border-t border-slate-100">
           <button
             onClick={() => commentMutation.mutate()}
             disabled={!comment.trim() || commentMutation.isPending}
@@ -254,7 +323,7 @@ export default function TicketDetail() {
         </div>
       </div>
     </div>
-    {ticket.contact_id && <CustomerPanel contactId={ticket.contact_id} />}
+    {ticket.contact_id && <CustomerPanel contactId={ticket.contact_id} ticket={ticket} />}
     </div>
   )
 }
@@ -286,7 +355,7 @@ function draftSubject(d: any): string {
   return d.final_subject ?? d.ai_suggested_subject ?? d.inbound_subject ?? '(no subject)'
 }
 
-function CustomerPanel({ contactId }: { contactId: string }) {
+function CustomerPanel({ contactId, ticket }: { contactId: string; ticket: any }) {
   const navigate = useNavigate()
   const [openDraft, setOpenDraft] = useState<any | null>(null)
 
@@ -306,6 +375,14 @@ function CustomerPanel({ contactId }: { contactId: string }) {
 
   const recent = (drafts ?? []).slice(0, 5)
   const ticketCount = ticketsData?.total ?? 0
+
+  const scanText = `${ticket?.description ?? ''} ${ticket?.subject ?? ''}`
+  const invoiceMatches = Array.from(
+    new Set(scanText.match(/INV[-\s]?\d+|#\d{4,}/gi) ?? [])
+  )
+  const priorTickets = (ticketsData?.items ?? []).filter((t: any) => t.id !== ticket?.id)
+  const priorCount = Math.max(ticketCount - 1, 0)
+  const priorSubjects = priorTickets.slice(0, 2)
 
   return (
     <aside className="w-72 shrink-0">
@@ -370,6 +447,49 @@ function CustomerPanel({ contactId }: { contactId: string }) {
               <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(d.created_at)}</span>
             </button>
           ))}
+        </div>
+      </div>
+
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mt-4">
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
+          Context scan
+        </h3>
+        <div className="flex flex-col gap-3">
+          <div>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Subject</p>
+            <p className="text-xs text-slate-700">{ticket?.subject ?? '—'}</p>
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Invoice #</p>
+            {invoiceMatches.length > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {invoiceMatches.map(m => (
+                  <span key={m} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                    {m}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">None found</p>
+            )}
+          </div>
+          <div>
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Previous contacts</p>
+            <p className="text-xs text-slate-700">{priorCount} prior ticket{priorCount === 1 ? '' : 's'}</p>
+            {priorSubjects.length > 0 && (
+              <div className="flex flex-col gap-0.5 mt-1.5">
+                {priorSubjects.map((t: any) => (
+                  <button
+                    key={t.id}
+                    onClick={() => navigate(`/tickets/${t.id}`)}
+                    className="text-left text-xs text-slate-500 hover:text-blue-600 truncate"
+                  >
+                    {t.subject}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

@@ -274,6 +274,15 @@ async def update_ticket(db: AsyncSession, ticket: Ticket, data: TicketUpdate) ->
     return _enrich_tickets([ticket], dept_names, last_comments)[0]
 
 
+async def snooze_ticket(db: AsyncSession, ticket: Ticket) -> TicketOut:
+    ticket.sla_due_at = datetime.now(timezone.utc) + timedelta(hours=24)
+    await db.commit()
+    await db.refresh(ticket)
+    dept_names = await _fetch_dept_names(db, [ticket])
+    last_comments = await _fetch_last_comments(db, [ticket.id])
+    return _enrich_tickets([ticket], dept_names, last_comments)[0]
+
+
 async def change_status(db: AsyncSession, ticket: Ticket, new_status: TicketStatus) -> TicketOut:
     ticket.status = new_status
     if new_status in (TicketStatus.resolved, TicketStatus.closed):

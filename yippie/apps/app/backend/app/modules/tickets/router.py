@@ -153,6 +153,14 @@ async def change_status(ticket_id: uuid.UUID, body: TicketStatusUpdate, current_
     return updated
 
 
+@router.post("/{ticket_id}/snooze", response_model=TicketOut)
+async def snooze_ticket(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return await service.snooze_ticket(db, ticket)
+
+
 @router.delete("/bulk", status_code=status.HTTP_200_OK)
 async def bulk_delete_tickets(body: BulkDeleteTicketsRequest, current_user: AdminUser, db: DB):
     deleted = 0
