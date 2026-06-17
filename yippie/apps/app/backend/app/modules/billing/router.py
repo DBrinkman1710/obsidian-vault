@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -13,6 +13,7 @@ from app.modules.billing import service
 from app.modules.billing.schemas import (
     BulkDeleteRequest,
     InvoiceCreate,
+    InvoiceImportResult,
     InvoiceOut,
     PaymentCreate,
     PaymentOut,
@@ -71,6 +72,40 @@ async def export_invoices(
         media_type=media_type,
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/invoices/import-template")
+async def invoice_import_template(current_user: CurrentUser):
+    """Return a CSV template for bulk invoice import."""
+    import csv as _csv
+    import io as _io
+    buf = _io.StringIO()
+    writer = _csv.writer(buf)
+    writer.writerow(service.IMPORT_TEMPLATE_HEADER)
+    writer.writerow(service.IMPORT_TEMPLATE_EXAMPLE)
+    return StreamingResponse(
+        iter([buf.getvalue().encode("utf-8-sig")]),
+        media_type="text/csv",
+        headers={"Content-Disposition": 'attachment; filename="invoice_import_template.csv"'},
+    )
+
+
+@router.post("/invoices/import", response_model=InvoiceImportResult)
+async def import_invoices(
+    current_user: CurrentUser,
+    db: DB,
+    file: UploadFile = File(...),
+):
+    allowed = {
+        "text/csv", "application/csv", "text/plain",
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "application/octet-stream",
+    }
+    fname = (file.filename or "").lower()
+    if not (fname.endswith(".csv") or fname.endswith(".xlsx")):
+        raise HTTPException(status_code=400, detail="Only .csv and .xlsx files are supported")
+    content = await file.read()
+    return await service.import_invoices(db, current_user.tenant_id, content, file.filename or "upload.csv")
 
 
 @router.delete("/invoices/bulk")

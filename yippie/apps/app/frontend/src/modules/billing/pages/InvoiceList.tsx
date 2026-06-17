@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Receipt, Plus, Search, X, Trash2, Download, ChevronDown } from 'lucide-react'
+import { Receipt, Plus, Search, X, Trash2, Download, ChevronDown, Upload } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 
@@ -283,12 +283,131 @@ function DeleteModal({ ids, onClose }: { ids: string[]; onClose: () => void }) {
   )
 }
 
+// ---- Import modal ----------------------------------------------------------
+
+interface ImportError { row: number; reason: string }
+interface ImportResult { imported: number; skipped: number; errors: ImportError[] }
+
+function ImportModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [file, setFile] = useState<File | null>(null)
+  const [result, setResult] = useState<ImportResult | null>(null)
+
+  const mutation = useMutation({
+    mutationFn: async (f: File) => {
+      const form = new FormData()
+      form.append('file', f)
+      const res = await api.post('/billing/invoices/import', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      })
+      return res.data as ImportResult
+    },
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      setResult(data)
+      if (data.imported > 0) toast.success(`${data.imported} invoice${data.imported === 1 ? '' : 's'} imported`)
+      if (data.skipped > 0) toast.warning(`${data.skipped} row${data.skipped === 1 ? '' : 's'} skipped`)
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Import failed'),
+  })
+
+  function downloadTemplate() {
+    api.get('/billing/invoices/import-template', { responseType: 'blob' }).then(res => {
+      downloadBlob(res.data, 'invoice_import_template.csv', 'text/csv')
+    })
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Import Invoices</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+        </div>
+        <div className="p-6 flex flex-col gap-4">
+          {!result ? (
+            <>
+              <p className="text-sm text-slate-600">
+                Upload a <span className="font-semibold">.csv</span> or <span className="font-semibold">.xlsx</span> file.
+                Contacts are matched by email first, then by name. Unmatched rows are skipped and reported.
+              </p>
+              <button
+                type="button"
+                onClick={downloadTemplate}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-yippie hover:opacity-80 self-start"
+              >
+                <Download size={13} /> Download CSV template
+              </button>
+              <div
+                className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-yippie/50 transition-colors"
+                onClick={() => fileRef.current?.click()}
+              >
+                <Upload size={24} className="text-slate-300 mx-auto mb-2" />
+                {file
+                  ? <p className="text-sm font-medium text-slate-700">{file.name}</p>
+                  : <p className="text-sm text-slate-400">Click to choose a file</p>
+                }
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".csv,.xlsx"
+                  className="hidden"
+                  onChange={e => setFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+              <div className="flex gap-3 pt-1">
+                <button
+                  type="button"
+                  disabled={!file || mutation.isPending}
+                  onClick={() => file && mutation.mutate(file)}
+                  className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+                >
+                  {mutation.isPending ? 'Importing…' : 'Import'}
+                </button>
+                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex gap-6">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">{result.imported}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">imported</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-amber-500">{result.skipped}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">skipped</p>
+                </div>
+              </div>
+              {result.errors.length > 0 && (
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50 p-3 flex flex-col gap-1.5">
+                  {result.errors.map((e, i) => (
+                    <p key={i} className="text-xs text-slate-600">
+                      <span className="font-semibold text-slate-800">Row {e.row}:</span> {e.reason}
+                    </p>
+                  ))}
+                </div>
+              )}
+              <div className="flex gap-3 pt-1">
+                <button type="button" onClick={onClose} className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity">Done</button>
+                <button type="button" onClick={() => { setResult(null); setFile(null) }} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Import another</button>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ---- Page ------------------------------------------------------------------
 
 export default function InvoiceList() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showAdd, setShowAdd] = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
 
@@ -340,10 +459,16 @@ export default function InvoiceList() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Invoices</h1>
-        <button onClick={() => setShowAdd(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity">
-          <Plus size={15} /> New Invoice
-        </button>
+        <div className="flex items-center gap-2">
+          <button onClick={() => setShowImport(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+            <Upload size={15} /> Import
+          </button>
+          <button onClick={() => setShowAdd(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity">
+            <Plus size={15} /> New Invoice
+          </button>
+        </div>
       </div>
 
       {/* Search bar */}
@@ -443,6 +568,7 @@ export default function InvoiceList() {
       </div>
 
       {showAdd && <AddInvoiceModal onClose={() => setShowAdd(false)} />}
+      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
       {confirmDelete && <DeleteModal ids={selectedIds} onClose={() => { setConfirmDelete(false); setSelected(new Set()) }} />}
     </div>
   )

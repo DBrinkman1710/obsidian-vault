@@ -3,7 +3,7 @@ from __future__ import annotations
 import csv
 import io
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Optional
 
 from sqlalchemy import delete, func, select, text
@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant
 from app.modules.billing.models import Invoice, InvoiceStatus, Payment, Subscription
-from app.modules.billing.schemas import InvoiceCreate, PaymentCreate, SubscriptionCreate
+from app.modules.billing.schemas import ImportRow, InvoiceCreate, InvoiceImportResult, PaymentCreate, SubscriptionCreate
 from app.modules.contacts.models import Contact
 
 
@@ -187,6 +187,157 @@ async def export_invoices(
     for invoice, contact_name in rows:
         writer.writerow(_row(invoice, contact_name))
     return buf.getvalue().encode("utf-8-sig"), "text/csv", "invoices.csv"
+
+
+_STATUS_ALIASES: dict[str, InvoiceStatus] = {
+    "pending": InvoiceStatus.pending,
+    "received": InvoiceStatus.received,
+    "not_sent": InvoiceStatus.not_sent,
+    "not sent": InvoiceStatus.not_sent,
+    "draft": InvoiceStatus.draft,
+    "sent": InvoiceStatus.sent,
+    "paid": InvoiceStatus.paid,
+    "overdue": InvoiceStatus.overdue,
+    "void": InvoiceStatus.void,
+}
+
+IMPORT_TEMPLATE_HEADER = ["contact_email", "contact_name", "status", "total", "currency", "due_date", "description"]
+IMPORT_TEMPLATE_EXAMPLE = ["jan@example.com", "Jan de Vries", "pending", "250.00", "EUR", "2026-07-01", "Monthly service fee"]
+
+
+def _parse_import_date(val: str) -> Optional[date]:
+    val = val.strip()
+    if not val:
+        return None
+    for fmt in ("%Y-%m-%d", "%d-%m-%Y", "%d/%m/%Y", "%m/%d/%Y"):
+        try:
+            return datetime.strptime(val, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+async def import_invoices(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    content: bytes,
+    filename: str,
+) -> InvoiceImportResult:
+    """Parse CSV or XLSX bytes and create invoices. Matches contacts by email then name."""
+    from app.modules.contacts.models import Contact as ContactModel
+
+    rows: list[dict] = []
+    fname = filename.lower()
+
+    if fname.endswith(".xlsx"):
+        try:
+            from openpyxl import load_workbook
+            wb = load_workbook(io.BytesIO(content))
+            ws = wb.active
+            all_rows = list(ws.iter_rows(values_only=True))
+            # Skip metadata rows starting with '#' and find the header row
+            header: Optional[list[str]] = None
+            data_start = 0
+            for i, row in enumerate(all_rows):
+                first = str(row[0] or "").strip()
+                if first.startswith("#"):
+                    data_start = i + 1
+                    continue
+                header = [str(c or "").strip().lower() for c in row]
+                data_start = i + 1
+                break
+            if header:
+                for row in all_rows[data_start:]:
+                    rows.append({header[j]: str(row[j] or "").strip() for j in range(len(header))})
+        except ImportError:
+            return InvoiceImportResult(imported=0, skipped=0, errors=[
+                ImportRow(row=0, reason="XLSX import requires openpyxl (not installed)")
+            ])
+    else:
+        # CSV — skip comment/metadata rows beginning with '#'
+        text_content = content.decode("utf-8-sig", errors="replace")
+        reader = csv.DictReader(
+            line for line in text_content.splitlines()
+            if not line.strip().startswith("#")
+        )
+        rows = [dict(r) for r in reader]
+
+    # Build contact lookup maps for this tenant (email → id, name → id)
+    contacts_result = await db.execute(
+        select(ContactModel.id, ContactModel.email, ContactModel.full_name)
+        .where(ContactModel.tenant_id == tenant_id, ContactModel.deleted_at.is_(None))
+    )
+    email_map: dict[str, uuid.UUID] = {}
+    name_map: dict[str, uuid.UUID] = {}
+    for cid, cemail, cname in contacts_result.all():
+        if cemail:
+            email_map[cemail.lower()] = cid
+        if cname:
+            name_map[cname.lower()] = cid
+
+    imported = 0
+    skipped = 0
+    errors: list[ImportRow] = []
+
+    for line_num, row in enumerate(rows, start=2):  # 2 = first data row after header
+        contact_email = row.get("contact_email", "").strip().lower()
+        contact_name = row.get("contact_name", "").strip()
+
+        contact_id: Optional[uuid.UUID] = None
+        if contact_email and contact_email in email_map:
+            contact_id = email_map[contact_email]
+        elif contact_name and contact_name.lower() in name_map:
+            contact_id = name_map[contact_name.lower()]
+
+        if contact_id is None:
+            identifier = contact_email or contact_name or "(unknown)"
+            errors.append(ImportRow(row=line_num, reason=f"Contact not found: {identifier}"))
+            skipped += 1
+            continue
+
+        raw_total = row.get("total", "").strip()
+        try:
+            total_cents = round(float(raw_total) * 100)
+        except (ValueError, TypeError):
+            errors.append(ImportRow(row=line_num, reason=f"Invalid total: '{raw_total}'"))
+            skipped += 1
+            continue
+
+        raw_status = row.get("status", "pending").strip().lower()
+        status = _STATUS_ALIASES.get(raw_status, InvoiceStatus.pending)
+
+        currency = (row.get("currency", "EUR") or "EUR").strip().upper() or "EUR"
+        due_date = _parse_import_date(row.get("due_date", ""))
+        description = (row.get("description", "") or "").strip() or None
+
+        data = InvoiceCreate(
+            contact_id=contact_id,
+            line_items=[],
+            tax_cents=0,
+            currency=currency,
+            due_date=due_date,
+            status=status,
+            description=description or f"Imported invoice — total {raw_total} {currency}",
+        )
+        # Override total so it reflects the CSV value exactly (not recomputed from empty line_items).
+        invoice = Invoice(
+            tenant_id=tenant_id,
+            invoice_number=await _next_invoice_number(db, tenant_id),
+            contact_id=contact_id,
+            line_items=[{"description": data.description, "quantity": 1, "unit_price_cents": total_cents}],
+            subtotal_cents=total_cents,
+            tax_cents=0,
+            total_cents=total_cents,
+            currency=currency,
+            due_date=due_date,
+            status=status,
+        )
+        db.add(invoice)
+        await db.commit()
+        await db.refresh(invoice)
+        imported += 1
+
+    return InvoiceImportResult(imported=imported, skipped=skipped, errors=errors)
 
 
 async def get_invoice(db: AsyncSession, tenant_id: uuid.UUID, invoice_id: uuid.UUID) -> Optional[Invoice]:

@@ -70,6 +70,17 @@ class InvoiceOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ImportRow(BaseModel):
+    row: int
+    reason: str
+
+
+class InvoiceImportResult(BaseModel):
+    imported: int
+    skipped: int
+    errors: list[ImportRow]
+
+
 class PaymentCreate(BaseModel):
     amount_cents: int
     method: str
