@@ -24,7 +24,7 @@ docker compose exec -e ADMIN_EMAIL=you@example.com -e ADMIN_PASSWORD=pass backen
 ## Architecture — the key ideas
 
 ### Module system
-All 6 modules (contacts, tickets, billing, activity, inbox, chat) are always compiled in. Which ones are active is controlled by `config/tenant.yaml`. The app factory in `backend/app/main.py` reads this at startup and only registers routers for enabled modules. The frontend calls `GET /api/v1/tenant/config` on load and only registers routes for enabled modules — disabled ones never load any JS.
+All modules (see `ALL_MODULES` in `backend/app/config.py` / the `MODULES` registry) are always compiled in. Which ones are active is stored **per tenant** in the `Tenant.enabled_modules` DB column. The app factory in `backend/app/main.py` mounts every module router and gates each per-request with `require_module(name)` (403 when the tenant doesn't have it). The frontend calls `GET /api/v1/tenant/config` on load — which reads the live `Tenant` row — and only registers routes for that tenant's enabled modules, so disabled ones never load any JS. A new tenant's initial module set is seeded once by `backend/seed.py` (from `ENABLED_MODULES` env, defaulting to all modules).
 
 ### Tenant isolation
 Every DB table has `tenant_id UUID NOT NULL`. Every query filters by it. The `get_current_user` dependency in `backend/app/auth/dependencies.py` resolves the user from the JWT and calls `set_tenant_context(db, user.tenant_id)` which runs `SET LOCAL app.current_tenant_id = :id` — enabling PostgreSQL RLS policies.
@@ -37,7 +37,7 @@ Email (Mailgun webhook) or WhatsApp (Twilio webhook) → stored as `inbound_mess
 | File | Purpose |
 |---|---|
 | `backend/app/main.py` | App factory — module routing decisions live here |
-| `backend/app/config.py` | `TenantConfig` — single source of truth for what's enabled |
+| `backend/app/config.py` | `Settings` (infra: DB/Resend/Evolution/env) + `ALL_MODULES` (canonical module list). Per-tenant config lives on the `Tenant` DB model, not here. |
 | `backend/app/modules/__init__.py` | Module registry: name → FastAPI router |
 | `backend/app/database.py` | Async SQLAlchemy session + `set_tenant_context()` |
 | `backend/app/core/tenant.py` | `resolve_tenant_uuid(db)` — maps config slug to DB UUID, cached |
@@ -49,7 +49,6 @@ Email (Mailgun webhook) or WhatsApp (Twilio webhook) → stored as `inbound_mess
 | `frontend/src/App.tsx` | Dynamic route registration from tenant config API |
 | `frontend/src/shell/ModuleGate.tsx` | Redirects to / if module is disabled for this tenant |
 | `frontend/public/widget.js` | Self-contained embeddable live chat widget (one `<script>` tag) |
-| `config/tenant.example.yaml` | Template for per-client config — copy to `config/tenant.yaml` |
 
 ## Module structure (backend)
 
@@ -92,10 +91,7 @@ curl -X POST http://localhost:8000/api/v1/inbox/webhooks/email \
 Then open Inbox in the UI to review the AI-generated draft.
 
 **Disable a module for this tenant (e.g. billing):**
-Edit `config/tenant.yaml`, remove `billing` from `enabled_modules`, restart backend:
-```bash
-docker compose restart backend
-```
+Remove `billing` from the tenant's `enabled_modules` array (superadmin edit modal, or directly on the `Tenant` row). No restart needed — gating is per-request.
 `GET /api/v1/billing/invoices` now returns 403. Billing nav item disappears from sidebar.
 
 **Generate a new Alembic migration after changing a model:**
@@ -122,9 +118,8 @@ docker compose exec backend pytest
 
 ## Per-client deployment checklist
 
-1. `cp config/tenant.example.yaml config/tenant.yaml` — fill in tenant details
-2. Create `.env` with real `SECRET_KEY` and `ANTHROPIC_API_KEY`
-3. `docker compose -f docker-compose.yml up -d`
-4. `docker compose exec backend alembic upgrade head`
-5. `docker compose exec -e ADMIN_EMAIL=... -e ADMIN_PASSWORD=... backend python seed.py`
-6. Hand client the URL and credentials
+1. Create `.env` with real `SECRET_KEY` and `ANTHROPIC_API_KEY`, plus the bootstrap vars used by `seed.py`: `TENANT_ID`, `TENANT_NAME`, optionally `ENABLED_MODULES` (comma-separated; defaults to all), `BRANDING_PRIMARY_COLOR`, `BRANDING_LOGO_URL`
+2. `docker compose -f docker-compose.yml up -d`
+3. `docker compose exec backend alembic upgrade head`
+4. `docker compose exec -e ADMIN_EMAIL=... -e ADMIN_PASSWORD=... backend python seed.py`
+5. Hand client the URL and credentials — branding/modules are then editable in-app and stored on the `Tenant` row

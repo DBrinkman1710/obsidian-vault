@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Paperclip, Sparkles, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
@@ -63,7 +64,7 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
   const [form, setForm] = useState({
     full_name: guessNameFromEmail(senderEmail),
     email: senderEmail,
-    phone: '', tags: '', notes: '',
+    phone: '', notes: '',
   })
   const [companyId, setCompanyId] = useState<string | null>(null)
   const [error, setError] = useState('')
@@ -79,7 +80,6 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
         phone: form.phone.trim() || null,
         company_id: companyId,
         notes: form.notes.trim() || null,
-        tags: form.tags ? form.tags.split(',').map(t => t.trim()).filter(Boolean) : null,
       })
       await api.post(`/inbox/drafts/${draftId}/link-contact`, { contact_id: contactRes.data.id })
     },
@@ -132,13 +132,6 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">Company</label>
             <CompanyPicker value={companyId} onChange={setCompanyId} />
-          </div>
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Tags <span className="font-normal text-slate-400">(comma-separated)</span></label>
-            <input
-              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
-              value={form.tags} onChange={set('tags')} placeholder="vip, enterprise"
-            />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 mb-1.5">Notes</label>
@@ -284,13 +277,14 @@ export default function DraftReview() {
   const isMobile = useMobile()
   const [emailExpanded, setEmailExpanded] = useState(false)
 
-  const { data: ctx, isLoading } = useQuery({
+  const { data: ctx, isLoading, isError } = useQuery({
     queryKey: ['draft', id],
     queryFn: () => api.get(`/inbox/drafts/${id}`).then(r => r.data),
     // While the background AI enrichment is running, poll so the suggestions
     // and briefing fill in on their own.
     refetchInterval: (query) =>
       (query.state.data as any)?.draft?.ai_status === 'queued' ? 3_000 : false,
+    retry: 1,
   })
 
   const draft = ctx?.draft
@@ -380,6 +374,18 @@ export default function DraftReview() {
         follow_up_days: modalFollowUpDays ?? (followUpDays ? parseInt(followUpDays) : undefined),
         department_id: departmentId || selectedDeptId || undefined,
       }),
+    onMutate: async ({ action }) => {
+      await qc.cancelQueries({ queryKey: ['draft', id] })
+      const prev = qc.getQueryData(['draft', id])
+      // Optimistically flip the single draft's status so the processed view shows immediately
+      qc.setQueryData(['draft', id], (old: any) =>
+        old?.draft ? { ...old, draft: { ...old.draft, status: action === 'approve' ? 'approved' : 'rejected' } } : old)
+      return { prev }
+    },
+    onError: (_err, _body, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['draft', id], ctx.prev)
+      toast.error('Action failed. Please try again.')
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drafts'] })
       qc.invalidateQueries({ queryKey: ['draft', id] })
@@ -560,6 +566,17 @@ export default function DraftReview() {
   }
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
+
+  if (isError) {
+    return (
+      <div className="flex flex-col flex-1 items-center justify-center bg-slate-50 gap-3 p-8 text-center">
+        <p className="text-slate-500 font-medium">Couldn't load this email.</p>
+        <button onClick={() => navigate('/inbox')} className="text-sm text-blue-600 underline underline-offset-2">
+          Back to Inbox
+        </button>
+      </div>
+    )
+  }
 
   if (isLoading || !draft) {
     if (isMobile) {
@@ -800,9 +817,10 @@ export default function DraftReview() {
             <button
               onClick={handleApprove}
               disabled={reviewMutation.isPending}
-              className="flex-[2] py-3 text-sm font-bold text-white bg-emerald-500 rounded-2xl hover:bg-emerald-600 transition-colors disabled:opacity-50"
+              className="inline-flex items-center justify-center flex-[2] py-3 text-sm font-bold text-white bg-emerald-500 rounded-2xl hover:bg-emerald-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {reviewMutation.isPending ? 'Creating…' : 'Approve & Create Ticket'}
+              {reviewMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
             </button>
           </div>
         )}
@@ -864,13 +882,6 @@ export default function DraftReview() {
                     )}
                   </div>
 
-                  {contact.tags && contact.tags.length > 0 && (
-                    <div className="flex flex-wrap gap-1">
-                      {contact.tags.map((t: string) => (
-                        <span key={t} className="px-2 py-0.5 bg-slate-100 text-slate-600 text-[11px] rounded-full">{t}</span>
-                      ))}
-                    </div>
-                  )}
                 </>
               ) : (
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
@@ -1312,7 +1323,7 @@ export default function DraftReview() {
                 <button
                   onClick={handleSendReply}
                   disabled={sending || !!undoUntil || !!sentTo || !replyText.trim()}
-                  className={`px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer ${
+                  className={`inline-flex items-center gap-1 px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed ${
                     sentTo
                       ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                       : undoUntil
@@ -1321,6 +1332,7 @@ export default function DraftReview() {
                   }`}
                 >
                   {sentTo ? '✓ Sent' : sending ? 'Sending…' : undoUntil ? 'Queued…' : 'Send to Customer'}
+                  {sending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
                 </button>
               </div>
             </div>

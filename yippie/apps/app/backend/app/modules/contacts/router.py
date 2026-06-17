@@ -8,11 +8,13 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import AdminUser, CurrentUser
 from app.database import get_db
 from app.modules.contacts import service
+from app.modules.contacts.models import Contact
 from app.modules.contacts.schemas import (
     CompanyContactOut,
     CompanyCreate,
@@ -72,7 +74,12 @@ def _parse_import_file(filename: str, content: bytes) -> list[dict]:
         for raw in rows_iter:
             if raw is None or all(v is None for v in raw):
                 continue
-            out.append({keys[i]: raw[i] for i in range(len(keys)) if keys[i]})
+            # Use min() to guard against short rows (read_only mode omits trailing empty cells)
+            out.append({
+                keys[i]: (str(raw[i]) if raw[i] is not None else None)
+                for i in range(min(len(keys), len(raw)))
+                if keys[i]
+            })
         return out
 
     # default: CSV
@@ -257,6 +264,27 @@ async def export_contacts(
         media_type="text/csv",
         headers={"Content-Disposition": 'attachment; filename="contacts.csv"'},
     )
+
+
+@router.get("/trash", response_model=list[ContactOut])
+async def list_trash(current_user: AdminUser, db: DB):
+    return await service.list_deleted_contacts(db, current_user.tenant_id)
+
+
+@router.post("/{contact_id}/restore", response_model=ContactOut)
+async def restore_contact(contact_id: uuid.UUID, current_user: AdminUser, db: DB):
+    result = await db.execute(
+        select(Contact).where(
+            Contact.tenant_id == current_user.tenant_id,
+            Contact.id == contact_id,
+            Contact.deleted_at.is_not(None),
+        )
+    )
+    contact = result.scalar_one_or_none()
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found in trash")
+    await service.restore_contact(db, contact)
+    return await service.get_contact(db, current_user.tenant_id, contact_id)
 
 
 @router.get("/{contact_id}", response_model=ContactOut)

@@ -34,6 +34,8 @@ const TemplatesPage            = lazy(() => import('./modules/admin/pages/Templa
 
 const TrackConfirmPage = lazy(() => import('./pages/TrackConfirmPage'))
 const RequestDemoPage = lazy(() => import('./pages/RequestDemoPage'))
+const BookingPage = lazy(() => import('./pages/BookingPage'))
+const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -79,6 +81,19 @@ export default function App() {
   const [configError, setConfigError] = useState(false)
   useGlobalHotkeys()
 
+  // Public booking pages are standalone — render without the app shell or auth,
+  // regardless of whether someone is logged in.
+  if (window.location.pathname.startsWith('/book/')) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
+          <Route path="/book/:token" element={<BookingPage />} />
+        </Routes>
+      </Suspense>
+    )
+  }
+
   useEffect(() => {
     if (!token) return
     let cancelled = false
@@ -100,6 +115,8 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/track/confirm" element={<TrackConfirmPage />} />
           <Route path="/request-demo" element={<RequestDemoPage />} />
+          <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
+          <Route path="/book/:token" element={<BookingPage />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
         </Routes>
       </Suspense>

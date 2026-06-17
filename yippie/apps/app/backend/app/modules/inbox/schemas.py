@@ -84,11 +84,11 @@ class SubscriptionBrief(BaseModel):
 
 class DraftWithContextOut(BaseModel):
     draft: DraftTicketOut
-    inbound_message: InboundMessageOut
+    inbound_message: Optional[InboundMessageOut] = None
     attachments: list[dict] = []
-    contact: Optional[ContactBrief]
-    recent_tickets: list[TicketBrief]
-    billing: Optional[SubscriptionBrief]
+    contact: Optional[ContactBrief] = None
+    recent_tickets: list[TicketBrief] = []
+    billing: Optional[SubscriptionBrief] = None
 
 
 class LinkContactRequest(BaseModel):

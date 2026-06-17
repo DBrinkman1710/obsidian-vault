@@ -1,9 +1,11 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { GripVertical, Loader2, Plus, Settings2, Trash2, User, X } from 'lucide-react'
+import { CalendarClock, GripVertical, Loader2, Plus, Settings2, Trash2, User, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useAuth } from '../../auth/useAuth'
+import { useTenantConfig } from '../../App'
+import SendBookingModal from '../booking/SendBookingModal'
 
 interface PipelineStage {
   id: string
@@ -87,7 +89,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-[520px] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">Manage Pipeline Stages</h2>
+          <h2 className="text-sm font-bold text-slate-900">Manage Kanban Stages</h2>
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
             <X size={16} />
           </button>
@@ -223,7 +225,7 @@ function AddContactModal({
         <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
           {available.length === 0 && (
             <p className="px-5 py-8 text-sm text-slate-400 text-center">
-              {contacts.length === 0 ? 'No contacts found' : 'All matching contacts are already in the pipeline'}
+              {contacts.length === 0 ? 'No contacts found' : 'All matching contacts are already in the kanban'}
             </p>
           )}
           {available.map(c => (
@@ -255,10 +257,16 @@ function ContactCard({
   contact,
   onDragStart,
   onRemove,
+  selectable,
+  selected,
+  onToggleSelect,
 }: {
   contact: BoardContact
   onDragStart: () => void
   onRemove: () => void
+  selectable: boolean
+  selected: boolean
+  onToggleSelect: () => void
 }) {
   const daysIn = Math.floor(
     (Date.now() - new Date(contact.entered_at).getTime()) / 86_400_000
@@ -268,10 +276,22 @@ function ContactCard({
     <div
       draggable
       onDragStart={onDragStart}
-      className="bg-white rounded-xl border border-slate-200 px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group"
+      className={`bg-white rounded-xl border px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group ${
+        selected ? 'border-blue-400 ring-1 ring-blue-200' : 'border-slate-200'}`}
     >
       <div className="flex items-start justify-between gap-1">
-        <div className="min-w-0">
+        {selectable && (
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onToggleSelect}
+            draggable={false}
+            onClick={e => e.stopPropagation()}
+            className={`mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 shrink-0 cursor-pointer transition-opacity ${
+              selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
+          />
+        )}
+        <div className="min-w-0 flex-1">
           <Link
             to={`/contacts/${contact.contact_id}`}
             className="text-sm font-semibold text-slate-800 hover:text-blue-600 truncate block"
@@ -289,7 +309,7 @@ function ContactCard({
         <button
           onClick={onRemove}
           className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-300 hover:text-red-400 rounded transition-all shrink-0"
-          title="Remove from pipeline"
+          title="Remove from kanban"
           draggable={false}
         >
           <X size={12} />
@@ -308,11 +328,24 @@ function ContactCard({
 export default function PipelinePage() {
   const qc = useQueryClient()
   const { user } = useAuth()
+  const config = useTenantConfig()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+  const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
 
   const [showManage, setShowManage] = useState(false)
   const [addToStage, setAddToStage] = useState<string | null>(null)
+  const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set())
+  const [bookingOpen, setBookingOpen] = useState(false)
   const dragContactRef = useRef<{ contactId: string; fromStageId: string } | null>(null)
+
+  function toggleContact(id: string) {
+    setSelectedContacts(prev => {
+      const n = new Set(prev)
+      n.has(id) ? n.delete(id) : n.add(id)
+      return n
+    })
+  }
+  function clearSelection() { setSelectedContacts(new Set()) }
 
   const { data: board = [], isLoading } = useQuery<BoardColumn[]>({
     queryKey: ['pipeline-board'],
@@ -351,9 +384,47 @@ export default function PipelinePage() {
     ? new Set(board.find(c => c.stage.id === addToStage)?.contacts.map(c => c.contact_id) ?? [])
     : new Set<string>()
 
+  // Flatten board → {id, full_name} for the booking modal (dedupe across columns).
+  const contactNameById = new Map<string, string>()
+  for (const col of board) {
+    for (const c of col.contacts) contactNameById.set(c.contact_id, c.full_name)
+  }
+  const selectedContactList = [...selectedContacts]
+    .filter(id => contactNameById.has(id))
+    .map(id => ({ id, full_name: contactNameById.get(id)! }))
+
   return (
     <>
       {showManage && <StageModal onClose={() => setShowManage(false)} />}
+      {bookingEnabled && (
+        <SendBookingModal
+          contacts={selectedContactList}
+          bulk
+          open={bookingOpen}
+          onClose={() => { setBookingOpen(false); clearSelection() }}
+        />
+      )}
+      {bookingEnabled && selectedContacts.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-lg">
+          <span className="text-sm font-semibold text-slate-700">
+            {selectedContacts.size} selected
+          </span>
+          <div className="h-4 w-px bg-slate-200" />
+          <button
+            onClick={() => setBookingOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <CalendarClock size={14} strokeWidth={2.5} />
+            Send booking link to {selectedContacts.size} contact{selectedContacts.size !== 1 ? 's' : ''}
+          </button>
+          <button
+            onClick={clearSelection}
+            className="text-sm font-medium text-slate-500 hover:text-slate-700"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
       {addToStage && (
         <AddContactModal
           stageId={addToStage}
@@ -365,9 +436,9 @@ export default function PipelinePage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Pipeline</h1>
+          <h1 className="text-xl font-bold text-slate-900">Kanban</h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            {allContactIds.size} contact{allContactIds.size !== 1 ? 's' : ''} in pipeline
+            {allContactIds.size} contact{allContactIds.size !== 1 ? 's' : ''} in kanban
           </p>
         </div>
         {isAdmin && (
@@ -386,9 +457,9 @@ export default function PipelinePage() {
           <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
             <GripVertical size={24} className="text-slate-300" />
           </div>
-          <p className="text-sm font-semibold text-slate-600 mb-1">No pipeline stages yet</p>
+          <p className="text-sm font-semibold text-slate-600 mb-1">No kanban stages yet</p>
           <p className="text-xs text-slate-400 mb-4">
-            {isAdmin ? 'Create stages to start tracking contacts through your pipeline.' : 'Ask an admin to set up pipeline stages.'}
+            {isAdmin ? 'Create stages to start tracking contacts through your kanban.' : 'Ask an admin to set up kanban stages.'}
           </p>
           {isAdmin && (
             <button
@@ -430,6 +501,9 @@ export default function PipelinePage() {
                   <ContactCard
                     key={contact.contact_id}
                     contact={contact}
+                    selectable={bookingEnabled}
+                    selected={selectedContacts.has(contact.contact_id)}
+                    onToggleSelect={() => toggleContact(contact.contact_id)}
                     onDragStart={() => {
                       dragContactRef.current = {
                         contactId: contact.contact_id,

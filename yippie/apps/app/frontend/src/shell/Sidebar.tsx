@@ -1,10 +1,11 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
+  ChevronLeft, ChevronRight,
   type LucideIcon,
 } from 'lucide-react'
 import { useTenantConfig } from '../App'
@@ -16,16 +17,30 @@ const MODULE_MAP: Record<string, { label: string; Icon: LucideIcon; path: string
   contacts: { label: 'Contacts',  Icon: Users,         path: '/contacts' },
   tickets:  { label: 'Tickets',   Icon: ClipboardList, path: '/tickets' },
   calendar: { label: 'Calendar',  Icon: Calendar,      path: '/calendar' },
-  pipeline: { label: 'Pipeline',  Icon: Kanban,        path: '/pipeline' },
+  pipeline: { label: 'Kanban',    Icon: Kanban,        path: '/pipeline' },
   activity: { label: 'Activity',  Icon: Activity,      path: '/activity' },
   billing:  { label: 'Billing',   Icon: CreditCard,    path: '/billing' },
   chat:     { label: 'Live Chat', Icon: MessageSquare, path: '/chat' },
 }
 
+const STORAGE_KEY = 'yippie:sidebarCollapsed'
+
 export function Sidebar() {
   const config = useTenantConfig()
   const { user, logout } = useAuth()
   const navigate = useNavigate()
+
+  const [collapsed, setCollapsed] = useState<boolean>(() => {
+    try { return localStorage.getItem(STORAGE_KEY) === 'true' } catch { return false }
+  })
+
+  function toggleCollapsed() {
+    setCollapsed(prev => {
+      const next = !prev
+      try { localStorage.setItem(STORAGE_KEY, String(next)) } catch { /* ignore */ }
+      return next
+    })
+  }
 
   const { data: draftCount, isFetching: inboxFetching } = useQuery({
     queryKey: ['drafts', 'count'],
@@ -80,23 +95,29 @@ export function Sidebar() {
 
   const primaryColor = config.branding.primary_color
 
+  // Shared nav-link class builder
+  function navCls(isActive: boolean) {
+    return `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+      isActive
+        ? 'bg-white/20 text-white font-semibold'
+        : 'text-white/75 hover:bg-white/10 hover:text-white'
+    }`
+  }
+
   return (
     <aside
-      className="hidden md:flex md:flex-col w-56 h-screen bg-yippie text-white shrink-0 overflow-y-auto"
+      className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 overflow-y-auto transition-all duration-200 ${
+        collapsed ? 'w-14' : 'w-56'
+      }`}
       style={primaryColor ? { backgroundColor: primaryColor } : undefined}
     >
 
       {/* Logo + tenant */}
-      <div className="px-5 pt-6 pb-5">
-        <div className="flex items-center gap-2 mb-1">
-          <svg viewBox="0 0 36 36" className="w-7 h-7 shrink-0" fill="white">
-            <circle cx="10" cy="8" r="4" />
-            <path d="M4 28 Q10 36 18 30" strokeWidth="3.5" stroke="white" fill="none" strokeLinecap="round"/>
-            <circle cx="21" cy="5" r="2.5" />
-          </svg>
-          <span className="text-white font-bold text-xl tracking-tight">yippie</span>
+      <div className={`pt-6 pb-5 ${collapsed ? 'px-3' : 'px-5'}`}>
+        <div className="flex items-center mb-1">
+          <img src="/logo-blue-bg-mark.svg" alt="Yippie" className={collapsed ? 'h-8 w-8 shrink-0' : 'h-10 w-10 shrink-0'} />
         </div>
-        {config.branding.logo_url && (
+        {!collapsed && config.branding.logo_url && (
           <div className="mt-2 mb-1">
             <img
               src={config.branding.logo_url}
@@ -105,11 +126,13 @@ export function Sidebar() {
             />
           </div>
         )}
-        <p className="text-white/60 text-xs font-medium pl-0.5 truncate">{config.tenant_name}</p>
+        {!collapsed && (
+          <p className="text-white/60 text-xs font-medium pl-0.5 truncate">{config.tenant_name}</p>
+        )}
       </div>
 
       {/* Nav — ordered by config.enabled_modules (set by superadmin) */}
-      <nav className="flex-1 px-3 space-y-0.5">
+      <nav className="flex-1 px-2 space-y-0.5">
         {config.enabled_modules
           .filter(mod => MODULE_MAP[mod])
           .map(mod => {
@@ -118,17 +141,12 @@ export function Sidebar() {
               <NavLink
                 key={mod}
                 to={path}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                    isActive
-                      ? 'bg-white/20 text-white font-semibold'
-                      : 'text-white/75 hover:bg-white/10 hover:text-white'
-                  }`
-                }
+                title={collapsed ? label : undefined}
+                className={({ isActive }) => navCls(isActive)}
               >
                 <Icon size={16} strokeWidth={2} className="shrink-0" />
-                <span className="flex-1">{label}</span>
-                {mod === 'inbox' && (
+                {!collapsed && <span className="flex-1">{label}</span>}
+                {!collapsed && mod === 'inbox' && (
                   <div className="flex items-center gap-1.5">
                     <span
                       className={`w-2 h-2 rounded-full shrink-0 ${
@@ -143,12 +161,13 @@ export function Sidebar() {
                     )}
                   </div>
                 )}
-                {mod === 'chat' && chatBadge && (
+
+                {!collapsed && mod === 'chat' && chatBadge && (
                   <span className="bg-green-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
                     {chatBadge}
                   </span>
                 )}
-                {mod === 'tickets' && (redBadge || orangeBadge) && (
+                {!collapsed && mod === 'tickets' && (redBadge || orangeBadge) && (
                   <div className="flex items-center gap-1">
                     {redBadge && (
                       <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
@@ -169,56 +188,44 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom section */}
-      <div className="border-t border-white/15 px-3 py-3 space-y-0.5">
+      <div className="border-t border-white/15 px-2 py-3 space-y-0.5">
         {user?.role === 'superadmin' && ['dev', 'devsandbox'].includes(config?.environment ?? '') && (
           <NavLink
             to="/superadmin/clients"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
-              }`
-            }
+            title={collapsed ? 'Clients' : undefined}
+            className={({ isActive }) => navCls(isActive)}
           >
             <Building2 size={16} strokeWidth={2} />
-            <span>Clients</span>
+            {!collapsed && <span>Clients</span>}
           </NavLink>
         )}
 
         <NavLink
           to="/settings/profile"
-          className={({ isActive }) =>
-            `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-              isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
-            }`
-          }
+          title={collapsed ? 'Profile' : undefined}
+          className={({ isActive }) => navCls(isActive)}
         >
           <UserCircle size={16} strokeWidth={2} />
-          <span>Profile</span>
+          {!collapsed && <span>Profile</span>}
         </NavLink>
 
         {(user?.role === 'admin' || user?.role === 'superadmin') && (
           <>
             <NavLink
               to="/settings/team"
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
-                }`
-              }
+              title={collapsed ? 'Team' : undefined}
+              className={({ isActive }) => navCls(isActive)}
             >
               <Users size={16} strokeWidth={2} />
-              <span>Team</span>
+              {!collapsed && <span>Team</span>}
             </NavLink>
             <NavLink
               to="/settings"
-              className={() =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                  settingsActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
-                }`
-              }
+              title={collapsed ? 'Settings' : undefined}
+              className={() => navCls(settingsActive)}
             >
               <Settings size={16} strokeWidth={2} />
-              <span>Settings</span>
+              {!collapsed && <span>Settings</span>}
             </NavLink>
           </>
         )}
@@ -226,25 +233,45 @@ export function Sidebar() {
         {user?.role === 'superadmin' && (
           <NavLink
             to="/settings/superadmins"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                isActive ? 'bg-white/20 text-white' : 'text-white/75 hover:bg-white/10 hover:text-white'
-              }`
-            }
+            title={collapsed ? 'Superadmins' : undefined}
+            className={({ isActive }) => navCls(isActive)}
           >
             <ShieldCheck size={16} strokeWidth={2} />
-            <span>Superadmins</span>
+            {!collapsed && <span>Superadmins</span>}
           </NavLink>
         )}
 
-        <div className="px-3 pt-2 pb-1">
-          <p className="text-white/50 text-[11px] truncate mb-2">{user?.email}</p>
+        {!collapsed && (
+          <div className="px-3 pt-2 pb-1">
+            <p className="text-white/50 text-[11px] truncate mb-2">{user?.email}</p>
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 w-full text-white/70 hover:text-white text-sm font-medium transition-colors cursor-pointer"
+            >
+              <LogOut size={14} strokeWidth={2} />
+              Sign out
+            </button>
+          </div>
+        )}
+
+        {collapsed && (
           <button
             onClick={logout}
-            className="flex items-center gap-2 w-full text-white/70 hover:text-white text-sm font-medium transition-colors cursor-pointer"
+            title="Sign out"
+            className="flex items-center justify-center w-full py-2.5 text-white/70 hover:text-white transition-colors cursor-pointer"
           >
             <LogOut size={14} strokeWidth={2} />
-            Sign out
+          </button>
+        )}
+
+        {/* Collapse toggle */}
+        <div className="flex justify-end pt-1">
+          <button
+            onClick={toggleCollapsed}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+          >
+            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
           </button>
         </div>
       </div>

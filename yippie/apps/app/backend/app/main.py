@@ -9,12 +9,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, require_feature, require_module
 from app.auth.router import router as auth_router
-from app.config import ALL_MODULES, get_settings, load_tenant_config
+from app.config import ALL_MODULES, get_settings
 from app.core.models import Tenant
-from app.core.plans import ADVANCED_FEATURES, features_for_plan
+from app.core.plans import ADVANCED_FEATURES, MODULE_PRICES, features_for_plan, limits_for_plan
 from app.core.schemas import TenantConfigOut
 from app.database import get_db
 from app.modules import MODULES
+from app.modules.chat.router import ws_router as chat_ws_router
 from app.modules.admin.router import router as admin_router
 from app.modules.departments.router import router as departments_router
 from app.modules.team.router import router as team_router
@@ -34,7 +35,6 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    cfg = load_tenant_config()
     settings = get_settings()
     is_prod = settings.environment == "production"
 
@@ -68,6 +68,10 @@ def create_app() -> FastAPI:
     app.include_router(tracking_router, prefix="/api/v1")
     # Public Resend webhook — no auth, Resend posts delivery events here
     app.include_router(emailtracking_webhook_router, prefix="/api/v1")
+    # Chat websockets — mounted without the require_module/require_feature
+    # dependencies applied to the gated module routers below, since those
+    # depend on HTTPBearer (HTTP-only) and break websocket connections.
+    app.include_router(chat_ws_router, prefix="/api/v1")
 
     @app.get("/api/v1/health", tags=["health"], include_in_schema=False)
     async def health():
@@ -98,6 +102,8 @@ def create_app() -> FastAPI:
             is_active=tenant.is_active,
             plan=tenant.plan,
             allowed_features=allowed_features,
+            plan_limits=limits_for_plan(tenant.plan),
+            module_prices=dict(MODULE_PRICES),
         )
 
     # Module routes — all mounted, each gated per-request by tenant's enabled_modules.

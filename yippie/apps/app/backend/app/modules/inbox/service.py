@@ -445,6 +445,7 @@ async def list_drafts(
     inbound_email: Optional[str] = None,
     include_legacy: bool = True,
     search: Optional[str] = None,
+    contact_id: Optional[uuid.UUID] = None,
 ) -> list[tuple[DraftTicket, Optional[str], Optional[str]]]:
     # Always join InboundMessage to include the original email subject and the
     # address the mail was routed to (mailbox diagnostics).
@@ -488,6 +489,12 @@ async def list_drafts(
         )
     elif status:
         q = q.where(DraftTicket.status == status)
+
+    if contact_id:
+        q = q.where(
+            or_(DraftTicket.contact_id == contact_id, DraftTicket.matched_contact_id == contact_id)
+        )
+
     result = await db.execute(q.order_by(DraftTicket.created_at.desc()))
     return [(row[0], row[1], row[2]) for row in result.all()]
 
@@ -836,6 +843,14 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                         stage_id_str = btn.get("stage_id")
                         if not btn_id:
                             continue
+                        # Direct-link actions (website / email / phone) render as
+                        # plain <a> links — no tracking token, no DB row.
+                        if action_type in ("open_website", "send_mail", "call_phone"):
+                            from app.core.email_html import build_direct_action_href
+                            href = build_direct_action_href(action_type, btn.get("action_value"))
+                            if href:
+                                token_map[btn_id] = href
+                            continue
                         # Only generate a token when there is a configured action
                         if action_type == "pipeline_stage" and stage_id_str:
                             tok = LabelClickToken(
@@ -888,6 +903,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                     resend_email_id=resend_id,
                     to_email=c["to_email"],
                     subject=c["subject"],
+                    body=c["reply_text"],
                     actor_id=c["actor_id"],
                     contact_id=c["contact_id"],
                     draft_id=c["draft_id"],

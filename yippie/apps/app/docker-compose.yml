@@ -20,16 +20,16 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     volumes:
       - ./backend:/app
-      - ./config:/app/config
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/smb_platform
       SECRET_KEY: dev-secret-change-me
       ENVIRONMENT: development
-      TENANT_CONFIG_PATH: /app/config/tenant.yaml
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       MAILGUN_API_KEY: ${MAILGUN_API_KEY:-}
       MAILGUN_DOMAIN: ${MAILGUN_DOMAIN:-}
       MAILGUN_FROM: ${MAILGUN_FROM:-}
+      EVOLUTION_API_URL: ${EVOLUTION_API_URL:-}
+      EVOLUTION_API_TOKEN: ${EVOLUTION_API_TOKEN:-}
     ports:
       - "8000:8000"
     depends_on:

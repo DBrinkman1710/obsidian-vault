@@ -17,6 +17,9 @@ import app.modules.billing.models  # noqa
 import app.modules.activity.models  # noqa
 import app.modules.inbox.models  # noqa
 import app.modules.chat.models  # noqa
+import app.modules.calendar.models  # noqa
+import app.modules.pipeline.models  # noqa
+import app.modules.booking.models  # noqa
 
 config = context.config
 if config.config_file_name is not None:

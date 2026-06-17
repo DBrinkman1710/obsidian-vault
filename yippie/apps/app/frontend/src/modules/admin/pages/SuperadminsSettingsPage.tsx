@@ -4,11 +4,11 @@ import { ShieldCheck, UserPlus, X, ToggleLeft, ToggleRight, Trash2, Puzzle } fro
 import { api } from '../../../api/client'
 import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
 
-const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'activity', 'billing', 'chat', 'ai', 'emailtracking'] as const
+const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'ai', 'emailtracking'] as const
 type ModuleName = typeof ALL_MODULES[number]
 const MODULE_LABELS: Record<ModuleName, string> = {
   inbox: 'Inbox', contacts: 'Contacts', tickets: 'Tickets', calendar: 'Calendar',
-  pipeline: 'Pipeline', activity: 'Activity', billing: 'Billing', chat: 'Chat', ai: 'AI', emailtracking: 'Email Tracking',
+  pipeline: 'Pipeline', booking: 'Booking', activity: 'Activity', billing: 'Billing', chat: 'Chat', ai: 'AI', emailtracking: 'Email Tracking',
 }
 
 interface TenantModules { id: string; enabled_modules: string[] }
@@ -109,7 +109,7 @@ function ToggleConfirmModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">
             {deactivating ? 'Deactivate superadmin' : 'Activate superadmin'}
@@ -179,7 +179,7 @@ function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Invite superadmin</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
@@ -249,7 +249,7 @@ function DeleteSuperadminModal({ target, onClose }: { target: Superadmin; onClos
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-red-600">Delete superadmin</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>

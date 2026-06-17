@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import DOMPurify from 'dompurify'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Trash2, Star, ChevronUp, ChevronDown, Image as ImageIcon, Pencil, Check, X } from 'lucide-react'
 import { api } from '../../../api/client'
@@ -40,66 +41,68 @@ export default function ProfileSettingsPage() {
       <h1 className="text-2xl font-bold text-slate-900 mb-1">Profile</h1>
       <p className="text-sm text-slate-500 mb-8">Manage your personal email address, signature and password.</p>
 
-      {/* Top: email + personal address + signature + hotkeys */}
-      <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5 mb-6">
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email</label>
-          <p className="text-sm text-slate-700">{user?.email}</p>
-        </div>
-
-        <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Personal email address</label>
-          <input
-            type="email"
-            value={personalEmail}
-            onChange={e => setPersonalEmail(e.target.value)}
-            placeholder="e.g. eddy@getyippie.com"
-            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
-          />
-          <p className="mt-1.5 text-xs text-slate-400">
-            One address for both directions: mail sent to it lands in your Personal inbox, and you can pick it as the "From" address when replying or composing.
-          </p>
-        </div>
-
-        <div className="border-t border-slate-100 pt-5">
-          <SignaturesSection />
-        </div>
-
-        <div className="flex items-start justify-between gap-4 border-t border-slate-100 pt-5">
+      <div className="flex items-start gap-6">
+        {/* Main form: email + personal address + signature + hotkeys */}
+        <form onSubmit={handleSubmit} className="flex-1 min-w-0 bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Keyboard shortcuts</label>
-            <p className="text-xs text-slate-400 max-w-sm">
-              When on, shortcuts like <span className="font-medium text-slate-500">Cmd/Ctrl + Enter</span> to send are active. Turn off to disable all keyboard shortcuts.
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email</label>
+            <p className="text-sm text-slate-700">{user?.email}</p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Personal email address</label>
+            <input
+              type="email"
+              value={personalEmail}
+              onChange={e => setPersonalEmail(e.target.value)}
+              placeholder="e.g. eddy@getyippie.com"
+              className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+            />
+            <p className="mt-1.5 text-xs text-slate-400">
+              One address for both directions: mail sent to it lands in your Personal inbox, and you can pick it as the "From" address when replying or composing.
             </p>
           </div>
-          <button
-            type="button"
-            role="switch"
-            aria-checked={hotkeysEnabled}
-            onClick={() => setHotkeysEnabled(v => !v)}
-            className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${hotkeysEnabled ? 'bg-yippie' : 'bg-slate-300'}`}
-          >
-            <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${hotkeysEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
-          </button>
+
+          <div className="border-t border-slate-100 pt-5">
+            <SignaturesSection />
+          </div>
+
+          <div className="flex items-start justify-between gap-4 border-t border-slate-100 pt-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Keyboard shortcuts</label>
+              <p className="text-xs text-slate-400 max-w-sm">
+                When on, shortcuts like <span className="font-medium text-slate-500">Cmd/Ctrl + Enter</span> to send are active. Turn off to disable all keyboard shortcuts.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={hotkeysEnabled}
+              onClick={() => setHotkeysEnabled(v => !v)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${hotkeysEnabled ? 'bg-yippie' : 'bg-slate-300'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${hotkeysEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+
+          {error && <p className="text-xs text-red-500">{error}</p>}
+
+          <div className="flex items-center gap-3">
+            <button
+              type="submit"
+              disabled={mutation.isPending}
+              className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+            >
+              {mutation.isPending ? 'Saving…' : 'Save'}
+            </button>
+            {saved && <span className="text-sm text-emerald-600 font-medium">✓ Saved</span>}
+          </div>
+        </form>
+
+        {/* Change password card — pinned to 280px */}
+        <div className="w-[280px] shrink-0">
+          <ChangePasswordCard />
         </div>
-
-        {error && <p className="text-xs text-red-500">{error}</p>}
-
-        <div className="flex items-center gap-3">
-          <button
-            type="submit"
-            disabled={mutation.isPending}
-            className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
-          >
-            {mutation.isPending ? 'Saving…' : 'Save'}
-          </button>
-          {saved && <span className="text-sm text-emerald-600 font-medium">✓ Saved</span>}
-        </div>
-      </form>
-
-      {/* Change password card */}
-      <div className="max-w-sm">
-        <ChangePasswordCard />
       </div>
     </div>
   )
@@ -314,7 +317,7 @@ function SignaturePreview({ body }: { body: string }) {
   const hasImg = /<img\s/i.test(body)
   if (hasImg) {
     return <div className="mt-1 text-xs text-slate-500 [&_img]:max-h-12 [&_img]:inline-block"
-      dangerouslySetInnerHTML={{ __html: body }} />
+      dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(body) }} />
   }
   return <p className="mt-1 text-xs text-slate-500 whitespace-pre-wrap line-clamp-3">{body || <span className="italic text-slate-400">Empty</span>}</p>
 }
@@ -355,6 +358,10 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
         placeholder={'e.g.\nBest regards,\nEddy — Support Team'}
         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie resize-y font-sans"
       />
+      {/<img\s/i.test(body) && (
+        <div className="px-2 py-1.5 bg-white border border-slate-100 rounded-lg text-xs text-slate-500 [&_img]:max-h-16 [&_img]:inline-block whitespace-pre-wrap"
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(body) }} />
+      )}
       <div className="flex items-center justify-between gap-2">
         <div>
           <button

@@ -13,7 +13,7 @@ const MODULE_MAP: Record<string, { label: string; Icon: LucideIcon; path: string
   contacts: { label: 'Contacts', Icon: Users,         path: '/contacts' },
   tickets:  { label: 'Tickets',  Icon: ClipboardList, path: '/tickets' },
   calendar: { label: 'Calendar', Icon: Calendar,      path: '/calendar' },
-  pipeline: { label: 'Pipeline', Icon: Kanban,        path: '/pipeline' },
+  pipeline: { label: 'Kanban',   Icon: Kanban,        path: '/pipeline' },
   activity: { label: 'Activity', Icon: Activity,      path: '/activity' },
   billing:  { label: 'Billing',  Icon: CreditCard,    path: '/billing' },
   chat:     { label: 'Chat',     Icon: MessageSquare, path: '/chat' },

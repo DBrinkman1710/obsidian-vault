@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
 
+from app.config import ALL_MODULES
 from app.database import Base
 
 
@@ -19,9 +20,6 @@ class UserRole(str, enum.Enum):
     viewer = "viewer"
 
 
-_ALL_MODULES = ["contacts", "tickets", "billing", "activity", "inbox", "chat", "ai"]
-
-
 class Tenant(Base):
     __tablename__ = "tenants"
 
@@ -29,14 +27,14 @@ class Tenant(Base):
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     enabled_modules: Mapped[list[str]] = mapped_column(
-        ARRAY(String), nullable=False, default=lambda: list(_ALL_MODULES)
+        ARRAY(String), nullable=False, default=lambda: list(ALL_MODULES)
     )
     primary_color: Mapped[str] = mapped_column(String(20), nullable=False, default="#5BB8E8")
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    # SaaS plan tier for this tenant's own Yippie subscription. Gates advanced
-    # features on top of enabled_modules (see app.core.plans). Stored as the
-    # PlanTier value string; defaults to enterprise so existing access is kept.
-    plan: Mapped[str] = mapped_column(String(20), nullable=False, server_default="enterprise")
+    # SaaS plan tier for this tenant's own Yippie subscription. Plans govern
+    # user/contact limits; modules are à la carte add-ons (see app.core.plans).
+    # Stored as the PlanTier value string; new tenants default to the founder tier.
+    plan: Mapped[str] = mapped_column(String(20), nullable=False, server_default="founder")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     go_live_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -45,6 +43,9 @@ class Tenant(Base):
     # Red = overdue or due within deadline_red_days; orange = due within deadline_orange_days.
     deadline_red_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     deadline_orange_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2")
+    # Auto-close stale tickets in "waiting" status after this many days without an
+    # update. Per-tenant; the hourly scheduler job reads it (see sla_escalation.py).
+    auto_close_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="7")
     # WhatsApp Business (Meta Cloud API) credentials — set per tenant via superadmin edit modal
     whatsapp_phone_number_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     whatsapp_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
