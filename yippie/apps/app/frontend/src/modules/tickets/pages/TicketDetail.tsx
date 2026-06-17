@@ -144,7 +144,7 @@ export default function TicketDetail() {
   if (!ticket) return <p className="text-sm text-slate-400">Loading…</p>
 
   return (
-    <div className="flex gap-6 items-start">
+    <div className="flex gap-8 items-start">
     <div className="flex-1 min-w-0 max-w-2xl">
       {confirmingDelete && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -388,13 +388,16 @@ function CustomerPanel({ contactId, ticket }: { contactId: string | null; ticket
   const priorSubjects = priorTickets.slice(0, 2)
 
   return (
-    <aside className="w-72 shrink-0">
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+    <aside className="w-96 flex-shrink-0">
+      {/* Contact card */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {!contactId ? (
-          <p className="text-xs text-slate-400 italic">No contact linked to this ticket.</p>
+          <div className="px-4 py-6 text-center">
+            <p className="text-xs text-slate-400">No contact linked to this ticket.</p>
+          </div>
         ) : (
           <>
-            <div className="flex items-start gap-3">
+            <div className="px-4 py-4 flex items-start gap-3">
               <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0">
                 {initials(contact?.full_name)}
               </div>
@@ -404,73 +407,77 @@ function CustomerPanel({ contactId, ticket }: { contactId: string | null; ticket
                 {contact?.phone && <p className="text-xs text-slate-400 truncate">{contact.phone}</p>}
               </div>
             </div>
-
-            {contact?.company?.name && (
-              <p className="text-xs text-slate-600 mt-3 flex items-center gap-1.5">
-                <span>🏢</span>
-                <span className="truncate">{contact.company.name}</span>
-              </p>
-            )}
-
-            {contact?.labels && contact.labels.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-3">
-                {contact.labels.map((l: any) => (
-                  <span
-                    key={l.id}
-                    className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
-                    style={{ backgroundColor: `${l.color}20`, color: l.color }}
-                  >
-                    {l.name}
-                  </span>
-                ))}
+            <div className="divide-y divide-slate-100">
+              {contact?.company?.name && (
+                <div className="px-4 py-3 flex items-center gap-2">
+                  <span className="text-slate-400">🏢</span>
+                  <span className="text-xs text-slate-700 truncate">{contact.company.name}</span>
+                </div>
+              )}
+              {contact?.labels && contact.labels.length > 0 && (
+                <div className="px-4 py-3 flex flex-wrap gap-1.5">
+                  {contact.labels.map((l: any) => (
+                    <span
+                      key={l.id}
+                      className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                      style={{ backgroundColor: `${l.color}20`, color: l.color }}
+                    >
+                      {l.name}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="px-4 py-3 flex items-center justify-between">
+                <span className="text-xs text-slate-500">{ticketCount} ticket{ticketCount === 1 ? '' : 's'} total</span>
+                <button
+                  onClick={() => navigate(`/contacts/${contactId}`)}
+                  className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  View contact →
+                </button>
               </div>
-            )}
-
-            <p className="text-xs text-slate-500 mt-3">
-              {ticketCount} ticket{ticketCount === 1 ? '' : 's'} total
-            </p>
-            <button
-              onClick={() => navigate(`/contacts/${contactId}`)}
-              className="mt-3 text-xs font-semibold text-blue-600 hover:text-blue-700"
-            >
-              → View contact
-            </button>
+            </div>
           </>
         )}
       </div>
 
+      {/* Recent correspondence */}
       {contactId && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mt-4">
-          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-            Recent correspondence
-          </h3>
-          {recent.length === 0 && <p className="text-xs text-slate-400">No correspondence yet.</p>}
-          <div className="flex flex-col gap-0.5">
-            {recent.map((d: any) => (
-              <button
-                key={d.id}
-                onClick={() => setOpenDraft(d)}
-                className="text-left hover:bg-slate-50 cursor-pointer rounded-lg px-2 py-1.5 flex items-center justify-between gap-2"
-              >
-                <span className="text-xs text-slate-700 truncate">{draftSubject(d)}</span>
-                <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(d.created_at)}</span>
-              </button>
-            ))}
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
+          <div className="px-4 py-3 border-b border-slate-100">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recent correspondence</h3>
           </div>
+          {recent.length === 0 ? (
+            <p className="text-xs text-slate-400 px-4 py-4">No correspondence yet.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {recent.map((d: any) => (
+                <button
+                  key={d.id}
+                  onClick={() => setOpenDraft(d)}
+                  className="w-full text-left hover:bg-slate-50 px-4 py-3 flex items-center justify-between gap-3"
+                >
+                  <span className="text-xs text-slate-700 truncate">{draftSubject(d)}</span>
+                  <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(d.created_at)}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 mt-4">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">
-          Context scan
-        </h3>
-        <div className="flex flex-col gap-3">
-          <div>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Subject</p>
+      {/* Context scan */}
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
+        <div className="px-4 py-3 border-b border-slate-100">
+          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Context scan</h3>
+        </div>
+        <div className="divide-y divide-slate-100">
+          <div className="px-4 py-3">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Subject</p>
             <p className="text-xs text-slate-700">{ticket?.subject ?? '—'}</p>
           </div>
-          <div>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Invoice #</p>
+          <div className="px-4 py-3">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Invoice #</p>
             {invoiceMatches.length > 0 ? (
               <div className="flex flex-wrap gap-1.5">
                 {invoiceMatches.map(m => (
@@ -483,16 +490,16 @@ function CustomerPanel({ contactId, ticket }: { contactId: string | null; ticket
               <p className="text-xs text-slate-400">None found</p>
             )}
           </div>
-          <div>
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Previous contacts</p>
-            <p className="text-xs text-slate-700">{priorCount} prior ticket{priorCount === 1 ? '' : 's'}</p>
+          <div className="px-4 py-3">
+            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Previous tickets</p>
+            <p className="text-xs text-slate-700 mb-1.5">{priorCount} prior ticket{priorCount === 1 ? '' : 's'}</p>
             {priorSubjects.length > 0 && (
-              <div className="flex flex-col gap-0.5 mt-1.5">
+              <div className="flex flex-col gap-1">
                 {priorSubjects.map((t: any) => (
                   <button
                     key={t.id}
                     onClick={() => navigate(`/tickets/${t.id}`)}
-                    className="text-left text-xs text-slate-500 hover:text-blue-600 truncate"
+                    className="text-left text-xs text-blue-600 hover:text-blue-700 truncate"
                   >
                     {t.subject}
                   </button>
