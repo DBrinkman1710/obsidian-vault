@@ -8,7 +8,7 @@ import os
 from passlib.context import CryptContext
 from sqlalchemy import select
 
-from app.config import load_tenant_config
+from app.config import ALL_MODULES
 from app.core.models import Tenant, User, UserRole
 from app.database import db_session, get_engine
 
@@ -16,18 +16,25 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
 async def main():
-    cfg = load_tenant_config()
+    # Brand-new-tenant bootstrap values come from env vars (tenant settings are
+    # otherwise sourced from the DB row at runtime). These only seed the very first
+    # tenant; later deploys hit the "already exists" guard and leave the row untouched.
+    tenant_id = os.getenv("TENANT_ID", "default")
+    tenant_name = os.getenv("TENANT_NAME", "Yippie")
+    enabled_modules = os.getenv("ENABLED_MODULES", ",".join(ALL_MODULES)).split(",")
+    primary_color = os.getenv("BRANDING_PRIMARY_COLOR", "#5BB8E8")
+    logo_url = os.getenv("BRANDING_LOGO_URL") or None
     admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
     admin_password = os.getenv("ADMIN_PASSWORD", "changeme123")
 
     async with db_session() as db:
         # Guard 1: tenant already exists — skip. Branding (primary_color/logo_url) is
         # user-editable in Settings (PATCH /team/branding), so it must NOT be re-synced
-        # from the config file here — doing so clobbered the user's chosen colour on
-        # every deploy. The config branding only seeds a brand-new tenant (below).
-        existing_tenant = await db.scalar(select(Tenant).where(Tenant.slug == cfg.tenant_id))
+        # from env here — doing so clobbered the user's chosen colour on every deploy.
+        # The env branding only seeds a brand-new tenant (below).
+        existing_tenant = await db.scalar(select(Tenant).where(Tenant.slug == tenant_id))
         if existing_tenant:
-            print(f"Tenant '{cfg.tenant_id}' already exists — skipping (branding left as set in-app).")
+            print(f"Tenant '{tenant_id}' already exists — skipping (branding left as set in-app).")
             return
 
         # Guard 2: user with this email already exists anywhere in the system
@@ -43,11 +50,11 @@ async def main():
             return
 
         tenant = Tenant(
-            slug=cfg.tenant_id,
-            name=cfg.tenant_name,
-            enabled_modules=cfg.enabled_modules,
-            primary_color=cfg.branding.primary_color,
-            logo_url=cfg.branding.logo_url,
+            slug=tenant_id,
+            name=tenant_name,
+            enabled_modules=enabled_modules,
+            primary_color=primary_color,
+            logo_url=logo_url,
         )
         db.add(tenant)
         await db.flush()
@@ -61,7 +68,7 @@ async def main():
         )
         db.add(user)
         await db.commit()
-        print(f"Created tenant '{cfg.tenant_name}' and superadmin '{admin_email}'.")
+        print(f"Created tenant '{tenant_name}' and superadmin '{admin_email}'.")
 
     await get_engine().dispose()
 
