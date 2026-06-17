@@ -95,6 +95,9 @@ async def _find_or_create_open_session(
     contact_id: Optional[uuid.UUID] = None,
     visitor_name: Optional[str] = None,
 ) -> ChatSession:
+    # Normalize to digits only — Evolution API sends remoteJid without + (e.g. "31612345678")
+    # while contacts may store "+31612345678". Keep them consistent so lookups always match.
+    phone = "".join(ch for ch in phone if ch.isdigit())
     result = await db.execute(
         select(ChatSession).where(
             ChatSession.tenant_id == tenant_id,
@@ -147,8 +150,9 @@ async def create_session(body: CreateSessionBody, current_user: CurrentUser, db:
 @router.get("/sessions/count")
 async def count_open_sessions(current_user: CurrentUser, db: DB):
     count = await db.scalar(
-        select(func.coalesce(func.sum(ChatSession.unread_count), 0)).where(
+        select(func.count(ChatSession.id)).where(
             ChatSession.tenant_id == current_user.tenant_id,
+            ChatSession.unread_count > 0,
         )
     )
     return {"open": count or 0}
@@ -240,8 +244,8 @@ async def reply_to_session(
         "body": text,
         "created_at": msg.created_at.isoformat(),
     }
-    # Push to visitor widget socket for this session and to all agent dashboards
-    await manager.broadcast_to_session(tenant_key, str(session_id), event_data)
+    # Visitor's WS is keyed by visitor_id (the client-side UUID for widget, phone for WA)
+    await manager.broadcast_to_session(tenant_key, session.visitor_id, event_data)
     await manager.broadcast_to_agents(tenant_key, event_data)
 
     return {"id": str(msg.id), "body": msg.body, "created_at": msg.created_at.isoformat()}
@@ -498,7 +502,20 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
     logger.debug("Evolution webhook payload for %s: %s", tenant_slug, payload)
     tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
     await set_tenant_context(db, tenant_id)
-    await whatsapp_service.handle_incoming_webhook(db, tenant_id, payload)
+    result = await whatsapp_service.handle_incoming_webhook(db, tenant_id, payload)
+    if result:
+        tenant_key = str(tenant_id)
+        event_data = {
+            "event": "message",
+            "session_id": result["session_id"],
+            "sender_type": "visitor",
+            "sender_id": result["visitor_id"],
+            "body": result["body"],
+            "created_at": result["created_at"],
+        }
+        await manager.broadcast_to_agents(tenant_key, event_data)
+        if result["is_new_session"]:
+            await manager.broadcast_to_agents(tenant_key, {"event": "new_session", "session_id": result["session_id"]})
     return {"status": "ok"}
 
 
@@ -531,6 +548,7 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
                 ChatSession.visitor_id == session_id,
                 ChatSession.tenant_id == tenant_id,
                 ChatSession.source == "websocket",
+                ChatSession.is_open == True,  # noqa: E712
             )
         )
         session = result.scalar_one_or_none()
@@ -546,7 +564,7 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
             await db.refresh(session)
             await manager.broadcast_to_agents(
                 tenant_key,
-                {"event": "new_session", "session_id": session_id},
+                {"event": "new_session", "session_id": str(session.id)},
             )
 
     try:
@@ -575,12 +593,13 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
 
             visitor_event = {
                 "event": "message",
-                "session_id": session_id,
+                "session_id": str(session.id),  # DB UUID — agents use this for query invalidation
                 "sender_type": "visitor",
                 "sender_id": session_id,
                 "body": msg_body,
                 "created_at": datetime.now(timezone.utc).isoformat(),
             }
+            # Visitor's WS is keyed by client-side session_id, not the DB UUID
             await manager.broadcast_to_session(tenant_key, session_id, visitor_event)
             await manager.broadcast_to_agents(tenant_key, visitor_event)
     except WebSocketDisconnect:
