@@ -145,12 +145,17 @@ async def request_demo(
     Creates an is_demo tenant (the requester gets a set-password invite), then
     files a follow-up Contact + Ticket in the root owner's own tenant.
     """
-    from app.auth.invite import send_invite_email
+    import secrets
+
+    from app.auth.invite import send_demo_ready_email
+    from app.auth.tokens import create_signed_token
     from app.core.mailer import ResendNotConfiguredError
     from app.core.models import User, UserRole
     from app.modules.admin.schemas import TenantCreate
     from app.modules.admin.service import create_tenant
     from app.modules.contacts.models import Contact, contact_label_links
+    from app.modules.pipeline.models import PipelineStage
+    from app.modules.pipeline.service import _assign_stage
     from app.modules.tickets.models import MessageSource, Ticket, TicketPriority, TicketStatus
 
     ip = (request.client.host if request.client else None) or "unknown"
@@ -169,7 +174,10 @@ async def request_demo(
     base_slug = _slugify(body.slug or body.company_name)
     slug = await _unique_slug(db, base_slug)
 
-    # create_tenant commits + sends the invite. No admin_password => set-password invite.
+    # Random password => create_tenant creates a hashed-password user and
+    # suppresses the generic set-password invite email; we send a magic-login
+    # "demo ready" mail instead.
+    pwd = secrets.token_urlsafe(32)
     try:
         tenant = await create_tenant(
             db,
@@ -179,6 +187,7 @@ async def request_demo(
                 admin_email=body.email,
                 admin_full_name=body.name,
                 is_demo=True,
+                admin_password=pwd,
             ),
         )
     except ValueError as e:
@@ -190,6 +199,15 @@ async def request_demo(
         )
 
     tenant_id = tenant["id"]
+
+    # Mint a 7-day magic-login token and email a one-click auto-login link.
+    settings = get_settings()
+    user = await db.scalar(
+        select(User).where(func.lower(User.email) == body.email.lower())
+    )
+    token = create_signed_token("demo_magic", timedelta(days=7), user_id=str(user.id))
+    magic_link = f"{settings.client_base_url or settings.app_base_url}/demo-enter?token={token}"
+    await send_demo_ready_email(body.email, body.name, magic_link)
 
     # File a follow-up Contact + Ticket in the root owner's own tenant.
     label = await _ensure_demo_label(db, root_tenant_id)
@@ -204,6 +222,25 @@ async def request_demo(
     await db.execute(
         contact_label_links.insert().values(contact_id=contact.id, label_id=label.id)
     )
+
+    # [DEMO-WF1] Drop the contact into the "Demo requested" kanban stage.
+    stage = await db.scalar(
+        select(PipelineStage).where(
+            PipelineStage.tenant_id == root_tenant_id,
+            PipelineStage.name == "Demo requested",
+        )
+    )
+    if stage is None:
+        stage = PipelineStage(
+            tenant_id=root_tenant_id,
+            name="Demo requested",
+            color="#5BA4F5",
+            display_order=0,
+        )
+        db.add(stage)
+        await db.flush()
+
+    await _assign_stage(db, root_tenant_id, contact.id, stage.id)
 
     now = datetime.now(timezone.utc)
     db.add(Ticket(
@@ -224,6 +261,27 @@ async def request_demo(
     await db.commit()
 
     return {"tenant_id": str(tenant_id), "slug": slug, "invited": True}
+
+
+@router.get("/demo-enter")
+async def demo_enter(token: str, db: Annotated[AsyncSession, Depends(get_db)]):
+    from app.auth.tokens import verify_signed_token
+    from app.auth.router import create_access_token, TokenResponse
+    from app.core.models import User
+    from app.core.schemas import UserOut
+    from app.config import get_settings
+
+    claims = verify_signed_token(token, "demo_magic")
+    if not claims:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired demo link.")
+
+    user = await db.get(User, uuid.UUID(claims["user_id"]))
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Demo account not found.")
+
+    settings = get_settings()
+    access_token = create_access_token(str(user.id), settings)
+    return TokenResponse(access_token=access_token, user=UserOut.model_validate(user))
 
 
 # --------------------------------------------------------------------------- #

@@ -50,6 +50,23 @@ async def send_invite_email(
     )
 
 
+async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> None:
+    body = (
+        f"Hi {full_name},\n\n"
+        f"Your Yippie demo is ready — no password needed.\n\n"
+        f"Click below to enter your demo workspace:\n{magic_link}\n\n"
+        f"The link is valid for 7 days. Your demo resets after that.\n\n"
+        f"Take back the time that matters,\n"
+        f"Team Yippie"
+    )
+    await send_email(
+        to=to,
+        subject="Your Yippie demo is ready",
+        body=body,
+        html=render_email_html(body, tenant_name="Yippie"),
+    )
+
+
 async def send_welcome_to_inbox(tenant_inbound_email: str, tenant_name: str) -> None:
     """Send the welcome/introduction mail INTO the client's Yippie inbox (their
     tenant inbound address), so it's the first item they see in the product

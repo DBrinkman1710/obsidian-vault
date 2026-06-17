@@ -34,6 +34,7 @@ const TemplatesPage            = lazy(() => import('./modules/admin/pages/Templa
 
 const TrackConfirmPage = lazy(() => import('./pages/TrackConfirmPage'))
 const RequestDemoPage = lazy(() => import('./pages/RequestDemoPage'))
+const DemoEnterPage = lazy(() => import('./pages/DemoEnterPage'))
 const BookingPage = lazy(() => import('./pages/BookingPage'))
 const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
 
@@ -115,6 +116,7 @@ export default function App() {
           <Route path="/reset-password" element={<ResetPasswordPage />} />
           <Route path="/track/confirm" element={<TrackConfirmPage />} />
           <Route path="/request-demo" element={<RequestDemoPage />} />
+          <Route path="/demo-enter" element={<DemoEnterPage />} />
           <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
           <Route path="/book/:token" element={<BookingPage />} />
           <Route path="*" element={<Navigate to="/login" replace />} />
