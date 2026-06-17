@@ -355,7 +355,7 @@ export default function BookingPage() {
             onClick={() => setShowCounterPropose(false)}
             className="text-xs text-slate-400 hover:text-slate-600 transition-colors mb-3"
           >
-            ← Back to proposed times
+            {data.mode === 'propose' ? '← Back to proposed times' : '← Back to available times'}
           </button>
           <CounterProposeForm
             onSuccess={() => setCounterProposeSent(true)}
@@ -444,6 +444,13 @@ export default function BookingPage() {
               {confirming ? 'Booking…' : `Book ${fmtSlotLong(picked.start, picked.end)}`}
             </button>
           )}
+
+          <button
+            onClick={() => setShowCounterPropose(true)}
+            className="w-full mt-3 text-sm text-slate-500 hover:text-amber-600 transition-colors"
+          >
+            None of these times work? Propose your own →
+          </button>
         </div>
       )}
     </Shell>
