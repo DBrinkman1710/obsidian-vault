@@ -207,7 +207,10 @@ async def request_demo(
     )
     token = create_signed_token("demo_magic", timedelta(days=7), user_id=str(user.id))
     magic_link = f"{settings.client_base_url or settings.app_base_url}/demo-enter?token={token}"
-    await send_demo_ready_email(body.email, body.name, magic_link)
+    try:
+        await send_demo_ready_email(body.email, body.name, magic_link)
+    except Exception:
+        pass  # demo is created; email failure must not fail the response
 
     # File a follow-up Contact + Ticket in the root owner's own tenant.
     label = await _ensure_demo_label(db, root_tenant_id)
