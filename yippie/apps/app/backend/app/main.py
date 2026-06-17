@@ -15,6 +15,7 @@ from app.core.plans import ADVANCED_FEATURES, MODULE_PRICES, features_for_plan, 
 from app.core.schemas import TenantConfigOut
 from app.database import get_db
 from app.modules import MODULES
+from app.modules.chat.router import ws_router as chat_ws_router
 from app.modules.admin.router import router as admin_router
 from app.modules.departments.router import router as departments_router
 from app.modules.team.router import router as team_router
@@ -68,6 +69,10 @@ def create_app() -> FastAPI:
     app.include_router(tracking_router, prefix="/api/v1")
     # Public Resend webhook — no auth, Resend posts delivery events here
     app.include_router(emailtracking_webhook_router, prefix="/api/v1")
+    # Chat websockets — mounted without the require_module/require_feature
+    # dependencies applied to the gated module routers below, since those
+    # depend on HTTPBearer (HTTP-only) and break websocket connections.
+    app.include_router(chat_ws_router, prefix="/api/v1")
 
     @app.get("/api/v1/health", tags=["health"], include_in_schema=False)
     async def health():
