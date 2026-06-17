@@ -145,7 +145,7 @@ export default function TicketDetail() {
 
   return (
     <div className="flex gap-8 items-start">
-    <div className="flex-1 min-w-0 max-w-2xl">
+    <div className="flex-1 min-w-0">
       {confirmingDelete && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
