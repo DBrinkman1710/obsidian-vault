@@ -37,11 +37,11 @@ export default function ProfileSettingsPage() {
   }
 
   return (
-    <div className="max-w-4xl">
+    <div>
       <h1 className="text-2xl font-bold text-slate-900 mb-1">Profile</h1>
       <p className="text-sm text-slate-500 mb-8">Manage your personal email address, signature and password.</p>
 
-      <div className="flex items-start gap-6">
+      <div className="flex items-start gap-8">
         {/* Main form: email + personal address + signature + hotkeys */}
         <form onSubmit={handleSubmit} className="flex-1 min-w-0 bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
           <div>
@@ -99,8 +99,8 @@ export default function ProfileSettingsPage() {
           </div>
         </form>
 
-        {/* Change password card — pinned to 280px */}
-        <div className="w-[280px] shrink-0">
+        {/* Change password */}
+        <div className="w-96 flex-shrink-0">
           <ChangePasswordCard />
         </div>
       </div>

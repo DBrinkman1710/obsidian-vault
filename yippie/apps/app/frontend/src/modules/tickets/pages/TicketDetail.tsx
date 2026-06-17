@@ -55,7 +55,7 @@ export default function TicketDetail() {
   })
 
   const { data: ticketContact } = useQuery({
-    queryKey: ['contact', ticket?.contact_id],
+    queryKey: ['ticket-contact-booking', ticket?.contact_id],
     queryFn: () => api.get(`/contacts/${ticket.contact_id}`).then(r => r.data),
     enabled: !!ticket?.contact_id && bookingEnabled,
   })
@@ -359,10 +359,11 @@ function CustomerPanel({ contactId, ticket }: { contactId: string | null; ticket
   const navigate = useNavigate()
   const [openDraft, setOpenDraft] = useState<any | null>(null)
 
-  const { data: contact } = useQuery({
+  const { data: contact, isLoading: contactLoading } = useQuery({
     queryKey: ['contact', contactId],
     queryFn: () => api.get(`/contacts/${contactId}`).then(r => r.data),
     enabled: !!contactId,
+    retry: 1,
   })
   const { data: drafts } = useQuery({
     queryKey: ['contact-correspondence', contactId],
@@ -401,6 +402,14 @@ function CustomerPanel({ contactId, ticket }: { contactId: string | null; ticket
           <div className="px-4 py-6 text-center">
             <p className="text-xs text-slate-400">No contact linked to this ticket.</p>
           </div>
+        ) : contactLoading ? (
+          <div className="px-4 py-4 flex items-start gap-3 animate-pulse">
+            <div className="w-10 h-10 rounded-full bg-slate-200 shrink-0" />
+            <div className="flex-1 space-y-2 pt-1">
+              <div className="h-3 bg-slate-200 rounded w-3/4" />
+              <div className="h-2.5 bg-slate-100 rounded w-1/2" />
+            </div>
+          </div>
         ) : (
           <>
             <div className="px-4 py-4 flex items-start gap-3">
@@ -408,7 +417,7 @@ function CustomerPanel({ contactId, ticket }: { contactId: string | null; ticket
                 {initials(contact?.full_name)}
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-bold text-slate-900 truncate">{contact?.full_name ?? '…'}</p>
+                <p className="text-sm font-bold text-slate-900 truncate">{contact?.full_name ?? '—'}</p>
                 {contact?.email && <p className="text-xs text-slate-500 truncate">{contact.email}</p>}
                 {contact?.phone && <p className="text-xs text-slate-400 truncate">{contact.phone}</p>}
               </div>

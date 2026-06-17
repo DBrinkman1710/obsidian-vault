@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowLeft, Megaphone, MessageSquare, Search, Send, SquarePen, X } from 'lucide-react'
+import { ArrowLeft, Megaphone, MessageSquare, QrCode, Search, Send, SquarePen, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useMobile } from '../../../shell/useMobile'
 import BroadcastModal from '../components/BroadcastModal'
@@ -29,6 +29,7 @@ export default function ChatPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [showBroadcastModal, setShowBroadcastModal] = useState(false)
+  const [showQrModal, setShowQrModal] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -201,6 +202,15 @@ export default function ChatPage() {
                 <p className="text-xs text-slate-400 mt-0.5">WhatsApp conversations</p>
               </div>
               <div className="flex items-center gap-1">
+                {!isConnected && (
+                  <button
+                    onClick={() => setShowQrModal(true)}
+                    title="Connect WhatsApp"
+                    className="p-1.5 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
+                  >
+                    <QrCode size={16} />
+                  </button>
+                )}
                 <button
                   onClick={() => setSidebarMode('search')}
                   title="New conversation"
@@ -220,27 +230,42 @@ export default function ChatPage() {
           </>
         )}
       </div>
-      {!isConnected && (
-        <div className="mx-4 mt-4 bg-white border border-slate-200 rounded-xl p-4 text-center flex-shrink-0">
-          <h2 className="text-sm font-bold text-slate-900 mb-1">Connect WhatsApp</h2>
-          <p className="text-xs text-slate-500 mb-3">Scan with WhatsApp to connect</p>
-          {qrLoading && <p className="text-xs text-slate-400 py-6">Loading QR code…</p>}
-          {!qrLoading && qrError && (
-            <p className="text-xs text-red-500 py-6">
-              Couldn't load the WhatsApp QR — check Evolution API is configured for this environment.
-            </p>
-          )}
-          {!qrLoading && !qrError && qrData?.base64 && (
-            <>
-              <img src={qrData.base64} alt="WhatsApp pairing QR code" className="w-40 h-40 mx-auto" />
-              {qrData.pairing_code && (
-                <p className="text-xs text-slate-500 mt-2 font-mono">{qrData.pairing_code}</p>
+      {showQrModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowQrModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900">Connect WhatsApp</h2>
+              <button onClick={() => setShowQrModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+            <div className="p-6 text-center">
+              <p className="text-sm text-slate-500 mb-4">Scan this QR code with WhatsApp on your phone to connect.</p>
+              {qrLoading && <p className="text-sm text-slate-400 py-8">Loading QR code…</p>}
+              {!qrLoading && qrError && (
+                <p className="text-sm text-red-500 py-8">
+                  Couldn't load the QR code — check Evolution API is configured for this environment.
+                </p>
               )}
-            </>
-          )}
-          {!qrLoading && !qrError && !qrData?.base64 && (
-            <p className="text-xs text-slate-400 py-6">Waiting for QR code…</p>
-          )}
+              {!qrLoading && !qrError && qrData?.base64 && (
+                <>
+                  <img src={qrData.base64} alt="WhatsApp pairing QR code" className="w-48 h-48 mx-auto" />
+                  {qrData.pairing_code && (
+                    <p className="text-xs text-slate-500 mt-3 font-mono">Pairing code: {qrData.pairing_code}</p>
+                  )}
+                </>
+              )}
+              {!qrLoading && !qrError && !qrData?.base64 && (
+                <p className="text-sm text-slate-400 py-8">Waiting for QR code…</p>
+              )}
+              <div className="mt-6 pt-4 border-t border-slate-100">
+                <p className="text-[10px] text-slate-400">
+                  Live chat powered by{' '}
+                  <a href="https://github.com/EvolutionAPI/evolution-api" target="_blank" rel="noopener noreferrer" className="underline">Evolution API</a>
+                  {' '}— licensed under the{' '}
+                  <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer" className="underline">Apache License 2.0</a>.
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       )}
       <div className="flex-1 overflow-y-auto">

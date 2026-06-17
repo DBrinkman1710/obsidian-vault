@@ -172,6 +172,13 @@ export default function HomePage() {
       {/* Hero */}
       <section className={`${styles.hero} bgGrid`}>
         <div className={styles.heroGlow} aria-hidden="true" />
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-blue-bg-mark.svg"
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none select-none absolute -right-24 -bottom-16 w-[36rem] h-[36rem] opacity-[0.04] z-0"
+        />
         <div className={styles.heroInner}>
           <Reveal className={styles.heroCopy}>
             <div className={styles.eyebrowPill}>
