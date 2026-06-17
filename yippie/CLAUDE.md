@@ -78,6 +78,7 @@ Set these env vars in Railway per environment:
 - `SECRET_KEY` — `openssl rand -base64 32`
 - `ANTHROPIC_API_KEY` — for inbox AI scanning
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` — superadmin credentials
+- `TENANT_ID` / `TENANT_NAME` — first-tenant bootstrap (used once by `seed.py`); optional `ENABLED_MODULES` (comma-separated, defaults to all), `BRANDING_PRIMARY_COLOR`, `BRANDING_LOGO_URL`. After bootstrap, per-tenant config lives on the `Tenant` DB row, not env.
 - `ENVIRONMENT` — set to `devsandbox`, `sandbox`, `dev`, or `production`
 - `EVOLUTION_API_URL` / `EVOLUTION_API_TOKEN` — WhatsApp gateway (Evolution API instance base URL + global API token); required for Live Chat's WhatsApp send/receive and the QR pairing card to work
 

@@ -8,9 +8,9 @@ import logging
 from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import select, update
+from sqlalchemy import func, select, update
 
-from app.config import load_tenant_config
+from app.core.models import Tenant
 from app.database import db_session
 from app.modules.tickets.models import Ticket, TicketPriority, TicketStatus
 
@@ -20,7 +20,6 @@ scheduler = AsyncIOScheduler()
 
 @scheduler.scheduled_job("interval", minutes=5, id="sla_escalation")
 async def escalate_overdue_tickets():
-    cfg = load_tenant_config()
     now = datetime.now(timezone.utc)
     async with db_session() as db:
         result = await db.execute(
@@ -43,15 +42,17 @@ async def escalate_overdue_tickets():
 
 @scheduler.scheduled_job("interval", hours=1, id="auto_close")
 async def auto_close_stale_tickets():
-    cfg = load_tenant_config()
-    days = cfg.features.auto_close_days
-    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    # Per-tenant: each ticket is closed once it has gone its OWN tenant's
+    # auto_close_days without an update. This scheduler session never calls
+    # set_tenant_context, so it runs as the connecting role and sees all tenants.
     async with db_session() as db:
         result = await db.execute(
-            select(Ticket).where(
+            select(Ticket)
+            .join(Tenant, Tenant.id == Ticket.tenant_id)
+            .where(
                 Ticket.status == TicketStatus.waiting,
-                Ticket.updated_at < cutoff,
                 Ticket.deleted_at.is_(None),
+                Ticket.updated_at < func.now() - func.make_interval(0, 0, 0, Tenant.auto_close_days),
             )
         )
         tickets = result.scalars().all()

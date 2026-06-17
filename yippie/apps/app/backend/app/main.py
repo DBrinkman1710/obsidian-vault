@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, require_feature, require_module
 from app.auth.router import router as auth_router
-from app.config import ALL_MODULES, get_settings, load_tenant_config
+from app.config import ALL_MODULES, get_settings
 from app.core.models import Tenant
 from app.core.plans import ADVANCED_FEATURES, MODULE_PRICES, features_for_plan, limits_for_plan
 from app.core.schemas import TenantConfigOut
@@ -35,7 +35,6 @@ async def lifespan(app: FastAPI):
 
 
 def create_app() -> FastAPI:
-    cfg = load_tenant_config()
     settings = get_settings()
     is_prod = settings.environment == "production"
 
