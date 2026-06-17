@@ -1,0 +1,72 @@
+.banner {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 9999;
+  max-width: 380px;
+  background: var(--white);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-lg);
+  padding: 20px;
+  font-family: var(--font-body, system-ui, sans-serif);
+}
+
+.text {
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--muted);
+}
+
+.link {
+  color: var(--brand);
+  text-decoration: none;
+}
+.link:hover { text-decoration: underline; }
+
+.actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.btnDecline,
+.btnAccept {
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.18s, border-color 0.18s, transform 0.15s;
+  font-family: inherit;
+}
+
+.btnDecline {
+  background: var(--white);
+  border-color: var(--border);
+  color: var(--muted);
+}
+.btnDecline:hover {
+  border-color: var(--brand);
+  color: var(--ink);
+}
+
+.btnAccept {
+  background: var(--ink);
+  color: #fff;
+}
+.btnAccept:hover {
+  background: var(--brand);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 480px) {
+  .banner {
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+    max-width: none;
+  }
+}
