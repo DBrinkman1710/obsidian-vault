@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
-import Analytics from "./components/Analytics";
+import { GoogleAnalytics } from "@next/third-parties/google";
+import ConsentDefaults from "./components/ConsentDefaults";
 import CookieBanner from "./components/CookieBanner";
 import "./globals.css";
 
@@ -79,7 +80,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
       <head>
-        <Analytics />
+        <ConsentDefaults />
       </head>
       <body>
         <script
@@ -89,6 +90,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <CookieBanner />
       </body>
+      <GoogleAnalytics gaId="G-L5HHNHVNQD" />
     </html>
   );
 }
