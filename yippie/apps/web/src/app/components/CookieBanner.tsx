@@ -37,20 +37,20 @@ export default function CookieBanner() {
       className={styles.banner}
       role="dialog"
       aria-live="polite"
-      aria-label="Cookie toestemming"
+      aria-label="Cookie consent"
     >
       <p className={styles.eyebrow}>Cookies</p>
       <p className={styles.text}>
-        Bij Yippie houden we van transparantie. We gebruiken anonieme statistieken
-        om de website te verbeteren. Ga je akkoord?{" "}
-        <a href="/privacy">Privacybeleid</a>.
+        We use anonymous analytics to understand how the site is used and keep
+        improving it. Accept cookies to help us out?{" "}
+        <a href="/privacy">Privacy policy</a>.
       </p>
       <div className={styles.buttons}>
         <button type="button" className={styles.decline} onClick={decline}>
-          Weigeren
+          Decline
         </button>
         <button type="button" className={styles.accept} onClick={accept}>
-          Akkoord
+          Accept
         </button>
       </div>
     </div>
