@@ -66,6 +66,13 @@ environment / deploy reference lives in **Appendix B**.
 - **[V10] Add contact labels to Settings page** — Add the Labels management section (name + colour, CRUD) as a section inside the main Settings page, accessible from the same Settings area. See Tier 3.
 - **[V11] Remove standalone Labels page** — Once labels are in Settings (V10), remove the standalone `/settings/labels` route, `LabelsPage` component, and its "Labels" sidebar link. See Tier 3.
 
+**New items collected (session 58 — 2026-06-16):**
+
+- **[WEB-HSTS] Ship HSTS header on getyippie.com** — `Sonnet` — HSTS header was added to `apps/web/next.config.mjs` (`Strict-Transport-Security: max-age=15552000; includeSubDomains`, no `preload`) but is **not yet deployed**. Closes the window where browsers/scanners (e.g. NordVPN's "insecure" shield badge) attempt `http://` before the existing Cloudflare 301 → HTTPS kicks in. Steps:
+  1. `git push origin commercial` (rebuilds the `Commercial website` service → getyippie.com).
+  2. Verify live: `curl -sI https://getyippie.com | grep -i strict-transport`.
+  3. (Optional) the stale NordVPN/OG link-preview card refreshes on its own; force a re-crawl via opengraph.xyz if needed. Do **not** enable `preload` (Cloudflare or in-config) — near-irreversible.
+
 **New items collected (session 39 — 2026-06-12):**
 
 - ~~**[Cal1] Calendar: automated email to contact when linked to a meeting**~~ ✅ **DONE (shipped commit 367ac95, verified session 54)** — `calendar/service.py` `_notify_contact()` sends a branded Resend invitation (title + human-formatted when + description) on create and on update; fires only when `contact_id` is set, the request's `notify_contact` flag is on, and (on update) the contact link or start time actually changed. Failures are logged, never break the request.
