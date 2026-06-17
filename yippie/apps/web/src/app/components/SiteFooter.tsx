@@ -1,7 +1,7 @@
 import styles from "./SiteChrome.module.css";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
-const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/demo";
+const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 const columns = [
   {
@@ -38,7 +38,7 @@ export default function SiteFooter() {
         <div className={styles.footerBrand}>
           <a href="/" aria-label="Yippie home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo.svg" alt="Yippie" className={styles.footerLogo} />
+            <img src="/logo-black-bg.svg" alt="Yippie" className={styles.footerLogo} />
           </a>
           <p className={styles.footerTagline}>
             The AI-powered customer service platform for small and medium businesses.

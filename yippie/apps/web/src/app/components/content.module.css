@@ -285,13 +285,10 @@
 .proofText { font-family: var(--font-display); font-size: 19px; font-weight: 600; color: var(--ink); }
 .proofSub { font-size: 14px; color: var(--muted); margin-top: 6px; }
 
-/* ── CTA section (brand-tinted light panel) ──── */
+/* ── CTA section (light) ─────────────────────── */
 .ctaSection {
   padding: 56px var(--gutter) 100px;
   text-align: center;
-}
-.ctaSection > * { position: relative; z-index: 1; }
-.ctaSection {
   background: var(--white);
 }
 .ctaTitle {

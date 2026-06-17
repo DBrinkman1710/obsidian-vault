@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { siteJsonLd } from "./structured-data";
 
 const SITE_URL = process.env.NEXT_PUBLIC_WEB_URL ?? "https://getyippie.com";
 
@@ -47,10 +46,8 @@ export const metadata: Metadata = {
     siteName: "Yippie",
     images: [
       {
-        url: "/og.png",
-        width: 1200,
-        height: 630,
-        alt: "Yippie — Customer support, made easy",
+        url: "/logo.svg",
+        alt: "Yippie",
       },
     ],
   },
@@ -59,8 +56,18 @@ export const metadata: Metadata = {
     title: "Yippie — Customer support, made easy",
     description:
       "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.",
-    images: ["/og.png"],
+    images: ["/logo.svg"],
   },
+};
+
+const organizationJsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Yippie",
+  url: "https://getyippie.com",
+  logo: "https://getyippie.com/logo.svg",
+  description:
+    "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -72,7 +79,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
         {children}
       </body>

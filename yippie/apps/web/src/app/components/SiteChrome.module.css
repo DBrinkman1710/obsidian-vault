@@ -24,7 +24,7 @@
 }
 
 .brand { display: inline-flex; align-items: center; }
-.navLogo { height: 30px; width: auto; }
+.navLogo { height: 40px; width: auto; }
 
 .navLinks {
   display: flex;
@@ -141,7 +141,7 @@
   color: var(--ink);
 }
 
-/* ── Footer ──────────────────────────────────── */
+/* ── Footer (dark, matches logo-black-bg.svg rect #0F172A) ───── */
 .footer {
   background: var(--ink);
   color: rgba(255, 255, 255, 0.6);
@@ -157,7 +157,7 @@
 }
 
 .footerBrand { max-width: 320px; }
-.footerLogo { height: 28px; width: auto; margin-bottom: 18px; }
+.footerLogo { height: 34px; width: auto; margin-bottom: 18px; border-radius: 8px; }
 .footerTagline {
   font-size: 14px;
   line-height: 1.7;

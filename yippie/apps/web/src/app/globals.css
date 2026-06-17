@@ -18,8 +18,9 @@
   --blue-dark:   #3d8de8;
   --blue-glow:   rgba(91, 164, 245, 0.18);
 
-  /* Ink + slate scale */
-  --ink:         #0b1220;   /* near-black headings / dark sections */
+  /* Ink + slate scale. --ink matches the logo-black-bg.svg rect (#0F172A)
+     so the dark logo variant sits seamlessly on dark surfaces / footer. */
+  --ink:         #0F172A;
   --navy:        #0f172a;
   --text:        #334155;   /* body */
   --muted:       #64748b;   /* secondary */

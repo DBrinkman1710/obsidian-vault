@@ -323,7 +323,7 @@
 .faqChevron { font-size: 22px; font-weight: 400; color: var(--brand-700); flex-shrink: 0; line-height: 1; }
 .faqAnswer { padding: 0 24px 22px; font-size: 14px; color: var(--muted); line-height: 1.7; }
 
-/* ── CTA (light brand-tinted) ────────────────── */
+/* ── CTA (light) ─────────────────────────────── */
 .ctaSection {
   padding: 56px var(--gutter) 100px;
   text-align: center;

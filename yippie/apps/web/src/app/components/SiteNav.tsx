@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import styles from "./SiteChrome.module.css";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
-const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/demo";
+const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 const links = [
   { href: "/modules", label: "Product" },
@@ -37,7 +37,7 @@ export default function SiteNav() {
     <nav className={`${styles.nav} ${scrolled ? styles.navScrolled : ""}`}>
       <a href="/" className={styles.brand} aria-label="Yippie home">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="Yippie" className={styles.navLogo} />
+        <img src="/logo-white-bg.svg" alt="Yippie" className={styles.navLogo} />
       </a>
 
       <ul className={styles.navLinks}>

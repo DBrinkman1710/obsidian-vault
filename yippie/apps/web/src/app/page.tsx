@@ -16,7 +16,7 @@ import {
 } from "./components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
-const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/demo";
+const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 const features = [
   {
