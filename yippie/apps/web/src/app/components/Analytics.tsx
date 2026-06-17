@@ -1,4 +1,4 @@
-const GA_ID = process.env.NEXT_PUBLIC_GA_ID ?? "G-QN742BWE1G";
+const GA_ID = process.env.NEXT_PUBLIC_GA_ID ?? "G-L5HHNHVNQD";
 
 declare global {
   interface Window {
@@ -8,46 +8,54 @@ declare global {
 }
 
 /**
- * All three script tags render in the server HTML so Google tag verification
- * finds the gtag.js src in the page source. next/script afterInteractive is
- * deliberately avoided — it injects via JS after hydration, making the tag
- * invisible to simple HTTP-based verifiers.
+ * Google tag (gtag.js) for the marketing site, with Consent Mode V2.
  *
- * Order: consent-init → gtag.js → ga-config (Consent Mode V2 requirement).
+ * This is emitted as a SINGLE inline <script> rendered into the server HTML via
+ * dangerouslySetInnerHTML. That matters for two reasons:
+ *
+ * 1. Ordering. In the App Router, React 18 treats a JSX `<script async src>` as
+ *    a hoisted resource and moves it to the TOP of <head> — ahead of any inline
+ *    <script> blocks, regardless of JSX order. That caused gtag.js to load
+ *    before our consent defaults ran, breaking Consent Mode V2. Injecting the
+ *    loader ourselves from inside this inline script guarantees the required
+ *    order: consent defaults → gtag.js → config.
+ * 2. Visibility. The full gtag.js URL is present verbatim in the page source
+ *    HTML (inside this script), and the loader runs on first paint, so Google's
+ *    tag verification (which executes the page) detects the tag firing.
  */
 export default function Analytics() {
   return (
-    <>
-      {/* 1. Set consent defaults before gtag.js evaluates anything */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `
-            window.dataLayer = window.dataLayer || [];
-            function gtag(){dataLayer.push(arguments);}
-            window.gtag = gtag;
-            try {
-              var _c = localStorage.getItem('yippie_consent');
-              gtag('consent','default', _c === 'accepted'
-                ? {ad_storage:'granted',ad_user_data:'granted',ad_personalization:'granted',analytics_storage:'granted'}
-                : {ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500}
-              );
-            } catch(e) {
-              gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});
-            }
-          `,
-        }}
-      />
+    <script
+      dangerouslySetInnerHTML={{
+        __html: `
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          window.gtag = gtag;
 
-      {/* 2. Load the GA library — appears in page source HTML */}
-      {/* eslint-disable-next-line @next/next/no-before-interactive-script-outside-document */}
-      <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+          // 1. Consent defaults — MUST run before gtag.js loads.
+          try {
+            var _c = localStorage.getItem('yippie_consent');
+            gtag('consent','default', _c === 'accepted'
+              ? {ad_storage:'granted',ad_user_data:'granted',ad_personalization:'granted',analytics_storage:'granted'}
+              : {ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500}
+            );
+          } catch(e) {
+            gtag('consent','default',{ad_storage:'denied',ad_user_data:'denied',ad_personalization:'denied',analytics_storage:'denied',wait_for_update:500});
+          }
 
-      {/* 3. Configure GA */}
-      <script
-        dangerouslySetInnerHTML={{
-          __html: `gtag('js',new Date());gtag('config','${GA_ID}');`,
-        }}
-      />
-    </>
+          // 2. Load the GA library: https://www.googletagmanager.com/gtag/js?id=${GA_ID}
+          (function(){
+            var s = document.createElement('script');
+            s.async = true;
+            s.src = 'https://www.googletagmanager.com/gtag/js?id=${GA_ID}';
+            document.head.appendChild(s);
+          })();
+
+          // 3. Configure GA.
+          gtag('js', new Date());
+          gtag('config', '${GA_ID}');
+        `,
+      }}
+    />
   );
 }
