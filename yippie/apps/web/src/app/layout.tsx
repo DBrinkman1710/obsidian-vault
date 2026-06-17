@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import Analytics from "./components/Analytics";
+import CookieBanner from "./components/CookieBanner";
 import "./globals.css";
 
 const SITE_URL = process.env.NEXT_PUBLIC_WEB_URL ?? "https://getyippie.com";
@@ -81,7 +83,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
+        <Analytics />
         {children}
+        <CookieBanner />
       </body>
     </html>
   );

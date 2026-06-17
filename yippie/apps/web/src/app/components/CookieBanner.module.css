@@ -1,0 +1,115 @@
+/* Cookie consent banner — premium light system.
+   Tokens come from globals.css; buttons mirror content.module.css btnPrimary/btnGhost. */
+
+.banner {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  max-width: 400px;
+  z-index: 99999;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+  padding: 22px 22px 20px;
+  font-family: var(--font-body);
+  animation: bannerIn 0.32s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes bannerIn {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--brand-700);
+  margin-bottom: 10px;
+}
+
+.text {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--text);
+  margin-bottom: 18px;
+}
+
+.text a {
+  color: var(--brand-700);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.text a:hover {
+  text-decoration: underline;
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+/* Shared button shape */
+.decline,
+.accept {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 18px;
+  border-radius: var(--r-sm);
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s, border-color 0.18s;
+}
+
+/* Ghost (secondary) */
+.decline {
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--border);
+}
+
+.decline:hover {
+  border-color: var(--brand);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Primary */
+.accept {
+  background: var(--ink);
+  color: #fff;
+  border: 1px solid transparent;
+}
+
+.accept:hover {
+  background: var(--brand);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-brand);
+}
+
+@media (max-width: 480px) {
+  .banner {
+    bottom: 12px;
+    right: 12px;
+    left: 12px;
+    max-width: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .banner {
+    animation: none;
+  }
+  .decline:hover,
+  .accept:hover {
+    transform: none;
+  }
+}
