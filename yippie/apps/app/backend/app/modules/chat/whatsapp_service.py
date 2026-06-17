@@ -88,16 +88,27 @@ async def get_pairing_qr(instance_name: str) -> dict:
 
 async def send_text(instance_name: str, number: str, text: str) -> None:
     settings = get_settings()
+    # Normalize to bare digits (E.164 without leading +) as required by Evolution API
+    normalized = "".join(ch for ch in number if ch.isdigit())
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(
             f"{settings.evolution_api_url}/message/sendText/{instance_name}",
             headers={"Content-Type": "application/json", "apikey": settings.evolution_api_token},
             json={
-                "number": number,
-                "options": {"delay": 1200, "presence": "composing", "linkPreview": True},
-                "textMessage": {"text": text},
+                "number": normalized,
+                "text": text,
+                "delay": 1200,
+                "linkPreview": True,
             },
         )
+        if not resp.is_success:
+            logger.error(
+                "Evolution sendText %s -> %s %s: %s",
+                instance_name,
+                normalized,
+                resp.status_code,
+                resp.text,
+            )
         resp.raise_for_status()
 
 

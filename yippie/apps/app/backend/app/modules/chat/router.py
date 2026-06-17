@@ -226,8 +226,7 @@ async def reply_to_session(
             try:
                 await whatsapp_service.send_text(tenant.slug, session.whatsapp_phone, text)
             except Exception:
-                # Log but don't fail — message is already saved in DB
-                pass
+                logger.exception("WhatsApp send failed for session %s", session_id)
 
     tenant_key = str(current_user.tenant_id)
     event_data = {
@@ -418,7 +417,7 @@ async def _run_broadcast(
                 try:
                     await whatsapp_service.send_text(tenant.slug, contact.phone, text)
                 except Exception:
-                    pass
+                    logger.exception("WhatsApp send failed for contact %s", contact.id)
 
                 event_data = {
                     "event": "message",
