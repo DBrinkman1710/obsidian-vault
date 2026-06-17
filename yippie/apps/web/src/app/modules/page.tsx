@@ -271,7 +271,7 @@ export default function ModulesPage() {
           <a href={DEMO_URL} className={contentStyles.btnPrimary}>
             Request demo →
           </a>
-          <a href="/features" className={contentStyles.btnGhost}>
+          <a href="/modules" className={contentStyles.btnGhost}>
             All features
           </a>
         </div>

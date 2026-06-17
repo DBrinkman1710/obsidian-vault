@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
+import CookieBanner from "./components/CookieBanner";
 
 const SITE_URL = process.env.NEXT_PUBLIC_WEB_URL ?? "https://getyippie.com";
 
@@ -29,6 +31,10 @@ export const metadata: Metadata = {
   description:
     "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.",
   metadataBase: new URL(SITE_URL),
+  icons: {
+    icon: "/favicon.svg",
+    shortcut: "/favicon.svg",
+  },
   keywords: [
     "customer service",
     "SMB",
@@ -77,11 +83,36 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
       <body>
+        {/* Consent Mode V2 defaults — must fire before the GA script loads */}
+        <Script id="ga-consent-init" strategy="beforeInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          try {
+            var c = localStorage.getItem('yippie_consent');
+            gtag('consent', 'default', c === 'accepted'
+              ? { analytics_storage:'granted', ad_storage:'granted', ad_user_data:'granted', ad_personalization:'granted' }
+              : { analytics_storage:'denied',  ad_storage:'denied',  ad_user_data:'denied',  ad_personalization:'denied', wait_for_update:500 }
+            );
+          } catch(e) {
+            gtag('consent', 'default', { analytics_storage:'denied', ad_storage:'denied', ad_user_data:'denied', ad_personalization:'denied', wait_for_update:500 });
+          }
+        `}</Script>
+
+        {/* Google Analytics */}
+        <Script src="https://www.googletagmanager.com/gtag/js?id=G-QN742BWE1G" strategy="afterInteractive" />
+        <Script id="ga-config" strategy="afterInteractive">{`
+          window.dataLayer = window.dataLayer || [];
+          function gtag(){dataLayer.push(arguments);}
+          gtag('js', new Date());
+          gtag('config', 'G-QN742BWE1G');
+        `}</Script>
+
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
         />
         {children}
+        <CookieBanner />
       </body>
     </html>
   );

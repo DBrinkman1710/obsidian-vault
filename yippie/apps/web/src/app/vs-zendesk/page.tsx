@@ -56,7 +56,7 @@ export default function VsZendeskPage() {
         </p>
         <div className={styles.heroActions}>
           <a href={DEMO_URL} className={styles.btnPrimary}>Try Yippie free →</a>
-          <a href="/features" className={styles.btnGhost}>See all features</a>
+          <a href="/modules" className={styles.btnGhost}>See all features</a>
         </div>
       </section>
 
