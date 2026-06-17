@@ -7,6 +7,8 @@ const nextConfig = {
     // is not nullish), so fall back to the canonical production URLs here.
     NEXT_PUBLIC_APP_URL: process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com",
     NEXT_PUBLIC_WEB_URL: process.env.NEXT_PUBLIC_WEB_URL ?? "https://getyippie.com",
+    // The "Request demo" CTA lands on the on-site /request-demo page (was: app login).
+    NEXT_PUBLIC_DEMO_URL: process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo",
   },
 
   reactStrictMode: true,

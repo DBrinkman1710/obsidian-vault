@@ -1,7 +1,12 @@
 import type { Metadata } from "next";
 import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
+import Reveal from "../components/Reveal";
 import styles from "../components/content.module.css";
+import {
+  InboxIcon, TicketIcon, UsersIcon, AiIcon, CalendarIcon, KanbanIcon,
+  MailTrackIcon, ChatIcon, TemplateIcon, EditIcon, TeamIcon, BillingIcon,
+} from "../components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
@@ -22,62 +27,62 @@ export const metadata: Metadata = {
 
 const features = [
   {
-    icon: "📬",
+    Icon: InboxIcon,
     title: "Smart Inbox",
     desc: "AI reads incoming emails and autofills the ticket subject, priority, and description. You approve in one click — no manual write-up.",
   },
   {
-    icon: "🎫",
+    Icon: TicketIcon,
     title: "Ticket Management",
     desc: "Track, assign, escalate, and close support tickets. SLA alerts, deadline badges, and bulk actions keep nothing slipping through the cracks.",
   },
   {
-    icon: "👥",
+    Icon: UsersIcon,
     title: "Contact Management",
     desc: "Full customer history — emails, tickets, and pipeline stage in one view. Labels, company grouping, and CSV import/export.",
   },
   {
-    icon: "🤖",
+    Icon: AiIcon,
     title: "AI Assistance",
     desc: "Suggested replies, improve-reply, compose suggestions, and customer briefings — powered by Claude — so every response is faster and sharper.",
   },
   {
-    icon: "📅",
+    Icon: CalendarIcon,
     title: "Calendar + Booking",
     desc: "A monthly calendar with events and deadlines. Send booking links so customers pick a slot, or propose times yourself. Confirmation emails auto-send.",
   },
   {
-    icon: "📊",
+    Icon: KanbanIcon,
     title: "Kanban Pipeline",
     desc: "A visual pipeline board. Drag contacts between stages to track deal progress. Booking confirmations automatically move contacts to the right stage.",
   },
   {
-    icon: "📈",
+    Icon: MailTrackIcon,
     title: "Email Tracking",
     desc: "Track opens, clicks, and bounces on outbound email. The Sent tab shows delivery status in real time so you always know what landed.",
   },
   {
-    icon: "💬",
+    Icon: ChatIcon,
     title: "Live Chat",
     desc: "Embed a chat widget on your site. Every conversation lands in the same shared inbox alongside email and tickets.",
   },
   {
-    icon: "🎨",
+    Icon: TemplateIcon,
     title: "Templates + Campaign Buttons",
     desc: "Rich drag-and-drop email templates built with Unlayer. Add campaign buttons that apply a pipeline stage the moment a customer clicks.",
   },
   {
-    icon: "✍️",
+    Icon: EditIcon,
     title: "Multi-signature",
     desc: "Keep multiple named email signatures per user and swap the right one per reply — personal, support, or sales.",
   },
   {
-    icon: "🧑‍🤝‍🧑",
+    Icon: TeamIcon,
     title: "Team Management",
     desc: "Invite team members, set roles (agent, admin, superuser), and organize them into departments for clean routing.",
   },
   {
-    icon: "💳",
+    Icon: BillingIcon,
     title: "Billing",
     desc: "Send and track invoices without leaving the platform — support and financials finally in sync.",
   },
@@ -112,12 +117,12 @@ export default function FeaturesPage() {
           Stop juggling tools. Everything below works together out of the box.
         </p>
         <div className={styles.grid}>
-          {features.map((f) => (
-            <div key={f.title} className={styles.card}>
-              <div className={styles.iconWrap}>{f.icon}</div>
+          {features.map((f, i) => (
+            <Reveal key={f.title} className={styles.card} delay={(i % 3) * 70}>
+              <div className={styles.iconWrap}><f.Icon size={22} /></div>
               <h3 className={styles.cardTitle}>{f.title}</h3>
               <p className={styles.cardDesc}>{f.desc}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>

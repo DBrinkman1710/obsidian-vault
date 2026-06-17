@@ -4,6 +4,9 @@ import { useState } from "react";
 import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "./page.module.css";
+import {
+  TicketIcon, AiIcon, CalendarIcon, KanbanIcon, MailTrackIcon, LayersIcon,
+} from "../components/icons";
 
 const DEMO_PATH = "/request-demo";
 
@@ -70,11 +73,11 @@ const plans: Plan[] = [
 ];
 
 const addOns = [
-  { icon: "🎫", name: "Tickets", desc: "Track, assign, and close requests with SLA alerts.", price: 15 },
-  { icon: "🤖", name: "AI", desc: "Auto-draft tickets and replies from incoming messages.", price: 19 },
-  { icon: "📅", name: "Calendar + Booking", desc: "Share booking links and manage appointments.", price: 12 },
-  { icon: "📋", name: "Kanban", desc: "Visual pipeline boards to move work through stages.", price: 12 },
-  { icon: "📨", name: "Email tracking", desc: "See when your sent emails are delivered and opened.", price: 9 },
+  { Icon: TicketIcon, name: "Tickets", desc: "Track, assign, and close requests with SLA alerts.", price: 15 },
+  { Icon: AiIcon, name: "AI", desc: "Auto-draft tickets and replies from incoming messages.", price: 19 },
+  { Icon: CalendarIcon, name: "Calendar + Booking", desc: "Share booking links and manage appointments.", price: 12 },
+  { Icon: KanbanIcon, name: "Kanban", desc: "Visual pipeline boards to move work through stages.", price: 12 },
+  { Icon: MailTrackIcon, name: "Email tracking", desc: "See when your sent emails are delivered and opened.", price: 9 },
 ];
 
 // Guided questionnaire — customers answer a few questions about their business
@@ -325,7 +328,7 @@ export default function PricingPage() {
               </>
             ) : (
               <div className={styles.quizEmpty}>
-                <div className={styles.quizEmptyIcon}>🧭</div>
+                <div className={styles.quizEmptyIcon}><LayersIcon size={30} /></div>
                 <p className={styles.quizEmptyText}>
                   Answer the team size and contact questions to see your
                   recommended plan and estimated price.
@@ -346,7 +349,7 @@ export default function PricingPage() {
         <div className={styles.addOnsGrid}>
           {addOns.map((a) => (
             <div key={a.name} className={styles.addOnCard}>
-              <div className={styles.addOnIcon}>{a.icon}</div>
+              <div className={styles.addOnIcon}><a.Icon size={22} /></div>
               <h3 className={styles.addOnName}>{a.name}</h3>
               <p className={styles.addOnDesc}>{a.desc}</p>
               <p className={styles.addOnPrice}>

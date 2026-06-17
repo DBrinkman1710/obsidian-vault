@@ -1,39 +1,51 @@
 import styles from "./page.module.css";
+import SiteNav from "./components/SiteNav";
+import SiteFooter from "./components/SiteFooter";
+import Reveal from "./components/Reveal";
 import ROICalculator from "./components/ROICalculator";
 import HourCounter from "./components/HourCounter";
+import {
+  InboxIcon,
+  TicketIcon,
+  ChatIcon,
+  UsersIcon,
+  ActivityIcon,
+  BillingIcon,
+  ArrowRightIcon,
+  CheckIcon,
+} from "./components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
-// Phase 12: demo-request form lives at /demo once built; falls back to app login for now
-const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
+const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 const features = [
   {
-    icon: "📬",
+    Icon: InboxIcon,
     title: "Smart Inbox",
     desc: "Emails and WhatsApp auto-scan into draft tickets. Review and approve in one click — no manual write-up.",
   },
   {
-    icon: "🎫",
+    Icon: TicketIcon,
     title: "Ticket Management",
     desc: "Track, assign, and close requests in one place. SLA alerts fire before anything slips through.",
   },
   {
-    icon: "💬",
+    Icon: ChatIcon,
     title: "Live Chat",
     desc: "Embed a chat widget with one line of code. Every conversation lands in a single dashboard.",
   },
   {
-    icon: "👥",
+    Icon: UsersIcon,
     title: "Contact Management",
     desc: "Full customer history — emails, tickets, invoices — visible at a glance. No inbox digging.",
   },
   {
-    icon: "📊",
+    Icon: ActivityIcon,
     title: "Activity Feed",
     desc: "Real-time log of everything in your business. Always know who did what and when.",
   },
   {
-    icon: "💳",
+    Icon: BillingIcon,
     title: "Billing",
     desc: "Send and track invoices without leaving the platform. Support and financials, in sync.",
   },
@@ -62,32 +74,28 @@ const plans = [
     tier: "Founder",
     price: "€9",
     desc: "For early adopters",
-    features: ["2 users", "1,000 contacts", "Inbox + Contacts", "Add-ons à la carte", "Email support"],
-    cta: "Request demo",
+    features: ["2 users", "1,000 contacts", "Inbox + Contacts", "Add-ons à la carte"],
     featured: false,
   },
   {
     tier: "Starter",
     price: "€29",
     desc: "For small teams",
-    features: ["5 users", "5,000 contacts", "Inbox + Contacts", "Add-ons à la carte", "Email support"],
-    cta: "Request demo",
+    features: ["5 users", "5,000 contacts", "Inbox + Contacts", "Add-ons à la carte"],
     featured: false,
   },
   {
     tier: "Growth",
     price: "€69",
     desc: "For growing businesses",
-    features: ["15 users", "25,000 contacts", "Inbox + Contacts", "Add-ons à la carte", "Priority support"],
-    cta: "Request demo",
+    features: ["15 users", "25,000 contacts", "Inbox + Contacts", "Priority support"],
     featured: true,
   },
   {
     tier: "Pro",
     price: "€99",
-    desc: "For established companies — everything included",
-    features: ["Unlimited users", "Unlimited contacts", "All modules included", "Dedicated support"],
-    cta: "Request demo",
+    desc: "Everything included",
+    features: ["Unlimited users", "Unlimited contacts", "All modules", "Dedicated support"],
     featured: false,
   },
 ];
@@ -99,198 +107,241 @@ const inboxItems = [
   { sender: "Bloom Agency", subject: "Onboarding call request", dot: "", badge: "review" },
 ];
 
-export default function HomePage() {
+const trustNames = ["Acme BV", "Nordex", "Bloom Agency", "TechCorp", "Lumen Studio", "Vela Foods"];
+
+/* Light, browser-framed product mockup reused in hero + product moment. */
+function ProductMockup({ wide = false }: { wide?: boolean }) {
   return (
-    <>
-      {/* Nav */}
-      <nav className={styles.nav}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="Yippie" className={styles.navLogo} />
-        <ul className={styles.navLinks}>
-          <li><a href="/features">Features</a></li>
-          <li><a href="#how-it-works">How it works</a></li>
-          <li><a href="/blog">Blog</a></li>
-          <li><a href="/pricing">Pricing</a></li>
-          <li><a href={APP_URL} className={styles.navLogin}>Log in</a></li>
-          <li>
-            <a href={DEMO_URL} className={styles.navCta}>Request demo →</a>
-          </li>
-        </ul>
-      </nav>
-
-      {/* Hero */}
-      <section className={styles.hero}>
-        <div>
-          <div className={styles.heroTag}>
-            <span className={styles.heroTagDot} />
-            Customer service platform for SMBs
-          </div>
-          <h1 className={styles.heroTitle}>
-            Take back the time<br />that matters.
-          </h1>
-          <p className={styles.heroSub}>
-            Stop losing hours to repetitive support tickets. Yippie automates and reduces your customer service so you can focus on building your business.
-          </p>
-          <div className={styles.heroActions}>
-            <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
-            <a href="#how-it-works" className={styles.btnGhost}>See how it works</a>
-          </div>
+    <div className={`${styles.frame} ${wide ? styles.frameWide : ""}`}>
+      <div className={styles.frameBar}>
+        <span className={styles.dot} />
+        <span className={styles.dot} />
+        <span className={styles.dot} />
+        <span className={styles.frameUrl}>app.getyippie.com/inbox</span>
+      </div>
+      <div className={styles.app}>
+        <div className={styles.appSidebar}>
+          {[true, false, false, false, false, false].map((active, i) => (
+            <div key={i} className={`${styles.appNav} ${active ? styles.appNavActive : ""}`} />
+          ))}
         </div>
-
-        {/* App mockup */}
-        <div className={styles.mockup}>
-          <div className={styles.mockupSidebar}>
-            {[true, false, false, false, false, false].map((active, i) => (
-              <div key={i} className={`${styles.mockupNavItem} ${active ? styles.active : ""}`}>
-                <div className={`${styles.mockupNavDot} ${active ? styles.blue : ""}`} />
+        <div className={styles.appMain}>
+          <div className={styles.appTop}>
+            <span className={styles.appTitle}>Inbox</span>
+            <span className={styles.appAvatar} />
+          </div>
+          <div className={styles.appStats}>
+            <div className={styles.appStat}>
+              <span className={styles.appStatLabel}>Open</span>
+              <span className={`${styles.appStatVal} ${styles.brand}`}>12</span>
+            </div>
+            <div className={styles.appStat}>
+              <span className={styles.appStatLabel}>Pending</span>
+              <span className={`${styles.appStatVal} ${styles.amber}`}>4</span>
+            </div>
+            <div className={styles.appStat}>
+              <span className={styles.appStatLabel}>Resolved</span>
+              <span className={`${styles.appStatVal} ${styles.green}`}>31</span>
+            </div>
+          </div>
+          <div className={styles.appList}>
+            {inboxItems.map((item) => (
+              <div key={item.sender} className={styles.appRow}>
+                <span className={`${styles.appRowDot} ${item.dot === "amber" ? styles.amber : item.dot === "green" ? styles.green : ""}`} />
+                <span className={styles.appRowText}>
+                  <span className={styles.appRowSender}>{item.sender}</span>
+                  <span className={styles.appRowSubject}>{item.subject}</span>
+                </span>
+                <span className={`${styles.appBadge} ${item.badge === "done" ? styles.badgeDone : styles.badgeReview}`}>
+                  {item.badge}
+                </span>
               </div>
             ))}
           </div>
-          <div className={styles.mockupMain}>
-            <div className={styles.mockupTopBar}>
-              <span className={styles.mockupTopLabel}>Inbox</span>
-              <div className={styles.mockupAvatar} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function HomePage() {
+  return (
+    <>
+      <SiteNav />
+
+      {/* Hero */}
+      <section className={`${styles.hero} bgGrid`}>
+        <div className={styles.heroGlow} aria-hidden="true" />
+        <div className={styles.heroInner}>
+          <Reveal className={styles.heroCopy}>
+            <div className={styles.eyebrowPill}>
+              <span className={styles.pillDot} />
+              AI customer service for SMBs
             </div>
-            <div className={styles.mockupStats}>
-              <div className={styles.mockupStat}>
-                <div className={styles.mockupStatLabel}>Open tickets</div>
-                <div className={`${styles.mockupStatValue} ${styles.blue}`}>12</div>
-              </div>
-              <div className={styles.mockupStat}>
-                <div className={styles.mockupStatLabel}>Pending</div>
-                <div className={`${styles.mockupStatValue} ${styles.amber}`}>4</div>
-              </div>
-              <div className={styles.mockupStat}>
-                <div className={styles.mockupStatLabel}>Resolved</div>
-                <div className={`${styles.mockupStatValue} ${styles.green}`}>31</div>
-              </div>
+            <h1 className={styles.heroTitle}>
+              Take back the time<br />that matters.
+            </h1>
+            <p className={styles.heroSub}>
+              Yippie auto-drafts every support ticket from your inbox. Review, approve,
+              done — so you spend seconds where you used to spend minutes.
+            </p>
+            <div className={styles.heroActions}>
+              <a href={DEMO_URL} className={styles.btnPrimary}>
+                Request demo <ArrowRightIcon size={17} />
+              </a>
+              <a href="/modules" className={styles.btnGhost}>See the product</a>
             </div>
-            <div className={styles.mockupList}>
-              <div className={styles.mockupListHeader}>Recent messages</div>
-              {inboxItems.map((item) => (
-                <div key={item.sender} className={styles.mockupItem}>
-                  <div className={`${styles.mockupItemDot} ${item.dot === "amber" ? styles.amber : item.dot === "green" ? styles.green : ""}`} />
-                  <div className={styles.mockupItemText}>
-                    <div className={styles.mockupItemSender}>{item.sender}</div>
-                    <div className={styles.mockupItemSubject}>{item.subject}</div>
-                  </div>
-                  <span className={`${styles.mockupBadge} ${item.badge === "done" ? styles.done : styles.review}`}>
-                    {item.badge}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
+            <p className={styles.heroMeta}>No credit card · Set up in minutes</p>
+          </Reveal>
+
+          <Reveal className={styles.heroVisual} delay={120}>
+            <ProductMockup />
+          </Reveal>
+        </div>
+      </section>
+
+      {/* Trust strip */}
+      <section className={styles.trust}>
+        <p className={styles.trustLabel}>Teams at growing businesses run support on Yippie</p>
+        <div className={styles.trustRow}>
+          {trustNames.map((n) => (
+            <span key={n} className={styles.trustName}>{n}</span>
+          ))}
         </div>
       </section>
 
       {/* Stats */}
-      <div className={styles.statsBar}>
+      <section className={styles.statsBar}>
         {[
           { value: "10h+", label: "saved per week on average" },
-          { value: "< 2min", label: "average ticket response time" },
+          { value: "< 2 min", label: "average ticket response time" },
           { value: "6", label: "modules, one platform" },
-        ].map((s) => (
-          <div key={s.label} className={styles.stat}>
+        ].map((s, i) => (
+          <Reveal key={s.label} className={styles.stat} delay={i * 80}>
             <div className={styles.statValue}>{s.value}</div>
             <div className={styles.statLabel}>{s.label}</div>
-          </div>
+          </Reveal>
         ))}
-      </div>
+      </section>
 
-      {/* Hour counter — live global hours saved */}
       <HourCounter statsUrl={APP_URL} />
 
       {/* Features */}
       <section id="features" className={styles.section}>
-        <p className={styles.eyebrow}>Features</p>
-        <h2 className={styles.sectionTitle}>Everything your support team needs</h2>
-        <p className={styles.sectionSub}>
-          One platform for inbox, tickets, live chat, contacts, billing, and activity. Stop juggling tools.
-        </p>
-        <div className={styles.featuresGrid}>
-          {features.map((f) => (
-            <div key={f.title} className={styles.featureCard}>
-              <div className={styles.featureIconWrap}>{f.icon}</div>
-              <h3 className={styles.featureTitle}>{f.title}</h3>
-              <p className={styles.featureDesc}>{f.desc}</p>
-            </div>
+        <Reveal className={styles.sectionHead}>
+          <p className={styles.eyebrow}>// Features</p>
+          <h2 className={styles.sectionTitle}>Everything your support team needs</h2>
+          <p className={styles.sectionSub}>
+            One platform for inbox, tickets, live chat, contacts, billing, and activity.
+            Stop juggling tools.
+          </p>
+        </Reveal>
+        <div className={styles.featureRows}>
+          {features.map((f, i) => (
+            <Reveal key={f.title} className={styles.featureRow} delay={(i % 2) * 70}>
+              <div className={styles.featureIcon}>
+                <f.Icon size={22} />
+              </div>
+              <div>
+                <h3 className={styles.featureTitle}>{f.title}</h3>
+                <p className={styles.featureDesc}>{f.desc}</p>
+              </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
       {/* How it works */}
       <section id="how-it-works" className={styles.sectionLight}>
-        <p className={styles.eyebrow}>How it works</p>
-        <h2 className={styles.sectionTitle}>From email to resolved — in seconds</h2>
-        <p className={styles.sectionSub}>
-          Yippie&apos;s AI reads every incoming message and does the write-up for you.
-        </p>
+        <Reveal className={styles.sectionHead}>
+          <p className={styles.eyebrow}>// How it works</p>
+          <h2 className={styles.sectionTitle}>From email to resolved — in seconds</h2>
+          <p className={styles.sectionSub}>
+            Yippie&apos;s AI reads every incoming message and does the write-up for you.
+          </p>
+        </Reveal>
         <div className={styles.steps}>
-          {steps.map((s) => (
-            <div key={s.n} className={styles.step}>
-              <div className={styles.stepCircle}>{s.n}</div>
+          {steps.map((s, i) => (
+            <Reveal key={s.n} className={styles.step} delay={i * 90}>
+              <div className={styles.stepNum}>{s.n}</div>
               <h3 className={styles.stepTitle}>{s.title}</h3>
               <p className={styles.stepDesc}>{s.desc}</p>
-            </div>
+            </Reveal>
           ))}
         </div>
       </section>
 
-      {/* ROI Calculator */}
+      {/* ROI calculator */}
       <ROICalculator appUrl={DEMO_URL} />
 
-      {/* Pricing */}
+      {/* Product moment (dark) */}
+      <section className={`${styles.moment} bgDots`}>
+        <Reveal className={styles.momentHead}>
+          <p className={styles.eyebrowDark}>// One workspace</p>
+          <h2 className={styles.momentTitle}>Everything in one place</h2>
+          <p className={styles.momentSub}>
+            Inbox, tickets, contacts, and pipeline share the same screen — so nothing
+            falls through the cracks and every reply has full context.
+          </p>
+        </Reveal>
+        <Reveal className={styles.momentVisual} delay={120}>
+          <ProductMockup wide />
+        </Reveal>
+      </section>
+
+      {/* Pricing teaser */}
       <section id="pricing" className={styles.section}>
-        <p className={styles.eyebrow}>Pricing</p>
-        <h2 className={styles.sectionTitle}>Simple, honest pricing</h2>
-        <p className={styles.sectionSub}>
-          No hidden fees. Cancel anytime. Start free and upgrade when you grow.
-        </p>
+        <Reveal className={styles.sectionHead}>
+          <p className={styles.eyebrow}>// Pricing</p>
+          <h2 className={styles.sectionTitle}>Simple, honest pricing</h2>
+          <p className={styles.sectionSub}>
+            No hidden fees. Cancel anytime. Start small and add modules as you grow.
+          </p>
+        </Reveal>
         <div className={styles.pricingGrid}>
-          {plans.map((plan) => (
-            <div key={plan.tier} className={`${styles.pricingCard} ${plan.featured ? styles.featured : ""}`}>
-              {plan.featured && <span className={styles.popularBadge}>Most popular</span>}
-              <p className={styles.planTier}>{plan.tier}</p>
-              <p className={styles.planPrice}>{plan.price}<sub>/mo</sub></p>
-              <p className={styles.planDesc}>{plan.desc}</p>
-              <ul className={styles.planFeatures}>
+          {plans.map((plan, i) => (
+            <Reveal
+              key={plan.tier}
+              className={`${styles.priceCard} ${plan.featured ? styles.priceFeatured : ""}`}
+              delay={i * 60}
+            >
+              {plan.featured && <span className={styles.priceBadge}>Most popular</span>}
+              <p className={styles.priceTier}>{plan.tier}</p>
+              <p className={styles.priceAmount}>{plan.price}<sub>/mo</sub></p>
+              <p className={styles.priceDesc}>{plan.desc}</p>
+              <ul className={styles.priceFeatures}>
                 {plan.features.map((f) => (
-                  <li key={f}>
-                    <span className={styles.planCheck}>✓</span>
-                    {f}
-                  </li>
+                  <li key={f}><CheckIcon size={15} className={styles.priceCheck} />{f}</li>
                 ))}
               </ul>
-              <a href={DEMO_URL} className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}>
-                {plan.cta}
+              <a href="/pricing" className={`${styles.priceBtn} ${plan.featured ? styles.priceBtnFeatured : ""}`}>
+                View plan
               </a>
-            </div>
+            </Reveal>
           ))}
         </div>
-      </section>
-
-      {/* Dark CTA */}
-      <section className={styles.ctaSection}>
-        <h2 className={styles.ctaTitle}>Ready to win back your time?</h2>
-        <p className={styles.ctaSub}>
-          Join businesses that handle customer support in half the time with Yippie. No credit card required.
-        </p>
-        <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
-      </section>
-
-      {/* Footer */}
-      <footer className={styles.footer}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo.svg" alt="Yippie" className={styles.footerLogo} />
-        <div className={styles.footerRight}>
-          <a href="/features" className={styles.footerLink}>Features</a>
-          <a href="/blog" className={styles.footerLink}>Blog</a>
-          <a href="/pricing" className={styles.footerLink}>Pricing</a>
-          <a href={APP_URL} className={styles.footerLink}>Log in</a>
-          <span className={styles.footerCopy}>© {new Date().getFullYear()} Yippie</span>
+        <div className={styles.pricingMore}>
+          <a href="/pricing" className={styles.textLink}>
+            Compare all plans &amp; add-ons <ArrowRightIcon size={15} />
+          </a>
         </div>
-      </footer>
+      </section>
+
+      {/* CTA */}
+      <section className={styles.cta}>
+        <Reveal className={styles.ctaCard}>
+          <h2 className={styles.ctaTitle}>Ready to win back your time?</h2>
+          <p className={styles.ctaSub}>
+            Join businesses that handle customer support in half the time with Yippie.
+            No credit card required.
+          </p>
+          <a href={DEMO_URL} className={styles.btnPrimaryLg}>
+            Request demo <ArrowRightIcon size={18} />
+          </a>
+        </Reveal>
+      </section>
+
+      <SiteFooter />
     </>
   );
 }

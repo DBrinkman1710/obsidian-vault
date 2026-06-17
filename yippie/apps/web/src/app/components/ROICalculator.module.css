@@ -1,23 +1,26 @@
 /* ── ROI Calculator section ─────────────────── */
 .section {
-  padding: 100px 6%;
-  background: var(--white);
+  padding: 96px var(--gutter);
+  background: var(--off-white);
+  border-block: 1px solid var(--border);
 }
 
 .eyebrow {
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--blue);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--brand-700);
   margin-bottom: 14px;
   text-align: center;
 }
+.eyebrow::before { content: "// "; }
 
 .title {
-  font-size: clamp(28px, 3.5vw, 46px);
-  font-weight: 800;
-  color: var(--navy);
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.4vw, 44px);
+  font-weight: 700;
+  color: var(--ink);
   text-align: center;
   letter-spacing: -0.025em;
   line-height: 1.15;
@@ -322,9 +325,10 @@
 }
 
 .resultValue {
+  font-family: var(--font-display);
   font-size: clamp(30px, 3vw, 40px);
-  font-weight: 800;
-  color: var(--blue);
+  font-weight: 700;
+  color: var(--brand);
   letter-spacing: -0.02em;
   line-height: 1.1;
   font-variant-numeric: tabular-nums;
@@ -357,13 +361,13 @@
   font-weight: 700;
   font-size: 15px;
   transition: transform 0.15s, box-shadow 0.2s;
-  box-shadow: 0 4px 20px rgba(91, 184, 232, 0.35);
+  box-shadow: var(--shadow-brand);
   align-self: flex-start;
 }
 
 .cta:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 32px rgba(91, 184, 232, 0.5);
+  box-shadow: 0 8px 32px rgba(91, 164, 245, 0.5);
 }
 
 /* ── Responsive ─────────────────────────────── */
