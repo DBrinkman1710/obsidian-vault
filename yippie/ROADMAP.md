@@ -28,6 +28,44 @@ environment / deploy reference lives in **Appendix B**.
 
 ---
 
+## 🎯 Go-live scope — 2026-06-28
+
+Everything below must be done **before** going live. Items not listed here are deferred to after launch.
+
+**Prep (do first):**
+- [ ] [GOLIVE-CHECKLIST] Write `GOLIVE.md` — env vars, DNS, Resend, smoke-test script
+
+**Tier 3 / ops (quick):**
+- [ ] [LIVECHAT-QR] Fix WhatsApp QR code
+- [ ] [CO-CLICK] Companies clickable → contact list
+- [ ] [36b-6] XLSX import fix
+- [ ] [V4] Profile: narrow email/signature box
+- [ ] [PRIV1] Railway private DB URL (env var, no code)
+- [ ] [Phase 13] Set invite-link base URL env vars
+- [ ] Set `INBOUND_EMAIL` + `diederik@getyippie.com` in live Railway envs
+
+**Tier 2 (features):**
+- [ ] [BILLING2] Billing page upgrade (Add Invoice, search, KvK/Btw, export)
+- [ ] [MERGE-TK] Merge Tickets
+- [ ] [TK-COCKPIT] Ticket detail 3-column cockpit
+- [ ] [AI-BTN1] Generate buttons instead of auto-AI + demo tool on getyippie.com
+- [ ] [WEB-PLANS2] 3 base plans + module add-ons on getyippie.com
+- [ ] [GRAPES1] Replace Unlayer with GrapesJS (branch → merge after tests)
+- [ ] [DEPT-MOD] Make Departments a proper module
+- [ ] [BK5] Smart scheduling — weekly availability grid
+- [ ] [BK6] Customer counter-propose dates
+- [ ] [BK7] Booking confirmation: customer edit/cancel link
+- [ ] [DEMO-WF1] Demo-request → Kanban "Demo requested" stage
+- [ ] [KANBAN-STAGES] Customisable Kanban stages per tenant
+- [ ] [P1] Stage filter on Activity page
+- [ ] [T1] Delete users from team
+- [ ] Send-from aliases + in-app tour after first login
+
+**Deferred (after June 28):**
+[BIZ-Q1], [CUSTOM1], [B2X1], Per-tenant custom domain, [Phase 11C T2] "Connect your inbox", [LANG1], [WEB-CONS1], [DEPT-ROUTING], [RBAC1], [INSIGHT1], Customer data + AI briefing
+
+---
+
 ## ▶ Next session — start here
 
 **Bugs still open — needs code (session 27 verification):**
