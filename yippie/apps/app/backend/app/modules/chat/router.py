@@ -144,9 +144,8 @@ async def create_session(body: CreateSessionBody, current_user: CurrentUser, db:
 @router.get("/sessions/count")
 async def count_open_sessions(current_user: CurrentUser, db: DB):
     count = await db.scalar(
-        select(func.count(ChatSession.id)).where(
+        select(func.coalesce(func.sum(ChatSession.unread_count), 0)).where(
             ChatSession.tenant_id == current_user.tenant_id,
-            ChatSession.is_open == True,  # noqa: E712
         )
     )
     return {"open": count or 0}
@@ -566,6 +565,9 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
                     body=msg_body,
                 )
                 db.add(msg)
+                sess_row = await db.get(ChatSession, session.id)
+                if sess_row:
+                    sess_row.unread_count = (sess_row.unread_count or 0) + 1
                 await db.commit()
 
             visitor_event = {
