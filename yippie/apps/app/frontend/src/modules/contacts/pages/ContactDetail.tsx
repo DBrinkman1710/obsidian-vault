@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Clock, Pencil, Kanban } from 'lucide-react'
+import { Plus, Clock, Pencil, Kanban, CalendarClock } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelChip'
 import { CompanyBadge, type CompanyRef } from '../components/CompanyBadge'
 import { CompanyPicker } from '../components/CompanyPicker'
 import { useTenantConfig } from '../../../App'
+import SendBookingModal from '../../booking/SendBookingModal'
 
 function formatEventType(s: string): string {
   return s.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -57,6 +59,17 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
 
   const moveMut = useMutation({
     mutationFn: (stageId: string) => api.put(`/pipeline/contacts/${contactId}/stage`, { stage_id: stageId }),
+    onMutate: async (stageId) => {
+      await qc.cancelQueries({ queryKey: ['contact-pipeline-stage', contactId] })
+      const prev = qc.getQueryData(['contact-pipeline-stage', contactId])
+      const target = allStages.find(s => s.id === stageId)
+      if (target) qc.setQueryData(['contact-pipeline-stage', contactId], target)
+      return { prev }
+    },
+    onError: (_err, _stageId, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(['contact-pipeline-stage', contactId], ctx.prev)
+      toast.error('Failed to update stage.')
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['contact-pipeline-stage', contactId] }); qc.invalidateQueries({ queryKey: ['pipeline-board'] }); setEditing(false) },
   })
 
@@ -71,7 +84,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
     <div className="mb-6">
       <div className="flex items-center gap-2 mb-2">
         <Kanban size={12} className="text-slate-400" />
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Pipeline</p>
+        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Kanban</p>
         {stage && !editing && (
           <button
             onClick={() => { setSelectedId(stage.id); setEditing(true) }}
@@ -115,7 +128,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
           <span className="text-sm font-semibold text-slate-700">{stage.name}</span>
           <button
-            onClick={() => { if (confirm('Remove from pipeline?')) removeMut.mutate() }}
+            onClick={() => { if (confirm('Remove from kanban?')) removeMut.mutate() }}
             className="ml-auto text-xs text-slate-400 hover:text-red-500 transition-colors"
           >
             Remove
@@ -126,7 +139,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
           onClick={() => { setSelectedId(''); setEditing(true) }}
           className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
         >
-          + Add to pipeline
+          + Add to kanban
         </button>
       )}
     </div>
@@ -135,6 +148,9 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
 
 export default function ContactDetail() {
   const { id } = useParams<{ id: string }>()
+  const config = useTenantConfig()
+  const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
+  const [bookingOpen, setBookingOpen] = useState(false)
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ['contact', id],
@@ -159,22 +175,40 @@ export default function ContactDetail() {
   return (
     <div className="flex flex-col md:flex-row gap-8 items-start">
       <div className="flex-1 min-w-0 max-w-2xl">
-        <div className="flex items-start justify-between mb-1">
+        <div className="flex items-start justify-between gap-2 mb-1">
           <h1 className="text-2xl font-bold text-slate-900">{contact.full_name}</h1>
-          <Link
-            to={newTicketUrl}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors flex-shrink-0"
-          >
-            <Plus size={14} strokeWidth={2.5} />
-            New Ticket
-          </Link>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {bookingEnabled && (
+              <button
+                onClick={() => setBookingOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              >
+                <CalendarClock size={14} strokeWidth={2.5} />
+                Send booking link
+              </button>
+            )}
+            <Link
+              to={newTicketUrl}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              New Ticket
+            </Link>
+          </div>
         </div>
+
+        {bookingEnabled && (
+          <SendBookingModal
+            contacts={[{ id: id!, full_name: contact.full_name }]}
+            open={bookingOpen}
+            onClose={() => setBookingOpen(false)}
+          />
+        )}
         {contact.company && <p className="text-sm text-slate-500 mb-6">{contact.company.name}</p>}
 
         <div className="grid grid-cols-2 gap-4 mb-8">
           <Field label="Email" value={contact.email} />
           <Field label="Phone" value={contact.phone} />
-          {contact.tags?.length > 0 && <Field label="Legacy tags" value={contact.tags.join(', ')} />}
         </div>
 
         <CompanyBlock contactId={id!} company={contact.company ?? null} />
@@ -279,9 +313,10 @@ function CompanyBlock({ contactId, company }: { contactId: string; company: Comp
               type="button"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
             >
               {saveMutation.isPending ? 'Saving…' : 'Save'}
+              {saveMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
             </button>
             <button
               type="button"
@@ -308,6 +343,20 @@ function LabelsBlock({ contactId, labels }: { contactId: string; labels: Contact
 
   const saveMutation = useMutation({
     mutationFn: () => api.patch(`/contacts/${contactId}`, { label_ids: selectedIds }),
+    onMutate: async () => {
+      await qc.cancelQueries({ queryKey: ['contact', contactId] })
+      const prev = qc.getQueryData(['contact', contactId])
+      const allLabels = qc.getQueryData<ContactLabel[]>(['contact-labels']) ?? []
+      const nextLabels = selectedIds
+        .map(lid => allLabels.find(l => l.id === lid))
+        .filter((l): l is ContactLabel => !!l)
+      qc.setQueryData(['contact', contactId], (old: any) => old ? { ...old, labels: nextLabels } : old)
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(['contact', contactId], ctx.prev)
+      toast.error('Failed to update label.')
+    },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact', contactId] })
       qc.invalidateQueries({ queryKey: ['contacts'] })
@@ -341,9 +390,10 @@ function LabelsBlock({ contactId, labels }: { contactId: string; labels: Contact
               type="button"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
             >
               {saveMutation.isPending ? 'Saving…' : 'Save'}
+              {saveMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
             </button>
             <button
               type="button"

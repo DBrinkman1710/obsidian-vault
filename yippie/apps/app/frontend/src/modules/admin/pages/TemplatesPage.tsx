@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import DOMPurify from 'dompurify'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import EmailEditor, { EditorRef } from 'react-email-editor'
 import { FileText, Loader2, MousePointerClick, Palette, Plus, Trash2, X } from 'lucide-react'
@@ -16,19 +17,21 @@ interface Template {
   created_at: string
 }
 
+type ButtonAction = 'pipeline_stage'
+
 interface CampaignButton {
   id: string
   text: string
-  action_type: 'label' | 'pipeline_stage'
+  action_type: ButtonAction
   label_id: string | null
   stage_id: string | null
+  action_value: string | null
 }
 
-interface ContactLabel { id: string; name: string; color: string }
 interface PipelineStage { id: string; name: string; color: string }
 
 function newCampaignButton(id: string, text: string): CampaignButton {
-  return { id, text, action_type: 'label', label_id: null, stage_id: null }
+  return { id, text, action_type: 'pipeline_stage', label_id: null, stage_id: null, action_value: null }
 }
 
 function stripHtml(text: string): string {
@@ -66,8 +69,9 @@ function parseButtons(raw: string | null): CampaignButton[] {
     if (!Array.isArray(parsed)) return []
     return parsed.map(b => ({
       ...b,
-      action_type: b.action_type ?? 'label',
+      action_type: 'pipeline_stage' as ButtonAction,
       stage_id: b.stage_id ?? null,
+      action_value: b.action_value ?? null,
     }))
   } catch {
     return []
@@ -95,11 +99,6 @@ export default function TemplatesPage() {
     queryFn: () => api.get('/tickets/templates').then(r => r.data),
   })
 
-  const { data: labels } = useQuery<ContactLabel[]>({
-    queryKey: ['labels'],
-    queryFn: () => api.get('/contacts/labels').then(r => r.data),
-  })
-
   const { data: stages = [] } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
     queryFn: () => api.get('/pipeline/stages').then(r => r.data),
@@ -118,7 +117,7 @@ export default function TemplatesPage() {
         const existing = prev.find(b => b.text === d.text && !consumed.has(b.id))
         if (existing) consumed.add(existing.id)
         return existing
-          ? { id: existing.id, text: d.text, action_type: existing.action_type, label_id: existing.label_id, stage_id: existing.stage_id }
+          ? { id: existing.id, text: d.text, action_type: existing.action_type, label_id: existing.label_id, stage_id: existing.stage_id, action_value: existing.action_value }
           : newCampaignButton(d.id, d.text)
       })
     })
@@ -376,7 +375,7 @@ export default function TemplatesPage() {
               <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">— Signature</p>
               {defaultSig?.body ? (
                 /<img\s/i.test(defaultSig.body) ? (
-                  <div className="text-xs text-slate-600 [&_img]:max-h-12 [&_img]:inline-block" dangerouslySetInnerHTML={{ __html: defaultSig.body }} />
+                  <div className="text-xs text-slate-600 [&_img]:max-h-12 [&_img]:inline-block" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(defaultSig.body) }} />
                 ) : (
                   <p className="text-xs text-slate-600 whitespace-pre-wrap">{defaultSig.body}</p>
                 )
@@ -401,35 +400,14 @@ export default function TemplatesPage() {
                     <span className="inline-block max-w-full truncate px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-semibold" title={b.text}>
                       {b.text}
                     </span>
-                    <div className="flex gap-2">
-                      <select
-                        className="w-32 shrink-0 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                        value={b.action_type}
-                        onChange={e => updateButton(b.id, { action_type: e.target.value as 'label' | 'pipeline_stage', label_id: null, stage_id: null })}
-                      >
-                        <option value="label">Apply label</option>
-                        <option value="pipeline_stage">Pipeline stage</option>
-                      </select>
-                      {b.action_type === 'label' ? (
-                        <select
-                          className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                          value={b.label_id ?? ''}
-                          onChange={e => updateButton(b.id, { label_id: e.target.value || null })}
-                        >
-                          <option value="">No label</option>
-                          {labels?.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                        </select>
-                      ) : (
-                        <select
-                          className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                          value={b.stage_id ?? ''}
-                          onChange={e => updateButton(b.id, { stage_id: e.target.value || null })}
-                        >
-                          <option value="">No stage</option>
-                          {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                        </select>
-                      )}
-                    </div>
+                    <select
+                      className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                      value={b.stage_id ?? ''}
+                      onChange={e => updateButton(b.id, { stage_id: e.target.value || null })}
+                    >
+                      <option value="">No stage</option>
+                      {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                    </select>
                   </div>
                 ))
               )}

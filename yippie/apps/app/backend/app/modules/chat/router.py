@@ -1,27 +1,43 @@
 from __future__ import annotations
 
+import asyncio
 import json
+import logging
+import random
 import uuid
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, WebSocket, WebSocketDisconnect, status
+import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.auth.dependencies import CurrentUser
 from app.config import get_settings
 from app.core.models import Tenant, User
 from app.core.tenant import resolve_tenant_by_slug
 from app.database import db_session, get_db, set_tenant_context
+from app.modules.booking import service as booking_service
+from app.modules.booking.schemas import BookingTokenCreate
 from app.modules.chat import whatsapp_service
 from app.modules.chat.manager import manager
 from app.modules.chat.models import ChatMessage, ChatSession
+from app.modules.contacts.models import Contact
 
 router = APIRouter(prefix="/chat", tags=["chat"])
 DB = Annotated[AsyncSession, Depends(get_db)]
+
+# Websocket endpoints live on their own router, mounted without the module-gating
+# dependencies (require_module/require_feature) that main.py applies to `router`.
+# Those gates depend on HTTPBearer, which only knows how to read an HTTP Request —
+# wiring it into a websocket route crashes every connection with
+# "HTTPBearer.__call__() missing 1 required positional argument: 'request'".
+ws_router = APIRouter(prefix="/chat", tags=["chat"])
 
 
 # ---------------------------------------------------------------------------
@@ -46,6 +62,7 @@ async def list_sessions(current_user: CurrentUser, db: DB):
             "visitor_email": s.visitor_email,
             "whatsapp_phone": s.whatsapp_phone,
             "is_open": s.is_open,
+            "unread_count": s.unread_count,
             "started_at": s.started_at.isoformat(),
             "ended_at": s.ended_at.isoformat() if s.ended_at else None,
         }
@@ -53,12 +70,82 @@ async def list_sessions(current_user: CurrentUser, db: DB):
     ]
 
 
+def _session_dict(s: ChatSession) -> dict:
+    return {
+        "id": str(s.id),
+        "source": s.source,
+        "visitor_id": s.visitor_id,
+        "visitor_name": s.visitor_name,
+        "visitor_email": s.visitor_email,
+        "whatsapp_phone": s.whatsapp_phone,
+        "is_open": s.is_open,
+        "unread_count": s.unread_count,
+        "started_at": s.started_at.isoformat(),
+        "ended_at": s.ended_at.isoformat() if s.ended_at else None,
+    }
+
+
+async def _find_or_create_open_session(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    phone: str,
+    contact_id: Optional[uuid.UUID] = None,
+    visitor_name: Optional[str] = None,
+) -> ChatSession:
+    result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.tenant_id == tenant_id,
+            ChatSession.whatsapp_phone == phone,
+            ChatSession.is_open == True,  # noqa: E712
+        )
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        session = ChatSession(
+            tenant_id=tenant_id,
+            source="whatsapp",
+            visitor_id=phone,
+            visitor_name=visitor_name,
+            whatsapp_phone=phone,
+            contact_id=contact_id,
+            is_open=True,
+        )
+        db.add(session)
+        await db.flush()
+    else:
+        if contact_id and not session.contact_id:
+            session.contact_id = contact_id
+        if visitor_name and not session.visitor_name:
+            session.visitor_name = visitor_name
+    return session
+
+
+class CreateSessionBody(BaseModel):
+    phone: str
+    contact_id: Optional[uuid.UUID] = None
+
+
+@router.post("/sessions", status_code=status.HTTP_201_CREATED)
+async def create_session(body: CreateSessionBody, current_user: CurrentUser, db: DB):
+    visitor_name = None
+    if body.contact_id:
+        contact = await db.get(Contact, body.contact_id)
+        if contact and contact.tenant_id == current_user.tenant_id:
+            visitor_name = contact.full_name
+
+    session = await _find_or_create_open_session(
+        db, current_user.tenant_id, body.phone, body.contact_id, visitor_name
+    )
+    await db.commit()
+    await db.refresh(session)
+    return _session_dict(session)
+
+
 @router.get("/sessions/count")
 async def count_open_sessions(current_user: CurrentUser, db: DB):
     count = await db.scalar(
-        select(func.count(ChatSession.id)).where(
+        select(func.coalesce(func.sum(ChatSession.unread_count), 0)).where(
             ChatSession.tenant_id == current_user.tenant_id,
-            ChatSession.is_open == True,  # noqa: E712
         )
     )
     return {"open": count or 0}
@@ -135,17 +222,11 @@ async def reply_to_session(
     # Dispatch via WhatsApp if this session came from WhatsApp
     if session.source == "whatsapp" and session.whatsapp_phone:
         tenant = await db.get(Tenant, current_user.tenant_id)
-        if tenant and tenant.whatsapp_phone_number_id and tenant.whatsapp_access_token:
+        if tenant:
             try:
-                await whatsapp_service.send_whatsapp_message(
-                    phone=session.whatsapp_phone,
-                    body=text,
-                    phone_number_id=tenant.whatsapp_phone_number_id,
-                    access_token=tenant.whatsapp_access_token,
-                )
+                await whatsapp_service.send_text(tenant.slug, session.whatsapp_phone, text)
             except Exception:
-                # Log but don't fail — message is already saved in DB
-                pass
+                logger.exception("WhatsApp send failed for session %s", session_id)
 
     tenant_key = str(current_user.tenant_id)
     event_data = {
@@ -181,38 +262,234 @@ async def close_session(session_id: uuid.UUID, current_user: CurrentUser, db: DB
     return {"status": "closed"}
 
 
+@router.post("/sessions/{session_id}/read", status_code=status.HTTP_200_OK)
+async def mark_session_read(session_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    sess_result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.tenant_id == current_user.tenant_id,
+        )
+    )
+    session = sess_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.unread_count = 0
+    await db.commit()
+
+    tenant_key = str(current_user.tenant_id)
+    await manager.broadcast_to_agents(
+        tenant_key,
+        {"event": "unread_update", "session_id": str(session_id), "unread_count": 0},
+    )
+    return {"status": "ok"}
+
+
 # ---------------------------------------------------------------------------
-# Meta Cloud API webhook endpoints (no auth — called by Meta)
+# WhatsApp pairing
 # ---------------------------------------------------------------------------
 
-@router.get("/webhooks/{tenant_slug}/whatsapp")
-async def whatsapp_verify(tenant_slug: str, request: Request, db: DB):
-    """Meta webhook verification handshake (slug-scoped — use same URL as the POST endpoint)."""
-    mode = request.query_params.get("hub.mode")
-    token = request.query_params.get("hub.verify_token")
-    challenge = request.query_params.get("hub.challenge")
+@router.get("/whatsapp/qr")
+async def get_whatsapp_qr(current_user: CurrentUser, db: DB):
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
 
     try:
-        tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
+        data = await whatsapp_service.get_pairing_qr(tenant.slug)
+    except RuntimeError as exc:
+        # EVOLUTION_API_URL not set in this environment
+        logger.warning("WhatsApp QR requested but Evolution API is not configured: %s", exc)
+        raise HTTPException(status_code=503, detail="WhatsApp integration is not configured for this environment")
+    except httpx.HTTPStatusError as exc:
+        logger.error(
+            "Evolution API returned %s for tenant '%s': %s",
+            exc.response.status_code,
+            tenant.slug,
+            exc.response.text,
+        )
+        raise HTTPException(status_code=502, detail="Evolution API error — check server logs")
+    except Exception as exc:
+        logger.error(
+            "Could not reach Evolution API for tenant '%s': %s: %s",
+            tenant.slug,
+            type(exc).__name__,
+            exc,
+        )
+        raise HTTPException(status_code=502, detail="Could not reach Evolution API")
+
+    return {
+        "base64": data.get("base64"),
+        "code": data.get("code"),
+        "pairing_code": data.get("pairingCode"),
+    }
+
+
+@router.get("/whatsapp/status")
+async def get_whatsapp_status(current_user: CurrentUser, db: DB):
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    try:
+        state = await whatsapp_service.get_connection_state(tenant.slug)
     except Exception:
-        raise HTTPException(status_code=403, detail="Verification failed")
+        return {"state": ""}
 
-    tenant = await db.get(Tenant, tenant_id)
-    if mode == "subscribe" and token and tenant and token == tenant.whatsapp_verify_token:
-        return Response(content=challenge, media_type="text/plain")
-    raise HTTPException(status_code=403, detail="Verification failed")
+    return {"state": state or ""}
 
+
+# ---------------------------------------------------------------------------
+# Broadcast
+# ---------------------------------------------------------------------------
+
+@router.get("/broadcast/booking-link")
+async def get_broadcast_booking_link(contact_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    try:
+        token = await booking_service.create_booking_token(
+            db,
+            current_user.tenant_id,
+            current_user.id,
+            BookingTokenCreate(contact_id=contact_id, mode="open"),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    url = f"{booking_service.CLIENT_BASE_URL}/book/{token.id}"
+    return {"url": url}
+
+
+class BroadcastBody(BaseModel):
+    contact_ids: list[uuid.UUID]
+    message: str
+    append_booking_link: bool = False
+
+
+async def _run_broadcast(
+    contact_ids: list[uuid.UUID],
+    message: str,
+    append_booking_link: bool,
+    tenant_id: uuid.UUID,
+    created_by_id: uuid.UUID,
+) -> None:
+    tenant_key = str(tenant_id)
+    for idx, contact_id in enumerate(contact_ids):
+        try:
+            async with db_session() as db:
+                await set_tenant_context(db, tenant_id)
+
+                contact = await db.get(Contact, contact_id)
+                if not contact or not contact.phone or contact.broadcast_opted_out:
+                    continue
+
+                tenant = await db.get(Tenant, tenant_id)
+                if not tenant:
+                    continue
+
+                session = await _find_or_create_open_session(
+                    db, tenant_id, contact.phone, contact_id, contact.full_name
+                )
+
+                text = message
+                if append_booking_link:
+                    try:
+                        token = await booking_service.create_booking_token(
+                            db,
+                            tenant_id,
+                            created_by_id,
+                            BookingTokenCreate(contact_id=contact_id, mode="open"),
+                        )
+                        url = f"{booking_service.CLIENT_BASE_URL}/book/{token.id}"
+                        text = f"{message}\n\n{url}"
+                    except ValueError:
+                        pass
+
+                msg = ChatMessage(
+                    tenant_id=tenant_id,
+                    session_id=session.id,
+                    sender_type="agent",
+                    sender_id=str(created_by_id),
+                    body=text,
+                )
+                db.add(msg)
+                await db.commit()
+                await db.refresh(msg)
+
+                try:
+                    await whatsapp_service.send_text(tenant.slug, contact.phone, text)
+                except Exception:
+                    logger.exception("WhatsApp send failed for contact %s", contact.id)
+
+                event_data = {
+                    "event": "message",
+                    "session_id": str(session.id),
+                    "sender_type": "agent",
+                    "sender_id": str(created_by_id),
+                    "body": text,
+                    "created_at": msg.created_at.isoformat(),
+                }
+                await manager.broadcast_to_session(tenant_key, str(session.id), event_data)
+                await manager.broadcast_to_agents(tenant_key, event_data)
+        except Exception:
+            # Never let one failed recipient stop the rest of the broadcast.
+            pass
+
+        if idx < len(contact_ids) - 1:
+            await asyncio.sleep(random.uniform(5, 10))
+
+
+@router.post("/broadcast", status_code=status.HTTP_202_ACCEPTED)
+async def broadcast(
+    body: BroadcastBody,
+    background_tasks: BackgroundTasks,
+    current_user: CurrentUser,
+    db: DB,
+):
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    result = await db.execute(
+        select(Contact.id).where(
+            Contact.tenant_id == current_user.tenant_id,
+            Contact.id.in_(body.contact_ids),
+            Contact.phone.is_not(None),
+            Contact.broadcast_opted_out == False,  # noqa: E712
+        )
+    )
+    valid_ids = [r[0] for r in result.all()]
+    if not valid_ids:
+        raise HTTPException(status_code=400, detail="No eligible contacts to broadcast to")
+
+    try:
+        state = await whatsapp_service.get_connection_state(tenant.slug)
+    except Exception:
+        raise HTTPException(status_code=409, detail="WhatsApp is not connected")
+
+    if state not in ("open", "connected"):
+        raise HTTPException(status_code=409, detail="WhatsApp is not connected")
+
+    background_tasks.add_task(
+        _run_broadcast,
+        valid_ids,
+        body.message,
+        body.append_booking_link,
+        current_user.tenant_id,
+        current_user.id,
+    )
+    return {"queued": len(valid_ids)}
+
+
+# ---------------------------------------------------------------------------
+# Evolution API webhook endpoint (no auth — called by Evolution)
+# ---------------------------------------------------------------------------
 
 @router.post("/webhooks/{tenant_slug}/whatsapp", status_code=status.HTTP_200_OK)
 async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
-    """Receive inbound WhatsApp messages from Meta Cloud API. One URL per client:
+    """Receive inbound WhatsApp messages from Evolution API. One URL per client:
     https://{env}.getyippie.com/api/v1/chat/webhooks/{slug}/whatsapp"""
     try:
         payload = await request.json()
     except Exception:
-        return {"status": "ignored"}
-
-    if payload.get("object") != "whatsapp_business_account":
         return {"status": "ignored"}
 
     tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
@@ -225,7 +502,7 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
 # WebSocket endpoint (website widget live chat)
 # ---------------------------------------------------------------------------
 
-@router.websocket("/ws/{tenant_slug}/{session_id}")
+@ws_router.websocket("/ws/{tenant_slug}/{session_id}")
 async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
     """
     WebSocket endpoint for the embeddable website chat widget.
@@ -287,6 +564,9 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
                     body=msg_body,
                 )
                 db.add(msg)
+                sess_row = await db.get(ChatSession, session.id)
+                if sess_row:
+                    sess_row.unread_count = (sess_row.unread_count or 0) + 1
                 await db.commit()
 
             visitor_event = {
@@ -309,7 +589,7 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
 # Agent WebSocket — authenticated; receives all tenant events in real time
 # ---------------------------------------------------------------------------
 
-@router.websocket("/ws/agent")
+@ws_router.websocket("/ws/agent")
 async def agent_ws(websocket: WebSocket, token: str):
     """Authenticated WebSocket for agent dashboards.
 

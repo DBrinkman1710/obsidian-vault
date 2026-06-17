@@ -10,13 +10,13 @@ import { api } from '../../../api/client'
 import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 
-const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'activity', 'billing', 'chat', 'ai']
+const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'ai']
 
-const MODULE_LABELS: Record<string, string> = { ai: 'AI' }
+const MODULE_LABELS: Record<string, string> = { ai: 'AI', booking: 'Booking' }
 const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod
 
 // SaaS plan tiers — mirrors PlanTier on the backend (app/core/plans.py).
-const PLAN_TIERS = ['free', 'starter', 'pro', 'enterprise'] as const
+const PLAN_TIERS = ['founder', 'starter', 'growth', 'pro'] as const
 const planLabel = (p: string) => p.charAt(0).toUpperCase() + p.slice(1)
 
 type FilterStatus = 'all' | 'active' | 'demo' | 'inactive'
@@ -232,7 +232,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   if (created) {
     return (
       <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-6 flex flex-col gap-4">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 flex flex-col gap-4">
           <div className="flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
               <Check size={16} className="text-emerald-600" />
@@ -256,7 +256,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">New client</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
@@ -851,7 +851,7 @@ function DeleteClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () =>
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
             <h2 className="text-lg font-bold text-red-600">Delete client</h2>
@@ -918,7 +918,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Add admin</h2>
@@ -989,7 +989,7 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
             <h2 className="text-lg font-bold text-red-600">Delete {tenants.length} client{tenants.length !== 1 ? 's' : ''}</h2>

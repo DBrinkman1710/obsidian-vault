@@ -112,7 +112,7 @@ async def get_kpis(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
             PipelineStage.id,
             PipelineStage.name,
             PipelineStage.color,
-            func.count(ContactPipelineEntry.id),
+            func.count(ContactPipelineEntry.contact_id),
             func.avg(avg_days),
         )
         .select_from(PipelineStage)

@@ -9,6 +9,9 @@ export const DEFAULT_CONTACT_COLUMNS: ContactColumnPref[] = [
   { key: 'company', label: 'Company', visible: true, order: 2 },
   { key: 'labels', label: 'Labels', visible: true, order: 3 },
   { key: 'phone', label: 'Phone', visible: true, order: 4 },
+  { key: 'notes', label: 'Notes', visible: false, order: 5 },
+  { key: 'created_at', label: 'Added', visible: false, order: 6 },
+  { key: 'updated_at', label: 'Last updated', visible: false, order: 7 },
 ]
 
 const LOCKED_KEYS = new Set(['name'])

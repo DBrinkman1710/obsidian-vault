@@ -1,8 +1,10 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronLeft, ChevronRight, Plus, Trash2, X } from 'lucide-react'
+import { CalendarClock, ChevronLeft, ChevronRight, Plus, Settings2, Trash2, X } from 'lucide-react'
 import { api } from '../../api/client'
+import { useTenantConfig } from '../../App'
+import SendBookingModal from '../booking/SendBookingModal'
 
 interface CalendarItem {
   kind: 'event' | 'deadline'
@@ -217,7 +219,7 @@ function EventModal({ event, onClose, onSaved }: {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-lg font-bold text-slate-900">{event ? 'Edit event' : 'New event'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
@@ -295,16 +297,503 @@ function EventModal({ event, onClose, onSaved }: {
 }
 
 // ---------------------------------------------------------------------------
+// Bookings (BK1)
+// ---------------------------------------------------------------------------
+
+interface BookingToken {
+  id: string
+  contact_id: string
+  contact_name: string | null
+  created_by_name: string | null
+  mode: string
+  expires_at: string
+  booked_at: string | null
+  customer_proposed_slots: Array<{ start: string; end: string }> | null
+  status: 'pending' | 'booked' | 'expired' | 'counter_proposed'
+}
+
+interface WeeklySlotEntry {
+  time: string    // HH:MM
+  capacity: number
+}
+
+interface CalendarSettings {
+  work_start_hour: number
+  work_end_hour: number
+  slot_minutes: number
+  booking_expiry_days: number
+  post_booking_stage_id: string | null
+  use_weekly_slots: boolean
+  weekly_slots: Record<string, WeeklySlotEntry[]> | null
+  cancel_edit_hours_before: number
+}
+
+type BookingTab = 'pending' | 'counter_proposed' | 'booked' | 'expired'
+
+function fmtSlotShort(start: string, end: string) {
+  const s = new Date(start)
+  const day = s.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })
+  const t1 = s.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  const t2 = new Date(end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+  return `${day}, ${t1}–${t2}`
+}
+
+function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () => void; onNewBooking: () => void; onOpenSettings: () => void }) {
+  const qc = useQueryClient()
+  const [tab, setTab] = useState<BookingTab>('pending')
+
+  const { data: tokens = [] } = useQuery<BookingToken[]>({
+    queryKey: ['booking-tokens'],
+    queryFn: () => api.get('/booking/tokens').then(r => r.data),
+  })
+
+  const revokeMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/booking/tokens/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['booking-tokens'] }),
+  })
+
+  const acceptMut = useMutation({
+    mutationFn: ({ tokenId, slot }: { tokenId: string; slot: { start: string; end: string } }) =>
+      api.post(`/public/booking/${tokenId}/confirm`, { slot_start: slot.start, slot_end: slot.end }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['booking-tokens'] }),
+  })
+
+  // Show counter_proposed tab only when there are items (otherwise don't clutter the tab bar)
+  const counterCount = tokens.filter(x => x.status === 'counter_proposed').length
+  const tabs: BookingTab[] = counterCount > 0
+    ? ['pending', 'counter_proposed', 'booked', 'expired']
+    : ['pending', 'booked', 'expired']
+
+  const filtered = tokens.filter(t => t.status === tab)
+
+  const tabLabel = (t: BookingTab) => {
+    if (t === 'counter_proposed') return 'Waiting'
+    return t.charAt(0).toUpperCase() + t.slice(1)
+  }
+
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/20" />
+      <div
+        className="absolute right-0 top-0 h-full w-96 bg-white shadow-2xl flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-base font-bold text-slate-900">Booking links</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { onClose(); onNewBooking() }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yippie hover:opacity-90 text-white text-xs font-semibold rounded-lg transition-opacity"
+            >
+              <Plus size={13} strokeWidth={2.5} /> New booking
+            </button>
+            <button onClick={onOpenSettings} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors" title="Booking settings">
+              <Settings2 size={15} />
+            </button>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          </div>
+        </div>
+
+        <div className="flex gap-1 px-4 py-3 border-b border-slate-100 shrink-0 flex-wrap">
+          {tabs.map(t => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
+                tab === t
+                  ? t === 'counter_proposed' ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
+                  : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+              {tabLabel(t)} ({tokens.filter(x => x.status === t).length})
+            </button>
+          ))}
+        </div>
+
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+          {filtered.length === 0 && (
+            <p className="px-5 py-8 text-sm text-slate-400 text-center">No {tabLabel(tab).toLowerCase()} booking links.</p>
+          )}
+          {filtered.map(t => (
+            <div key={t.id} className="px-5 py-3">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className="text-sm font-semibold text-slate-800 truncate">
+                      {t.contact_name ?? 'Unknown contact'}
+                    </p>
+                    {t.status === 'counter_proposed' && (
+                      <span className="px-1.5 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-700 shrink-0">
+                        Waiting
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-slate-400">
+                    Sent by {t.created_by_name ?? '—'}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {t.status === 'booked' && t.booked_at
+                      ? `Booked ${new Date(t.booked_at).toLocaleString()}`
+                      : `Expires ${new Date(t.expires_at).toLocaleString()}`}
+                  </p>
+                </div>
+                {t.status === 'pending' && (
+                  <button
+                    onClick={() => { if (confirm('Revoke this booking link?')) revokeMut.mutate(t.id) }}
+                    className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-600"
+                  >
+                    Revoke
+                  </button>
+                )}
+              </div>
+
+              {/* Counter-proposed slots — agent can accept one */}
+              {t.status === 'counter_proposed' && t.customer_proposed_slots && t.customer_proposed_slots.length > 0 && (
+                <div className="mt-2 flex flex-col gap-1.5">
+                  <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide">Customer proposed:</p>
+                  {t.customer_proposed_slots.map((slot, idx) => (
+                    <button
+                      key={idx}
+                      disabled={acceptMut.isPending}
+                      onClick={() => {
+                        if (confirm(`Accept: ${fmtSlotShort(slot.start, slot.end)}?`)) {
+                          acceptMut.mutate({ tokenId: t.id, slot })
+                        }
+                      }}
+                      className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors text-left disabled:opacity-50"
+                    >
+                      <span className="text-xs font-semibold text-amber-800">{fmtSlotShort(slot.start, slot.end)}</span>
+                      <span className="text-[10px] font-bold text-amber-700 shrink-0">Accept</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+
+function WeeklyGrid({
+  slots,
+  onChange,
+}: {
+  slots: Record<string, WeeklySlotEntry[]>
+  onChange: (slots: Record<string, WeeklySlotEntry[]>) => void
+}) {
+  // Per-day inline-add state: {dayKey -> {time, capacity}}
+  const [adding, setAdding] = useState<Record<string, { time: string; capacity: number }>>({})
+
+  function startAdd(dayKey: string) {
+    setAdding(prev => ({ ...prev, [dayKey]: { time: '09:00', capacity: 1 } }))
+  }
+
+  function cancelAdd(dayKey: string) {
+    setAdding(prev => { const n = { ...prev }; delete n[dayKey]; return n })
+  }
+
+  function commitAdd(dayKey: string) {
+    const entry = adding[dayKey]
+    if (!entry) return
+    // Validate HH:MM
+    if (!/^\d{2}:\d{2}$/.test(entry.time)) return
+    const existing = slots[dayKey] ?? []
+    // Prevent duplicate times on same day
+    if (existing.some(e => e.time === entry.time)) {
+      cancelAdd(dayKey)
+      return
+    }
+    const updated = { ...slots, [dayKey]: [...existing, entry].sort((a, b) => a.time.localeCompare(b.time)) }
+    onChange(updated)
+    cancelAdd(dayKey)
+  }
+
+  function removeSlot(dayKey: string, idx: number) {
+    const updated = { ...slots, [dayKey]: (slots[dayKey] ?? []).filter((_, i) => i !== idx) }
+    onChange(updated)
+  }
+
+  return (
+    <div className="border border-slate-200 rounded-xl overflow-hidden divide-y divide-slate-100">
+      {DAY_LABELS.map((label, i) => {
+        const dayKey = String(i)
+        const daySlots = slots[dayKey] ?? []
+        const addState = adding[dayKey]
+        return (
+          <div key={dayKey} className="px-4 py-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs font-semibold text-slate-600 w-24 shrink-0">{label}</span>
+              <div className="flex flex-wrap gap-1.5 flex-1 min-w-0">
+                {daySlots.length === 0 && !addState && (
+                  <span className="text-xs text-slate-400 italic">No slots</span>
+                )}
+                {daySlots.map((entry, idx) => (
+                  <span
+                    key={idx}
+                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg border border-blue-100"
+                  >
+                    {entry.time} ×{entry.capacity}
+                    <button
+                      onClick={() => removeSlot(dayKey, idx)}
+                      className="ml-0.5 text-blue-400 hover:text-red-500 transition-colors leading-none"
+                      title="Remove slot"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+              </div>
+              {!addState && (
+                <button
+                  onClick={() => startAdd(dayKey)}
+                  className="shrink-0 ml-2 text-xs font-semibold text-blue-600 hover:text-blue-700 border border-blue-200 hover:border-blue-300 rounded-lg px-2 py-0.5 transition-colors"
+                >
+                  + Add
+                </button>
+              )}
+            </div>
+            {addState && (
+              <div className="flex items-center gap-2 mt-1.5 pl-24">
+                <input
+                  type="time"
+                  value={addState.time}
+                  onChange={e => setAdding(prev => ({ ...prev, [dayKey]: { ...prev[dayKey], time: e.target.value } }))}
+                  className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-28"
+                />
+                <input
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={addState.capacity}
+                  onChange={e => setAdding(prev => ({ ...prev, [dayKey]: { ...prev[dayKey], capacity: Math.max(1, Number(e.target.value)) } }))}
+                  className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-16"
+                  title="Max bookings for this slot"
+                />
+                <span className="text-xs text-slate-400">cap</span>
+                <button
+                  onClick={() => commitAdd(dayKey)}
+                  className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                >
+                  Add
+                </button>
+                <button
+                  onClick={() => cancelAdd(dayKey)}
+                  className="px-2 py-1 text-xs text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function BookingSettingsModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient()
+  const [saved, setSaved] = useState(false)
+
+  const { data: settings } = useQuery<CalendarSettings>({
+    queryKey: ['booking-settings'],
+    queryFn: () => api.get('/booking/settings').then(r => r.data),
+  })
+  const { data: stages = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+  })
+
+  const [form, setForm] = useState<CalendarSettings | null>(null)
+  const current = form ?? settings ?? null
+
+  const saveMut = useMutation({
+    mutationFn: (body: Partial<CalendarSettings>) => api.patch('/booking/settings', body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['booking-settings'] })
+      setSaved(true)
+      setTimeout(() => setSaved(false), 2000)
+    },
+  })
+
+  function update(patch: Partial<CalendarSettings>) {
+    setForm({ ...(current as CalendarSettings), ...patch })
+  }
+
+  const hourOptions = Array.from({ length: 25 }, (_, i) => i)
+
+  const weeklySlots: Record<string, WeeklySlotEntry[]> = (current?.weekly_slots as Record<string, WeeklySlotEntry[]>) ?? {}
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
+            <Settings2 size={16} className="text-slate-400" /> Booking settings
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+        {current ? (
+          <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
+            {/* Weekly schedule toggle */}
+            <div className="flex items-center justify-between py-2 border border-slate-200 rounded-xl px-4">
+              <div>
+                <p className="text-sm font-semibold text-slate-800">Use weekly schedule</p>
+                <p className="text-xs text-slate-400 mt-0.5">Define specific time slots per day instead of uniform work hours</p>
+              </div>
+              <button
+                onClick={() => update({ use_weekly_slots: !current.use_weekly_slots })}
+                className={`relative inline-flex h-6 w-11 shrink-0 rounded-full border-2 border-transparent transition-colors ${
+                  current.use_weekly_slots ? 'bg-blue-600' : 'bg-slate-200'
+                }`}
+                role="switch"
+                aria-checked={current.use_weekly_slots}
+              >
+                <span className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                  current.use_weekly_slots ? 'translate-x-5' : 'translate-x-0'
+                }`} />
+              </button>
+            </div>
+
+            {current.use_weekly_slots ? (
+              /* Weekly grid */
+              <div>
+                <label className={labelCls}>Weekly schedule</label>
+                <p className="text-xs text-slate-400 mb-2">Click "+ Add" on any day to add a time slot and set the max bookings (capacity) for that slot.</p>
+                <WeeklyGrid
+                  slots={weeklySlots}
+                  onChange={newSlots => update({ weekly_slots: newSlots })}
+                />
+              </div>
+            ) : (
+              /* Legacy work-hours inputs */
+              <>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Work start hour</label>
+                    <select className={inputCls} value={current.work_start_hour}
+                      onChange={e => update({ work_start_hour: Number(e.target.value) })}>
+                      {hourOptions.slice(0, 24).map(h => <option key={h} value={h}>{pad(h)}:00</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Work end hour</label>
+                    <select className={inputCls} value={current.work_end_hour}
+                      onChange={e => update({ work_end_hour: Number(e.target.value) })}>
+                      {hourOptions.slice(1).map(h => <option key={h} value={h}>{pad(h)}:00</option>)}
+                    </select>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className={labelCls}>Slot size</label>
+                    <select className={inputCls} value={current.slot_minutes}
+                      onChange={e => update({ slot_minutes: Number(e.target.value) })}>
+                      {[15, 30, 60].map(m => <option key={m} value={m}>{m} min</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label className={labelCls}>Link expiry</label>
+                    <select className={inputCls} value={current.booking_expiry_days}
+                      onChange={e => update({ booking_expiry_days: Number(e.target.value) })}>
+                      {[1, 2, 3, 5, 7].map(d => <option key={d} value={d}>{d} day{d !== 1 ? 's' : ''}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Link expiry always visible in weekly mode too */}
+            {current.use_weekly_slots && (
+              <div>
+                <label className={labelCls}>Link expiry</label>
+                <select className={inputCls} value={current.booking_expiry_days}
+                  onChange={e => update({ booking_expiry_days: Number(e.target.value) })}>
+                  {[1, 2, 3, 5, 7].map(d => <option key={d} value={d}>{d} day{d !== 1 ? 's' : ''}</option>)}
+                </select>
+              </div>
+            )}
+
+            <div>
+              <label className={labelCls}>Move to stage after booking</label>
+              <select className={inputCls} value={current.post_booking_stage_id ?? ''}
+                onChange={e => update({ post_booking_stage_id: e.target.value || null })}>
+                <option value="">— None —</option>
+                {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className={labelCls}>Lock changes X hours before appointment</label>
+              <input
+                type="number"
+                min={1}
+                max={720}
+                className={inputCls}
+                value={current.cancel_edit_hours_before ?? 24}
+                onChange={e => update({ cancel_edit_hours_before: Math.max(1, Math.min(720, Number(e.target.value))) })}
+              />
+              <p className="mt-1 text-xs text-slate-400">
+                Customers cannot reschedule or cancel within this many hours of their appointment.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                onClick={() => saveMut.mutate({
+                  work_start_hour: current.work_start_hour,
+                  work_end_hour: current.work_end_hour,
+                  slot_minutes: current.slot_minutes,
+                  booking_expiry_days: current.booking_expiry_days,
+                  post_booking_stage_id: current.post_booking_stage_id,
+                  use_weekly_slots: current.use_weekly_slots,
+                  weekly_slots: current.weekly_slots,
+                  cancel_edit_hours_before: current.cancel_edit_hours_before,
+                })}
+                disabled={saveMut.isPending}
+                className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-opacity"
+              >
+                {saveMut.isPending ? 'Saving…' : 'Save settings'}
+              </button>
+              <button onClick={onClose}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                Cancel
+              </button>
+              {saved && <span className="text-sm text-green-600 font-medium">Saved!</span>}
+            </div>
+          </div>
+        ) : (
+          <p className="px-6 py-8 text-sm text-slate-400 text-center">Loading…</p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Calendar page
 // ---------------------------------------------------------------------------
 
 export default function CalendarPage() {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const config = useTenantConfig()
+  const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth()) // 0-based
   const [modal, setModal] = useState<{ open: boolean; event: CalendarItem | null }>({ open: false, event: null })
+  const [bookingsOpen, setBookingsOpen] = useState(false)
+  const [newBookingOpen, setNewBookingOpen] = useState(false)
+  const [bookingSettingsOpen, setBookingSettingsOpen] = useState(false)
+
+  const { data: bookingTokens } = useQuery<BookingToken[]>({
+    queryKey: ['booking-tokens'],
+    queryFn: () => api.get('/booking/tokens').then(r => r.data),
+    enabled: bookingEnabled,
+  })
+  const pendingCount = (bookingTokens ?? []).filter(t => t.status === 'pending' || t.status === 'counter_proposed').length
 
   const days = useMemo(() => monthGrid(year, month), [year, month])
   const rangeStart = days[0]
@@ -341,11 +830,43 @@ export default function CalendarPage() {
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
-        <button onClick={() => setModal({ open: true, event: null })}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-lg transition-opacity">
-          <Plus size={15} strokeWidth={2.5} /> New event
-        </button>
+        <div className="flex items-center gap-2">
+          {bookingEnabled && (
+            <>
+              <button onClick={() => setBookingsOpen(true)}
+                className="relative inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+                <CalendarClock size={15} strokeWidth={2.5} /> Bookings
+                {pendingCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-blue-600 rounded-full">
+                    {pendingCount}
+                  </span>
+                )}
+              </button>
+              <button onClick={() => setNewBookingOpen(true)}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+                <Plus size={15} strokeWidth={2.5} /> New booking
+              </button>
+              <button onClick={() => setBookingSettingsOpen(true)}
+                className="p-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-lg transition-colors"
+                title="Booking settings">
+                <Settings2 size={15} />
+              </button>
+            </>
+          )}
+          <button onClick={() => setModal({ open: true, event: null })}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-lg transition-opacity">
+            <Plus size={15} strokeWidth={2.5} /> New event
+          </button>
+        </div>
       </div>
+
+      {bookingEnabled && bookingsOpen && (
+        <BookingsPanel
+          onClose={() => setBookingsOpen(false)}
+          onNewBooking={() => setNewBookingOpen(true)}
+          onOpenSettings={() => setBookingSettingsOpen(true)}
+        />
+      )}
 
       {/* Month card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
@@ -453,6 +974,17 @@ export default function CalendarPage() {
           onClose={() => setModal({ open: false, event: null })}
           onSaved={() => qc.invalidateQueries({ queryKey: ['calendar-items'] })}
         />
+      )}
+
+      {bookingEnabled && (
+        <SendBookingModal
+          open={newBookingOpen}
+          onClose={() => setNewBookingOpen(false)}
+        />
+      )}
+
+      {bookingEnabled && bookingSettingsOpen && (
+        <BookingSettingsModal onClose={() => setBookingSettingsOpen(false)} />
       )}
     </div>
   )

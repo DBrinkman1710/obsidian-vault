@@ -214,11 +214,11 @@ export default function TicketNew() {
         <div className="flex gap-3 items-center">
           <button
             type="submit" disabled={mutation.isPending}
-            className="px-6 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed"
           >
             {mutation.isPending ? 'Creating…' : 'Create ticket'}
           </button>
-          <Link to="/tickets" className="px-4 py-2.5 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+          <Link to="/tickets" className="text-slate-600 hover:text-slate-900 text-sm font-medium transition-colors">
             Cancel
           </Link>
         </div>

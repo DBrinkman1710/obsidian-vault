@@ -11,6 +11,48 @@ import { CardListSkeleton } from '../../../shell/Skeleton'
 import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
 import { SignaturePicker } from '../components/SignaturePicker'
 
+const INBOX_FACTS = [
+  "Studies show clearing your inbox reduces stress by up to 38%.",
+  "The average support ticket takes 12 minutes to resolve. You're on top of it.",
+  "Teams that respond within 1 hour are 7× more likely to have meaningful conversations.",
+  "You've handled everything. Take a breath — the next message will arrive soon.",
+  "Empty inbox = full focus. Use this moment for deep work.",
+  "Customers who get fast replies are 3× more likely to recommend a business.",
+  "Zero unread. You're in the top 5% of inbox managers.",
+  "An organized inbox saves an average of 30 minutes per day.",
+  "Quick responses build trust. You're already doing great.",
+  "Inbox zero is a superpower. You have it.",
+  "Every ticket resolved is a customer relationship strengthened.",
+  "Response time under 4 hours boosts customer satisfaction by 25%.",
+  "You're making someone's day better, one reply at a time.",
+  "The best time to handle a ticket is now. You already did.",
+  "Teams using structured inboxes resolve issues 40% faster.",
+  "Great support isn't a cost centre — it's a growth engine.",
+  "Customer retention is 5× cheaper than acquisition. Your inbox work matters.",
+  "You've earned this moment of calm. Enjoy it.",
+  "The next great support interaction starts with an empty inbox.",
+  "Consistent response time builds brand loyalty. You're building it.",
+]
+
+function AllCaughtUp() {
+  const [fact, setFact] = useState(() => INBOX_FACTS[Math.floor(Math.random() * INBOX_FACTS.length)])
+  useEffect(() => {
+    const id = setInterval(() => {
+      setFact(INBOX_FACTS[Math.floor(Math.random() * INBOX_FACTS.length)])
+    }, 120_000)
+    return () => clearInterval(id)
+  }, [])
+  return (
+    <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+      <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center">
+        <CheckSquare size={32} className="text-green-500" strokeWidth={1.5} />
+      </div>
+      <h3 className="text-lg font-semibold text-slate-700">All caught up!</h3>
+      <p className="text-sm text-slate-400 max-w-xs leading-relaxed">{fact}</p>
+    </div>
+  )
+}
+
 const SOURCE_ICON: Record<string, React.ReactNode> = {
   email: <Mail size={13} className="text-slate-400" />,
   whatsapp: <MessageSquare size={13} className="text-green-500" />,
@@ -114,7 +156,7 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md flex flex-col" style={{ maxHeight: '80vh' }}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full flex flex-col" style={{ maxHeight: '80vh' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-base font-bold text-slate-900">Add recipients</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
@@ -430,7 +472,7 @@ function ComposeModal({
   if (demoResult) {
     return (
       <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8 text-center">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8 text-center">
           <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Send size={20} className="text-amber-600" />
           </div>
@@ -689,6 +731,7 @@ export default function InboxQueue() {
   const [composeInitial, setComposeInitial] = useState<ComposeInitialState | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [page, setPage] = useState(0)
+  const [selectedSentItem, setSelectedSentItem] = useState<any | null>(null)
   // Shared search query — persists across Pending/Processed/Sent tab switches.
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -796,7 +839,7 @@ export default function InboxQueue() {
     queryFn: () => api.get('/activity', { params: { limit: 500 } }).then(r =>
       (r.data as any[]).filter((e: any) => e.event_type === 'email.replied' || e.event_type === 'email.composed')
     ),
-    enabled: activeTab === 'sent' && !trackingEnabled,
+    enabled: activeTab === 'sent',
   })
 
   const { data: outboundEmails, isLoading: outboundLoading } = useQuery({
@@ -875,7 +918,9 @@ export default function InboxQueue() {
 
   // Sent tab pagination — 9 mails/page, mirroring the Pending cadence (PAGE_SIZE).
   const sentList: any[] = activeTab === 'sent'
-    ? (trackingEnabled ? (outboundEmails ?? []) : filteredSentEvents)
+    ? (trackingEnabled && (outboundEmails ?? []).length > 0
+        ? outboundEmails!
+        : filteredSentEvents ?? [])
     : []
   const sentPageCount = Math.max(1, Math.ceil(sentList.length / PAGE_SIZE))
   const sentSafePage = Math.min(page, sentPageCount - 1)
@@ -958,58 +1003,26 @@ export default function InboxQueue() {
               ))}
             </div>
           </div>
-          <div className="flex flex-col items-stretch gap-2">
-            <button
-              onClick={() => {
-                setComposeInitial(mailbox === 'personal' && !!user?.inbound_email ? {
-                  recipients: [],
-                  subject: '',
-                  body: defaultSigBody ? `\n\n${defaultSigBody}` : '',
-                  usePersonalFrom: true,
-                } : null)
-                setShowCompose(true)
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-            >
-              <Pencil size={14} />
-              Compose
-            </button>
-            <TemplatePicker
-              direction="down"
-              triggerIconSize={14}
-              triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors w-full"
-              onSelect={(tmplBody, isHtml, buttons) => {
-                const text = isHtml ? htmlToText(tmplBody) : tmplBody
-                setComposeInitial({
-                  recipients: [],
-                  subject: '',
-                  body: defaultSigBody ? `${text}\n\n${defaultSigBody}` : text,
-                  usePersonalFrom: false,
-                  templateHtml: isHtml ? tmplBody : null,
-                  campaignButtonsJson: isHtml ? (buttons ?? null) : null,
-                })
-                setShowCompose(true)
-              }}
-            />
-          </div>
+          <button
+            onClick={() => {
+              setComposeInitial(mailbox === 'personal' && !!user?.inbound_email ? {
+                recipients: [],
+                subject: '',
+                body: defaultSigBody ? `\n\n${defaultSigBody}` : '',
+                usePersonalFrom: true,
+              } : null)
+              setShowCompose(true)
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <Pencil size={14} />
+            Compose
+          </button>
         </div>
 
-        {/* Tabs + inline search (shared across all three tabs) */}
-        <div className="flex items-center gap-2 mb-0">
-          {(['pending', 'processed', 'sent'] as Tab[]).map(tab => (
-            <button
-              key={tab}
-              onClick={() => handleTabSwitch(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
-                activeTab === tab
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-          <div className="relative ml-auto w-72 max-w-full">
+        {/* Search bar + Templates — same row */}
+        <div className="flex items-center gap-2 mb-3">
+          <div className="relative w-72 max-w-full">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
             <input
               type="text"
@@ -1028,6 +1041,42 @@ export default function InboxQueue() {
               </button>
             )}
           </div>
+          <div className="ml-auto">
+            <TemplatePicker
+              direction="down"
+              triggerIconSize={14}
+              triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              onSelect={(tmplBody, isHtml, buttons) => {
+                const text = isHtml ? htmlToText(tmplBody) : tmplBody
+                setComposeInitial({
+                  recipients: [],
+                  subject: '',
+                  body: defaultSigBody ? `${text}\n\n${defaultSigBody}` : text,
+                  usePersonalFrom: false,
+                  templateHtml: isHtml ? tmplBody : null,
+                  campaignButtonsJson: isHtml ? (buttons ?? null) : null,
+                })
+                setShowCompose(true)
+              }}
+            />
+          </div>
+        </div>
+
+        {/* Tabs (shared across all three tabs) */}
+        <div className="flex items-center gap-2 mb-0">
+          {(['pending', 'processed', 'sent'] as Tab[]).map(tab => (
+            <button
+              key={tab}
+              onClick={() => handleTabSwitch(tab)}
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
+                activeTab === tab
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+              }`}
+            >
+              {tab}
+            </button>
+          ))}
         </div>
 
         {/* Trending topics — shown when the search box is empty */}
@@ -1142,66 +1191,58 @@ export default function InboxQueue() {
                 </p>
               </div>
             )}
-            {trackingEnabled && sentList.length > 0 && (
+            {sentList.length > 0 && (
               <div className="flex flex-col gap-3">
-                {pageSentList.map((em: any) => {
-                  const CardEl = em.draft_id ? Link : 'div'
-                  const cardProps = em.draft_id ? { to: `/inbox/drafts/${em.draft_id}` } : {}
-                  return (
-                    <CardEl
-                      key={em.id}
-                      {...(cardProps as any)}
-                      className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-3 transition-all hover:border-blue-300 hover:shadow-md cursor-pointer"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <Send size={13} className="text-slate-400 shrink-0" />
-                          <span className="text-sm font-semibold text-slate-900 truncate">{em.subject ?? '(no subject)'}</span>
-                          {statusBadge(em.status)}
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${em.kind === 'compose' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                            {em.kind === 'compose' ? 'Composed' : 'Reply'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500">To: {em.to_email}</p>
-                        {em.delivered_at && (
-                          <p className="text-xs text-slate-400 mt-0.5">Delivered: {new Date(em.delivered_at).toLocaleString()}</p>
-                        )}
-                        {em.opened_at && (
-                          <p className="text-xs text-blue-500 mt-0.5">Opened: {new Date(em.opened_at).toLocaleString()}</p>
-                        )}
-                      </div>
-                      <p className="text-xs text-slate-400 shrink-0">{new Date(em.created_at).toLocaleString()}</p>
-                    </CardEl>
-                  )
-                })}
-              </div>
-            )}
-            {!trackingEnabled && sentList.length > 0 && (
-              <div className="flex flex-col gap-3">
-                {pageSentList.map((ev: any) => {
-                  const draftId = ev.payload?.draft_id
+                {pageSentList.map((item: any) => {
+                  const isActivityEvent = !!item.event_type
+                  // Activity events have a real draft_id in payload → link to DraftReview.
+                  // Tracking-path OutboundEmail items → open body modal instead.
+                  const draftId = isActivityEvent ? item.payload?.draft_id : null
                   const CardEl = draftId ? Link : 'div'
                   const cardProps = draftId ? { to: `/inbox/drafts/${draftId}` } : {}
+                  const subject = isActivityEvent ? (item.payload?.subject ?? '(no subject)') : (item.subject ?? '(no subject)')
+                  const toAddr = isActivityEvent ? item.payload?.to : item.to_email
+                  const kind = isActivityEvent ? item.event_type : item.kind
+                  const isCompose = isActivityEvent ? kind === 'email.composed' : kind === 'compose'
+                  const handleCardClick = !isActivityEvent
+                    ? () => setSelectedSentItem(item)
+                    : (!draftId ? () => setSelectedSentItem({
+                        subject: item.payload?.subject,
+                        to_email: item.payload?.to,
+                        created_at: item.created_at,
+                        status: null,
+                        body: item.payload?.preview || null,
+                        kind: 'compose',
+                        draft_id: null,
+                      }) : undefined)
                   return (
                     <CardEl
-                      key={ev.id}
+                      key={item.id}
                       {...(cardProps as any)}
+                      onClick={handleCardClick}
                       className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-3 transition-all hover:border-blue-300 hover:shadow-md cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <Send size={13} className="text-slate-400 shrink-0" />
-                          <span className="text-sm font-semibold text-slate-900 truncate">
-                            {ev.payload?.subject ?? '(no subject)'}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${ev.event_type === 'email.composed' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                            {ev.event_type === 'email.composed' ? 'Composed' : 'Reply'}
+                          <span className="text-sm font-semibold text-slate-900 truncate">{subject}</span>
+                          {!isActivityEvent && statusBadge(item.status)}
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${isCompose ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
+                            {isCompose ? 'Composed' : 'Reply'}
                           </span>
                         </div>
-                        {ev.payload?.to && <p className="text-xs text-slate-500">To: {ev.payload.to}</p>}
-                        {ev.payload?.preview && <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{ev.payload.preview}</p>}
+                        {toAddr && <p className="text-xs text-slate-500">To: {toAddr}</p>}
+                        {isActivityEvent && item.payload?.preview && (
+                          <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{item.payload.preview}</p>
+                        )}
+                        {!isActivityEvent && item.delivered_at && (
+                          <p className="text-xs text-slate-400 mt-0.5">Delivered: {new Date(item.delivered_at).toLocaleString()}</p>
+                        )}
+                        {!isActivityEvent && item.opened_at && (
+                          <p className="text-xs text-blue-500 mt-0.5">Opened: {new Date(item.opened_at).toLocaleString()}</p>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-400 shrink-0">{new Date(ev.created_at).toLocaleString()}</p>
+                      <p className="text-xs text-slate-400 shrink-0">{new Date(item.created_at).toLocaleString()}</p>
                     </CardEl>
                   )
                 })}
@@ -1236,11 +1277,14 @@ export default function InboxQueue() {
         )}
 
         {activeTab !== 'sent' && isLoading && <CardListSkeleton rows={5} />}
-        {activeTab !== 'sent' && !isLoading && allDrafts.length === 0 && (
+        {!isLoading && pageDrafts.length === 0 && activeTab === 'pending' && (
+          <AllCaughtUp />
+        )}
+        {activeTab === 'processed' && !isLoading && allDrafts.length === 0 && (
           <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
             <Mail size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-sm text-slate-400 font-medium">
-              {activeTab === 'pending' ? 'No pending messages' : 'No processed messages yet'}
+              No processed messages yet
             </p>
           </div>
         )}
@@ -1391,6 +1435,46 @@ export default function InboxQueue() {
           onSendQueued={handleSendQueued}
           initialState={composeInitial}
         />
+      )}
+
+      {/* Sent mail body modal — for tracking-path OutboundEmail items */}
+      {selectedSentItem && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <h2 className="text-base font-bold text-slate-900 truncate pr-2">
+                {selectedSentItem.subject ?? '(no subject)'}
+              </h2>
+              <button onClick={() => setSelectedSentItem(null)} className="text-slate-400 hover:text-slate-600 shrink-0">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="p-6 flex flex-col gap-4">
+              <div className="text-xs text-slate-500 flex flex-wrap gap-3">
+                <span>To: <strong className="text-slate-700">{selectedSentItem.to_email}</strong></span>
+                <span>{new Date(selectedSentItem.created_at).toLocaleString()}</span>
+                {statusBadge(selectedSentItem.status)}
+              </div>
+              <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 max-h-64 overflow-y-auto">
+                {selectedSentItem.body
+                  ? <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">{selectedSentItem.body}</p>
+                  : <p className="text-sm text-slate-400 italic">Body not available for this email</p>
+                }
+              </div>
+              {selectedSentItem.kind === 'reply' && selectedSentItem.draft_id && (
+                <div className="flex justify-end pt-2 border-t border-slate-100">
+                  <Link
+                    to={`/inbox/drafts/${selectedSentItem.draft_id}`}
+                    onClick={() => setSelectedSentItem(null)}
+                    className="text-sm font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    View original email →
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Undo bar — shown after compose send, outside the modal */}

@@ -15,16 +15,17 @@ import enum
 
 
 class PlanTier(str, enum.Enum):
-    free = "free"
+    founder = "founder"
     starter = "starter"
+    growth = "growth"
     pro = "pro"
-    enterprise = "enterprise"
 
 
-# The tier assigned to existing tenants by the migration. Enterprise unlocks
-# every feature, so introducing plan gating never locks anyone out of something
-# they can use today — superadmins can later downgrade individual tenants.
-DEFAULT_PLAN = PlanTier.enterprise
+# The tier assigned to existing tenants by the migration. Pro unlocks every
+# feature, so introducing plan gating never locks anyone out of something they
+# can use today — superadmins can later downgrade individual tenants. (Existing
+# 'enterprise' tenants are renamed to 'pro' by the migration.)
+DEFAULT_PLAN = PlanTier.pro
 
 
 # Core features available on every tier (including free). These are the
@@ -50,26 +51,55 @@ ADVANCED_FEATURES: set[str] = {
 ALL_FEATURES: set[str] = CORE_FEATURES | ADVANCED_FEATURES
 
 
-# Plan -> the full set of features that plan unlocks. Higher tiers are supersets
-# of lower ones. Every tier includes CORE_FEATURES.
+# Plan -> the full set of features that plan unlocks. Modules are à la carte
+# add-ons gated by the per-tenant module toggles, so every plan unlocks every
+# feature here — the plan governs user/contact limits (see PLAN_LIMITS), not
+# which modules are reachable. Kept as a dict so feature-level gating remains
+# available should pricing change.
 PLAN_FEATURES: dict[PlanTier, set[str]] = {
-    PlanTier.free: set(CORE_FEATURES),
-    PlanTier.starter: CORE_FEATURES | {"chat"},
-    PlanTier.pro: CORE_FEATURES | {"chat", "calendar", "pipeline", "emailtracking"},
-    PlanTier.enterprise: set(ALL_FEATURES),
+    PlanTier.founder: set(ALL_FEATURES),
+    PlanTier.starter: set(ALL_FEATURES),
+    PlanTier.growth: set(ALL_FEATURES),
+    PlanTier.pro: set(ALL_FEATURES),
+}
+
+
+# Per-plan seat/contact caps and pricing (euros). ``None`` means unlimited.
+# price_annual = monthly * 12 * 0.9 (10% discount, billed as a single yearly charge)
+PLAN_LIMITS: dict[PlanTier, dict[str, "int | None"]] = {
+    PlanTier.founder: {"users": 2,    "contacts": 1_000,  "price_monthly": 9,   "price_annual": round(9   * 12 * 0.9)},
+    PlanTier.starter: {"users": 5,    "contacts": 5_000,  "price_monthly": 29,  "price_annual": round(29  * 12 * 0.9)},
+    PlanTier.growth:  {"users": 15,   "contacts": 25_000, "price_monthly": 69,  "price_annual": round(69  * 12 * 0.9)},
+    PlanTier.pro:     {"users": None, "contacts": None,   "price_monthly": 99,  "price_annual": round(99  * 12 * 0.9)},
+}
+
+
+# À la carte module add-on prices (placeholder, euros per month). Keyed by the
+# module name in ``app.modules.MODULES``.
+MODULE_PRICES: dict[str, int] = {
+    "tickets": 15,
+    "ai": 19,
+    "calendar": 12,
+    "kanban": 12,
+    "emailtracking": 9,
 }
 
 
 def _coerce_plan(plan: "PlanTier | str | None") -> PlanTier:
-    """Best-effort coercion to a PlanTier; unknown/empty values fall back to free."""
+    """Best-effort coercion to a PlanTier; unknown/empty values fall back to founder."""
     if isinstance(plan, PlanTier):
         return plan
     if not plan:
-        return PlanTier.free
+        return PlanTier.founder
     try:
         return PlanTier(str(plan))
     except ValueError:
-        return PlanTier.free
+        return PlanTier.founder
+
+
+def limits_for_plan(plan: "PlanTier | str | None") -> dict[str, "int | None"]:
+    """The seat/contact caps a plan permits (``None`` == unlimited)."""
+    return dict(PLAN_LIMITS.get(_coerce_plan(plan), PLAN_LIMITS[PlanTier.founder]))
 
 
 def features_for_plan(plan: "PlanTier | str | None") -> set[str]:

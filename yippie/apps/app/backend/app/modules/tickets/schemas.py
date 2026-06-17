@@ -83,9 +83,13 @@ class CommentOut(BaseModel):
 class CampaignButton(BaseModel):
     id: str  # client-generated UUID string
     text: str  # display label on the button
-    action_type: str = "label"  # 'label' or 'pipeline_stage'
+    # Tracked actions ('label', 'pipeline_stage') mint a LabelClickToken at send
+    # time; direct-link actions ('open_website', 'send_mail', 'call_phone') render
+    # as plain <a> links built from action_value (URL / email / phone).
+    action_type: str = "label"
     label_id: str | None = None
     stage_id: str | None = None
+    action_value: str | None = None  # URL / email / phone for direct-link actions
     multiple_allowed: bool = False  # can a contact click multiple buttons?
     bg_color: str = "#5BA4F5"
     text_color: str = "#ffffff"

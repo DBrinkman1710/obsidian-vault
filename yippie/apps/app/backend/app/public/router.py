@@ -14,7 +14,8 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.database import get_db
+from app.database import get_db, set_tenant_context
+from app.modules.booking.schemas import BookingConfirm, CounterProposeRequest, ManageBookingOut, RescheduleRequest
 
 # Public, unauthenticated endpoints — consumed by the marketing site (getyippie.com).
 # Mounted in main.py WITHOUT auth dependencies. Never expose tenant-level data here;
@@ -223,3 +224,243 @@ async def request_demo(
     await db.commit()
 
     return {"tenant_id": str(tenant_id), "slug": slug, "invited": True}
+
+
+# --------------------------------------------------------------------------- #
+# Public booking (BK1) — customer-facing, no auth. Tenant context is set from
+# the token's own tenant_id once the token is resolved.
+# --------------------------------------------------------------------------- #
+
+# BK7 manage endpoints — MUST be declared before /booking/{token_id} so FastAPI
+# does not swallow /booking/manage/{x} as if it were a token_id.
+
+@router.get("/booking/manage/{manage_token}", response_model=ManageBookingOut)
+async def public_get_manage(
+    manage_token: uuid.UUID,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ManageBookingOut:
+    from app.core.models import Tenant
+    from app.modules.booking import service as booking_service
+    from app.modules.calendar.models import CalendarEvent
+    from app.modules.contacts.models import Contact
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
+
+    token = await booking_service.get_manage_token(db, manage_token)
+    if token is None or token.booked_at is None or token.event_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This manage link is invalid or the booking has been cancelled.",
+        )
+
+    await set_tenant_context(db, str(token.tenant_id))
+
+    event = await db.get(CalendarEvent, token.event_id)
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Calendar event not found.",
+        )
+
+    contact = await db.get(Contact, token.contact_id)
+    tenant = await db.get(Tenant, token.tenant_id)
+    settings = await booking_service.get_or_create_settings(db, token.tenant_id)
+
+    cancel_edit_hours_before = settings.cancel_edit_hours_before
+    from datetime import timedelta, timezone as _tz
+    start = event.start_at
+    if start.tzinfo is None:
+        start = start.replace(tzinfo=_tz.utc)
+    from datetime import datetime as _dt
+    now = _dt.now(_tz.utc)
+    locked = (start - now) <= timedelta(hours=cancel_edit_hours_before)
+
+    days_ahead = max(settings.booking_expiry_days, 14)
+    available = await booking_service.get_available_slots(
+        db, token.tenant_id, settings, days_ahead
+    )
+
+    first_name = ((contact.full_name if contact else "") or "there").split(" ")[0]
+
+    return ManageBookingOut(
+        tenant_name=tenant.name if tenant else "Yippie",
+        contact_first_name=first_name,
+        start_at=event.start_at,
+        end_at=event.end_at,
+        locked=locked,
+        available_slots=available,
+        cancel_edit_hours_before=cancel_edit_hours_before,
+    )
+
+
+@router.post("/booking/manage/{manage_token}/reschedule", status_code=200)
+async def public_reschedule(
+    manage_token: uuid.UUID,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    body: RescheduleRequest,
+) -> dict:
+    from app.modules.booking import service as booking_service
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
+
+    token = await booking_service.get_manage_token(db, manage_token)
+    if token is None or token.booked_at is None or token.event_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This manage link is invalid or the booking has been cancelled.",
+        )
+
+    await set_tenant_context(db, str(token.tenant_id))
+
+    try:
+        event = await booking_service.reschedule_booking(
+            db, token, body.slot_start, body.slot_end
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    return {"event_id": str(event.id), "start_at": event.start_at, "end_at": event.end_at}
+
+
+@router.post("/booking/manage/{manage_token}/cancel", status_code=200)
+async def public_cancel(
+    manage_token: uuid.UUID,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    from app.modules.booking import service as booking_service
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
+
+    token = await booking_service.get_manage_token(db, manage_token)
+    if token is None or token.booked_at is None or token.event_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This manage link is invalid or the booking has been cancelled.",
+        )
+
+    await set_tenant_context(db, str(token.tenant_id))
+
+    try:
+        await booking_service.cancel_booking(db, token)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    return {"status": "cancelled"}
+
+
+@router.get("/booking/{token_id}")
+async def public_get_booking(
+    token_id: uuid.UUID,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.core.models import Tenant
+    from app.modules.booking import service as booking_service
+    from app.modules.booking.schemas import PublicBookingOut, SlotProposal
+    from app.modules.contacts.models import Contact
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
+
+    token = await booking_service.get_token(db, token_id)
+    if token is None or booking_service.token_status(token) != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This booking link has expired or has already been used.",
+        )
+
+    # Scope the rest of the request to the token's tenant (activates RLS).
+    await set_tenant_context(db, str(token.tenant_id))
+
+    tenant = await db.get(Tenant, token.tenant_id)
+    contact = await db.get(Contact, token.contact_id)
+    settings = await booking_service.get_or_create_settings(db, token.tenant_id)
+    days_ahead = max(settings.booking_expiry_days, 14)
+    available = await booking_service.get_available_slots(
+        db, token.tenant_id, settings, days_ahead
+    )
+
+    proposed = (
+        [SlotProposal(start=s["start"], end=s["end"]) for s in token.proposed_slots]
+        if token.proposed_slots
+        else None
+    )
+    first_name = ((contact.full_name if contact else "") or "there").split(" ")[0]
+
+    return PublicBookingOut(
+        tenant_name=tenant.name if tenant else "Yippie",
+        contact_first_name=first_name,
+        mode=token.mode,
+        proposed_slots=proposed,
+        message=token.message,
+        expires_at=token.expires_at,
+        available_slots=available,
+    )
+
+
+@router.post("/booking/{token_id}/counter-propose", status_code=201)
+async def public_counter_propose(
+    token_id: uuid.UUID,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    body: CounterProposeRequest,
+):
+    from app.modules.booking import service as booking_service
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
+
+    token = await booking_service.get_token(db, token_id)
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This booking link has expired or has already been used.",
+        )
+
+    current_status = booking_service.token_status(token)
+    if current_status != "pending":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"This booking link cannot accept proposals (status: {current_status}).",
+        )
+
+    await set_tenant_context(db, str(token.tenant_id))
+    await booking_service.counter_propose(db, token, body.slots)
+    return {"status": "counter_proposed"}
+
+
+@router.post("/booking/{token_id}/confirm")
+async def public_confirm_booking(
+    token_id: uuid.UUID,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    body: BookingConfirm,
+):
+    from app.modules.booking import service as booking_service
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
+
+    token = await booking_service.get_token(db, token_id)
+    if token is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This booking link has expired or has already been used.",
+        )
+
+    await set_tenant_context(db, str(token.tenant_id))
+
+    try:
+        event = await booking_service.confirm_booking(
+            db, token, body.slot_start, body.slot_end
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    return {"event_id": str(event.id), "start_at": event.start_at, "end_at": event.end_at}

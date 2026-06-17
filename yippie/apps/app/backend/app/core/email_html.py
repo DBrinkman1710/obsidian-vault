@@ -83,6 +83,27 @@ def _paragraphs(text: str) -> str:
     return rendered
 
 
+def build_direct_action_href(action_type: str, value: str | None) -> str | None:
+    """Build a plain <a> href for a non-tracked campaign-button action.
+
+    'open_website' → absolute https URL (scheme added if missing),
+    'send_mail' → mailto:, 'call_phone' → tel: (digits and '+' only).
+    Returns None when there is no usable value."""
+    value = (value or "").strip()
+    if not value:
+        return None
+    if action_type == "send_mail":
+        return f"mailto:{value}"
+    if action_type == "call_phone":
+        digits = re.sub(r"[^\d+]", "", value)
+        return f"tel:{digits}" if digits else None
+    if action_type == "open_website":
+        if not re.match(r"^https?://", value, re.IGNORECASE):
+            value = "https://" + value
+        return value
+    return None
+
+
 def render_campaign_buttons_html(buttons: list[dict], token_map: dict[str, str] | None = None) -> str:
     """Render campaign buttons as HTML.
 
