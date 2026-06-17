@@ -1,7 +1,29 @@
 import type { Metadata } from "next";
+import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
+import { siteJsonLd } from "./structured-data";
 
 const SITE_URL = process.env.NEXT_PUBLIC_WEB_URL ?? "https://getyippie.com";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
+
+const spaceGrotesk = Space_Grotesk({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["500", "600", "700"],
+  variable: "--font-space",
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin"],
+  display: "swap",
+  weight: ["500", "600"],
+  variable: "--font-jetbrains",
+});
 
 export const metadata: Metadata = {
   title: "Yippie — Customer support, made easy",
@@ -25,8 +47,10 @@ export const metadata: Metadata = {
     siteName: "Yippie",
     images: [
       {
-        url: "/logo.svg",
-        alt: "Yippie",
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Yippie — Customer support, made easy",
       },
     ],
   },
@@ -35,27 +59,20 @@ export const metadata: Metadata = {
     title: "Yippie — Customer support, made easy",
     description:
       "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.",
-    images: ["/logo.svg"],
+    images: ["/og.png"],
   },
-};
-
-const organizationJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "Yippie",
-  url: "https://getyippie.com",
-  logo: "https://getyippie.com/logo.svg",
-  description:
-    "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html
+      lang="en"
+      className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
+    >
       <body>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
         />
         {children}
       </body>
