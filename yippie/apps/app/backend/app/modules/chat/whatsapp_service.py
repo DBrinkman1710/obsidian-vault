@@ -33,13 +33,18 @@ async def _register_webhook(client: httpx.AsyncClient, instance_name: str) -> No
         logger.warning("effective_base_url is empty — skipping webhook registration for '%s'", instance_name)
         return
     webhook_url = f"{base_url}/api/v1/chat/webhooks/{instance_name}/whatsapp"
+    # Evolution API v2 payload: nested under "webhook", byEvents=false so all
+    # events POST to a single URL, event names in UPPER_SNAKE_CASE.
     resp = await client.post(
         f"{_base_url()}/webhook/set/{instance_name}",
         headers={"Content-Type": "application/json", **_headers()},
         json={
-            "url": webhook_url,
-            "webhook_by_events": True,
-            "events": ["messages.upsert", "message.update", "connection.update"],
+            "webhook": {
+                "enabled": True,
+                "url": webhook_url,
+                "byEvents": False,
+                "events": ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"],
+            }
         },
     )
     if not resp.is_success:
@@ -144,7 +149,8 @@ async def handle_incoming_webhook(
     tenant_id: uuid.UUID,
     payload: dict,
 ) -> None:
-    if payload.get("event") != "messages.upsert":
+    logger.info("Evolution webhook received: event=%s", payload.get("event"))
+    if payload.get("event") not in ("messages.upsert", "MESSAGES_UPSERT"):
         return
 
     data = payload.get("data", {})

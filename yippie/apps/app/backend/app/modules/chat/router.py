@@ -39,6 +39,9 @@ DB = Annotated[AsyncSession, Depends(get_db)]
 # "HTTPBearer.__call__() missing 1 required positional argument: 'request'".
 ws_router = APIRouter(prefix="/chat", tags=["chat"])
 
+# Public webhook router — no auth, Evolution API POSTs here
+webhook_router = APIRouter(prefix="/chat", tags=["chat"])
+
 
 # ---------------------------------------------------------------------------
 # REST endpoints (authenticated)
@@ -483,15 +486,16 @@ async def broadcast(
 # Evolution API webhook endpoint (no auth — called by Evolution)
 # ---------------------------------------------------------------------------
 
-@router.post("/webhooks/{tenant_slug}/whatsapp", status_code=status.HTTP_200_OK)
+@webhook_router.post("/webhooks/{tenant_slug}/whatsapp", status_code=status.HTTP_200_OK)
 async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
-    """Receive inbound WhatsApp messages from Evolution API. One URL per client:
+    """Receive inbound WhatsApp messages from Evolution API. No auth — called by Evolution.
     https://{env}.getyippie.com/api/v1/chat/webhooks/{slug}/whatsapp"""
     try:
         payload = await request.json()
     except Exception:
         return {"status": "ignored"}
 
+    logger.debug("Evolution webhook payload for %s: %s", tenant_slug, payload)
     tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
     await set_tenant_context(db, tenant_id)
     await whatsapp_service.handle_incoming_webhook(db, tenant_id, payload)
