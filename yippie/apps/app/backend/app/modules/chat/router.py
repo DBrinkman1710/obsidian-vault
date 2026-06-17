@@ -29,6 +29,13 @@ from app.modules.contacts.models import Contact
 router = APIRouter(prefix="/chat", tags=["chat"])
 DB = Annotated[AsyncSession, Depends(get_db)]
 
+# Websocket endpoints live on their own router, mounted without the module-gating
+# dependencies (require_module/require_feature) that main.py applies to `router`.
+# Those gates depend on HTTPBearer, which only knows how to read an HTTP Request —
+# wiring it into a websocket route crashes every connection with
+# "HTTPBearer.__call__() missing 1 required positional argument: 'request'".
+ws_router = APIRouter(prefix="/chat", tags=["chat"])
+
 
 # ---------------------------------------------------------------------------
 # REST endpoints (authenticated)
@@ -476,7 +483,7 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
 # WebSocket endpoint (website widget live chat)
 # ---------------------------------------------------------------------------
 
-@router.websocket("/ws/{tenant_slug}/{session_id}")
+@ws_router.websocket("/ws/{tenant_slug}/{session_id}")
 async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
     """
     WebSocket endpoint for the embeddable website chat widget.
@@ -560,7 +567,7 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
 # Agent WebSocket — authenticated; receives all tenant events in real time
 # ---------------------------------------------------------------------------
 
-@router.websocket("/ws/agent")
+@ws_router.websocket("/ws/agent")
 async def agent_ws(websocket: WebSocket, token: str):
     """Authenticated WebSocket for agent dashboards.
 
