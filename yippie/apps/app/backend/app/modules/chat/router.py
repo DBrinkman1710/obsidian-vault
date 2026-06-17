@@ -434,7 +434,7 @@ async def _run_broadcast(
                     "body": text,
                     "created_at": msg.created_at.isoformat(),
                 }
-                await manager.broadcast_to_session(tenant_key, str(session.id), event_data)
+                await manager.broadcast_to_session(tenant_key, session.visitor_id, event_data)
                 await manager.broadcast_to_agents(tenant_key, event_data)
         except Exception:
             # Never let one failed recipient stop the rest of the broadcast.

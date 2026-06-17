@@ -148,26 +148,28 @@ async def handle_incoming_webhook(
     db: AsyncSession,
     tenant_id: uuid.UUID,
     payload: dict,
-) -> None:
+) -> dict | None:
+    """Returns event dict for broadcasting, or None if the message was ignored."""
     logger.info("Evolution webhook received: event=%s", payload.get("event"))
     if payload.get("event") not in ("messages.upsert", "MESSAGES_UPSERT"):
-        return
+        return None
 
     data = payload.get("data", {})
     key = data.get("key", {})
 
     if key.get("fromMe"):
-        return
+        return None
 
     remote_jid: str = key.get("remoteJid", "")
-    phone = remote_jid.split("@")[0] if remote_jid else ""
+    # Normalize to digits only — matches the format stored via _find_or_create_open_session
+    phone = "".join(ch for ch in remote_jid.split("@")[0] if ch.isdigit()) if remote_jid else ""
     if not phone:
-        return
+        return None
 
     message = data.get("message", {})
     text = message.get("conversation") or message.get("extendedTextMessage", {}).get("text", "")
     if not text:
-        return
+        return None
 
     visitor_name: str | None = data.get("pushName") or None
 
@@ -181,6 +183,7 @@ async def handle_incoming_webhook(
     )
     session = result.scalar_one_or_none()
 
+    is_new_session = False
     if not session:
         session = ChatSession(
             tenant_id=tenant_id,
@@ -192,17 +195,29 @@ async def handle_incoming_webhook(
         )
         db.add(session)
         await db.flush()
-    elif visitor_name and not session.visitor_name:
-        session.visitor_name = visitor_name
+        is_new_session = True
+    else:
+        if visitor_name and not session.visitor_name:
+            session.visitor_name = visitor_name
 
     session.unread_count = (session.unread_count or 0) + 1
 
-    db.add(ChatMessage(
+    msg = ChatMessage(
         tenant_id=tenant_id,
         session_id=session.id,
         sender_type="visitor",
         sender_id=phone,
         body=text,
-    ))
-
+    )
+    db.add(msg)
     await db.commit()
+    await db.refresh(msg)
+
+    return {
+        "session_id": str(session.id),
+        "visitor_id": session.visitor_id,
+        "body": text,
+        "created_at": msg.created_at.isoformat(),
+        "unread_count": session.unread_count,
+        "is_new_session": is_new_session,
+    }

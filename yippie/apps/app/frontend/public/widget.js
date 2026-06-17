@@ -5,8 +5,11 @@
   const tenantSlug = cfg.tenant || document.currentScript?.getAttribute('data-tenant');
   const defaultHost = cfg.host || 'app.getyippie.com';
   const wsBase = cfg.wsBase || (location.protocol === 'https:' ? 'wss' : 'ws') + '://' + defaultHost;
-  const sessionId = sessionStorage.getItem('smb_chat_sid') || crypto.randomUUID();
-  sessionStorage.setItem('smb_chat_sid', sessionId);
+  // localStorage persists across tabs and page reloads so the visitor reuses
+  // the same session as long as it stays open. The backend filters is_open=true,
+  // so a new session is automatically created once the agent closes the old one.
+  const sessionId = localStorage.getItem('smb_chat_sid') || crypto.randomUUID();
+  localStorage.setItem('smb_chat_sid', sessionId);
 
   let ws = null;
   let isOpen = false;
