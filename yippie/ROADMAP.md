@@ -66,6 +66,21 @@ environment / deploy reference lives in **Appendix B**.
 - **[V10] Add contact labels to Settings page** — Add the Labels management section (name + colour, CRUD) as a section inside the main Settings page, accessible from the same Settings area. See Tier 3.
 - **[V11] Remove standalone Labels page** — Once labels are in Settings (V10), remove the standalone `/settings/labels` route, `LabelsPage` component, and its "Labels" sidebar link. See Tier 3.
 
+**New items collected (session 59 — 2026-06-17) — go-live target: 2026-06-28:**
+
+- **[LIVECHAT-QR] Fix LiveChat WhatsApp QR code** — `Sonnet` — QR fetch works but fails silently in some envs; check Evolution API env vars + error path in `ChatPage.tsx` lines 53–55. See Tier 3.
+- **[GRAPES1] Replace Unlayer editor with GrapesJS** — `Opus` — swap `react-email-editor` (Unlayer) for `grapesjs` + `grapesjs-preset-newsletter` (email-safe output, inline styles). Build on a feature branch; merge only after tests pass. Campaign buttons stay as custom drag-and-drop blocks (re-implement as GrapesJS block types). Affects `TemplatesPage.tsx`, `TemplatePicker.tsx`, `DraftReview.tsx`, `InboxQueue.tsx`. See Tier 2.
+- **[BILLING2] Billing page upgrade** — `Opus` — (1) Add Invoice modal: create invoice manually, tied to existing contact or company via searchable select; statuses = Pending / Received / Not Sent. (2) Search bar above table (filter by invoice # or customer). (3) Row checkboxes + bulk Delete/Export actions. (4) KvK-nummer + Btw-nummer fields in Organisation Settings (on `tenants` table, exposed in admin). (5) Export CSV/JSON/XLSX with tenant KvK/Btw in header metadata. Files: `InvoiceList.tsx`, `billing/models.py`, `billing/schemas.py`, `billing/router.py`, `billing/service.py`, `admin/schemas.py`. See Tier 2.
+- **[MERGE-TK] Merge Tickets** — `Opus` — "Merge" button on TicketDetail opens modal; agent picks primary + secondary ticket (search by ID or subject, same contact). Backend: re-parents all `email_messages`, `comments`, `activity_events` from secondary → primary ticket_id; secondary status → Closed + internal note "Merged into ticket #[primary]"; primary gets activity note "Ticket #[secondary] merged in". `POST /tickets/{id}/merge`. Files: `TicketDetail.tsx`, `tickets/router.py`, `tickets/service.py`, `tickets/models.py`. See Tier 2.
+- **[TK-COCKPIT] Ticket detail — 3-column cockpit** — `Opus` — replaces + supersedes [TK-PAGE]. Col 1: existing sidebar. Col 2 (main/wide): title, compact status/priority dropdown top-right, SLA banner with Snooze 24h / Escalate buttons, Reply/Internal Note tabs (Reply = white, Note = soft yellow background). Col 3 (right/narrow): contact card (name, company, phone, email, labels, recent ticket count from `GET /contacts/{id}`) + mini AI context scanner (subject, invoice nr, previous mails). File: `TicketDetail.tsx`. See Tier 2.
+- **[CO-CLICK] Companies clickable → contact list** — `Sonnet` — company name/badge in Contacts page and elsewhere links to a filtered contact list view for that company. Reuse existing `?company_id=` filter. File: `ContactsPage.tsx`. See Tier 3.
+- **[LANG1] Language switch (EN / NL)** — `Opus` — user setting in Profile to pick UI language; English default. Dutch translation for all sidebar labels, common UI strings, and status labels. Use i18next or a simple JSON map. See Tier 2.
+- **[DEPT-MOD] Make Departments a proper module** — `Opus` — add `"departments"` to `ALL_MODULES`; superadmin can toggle it per tenant; sidebar Departments link only visible when enabled. See Tier 2.
+- **[DEPT-ROUTING] Department inbox routing + shared/personal toggle** — `Fable` — `departments` table already exists; extend with `inbound_email` (e.g. finance@client.com); inbound mail router matches `to` against department emails and auto-assigns `department_id` on new ticket. Users in that dept see a "Shared [Dept] Inbox". Setting per user/dept to **disable shared inbox** → shows only personally-assigned tickets (Personal Work Inbox). Large architectural change; affects `email_poller.py`, inbox routing, `InboxQueue.tsx`. See Tier 1.
+- **[RBAC1] Full RBAC + permission matrix** — `Fable` — `roles` table (tenant-scoped), `permissions_matrix` (user/role/dept × module × access_level enum full/view/restricted). Default = full (matrix only stores downgrades). Hierarchical resolution: user-override → dept → role → default full. Backend `checkModuleAccess(moduleKey)` middleware on all module routers. Frontend: green check / orange eye / red cross indicators; hide/block UI on view/restricted. Admin UI: user row with role dropdown + dept multi-select + per-module access grid. See Tier 1.
+- **[WEB-PLANS2] Commercial site: 3 base plans + module add-ons** — `Opus` — restructure `/pricing` to 3 base plans (e.g. Starter / Growth / Pro) with core features included; individual modules (AI, Calendar, Kanban, Email Tracking, Booking, Chat) listed as paid add-ons with prices. Coordinate with backend `plans.py` if plan names change. Files: `apps/web/src/app/pricing/page.tsx`, `apps/web/src/app/pricing/PricingClient.tsx`. See Tier 2.
+- **[AI-GEN] Generate buttons (same as [AI-BTN1])** — see existing [AI-BTN1] entry in Tier 2.
+
 **New items collected (session 58 — 2026-06-16):**
 
 - ~~**[WEB-HSTS] Ship HSTS header on getyippie.com**~~ ✅ **DONE (session 58 / 2026-06-17)** — `Strict-Transport-Security: max-age=15552000; includeSubDomains` added to `apps/web/next.config.mjs`; deployed via `git push origin commercial` (commit `b74044e`). No `preload` — near-irreversible. Verify live: `curl -sI https://getyippie.com | grep -i strict-transport`.
@@ -166,6 +181,12 @@ causes and file refs are preserved in Appendix A (sessions 22–24). No remainin
 
 The heavy lifts: brand-new modules, cross-cutting features, and the creative/marketing work.
 
+### Department routing & inbox architecture
+- **[DEPT-ROUTING] Department inbox routing + shared/personal inbox toggle** — `Fable` — *not built.* `departments` table already has `id`, `tenant_id`, `name`; add `inbound_email` column. `email_poller.py` matches inbound `to` against department addresses and auto-sets `department_id` on new tickets. Members of that dept see a "Shared [Dept] Inbox" tab in InboxQueue. Per-user / per-dept setting to disable the shared inbox (Personal Work Inbox mode: only explicitly assigned tickets). Affects `email_poller.py`, `inbox/router.py`, `inbox/service.py`, `InboxQueue.tsx`. See Tier 1.
+
+### RBAC
+- **[RBAC1] Full RBAC + permission matrix** — `Fable` — *not built.* `roles` (tenant-scoped), `permissions_matrix` (user/role/dept × module × access_level: full/view/restricted); default = full (matrix only stores downgrades). Hierarchical resolution: user-override → dept → role → default. Backend `checkModuleAccess(moduleKey)` middleware on all module routers. Frontend: green/orange/red access indicators; view = hide mutation buttons; restricted = hide module entirely. Admin UI: user row with role + dept multi-select + per-module access grid. See Tier 1.
+
 ### New modules (Phase 10)
 - ~~**Email tracking module**~~ ✅ **DONE (session 37)** — `emailtracking` module: `OutboundEmail` model + migration; `send_email()` returns Resend ID; `flush_pending_sends()` creates `OutboundEmail` record per send; `POST /emailtracking/webhooks/resend` (public, HMAC-verified) updates status/timestamps on delivered/opened/clicked/bounced events; `GET /emailtracking/outbound` list endpoint; Sent tab in InboxQueue shows status badge (Sent/Delivered/Opened/Clicked/Bounced) when module enabled, falls back to activity log otherwise.
 - ~~**Calendar module**~~ ✅ **DONE (session 38)** — `calendar` module: `calendar_events` table (id, tenant_id, title, description, start_at/end_at TIMESTAMPTZ, all_day, contact_id FK, ticket_id FK, created_by FK); migration `k1l2m3n4o5p6`; CRUD at `GET /calendar/items?start&end` (merges events + open-ticket `sla_due_at` deadlines), `POST/GET/PATCH/DELETE /calendar/events[/{id}]`; hand-built Monday-start month grid (no lib), prev/next/Today nav, today highlighted with `bg-yippie` circle, event chips (blue) + deadline chips (red ≤24h / orange), contact+ticket typeahead in create/edit modal; per-tenant toggle; Calendar nav item in sidebar.
@@ -232,6 +253,22 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 ### Calendar
 - ~~**[Cal1] Automated contact email when linked to a calendar event**~~ ✅ **DONE (commit 367ac95, verified session 54)** — `calendar/service.py` `_notify_contact()`; request-only `notify_contact` flag (default true) suppresses it; update path notifies only on contact-link or start-time change.
 
+### Tickets
+- **[MERGE-TK] Merge Tickets** — `Opus` — *not built.* "Merge" button on TicketDetail opens modal; agent searches for secondary ticket (by ID or subject, same contact). Backend `POST /tickets/{id}/merge` re-parents all related records (email_messages, comments, activity_events) from secondary → primary; secondary → Closed + internal note "Merged into ticket #[primary]"; primary gets activity note "Ticket #[secondary] merged in". Files: `TicketDetail.tsx`, `tickets/router.py`, `tickets/service.py`.
+- **[TK-COCKPIT] Ticket detail — 3-column cockpit** — `Opus` — *not built.* Supersedes [TK-PAGE]. Col 2 (main): compact status/priority dropdown top-right, SLA banner with Snooze 24h + Escalate, Reply tab (white) / Internal Note tab (soft yellow). Col 3 (right): contact card (name, company, phone, email, labels, recent ticket count) + mini AI context scanner. File: `TicketDetail.tsx`.
+
+### Billing
+- **[BILLING2] Billing page upgrade** — `Opus` — *not built.* (1) Add Invoice modal: manually create invoice, tied to contact/company via searchable select; statuses = Pending / Received / Not Sent. (2) Search bar (filter by invoice # or customer name). (3) Row checkboxes + bulk Delete/Export. (4) KvK-nummer + Btw-nummer fields on tenant (Organisation Settings, admin-editable). (5) Export CSV / JSON / XLSX with KvK/Btw in header metadata. Files: `InvoiceList.tsx`, `billing/models.py`, `billing/schemas.py`, `billing/router.py`, `billing/service.py`, `admin/schemas.py`.
+
+### i18n
+- **[LANG1] Language switch (EN / NL)** — `Opus` — *not built.* User setting in Profile for UI language; English default. Dutch translation for sidebar labels, status labels, common UI strings. Use `i18next` + `react-i18next` with JSON resource files.
+
+### Departments module
+- **[DEPT-MOD] Make Departments a proper module** — `Opus` — *not built.* Add `"departments"` to `ALL_MODULES`; superadmin toggles per tenant; Departments sidebar link only visible when enabled.
+
+### Commercial site
+- **[WEB-PLANS2] 3 base plans + module add-ons on getyippie.com** — `Opus` — *not built.* Restructure `/pricing` from 4 flat tiers to 3 base plans (core features) + module add-ons (AI, Calendar, Kanban, Email Tracking, Booking, Chat) each with separate pricing. Coordinate with `plans.py` if plan names/tiers change. Files: `apps/web/src/app/pricing/page.tsx`, `PricingClient.tsx`.
+
 ### AI / automation
 - **[AI-BTN1] Explicit "Generate" button instead of auto-AI** — `Opus` — *not built.* Replace auto-triggered AI in the inbox (scanning + compose suggestions on new threads) with an explicit "Generate" button the user clicks. AI does not run automatically when a thread arrives; user controls when to invoke it. Per-tenant toggle to keep auto mode. Also: add an interactive demo tool to `getyippie.com` where visitors can try the AI campaign-button generator (paste copy, pick action type, preview button) with no account needed — coordinate with [WEB1].
 
@@ -264,6 +301,7 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 - **Send-from aliases + app tour** — `Opus` — single personal mailbox already shipped (`reply_from_email`/`inbound_email`); add a Profile setting for extra "send from" aliases; build a guided in-app tour after first login (welcome email already shipped).
 
 ### Template editor
+- **[GRAPES1] Replace Unlayer with GrapesJS** — `Opus` — *not built.* Swap `react-email-editor` (Unlayer 1.8) for `grapesjs` + `grapesjs-preset-newsletter` (email-safe table-based HTML, inline styles). Build on feature branch `feat/grapesjs-editor`; merge after passing tests. Campaign buttons re-implemented as custom GrapesJS block types (drag-and-drop, same behaviour). Affected files: `TemplatesPage.tsx` (main canvas), `TemplatePicker.tsx` (preview), `DraftReview.tsx` + `InboxQueue.tsx` (consume `html_body`). Output contract (design JSON shape) will change — migration of existing saved designs may be needed.
 - ~~**[TE3] Campaign buttons: per-button action type**~~ ✅ **DONE (session 54)** — completed the partial from session 42: **open website** / **send mail** / **call phone** now ship alongside **Apply label** + **Pipeline stage**. Direct-link types use `CampaignButton.action_value` + `build_direct_action_href()` (mailto:/tel:/https, no token); TemplatesPage panel has all five.
 
 ### Kanban / Pipeline
@@ -330,6 +368,12 @@ Small, well-bounded changes — UX polish and config/ops one-liners.
 - ~~**[TAG-RM] Remove tags entirely**~~ ✅ **DONE (session 56)** — no tag DB tables existed; removed `tags` input from DraftReview new-contact form and "Legacy tags" field from ContactDetail. Commit `0e7dbc0`.
 - ~~**[KAN-RN] Rename "Pipeline" → "Kanban"**~~ ✅ **DONE (session 53)** — all user-visible "Pipeline" strings changed to "Kanban" in Sidebar.tsx, BottomNav.tsx, PlanGate.tsx, PipelinePage.tsx, ContactDetail.tsx; backend identifiers/routes/keys untouched.
 - ~~**[SIDE-COL] Collapsable sidebar**~~ ✅ **DONE (session 53)** — collapse toggle (ChevronLeft/Right) added at bottom of Sidebar.tsx; collapsed = 56px icon-only rail, expanded = 224px; state persisted in `localStorage` key `yippie:sidebarCollapsed`; `title` tooltip on icons when collapsed; smooth `transition-all duration-200` width animation.
+
+### Contacts & companies
+- **[CO-CLICK] Companies clickable → contact list** — `Sonnet` — company name/badge in Contacts page links to a filtered contact list for that company; reuse `?company_id=` filter. File: `ContactsPage.tsx`.
+
+### LiveChat
+- **[LIVECHAT-QR] Fix WhatsApp QR code** — `Sonnet` — QR fetch fails silently in some envs; diagnose Evolution API env var wiring, improve error state in `ChatPage.tsx` (lines 228–242), ensure QR refreshes automatically when it expires. Files: `ChatPage.tsx`, `apps/app/backend/app/modules/chat/`.
 
 ### Config / ops one-liners
 - **[PRIV1] Railway private DB URL** — switch `DATABASE_URL` in Railway (both pairs: devsandbox/sandbox and dev/app) from the public Postgres connection string to Railway's internal private networking URL (`railway.internal` hostname). Eliminates network egress charges. No code change; env var update only in Railway dashboard. Verify the app connects successfully after each env switch.
