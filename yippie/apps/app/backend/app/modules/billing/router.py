@@ -4,12 +4,14 @@ import uuid
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser
 from app.database import get_db
 from app.modules.billing import service
 from app.modules.billing.schemas import (
+    BulkDeleteRequest,
     InvoiceCreate,
     InvoiceOut,
     PaymentCreate,
@@ -44,6 +46,37 @@ async def list_invoices(
 @router.post("/invoices", response_model=InvoiceOut, status_code=status.HTTP_201_CREATED)
 async def create_invoice(body: InvoiceCreate, current_user: CurrentUser, db: DB):
     return await service.create_invoice(db, current_user.tenant_id, body)
+
+
+# NOTE: these static-path routes are declared before "/invoices/{invoice_id}"
+# so FastAPI does not try to parse "export" / "bulk" as an invoice UUID.
+@router.get("/invoices/export")
+async def export_invoices(
+    current_user: CurrentUser,
+    db: DB,
+    ids: Optional[str] = Query(None, description="Comma-separated invoice IDs; empty = all"),
+    format: str = Query("csv", pattern="^(csv|xlsx)$"),
+):
+    invoice_ids: Optional[list[uuid.UUID]] = None
+    if ids:
+        try:
+            invoice_ids = [uuid.UUID(x) for x in ids.split(",") if x.strip()]
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid invoice id in 'ids'")
+    content, media_type, filename = await service.export_invoices(
+        db, current_user.tenant_id, invoice_ids, format
+    )
+    return StreamingResponse(
+        iter([content]),
+        media_type=media_type,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.delete("/invoices/bulk")
+async def bulk_delete_invoices(body: BulkDeleteRequest, current_user: CurrentUser, db: DB):
+    deleted = await service.bulk_delete_invoices(db, current_user.tenant_id, body.ids)
+    return {"deleted": deleted}
 
 
 @router.get("/invoices/{invoice_id}", response_model=InvoiceOut)

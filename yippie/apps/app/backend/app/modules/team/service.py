@@ -80,6 +80,26 @@ async def update_branding(db: AsyncSession, tenant_id: uuid.UUID, primary_color:
     await db.commit()
 
 
+async def get_org_settings(db: AsyncSession, tenant_id: uuid.UUID) -> Tenant:
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise LookupError("Tenant not found")
+    return tenant
+
+
+async def update_org_settings(
+    db: AsyncSession, tenant_id: uuid.UUID, kvk_nummer, btw_nummer
+) -> Tenant:
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise LookupError("Tenant not found")
+    tenant.kvk_nummer = (kvk_nummer or "").strip() or None
+    tenant.btw_nummer = (btw_nummer or "").strip() or None
+    await db.commit()
+    await db.refresh(tenant)
+    return tenant
+
+
 async def delete_user(
     db: AsyncSession,
     tenant_id: uuid.UUID,

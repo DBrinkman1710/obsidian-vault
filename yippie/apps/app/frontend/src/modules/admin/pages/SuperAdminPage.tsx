@@ -33,6 +33,8 @@ interface Tenant {
   is_demo: boolean
   go_live_at: string | null
   inbound_email: string | null
+  kvk_nummer: string | null
+  btw_nummer: string | null
   whatsapp_phone_number_id: string | null
   whatsapp_access_token: string | null
   whatsapp_verify_token: string | null
@@ -445,6 +447,8 @@ function EditClientModal({
   const [form, setForm] = useState({
     name: tenant.name,
     inbound_email: tenant.inbound_email ?? '',
+    kvk_nummer: tenant.kvk_nummer ?? '',
+    btw_nummer: tenant.btw_nummer ?? '',
     enabled_modules: ALL_MODULES.filter(m => tenant.enabled_modules.includes(m)),
     plan: tenant.plan,
     primary_color: tenant.primary_color,
@@ -480,6 +484,10 @@ function EditClientModal({
     if (form.name.trim() && form.name.trim() !== tenant.name) patch.name = form.name.trim()
     const inbound = form.inbound_email.trim() || null
     if (inbound !== tenant.inbound_email) patch.inbound_email = inbound
+    const kvk = form.kvk_nummer.trim() || null
+    if (kvk !== tenant.kvk_nummer) patch.kvk_nummer = kvk
+    const btw = form.btw_nummer.trim() || null
+    if (btw !== tenant.btw_nummer) patch.btw_nummer = btw
     const newMods = JSON.stringify([...form.enabled_modules].sort())
     const oldMods = JSON.stringify([...tenant.enabled_modules].sort())
     if (newMods !== oldMods) patch.enabled_modules = form.enabled_modules
@@ -583,6 +591,26 @@ function EditClientModal({
                   ))}
                 </select>
                 <p className="mt-1 text-xs text-slate-400">Higher tiers unlock advanced features (chat, calendar, pipeline, email tracking, AI).</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>KvK-nummer</label>
+                  <input
+                    className={inputCls}
+                    value={form.kvk_nummer}
+                    onChange={e => setForm(p => ({ ...p, kvk_nummer: e.target.value }))}
+                    placeholder="12345678"
+                  />
+                </div>
+                <div>
+                  <label className={labelCls}>Btw-nummer</label>
+                  <input
+                    className={inputCls}
+                    value={form.btw_nummer}
+                    onChange={e => setForm(p => ({ ...p, btw_nummer: e.target.value }))}
+                    placeholder="NL123456789B01"
+                  />
+                </div>
               </div>
             </>
           )}

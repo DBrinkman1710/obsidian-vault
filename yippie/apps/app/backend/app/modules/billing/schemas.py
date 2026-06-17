@@ -40,15 +40,22 @@ class LineItem(BaseModel):
 class InvoiceCreate(BaseModel):
     contact_id: uuid.UUID
     subscription_id: Optional[uuid.UUID] = None
+    description: Optional[str] = None
     line_items: list[LineItem]
     tax_cents: int = 0
     currency: str = "EUR"
     due_date: Optional[date] = None
+    status: InvoiceStatus = InvoiceStatus.pending
+
+
+class BulkDeleteRequest(BaseModel):
+    ids: list[uuid.UUID]
 
 
 class InvoiceOut(BaseModel):
     id: uuid.UUID
     contact_id: uuid.UUID
+    contact_name: Optional[str] = None
     invoice_number: str
     status: InvoiceStatus
     line_items: list

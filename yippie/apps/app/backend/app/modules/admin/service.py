@@ -22,7 +22,12 @@ from app.modules.contacts.models import Contact
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-TENANT_SAFE_FIELDS = {"name", "enabled_modules", "plan", "primary_color", "logo_url", "is_active", "is_demo", "go_live_at", "inbound_email"}
+TENANT_SAFE_FIELDS = {
+    "name", "enabled_modules", "plan", "primary_color", "logo_url",
+    "is_active", "is_demo", "go_live_at", "inbound_email",
+    "kvk_nummer", "btw_nummer",
+    "whatsapp_phone_number_id", "whatsapp_access_token", "whatsapp_verify_token",
+}
 
 # The platform owner's account — same default as promote_superadmin.py / seed.py.
 # No one, including other superadmins, may deactivate it.

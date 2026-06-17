@@ -50,6 +50,23 @@ async def update_branding(current_user: AdminUser, db: DB, data: schemas.Brandin
     return {"ok": True}
 
 
+@router.get("/org-settings", response_model=schemas.OrgSettingsOut)
+async def get_org_settings(current_user: AdminUser, db: DB):
+    tenant = await service.get_org_settings(db, current_user.tenant_id)
+    return schemas.OrgSettingsOut(kvk_nummer=tenant.kvk_nummer, btw_nummer=tenant.btw_nummer)
+
+
+@router.patch("/org-settings", response_model=schemas.OrgSettingsOut)
+async def update_org_settings(current_user: AdminUser, db: DB, data: schemas.OrgSettingsUpdate):
+    try:
+        tenant = await service.update_org_settings(
+            db, current_user.tenant_id, data.kvk_nummer, data.btw_nummer
+        )
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return schemas.OrgSettingsOut(kvk_nummer=tenant.kvk_nummer, btw_nummer=tenant.btw_nummer)
+
+
 @router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_team_user(current_user: AdminUser, db: DB, user_id: uuid.UUID):
     try:

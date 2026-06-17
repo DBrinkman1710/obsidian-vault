@@ -31,6 +31,10 @@ class InvoiceStatus(str, enum.Enum):
     paid = "paid"
     overdue = "overdue"
     void = "void"
+    # BILLING2 UI statuses (Pending / Received / Not Sent)
+    pending = "pending"
+    received = "received"
+    not_sent = "not_sent"
 
 
 class Subscription(Base):

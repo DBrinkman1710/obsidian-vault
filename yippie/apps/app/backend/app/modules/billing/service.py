@@ -1,14 +1,18 @@
 from __future__ import annotations
 
+import csv
+import io
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import func, select, text
+from sqlalchemy import delete, func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.models import Tenant
 from app.modules.billing.models import Invoice, InvoiceStatus, Payment, Subscription
 from app.modules.billing.schemas import InvoiceCreate, PaymentCreate, SubscriptionCreate
+from app.modules.contacts.models import Contact
 
 
 class PaymentError(ValueError):
@@ -58,28 +62,141 @@ async def create_invoice(
         tax_cents=data.tax_cents,
         currency=data.currency,
         due_date=data.due_date,
+        status=data.status,
     )
+    # The optional free-text description is stored as the first line item when no
+    # explicit line items carry it (the Invoice model has no description column).
+    if data.description and not invoice.line_items:
+        invoice.line_items = [{"description": data.description, "quantity": 1, "unit_price_cents": 0}]
     db.add(invoice)
     await db.commit()
     await db.refresh(invoice)
+    invoice.contact_name = await _contact_name(db, tenant_id, invoice.contact_id)
     return invoice
+
+
+async def _contact_name(db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> Optional[str]:
+    return await db.scalar(
+        select(Contact.full_name).where(
+            Contact.id == contact_id, Contact.tenant_id == tenant_id
+        )
+    )
 
 
 async def list_invoices(
     db: AsyncSession, tenant_id: uuid.UUID, contact_id: Optional[uuid.UUID] = None
 ) -> list[Invoice]:
-    q = select(Invoice).where(Invoice.tenant_id == tenant_id)
+    # Left-join contacts so each invoice carries the contact's display name.
+    q = (
+        select(Invoice, Contact.full_name)
+        .outerjoin(Contact, Contact.id == Invoice.contact_id)
+        .where(Invoice.tenant_id == tenant_id)
+    )
     if contact_id:
         q = q.where(Invoice.contact_id == contact_id)
     result = await db.execute(q.order_by(Invoice.created_at.desc()))
-    return result.scalars().all()
+    invoices: list[Invoice] = []
+    for invoice, contact_name in result.all():
+        invoice.contact_name = contact_name
+        invoices.append(invoice)
+    return invoices
+
+
+async def bulk_delete_invoices(
+    db: AsyncSession, tenant_id: uuid.UUID, ids: list[uuid.UUID]
+) -> int:
+    """Delete invoices (and their payments) by id, scoped to the tenant."""
+    if not ids:
+        return 0
+    # Remove dependent payments first to satisfy the FK constraint.
+    await db.execute(
+        delete(Payment).where(Payment.tenant_id == tenant_id, Payment.invoice_id.in_(ids))
+    )
+    result = await db.execute(
+        delete(Invoice).where(Invoice.tenant_id == tenant_id, Invoice.id.in_(ids))
+    )
+    await db.commit()
+    return result.rowcount or 0
+
+
+async def export_invoices(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    ids: Optional[list[uuid.UUID]] = None,
+    fmt: str = "csv",
+) -> tuple[bytes, str, str]:
+    """Export invoices as CSV or XLSX.
+
+    Returns (content_bytes, media_type, filename). Falls back to CSV when
+    XLSX is requested but openpyxl is unavailable.
+    """
+    q = (
+        select(Invoice, Contact.full_name)
+        .outerjoin(Contact, Contact.id == Invoice.contact_id)
+        .where(Invoice.tenant_id == tenant_id)
+    )
+    if ids:
+        q = q.where(Invoice.id.in_(ids))
+    result = await db.execute(q.order_by(Invoice.created_at.desc()))
+    rows = result.all()
+
+    tenant = await db.get(Tenant, tenant_id)
+    kvk = (tenant.kvk_nummer if tenant else None) or ""
+    btw = (tenant.btw_nummer if tenant else None) or ""
+
+    header = ["Invoice #", "Contact", "Status", "Total", "Currency", "Due Date", "Created At"]
+
+    def _row(invoice: Invoice, contact_name: Optional[str]) -> list:
+        return [
+            invoice.invoice_number,
+            contact_name or "",
+            invoice.status.value if hasattr(invoice.status, "value") else str(invoice.status),
+            f"{invoice.total_cents / 100:.2f}",
+            invoice.currency,
+            invoice.due_date.isoformat() if invoice.due_date else "",
+            invoice.created_at.isoformat() if invoice.created_at else "",
+        ]
+
+    if fmt == "xlsx":
+        try:
+            from openpyxl import Workbook
+        except ImportError:
+            fmt = "csv"  # graceful fallback
+        else:
+            wb = Workbook()
+            ws = wb.active
+            ws.title = "Invoices"
+            ws.append([f"# KvK: {kvk}"])
+            ws.append([f"# BTW: {btw}"])
+            ws.append(header)
+            for invoice, contact_name in rows:
+                ws.append(_row(invoice, contact_name))
+            buf = io.BytesIO()
+            wb.save(buf)
+            return (
+                buf.getvalue(),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                "invoices.xlsx",
+            )
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow([f"# KvK: {kvk}"])
+    writer.writerow([f"# BTW: {btw}"])
+    writer.writerow(header)
+    for invoice, contact_name in rows:
+        writer.writerow(_row(invoice, contact_name))
+    return buf.getvalue().encode("utf-8-sig"), "text/csv", "invoices.csv"
 
 
 async def get_invoice(db: AsyncSession, tenant_id: uuid.UUID, invoice_id: uuid.UUID) -> Optional[Invoice]:
     result = await db.execute(
         select(Invoice).where(Invoice.tenant_id == tenant_id, Invoice.id == invoice_id)
     )
-    return result.scalar_one_or_none()
+    invoice = result.scalar_one_or_none()
+    if invoice is not None:
+        invoice.contact_name = await _contact_name(db, tenant_id, invoice.contact_id)
+    return invoice
 
 
 async def record_payment(

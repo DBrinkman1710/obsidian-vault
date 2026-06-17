@@ -39,6 +39,10 @@ class Tenant(Base):
     is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     go_live_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     inbound_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Dutch legal registration numbers — shown on invoices/exports.
+    # KvK = Chamber of Commerce number; Btw = VAT number.
+    kvk_nummer: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    btw_nummer: Mapped[str | None] = mapped_column(String(100), nullable=True)
     # Ticket deadline indicator thresholds (Sidebar dot on the Tickets nav).
     # Red = overdue or due within deadline_red_days; orange = due within deadline_orange_days.
     deadline_red_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")

@@ -32,3 +32,13 @@ class TeamUserUpdate(BaseModel):
 
 class BrandingUpdate(BaseModel):
     primary_color: str
+
+
+class OrgSettingsUpdate(BaseModel):
+    kvk_nummer: Optional[str] = None
+    btw_nummer: Optional[str] = None
+
+
+class OrgSettingsOut(BaseModel):
+    kvk_nummer: Optional[str] = None
+    btw_nummer: Optional[str] = None
