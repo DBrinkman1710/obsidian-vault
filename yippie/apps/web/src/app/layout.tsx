@@ -83,20 +83,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
       <head>
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="shortcut icon" href="/favicon.svg" />
         <Analytics />
       </head>
       <body>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
-        />
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src="/logo-white-bg-mark.svg"
-          alt=""
-          aria-hidden="true"
-          className="pointer-events-none select-none fixed inset-0 w-full h-full z-0"
-          style={{ objectFit: "cover", opacity: 0.06, mixBlendMode: "multiply" }}
         />
         {children}
         <CookieBanner />
