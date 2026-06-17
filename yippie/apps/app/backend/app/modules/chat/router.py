@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import random
 import uuid
 from datetime import datetime, timezone
@@ -13,6 +14,8 @@ from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.auth.dependencies import CurrentUser
 from app.config import get_settings
@@ -296,8 +299,21 @@ async def get_whatsapp_qr(current_user: CurrentUser, db: DB):
 
     try:
         data = await whatsapp_service.get_pairing_qr(tenant.slug)
-    except (httpx.HTTPError, Exception):
-        raise HTTPException(status_code=502, detail="Could not reach Evolution API or instance unavailable")
+    except RuntimeError as exc:
+        # EVOLUTION_API_URL not set in this environment
+        logger.warning("WhatsApp QR requested but Evolution API is not configured: %s", exc)
+        raise HTTPException(status_code=503, detail="WhatsApp integration is not configured for this environment")
+    except httpx.HTTPStatusError as exc:
+        logger.error(
+            "Evolution API returned %s for tenant '%s': %s",
+            exc.response.status_code,
+            tenant.slug,
+            exc.response.text,
+        )
+        raise HTTPException(status_code=502, detail="Evolution API error — check server logs")
+    except Exception as exc:
+        logger.error("Could not reach Evolution API for tenant '%s': %s", tenant.slug, exc)
+        raise HTTPException(status_code=502, detail="Could not reach Evolution API")
 
     return {
         "base64": data.get("base64"),
