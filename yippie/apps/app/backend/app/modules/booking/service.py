@@ -663,7 +663,7 @@ async def reschedule_booking(
     contact = await db.get(Contact, token.contact_id)
     agent = await db.get(User, token.created_by)
     tenant = await db.get(Tenant, token.tenant_id)
-    asyncio.create_task(_notify_customer_rescheduled(event, contact, tenant))
+    asyncio.create_task(_notify_customer_rescheduled(event, contact, tenant, token))
     asyncio.create_task(_notify_agent_rescheduled(event, contact, agent))
     return event
 
@@ -707,7 +707,10 @@ async def cancel_booking(db: AsyncSession, token: BookingToken) -> None:
 # Reschedule / cancel email helpers
 # --------------------------------------------------------------------------- #
 async def _notify_customer_rescheduled(
-    event: CalendarEvent, contact: Optional[Contact], tenant: Optional[Tenant]
+    event: CalendarEvent,
+    contact: Optional[Contact],
+    tenant: Optional[Tenant],
+    token: Optional[BookingToken] = None,
 ) -> None:
     try:
         if contact is None or not contact.email or not is_valid_email(contact.email):
@@ -716,14 +719,35 @@ async def _notify_customer_rescheduled(
         primary_color = tenant.primary_color if tenant else None
         when = _format_slot(event.start_at, event.end_at)
         subject = f"Your meeting with {tenant_name} has been rescheduled"
+
+        manage_token = getattr(token, "manage_token", None) if token else None
+        manage_url = (
+            f"{CLIENT_BASE_URL}/book/manage/{manage_token}" if manage_token else None
+        )
+        manage_text_lines = (
+            ["", "Need to reschedule or cancel again?", manage_url] if manage_url else []
+        )
+
         body_text = "\n".join(
             [
                 f"Your meeting with {tenant_name} has been rescheduled.",
                 "",
                 f"New time: {when}",
+            ]
+            + manage_text_lines
+            + [
                 "",
                 f"Via {tenant_name} on Yippie.",
             ]
+        )
+
+        manage_html = (
+            f'<p style="margin:14px 0 0 0;">'
+            f'<a href="{_html.escape(manage_url, quote=True)}" '
+            f'style="display:inline-block;padding:10px 20px;background:#f1f5f9;color:#374151;'
+            f'border-radius:6px;text-decoration:none;font-weight:600;border:1px solid #e2e8f0;">'
+            f'Reschedule or cancel</a></p>'
+            if manage_url else ""
         )
         content = (
             f'<h2 style="margin:0 0 12px 0;font-size:20px;">Meeting rescheduled</h2>'
@@ -731,6 +755,7 @@ async def _notify_customer_rescheduled(
             f"{_html.escape(tenant_name)} has been rescheduled.</p>"
             f'<p style="margin:0 0 14px 0;font-weight:600;color:#374151;">'
             f'New time: {_html.escape(when)}</p>'
+            f"{manage_html}"
             f'<p style="margin:18px 0 0 0;font-size:13px;color:#6b7280;">'
             f"Via {_html.escape(tenant_name)} on Yippie.</p>"
         )
