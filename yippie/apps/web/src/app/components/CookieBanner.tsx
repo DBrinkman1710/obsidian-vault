@@ -1,52 +1,57 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import styles from "./CookieBanner.module.css";
 
-declare global {
-  interface Window {
-    gtag?: (...args: unknown[]) => void;
-  }
-}
+const STORAGE_KEY = "yippie_consent";
 
 export default function CookieBanner() {
+  const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
-    try {
-      if (!localStorage.getItem("yippie_consent")) setVisible(true);
-    } catch {
-      // localStorage blocked (private mode) — don't show banner
-    }
+    setMounted(true);
+    if (!localStorage.getItem(STORAGE_KEY)) setVisible(true);
   }, []);
 
   function accept() {
     window.gtag?.("consent", "update", {
-      analytics_storage: "granted",
       ad_storage: "granted",
       ad_user_data: "granted",
       ad_personalization: "granted",
+      analytics_storage: "granted",
     });
-    try { localStorage.setItem("yippie_consent", "accepted"); } catch { /* */ }
+    localStorage.setItem(STORAGE_KEY, "accepted");
     setVisible(false);
   }
 
   function decline() {
-    try { localStorage.setItem("yippie_consent", "declined"); } catch { /* */ }
+    localStorage.setItem(STORAGE_KEY, "declined");
     setVisible(false);
   }
 
-  if (!visible) return null;
+  if (!mounted || !visible) return null;
 
   return (
-    <div className={styles.banner} role="dialog" aria-label="Cookie consent">
+    <div
+      className={styles.banner}
+      role="dialog"
+      aria-live="polite"
+      aria-label="Cookie consent"
+    >
+      <p className={styles.eyebrow}>Cookies</p>
       <p className={styles.text}>
-        Bij Yippie houden we van transparantie. We gebruiken anonieme statistieken om de website te verbeteren.{" "}
-        <a href="/privacy" className={styles.link}>Privacybeleid</a>.
+        We use anonymous analytics to understand how the site is used and keep
+        improving it. Accept cookies to help us out?{" "}
+        <a href="/privacy">Privacy policy</a>.
       </p>
-      <div className={styles.actions}>
-        <button onClick={decline} className={styles.btnDecline}>Weigeren</button>
-        <button onClick={accept} className={styles.btnAccept}>Akkoord</button>
+      <div className={styles.buttons}>
+        <button type="button" className={styles.decline} onClick={decline}>
+          Decline
+        </button>
+        <button type="button" className={styles.accept} onClick={accept}>
+          Accept
+        </button>
       </div>
     </div>
   );
