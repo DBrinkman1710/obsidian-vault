@@ -25,6 +25,29 @@ def _base_url() -> str:
     return url.rstrip("/")
 
 
+async def _register_webhook(client: httpx.AsyncClient, instance_name: str) -> None:
+    """Tell Evolution API where to POST incoming messages for this instance."""
+    settings = get_settings()
+    base_url = settings.effective_base_url
+    if not base_url:
+        logger.warning("effective_base_url is empty — skipping webhook registration for '%s'", instance_name)
+        return
+    webhook_url = f"{base_url}/api/v1/chat/webhooks/{instance_name}/whatsapp"
+    resp = await client.post(
+        f"{_base_url()}/webhook/set/{instance_name}",
+        headers={"Content-Type": "application/json", **_headers()},
+        json={
+            "url": webhook_url,
+            "webhook_by_events": True,
+            "events": ["messages.upsert", "message.update", "connection.update"],
+        },
+    )
+    if not resp.is_success:
+        logger.error("Failed to register webhook for '%s': %s %s", instance_name, resp.status_code, resp.text)
+    else:
+        logger.info("Webhook registered for '%s' → %s", instance_name, webhook_url)
+
+
 async def _ensure_instance(client: httpx.AsyncClient, instance_name: str) -> None:
     """Create the Evolution API instance for this tenant slug if it doesn't exist."""
     base = _base_url()
@@ -48,6 +71,10 @@ async def _ensure_instance(client: httpx.AsyncClient, instance_name: str) -> Non
             )
             create_resp.raise_for_status()
         logger.info("Evolution API instance '%s' created", instance_name)
+        await _register_webhook(client, instance_name)
+    else:
+        # Re-register on every QR fetch in case the URL changed (e.g. env switch)
+        await _register_webhook(client, instance_name)
 
 
 async def get_connection_state(instance_name: str) -> str:
