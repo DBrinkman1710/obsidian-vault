@@ -1,12 +1,10 @@
 import { useRef, useState } from 'react'
-import DOMPurify from 'dompurify'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import GrapesEditor, { GrapesEditorHandle } from '../components/GrapesEditor'
-import { FileText, Loader2, MousePointerClick, Palette, Plus, Trash2, X } from 'lucide-react'
+import GrapesEditor, { GrapesEditorHandle, type PipelineStage, type CampaignButton } from '../components/GrapesEditor'
+import { FileText, Loader2, Palette, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../../../api/client'
-import { useSignatures, pickDefaultSignature } from '../../../hooks/useSignatures'
-import { htmlToText } from '../../inbox/components/TemplatePicker'
 import { fetchLabels, type ContactLabel } from '../../contacts/components/LabelChip'
+import { htmlToText } from '../../inbox/components/TemplatePicker'
 
 interface Template {
   id: string
@@ -18,83 +16,14 @@ interface Template {
   created_at: string
 }
 
-type ButtonAction = 'pipeline_stage' | 'apply_label' | 'open_website' | 'send_email' | 'call_phone'
-
-const ACTION_LABELS: Record<ButtonAction, string> = {
-  pipeline_stage: 'Move to pipeline stage',
-  apply_label: 'Apply label',
-  open_website: 'Open website',
-  send_email: 'Send email',
-  call_phone: 'Call phone',
-}
-
-interface CampaignButton {
-  id: string
-  text: string
-  action_type: ButtonAction
-  label_id: string | null
-  stage_id: string | null
-  action_value: string | null
-}
-
-interface PipelineStage { id: string; name: string; color: string }
-
-function newCampaignButton(id: string, text: string): CampaignButton {
-  return { id, text, action_type: 'pipeline_stage', label_id: null, stage_id: null, action_value: null }
-}
-
-function extractButtonsFromDesign(design: object): Array<{ id: string; text: string }> {
-  const found: Array<{ id: string; text: string }> = []
-  function walk(node: unknown) {
-    if (Array.isArray(node)) {
-      node.forEach(walk)
-      return
-    }
-    if (node && typeof node === 'object') {
-      const n = node as Record<string, unknown>
-      const attrs = n.attributes as Record<string, unknown> | undefined
-      if (attrs?.['data-yippie-button']) {
-        const id = String(attrs['id'] ?? crypto.randomUUID())
-        const content = String(n.content ?? n.components ?? '')
-        const text = content.replace(/<[^>]*>/g, '').trim() || 'Button'
-        if (!found.find(f => f.id === id)) found.push({ id, text })
-      }
-      Object.values(n).forEach(walk)
-    }
-  }
-  walk(design)
-  return found
-}
-
-function parseButtons(raw: string | null): CampaignButton[] {
-  if (!raw) return []
-  try {
-    const parsed = JSON.parse(raw)
-    if (!Array.isArray(parsed)) return []
-    const validActions = new Set<string>(['pipeline_stage', 'apply_label', 'open_website', 'send_email', 'call_phone'])
-    return parsed.map(b => ({
-      ...b,
-      action_type: validActions.has(b.action_type) ? b.action_type as ButtonAction : 'pipeline_stage',
-      stage_id: b.stage_id ?? null,
-      label_id: b.label_id ?? null,
-      action_value: b.action_value ?? null,
-    }))
-  } catch {
-    return []
-  }
-}
-
 export default function TemplatesPage() {
   const qc = useQueryClient()
-  const { data: signatures } = useSignatures()
-  const defaultSig = pickDefaultSignature(signatures)
   const editorRef = useRef<GrapesEditorHandle>(null)
   const pendingDesignRef = useRef<string | null | undefined>(undefined)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isNew, setIsNew] = useState(false)
   const [name, setName] = useState('')
   const [existingBody, setExistingBody] = useState('')
-  const [buttons, setButtons] = useState<CampaignButton[]>([])
   const [editorReady, setEditorReady] = useState(false)
   const [editorEverOpened, setEditorEverOpened] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -117,23 +46,6 @@ export default function TemplatesPage() {
 
   const hasSelection = isNew || selectedId !== null
 
-  const updateButton = (id: string, patch: Partial<CampaignButton>) =>
-    setButtons(prev => prev.map(b => (b.id === id ? { ...b, ...patch } : b)))
-
-  function syncButtonsFromDesign(design: object) {
-    const detected = extractButtonsFromDesign(design)
-    setButtons(prev => {
-      const consumed = new Set<string | undefined>()
-      return detected.map(d => {
-        const existing = prev.find(b => b.text === d.text && !consumed.has(b.id))
-        if (existing) consumed.add(existing.id)
-        return existing
-          ? { id: existing.id, text: d.text, action_type: existing.action_type, label_id: existing.label_id, stage_id: existing.stage_id, action_value: existing.action_value }
-          : newCampaignButton(d.id, d.text)
-      })
-    })
-  }
-
   function loadIntoEditor(designJson: string | null) {
     const editor = editorRef.current
     if (!editor) {
@@ -145,12 +57,6 @@ export default function TemplatesPage() {
 
   function handleEditorReady() {
     setEditorReady(true)
-    const editor = editorRef.current
-    editor?.on('change', () => {
-      editor.exportHtml(({ design }) => {
-        syncButtonsFromDesign(design)
-      })
-    })
     if (pendingDesignRef.current !== undefined) {
       const pending = pendingDesignRef.current
       pendingDesignRef.current = undefined
@@ -164,16 +70,8 @@ export default function TemplatesPage() {
     setIsNew(false)
     setName(t.name)
     setExistingBody(t.body)
-    setButtons(parseButtons(t.campaign_buttons))
     setSaveError('')
     loadIntoEditor(t.design_json)
-    if (t.design_json) {
-      try {
-        syncButtonsFromDesign(JSON.parse(t.design_json))
-      } catch {
-        // corrupt design JSON — design:updated will sync once the editor loads
-      }
-    }
   }
 
   function openNew() {
@@ -182,10 +80,8 @@ export default function TemplatesPage() {
     setIsNew(true)
     setName('')
     setExistingBody('')
-    setButtons([])
     setSaveError('')
     loadIntoEditor(null)
-    syncButtonsFromDesign({})
   }
 
   function clearSelection() {
@@ -228,14 +124,14 @@ export default function TemplatesPage() {
     if (!name.trim()) { setSaveError('Template name is required'); return }
     setSaveError('')
     setSaving(true)
-    editor.exportHtml(({ design, html }) => {
+    editor.exportHtml(({ design, html, campaignButtons }: { design: object; html: string; campaignButtons: CampaignButton[] }) => {
       const plain = htmlToText(html)
       const payload = {
         name: name.trim(),
         body: plain || existingBody,
         design_json: JSON.stringify(design),
         html_body: html,
-        campaign_buttons: buttons,
+        campaign_buttons: campaignButtons,
       }
       if (isNew) createMutation.mutate(payload)
       else if (selectedId) updateMutation.mutate({ id: selectedId, payload })
@@ -244,7 +140,7 @@ export default function TemplatesPage() {
 
   return (
     <>
-      {/* Page — template list */}
+      {/* Template list */}
       <div className="h-[calc(100vh-6rem)] min-h-[560px]">
         <aside className="w-[360px] h-full bg-white border border-slate-200 rounded-xl flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
@@ -312,14 +208,13 @@ export default function TemplatesPage() {
         </aside>
       </div>
 
-      {/* Full-screen editor modal — editor stays mounted once opened to avoid re-init */}
+      {/* Full-screen editor modal */}
       <div
         className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 transition-opacity duration-200 ${
           hasSelection ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
         <div className="bg-white rounded-2xl w-[90vw] h-[90vh] flex flex-col overflow-hidden shadow-2xl">
-          {/* Modal header */}
           <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 shrink-0">
             <input
               className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -333,7 +228,7 @@ export default function TemplatesPage() {
               disabled={saving || !editorReady}
               className="shrink-0 inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
             >
-              {saving ? 'Saving…' : 'Save'}
+              {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : 'Save'}
             </button>
             <button
               onClick={clearSelection}
@@ -344,118 +239,21 @@ export default function TemplatesPage() {
             </button>
           </div>
 
-          {/* Editor + bottom panels */}
-          <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-            <p className="text-xs text-slate-400 mx-5 mb-1 mt-5">
-              💡 Tip: Use <strong className="font-semibold">AI → Compose</strong> to generate rich HTML content, then copy it here using the HTML source button.
-            </p>
-            <div className="relative flex-1 min-h-0 mx-5 border border-slate-200 rounded-t-xl overflow-hidden">
-              {!editorReady && (
-                <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50">
-                  <Loader2 size={22} className="text-blue-500 animate-spin mb-2" />
-                  <p className="text-xs text-slate-400">Loading email editor…</p>
-                </div>
-              )}
-              {editorEverOpened && (
-                <GrapesEditor ref={editorRef} onReady={handleEditorReady} />
-              )}
-            </div>
-
-            {/* Signature preview */}
-            <div className="mx-5 shrink-0 border border-t-0 border-slate-200 rounded-b-xl bg-white px-4 py-3">
-              <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-1">— Signature</p>
-              {defaultSig?.body ? (
-                /<img\s/i.test(defaultSig.body) ? (
-                  <div className="text-xs text-slate-600 [&_img]:max-h-12 [&_img]:inline-block" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(defaultSig.body) }} />
-                ) : (
-                  <p className="text-xs text-slate-600 whitespace-pre-wrap">{defaultSig.body}</p>
-                )
-              ) : (
-                <p className="text-xs text-slate-400 italic">No signature — add one in Profile settings.</p>
-              )}
-            </div>
-
-            {/* Button Actions — auto-detected from GrapesJS button blocks */}
-            <div className="mx-5 mb-5 mt-3 shrink-0 border border-slate-200 rounded-xl bg-white overflow-y-auto max-h-[220px]">
-              <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
-                <MousePointerClick size={13} className="text-blue-500" />
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Button Actions</span>
+          <div className="flex-1 min-h-0 overflow-hidden">
+            {!editorReady && (
+              <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-slate-50">
+                <Loader2 size={22} className="text-blue-500 animate-spin mb-2" />
+                <p className="text-xs text-slate-400">Loading email editor…</p>
               </div>
-              {buttons.length === 0 ? (
-                <p className="px-4 py-3 text-[11px] text-slate-400">
-                  Add a Button block to your email design to attach an action to it.
-                </p>
-              ) : (
-                buttons.map(b => (
-                  <div key={b.id} className="px-4 py-2.5 border-b last:border-0 border-slate-50 space-y-1.5">
-                    <span className="inline-block max-w-full truncate px-2 py-0.5 bg-slate-100 text-slate-600 rounded text-xs font-semibold" title={b.text}>
-                      {b.text}
-                    </span>
-                    <select
-                      className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                      value={b.action_type}
-                      onChange={e => updateButton(b.id, {
-                        action_type: e.target.value as ButtonAction,
-                        stage_id: null,
-                        label_id: null,
-                        action_value: null,
-                      })}
-                    >
-                      {(Object.keys(ACTION_LABELS) as ButtonAction[]).map(at => (
-                        <option key={at} value={at}>{ACTION_LABELS[at]}</option>
-                      ))}
-                    </select>
-                    {b.action_type === 'pipeline_stage' && (
-                      <select
-                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                        value={b.stage_id ?? ''}
-                        onChange={e => updateButton(b.id, { stage_id: e.target.value || null })}
-                      >
-                        <option value="">— pick a stage</option>
-                        {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-                      </select>
-                    )}
-                    {b.action_type === 'apply_label' && (
-                      <select
-                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                        value={b.label_id ?? ''}
-                        onChange={e => updateButton(b.id, { label_id: e.target.value || null })}
-                      >
-                        <option value="">— pick a label</option>
-                        {labels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
-                      </select>
-                    )}
-                    {b.action_type === 'open_website' && (
-                      <input
-                        type="url"
-                        placeholder="https://example.com"
-                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                        value={b.action_value ?? ''}
-                        onChange={e => updateButton(b.id, { action_value: e.target.value || null })}
-                      />
-                    )}
-                    {b.action_type === 'send_email' && (
-                      <input
-                        type="email"
-                        placeholder="hello@example.com"
-                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                        value={b.action_value ?? ''}
-                        onChange={e => updateButton(b.id, { action_value: e.target.value || null })}
-                      />
-                    )}
-                    {b.action_type === 'call_phone' && (
-                      <input
-                        type="tel"
-                        placeholder="+31 6 12345678"
-                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                        value={b.action_value ?? ''}
-                        onChange={e => updateButton(b.id, { action_value: e.target.value || null })}
-                      />
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
+            )}
+            {editorEverOpened && (
+              <GrapesEditor
+                ref={editorRef}
+                stages={stages}
+                labels={labels}
+                onReady={handleEditorReady}
+              />
+            )}
           </div>
         </div>
       </div>
