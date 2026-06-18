@@ -44,6 +44,17 @@ const ACTION_TYPE_TRAIT = {
   options: ACTION_OPTIONS,
 }
 
+const ALIGN_TRAIT = {
+  type: 'select',
+  name: 'data-align',
+  label: 'Alignment',
+  options: [
+    { id: 'center', label: 'Center' },
+    { id: 'left',   label: 'Left' },
+    { id: 'right',  label: 'Right' },
+  ],
+}
+
 function secondaryName(actionType: string) {
   if (actionType === 'pipeline_stage') return 'data-stage-id'
   if (actionType === 'apply_label') return 'data-label-id'
@@ -145,10 +156,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
           tagName: 'a',
           draggable: true,
           droppable: false,
-          attributes: { 'data-yippie-button': '1', 'data-action-type': 'pipeline_stage', href: '#' },
+          attributes: { 'data-yippie-button': '1', 'data-action-type': 'pipeline_stage', 'data-align': 'center', href: '#' },
           traits: [
             ACTION_TYPE_TRAIT,
             buildSecondaryTrait('pipeline_stage', [], []),
+            ALIGN_TRAIT,
           ],
         },
       },
@@ -161,16 +173,30 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
       }
     })
 
-    // Swap secondary trait when action type changes
+    // Swap secondary trait + apply alignment when attributes change
     editor.on('component:update', (component: any) => {
       if (component.get('type') !== 'yippie-button') return
-      const actionType: string = component.getAttributes()['data-action-type'] ?? 'pipeline_stage'
+      const attrs = component.getAttributes()
+      const actionType: string = attrs['data-action-type'] ?? 'pipeline_stage'
+      const align: string = attrs['data-align'] ?? 'center'
+
+      // Push text-align onto the closest td ancestor so email clients honour it
+      const alignMap: Record<string, string> = { left: 'left', center: 'center', right: 'right' }
+      const td: any = component.parent()
+      if (td) {
+        const current = td.getStyle()?.['text-align']
+        const target = alignMap[align] ?? 'center'
+        if (current !== target) td.setStyle({ ...td.getStyle(), 'text-align': target })
+      }
+
+      // Rebuild traits only when the secondary field needs to change
       const traitsModels = component.get('traits')?.models
       const currentSecondary: string | undefined = traitsModels?.[1]?.get?.('name')
       if (currentSecondary === secondaryName(actionType)) return
       component.set('traits', [
         ACTION_TYPE_TRAIT,
         buildSecondaryTrait(actionType, stagesRef.current, labelsRef.current),
+        ALIGN_TRAIT,
       ])
     })
 
@@ -184,21 +210,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
         <polyline points="9 10 12 12 9 14"/>
         <path d="M15 10l2 2-2 2" stroke-width="1.5"/>
       </svg>`,
-      content: {
-        type: 'yippie-button',
-        content: 'Click here',
-        style: {
-          display: 'inline-block',
-          padding: '10px 24px',
-          background: '#5BA4F5',
-          color: '#ffffff',
-          'text-decoration': 'none',
-          'border-radius': '4px',
-          'font-family': 'Arial, sans-serif',
-          'font-size': '14px',
-          'font-weight': 'bold',
-        },
-      },
+      content: `<table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding:8px 0;text-align:center;">
+            <a data-yippie-button="1" data-action-type="pipeline_stage" data-align="center" href="#"
+               style="display:inline-block;padding:12px 28px;background:#5BA4F5;color:#ffffff;text-decoration:none;border-radius:4px;font-family:Arial,sans-serif;font-size:14px;font-weight:bold;">
+              Click here
+            </a>
+          </td>
+        </tr>
+      </table>`,
     })
 
     editor.BlockManager.add('yippie-signature', {
