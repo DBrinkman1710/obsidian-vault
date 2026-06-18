@@ -23,7 +23,7 @@ export default function ConsentDefaults() {
           `,
         }}
       />
-      <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+      <script data-cfasync="false" async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
     </>
   );
 }
