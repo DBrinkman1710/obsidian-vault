@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, Megaphone, MessageSquare, QrCode, Search, Send, SquarePen, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useMobile } from '../../../shell/useMobile'
@@ -21,6 +22,7 @@ function formatTime(dt: string) {
 
 export default function ChatPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const isMobile = useMobile()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showConversation, setShowConversation] = useState(false)
@@ -96,6 +98,27 @@ export default function ChatPage() {
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
       qc.invalidateQueries({ queryKey: ['chat-messages', selectedId] })
     },
+  })
+
+  const createTicketMutation = useMutation({
+    mutationFn: async (session: any) => {
+      const subject = session.visitor_name || session.whatsapp_phone || 'Chat session'
+      let description: string | undefined
+      try {
+        const msgs = await api.get(`/chat/sessions/${session.id}/messages`).then(r => r.data)
+        const first = (msgs as any[]).find((m: any) => m.sender_type === 'visitor')
+        if (first) description = first.body
+      } catch { /* non-fatal */ }
+      const ticket = await api.post('/tickets', {
+        subject,
+        description,
+        contact_id: session.contact_id ?? undefined,
+        source: 'chat',
+      }).then(r => r.data)
+      await api.patch(`/chat/sessions/${session.id}`, { ticket_id: ticket.id })
+      return ticket
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['chat-sessions'] }),
   })
 
   // Agent WebSocket — real-time events for all sessions in this tenant
@@ -356,16 +379,36 @@ export default function ChatPage() {
             Started {new Date(selectedSession.started_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
           </p>
         </div>
-        {selectedSession.is_open && (
-          <button
-            onClick={() => closeMutation.mutate(selectedSession.id)}
-            disabled={closeMutation.isPending}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors flex-shrink-0"
-          >
-            <X size={12} />
-            Close
-          </button>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {selectedSession.ticket_id ? (
+            <button
+              onClick={() => navigate(`/tickets/${selectedSession.ticket_id}`)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
+              title="Open linked ticket"
+            >
+              Ticket →
+            </button>
+          ) : (
+            <button
+              onClick={() => createTicketMutation.mutate(selectedSession)}
+              disabled={!selectedSession.contact_id || createTicketMutation.isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              title={!selectedSession.contact_id ? 'Link a contact first' : 'Create ticket from this chat'}
+            >
+              {createTicketMutation.isPending ? 'Creating…' : '+ Ticket'}
+            </button>
+          )}
+          {selectedSession.is_open && (
+            <button
+              onClick={() => closeMutation.mutate(selectedSession.id)}
+              disabled={closeMutation.isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors flex-shrink-0"
+            >
+              <X size={12} />
+              Close
+            </button>
+          )}
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5 flex flex-col gap-3 bg-slate-50">

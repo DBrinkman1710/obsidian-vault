@@ -81,6 +81,8 @@ def _session_dict(s: ChatSession) -> dict:
         "visitor_name": s.visitor_name,
         "visitor_email": s.visitor_email,
         "whatsapp_phone": s.whatsapp_phone,
+        "contact_id": str(s.contact_id) if s.contact_id else None,
+        "ticket_id": str(s.ticket_id) if s.ticket_id else None,
         "is_open": s.is_open,
         "unread_count": s.unread_count,
         "started_at": s.started_at.isoformat(),
@@ -267,6 +269,28 @@ async def close_session(session_id: uuid.UUID, current_user: CurrentUser, db: DB
     session.ended_at = datetime.now(timezone.utc)
     await db.commit()
     return {"status": "closed"}
+
+
+class PatchSessionBody(BaseModel):
+    ticket_id: Optional[uuid.UUID] = None
+
+
+@router.patch("/sessions/{session_id}", status_code=status.HTTP_200_OK)
+async def patch_session(session_id: uuid.UUID, body: PatchSessionBody, current_user: CurrentUser, db: DB):
+    sess_result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.tenant_id == current_user.tenant_id,
+        )
+    )
+    session = sess_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if body.ticket_id is not None:
+        session.ticket_id = body.ticket_id
+    await db.commit()
+    await db.refresh(session)
+    return _session_dict(session)
 
 
 @router.post("/sessions/{session_id}/read", status_code=status.HTTP_200_OK)
