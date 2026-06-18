@@ -12,6 +12,50 @@ const nextConfig = {
   },
 
   reactStrictMode: true,
+
+  async headers() {
+    // Content-Security-Policy for the marketing site.
+    // - script-src: Next.js injects inline bootstrap scripts, so 'unsafe-inline'
+    //   is required. No 'unsafe-eval' — the site doesn't need it.
+    // - script-src-elem: external script hosts (GTM/GA4, Cloudflare beacon +
+    //   Cloudflare challenge scripts served from /cdn-cgi/).
+    // - connect-src: GTM's own fetches, the sandbox stats API, and GA endpoints.
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline'",
+      "script-src-elem 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.google-analytics.com https://static.cloudflareinsights.com https://getyippie.com/cdn-cgi/",
+      "style-src 'self' 'unsafe-inline'",
+      "img-src 'self' data: https:",
+      "font-src 'self' data:",
+      [
+        "connect-src 'self'",
+        "https://www.googletagmanager.com",
+        "https://sandbox.getyippie.com",
+        "https://www.google-analytics.com",
+        "https://analytics.google.com",
+        "https://stats.g.doubleclick.net",
+        "https://region1.google-analytics.com",
+        "https://region1.analytics.google.com",
+        "https://cloudflareinsights.com",
+      ].join(" "),
+      "frame-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "object-src 'none'",
+    ].join("; ");
+
+    return [
+      {
+        source: "/(.*)",
+        headers: [
+          {
+            key: "Content-Security-Policy",
+            value: csp,
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;
