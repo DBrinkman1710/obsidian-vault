@@ -418,7 +418,7 @@ export default function ChatPage() {
   }
 
   const filterTabs = (
-    <div className="flex items-center gap-1 px-5 pb-3">
+    <div className="flex items-center gap-1 px-5 pt-4 pb-3">
       {(['mine', 'open', 'all'] as Filter[]).map(f => (
         <button
           key={f}
