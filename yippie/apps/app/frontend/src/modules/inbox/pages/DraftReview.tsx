@@ -294,8 +294,6 @@ export default function DraftReview() {
   const scanNotRun = !draft?.detected_language
   // briefing: context_summary is null until generate_context_summary has run
   const briefingNotRun = !draft?.context_summary
-  // legacy alias used by the reply panel
-  const aiNotRun = scanNotRun && briefingNotRun
   const msg = ctx?.inbound_message
   const contact = ctx?.contact
   const recentTickets: any[] = ctx?.recent_tickets ?? []
@@ -381,9 +379,6 @@ export default function DraftReview() {
     },
     onError: () => toast.error('AI generation failed — please try again.'),
   })
-
-  // Keep a combined alias for backward-compat usages (reply panel, etc.)
-  const generateMutation = generateScanMutation
 
   const reviewMutation = useMutation({
     mutationFn: ({ action, departmentId, modalFollowUpDays }: { action: 'approve' | 'reject'; departmentId?: string; modalFollowUpDays?: number }) =>
