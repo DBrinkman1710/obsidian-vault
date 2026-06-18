@@ -1,11 +1,12 @@
 import { useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import EmailEditor, { EditorRef } from 'react-email-editor'
+import GrapesEditor, { GrapesEditorHandle } from '../components/GrapesEditor'
 import { FileText, Loader2, MousePointerClick, Palette, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useSignatures, pickDefaultSignature } from '../../../hooks/useSignatures'
 import { htmlToText } from '../../inbox/components/TemplatePicker'
+import { fetchLabels, type ContactLabel } from '../../contacts/components/LabelChip'
 
 interface Template {
   id: string
@@ -17,7 +18,15 @@ interface Template {
   created_at: string
 }
 
-type ButtonAction = 'pipeline_stage'
+type ButtonAction = 'pipeline_stage' | 'apply_label' | 'open_website' | 'send_email' | 'call_phone'
+
+const ACTION_LABELS: Record<ButtonAction, string> = {
+  pipeline_stage: 'Move to pipeline stage',
+  apply_label: 'Apply label',
+  open_website: 'Open website',
+  send_email: 'Send email',
+  call_phone: 'Call phone',
+}
 
 interface CampaignButton {
   id: string
@@ -34,10 +43,6 @@ function newCampaignButton(id: string, text: string): CampaignButton {
   return { id, text, action_type: 'pipeline_stage', label_id: null, stage_id: null, action_value: null }
 }
 
-function stripHtml(text: string): string {
-  return text.replace(/<[^>]*>/g, '').trim()
-}
-
 function extractButtonsFromDesign(design: object): Array<{ id: string; text: string }> {
   const found: Array<{ id: string; text: string }> = []
   function walk(node: unknown) {
@@ -47,13 +52,12 @@ function extractButtonsFromDesign(design: object): Array<{ id: string; text: str
     }
     if (node && typeof node === 'object') {
       const n = node as Record<string, unknown>
-      if (n.type === 'button') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const values = n.values as any
-        const text = stripHtml(String(values?.text ?? ''))
-        if (text) {
-          found.push({ id: String(values?._meta?.htmlID ?? crypto.randomUUID()), text })
-        }
+      const attrs = n.attributes as Record<string, unknown> | undefined
+      if (attrs?.['data-yippie-button']) {
+        const id = String(attrs['id'] ?? crypto.randomUUID())
+        const content = String(n.content ?? n.components ?? '')
+        const text = content.replace(/<[^>]*>/g, '').trim() || 'Button'
+        if (!found.find(f => f.id === id)) found.push({ id, text })
       }
       Object.values(n).forEach(walk)
     }
@@ -67,10 +71,12 @@ function parseButtons(raw: string | null): CampaignButton[] {
   try {
     const parsed = JSON.parse(raw)
     if (!Array.isArray(parsed)) return []
+    const validActions = new Set<string>(['pipeline_stage', 'apply_label', 'open_website', 'send_email', 'call_phone'])
     return parsed.map(b => ({
       ...b,
-      action_type: 'pipeline_stage' as ButtonAction,
+      action_type: validActions.has(b.action_type) ? b.action_type as ButtonAction : 'pipeline_stage',
       stage_id: b.stage_id ?? null,
+      label_id: b.label_id ?? null,
       action_value: b.action_value ?? null,
     }))
   } catch {
@@ -82,7 +88,7 @@ export default function TemplatesPage() {
   const qc = useQueryClient()
   const { data: signatures } = useSignatures()
   const defaultSig = pickDefaultSignature(signatures)
-  const editorRef = useRef<EditorRef>(null)
+  const editorRef = useRef<GrapesEditorHandle>(null)
   const pendingDesignRef = useRef<string | null | undefined>(undefined)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isNew, setIsNew] = useState(false)
@@ -102,6 +108,11 @@ export default function TemplatesPage() {
   const { data: stages = [] } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
     queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+  })
+
+  const { data: labels = [] } = useQuery<ContactLabel[]>({
+    queryKey: ['contact-labels'],
+    queryFn: fetchLabels,
   })
 
   const hasSelection = isNew || selectedId !== null
@@ -124,26 +135,18 @@ export default function TemplatesPage() {
   }
 
   function loadIntoEditor(designJson: string | null) {
-    const editor = editorRef.current?.editor
+    const editor = editorRef.current
     if (!editor) {
       pendingDesignRef.current = designJson
       return
     }
-    if (designJson) {
-      try {
-        editor.loadDesign(JSON.parse(designJson))
-        return
-      } catch {
-        // fall through to blank canvas on corrupt design JSON
-      }
-    }
-    editor.loadBlank()
+    editor.loadDesign(designJson)
   }
 
   function handleEditorReady() {
     setEditorReady(true)
-    const editor = editorRef.current?.editor
-    editor?.addEventListener('design:updated', () => {
+    const editor = editorRef.current
+    editor?.on('change', () => {
       editor.exportHtml(({ design }) => {
         syncButtonsFromDesign(design)
       })
@@ -220,7 +223,7 @@ export default function TemplatesPage() {
   })
 
   function handleSave() {
-    const editor = editorRef.current?.editor
+    const editor = editorRef.current
     if (!editor || saving) return
     if (!name.trim()) { setSaveError('Template name is required'); return }
     setSaveError('')
@@ -354,19 +357,7 @@ export default function TemplatesPage() {
                 </div>
               )}
               {editorEverOpened && (
-                <EmailEditor
-                  ref={editorRef}
-                  onReady={handleEditorReady}
-                  minHeight="100%"
-                  options={{
-                    features: { textEditor: { spellChecker: true } },
-                    appearance: {
-                      theme: 'classic_light',
-                      panels: { tools: { dock: 'left' } },
-                    },
-                    editor: { confirmOnDelete: false },
-                  }}
-                />
+                <GrapesEditor ref={editorRef} onReady={handleEditorReady} />
               )}
             </div>
 
@@ -384,8 +375,8 @@ export default function TemplatesPage() {
               )}
             </div>
 
-            {/* Button label config — auto-detected from Unlayer button blocks */}
-            <div className="mx-5 mb-5 mt-3 shrink-0 border border-slate-200 rounded-xl bg-white overflow-y-auto max-h-[200px]">
+            {/* Button Actions — auto-detected from GrapesJS button blocks */}
+            <div className="mx-5 mb-5 mt-3 shrink-0 border border-slate-200 rounded-xl bg-white overflow-y-auto max-h-[220px]">
               <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
                 <MousePointerClick size={13} className="text-blue-500" />
                 <span className="text-xs font-bold text-slate-700 uppercase tracking-wide">Button Actions</span>
@@ -402,12 +393,65 @@ export default function TemplatesPage() {
                     </span>
                     <select
                       className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
-                      value={b.stage_id ?? ''}
-                      onChange={e => updateButton(b.id, { stage_id: e.target.value || null })}
+                      value={b.action_type}
+                      onChange={e => updateButton(b.id, {
+                        action_type: e.target.value as ButtonAction,
+                        stage_id: null,
+                        label_id: null,
+                        action_value: null,
+                      })}
                     >
-                      <option value="">No stage</option>
-                      {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      {(Object.keys(ACTION_LABELS) as ButtonAction[]).map(at => (
+                        <option key={at} value={at}>{ACTION_LABELS[at]}</option>
+                      ))}
                     </select>
+                    {b.action_type === 'pipeline_stage' && (
+                      <select
+                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                        value={b.stage_id ?? ''}
+                        onChange={e => updateButton(b.id, { stage_id: e.target.value || null })}
+                      >
+                        <option value="">— pick a stage</option>
+                        {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                      </select>
+                    )}
+                    {b.action_type === 'apply_label' && (
+                      <select
+                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                        value={b.label_id ?? ''}
+                        onChange={e => updateButton(b.id, { label_id: e.target.value || null })}
+                      >
+                        <option value="">— pick a label</option>
+                        {labels.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      </select>
+                    )}
+                    {b.action_type === 'open_website' && (
+                      <input
+                        type="url"
+                        placeholder="https://example.com"
+                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                        value={b.action_value ?? ''}
+                        onChange={e => updateButton(b.id, { action_value: e.target.value || null })}
+                      />
+                    )}
+                    {b.action_type === 'send_email' && (
+                      <input
+                        type="email"
+                        placeholder="hello@example.com"
+                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                        value={b.action_value ?? ''}
+                        onChange={e => updateButton(b.id, { action_value: e.target.value || null })}
+                      />
+                    )}
+                    {b.action_type === 'call_phone' && (
+                      <input
+                        type="tel"
+                        placeholder="+31 6 12345678"
+                        className="w-full px-2 py-1 border border-slate-200 rounded text-xs focus:ring-1 focus:ring-blue-400 focus:outline-none"
+                        value={b.action_value ?? ''}
+                        onChange={e => updateButton(b.id, { action_value: e.target.value || null })}
+                      />
+                    )}
                   </div>
                 ))
               )}
