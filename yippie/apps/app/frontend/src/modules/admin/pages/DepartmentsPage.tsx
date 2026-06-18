@@ -1,8 +1,15 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Trash2, Building } from 'lucide-react'
+import { Plus, Trash2, Building, Users, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+
+interface DeptMember {
+  user_id: string
+  email: string
+  full_name: string
+  role: string
+}
 
 interface Dept {
   id: string
@@ -11,6 +18,15 @@ interface Dept {
   reply_template: string | null
   sla_working_days: number
   created_at: string
+  members?: DeptMember[]
+}
+
+interface TeamUser {
+  id: string
+  email: string
+  full_name: string
+  role: string
+  is_active: boolean
 }
 
 interface FormState {
@@ -27,6 +43,12 @@ const DEFAULT_TEMPLATE_HINT =
 
 const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
+
+const ROLE_BADGE: Record<string, string> = {
+  admin: 'bg-blue-100 text-blue-700',
+  agent: 'bg-emerald-100 text-emerald-700',
+  viewer: 'bg-slate-100 text-slate-600',
+}
 
 function DeptForm({ initial, onSave, onCancel, isPending }: {
   initial: FormState
@@ -97,6 +119,226 @@ function DeptForm({ initial, onSave, onCancel, isPending }: {
         </button>
       </div>
     </form>
+  )
+}
+
+function DepartmentDetailModal({ dept, onClose }: { dept: Dept; onClose: () => void }) {
+  const qc = useQueryClient()
+
+  // --- Settings ---
+  const [name, setName] = useState(dept.name)
+  const [email, setEmail] = useState(dept.email)
+  const [sla, setSla] = useState(String(dept.sla_working_days))
+  const [template, setTemplate] = useState(dept.reply_template ?? '')
+  const [savedSettings, setSavedSettings] = useState(false)
+
+  const saveSettings = useMutation({
+    mutationFn: () => api.patch(`/departments/${dept.id}`, {
+      name: name.trim(), email: email.trim(),
+      reply_template: template.trim() || null,
+      sla_working_days: parseInt(sla) || 3,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['departments'] })
+      setSavedSettings(true)
+      setTimeout(() => setSavedSettings(false), 2000)
+    },
+  })
+
+  // --- Members ---
+  const { data: members } = useQuery<DeptMember[]>({
+    queryKey: ['departments', dept.id, 'members'],
+    queryFn: () => api.get(`/departments/${dept.id}/members`).then(r => r.data),
+  })
+
+  const { data: teamUsers } = useQuery<TeamUser[]>({
+    queryKey: ['team', 'users'],
+    queryFn: () => api.get('/team/users').then(r => r.data),
+  })
+
+  const refreshMembers = () => {
+    qc.invalidateQueries({ queryKey: ['departments', dept.id, 'members'] })
+    qc.invalidateQueries({ queryKey: ['departments'] })
+  }
+
+  const removeMember = useMutation({
+    mutationFn: (userId: string) => api.delete(`/departments/${dept.id}/members/${userId}`),
+    onSuccess: refreshMembers,
+  })
+
+  const [addUserId, setAddUserId] = useState('')
+  const addMember = useMutation({
+    mutationFn: (userId: string) => api.post(`/departments/${dept.id}/members`, { user_id: userId }),
+    onSuccess: () => { setAddUserId(''); refreshMembers() },
+  })
+
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteName, setInviteName] = useState('')
+  const [inviteRole, setInviteRole] = useState('agent')
+  const [inviteError, setInviteError] = useState('')
+  const [inviteMsg, setInviteMsg] = useState('')
+  const invite = useMutation({
+    mutationFn: () => api.post(`/departments/${dept.id}/members/invite`, {
+      email: inviteEmail.trim(), full_name: inviteName.trim(), role: inviteRole,
+    }),
+    onSuccess: (r) => {
+      setInviteError('')
+      setInviteMsg(r.data?.invited ? `Invite sent to ${r.data.email}` : `${r.data.email} added to department`)
+      setInviteEmail(''); setInviteName('')
+      refreshMembers()
+      qc.invalidateQueries({ queryKey: ['team', 'users'] })
+      setTimeout(() => setInviteMsg(''), 3000)
+    },
+    onError: (e: any) => {
+      setInviteMsg('')
+      setInviteError(e?.response?.data?.detail || 'Could not invite user')
+    },
+  })
+
+  const memberIds = new Set((members ?? []).map(m => m.user_id))
+  const addableUsers = (teamUsers ?? []).filter(u => !memberIds.has(u.id))
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
+          <h2 className="text-lg font-bold text-slate-900">{dept.name}</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 flex flex-col gap-6">
+          {/* Section 1 — Settings */}
+          <section className="flex flex-col gap-4">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Settings</h3>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Name</label>
+                <input className={inputCls} value={name} onChange={e => setName(e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Email</label>
+                <input className={inputCls} type="email" value={email} onChange={e => setEmail(e.target.value)} />
+              </div>
+            </div>
+            <div>
+              <label className={labelCls}>SLA (working days)</label>
+              <input
+                className={`${inputCls} w-24`}
+                type="number" min={1} max={90}
+                value={sla} onChange={e => setSla(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className={labelCls}>Reply template</label>
+              <textarea
+                className={`${inputCls} resize-vertical min-h-[80px] font-[inherit]`}
+                value={template} onChange={e => setTemplate(e.target.value)}
+                placeholder={DEFAULT_TEMPLATE_HINT}
+              />
+            </div>
+            <div>
+              <button
+                onClick={() => saveSettings.mutate()}
+                disabled={saveSettings.isPending}
+                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              >
+                {saveSettings.isPending ? 'Saving…' : savedSettings ? 'Saved ✓' : 'Save settings'}
+              </button>
+            </div>
+          </section>
+
+          <div className="border-t border-slate-100" />
+
+          {/* Section 2 — Members */}
+          <section className="flex flex-col gap-4">
+            <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wide">Members</h3>
+
+            <div className="flex flex-col gap-2">
+              {(members ?? []).length === 0 && (
+                <p className="text-sm text-slate-400">No members yet.</p>
+              )}
+              {(members ?? []).map(m => (
+                <div key={m.user_id} className="flex items-center justify-between bg-slate-50 border border-slate-200 rounded-lg px-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900 truncate">{m.full_name}</p>
+                    <p className="text-xs text-slate-500 truncate">{m.email}</p>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0 ml-3">
+                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${ROLE_BADGE[m.role] ?? 'bg-slate-100 text-slate-600'}`}>
+                      {m.role}
+                    </span>
+                    <button
+                      onClick={() => removeMember.mutate(m.user_id)}
+                      disabled={removeMember.isPending}
+                      className="text-red-500 hover:text-red-600 disabled:opacity-50 transition-colors"
+                      title="Remove from department"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Add existing user */}
+            <div>
+              <label className={labelCls}>Add existing user</label>
+              <div className="flex gap-2">
+                <select
+                  className={inputCls}
+                  value={addUserId}
+                  onChange={e => setAddUserId(e.target.value)}
+                >
+                  <option value="">Select a user…</option>
+                  {addableUsers.map(u => (
+                    <option key={u.id} value={u.id}>{u.full_name} ({u.email})</option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => addUserId && addMember.mutate(addUserId)}
+                  disabled={!addUserId || addMember.isPending}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed whitespace-nowrap"
+                >
+                  Add
+                </button>
+              </div>
+            </div>
+
+            {/* Invite new user */}
+            <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 flex flex-col gap-3">
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Invite new user</p>
+              <input
+                className={inputCls} type="email" placeholder="email@company.nl"
+                value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+              />
+              <input
+                className={inputCls} placeholder="Full name"
+                value={inviteName} onChange={e => setInviteName(e.target.value)}
+              />
+              <select
+                className={inputCls}
+                value={inviteRole} onChange={e => setInviteRole(e.target.value)}
+              >
+                <option value="agent">Agent</option>
+                <option value="admin">Admin</option>
+                <option value="viewer">Viewer</option>
+              </select>
+              {inviteError && <p className="text-sm text-red-500">{inviteError}</p>}
+              {inviteMsg && <p className="text-sm text-emerald-600">{inviteMsg}</p>}
+              <button
+                onClick={() => invite.mutate()}
+                disabled={!inviteEmail.trim() || !inviteName.trim() || invite.isPending}
+                className="self-start px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              >
+                {invite.isPending ? 'Sending…' : 'Send invite'}
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -178,7 +420,7 @@ export default function DepartmentsPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
   const [showCreate, setShowCreate] = useState(false)
-  const [editingId, setEditingId] = useState<string | null>(null)
+  const [openDept, setOpenDept] = useState<Dept | null>(null)
 
   const { data: departments, isLoading } = useQuery<Dept[]>({
     queryKey: ['departments'],
@@ -192,15 +434,6 @@ export default function DepartmentsPage() {
       sla_working_days: parseInt(f.sla_working_days) || 3,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); setShowCreate(false) },
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, f }: { id: string; f: FormState }) => api.patch(`/departments/${id}`, {
-      name: f.name.trim(), email: f.email.trim(),
-      reply_template: f.reply_template.trim() || null,
-      sla_working_days: parseInt(f.sla_working_days) || 3,
-    }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); setEditingId(null) },
   })
 
   const deleteMutation = useMutation({
@@ -218,7 +451,7 @@ export default function DepartmentsPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1">Departments</h1>
           <p className="text-sm text-slate-500">
-            Route inbox messages to specialist departments. Each gets its own reply template.
+            Route inbox messages to specialist departments. Click a department to manage settings and members.
           </p>
         </div>
         {!showCreate && (
@@ -258,56 +491,44 @@ export default function DepartmentsPage() {
 
       <div className="flex flex-col gap-3">
         {departments?.map(dept => (
-          <div key={dept.id}>
-            {editingId === dept.id ? (
-              <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Edit {dept.name}</p>
-                <DeptForm
-                  initial={{
-                    name: dept.name, email: dept.email,
-                    reply_template: dept.reply_template ?? '',
-                    sla_working_days: String(dept.sla_working_days),
-                  }}
-                  onSave={f => updateMutation.mutate({ id: dept.id, f })}
-                  onCancel={() => setEditingId(null)}
-                  isPending={updateMutation.isPending}
-                />
+          <div
+            key={dept.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => setOpenDept(dept)}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpenDept(dept) } }}
+            className="cursor-pointer text-left bg-white border border-slate-200 rounded-xl p-4 flex items-start justify-between shadow-sm hover:border-blue-300 hover:shadow transition-all"
+          >
+            <div>
+              <div className="flex items-center gap-3 mb-1">
+                <span className="text-sm font-bold text-slate-900">{dept.name}</span>
+                <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">
+                  {dept.sla_working_days}d SLA
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
+                  <Users size={11} />
+                  {dept.members?.length ?? 0}
+                </span>
               </div>
-            ) : (
-              <div className="bg-white border border-slate-200 rounded-xl p-4 flex items-start justify-between shadow-sm">
-                <div>
-                  <div className="flex items-center gap-3 mb-1">
-                    <span className="text-sm font-bold text-slate-900">{dept.name}</span>
-                    <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-100 text-violet-700">
-                      {dept.sla_working_days}d SLA
-                    </span>
-                  </div>
-                  <p className="text-sm text-slate-500 mb-0.5">{dept.email}</p>
-                  <p className="text-xs text-slate-400 italic">
-                    {dept.reply_template ? 'Custom template set' : 'Using default template'}
-                  </p>
-                </div>
-                <div className="flex gap-2 flex-shrink-0 ml-4">
-                  <button
-                    onClick={() => setEditingId(dept.id)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors"
-                  >
-                    <Pencil size={11} />
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => { if (confirm(`Delete "${dept.name}"?`)) deleteMutation.mutate(dept.id) }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors"
-                  >
-                    <Trash2 size={11} />
-                    Delete
-                  </button>
-                </div>
-              </div>
-            )}
+              <p className="text-sm text-slate-500 mb-0.5">{dept.email}</p>
+              <p className="text-xs text-slate-400 italic">
+                {dept.reply_template ? 'Custom template set' : 'Using default template'}
+              </p>
+            </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); if (confirm(`Delete "${dept.name}"?`)) deleteMutation.mutate(dept.id) }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0 ml-4"
+            >
+              <Trash2 size={11} />
+              Delete
+            </button>
           </div>
         ))}
       </div>
+
+      {openDept && (
+        <DepartmentDetailModal dept={openDept} onClose={() => setOpenDept(null)} />
+      )}
     </div>
   )
 }

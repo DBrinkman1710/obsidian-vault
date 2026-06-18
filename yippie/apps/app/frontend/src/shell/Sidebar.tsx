@@ -64,6 +64,13 @@ export function Sidebar() {
     enabled: !!config && (config.enabled_modules ?? []).includes('chat'),
   })
 
+  const { data: myDepts } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['departments', 'my'],
+    queryFn: () => api.get('/departments/my').then(r => r.data),
+    enabled: !!config && (config.enabled_modules ?? []).includes('departments'),
+    staleTime: 60_000,
+  })
+
   const pendingCount: number = draftCount?.pending ?? 0
   const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
   const redCount: number = deadlineData?.red ?? 0
@@ -139,8 +146,8 @@ export function Sidebar() {
           .map(mod => {
             const { label, Icon, path } = MODULE_MAP[mod]
             return (
+              <div key={mod}>
               <NavLink
-                key={mod}
                 to={path}
                 title={collapsed ? label : undefined}
                 className={({ isActive }) => navCls(isActive)}
@@ -183,6 +190,28 @@ export function Sidebar() {
                   </div>
                 )}
               </NavLink>
+
+              {mod === 'inbox' && !collapsed && myDepts && myDepts.length > 0 && (
+                <div className="pl-5 mt-0.5 space-y-0.5">
+                  {myDepts.map(dept => {
+                    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+                    const isThisDept = params.get('dept') === dept.id
+                    return (
+                      <NavLink
+                        key={dept.id}
+                        to={`/inbox?dept=${dept.id}`}
+                        className={() => `flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                          isThisDept ? 'bg-white/20 text-white font-semibold' : 'text-white/65 hover:bg-white/10 hover:text-white'
+                        }`}
+                      >
+                        <Network size={12} strokeWidth={2} className="shrink-0" />
+                        <span className="truncate">{dept.name}</span>
+                      </NavLink>
+                    )
+                  })}
+                </div>
+              )}
+              </div>
             )
           })
         }

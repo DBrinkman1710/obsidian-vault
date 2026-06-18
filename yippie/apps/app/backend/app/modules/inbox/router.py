@@ -128,6 +128,7 @@ async def list_drafts(
     mailbox: str = "shared",
     q: Optional[str] = None,
     contact_id: Optional[uuid.UUID] = Query(None),
+    department_id: Optional[uuid.UUID] = Query(None),
 ):
     if mailbox == "personal":
         # Personal mailbox: only mail sent to this user's own inbound address.
@@ -136,12 +137,14 @@ async def list_drafts(
         rows = await service.list_drafts(
             db, current_user.tenant_id, status, current_user.inbound_email,
             include_legacy=False, search=q, contact_id=contact_id,
+            department_id=department_id,
         )
         return _enrich_drafts(rows)
     tenant = await db.get(Tenant, current_user.tenant_id)
     inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
     rows = await service.list_drafts(
         db, current_user.tenant_id, status, inbound_email, search=q, contact_id=contact_id,
+        department_id=department_id,
     )
     return _enrich_drafts(rows)
 
@@ -155,15 +158,24 @@ async def trending_topics(current_user: CurrentUser, db: DB):
 
 
 @router.get("/drafts/count")
-async def count_pending_drafts(current_user: CurrentUser, db: DB):
+async def count_pending_drafts(
+    current_user: CurrentUser,
+    db: DB,
+    department_id: Optional[uuid.UUID] = Query(None),
+):
     if not current_user.inbound_email:
-        shared_count = await service.count_pending_drafts(db, current_user.tenant_id)
+        shared_count = await service.count_pending_drafts(
+            db, current_user.tenant_id, department_id=department_id
+        )
         return {"pending": shared_count, "personal": 0}
     tenant = await db.get(Tenant, current_user.tenant_id)
     inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
-    shared_count = await service.count_pending_drafts(db, current_user.tenant_id, inbound_email)
+    shared_count = await service.count_pending_drafts(
+        db, current_user.tenant_id, inbound_email, department_id=department_id
+    )
     personal_count = await service.count_pending_drafts(
-        db, current_user.tenant_id, current_user.inbound_email, include_legacy=False
+        db, current_user.tenant_id, current_user.inbound_email, include_legacy=False,
+        department_id=department_id,
     )
     return {"pending": shared_count, "personal": personal_count}
 

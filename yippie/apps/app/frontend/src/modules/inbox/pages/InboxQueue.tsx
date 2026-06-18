@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown } from 'lucide-react'
 import { api } from '../../../api/client'
@@ -726,6 +726,8 @@ export default function InboxQueue() {
   const [mailbox, setMailbox] = useState<Mailbox>('shared')
   const [focusedIdx, setFocusedIdx] = useState<number>(-1)
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const deptId = searchParams.get('dept') ?? undefined
   const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all')
   const [showCompose, setShowCompose] = useState(false)
   const [composeInitial, setComposeInitial] = useState<ComposeInitialState | null>(null)
@@ -832,6 +834,14 @@ export default function InboxQueue() {
 
   const trackingEnabled = config?.enabled_modules?.includes('emailtracking')
 
+  const { data: myDepts } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['departments', 'my'],
+    queryFn: () => api.get('/departments/my').then(r => r.data),
+    enabled: !!deptId,
+    staleTime: 60_000,
+  })
+  const activeDeptName = deptId ? myDepts?.find(d => d.id === deptId)?.name : undefined
+
   const searchParam = debouncedSearch || undefined
 
   const { data: sentEvents, isLoading: sentLoading } = useQuery({
@@ -851,40 +861,40 @@ export default function InboxQueue() {
   })
 
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
-    queryKey: ['drafts', mailbox, 'pending', searchParam],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending', mailbox, q: searchParam } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'pending', searchParam, deptId],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
     enabled: activeTab === 'pending',
   })
 
   const { data: approvedDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'approved', searchParam],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'approved', mailbox, q: searchParam } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'approved', searchParam, deptId],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'approved', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: rejectedDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'rejected', searchParam],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'rejected', mailbox, q: searchParam } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'rejected', searchParam, deptId],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'rejected', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: forwardedDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'forwarded', searchParam],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'forwarded', mailbox, q: searchParam } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'forwarded', searchParam, deptId],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'forwarded', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: spamDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'spam', searchParam],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'spam', mailbox, q: searchParam } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'spam', searchParam, deptId],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'spam', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: binDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'bin', searchParam],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'bin', mailbox, q: searchParam } }).then(r => r.data),
+    queryKey: ['drafts', mailbox, 'bin', searchParam, deptId],
+    queryFn: () => api.get('/inbox/drafts', { params: { status: 'bin', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
@@ -1002,6 +1012,12 @@ export default function InboxQueue() {
                 </button>
               ))}
             </div>
+            {activeDeptName && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700">
+                <Building2 size={13} />
+                Viewing: {activeDeptName}
+              </span>
+            )}
           </div>
           <button
             onClick={() => {

@@ -200,6 +200,20 @@ async def _create_draft(
     # enrich_queued_drafts job, or on demand via POST /drafts/{id}/generate.
     contact = await _match_contact(db, tenant_id, msg.sender)
 
+    # Auto-route: if inbound_to matches a dept email, set forwarded_to_department_id
+    auto_dept_id = None
+    if msg.inbound_to:
+        from app.modules.departments.models import Department as Dept
+        dept_result = await db.execute(
+            select(Dept).where(
+                Dept.tenant_id == tenant_id,
+                Dept.email == msg.inbound_to.lower(),
+            )
+        )
+        found_dept = dept_result.scalar_one_or_none()
+        if found_dept:
+            auto_dept_id = found_dept.id
+
     draft = DraftTicket(
         tenant_id=tenant_id,
         inbound_message_id=msg.id,
@@ -213,6 +227,7 @@ async def _create_draft(
         ai_status="queued" if ai_scan else "done",
         # Pre-fill contact_id from match so agent doesn't have to search
         contact_id=contact.id if contact else None,
+        forwarded_to_department_id=auto_dept_id,
     )
     db.add(draft)
     await db.commit()
@@ -460,6 +475,7 @@ async def count_pending_drafts(
     tenant_id: uuid.UUID,
     inbound_email: Optional[str] = None,
     include_legacy: bool = True,
+    department_id: Optional[uuid.UUID] = None,
 ) -> int:
     now = datetime.now(timezone.utc)
     q = (
@@ -481,6 +497,8 @@ async def count_pending_drafts(
         if include_legacy:
             addr_filter = or_(addr_filter, InboundMessage.inbound_to.is_(None))
         q = q.where(addr_filter)
+    if department_id:
+        q = q.where(DraftTicket.forwarded_to_department_id == department_id)
     result = await db.execute(q)
     return result.scalar_one()
 
@@ -493,6 +511,7 @@ async def list_drafts(
     include_legacy: bool = True,
     search: Optional[str] = None,
     contact_id: Optional[uuid.UUID] = None,
+    department_id: Optional[uuid.UUID] = None,
 ) -> list[tuple[DraftTicket, Optional[str], Optional[str]]]:
     # Always join InboundMessage to include the original email subject and the
     # address the mail was routed to (mailbox diagnostics).
@@ -541,6 +560,9 @@ async def list_drafts(
         q = q.where(
             or_(DraftTicket.contact_id == contact_id, DraftTicket.matched_contact_id == contact_id)
         )
+
+    if department_id:
+        q = q.where(DraftTicket.forwarded_to_department_id == department_id)
 
     result = await db.execute(q.order_by(DraftTicket.created_at.desc()))
     return [(row[0], row[1], row[2]) for row in result.all()]
