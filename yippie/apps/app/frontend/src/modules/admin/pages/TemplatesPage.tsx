@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import EmailEditor, { EditorRef } from 'react-email-editor'
+import GrapesEditor, { GrapesEditorHandle } from '../components/GrapesEditor'
 import { FileText, Loader2, MousePointerClick, Palette, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useSignatures, pickDefaultSignature } from '../../../hooks/useSignatures'
@@ -34,10 +34,6 @@ function newCampaignButton(id: string, text: string): CampaignButton {
   return { id, text, action_type: 'pipeline_stage', label_id: null, stage_id: null, action_value: null }
 }
 
-function stripHtml(text: string): string {
-  return text.replace(/<[^>]*>/g, '').trim()
-}
-
 function extractButtonsFromDesign(design: object): Array<{ id: string; text: string }> {
   const found: Array<{ id: string; text: string }> = []
   function walk(node: unknown) {
@@ -47,13 +43,12 @@ function extractButtonsFromDesign(design: object): Array<{ id: string; text: str
     }
     if (node && typeof node === 'object') {
       const n = node as Record<string, unknown>
-      if (n.type === 'button') {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const values = n.values as any
-        const text = stripHtml(String(values?.text ?? ''))
-        if (text) {
-          found.push({ id: String(values?._meta?.htmlID ?? crypto.randomUUID()), text })
-        }
+      const attrs = n.attributes as Record<string, unknown> | undefined
+      if (attrs?.['data-yippie-button']) {
+        const id = String(attrs['id'] ?? crypto.randomUUID())
+        const content = String(n.content ?? n.components ?? '')
+        const text = content.replace(/<[^>]*>/g, '').trim() || 'Button'
+        if (!found.find(f => f.id === id)) found.push({ id, text })
       }
       Object.values(n).forEach(walk)
     }
@@ -82,7 +77,7 @@ export default function TemplatesPage() {
   const qc = useQueryClient()
   const { data: signatures } = useSignatures()
   const defaultSig = pickDefaultSignature(signatures)
-  const editorRef = useRef<EditorRef>(null)
+  const editorRef = useRef<GrapesEditorHandle>(null)
   const pendingDesignRef = useRef<string | null | undefined>(undefined)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isNew, setIsNew] = useState(false)
@@ -124,26 +119,18 @@ export default function TemplatesPage() {
   }
 
   function loadIntoEditor(designJson: string | null) {
-    const editor = editorRef.current?.editor
+    const editor = editorRef.current
     if (!editor) {
       pendingDesignRef.current = designJson
       return
     }
-    if (designJson) {
-      try {
-        editor.loadDesign(JSON.parse(designJson))
-        return
-      } catch {
-        // fall through to blank canvas on corrupt design JSON
-      }
-    }
-    editor.loadBlank()
+    editor.loadDesign(designJson)
   }
 
   function handleEditorReady() {
     setEditorReady(true)
-    const editor = editorRef.current?.editor
-    editor?.addEventListener('design:updated', () => {
+    const editor = editorRef.current
+    editor?.on('change', () => {
       editor.exportHtml(({ design }) => {
         syncButtonsFromDesign(design)
       })
@@ -220,7 +207,7 @@ export default function TemplatesPage() {
   })
 
   function handleSave() {
-    const editor = editorRef.current?.editor
+    const editor = editorRef.current
     if (!editor || saving) return
     if (!name.trim()) { setSaveError('Template name is required'); return }
     setSaveError('')
@@ -354,19 +341,7 @@ export default function TemplatesPage() {
                 </div>
               )}
               {editorEverOpened && (
-                <EmailEditor
-                  ref={editorRef}
-                  onReady={handleEditorReady}
-                  minHeight="100%"
-                  options={{
-                    features: { textEditor: { spellChecker: true } },
-                    appearance: {
-                      theme: 'classic_light',
-                      panels: { tools: { dock: 'left' } },
-                    },
-                    editor: { confirmOnDelete: false },
-                  }}
-                />
+                <GrapesEditor ref={editorRef} onReady={handleEditorReady} />
               )}
             </div>
 
@@ -384,7 +359,7 @@ export default function TemplatesPage() {
               )}
             </div>
 
-            {/* Button label config — auto-detected from Unlayer button blocks */}
+            {/* Button label config — auto-detected from GrapesJS button blocks */}
             <div className="mx-5 mb-5 mt-3 shrink-0 border border-slate-200 rounded-xl bg-white overflow-y-auto max-h-[200px]">
               <div className="px-4 py-2 border-b border-slate-100 flex items-center gap-2">
                 <MousePointerClick size={13} className="text-blue-500" />

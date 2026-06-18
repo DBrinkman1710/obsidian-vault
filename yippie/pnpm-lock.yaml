@@ -35,6 +35,12 @@ importers:
       dompurify:
         specifier: ^3.4.10
         version: 3.4.10
+      grapesjs:
+        specifier: ^0.23.2
+        version: 0.23.2
+      grapesjs-preset-newsletter:
+        specifier: ^1.0.2
+        version: 1.0.2
       lucide-react:
         specifier: ^0.468.0
         version: 0.468.0(react@18.3.1)
@@ -44,9 +50,6 @@ importers:
       react-dom:
         specifier: ^18.3.1
         version: 18.3.1(react@18.3.1)
-      react-email-editor:
-        specifier: ^1.8.0
-        version: 1.8.0(react@18.3.1)
       react-router-dom:
         specifier: ^6.27.0
         version: 6.30.4(react-dom@18.3.1(react@18.3.1))(react@18.3.1)
@@ -619,12 +622,18 @@ packages:
   '@types/babel__traverse@7.28.0':
     resolution: {integrity: sha512-8PvcXf70gTDZBgt9ptxJ8elBeBjcLOAcOtoO/mPJjtji1+CdGbHgm77om1GrsPxsiE+uXIpNSK64UYaIwQXd4Q==}
 
+  '@types/backbone@1.4.15':
+    resolution: {integrity: sha512-WWeKtYlsIMtDyLbbhkb96taJMEbfQBnuz7yw1u0pkphCOtksemoWhIXhK74VRCY9hbjnsH3rsJu2uUiFtnsEYg==}
+
   '@types/dompurify@3.2.0':
     resolution: {integrity: sha512-Fgg31wv9QbLDA0SpTOXO3MaxySc4DKGLi8sna4/Utjo4r3ZRPdCt4UQee8BWr+Q5z21yifghREPJGYaEOEIACg==}
     deprecated: This is a stub types definition. dompurify provides its own type definitions, so you do not need this installed.
 
   '@types/estree@1.0.9':
     resolution: {integrity: sha512-GhdPgy1el4/ImP05X05Uw4cw2/M93BCUmnEvWZNStlCzEKME4Fkk+YpoA5OiHNQmoS7Cafb8Xa3Pya8m1Qrzeg==}
+
+  '@types/jquery@4.0.1':
+    resolution: {integrity: sha512-9a59A/tycXgYuPABcp6/3spSShn0NT2UOM4EfHvMumjYi4lJWTsK5SZWjhx3yRm9IHGCeWXdV2YfNsrWrft/CA==}
 
   '@types/node@20.19.41':
     resolution: {integrity: sha512-ECymXOukMnOoVkC2bb1Vc/w/836DXncOg5m8Xj1RH7xSHZJWNYY6Zh7EH477vcnD5egKNNfy2RpNOmuChhFPgQ==}
@@ -643,8 +652,8 @@ packages:
   '@types/trusted-types@2.0.7':
     resolution: {integrity: sha512-ScaPdn1dQczgbl0QFTeTOmVHFULt394XJgOQNoyVhZ6r2vLnMLJfBPd53SB52T/3G36VI1/g2MZaX0cwDuXsfw==}
 
-  '@unlayer/types@1.428.0':
-    resolution: {integrity: sha512-2Y24e4jg7+oUiYXnXBJPfe/AMNLQE9lOvqNIt3WRaAkdmbON93MDGtOPVdcgwKWIVnEpVjxeTrNprTVwe1x17g==}
+  '@types/underscore@1.13.0':
+    resolution: {integrity: sha512-L6LBgy1f0EFQZ+7uSA57+n2g/s4Qs5r06Vwrwn0/nuK1de+adz00NWaztRQ30aEqw5qOaWbPI8u2cGQ52lj6VA==}
 
   '@vitejs/plugin-react@4.7.0':
     resolution: {integrity: sha512-gUu9hwfWvvEDBBmgtAowQCojwZmJ5mcLn3aufeCsitijs3+f2NsrPtlAWIR6OPiqljl96GVCUbLe0HyqIpVaoA==}
@@ -712,6 +721,13 @@ packages:
   axios@1.17.0:
     resolution: {integrity: sha512-J8SwNxprqqpbfenehxWYXE7CW+wM1BB4w3+N+g+/Wx40xM4rsLrfPmHHxSWIxJLYDgSY/HqlFPIYb2/S3rxafw==}
 
+  backbone-undo@0.2.6:
+    resolution: {integrity: sha512-AsfpNiljLXlk7TcffDUu3EAUq7CxWbyTNwARWrql5XTzN4vh6WzEEBZYaKK4kTTz+iW1tSzqUooaGRIwO83kWA==}
+    deprecated: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+
+  backbone@1.4.1:
+    resolution: {integrity: sha512-ADy1ztN074YkWbHi8ojJVFe3vAanO/lrzMGZWUClIP7oDD/Pjy2vrASraUP+2EVCfIiTtCW4FChVow01XneivA==}
+
   baseline-browser-mapping@2.10.37:
     resolution: {integrity: sha512-girxaJ7WZssDOFhzCGZTDKoTa1gk6A1TbflaYTpykLJ4UU9Fz9kx1aREM8JCuoVHbL8X8T/mJg7w2oYSq72Oig==}
     engines: {node: '>=6.0.0'}
@@ -767,6 +783,12 @@ packages:
   clsx@2.1.1:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
+
+  codemirror-formatting@1.0.0:
+    resolution: {integrity: sha512-br9yM6eJI3pJHekEnoyHaBEb1B7XxxDjju+vRyBe8QGLp5saTIXXkZ+eFCTqXSAtI8QEZDFVEX2/SOjH2sVWRQ==}
+
+  codemirror@5.63.0:
+    resolution: {integrity: sha512-KlLWRPggDg2rBD1Mx7/EqEhaBdy+ybBCVh/efgjBDsPpMeEu6MbTAJzIT4TuCzvmbTEgvKOGzVT6wdBTNusqrg==}
 
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
@@ -934,6 +956,12 @@ packages:
   graceful-fs@4.2.11:
     resolution: {integrity: sha512-RbJ5/jmFcNNCcDV5o9eTnBLJ/HszWV0P73bc+Ff4nS/rJj+YaS6IGyiOL0VoBYX+l1Wrl3k63h/KrH+nhJ0XvQ==}
 
+  grapesjs-preset-newsletter@1.0.2:
+    resolution: {integrity: sha512-z8KJ1ZrTXfASSJZ/tHOcnpcWu4AMr2F/ZfQit+QjimNi3UGowwl7+Yjefuh3R7lbDTrXMMaxhCannCaJo/kPJw==}
+
+  grapesjs@0.23.2:
+    resolution: {integrity: sha512-Td2eitWTlrmVRmzrQ1oysY3vqPT0XRuKqYAAog84rKJrHoG7sGOXWwPlPsq0tPLgXYnmL3GPCRy4dYxWp18n4Q==}
+
   has-symbols@1.1.0:
     resolution: {integrity: sha512-1cDNdwJ2Jaohmb3sg4OmKaMBwuC48sYni5HUw2DvsC8LjGTLK9h+eb1X6RyuOHe4hT0ULCW68iomhjUoKUqlPQ==}
     engines: {node: '>= 0.4'}
@@ -945,6 +973,9 @@ packages:
   hasown@2.0.4:
     resolution: {integrity: sha512-T2UbfbBEF32wiepXIsMlTW9+dDYC6wMh/t/vYA4tuOMKqWz/n3vr1NFSxQiyP+zk2mXsoMA/i/7qV6LKut1t1A==}
     engines: {node: '>= 0.4'}
+
+  html-entities@1.4.0:
+    resolution: {integrity: sha512-8nxjcBcd8wovbeKx7h3wTji4e6+rhaVuPNpMqwWgnHh+N9ToqsCs6XztWRBPQ+UtzsoMAdKZtUENoVzU/EMtZA==}
 
   https-proxy-agent@5.0.1:
     resolution: {integrity: sha512-dFcAjpTQFgoLMzC2VwU+C/CbS7uRL0lWmxDITmqm7C+7F0Odmj6s9l6alZc6AELXhrnggM2CeWSXHGOdX2YtwA==}
@@ -1167,6 +1198,9 @@ packages:
     resolution: {integrity: sha512-FfR8sjd4em2T6fb3I2MwAJU7HWVMr9zba+enmQeeWFfCbm+UOC/0X4DS8XtpUTMwWMGbjKYP7xjfNekzyGmB3A==}
     engines: {node: ^10 || ^12 || >=14}
 
+  promise-polyfill@8.3.0:
+    resolution: {integrity: sha512-H5oELycFml5yto/atYqmjyigJoAo3+OXwolYiH7OfQuYlAqhxNvTfiNMbV9hsC6Yp83yE5r2KTVmtrG6R9i6Pg==}
+
   proxy-from-env@2.1.0:
     resolution: {integrity: sha512-cJ+oHTW1VAEa8cJslgmUZrc+sjRKgAKl3Zyse6+PV38hZe/V6Z14TbCuXcan9F9ghlz4QrFr2c92TNF82UkYHA==}
     engines: {node: '>=10'}
@@ -1178,12 +1212,6 @@ packages:
     resolution: {integrity: sha512-5m4nQKp+rZRb09LNH59GM4BxTh9251/ylbKIbpe7TpGxfJ+9kv6BLkLBXIjjspbgbnIBNqlI23tRnTWT0snUIw==}
     peerDependencies:
       react: ^18.3.1
-
-  react-email-editor@1.8.0:
-    resolution: {integrity: sha512-wauG/fES4k3VueIYVvsnxL+6+AAOw8oG3r1QlQclnC2aErpsjJSDmYgQRmDBhkts0QTKJf4uPiXOd3OxPv50OA==}
-    engines: {node: '>=10'}
-    peerDependencies:
-      react: '>=15'
 
   react-refresh@0.17.0:
     resolution: {integrity: sha512-z6F7K9bV85EfseRCp2bzrpyQ0Gkw1uLoCel9XBVWPg/TjRj94SkJzUTGfOa4bs7iJvBWtQG0Wq7wnI0syw3EBQ==}
@@ -1337,6 +1365,9 @@ packages:
     resolution: {integrity: sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw==}
     engines: {node: '>=14.17'}
     hasBin: true
+
+  underscore@1.13.8:
+    resolution: {integrity: sha512-DXtD3ZtEQzc7M8m4cXotyHR+FAS18C64asBYY5vqZexfYryNNnDc02W4hKg3rdQuqOYas1jkseX0+nZXjTXnvQ==}
 
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
@@ -1820,11 +1851,18 @@ snapshots:
     dependencies:
       '@babel/types': 7.29.7
 
+  '@types/backbone@1.4.15':
+    dependencies:
+      '@types/jquery': 4.0.1
+      '@types/underscore': 1.13.0
+
   '@types/dompurify@3.2.0':
     dependencies:
       dompurify: 3.4.10
 
   '@types/estree@1.0.9': {}
+
+  '@types/jquery@4.0.1': {}
 
   '@types/node@20.19.41':
     dependencies:
@@ -1844,7 +1882,7 @@ snapshots:
   '@types/trusted-types@2.0.7':
     optional: true
 
-  '@unlayer/types@1.428.0': {}
+  '@types/underscore@1.13.0': {}
 
   '@vitejs/plugin-react@4.7.0(vite@5.4.21(@types/node@20.19.41))':
     dependencies:
@@ -1936,6 +1974,15 @@ snapshots:
       - debug
       - supports-color
 
+  backbone-undo@0.2.6:
+    dependencies:
+      backbone: 1.4.1
+      underscore: 1.13.8
+
+  backbone@1.4.1:
+    dependencies:
+      underscore: 1.13.8
+
   baseline-browser-mapping@2.10.37: {}
 
   binary-extensions@2.3.0: {}
@@ -1992,6 +2039,10 @@ snapshots:
   client-only@0.0.1: {}
 
   clsx@2.1.1: {}
+
+  codemirror-formatting@1.0.0: {}
+
+  codemirror@5.63.0: {}
 
   combined-stream@1.0.8:
     dependencies:
@@ -2154,6 +2205,19 @@ snapshots:
 
   graceful-fs@4.2.11: {}
 
+  grapesjs-preset-newsletter@1.0.2: {}
+
+  grapesjs@0.23.2:
+    dependencies:
+      '@types/backbone': 1.4.15
+      backbone: 1.4.1
+      backbone-undo: 0.2.6
+      codemirror: 5.63.0
+      codemirror-formatting: 1.0.0
+      html-entities: 1.4.0
+      promise-polyfill: 8.3.0
+      underscore: 1.13.8
+
   has-symbols@1.1.0: {}
 
   has-tostringtag@1.0.2:
@@ -2163,6 +2227,8 @@ snapshots:
   hasown@2.0.4:
     dependencies:
       function-bind: 1.1.2
+
+  html-entities@1.4.0: {}
 
   https-proxy-agent@5.0.1:
     dependencies:
@@ -2342,6 +2408,8 @@ snapshots:
       picocolors: 1.1.1
       source-map-js: 1.2.1
 
+  promise-polyfill@8.3.0: {}
+
   proxy-from-env@2.1.0: {}
 
   queue-microtask@1.2.3: {}
@@ -2351,11 +2419,6 @@ snapshots:
       loose-envify: 1.4.0
       react: 18.3.1
       scheduler: 0.23.2
-
-  react-email-editor@1.8.0(react@18.3.1):
-    dependencies:
-      '@unlayer/types': 1.428.0
-      react: 18.3.1
 
   react-refresh@0.17.0: {}
 
@@ -2536,6 +2599,8 @@ snapshots:
       '@turbo/windows-arm64': 2.9.16
 
   typescript@5.9.3: {}
+
+  underscore@1.13.8: {}
 
   undici-types@6.21.0: {}
 
