@@ -771,9 +771,9 @@ function EditClientModal({
                       <button
                         type="button"
                         onClick={() => toggleUserMutation.mutate({ userId: u.id, is_active: !u.is_active })}
-                        disabled={toggleUserMutation.isPending}
-                        className="text-slate-400 hover:text-slate-600 transition-colors shrink-0 disabled:opacity-50"
-                        title={u.is_active ? 'Deactivate' : 'Activate'}
+                        disabled={toggleUserMutation.isPending || u.role === 'superadmin'}
+                        className="text-slate-400 hover:text-slate-600 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
+                        title={u.role === 'superadmin' ? 'Superadmins cannot be deactivated' : u.is_active ? 'Deactivate' : 'Activate'}
                       >
                         {u.is_active
                           ? <ToggleRight size={16} className="text-emerald-500" />
