@@ -50,6 +50,9 @@ class Tenant(Base):
     # Auto-close stale tickets in "waiting" status after this many days without an
     # update. Per-tenant; the hourly scheduler job reads it (see sla_escalation.py).
     auto_close_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="7")
+    # Solved live-chat sessions drop off the active list after this many hours.
+    # Display filter only — messages are retained permanently.
+    hide_solved_chats_hours: Mapped[int] = mapped_column(Integer, nullable=False, server_default="72")
     # When False (default) the inbox AI never runs automatically — agents click the
     # Generate button per draft. Set True to restore the old auto-scan-on-arrival
     # behaviour (background enrich_queued_drafts job). Editable via superadmin modal.

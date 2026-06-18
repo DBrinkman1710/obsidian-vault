@@ -5,7 +5,7 @@ import json
 import logging
 import random
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 import httpx
@@ -47,33 +47,7 @@ webhook_router = APIRouter(prefix="/chat", tags=["chat"])
 # REST endpoints (authenticated)
 # ---------------------------------------------------------------------------
 
-@router.get("/sessions")
-async def list_sessions(current_user: CurrentUser, db: DB):
-    result = await db.execute(
-        select(ChatSession)
-        .where(ChatSession.tenant_id == current_user.tenant_id)
-        .order_by(ChatSession.started_at.desc())
-        .limit(100)
-    )
-    sessions = result.scalars().all()
-    return [
-        {
-            "id": str(s.id),
-            "source": s.source,
-            "visitor_id": s.visitor_id,
-            "visitor_name": s.visitor_name,
-            "visitor_email": s.visitor_email,
-            "whatsapp_phone": s.whatsapp_phone,
-            "is_open": s.is_open,
-            "unread_count": s.unread_count,
-            "started_at": s.started_at.isoformat(),
-            "ended_at": s.ended_at.isoformat() if s.ended_at else None,
-        }
-        for s in sessions
-    ]
-
-
-def _session_dict(s: ChatSession) -> dict:
+def _session_dict(s: ChatSession, assignee_name: str | None = None) -> dict:
     return {
         "id": str(s.id),
         "source": s.source,
@@ -83,11 +57,64 @@ def _session_dict(s: ChatSession) -> dict:
         "whatsapp_phone": s.whatsapp_phone,
         "contact_id": str(s.contact_id) if s.contact_id else None,
         "ticket_id": str(s.ticket_id) if s.ticket_id else None,
+        "status": s.status,
+        "assigned_to": str(s.assigned_to) if s.assigned_to else None,
+        "assigned_to_name": assignee_name,
+        "solved_at": s.solved_at.isoformat() if s.solved_at else None,
         "is_open": s.is_open,
         "unread_count": s.unread_count,
         "started_at": s.started_at.isoformat(),
         "ended_at": s.ended_at.isoformat() if s.ended_at else None,
     }
+
+
+@router.get("/sessions")
+async def list_sessions(
+    current_user: CurrentUser,
+    db: DB,
+    filter: str = "all",
+    contact_id: Optional[uuid.UUID] = None,
+    status_filter: Optional[str] = None,
+):
+    """List chat sessions.
+
+    filter: "mine" (assigned to me) | "open" (unassigned & open) | "all" (default).
+    Solved sessions auto-hide from the active list after the tenant's
+    hide_solved_chats_hours window — messages are retained, this is display only.
+    contact_id / status_filter: used by the contact chat-history panel.
+    """
+    stmt = select(ChatSession).where(ChatSession.tenant_id == current_user.tenant_id)
+
+    if contact_id is not None:
+        stmt = stmt.where(ChatSession.contact_id == contact_id)
+    if status_filter is not None:
+        stmt = stmt.where(ChatSession.status == status_filter)
+
+    if contact_id is None and status_filter is None:
+        if filter == "mine":
+            stmt = stmt.where(ChatSession.assigned_to == current_user.id)
+        elif filter == "open":
+            stmt = stmt.where(ChatSession.status == "open")
+
+        tenant = await db.get(Tenant, current_user.tenant_id)
+        hours = tenant.hide_solved_chats_hours if tenant else 72
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=hours)
+        stmt = stmt.where(
+            (ChatSession.status != "solved")
+            | (ChatSession.solved_at.is_(None))
+            | (ChatSession.solved_at >= cutoff)
+        )
+
+    result = await db.execute(stmt.order_by(ChatSession.started_at.desc()).limit(100))
+    sessions = result.scalars().all()
+
+    assignee_ids = {s.assigned_to for s in sessions if s.assigned_to}
+    names: dict[uuid.UUID, str] = {}
+    if assignee_ids:
+        urows = await db.execute(select(User.id, User.full_name).where(User.id.in_(assignee_ids)))
+        names = {uid: name for uid, name in urows.all()}
+
+    return [_session_dict(s, names.get(s.assigned_to) if s.assigned_to else None) for s in sessions]
 
 
 async def _find_or_create_open_session(
@@ -212,6 +239,8 @@ async def reply_to_session(
         raise HTTPException(status_code=404, detail="Session not found")
     if not session.is_open:
         raise HTTPException(status_code=409, detail="Session is closed")
+    if session.assigned_to and session.assigned_to != current_user.id:
+        raise HTTPException(status_code=409, detail="Session is assigned to another agent")
 
     text = payload.body.strip()
     if not text:
@@ -273,6 +302,7 @@ async def close_session(session_id: uuid.UUID, current_user: CurrentUser, db: DB
 
 class PatchSessionBody(BaseModel):
     ticket_id: Optional[uuid.UUID] = None
+    contact_id: Optional[uuid.UUID] = None
 
 
 @router.patch("/sessions/{session_id}", status_code=status.HTTP_200_OK)
@@ -288,9 +318,194 @@ async def patch_session(session_id: uuid.UUID, body: PatchSessionBody, current_u
         raise HTTPException(status_code=404, detail="Session not found")
     if body.ticket_id is not None:
         session.ticket_id = body.ticket_id
+        session.status = "ticket"
+    if body.contact_id is not None:
+        contact = await db.get(Contact, body.contact_id)
+        if not contact or contact.tenant_id != current_user.tenant_id:
+            raise HTTPException(status_code=404, detail="Contact not found")
+        session.contact_id = body.contact_id
+        if not session.visitor_name:
+            session.visitor_name = contact.full_name
     await db.commit()
     await db.refresh(session)
+    await _broadcast_session_update(current_user.tenant_id, session.id)
     return _session_dict(session)
+
+
+async def _broadcast_session_update(tenant_id: uuid.UUID, session_id: uuid.UUID) -> None:
+    await manager.broadcast_to_agents(
+        str(tenant_id), {"event": "session_update", "session_id": str(session_id)}
+    )
+
+
+class AssignBody(BaseModel):
+    assigned_to: Optional[uuid.UUID] = None
+
+
+@router.post("/sessions/{session_id}/assign", status_code=status.HTTP_200_OK)
+async def assign_session(session_id: uuid.UUID, body: AssignBody, current_user: CurrentUser, db: DB):
+    """Assign (or unassign) a session. assigned_to=null returns it to the open pool."""
+    sess_result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.tenant_id == current_user.tenant_id,
+        )
+    )
+    session = sess_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if body.assigned_to is not None:
+        agent = await db.get(User, body.assigned_to)
+        if not agent or agent.tenant_id != current_user.tenant_id:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        session.assigned_to = body.assigned_to
+        if session.status in ("open", "assigned"):
+            session.status = "assigned"
+    else:
+        session.assigned_to = None
+        if session.status == "assigned":
+            session.status = "open"
+
+    await db.commit()
+    await db.refresh(session)
+    await _broadcast_session_update(current_user.tenant_id, session.id)
+    name = None
+    if session.assigned_to:
+        name = await db.scalar(select(User.full_name).where(User.id == session.assigned_to))
+    return _session_dict(session, name)
+
+
+@router.post("/sessions/{session_id}/claim", status_code=status.HTTP_200_OK)
+async def claim_session(session_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    """Auto-assign to the current agent when they open an unassigned session."""
+    sess_result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.tenant_id == current_user.tenant_id,
+        )
+    )
+    session = sess_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    if session.assigned_to is None and session.status == "open":
+        session.assigned_to = current_user.id
+        session.status = "assigned"
+        await db.commit()
+        await db.refresh(session)
+        await _broadcast_session_update(current_user.tenant_id, session.id)
+
+    name = None
+    if session.assigned_to:
+        name = await db.scalar(select(User.full_name).where(User.id == session.assigned_to))
+    return _session_dict(session, name)
+
+
+class StatusBody(BaseModel):
+    status: str
+
+
+@router.post("/sessions/{session_id}/status", status_code=status.HTTP_200_OK)
+async def set_session_status(session_id: uuid.UUID, body: StatusBody, current_user: CurrentUser, db: DB):
+    if body.status not in ("open", "assigned", "solved", "ticket"):
+        raise HTTPException(status_code=400, detail="Invalid status")
+    sess_result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.tenant_id == current_user.tenant_id,
+        )
+    )
+    session = sess_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    session.status = body.status
+    if body.status == "solved":
+        session.solved_at = datetime.now(timezone.utc)
+    elif body.status == "open":
+        session.solved_at = None
+        session.assigned_to = None
+    await db.commit()
+    await db.refresh(session)
+    await _broadcast_session_update(current_user.tenant_id, session.id)
+    name = None
+    if session.assigned_to:
+        name = await db.scalar(select(User.full_name).where(User.id == session.assigned_to))
+    return _session_dict(session, name)
+
+
+class ChatSettingsBody(BaseModel):
+    hide_solved_chats_hours: int
+
+
+@router.get("/settings")
+async def get_chat_settings(current_user: CurrentUser, db: DB):
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return {"hide_solved_chats_hours": tenant.hide_solved_chats_hours}
+
+
+@router.patch("/settings", status_code=status.HTTP_200_OK)
+async def update_chat_settings(body: ChatSettingsBody, current_user: CurrentUser, db: DB):
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    hours = max(1, min(body.hide_solved_chats_hours, 8760))
+    tenant.hide_solved_chats_hours = hours
+    await db.commit()
+    return {"hide_solved_chats_hours": hours}
+
+
+@router.get("/agents")
+async def list_chat_agents(current_user: CurrentUser, db: DB):
+    rows = await db.execute(
+        select(User.id, User.full_name)
+        .where(User.tenant_id == current_user.tenant_id, User.is_active == True)  # noqa: E712
+        .order_by(User.full_name)
+    )
+    return [{"id": str(uid), "full_name": name} for uid, name in rows.all()]
+
+
+class NoteBody(BaseModel):
+    body: str
+
+
+@router.post("/sessions/{session_id}/note", status_code=status.HTTP_201_CREATED)
+async def add_note(session_id: uuid.UUID, payload: NoteBody, current_user: CurrentUser, db: DB):
+    """Internal agent note — stored as a ChatMessage with sender_type='note',
+    never dispatched to WhatsApp."""
+    sess_result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.tenant_id == current_user.tenant_id,
+        )
+    )
+    session = sess_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    text = payload.body.strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="body must not be empty")
+
+    msg = ChatMessage(
+        tenant_id=current_user.tenant_id,
+        session_id=session.id,
+        sender_type="note",
+        sender_id=str(current_user.id),
+        body=text,
+    )
+    db.add(msg)
+    await db.commit()
+    await db.refresh(msg)
+
+    await manager.broadcast_to_agents(
+        str(current_user.tenant_id),
+        {"event": "message", "session_id": str(session_id), "sender_type": "note", "body": text},
+    )
+    return {"id": str(msg.id), "sender_type": "note", "body": msg.body, "created_at": msg.created_at.isoformat()}
 
 
 @router.post("/sessions/{session_id}/read", status_code=status.HTTP_200_OK)
@@ -536,6 +751,7 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
             "sender_id": result["visitor_id"],
             "body": result["body"],
             "created_at": result["created_at"],
+            "assigned_to": result.get("assigned_to"),
         }
         await manager.broadcast_to_agents(tenant_key, event_data)
         if result["is_new_session"]:

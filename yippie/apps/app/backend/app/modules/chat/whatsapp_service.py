@@ -220,4 +220,5 @@ async def handle_incoming_webhook(
         "created_at": msg.created_at.isoformat(),
         "unread_count": session.unread_count,
         "is_new_session": is_new_session,
+        "assigned_to": str(session.assigned_to) if session.assigned_to else None,
     }

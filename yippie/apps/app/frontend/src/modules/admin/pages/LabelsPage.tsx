@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { GripVertical, Layers, Palette, Building2, Plus, Settings2, Trash2 } from 'lucide-react'
+import { GripVertical, Layers, MessageSquare, Palette, Building2, Plus, Settings2, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
@@ -72,6 +72,57 @@ function OrgDetailsCard() {
       >
         {mutation.isPending ? 'Saving…' : 'Save'}
       </button>
+    </div>
+  )
+}
+
+function LiveChatSettingsCard() {
+  const [hours, setHours] = useState('')
+
+  const { data } = useQuery({
+    queryKey: ['chat-settings'],
+    queryFn: () => api.get('/chat/settings').then(r => r.data),
+  })
+  useEffect(() => {
+    if (data) setHours(String(data.hide_solved_chats_hours ?? 72))
+  }, [data])
+
+  const mutation = useMutation({
+    mutationFn: () => api.patch('/chat/settings', { hide_solved_chats_hours: Number(hours) }),
+    onSuccess: () => toast.success('Live chat settings saved'),
+    onError: () => toast.error('Failed to save'),
+  })
+
+  const dirty = hours !== String(data?.hide_solved_chats_hours ?? '')
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+      <div className="flex items-center gap-2 mb-4">
+        <MessageSquare size={16} className="text-slate-400" />
+        <h2 className="text-base font-semibold text-slate-900">Live Chat</h2>
+      </div>
+      <p className="text-sm text-slate-500 mb-4">
+        Solved conversations drop off the active list after this window. Messages are kept permanently — this only hides them from view.
+      </p>
+      <div className="flex items-end gap-3">
+        <div>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Hide solved chats after (hours)</label>
+          <input
+            type="number"
+            min={1}
+            value={hours}
+            onChange={e => setHours(e.target.value)}
+            className="w-40 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+          />
+        </div>
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending || !dirty || !hours}
+          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
+        >
+          {mutation.isPending ? 'Saving…' : 'Save'}
+        </button>
+      </div>
     </div>
   )
 }
@@ -276,6 +327,7 @@ export default function LabelsPage() {
         </div>
         {mutation.isError && <p className="mt-2 text-xs text-red-500">Failed to save — try again.</p>}
       </div>
+      {isAdmin && <LiveChatSettingsCard />}
       {isAdmin && <KanbanStagesPanel />}
     </div>
   )
