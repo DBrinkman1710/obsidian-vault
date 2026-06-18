@@ -603,11 +603,20 @@ async def twilio_webhook(tenant_slug: str, request: Request, db: WDB):
     client in Twilio: https://{env}.getyippie.com/api/v1/inbox/webhooks/{slug}/whatsapp"""
     form = await request.form()
     tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
+    tenant = await db.get(Tenant, tenant_id)
+    # Only auto-scan when the tenant has the AI module AND opted into auto-scan;
+    # otherwise the draft arrives un-scanned and the agent clicks Generate.
+    ai_scan = (
+        tenant is not None
+        and "ai" in (tenant.enabled_modules or [])
+        and bool(tenant.ai_auto_scan)
+    )
     await service.ingest_whatsapp(
         db=db,
         tenant_id=tenant_id,
         sender=str(form.get("From", "")),
         body=str(form.get("Body", "")),
         sender_name=str(form.get("ProfileName", "")) or None,
+        ai_scan=ai_scan,
     )
     return {"status": "ok"}

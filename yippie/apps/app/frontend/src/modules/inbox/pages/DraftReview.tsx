@@ -290,6 +290,10 @@ export default function DraftReview() {
   const draft = ctx?.draft
   const aiQueued = draft?.ai_status === 'queued'
   const aiFailed = draft?.ai_status === 'failed'
+  // Explicit mode (ai_auto_scan off): the draft arrives un-scanned (status 'done',
+  // no briefing). The agent invokes AI on demand via the Generate button instead
+  // of it running automatically on arrival.
+  const aiNotRun = draft?.ai_status === 'done' && !draft?.context_summary
   const msg = ctx?.inbound_message
   const contact = ctx?.contact
   const recentTickets: any[] = ctx?.recent_tickets ?? []
@@ -361,7 +365,9 @@ export default function DraftReview() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['draft', id] })
       qc.invalidateQueries({ queryKey: ['drafts'] })
+      toast.success('AI suggestion generated.')
     },
+    onError: () => toast.error('AI generation failed — please try again.'),
   })
 
   const reviewMutation = useMutation({
@@ -767,6 +773,21 @@ export default function DraftReview() {
                 <p className="text-xs text-blue-400 animate-pulse">AI is analyzing this email…</p>
               </div>
             )}
+            {aiEnabled && (aiNotRun || aiFailed) && !isProcessed && (
+              <div className="rounded-2xl bg-violet-50 border border-violet-100 p-4 flex items-center justify-between gap-2 flex-wrap">
+                <p className="text-xs text-violet-600">
+                  {aiFailed ? 'AI analysis failed — tap to retry.' : 'Generate AI suggestions & a customer briefing.'}
+                </p>
+                <button
+                  onClick={() => generateMutation.mutate()}
+                  disabled={generateMutation.isPending}
+                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-100 border border-violet-200 rounded-lg px-3 py-1.5 hover:bg-violet-200 transition-colors disabled:opacity-50 cursor-pointer"
+                >
+                  <Sparkles size={11} />
+                  {generateMutation.isPending ? 'Generating…' : (aiFailed ? 'Generate now' : 'Generate AI suggestion')}
+                </button>
+              </div>
+            )}
 
             {/* Draft ticket fields — pending only */}
             {!isProcessed && (
@@ -1090,12 +1111,14 @@ export default function DraftReview() {
                   <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Ticket</span>
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {aiEnabled && (aiQueued || aiFailed) && (
+                  {aiEnabled && (aiQueued || aiFailed || aiNotRun) && (
                     <div className="rounded-xl bg-violet-50 border border-violet-100 p-3 flex items-center justify-between gap-2 flex-wrap">
                       {aiQueued ? (
                         <p className="text-xs text-violet-600 animate-pulse">AI is analyzing this email — suggestions will fill in automatically.</p>
-                      ) : (
+                      ) : aiFailed ? (
                         <p className="text-xs text-violet-600">AI analysis failed — the raw email is shown instead.</p>
+                      ) : (
+                        <p className="text-xs text-violet-600">Generate AI suggestions for subject, priority &amp; a customer briefing.</p>
                       )}
                       <button
                         onClick={() => generateMutation.mutate()}
@@ -1103,7 +1126,7 @@ export default function DraftReview() {
                         className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-100 border border-violet-200 rounded-lg px-3 py-1.5 hover:bg-violet-200 transition-colors disabled:opacity-50 cursor-pointer"
                       >
                         <Sparkles size={11} />
-                        {generateMutation.isPending ? 'Generating…' : 'Generate now'}
+                        {generateMutation.isPending ? 'Generating…' : (aiNotRun ? 'Generate AI suggestion' : 'Generate now')}
                       </button>
                     </div>
                   )}

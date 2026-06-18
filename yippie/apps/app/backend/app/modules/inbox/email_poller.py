@@ -205,7 +205,11 @@ async def poll_inbound_emails() -> None:
                         fallback_tenant_id = result.scalar_one_or_none()
                     if fallback_tenant_id:
                         t = await db.get(Tenant, fallback_tenant_id)
-                        fallback_ai_scan = t is not None and "ai" in (t.enabled_modules or [])
+                        fallback_ai_scan = (
+                            t is not None
+                            and "ai" in (t.enabled_modules or [])
+                            and bool(t.ai_auto_scan)
+                        )
                     else:
                         fallback_ai_scan = False
 

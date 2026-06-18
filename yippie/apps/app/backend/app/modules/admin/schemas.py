@@ -39,6 +39,7 @@ class TenantUpdate(BaseModel):
     whatsapp_phone_number_id: Optional[str] = None
     whatsapp_access_token: Optional[str] = None
     whatsapp_verify_token: Optional[str] = None
+    ai_auto_scan: Optional[bool] = None
 
 
 class TenantOut(BaseModel):
@@ -58,6 +59,7 @@ class TenantOut(BaseModel):
     whatsapp_phone_number_id: Optional[str]
     whatsapp_access_token: Optional[str]
     whatsapp_verify_token: Optional[str]
+    ai_auto_scan: bool = False
     user_count: int
     created_at: datetime
 

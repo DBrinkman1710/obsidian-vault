@@ -69,3 +69,6 @@ class TenantConfigOut(BaseModel):
     # à la carte module add-on prices (euros/month), surfaced for in-app upsell.
     plan_limits: dict = {}
     module_prices: dict = {}
+    # When False (default) the inbox AI never runs automatically — agents click
+    # Generate per draft. True restores auto-scan-on-arrival.
+    ai_auto_scan: bool = False

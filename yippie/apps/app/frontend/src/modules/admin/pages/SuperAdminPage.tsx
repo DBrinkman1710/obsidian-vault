@@ -38,6 +38,7 @@ interface Tenant {
   whatsapp_phone_number_id: string | null
   whatsapp_access_token: string | null
   whatsapp_verify_token: string | null
+  ai_auto_scan: boolean
   user_count: number
   created_at: string
 }
@@ -456,6 +457,7 @@ function EditClientModal({
     whatsapp_phone_number_id: tenant.whatsapp_phone_number_id ?? '',
     whatsapp_access_token: tenant.whatsapp_access_token ?? '',
     whatsapp_verify_token: tenant.whatsapp_verify_token ?? '',
+    ai_auto_scan: tenant.ai_auto_scan ?? false,
   })
   const [error, setError] = useState('')
   const [showAddAdmin, setShowAddAdmin] = useState(false)
@@ -501,6 +503,7 @@ function EditClientModal({
     if (waToken !== tenant.whatsapp_access_token) patch.whatsapp_access_token = waToken
     const waVerify = form.whatsapp_verify_token.trim() || null
     if (waVerify !== tenant.whatsapp_verify_token) patch.whatsapp_verify_token = waVerify
+    if (form.ai_auto_scan !== tenant.ai_auto_scan) patch.ai_auto_scan = form.ai_auto_scan
     if (Object.keys(patch).length === 0) { onClose(); return }
     setError('')
     mutation.mutate(patch)
@@ -612,6 +615,21 @@ function EditClientModal({
                   />
                 </div>
               </div>
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={form.ai_auto_scan}
+                  onChange={e => setForm(p => ({ ...p, ai_auto_scan: e.target.checked }))}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-slate-800">Auto-run inbox AI</span>
+                  <span className="block text-xs text-slate-400 mt-0.5">
+                    When on, AI scans &amp; briefs every incoming thread automatically. When off (default),
+                    agents click Generate per draft. Requires the AI module.
+                  </span>
+                </span>
+              </label>
             </>
           )}
 

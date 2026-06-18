@@ -12,6 +12,9 @@ export interface TenantConfig {
   // only when it is in BOTH enabled_modules AND allowed_features.
   plan: string
   allowed_features: string[]
+  // When false (default) the inbox AI never runs automatically — agents click
+  // Generate per draft. True restores auto-scan-on-arrival.
+  ai_auto_scan: boolean
 }
 
 export async function fetchTenantConfig(): Promise<TenantConfig> {

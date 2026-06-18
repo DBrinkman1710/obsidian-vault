@@ -50,6 +50,10 @@ class Tenant(Base):
     # Auto-close stale tickets in "waiting" status after this many days without an
     # update. Per-tenant; the hourly scheduler job reads it (see sla_escalation.py).
     auto_close_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="7")
+    # When False (default) the inbox AI never runs automatically — agents click the
+    # Generate button per draft. Set True to restore the old auto-scan-on-arrival
+    # behaviour (background enrich_queued_drafts job). Editable via superadmin modal.
+    ai_auto_scan: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     # WhatsApp Business (Meta Cloud API) credentials — set per tenant via superadmin edit modal
     whatsapp_phone_number_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     whatsapp_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)

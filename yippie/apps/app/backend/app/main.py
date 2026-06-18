@@ -106,6 +106,7 @@ def create_app() -> FastAPI:
             allowed_features=allowed_features,
             plan_limits=limits_for_plan(tenant.plan),
             module_prices=dict(MODULE_PRICES),
+            ai_auto_scan=tenant.ai_auto_scan,
         )
 
     # Module routes — all mounted, each gated per-request by tenant's enabled_modules.
