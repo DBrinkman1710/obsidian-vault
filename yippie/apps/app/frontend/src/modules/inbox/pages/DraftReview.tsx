@@ -712,7 +712,16 @@ export default function DraftReview() {
 
             {/* Customer */}
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
-              <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-3">Customer</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</p>
+                {aiEnabled && aiQueued && <span className="text-[10px] text-blue-400 animate-pulse">Analyzing…</span>}
+                {aiEnabled && (aiNotRun || aiFailed) && !isProcessed && (
+                  <button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
+                    <Sparkles size={9} />
+                    {generateMutation.isPending ? 'Generating…' : aiFailed ? 'Retry' : 'Generate'}
+                  </button>
+                )}
+              </div>
               {contact ? (
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-yippie/15 flex items-center justify-center shrink-0">
@@ -773,25 +782,19 @@ export default function DraftReview() {
                 <p className="text-xs text-blue-400 animate-pulse">AI is analyzing this email…</p>
               </div>
             )}
-            {aiEnabled && (aiNotRun || aiFailed) && !isProcessed && (
-              <div className="rounded-2xl bg-violet-50 border border-violet-100 p-4 flex items-center justify-between gap-2 flex-wrap">
-                <p className="text-xs text-violet-600">
-                  {aiFailed ? 'AI analysis failed — tap to retry.' : 'Generate AI suggestions & a customer briefing.'}
-                </p>
-                <button
-                  onClick={() => generateMutation.mutate()}
-                  disabled={generateMutation.isPending}
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-100 border border-violet-200 rounded-lg px-3 py-1.5 hover:bg-violet-200 transition-colors disabled:opacity-50 cursor-pointer"
-                >
-                  <Sparkles size={11} />
-                  {generateMutation.isPending ? 'Generating…' : (aiFailed ? 'Generate now' : 'Generate AI suggestion')}
-                </button>
-              </div>
-            )}
-
             {/* Draft ticket fields — pending only */}
             {!isProcessed && (
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-4">
+                <div className="flex items-center justify-between">
+                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Ticket</p>
+                  {aiEnabled && aiQueued && <span className="text-[10px] text-violet-400 animate-pulse">Analyzing…</span>}
+                  {aiEnabled && (aiNotRun || aiFailed) && (
+                    <button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
+                      <Sparkles size={9} />
+                      {generateMutation.isPending ? 'Generating…' : aiFailed ? 'Retry' : 'Generate'}
+                    </button>
+                  )}
+                </div>
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Subject</label>
                   <input
@@ -878,8 +881,15 @@ export default function DraftReview() {
 
           {/* ── TOP-LEFT: Customer info ── */}
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
-            <div className="px-4 py-3 border-b border-slate-100 shrink-0">
+            <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
               <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</span>
+              {aiEnabled && aiQueued && <span className="text-[10px] text-blue-400 animate-pulse">Analyzing…</span>}
+              {aiEnabled && (aiNotRun || aiFailed) && !isProcessed && (
+                <button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
+                  <Sparkles size={9} />
+                  {generateMutation.isPending ? 'Generating…' : aiFailed ? 'Retry' : 'Generate'}
+                </button>
+              )}
             </div>
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {contact ? (
@@ -918,22 +928,13 @@ export default function DraftReview() {
                 </div>
               )}
 
-              {(draft.context_summary || (aiEnabled && (aiQueued || !isProcessed))) && (
+              {(draft.context_summary || (aiEnabled && aiQueued)) && (
                 <div className="rounded-xl bg-blue-50 border border-blue-100 p-3">
                   <p className="text-[10px] font-bold tracking-widest text-blue-400 uppercase mb-2">AI Briefing</p>
                   {aiQueued ? (
                     <p className="text-xs text-blue-400 animate-pulse">Generating briefing…</p>
-                  ) : draft.context_summary ? (
-                    <p className="text-xs text-blue-900 leading-relaxed">{draft.context_summary}</p>
                   ) : (
-                    <button
-                      onClick={() => generateMutation.mutate()}
-                      disabled={generateMutation.isPending}
-                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-100 border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-200 transition-colors disabled:opacity-50 cursor-pointer"
-                    >
-                      <Sparkles size={11} />
-                      {generateMutation.isPending ? 'Generating…' : 'Generate briefing'}
-                    </button>
+                    <p className="text-xs text-blue-900 leading-relaxed">{draft.context_summary}</p>
                   )}
                 </div>
               )}
@@ -1107,29 +1108,17 @@ export default function DraftReview() {
               </>
             ) : (
               <>
-                <div className="px-4 py-3 border-b border-slate-100 shrink-0">
+                <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
                   <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Ticket</span>
+                  {aiEnabled && aiQueued && <span className="text-[10px] text-violet-400 animate-pulse">Analyzing…</span>}
+                  {aiEnabled && (aiNotRun || aiFailed) && !isProcessed && (
+                    <button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
+                      <Sparkles size={9} />
+                      {generateMutation.isPending ? 'Generating…' : aiFailed ? 'Retry' : 'Generate'}
+                    </button>
+                  )}
                 </div>
                 <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  {aiEnabled && (aiQueued || aiFailed || aiNotRun) && (
-                    <div className="rounded-xl bg-violet-50 border border-violet-100 p-3 flex items-center justify-between gap-2 flex-wrap">
-                      {aiQueued ? (
-                        <p className="text-xs text-violet-600 animate-pulse">AI is analyzing this email — suggestions will fill in automatically.</p>
-                      ) : aiFailed ? (
-                        <p className="text-xs text-violet-600">AI analysis failed — the raw email is shown instead.</p>
-                      ) : (
-                        <p className="text-xs text-violet-600">Generate AI suggestions for subject, priority &amp; a customer briefing.</p>
-                      )}
-                      <button
-                        onClick={() => generateMutation.mutate()}
-                        disabled={generateMutation.isPending}
-                        className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-100 border border-violet-200 rounded-lg px-3 py-1.5 hover:bg-violet-200 transition-colors disabled:opacity-50 cursor-pointer"
-                      >
-                        <Sparkles size={11} />
-                        {generateMutation.isPending ? 'Generating…' : (aiNotRun ? 'Generate AI suggestion' : 'Generate now')}
-                      </button>
-                    </div>
-                  )}
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Subject</label>
                     <input
