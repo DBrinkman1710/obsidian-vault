@@ -177,8 +177,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
     // Remove the newsletter preset's generic button block so ours is the only one
     editor.BlockManager.remove('button')
     editor.BlockManager.add('yippie-button', {
-      label: 'Button',
+      label: 'Action Button',
       category: 'Basic',
+      media: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="2" y="7" width="20" height="10" rx="2"/>
+        <polyline points="9 10 12 12 9 14"/>
+        <path d="M15 10l2 2-2 2" stroke-width="1.5"/>
+      </svg>`,
       content: {
         type: 'yippie-button',
         content: 'Click here',
@@ -194,6 +199,24 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
           'font-weight': 'bold',
         },
       },
+    })
+
+    editor.BlockManager.add('yippie-signature', {
+      label: 'Signature',
+      category: 'Basic',
+      media: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 20h9"/>
+        <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
+      </svg>`,
+      content: `<table width="100%" cellpadding="0" cellspacing="0" border="0">
+        <tr>
+          <td style="padding-top:16px;border-top:2px solid #e2e8f0;font-family:Arial,sans-serif;">
+            <p style="margin:0 0 3px;font-size:15px;font-weight:bold;color:#0f172a;">Your Name</p>
+            <p style="margin:0 0 3px;font-size:13px;color:#64748b;">Job Title · Company</p>
+            <p style="margin:0;font-size:13px;color:#64748b;">email@example.com · +1 234 567 8900</p>
+          </td>
+        </tr>
+      </table>`,
     })
 
     editorRef.current = editor
