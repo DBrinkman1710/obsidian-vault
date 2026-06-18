@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.tickets.models import (
@@ -292,6 +292,114 @@ async def change_status(db: AsyncSession, ticket: Ticket, new_status: TicketStat
     dept_names = await _fetch_dept_names(db, [ticket])
     last_comments = await _fetch_last_comments(db, [ticket.id])
     return _enrich_tickets([ticket], dept_names, last_comments)[0]
+
+
+class MergeError(ValueError):
+    """Raised when two tickets cannot be merged (different contact, self-merge, etc.)."""
+
+
+async def merge_tickets(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    primary: Ticket,
+    secondary_id: uuid.UUID,
+    actor_id: Optional[uuid.UUID],
+) -> TicketOut:
+    """Merge the secondary ticket INTO the primary ticket.
+
+    Re-parents all attached records (comments, chat sessions, activity events)
+    from secondary → primary, closes the secondary with an internal note, and
+    drops an activity note on the primary. Fully tenant-scoped: the secondary
+    must belong to the same tenant AND the same contact as the primary.
+    """
+    from app.modules.activity.models import ActivityEvent
+
+    if secondary_id == primary.id:
+        raise MergeError("A ticket cannot be merged into itself")
+
+    secondary = await get_ticket_orm(db, tenant_id, secondary_id)
+    if secondary is None:
+        raise MergeError("Secondary ticket not found")
+    if secondary.contact_id != primary.contact_id:
+        raise MergeError("Both tickets must belong to the same contact")
+
+    # Re-parent every record attached to the secondary ticket. Each UPDATE is
+    # tenant-scoped so a leaked id can never touch another tenant's rows.
+    await db.execute(
+        update(TicketComment)
+        .where(
+            TicketComment.tenant_id == tenant_id,
+            TicketComment.ticket_id == secondary.id,
+        )
+        .values(ticket_id=primary.id)
+    )
+
+    # chat_sessions carry the ticket FK (and own their chat_messages); re-point them.
+    from app.modules.chat.models import ChatSession
+
+    await db.execute(
+        update(ChatSession)
+        .where(
+            ChatSession.tenant_id == tenant_id,
+            ChatSession.ticket_id == secondary.id,
+        )
+        .values(ticket_id=primary.id)
+    )
+
+    # activity_events reference tickets via (entity_type='ticket', entity_id).
+    await db.execute(
+        update(ActivityEvent)
+        .where(
+            ActivityEvent.tenant_id == tenant_id,
+            ActivityEvent.entity_type == "ticket",
+            ActivityEvent.entity_id == secondary.id,
+        )
+        .values(entity_id=primary.id)
+    )
+
+    # Close the secondary and leave a breadcrumb internal note on it.
+    secondary.status = TicketStatus.closed
+    secondary.resolved_at = datetime.now(timezone.utc)
+    db.add(
+        TicketComment(
+            tenant_id=tenant_id,
+            ticket_id=secondary.id,
+            author_id=actor_id,
+            body=f"Merged into ticket #{primary.id}",
+            is_internal=True,
+            source=MessageSource.manual,
+        )
+    )
+
+    # Activity note on the primary so the merge shows in its history.
+    db.add(
+        ActivityEvent(
+            tenant_id=tenant_id,
+            contact_id=primary.contact_id,
+            actor_id=actor_id,
+            module="tickets",
+            event_type="ticket_merged",
+            entity_type="ticket",
+            entity_id=primary.id,
+            payload={"secondary_ticket_id": str(secondary.id)},
+        )
+    )
+    db.add(
+        TicketComment(
+            tenant_id=tenant_id,
+            ticket_id=primary.id,
+            author_id=actor_id,
+            body=f"Ticket #{secondary.id} merged in",
+            is_internal=True,
+            source=MessageSource.manual,
+        )
+    )
+
+    await db.commit()
+    await db.refresh(primary)
+    dept_names = await _fetch_dept_names(db, [primary])
+    last_comments = await _fetch_last_comments(db, [primary.id])
+    return _enrich_tickets([primary], dept_names, last_comments)[0]
 
 
 async def add_comment(

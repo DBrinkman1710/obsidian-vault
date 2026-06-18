@@ -27,6 +27,11 @@ class TicketStatusUpdate(BaseModel):
     status: TicketStatus
 
 
+class TicketMergeRequest(BaseModel):
+    # The secondary ticket that will be merged INTO the primary (path) ticket.
+    secondary_ticket_id: uuid.UUID
+
+
 class TicketUpdate(BaseModel):
     subject: Optional[str] = None
     description: Optional[str] = None

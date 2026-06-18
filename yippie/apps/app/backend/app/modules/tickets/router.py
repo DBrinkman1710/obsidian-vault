@@ -21,6 +21,7 @@ from app.modules.tickets.schemas import (
     TemplateSuggestRequest,
     TicketCreate,
     TicketList,
+    TicketMergeRequest,
     TicketOut,
     TicketStatusUpdate,
     TicketUpdate,
@@ -151,6 +152,24 @@ async def change_status(ticket_id: uuid.UUID, body: TicketStatusUpdate, current_
     )
     await db.commit()
     return updated
+
+
+@router.post("/{ticket_id}/merge", response_model=TicketOut)
+async def merge_ticket(
+    ticket_id: uuid.UUID, body: TicketMergeRequest, current_user: CurrentUser, db: DB
+):
+    """Merge the secondary ticket INTO this (primary) ticket. Both must belong
+    to the caller's tenant and the same contact."""
+    primary = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
+    if not primary:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    try:
+        merged = await service.merge_tickets(
+            db, current_user.tenant_id, primary, body.secondary_ticket_id, current_user.id
+        )
+    except service.MergeError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return merged
 
 
 @router.post("/{ticket_id}/snooze", response_model=TicketOut)

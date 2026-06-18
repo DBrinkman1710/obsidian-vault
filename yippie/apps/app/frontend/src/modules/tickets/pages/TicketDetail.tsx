@@ -1,7 +1,8 @@
 import { useState } from 'react'
+import type { CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Lock, Trash2, X, CalendarClock } from 'lucide-react'
+import { Send, Lock, Trash2, X, CalendarClock, GitMerge } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
@@ -34,6 +35,15 @@ const PRIORITY_TEXT: Record<string, string> = {
   urgent: 'text-red-600',
 }
 
+const YIPPIE_BLUE = '#5BA4F5'
+
+type MergeCandidate = {
+  id: string
+  subject: string
+  status: string
+  created_at: string
+}
+
 export default function TicketDetail() {
   const { id } = useParams<{ id: string }>()
   const qc = useQueryClient()
@@ -48,6 +58,7 @@ export default function TicketDetail() {
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [mergeOpen, setMergeOpen] = useState(false)
 
   const { data: ticket } = useQuery({
     queryKey: ['ticket', id],
@@ -237,6 +248,14 @@ export default function TicketDetail() {
               Send booking link
             </button>
           )}
+          <button
+            onClick={() => setMergeOpen(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors"
+            style={{ color: YIPPIE_BLUE, borderColor: `${YIPPIE_BLUE}55` }}
+          >
+            <GitMerge size={12} />
+            Merge
+          </button>
           {canDelete && (
             <button
               onClick={() => { setDeleteError(''); setConfirmingDelete(true) }}
@@ -254,6 +273,14 @@ export default function TicketDetail() {
           contacts={[{ id: ticketContact.id, full_name: ticketContact.full_name }]}
           open={bookingOpen}
           onClose={() => setBookingOpen(false)}
+        />
+      )}
+
+      {mergeOpen && id && (
+        <MergeModal
+          primaryId={id}
+          contactId={ticket.contact_id ?? null}
+          onClose={() => setMergeOpen(false)}
         />
       )}
 
@@ -324,6 +351,136 @@ export default function TicketDetail() {
       </div>
     </div>
     <CustomerPanel contactId={ticket.contact_id ?? null} ticket={ticket} />
+    </div>
+  )
+}
+
+function MergeModal({
+  primaryId,
+  contactId,
+  onClose,
+}: {
+  primaryId: string
+  contactId: string | null
+  onClose: () => void
+}) {
+  const qc = useQueryClient()
+  const [search, setSearch] = useState('')
+  const [selected, setSelected] = useState<MergeCandidate | null>(null)
+
+  // Candidates are restricted server-side to the same contact; without a
+  // contact there is nothing to merge against.
+  const { data, isLoading } = useQuery({
+    queryKey: ['merge-candidates', contactId],
+    queryFn: () =>
+      api.get('/tickets', { params: { contact_id: contactId } }).then(r => r.data),
+    enabled: !!contactId,
+  })
+
+  const candidates: MergeCandidate[] = ((data?.items ?? []) as MergeCandidate[])
+    .filter(t => t.id !== primaryId)
+
+  const term = search.trim().toLowerCase()
+  const filtered = term
+    ? candidates.filter(
+        t =>
+          t.id.toLowerCase().includes(term) ||
+          t.subject.toLowerCase().includes(term),
+      )
+    : candidates
+
+  const mergeMutation = useMutation({
+    mutationFn: (secondaryId: string) =>
+      api.post(`/tickets/${primaryId}/merge`, { secondary_ticket_id: secondaryId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ticket', primaryId] })
+      qc.invalidateQueries({ queryKey: ['ticket-comments', primaryId] })
+      qc.invalidateQueries({ queryKey: ['tickets'] })
+      qc.invalidateQueries({ queryKey: ['contact-tickets', contactId] })
+      toast.success('Tickets merged.')
+      onClose()
+    },
+    onError: (err: unknown) => {
+      const detail =
+        (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
+      toast.error(typeof detail === 'string' ? detail : 'Failed to merge tickets.')
+    },
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Merge ticket</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="p-6 flex flex-col gap-4">
+          {!contactId ? (
+            <p className="text-sm text-slate-500">
+              This ticket has no contact, so there is nothing to merge it with.
+            </p>
+          ) : selected ? (
+            <>
+              <p className="text-sm text-slate-600">
+                Merge ticket <strong>{selected.subject}</strong> into this ticket? All
+                messages, notes and activity will be moved. That ticket will be closed.
+              </p>
+              <div className="flex gap-3 justify-end">
+                <button
+                  onClick={() => setSelected(null)}
+                  className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
+                >
+                  Back
+                </button>
+                <button
+                  onClick={() => mergeMutation.mutate(selected.id)}
+                  disabled={mergeMutation.isPending}
+                  className="text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                  style={{ backgroundColor: YIPPIE_BLUE }}
+                >
+                  {mergeMutation.isPending ? 'Merging…' : 'Merge'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <input
+                autoFocus
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search by ticket ID or subject…"
+                className="w-full text-sm text-slate-900 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2"
+                style={{ '--tw-ring-color': YIPPIE_BLUE } as CSSProperties}
+              />
+              <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto">
+                {isLoading ? (
+                  <p className="text-sm text-slate-400 py-4 text-center">Loading…</p>
+                ) : filtered.length === 0 ? (
+                  <p className="text-sm text-slate-400 py-4 text-center">
+                    No other tickets for this contact.
+                  </p>
+                ) : (
+                  filtered.map(t => (
+                    <button
+                      key={t.id}
+                      onClick={() => setSelected(t)}
+                      className="w-full text-left rounded-lg border border-slate-200 hover:border-slate-300 hover:bg-slate-50 px-3 py-2.5 transition-colors"
+                    >
+                      <p className="text-sm font-semibold text-slate-900 truncate">{t.subject}</p>
+                      <p className="text-xs text-slate-400 mt-0.5">
+                        {STATUS_LABELS[t.status] ?? t.status} · {new Date(t.created_at).toLocaleDateString()}
+                      </p>
+                    </button>
+                  ))
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
     </div>
   )
 }
