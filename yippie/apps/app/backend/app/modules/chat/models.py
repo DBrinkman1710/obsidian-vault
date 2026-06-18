@@ -42,3 +42,5 @@ class ChatMessage(Base):
     sender_id: Mapped[str] = mapped_column(String(255), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    msg_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="sent", default="sent")  # sent | delivered | read
+    evolution_msg_id: Mapped[str | None] = mapped_column(String(255), nullable=True)

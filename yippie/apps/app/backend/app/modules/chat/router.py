@@ -12,7 +12,7 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
 from jose import JWTError, jwt
 from pydantic import BaseModel
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -212,6 +212,7 @@ async def get_messages(session_id: uuid.UUID, current_user: CurrentUser, db: DB)
             "sender_id": m.sender_id,
             "body": m.body,
             "created_at": m.created_at.isoformat(),
+            "msg_status": m.msg_status,
         }
         for m in msgs
     ]
@@ -262,7 +263,16 @@ async def reply_to_session(
         tenant = await db.get(Tenant, current_user.tenant_id)
         if tenant:
             try:
-                await whatsapp_service.send_text(tenant.slug, session.whatsapp_phone, text)
+                wa_response = await whatsapp_service.send_text(tenant.slug, session.whatsapp_phone, text)
+                # Store the Evolution API message ID for delivery status tracking
+                if wa_response and isinstance(wa_response, dict):
+                    evo_id = (
+                        wa_response.get("key", {}).get("id")
+                        or wa_response.get("id")
+                    )
+                    if evo_id:
+                        msg.evolution_msg_id = evo_id
+                        await db.commit()
             except Exception:
                 logger.exception("WhatsApp send failed for session %s", session_id)
 
@@ -279,7 +289,7 @@ async def reply_to_session(
     await manager.broadcast_to_session(tenant_key, session.visitor_id, event_data)
     await manager.broadcast_to_agents(tenant_key, event_data)
 
-    return {"id": str(msg.id), "body": msg.body, "created_at": msg.created_at.isoformat()}
+    return {"id": str(msg.id), "body": msg.body, "created_at": msg.created_at.isoformat(), "msg_status": msg.msg_status}
 
 
 @router.post("/sessions/{session_id}/close", status_code=status.HTTP_200_OK)
@@ -433,6 +443,64 @@ async def set_session_status(session_id: uuid.UUID, body: StatusBody, current_us
     if session.assigned_to:
         name = await db.scalar(select(User.full_name).where(User.id == session.assigned_to))
     return _session_dict(session, name)
+
+
+# ---------------------------------------------------------------------------
+# Bulk session actions
+# ---------------------------------------------------------------------------
+
+class BulkSessionBody(BaseModel):
+    action: str  # "close" | "reopen" | "delete"
+    session_ids: list[uuid.UUID]
+
+
+@router.post("/sessions/bulk", status_code=status.HTTP_200_OK)
+async def bulk_session_action(body: BulkSessionBody, current_user: CurrentUser, db: DB):
+    """Perform a bulk action (close / reopen / delete) on multiple sessions."""
+    if body.action not in ("close", "reopen", "delete"):
+        raise HTTPException(status_code=400, detail="action must be close, reopen, or delete")
+    if not body.session_ids:
+        return {"updated": 0}
+
+    result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.tenant_id == current_user.tenant_id,
+            ChatSession.id.in_(body.session_ids),
+        )
+    )
+    sessions = result.scalars().all()
+
+    now = datetime.now(timezone.utc)
+    count = 0
+
+    if body.action == "close":
+        for s in sessions:
+            s.status = "solved"
+            s.is_open = False
+            s.solved_at = now
+            count += 1
+    elif body.action == "reopen":
+        for s in sessions:
+            s.status = "open"
+            s.is_open = True
+            s.solved_at = None
+            count += 1
+    elif body.action == "delete":
+        ids = [s.id for s in sessions]
+        await db.execute(delete(ChatMessage).where(ChatMessage.session_id.in_(ids)))
+        await db.execute(delete(ChatSession).where(ChatSession.id.in_(ids)))
+        count = len(ids)
+
+    await db.commit()
+
+    if body.action != "delete":
+        tenant_key = str(current_user.tenant_id)
+        for s in sessions:
+            await manager.broadcast_to_agents(
+                tenant_key, {"event": "session_update", "session_id": str(s.id)}
+            )
+
+    return {"updated": count}
 
 
 class ChatSettingsBody(BaseModel):
@@ -741,6 +809,44 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
     logger.debug("Evolution webhook payload for %s: %s", tenant_slug, payload)
     tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
     await set_tenant_context(db, tenant_id)
+
+    # Handle message status update events (delivery/read receipts)
+    event_type = payload.get("event") or payload.get("type", "")
+    if event_type == "message.update" or payload.get("action") == "message.update":
+        try:
+            data = payload.get("data", payload)
+            evo_msg_id = data.get("key", {}).get("id") or data.get("id")
+            raw_status = (data.get("update", {}).get("status") or data.get("status", "")).upper()
+            if evo_msg_id and raw_status:
+                status_map = {
+                    "DELIVERY_ACK": "delivered",
+                    "READ": "read",
+                    "PLAYED": "read",
+                }
+                new_status = status_map.get(raw_status)
+                if new_status:
+                    msg_result = await db.execute(
+                        select(ChatMessage).where(
+                            ChatMessage.evolution_msg_id == evo_msg_id,
+                            ChatMessage.tenant_id == tenant_id,
+                        )
+                    )
+                    msg = msg_result.scalar_one_or_none()
+                    if msg:
+                        msg.msg_status = new_status
+                        await db.commit()
+                        await manager.broadcast_to_agents(
+                            str(tenant_id),
+                            {
+                                "event": "msg_status_update",
+                                "msg_id": str(msg.id),
+                                "status": new_status,
+                            },
+                        )
+        except Exception:
+            logger.exception("Error processing message status update for tenant %s", tenant_slug)
+        return {"status": "ok"}
+
     result = await whatsapp_service.handle_incoming_webhook(db, tenant_id, payload)
     if result:
         tenant_key = str(tenant_id)
@@ -757,6 +863,57 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
         if result["is_new_session"]:
             await manager.broadcast_to_agents(tenant_key, {"event": "new_session", "session_id": result["session_id"]})
     return {"status": "ok"}
+
+
+# ---------------------------------------------------------------------------
+# Public REST endpoint — widget history (no auth)
+# ---------------------------------------------------------------------------
+
+@ws_router.get("/public/sessions/{visitor_id}/messages")
+async def get_widget_session_messages(visitor_id: str, tenant_slug: str, db: DB):
+    """Return message history for a widget session identified by visitor_id.
+
+    No authentication required — called by the embeddable widget on page load
+    to restore chat history before connecting via WebSocket.
+    Returns {"messages": [...]} even when no session exists (empty list).
+    """
+    try:
+        tenant_id = await resolve_tenant_uuid(db)
+    except Exception:
+        return {"messages": []}
+
+    result = await db.execute(
+        select(ChatSession)
+        .where(
+            ChatSession.visitor_id == visitor_id,
+            ChatSession.tenant_id == tenant_id,
+            ChatSession.source == "websocket",
+        )
+        .order_by(ChatSession.started_at.desc())
+        .limit(1)
+    )
+    session = result.scalar_one_or_none()
+    if not session:
+        return {"messages": []}
+
+    msg_result = await db.execute(
+        select(ChatMessage)
+        .where(ChatMessage.session_id == session.id)
+        .order_by(ChatMessage.created_at.asc())
+    )
+    msgs = msg_result.scalars().all()
+
+    return {
+        "messages": [
+            {
+                "body": m.body,
+                "sender_type": m.sender_type,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in msgs
+            if m.sender_type in ("visitor", "agent")
+        ]
+    }
 
 
 # ---------------------------------------------------------------------------

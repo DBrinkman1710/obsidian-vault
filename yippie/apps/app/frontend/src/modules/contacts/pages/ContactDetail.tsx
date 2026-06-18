@@ -208,7 +208,7 @@ export default function ContactDetail() {
 
         <div className="grid grid-cols-2 gap-4 mb-8">
           <Field label="Email" value={contact.email} />
-          <Field label="Phone" value={contact.phone} />
+          <PhoneField phone={contact.phone} />
         </div>
 
         <CompanyBlock contactId={id!} company={contact.company ?? null} />
@@ -420,6 +420,30 @@ function Field({ label, value }: { label: string; value: string | null | undefin
     <div>
       <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</p>
       <p className="text-sm text-slate-900">{value || '—'}</p>
+    </div>
+  )
+}
+
+/** Returns true when the phone is a Dutch local format (0XXXXXXXXX, 10 digits starting with 0). */
+function isLocalDutchFormat(phone: string | null | undefined): boolean {
+  if (!phone) return false
+  const digits = phone.replace(/\D/g, '')
+  return digits.length === 10 && digits.startsWith('0')
+}
+
+function PhoneField({ phone }: { phone: string | null | undefined }) {
+  const showWarning = isLocalDutchFormat(phone)
+  return (
+    <div>
+      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Phone</p>
+      <div className="flex items-center gap-2 flex-wrap">
+        <p className="text-sm text-slate-900">{phone || '—'}</p>
+        {showWarning && (
+          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+            Local format — may not match WhatsApp
+          </span>
+        )}
+      </div>
     </div>
   )
 }

@@ -13,6 +13,7 @@
 
   let ws = null;
   let isOpen = false;
+  let greeted = false;
 
   // --- Build UI ---
   const btn = document.createElement('button');
@@ -86,6 +87,20 @@
   // --- WebSocket ---
   function connect() {
     ws = new WebSocket(`${wsBase}/api/v1/chat/ws/${tenantSlug}/${sessionId}`);
+    ws.onopen = async () => {
+      if (greeted) return; // reconnect — don't replay history or greeting
+      greeted = true;
+      const httpBase = wsBase.replace(/^wss?/, location.protocol === 'https:' ? 'https' : 'http');
+      try {
+        const res = await fetch(`${httpBase}/api/v1/chat/public/sessions/${sessionId}/messages?tenant_slug=${tenantSlug}`);
+        const data = await res.json();
+        if (data.messages && data.messages.length > 0) {
+          data.messages.forEach(m => addBubble(m.body, m.sender_type === 'agent'));
+          return; // history restored — skip greeting
+        }
+      } catch (_) {}
+      addBubble('Hi! How can we help you today?', true);
+    };
     ws.onmessage = (e) => {
       const data = JSON.parse(e.data);
       if (data.event === 'message' && data.sender_type === 'agent') {

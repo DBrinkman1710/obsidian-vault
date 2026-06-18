@@ -21,6 +21,45 @@ from app.modules.contacts.schemas import (
 )
 
 
+def _normalize_phone(raw: str | None) -> str | None:
+    """Normalize a phone number to E.164 format (digits only, no leading +).
+
+    Rules:
+    - null/empty → returned as-is (no change)
+    - Strip all non-digit characters (the leading '+' is only used for detection)
+    - Dutch local format: starts with '0' and exactly 10 digits (e.g. 0612345678)
+      → drop leading '0', prepend '31' → 31612345678
+    - Already has country code (starts with '+' before stripping, or ≥ 11 digits
+      without a leading '0') → just return the stripped digits
+    - Reject (return raw unchanged) if fewer than 8 or more than 15 digits after stripping
+    """
+    if not raw:
+        return raw
+    s = raw.strip()
+    if not s:
+        return raw
+
+    has_plus = s.startswith('+')
+
+    # Strip everything except digits
+    digits = ''.join(c for c in s if c.isdigit())
+
+    if len(digits) < 8 or len(digits) > 15:
+        # Out of valid range — return raw unchanged to avoid silent data loss
+        return raw
+
+    # Dutch local format: starts with '0', exactly 10 digits (e.g. 0612345678)
+    if digits.startswith('0') and len(digits) == 10:
+        return '31' + digits[1:]
+
+    # Has explicit '+' or already long enough to carry a country code
+    if has_plus or len(digits) >= 11:
+        return digits
+
+    # Short number without leading zero and no explicit country code — keep digits as-is
+    return digits
+
+
 async def list_contacts(
     db: AsyncSession,
     tenant_id: uuid.UUID,
@@ -84,10 +123,13 @@ async def _resolve_company_id(
 async def create_contact(
     db: AsyncSession, tenant_id: uuid.UUID, created_by: uuid.UUID, data: ContactCreate
 ) -> Contact:
+    fields = data.model_dump(exclude={"label_ids", "company_id"})
+    if "phone" in fields:
+        fields["phone"] = _normalize_phone(fields["phone"])
     contact = Contact(
         tenant_id=tenant_id,
         created_by=created_by,
-        **data.model_dump(exclude={"label_ids", "company_id"}),
+        **fields,
     )
     contact.company_id = await _resolve_company_id(db, tenant_id, data.company_id)
     if data.label_ids is not None:
@@ -108,6 +150,8 @@ async def update_contact(
 ) -> Contact:
     provided = data.model_dump(exclude_unset=True)
     fields = data.model_dump(exclude_unset=True, exclude={"label_ids", "company_id"})
+    if "phone" in fields:
+        fields["phone"] = _normalize_phone(fields["phone"])
     for field, value in fields.items():
         setattr(contact, field, value)
     if "company_id" in provided:
@@ -378,7 +422,7 @@ async def import_contacts(
                 created_by=created_by,
                 full_name=full_name,
                 email=email,
-                phone=_clean(row.get("phone")),
+                phone=_normalize_phone(_clean(row.get("phone"))),
                 company_id=company_id,
                 notes=_clean(row.get("notes")),
             )
