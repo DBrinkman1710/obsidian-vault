@@ -47,17 +47,17 @@ Everything below must be done **before** going live. Items not listed here are d
 
 **Tier 2 (features):**
 - [x] [BILLING2] Billing page upgrade ✅ session 60
-- [ ] [MERGE-TK] Merge Tickets
+- [x] [MERGE-TK] Merge Tickets ✅
 - [x] [TK-COCKPIT] Ticket detail 3-column cockpit ✅ session 59
 - [~] [AI-BTN1] Generate buttons instead of auto-AI (inbox part DONE) + demo tool on getyippie.com (still open)
 - [ ] [WEB-PLANS2] 3 base plans + module add-ons on getyippie.com
-- [ ] [GRAPES1] Replace Unlayer with GrapesJS (branch → merge after tests)
+- [x] [GRAPES1] Replace Unlayer with GrapesJS ✅
 - [ ] [DEPT-MOD] Make Departments a proper module
 - [x] [BK5] Smart scheduling — weekly availability grid ✅ (verified built end-to-end)
 - [x] [BK6] Customer counter-propose dates ✅ (verified built end-to-end)
 - [x] [BK7] Booking confirmation: customer edit/cancel link ✅ (verified built end-to-end)
-- [ ] [DEMO-WF1] Demo-request → Kanban "Demo requested" stage
-- [ ] [KANBAN-STAGES] Customisable Kanban stages per tenant
+- [x] [DEMO-WF1] Demo-request → Kanban "Demo requested" stage ✅
+- [x] [KANBAN-STAGES] Customisable Kanban stages per tenant ✅
 - [ ] [P1] Stage filter on Activity page
 - [ ] [T1] Delete users from team
 - [ ] Send-from aliases + in-app tour after first login

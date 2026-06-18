@@ -18,6 +18,31 @@ from app.modules.pipeline.schemas import (
 )
 
 
+DEFAULT_STAGES = [
+    {"name": "Lead", "color": "#64748b"},
+    {"name": "Qualified", "color": "#3b82f6"},
+    {"name": "Proposal", "color": "#f59e0b"},
+    {"name": "Won", "color": "#22c55e"},
+]
+
+
+async def provision_default_stages(db: AsyncSession, tenant_id: uuid.UUID) -> None:
+    """Seed sensible default Kanban stages for a brand-new tenant.
+
+    Called once at tenant creation. Safe to call on an existing tenant — it
+    skips seeding when any stage already exists, so it never duplicates rows.
+    """
+    existing_count = await db.scalar(
+        select(func.count()).select_from(PipelineStage).where(PipelineStage.tenant_id == tenant_id)
+    )
+    if existing_count:
+        return  # already has stages — nothing to do
+
+    for i, s in enumerate(DEFAULT_STAGES):
+        db.add(PipelineStage(tenant_id=tenant_id, name=s["name"], color=s["color"], display_order=i))
+    await db.commit()
+
+
 async def list_stages(db: AsyncSession, tenant_id: uuid.UUID) -> list[PipelineStageOut]:
     count_q = (
         select(ContactPipelineEntry.stage_id, func.count().label("cnt"))
