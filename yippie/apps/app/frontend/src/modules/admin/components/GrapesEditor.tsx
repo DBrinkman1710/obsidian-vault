@@ -154,6 +154,13 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
       },
     })
 
+    // Auto-switch to traits panel when a yippie-button is selected
+    editor.on('component:selected', (component: any) => {
+      if (component.get('type') === 'yippie-button') {
+        editor.Panels.getButton('views', 'open-tm')?.set('active', true)
+      }
+    })
+
     // Swap secondary trait when action type changes
     editor.on('component:update', (component: any) => {
       if (component.get('type') !== 'yippie-button') return
