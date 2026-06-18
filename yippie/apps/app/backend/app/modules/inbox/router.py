@@ -210,10 +210,18 @@ async def link_contact(draft_id: uuid.UUID, body: LinkContactRequest, current_us
 
 
 @router.post("/drafts/{draft_id}/generate", response_model=DraftWithContextOut, dependencies=[Depends(require_module("ai"))])
-async def generate_draft_ai(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
-    """Run AI enrichment (scan + briefing) for this draft on demand — the
-    Generate button. Works for queued drafts (skip the background wait),
-    failed ones (retry) and done ones (regenerate)."""
+async def generate_draft_ai(
+    draft_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DB,
+    mode: Optional[str] = None,
+):
+    """Run AI enrichment for this draft on demand.
+
+    mode=scan     — subject/priority/description only (leaves briefing untouched)
+    mode=briefing — customer briefing only (leaves scan fields untouched)
+    (no mode)     — both scan + briefing (original behaviour)
+    """
     ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
     if not ctx:
         raise HTTPException(status_code=404, detail="Draft not found")
@@ -221,7 +229,12 @@ async def generate_draft_ai(draft_id: uuid.UUID, current_user: CurrentUser, db: 
     msg = ctx["inbound_message"]
     if not msg:
         raise HTTPException(status_code=409, detail="Draft has no inbound message to analyze")
-    await service.enrich_draft(db, current_user.tenant_id, draft, msg)
+    if mode == "scan":
+        await service.enrich_scan_only(db, current_user.tenant_id, draft, msg)
+    elif mode == "briefing":
+        await service.enrich_briefing_only(db, current_user.tenant_id, draft, msg)
+    else:
+        await service.enrich_draft(db, current_user.tenant_id, draft, msg)
     await db.commit()
     if draft.ai_status == "failed":
         raise HTTPException(status_code=502, detail="AI generation failed — please try again")

@@ -290,10 +290,12 @@ export default function DraftReview() {
   const draft = ctx?.draft
   const aiQueued = draft?.ai_status === 'queued'
   const aiFailed = draft?.ai_status === 'failed'
-  // Explicit mode (ai_auto_scan off): the draft arrives un-scanned (status 'done',
-  // no briefing). The agent invokes AI on demand via the Generate button instead
-  // of it running automatically on arrival.
-  const aiNotRun = draft?.ai_status === 'done' && !draft?.context_summary
+  // scan: detected_language is null until scan_message has run
+  const scanNotRun = !draft?.detected_language
+  // briefing: context_summary is null until generate_context_summary has run
+  const briefingNotRun = !draft?.context_summary
+  // legacy alias used by the reply panel
+  const aiNotRun = scanNotRun && briefingNotRun
   const msg = ctx?.inbound_message
   const contact = ctx?.contact
   const recentTickets: any[] = ctx?.recent_tickets ?? []
@@ -360,15 +362,28 @@ export default function DraftReview() {
 
   const showContactModal = !isLoading && !!ctx && !ctx.contact && !modalDismissed && !isProcessed
 
-  const generateMutation = useMutation({
-    mutationFn: () => api.post(`/inbox/drafts/${id}/generate`).then(r => r.data),
+  const generateScanMutation = useMutation({
+    mutationFn: () => api.post(`/inbox/drafts/${id}/generate?mode=scan`).then(r => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['draft', id] })
       qc.invalidateQueries({ queryKey: ['drafts'] })
-      toast.success('AI suggestion generated.')
+      toast.success('AI suggestions generated.')
     },
     onError: () => toast.error('AI generation failed — please try again.'),
   })
+
+  const generateBriefingMutation = useMutation({
+    mutationFn: () => api.post(`/inbox/drafts/${id}/generate?mode=briefing`).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['draft', id] })
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+      toast.success('Customer briefing generated.')
+    },
+    onError: () => toast.error('AI generation failed — please try again.'),
+  })
+
+  // Keep a combined alias for backward-compat usages (reply panel, etc.)
+  const generateMutation = generateScanMutation
 
   const reviewMutation = useMutation({
     mutationFn: ({ action, departmentId, modalFollowUpDays }: { action: 'approve' | 'reject'; departmentId?: string; modalFollowUpDays?: number }) =>
@@ -714,11 +729,11 @@ export default function DraftReview() {
             <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</p>
-                {aiEnabled && aiQueued && <span className="text-[10px] text-blue-400 animate-pulse">Analyzing…</span>}
-                {aiEnabled && (aiNotRun || aiFailed) && !isProcessed && (
-                  <button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
+                {aiEnabled && generateBriefingMutation.isPending && <span className="text-[10px] text-blue-400 animate-pulse">Generating…</span>}
+                {aiEnabled && (briefingNotRun || aiFailed) && !isProcessed && !generateBriefingMutation.isPending && (
+                  <button onClick={() => generateBriefingMutation.mutate()} disabled={generateBriefingMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
                     <Sparkles size={9} />
-                    {generateMutation.isPending ? 'Generating…' : aiFailed ? 'Retry' : 'Generate'}
+                    {aiFailed ? 'Retry' : 'Generate'}
                   </button>
                 )}
               </div>
@@ -787,11 +802,11 @@ export default function DraftReview() {
               <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-4">
                 <div className="flex items-center justify-between">
                   <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Ticket</p>
-                  {aiEnabled && aiQueued && <span className="text-[10px] text-violet-400 animate-pulse">Analyzing…</span>}
-                  {aiEnabled && (aiNotRun || aiFailed) && (
-                    <button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
+                  {aiEnabled && generateScanMutation.isPending && <span className="text-[10px] text-violet-400 animate-pulse">Generating…</span>}
+                  {aiEnabled && (scanNotRun || aiFailed) && !generateScanMutation.isPending && (
+                    <button onClick={() => generateScanMutation.mutate()} disabled={generateScanMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
                       <Sparkles size={9} />
-                      {generateMutation.isPending ? 'Generating…' : aiFailed ? 'Retry' : 'Generate'}
+                      {aiFailed ? 'Retry' : 'Generate'}
                     </button>
                   )}
                 </div>
@@ -883,11 +898,11 @@ export default function DraftReview() {
           <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
               <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</span>
-              {aiEnabled && aiQueued && <span className="text-[10px] text-blue-400 animate-pulse">Analyzing…</span>}
-              {aiEnabled && (aiNotRun || aiFailed) && !isProcessed && (
-                <button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
+              {aiEnabled && generateBriefingMutation.isPending && <span className="text-[10px] text-blue-400 animate-pulse">Generating…</span>}
+              {aiEnabled && (briefingNotRun || aiFailed) && !isProcessed && !generateBriefingMutation.isPending && (
+                <button onClick={() => generateBriefingMutation.mutate()} disabled={generateBriefingMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
                   <Sparkles size={9} />
-                  {generateMutation.isPending ? 'Generating…' : aiFailed ? 'Retry' : 'Generate'}
+                  {aiFailed ? 'Retry' : 'Generate'}
                 </button>
               )}
             </div>
@@ -1110,11 +1125,11 @@ export default function DraftReview() {
               <>
                 <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
                   <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Ticket</span>
-                  {aiEnabled && aiQueued && <span className="text-[10px] text-violet-400 animate-pulse">Analyzing…</span>}
-                  {aiEnabled && (aiNotRun || aiFailed) && !isProcessed && (
-                    <button onClick={() => generateMutation.mutate()} disabled={generateMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
+                  {aiEnabled && generateScanMutation.isPending && <span className="text-[10px] text-violet-400 animate-pulse">Generating…</span>}
+                  {aiEnabled && (scanNotRun || aiFailed) && !isProcessed && !generateScanMutation.isPending && (
+                    <button onClick={() => generateScanMutation.mutate()} disabled={generateScanMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
                       <Sparkles size={9} />
-                      {generateMutation.isPending ? 'Generating…' : aiFailed ? 'Retry' : 'Generate'}
+                      {aiFailed ? 'Retry' : 'Generate'}
                     </button>
                   )}
                 </div>

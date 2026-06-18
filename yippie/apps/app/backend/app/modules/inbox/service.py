@@ -273,6 +273,53 @@ async def enrich_draft(
     await _enrich_ai(draft, msg, contact_dict, recent_tickets, billing)
 
 
+async def enrich_scan_only(
+    db: AsyncSession, tenant_id: uuid.UUID, draft: DraftTicket, msg: InboundMessage
+) -> None:
+    """Run only the subject/priority/description scan — leave briefing untouched."""
+    import asyncio
+    try:
+        scan = await asyncio.wait_for(
+            scan_message(msg.sender, msg.raw_body, msg.source.value),
+            timeout=ENRICH_TIMEOUT_SECONDS,
+        )
+        draft.ai_suggested_subject = scan.subject or msg.subject or "(no subject)"
+        draft.ai_suggested_description = scan.description or msg.raw_body[:500]
+        draft.ai_suggested_priority = scan.priority or "medium"
+        draft.ai_suggested_category = scan.category
+        draft.detected_language = scan.language
+        draft.ai_status = "done"
+    except Exception:
+        log.exception("AI scan failed for draft %s", draft.id)
+        draft.ai_status = "failed"
+
+
+async def enrich_briefing_only(
+    db: AsyncSession, tenant_id: uuid.UUID, draft: DraftTicket, msg: InboundMessage
+) -> None:
+    """Run only the customer briefing — leave scan fields untouched."""
+    import asyncio
+    contact = await _match_contact(db, tenant_id, msg.sender)
+    contact_dict, recent_tickets, billing = await _context_inputs(db, tenant_id, contact)
+    try:
+        summary = await asyncio.wait_for(
+            generate_context_summary(
+                sender=msg.sender,
+                raw_body=msg.raw_body,
+                contact=contact_dict,
+                recent_tickets=recent_tickets,
+                billing=billing,
+            ),
+            timeout=ENRICH_TIMEOUT_SECONDS,
+        )
+        draft.context_summary = summary
+        if draft.ai_status != "done":
+            draft.ai_status = "done"
+    except Exception:
+        log.exception("AI briefing failed for draft %s", draft.id)
+        draft.ai_status = "failed"
+
+
 async def enrich_queued_drafts(db: AsyncSession) -> int:
     """Enrich a batch of queued drafts. Called by the background scheduler.
 
