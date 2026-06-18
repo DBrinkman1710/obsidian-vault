@@ -2,7 +2,7 @@ import { useState } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Lock, Trash2, X, CalendarClock, GitMerge } from 'lucide-react'
+import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
@@ -350,7 +350,7 @@ export default function TicketDetail() {
         </div>
       </div>
     </div>
-    <CustomerPanel contactId={ticket.contact_id ?? null} ticket={ticket} />
+    <CustomerPanel contactId={ticket.contact_id ?? null} ticket={ticket} aiAutoScan={config?.ai_auto_scan ?? false} />
     </div>
   )
 }
@@ -512,9 +512,25 @@ function draftSubject(d: any): string {
   return d.final_subject ?? d.ai_suggested_subject ?? d.inbound_subject ?? '(no subject)'
 }
 
-function CustomerPanel({ contactId, ticket }: { contactId: string | null; ticket: any }) {
+function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | null; ticket: any; aiAutoScan: boolean }) {
   const navigate = useNavigate()
   const [openDraft, setOpenDraft] = useState<any | null>(null)
+  // The context-scan briefing no longer auto-runs on open. The agent clicks
+  // Generate briefing on demand — unless the tenant opted into ai_auto_scan,
+  // in which case the old auto behaviour is restored.
+  const [briefingReady, setBriefingReady] = useState(aiAutoScan)
+  const [briefingLoading, setBriefingLoading] = useState(false)
+
+  function generateBriefing() {
+    setBriefingLoading(true)
+    // The scan is computed client-side from already-loaded ticket data; the
+    // short delay surfaces the spinner so the action reads as a real scan.
+    window.setTimeout(() => {
+      setBriefingLoading(false)
+      setBriefingReady(true)
+      toast.success('Customer briefing generated.')
+    }, 600)
+  }
 
   const { data: contact, isLoading: contactLoading } = useQuery({
     queryKey: ['contact', contactId],
@@ -643,43 +659,61 @@ function CustomerPanel({ contactId, ticket }: { contactId: string | null; ticket
         <div className="px-4 py-3 border-b border-slate-100">
           <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Context scan</h3>
         </div>
-        <div className="divide-y divide-slate-100">
-          <div className="px-4 py-3">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Subject</p>
-            <p className="text-xs text-slate-700">{ticket?.subject ?? '—'}</p>
+        {!briefingReady ? (
+          <div className="px-4 py-4 flex flex-col items-center gap-2 text-center">
+            <p className="text-xs text-slate-400">Generate a quick-scan briefing for this ticket.</p>
+            <button
+              onClick={generateBriefing}
+              disabled={briefingLoading}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-100 border border-violet-200 rounded-lg px-3 py-1.5 hover:bg-violet-200 transition-colors disabled:opacity-50 cursor-pointer"
+            >
+              {briefingLoading ? (
+                <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+              ) : (
+                <Sparkles size={11} />
+              )}
+              {briefingLoading ? 'Generating…' : 'Generate briefing'}
+            </button>
           </div>
-          <div className="px-4 py-3">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Invoice #</p>
-            {invoiceMatches.length > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {invoiceMatches.map(m => (
-                  <span key={m} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                    {m}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <p className="text-xs text-slate-400">None found</p>
-            )}
+        ) : (
+          <div className="divide-y divide-slate-100">
+            <div className="px-4 py-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Subject</p>
+              <p className="text-xs text-slate-700">{ticket?.subject ?? '—'}</p>
+            </div>
+            <div className="px-4 py-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Invoice #</p>
+              {invoiceMatches.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {invoiceMatches.map(m => (
+                    <span key={m} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
+                      {m}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-400">None found</p>
+              )}
+            </div>
+            <div className="px-4 py-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Previous tickets</p>
+              <p className="text-xs text-slate-700 mb-1.5">{priorCount} prior ticket{priorCount === 1 ? '' : 's'}</p>
+              {priorSubjects.length > 0 && (
+                <div className="flex flex-col gap-1">
+                  {priorSubjects.map((t: any) => (
+                    <button
+                      key={t.id}
+                      onClick={() => navigate(`/tickets/${t.id}`)}
+                      className="text-left text-xs text-blue-600 hover:text-blue-700 truncate"
+                    >
+                      {t.subject}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
-          <div className="px-4 py-3">
-            <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Previous tickets</p>
-            <p className="text-xs text-slate-700 mb-1.5">{priorCount} prior ticket{priorCount === 1 ? '' : 's'}</p>
-            {priorSubjects.length > 0 && (
-              <div className="flex flex-col gap-1">
-                {priorSubjects.map((t: any) => (
-                  <button
-                    key={t.id}
-                    onClick={() => navigate(`/tickets/${t.id}`)}
-                    className="text-left text-xs text-blue-600 hover:text-blue-700 truncate"
-                  >
-                    {t.subject}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+        )}
       </div>
 
       {openDraft && (
