@@ -503,6 +503,24 @@ async def bulk_session_action(body: BulkSessionBody, current_user: CurrentUser, 
     return {"updated": count}
 
 
+@router.delete("/sessions/all", status_code=status.HTTP_200_OK)
+async def clear_all_sessions(current_user: CurrentUser, db: DB):
+    """Delete all chat sessions and messages for this tenant. Dev/sandbox only."""
+    settings = get_settings()
+    if settings.environment not in ("development", "devsandbox", "sandbox", "dev"):
+        raise HTTPException(status_code=403, detail="Only available in dev/sandbox environments")
+    session_result = await db.execute(
+        select(ChatSession).where(ChatSession.tenant_id == current_user.tenant_id)
+    )
+    sessions = session_result.scalars().all()
+    ids = [s.id for s in sessions]
+    if ids:
+        await db.execute(delete(ChatMessage).where(ChatMessage.session_id.in_(ids)))
+        await db.execute(delete(ChatSession).where(ChatSession.id.in_(ids)))
+    await db.commit()
+    return {"deleted": len(ids)}
+
+
 class ChatSettingsBody(BaseModel):
     hide_solved_chats_hours: int
 

@@ -5,6 +5,7 @@ import { ArrowLeft, Check, CheckCheck, ChevronDown, Megaphone, MessageSquare, Qr
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useMobile } from '../../../shell/useMobile'
+import { useTenantConfig } from '../../../App'
 import BroadcastModal from '../components/BroadcastModal'
 
 function timeAgo(dt: string) {
@@ -108,6 +109,8 @@ export default function ChatPage() {
   const navigate = useNavigate()
   const isMobile = useMobile()
   const { user } = useAuth()
+  const config = useTenantConfig()
+  const isDevEnv = ['development', 'devsandbox', 'dev'].includes(config?.environment ?? '')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showConversation, setShowConversation] = useState(false)
   const [replyText, setReplyText] = useState('')
@@ -246,6 +249,14 @@ export default function ChatPage() {
       api.post('/chat/sessions/bulk', { action, session_ids }).then(r => r.data),
     onSuccess: () => {
       setSelectedSessions(new Set())
+      qc.invalidateQueries({ queryKey: ['chat-sessions'] })
+    },
+  })
+
+  const clearAllMutation = useMutation({
+    mutationFn: () => api.delete('/chat/sessions/all').then(r => r.data),
+    onSuccess: () => {
+      setSelectedId(null)
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
     },
   })
@@ -481,6 +492,20 @@ export default function ChatPage() {
               >
                 <Megaphone size={16} />
               </button>
+              {isDevEnv && (
+                <button
+                  onClick={() => {
+                    if (window.confirm('Delete ALL chat sessions and messages? (dev only)')) {
+                      clearAllMutation.mutate()
+                    }
+                  }}
+                  disabled={clearAllMutation.isPending}
+                  title="Clear all sessions (dev only)"
+                  className="px-2 py-1 rounded text-xs font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
+                >
+                  {clearAllMutation.isPending ? '…' : 'Clear'}
+                </button>
+              )}
             </div>
           </div>
         )}
