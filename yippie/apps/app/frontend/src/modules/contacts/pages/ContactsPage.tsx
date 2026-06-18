@@ -560,6 +560,16 @@ function TrashTab() {
     },
   })
 
+  const permanentDeleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/contacts/${id}/permanent`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts-trash'] }),
+  })
+
+  function handlePermanentDelete(c: Contact) {
+    if (!confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) return
+    permanentDeleteMutation.mutate(c.id)
+  }
+
   if (isLoading) return <TableSkeleton cols={4} />
 
   return (
@@ -571,7 +581,7 @@ function TrashTab() {
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Deleted on</th>
-              <th className="px-4 py-3 w-24"></th>
+              <th className="px-4 py-3 w-36"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
@@ -590,13 +600,22 @@ function TrashTab() {
                   {c.deleted_at ? new Date(c.deleted_at).toLocaleDateString('nl-NL') : '—'}
                 </td>
                 <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => restoreMutation.mutate(c.id)}
-                    disabled={restoreMutation.isPending}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
-                  >
-                    Restore
-                  </button>
+                  <div className="flex items-center justify-end gap-2">
+                    <button
+                      onClick={() => restoreMutation.mutate(c.id)}
+                      disabled={restoreMutation.isPending || permanentDeleteMutation.isPending}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      Restore
+                    </button>
+                    <button
+                      onClick={() => handlePermanentDelete(c)}
+                      disabled={restoreMutation.isPending || permanentDeleteMutation.isPending}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      Delete permanently
+                    </button>
+                  </div>
                 </td>
               </tr>
             ))}
