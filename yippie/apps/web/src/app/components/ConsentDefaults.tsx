@@ -23,8 +23,7 @@ export default function ConsentDefaults() {
           `,
         }}
       />
-      {/* defer is NOT hoisted by React 18 (only async is) — produces a literal <script src> in HTML */}
-      <script defer src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
+      <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA_ID}`} />
     </>
   );
 }
