@@ -17,7 +17,6 @@ from app.database import get_db
 from app.modules import MODULES
 from app.modules.chat.router import ws_router as chat_ws_router, webhook_router as chat_webhook_router
 from app.modules.admin.router import router as admin_router
-from app.modules.departments.router import router as departments_router
 from app.modules.team.router import router as team_router
 from app.modules.inbox.router import webhook_router as inbox_webhook_router
 from app.modules.emailtracking.webhooks import webhook_router as emailtracking_webhook_router
@@ -57,7 +56,6 @@ def create_app() -> FastAPI:
 
     # Core routes — always present, no module gating
     app.include_router(auth_router, prefix="/api/v1")
-    app.include_router(departments_router, prefix="/api/v1")
     app.include_router(team_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
     # Public webhooks — no auth, must be mounted before module-gated routes
