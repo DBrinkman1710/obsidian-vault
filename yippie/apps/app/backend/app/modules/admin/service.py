@@ -4,6 +4,7 @@ import asyncio
 import base64
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
 
 from passlib.context import CryptContext
 from sqlalchemy import func, select
@@ -22,9 +23,11 @@ from app.modules.contacts.models import Contact
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+DEFAULT_DEMO_DAYS = 7
+
 TENANT_SAFE_FIELDS = {
     "name", "enabled_modules", "plan", "primary_color", "logo_url",
-    "is_active", "is_demo", "go_live_at", "inbound_email",
+    "is_active", "is_demo", "demo_expires_at", "go_live_at", "inbound_email",
     "kvk_nummer", "btw_nummer",
     "whatsapp_phone_number_id", "whatsapp_access_token", "whatsapp_verify_token",
     "ai_auto_scan",
@@ -68,6 +71,11 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
         primary_color=data.primary_color,
         logo_url=data.logo_url,
         is_demo=data.is_demo,
+        demo_expires_at=(
+            datetime.now(timezone.utc) + timedelta(days=DEFAULT_DEMO_DAYS)
+            if data.is_demo
+            else None
+        ),
         inbound_email=data.inbound_email or None,
     )
     db.add(tenant)
@@ -124,6 +132,9 @@ async def check_email_available(db: AsyncSession, email: str) -> tuple[bool, str
         return False, "Not a valid email address"
     existing = await db.scalar(select(User.id).where(func.lower(User.email) == addr))
     if existing:
+        user = await db.scalar(select(User).where(func.lower(User.email) == addr))
+        if user and user.is_active:
+            return False, "Email address already active, use app.getyippie.com to log in."
         return False, "A user with this email already exists"
     return True, None
 

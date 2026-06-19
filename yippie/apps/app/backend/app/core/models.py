@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -18,6 +18,18 @@ class UserRole(str, enum.Enum):
     admin = "admin"
     agent = "agent"
     viewer = "viewer"
+
+
+class AccessLevel(str, enum.Enum):
+    full = "full"
+    view = "view"
+    restricted = "restricted"
+
+
+class PermSubjectType(str, enum.Enum):
+    user = "user"
+    role = "role"
+    department = "department"
 
 
 class Tenant(Base):
@@ -37,6 +49,9 @@ class Tenant(Base):
     plan: Mapped[str] = mapped_column(String(20), nullable=False, server_default="founder")
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     is_demo: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # When set, the hourly demo_expiry_check job deactivates the tenant after this time.
+    # Superadmins can extend it from the client detail modal.
+    demo_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     go_live_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     inbound_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Dutch legal registration numbers — shown on invoices/exports.
@@ -122,3 +137,38 @@ class UserSignature(Base):
     )
 
     user: Mapped[User] = relationship("User", back_populates="signatures")
+
+
+class RbacRole(Base):
+    __tablename__ = "rbac_roles"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RbacUserRole(Base):
+    __tablename__ = "rbac_user_roles"
+    __table_args__ = (UniqueConstraint("user_id", "role_id"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    user_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    role_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("rbac_roles.id", ondelete="CASCADE"), nullable=False)
+
+
+class PermissionsMatrix(Base):
+    __tablename__ = "permissions_matrix"
+    __table_args__ = (UniqueConstraint("tenant_id", "subject_type", "subject_id", "module"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    subject_type: Mapped[PermSubjectType] = mapped_column(
+        Enum(PermSubjectType, name="perm_subject_type", create_type=False), nullable=False
+    )
+    subject_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    module: Mapped[str] = mapped_column(String(50), nullable=False)
+    access_level: Mapped[AccessLevel] = mapped_column(
+        Enum(AccessLevel, name="access_level_enum", create_type=False), nullable=False, default=AccessLevel.full
+    )

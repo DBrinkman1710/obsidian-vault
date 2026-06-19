@@ -65,20 +65,24 @@ async def auto_close_stale_tickets():
 
 @scheduler.scheduled_job("interval", hours=1, id="demo_expiry_check")
 async def demo_expiry_check():
-    """Deactivate demo tenants older than 7 days and notify the platform owner."""
+    """Deactivate demo tenants past demo_expires_at and notify the platform owner."""
     import os
 
     from app.core.mailer import send_email
     from app.core.models import Tenant
 
     admin_email = os.getenv("ADMIN_EMAIL", "diederik1710@gmail.com")
-    cutoff = datetime.now(timezone.utc) - timedelta(days=7)
+    now = datetime.now(timezone.utc)
+    legacy_cutoff = now - timedelta(days=7)
     async with db_session() as db:
         result = await db.execute(
             select(Tenant).where(
                 Tenant.is_demo.is_(True),
                 Tenant.is_active.is_(True),
-                Tenant.created_at < cutoff,
+                (
+                    (Tenant.demo_expires_at.isnot(None) & (Tenant.demo_expires_at < now))
+                    | (Tenant.demo_expires_at.is_(None) & (Tenant.created_at < legacy_cutoff))
+                ),
             )
         )
         tenants = result.scalars().all()

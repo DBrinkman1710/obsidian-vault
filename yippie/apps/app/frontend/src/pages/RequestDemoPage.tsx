@@ -36,7 +36,7 @@ export default function RequestDemoPage() {
       {done ? (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-slate-600">
-            Check your email — we&apos;ve sent you a setup link.
+            Demo sent — check your email for a one-click link to your workspace.
           </p>
           <Link to="/login" className="text-sm text-blue-600 hover:text-blue-700 font-medium">← Back to sign in</Link>
         </div>

@@ -39,6 +39,8 @@ class PipelineBoardContact(BaseModel):
     email: Optional[str]
     company_name: Optional[str]
     entered_at: datetime
+    days_in_stage: int = 0
+    stale_alert: bool = False
 
 
 class PipelineBoardColumn(BaseModel):

@@ -32,6 +32,7 @@ class TenantUpdate(BaseModel):
     logo_url: Optional[str] = None
     is_active: Optional[bool] = None
     is_demo: Optional[bool] = None
+    demo_expires_at: Optional[datetime] = None
     go_live_at: Optional[datetime] = None
     inbound_email: Optional[str] = None
     kvk_nummer: Optional[str] = None
@@ -52,6 +53,7 @@ class TenantOut(BaseModel):
     logo_url: Optional[str]
     is_active: bool
     is_demo: bool
+    demo_expires_at: Optional[datetime]
     go_live_at: Optional[datetime]
     inbound_email: Optional[str]
     kvk_nummer: Optional[str]

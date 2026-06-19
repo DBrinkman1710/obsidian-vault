@@ -20,6 +20,8 @@ interface BoardContact {
   email: string | null
   company_name: string | null
   entered_at: string
+  days_in_stage: number
+  stale_alert: boolean
 }
 interface BoardColumn {
   stage: PipelineStage
@@ -255,6 +257,7 @@ function AddContactModal({
 // ──────────────────────────────────────────────────────────────
 function ContactCard({
   contact,
+  stageName,
   onDragStart,
   onRemove,
   selectable,
@@ -262,14 +265,18 @@ function ContactCard({
   onToggleSelect,
 }: {
   contact: BoardContact
+  stageName: string
   onDragStart: () => void
   onRemove: () => void
   selectable: boolean
   selected: boolean
   onToggleSelect: () => void
 }) {
-  const daysIn = Math.floor(
+  const daysIn = contact.days_in_stage ?? Math.floor(
     (Date.now() - new Date(contact.entered_at).getTime()) / 86_400_000
+  )
+  const showStaleAlert = contact.stale_alert || (
+    stageName.toLowerCase().includes('demo') && daysIn >= 3
   )
 
   return (
@@ -277,7 +284,7 @@ function ContactCard({
       draggable
       onDragStart={onDragStart}
       className={`bg-white rounded-xl border px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group ${
-        selected ? 'border-blue-400 ring-1 ring-blue-200' : 'border-slate-200'}`}
+        selected ? 'border-blue-400 ring-1 ring-blue-200' : showStaleAlert ? 'border-amber-400 ring-1 ring-amber-200' : 'border-slate-200'}`}
     >
       <div className="flex items-start justify-between gap-1">
         {selectable && (
@@ -315,8 +322,10 @@ function ContactCard({
           <X size={12} />
         </button>
       </div>
-      <p className="text-[10px] text-slate-300 mt-1.5">
-        {daysIn === 0 ? 'Added today' : daysIn === 1 ? '1 day' : `${daysIn} days`}
+      <p className={`text-[10px] mt-1.5 ${showStaleAlert ? 'text-amber-600 font-semibold' : 'text-slate-300'}`}>
+        {showStaleAlert
+          ? `Follow up — ${daysIn} days in ${stageName}`
+          : daysIn === 0 ? 'Added today' : daysIn === 1 ? '1 day' : `${daysIn} days`}
       </p>
     </div>
   )
@@ -501,6 +510,7 @@ export default function PipelinePage() {
                   <ContactCard
                     key={contact.contact_id}
                     contact={contact}
+                    stageName={col.stage.name}
                     selectable={bookingEnabled}
                     selected={selectedContacts.has(contact.contact_id)}
                     onToggleSelect={() => toggleContact(contact.contact_id)}

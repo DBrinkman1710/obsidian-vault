@@ -50,10 +50,10 @@ export default function DemoForm() {
           <div className={styles.successIcon}>
             <CheckIcon size={24} />
           </div>
-          <h2 className={styles.successTitle}>Request received</h2>
+          <h2 className={styles.successTitle}>Demo sent</h2>
           <p className={styles.successSub}>
-            Thanks! We&apos;ll be in touch within one business day to schedule
-            your personalised Yippie demo.
+            Check your inbox — we&apos;ve emailed you a one-click link to enter your
+            Yippie demo workspace.
           </p>
         </div>
       </div>

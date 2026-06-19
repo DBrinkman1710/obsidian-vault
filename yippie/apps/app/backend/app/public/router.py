@@ -9,7 +9,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -31,7 +31,11 @@ ROOT_OWNER_EMAIL = os.getenv("ADMIN_EMAIL", "diederik1710@gmail.com").lower()
 # Cached root-owner tenant id (per process); resolved once from the DB.
 _root_tenant_id: Optional[uuid.UUID] = None
 
-# Simple in-memory rate limiter — 5 demo requests per IP per hour. This is not a
+# Default demo tenant lifetime (days) — overridable per tenant via demo_expires_at.
+DEFAULT_DEMO_DAYS = 7
+
+# Kanban stage used for inbound demo requests in the root owner's pipeline.
+DEMO_PIPELINE_STAGE = "Demo"
 # high-traffic endpoint, so a process-local dict is sufficient.
 DEMO_RATE_LIMIT = 5
 DEMO_RATE_WINDOW = 3600  # seconds
@@ -60,8 +64,8 @@ async def get_public_stats(db: Annotated[AsyncSession, Depends(get_db)]) -> dict
 
 
 class RequestDemo(BaseModel):
-    name: str
-    company_name: str
+    name: str = Field(min_length=1)
+    company_name: str = Field(min_length=1)
     email: EmailStr
     slug: Optional[str] = None
 
@@ -104,6 +108,59 @@ async def _resolve_root_tenant_id(db: AsyncSession) -> uuid.UUID:
     return _root_tenant_id
 
 
+def _demo_client_base_url() -> str:
+    """Public app URL for demo magic links (sandbox in staging, app in production)."""
+    settings = get_settings()
+    return settings.client_base_url or settings.effective_base_url or settings.app_base_url
+
+
+async def _reject_active_user_email(db: AsyncSession, email: str) -> None:
+    """Block demo provisioning when the address already belongs to an active Yippie user."""
+    from app.core.models import User
+
+    user = await db.scalar(select(User).where(func.lower(User.email) == email.lower().strip()))
+    if user and user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email address already active, use app.getyippie.com to log in.",
+        )
+
+
+async def _ensure_demo_pipeline_stage(db: AsyncSession, tenant_id: uuid.UUID):
+    """First kanban column for demo leads — create a Demo stage at position 0 if missing."""
+    from app.modules.pipeline.models import PipelineStage
+
+    stage = await db.scalar(
+        select(PipelineStage).where(
+            PipelineStage.tenant_id == tenant_id,
+            func.lower(PipelineStage.name) == DEMO_PIPELINE_STAGE.lower(),
+        )
+    )
+    if stage is not None:
+        return stage
+
+    first = await db.scalar(
+        select(PipelineStage)
+        .where(PipelineStage.tenant_id == tenant_id)
+        .order_by(PipelineStage.display_order)
+        .limit(1)
+    )
+    if first is not None:
+        return first
+
+    stage = PipelineStage(
+        tenant_id=tenant_id,
+        name=DEMO_PIPELINE_STAGE,
+        color="#5BA4F5",
+        display_order=0,
+    )
+    db.add(stage)
+    await db.flush()
+    return stage
+
+
+# Simple in-memory rate limiter — 5 demo requests per IP per hour. This is not a
+# high-traffic endpoint, so a process-local dict is sufficient.
 def _check_rate_limit(ip: str) -> None:
     now = time.monotonic()
     hits = [t for t in _demo_requests[ip] if now - t < DEMO_RATE_WINDOW]
@@ -150,24 +207,18 @@ async def request_demo(
     from app.auth.invite import send_demo_ready_email
     from app.auth.tokens import create_signed_token
     from app.core.mailer import ResendNotConfiguredError
-    from app.core.models import User, UserRole
+    from app.core.models import Tenant, User
     from app.modules.admin.schemas import TenantCreate
     from app.modules.admin.service import create_tenant
     from app.modules.contacts.models import Contact, contact_label_links
-    from app.modules.pipeline.models import PipelineStage
     from app.modules.pipeline.service import _assign_stage
     from app.modules.tickets.models import MessageSource, Ticket, TicketPriority, TicketStatus
 
     ip = (request.client.host if request.client else None) or "unknown"
     _check_rate_limit(ip)
 
-    # Reject duplicate accounts before creating anything (create_tenant also guards this).
-    existing = await db.scalar(select(User.id).where(func.lower(User.email) == body.email.lower()))
-    if existing:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="A user with this email already exists.",
-        )
+    email = body.email.lower().strip()
+    await _reject_active_user_email(db, email)
 
     root_tenant_id = await _resolve_root_tenant_id(db)
 
@@ -176,16 +227,16 @@ async def request_demo(
 
     # Random password => create_tenant creates a hashed-password user and
     # suppresses the generic set-password invite email; we send a magic-login
-    # "demo ready" mail instead.
+    # demo link instead.
     pwd = secrets.token_urlsafe(32)
     try:
         tenant = await create_tenant(
             db,
             TenantCreate(
-                name=body.company_name,
+                name=body.company_name.strip(),
                 slug=slug,
-                admin_email=body.email,
-                admin_full_name=body.name,
+                admin_email=email,
+                admin_full_name=body.name.strip(),
                 is_demo=True,
                 admin_password=pwd,
             ),
@@ -199,31 +250,53 @@ async def request_demo(
         )
 
     tenant_id = tenant["id"]
-
-    # Mint a 7-day magic-login token and email a one-click auto-login link.
-    settings = get_settings()
-    user = await db.scalar(
-        select(User).where(func.lower(User.email) == body.email.lower())
+    demo_tenant = await db.get(Tenant, uuid.UUID(str(tenant_id)))
+    expires_at = (
+        demo_tenant.demo_expires_at
+        if demo_tenant and demo_tenant.demo_expires_at
+        else datetime.now(timezone.utc) + timedelta(days=DEFAULT_DEMO_DAYS)
     )
-    token = create_signed_token("demo_magic", timedelta(days=7), user_id=str(user.id))
-    magic_link = f"{settings.client_base_url or settings.app_base_url}/demo-enter?token={token}"
+
+    user = await db.scalar(select(User).where(func.lower(User.email) == email))
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Demo account could not be created.",
+        )
+
+    ttl = expires_at - datetime.now(timezone.utc)
+    if ttl.total_seconds() < 60:
+        ttl = timedelta(days=DEFAULT_DEMO_DAYS)
+    token = create_signed_token(
+        "demo_magic",
+        ttl,
+        user_id=str(user.id),
+        email=email,
+        tenant_id=str(tenant_id),
+    )
+    base = _demo_client_base_url()
+    if not base:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Demo link URL is not configured.",
+        )
+    magic_link = f"{base}/demo-enter?token={token}"
     try:
-        await send_demo_ready_email(body.email, body.name, magic_link)
+        await send_demo_ready_email(email, body.name.strip(), magic_link)
     except Exception:
         pass  # demo is created; email failure must not fail the response
 
     # All remaining writes are in the root tenant — set RLS context so
     # pipeline_stages INSERT/SELECT passes the tenant_isolation policy.
-    from app.database import set_tenant_context
     await set_tenant_context(db, str(root_tenant_id))
 
     # File a follow-up Contact + Ticket in the root owner's own tenant.
     label = await _ensure_demo_label(db, root_tenant_id)
     contact = Contact(
         tenant_id=root_tenant_id,
-        full_name=body.name,
-        email=body.email,
-        company=body.company_name,
+        full_name=body.name.strip(),
+        email=email,
+        company=body.company_name.strip(),
     )
     db.add(contact)
     await db.flush()
@@ -231,39 +304,21 @@ async def request_demo(
         contact_label_links.insert().values(contact_id=contact.id, label_id=label.id)
     )
 
-    # [DEMO-WF1] Drop the contact into the "Demo requested" kanban stage.
-    stage = await db.scalar(
-        select(PipelineStage).where(
-            PipelineStage.tenant_id == root_tenant_id,
-            PipelineStage.name == "Demo requested",
-        )
-    )
-    if stage is None:
-        stage = PipelineStage(
-            tenant_id=root_tenant_id,
-            name="Demo requested",
-            color="#5BA4F5",
-            display_order=0,
-        )
-        db.add(stage)
-        await db.flush()
-
+    stage = await _ensure_demo_pipeline_stage(db, root_tenant_id)
     await _assign_stage(db, root_tenant_id, contact.id, stage.id)
 
     now = datetime.now(timezone.utc)
     db.add(Ticket(
         tenant_id=root_tenant_id,
         contact_id=contact.id,
-        subject=f"Follow up: {body.company_name} demo",
+        subject=f"Follow up: {body.company_name.strip()} demo",
         description=(
-            f"Demo requested by {body.name} ({body.email}). "
-            f"Tenant slug: {slug}. 3-day follow-up."
+            f"Demo requested by {body.name.strip()} ({email}). "
+            f"Tenant slug: {slug}. Follow up within 3 days."
         ),
         status=TicketStatus.open,
         priority=TicketPriority.medium,
         source=MessageSource.manual,
-        # The Ticket model has no follow_up_at column (that field lives on draft_tickets);
-        # sla_due_at is the ticket's deadline field, so the 3-day follow-up rides on it.
         sla_due_at=now + timedelta(days=3),
     ))
     await db.commit()
@@ -275,7 +330,7 @@ async def request_demo(
 async def demo_enter(token: str, db: Annotated[AsyncSession, Depends(get_db)]):
     from app.auth.tokens import verify_signed_token
     from app.auth.router import create_access_token, TokenResponse
-    from app.core.models import User
+    from app.core.models import Tenant, User
     from app.core.schemas import UserOut
     from app.config import get_settings
 
@@ -286,6 +341,20 @@ async def demo_enter(token: str, db: Annotated[AsyncSession, Depends(get_db)]):
     user = await db.get(User, uuid.UUID(claims["user_id"]))
     if not user or not user.is_active:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Demo account not found.")
+
+    token_email = (claims.get("email") or "").lower()
+    if token_email and token_email != user.email.lower():
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired demo link.")
+
+    tenant = await db.get(Tenant, user.tenant_id)
+    if not tenant or not tenant.is_active:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Demo account not found.")
+    if tenant.is_demo and tenant.demo_expires_at:
+        expires = tenant.demo_expires_at
+        if expires.tzinfo is None:
+            expires = expires.replace(tzinfo=timezone.utc)
+        if expires < datetime.now(timezone.utc):
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This demo has expired.")
 
     settings = get_settings()
     access_token = create_access_token(str(user.id), settings)

@@ -31,6 +31,7 @@ interface Tenant {
   logo_url: string | null
   is_active: boolean
   is_demo: boolean
+  demo_expires_at: string | null
   go_live_at: string | null
   inbound_email: string | null
   kvk_nummer: string | null
@@ -81,6 +82,12 @@ const EMPTY_FORM: CreateForm = {
 
 const WIZARD_STEPS = ['Company', 'Modules', 'Branding', 'Admins', 'Go live']
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
+function demoDaysRemaining(expiresAt: string | null): number {
+  if (!expiresAt) return 7
+  const ms = new Date(expiresAt).getTime() - Date.now()
+  return Math.max(0, Math.ceil(ms / 86_400_000))
+}
 
 function slugify(s: string) {
   return s.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '')
@@ -458,6 +465,7 @@ function EditClientModal({
     whatsapp_access_token: tenant.whatsapp_access_token ?? '',
     whatsapp_verify_token: tenant.whatsapp_verify_token ?? '',
     ai_auto_scan: tenant.ai_auto_scan ?? false,
+    demo_days_remaining: demoDaysRemaining(tenant.demo_expires_at),
   })
   const [error, setError] = useState('')
   const [showAddAdmin, setShowAddAdmin] = useState(false)
@@ -504,6 +512,12 @@ function EditClientModal({
     const waVerify = form.whatsapp_verify_token.trim() || null
     if (waVerify !== tenant.whatsapp_verify_token) patch.whatsapp_verify_token = waVerify
     if (form.ai_auto_scan !== tenant.ai_auto_scan) patch.ai_auto_scan = form.ai_auto_scan
+    if (tenant.is_demo && form.demo_days_remaining !== demoDaysRemaining(tenant.demo_expires_at)) {
+      const days = Math.max(1, Math.min(365, form.demo_days_remaining))
+      const expires = new Date()
+      expires.setDate(expires.getDate() + days)
+      patch.demo_expires_at = expires.toISOString()
+    }
     if (Object.keys(patch).length === 0) { onClose(); return }
     setError('')
     mutation.mutate(patch)
@@ -615,6 +629,28 @@ function EditClientModal({
                   />
                 </div>
               </div>
+              {tenant.is_demo && (
+                <div>
+                  <label className={labelCls}>Demo days remaining</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={365}
+                    className={inputCls}
+                    value={form.demo_days_remaining}
+                    onChange={e => setForm(p => ({
+                      ...p,
+                      demo_days_remaining: Math.max(1, parseInt(e.target.value, 10) || 1),
+                    }))}
+                  />
+                  <p className="mt-1 text-xs text-slate-400">
+                    Extends or shortens this demo from today.
+                    {tenant.demo_expires_at && (
+                      <> Current expiry: {new Date(tenant.demo_expires_at).toLocaleDateString()}.</>
+                    )}
+                  </p>
+                </div>
+              )}
               <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
                 <input
                   type="checkbox"

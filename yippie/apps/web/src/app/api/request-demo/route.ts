@@ -40,8 +40,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (upstream.status === 409) {
+    const body = await upstream.json().catch(() => ({}));
+    const detail = typeof body?.detail === "string" ? body.detail : null;
     return NextResponse.json(
-      { error: "An account with this email already exists." },
+      { error: detail ?? "Email address already active, use app.getyippie.com to log in." },
       { status: 409 }
     );
   }

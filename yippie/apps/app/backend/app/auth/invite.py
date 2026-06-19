@@ -53,15 +53,13 @@ async def send_invite_email(
 async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> None:
     body = (
         f"Hi {full_name},\n\n"
-        f"Your Yippie demo is ready — no password needed.\n\n"
-        f"Click below to enter your demo workspace:\n{magic_link}\n\n"
-        f"The link is valid for 7 days. Your demo resets after that.\n\n"
-        f"Take back the time that matters,\n"
+        f"Demo sent.\n\n"
+        f"Enter your demo workspace here (one click, no password needed):\n{magic_link}\n\n"
         f"Team Yippie"
     )
     await send_email(
         to=to,
-        subject="Your Yippie demo is ready",
+        subject="Your Yippie demo",
         body=body,
         html=render_email_html(body, tenant_name="Yippie"),
     )
