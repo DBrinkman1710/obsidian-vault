@@ -3,7 +3,7 @@ import SiteNav from "./components/SiteNav";
 import SiteFooter from "./components/SiteFooter";
 import Reveal from "./components/Reveal";
 import ROICalculator from "./components/ROICalculator";
-import { PLAN_LIMITS } from "@yippie/config/pricing";
+import { PLAN_LIMITS } from "@/lib/config";
 import HourCounter from "./components/HourCounter";
 import {
   InboxIcon,

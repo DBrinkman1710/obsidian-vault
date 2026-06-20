@@ -7,7 +7,7 @@ import styles from "./page.module.css";
 import {
   TicketIcon, AiIcon, CalendarIcon, KanbanIcon, MailTrackIcon, LayersIcon,
 } from "../components/icons";
-import { PLAN_LIMITS, MODULE_PRICES } from "@yippie/config/pricing";
+import { PLAN_LIMITS, MODULE_PRICES } from "@/lib/config";
 
 const DEMO_PATH = "/request-demo";
 
