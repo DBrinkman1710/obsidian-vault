@@ -1,11 +1,12 @@
 // Single source of truth for plan pricing — mirrors apps/app/backend/app/core/plans.py
 // Update both files together when prices change.
+// All plans have unlimited contacts. Plans differ by users and AI scans/month.
 
 export const PLAN_LIMITS = {
-  founder: { users: 2,    contacts: 1_000,  priceMonthly: 9,   priceAnnual: 97   },
-  starter: { users: 5,    contacts: 5_000,  priceMonthly: 29,  priceAnnual: 313  },
-  growth:  { users: 15,   contacts: 25_000, priceMonthly: 69,  priceAnnual: 745  },
-  pro:     { users: null, contacts: null,   priceMonthly: 99,  priceAnnual: 1069 },
+  founder:    { users: 2,    contacts: null, aiScans: 500,    priceMonthly: 9,    priceAnnual: 97   },
+  starter:    { users: 5,    contacts: null, aiScans: 2_000,  priceMonthly: 19,   priceAnnual: 205  },
+  growth:     { users: 10,   contacts: null, aiScans: 10_000, priceMonthly: 49,   priceAnnual: 529  },
+  enterprise: { users: null, contacts: null, aiScans: null,   priceMonthly: null, priceAnnual: null },
 } as const;
 
 export const MODULE_PRICES = {

@@ -41,7 +41,7 @@ export default function SiteFooter() {
             <img src="/logo-black-bg.svg" alt="Yippie" className={styles.footerLogo} />
           </a>
           <p className={styles.footerTagline}>
-            The AI-powered customer service platform for small and medium businesses.
+            Your growth partner in customer service. Built to scale with you.
           </p>
         </div>
 
@@ -63,7 +63,7 @@ export default function SiteFooter() {
 
       <div className={styles.footerBar}>
         <span className={styles.footerCopy}>© {new Date().getFullYear()} Yippie. All rights reserved.</span>
-        <span className={styles.footerMade}>Built for teams that move fast.</span>
+        <span className={styles.footerMade}>Built for founders who mean business.</span>
       </div>
     </footer>
   );

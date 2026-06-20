@@ -14,24 +14,27 @@ const DEMO_PATH = "/request-demo";
 type Plan = {
   tier: string;
   tagline: string;
-  monthly: number;
-  annual: number; // per month, billed annually
+  monthly: number | null;
+  annual: number | null;
   users: string;
-  contacts: string;
+  aiScans: string;
   included: string[];
-  allModules?: boolean; // all add-ons bundled — no à la carte needed
+  allModules?: boolean;
   featured?: boolean;
+  founding?: boolean;
+  enterprise?: boolean;
 };
 
 const plans: Plan[] = [
   {
     tier: "Founder",
-    tagline: "For early adopters",
+    tagline: "Founding Member — first 5 spots",
     monthly: PLAN_LIMITS.founder.priceMonthly,
     annual: PLAN_LIMITS.founder.priceAnnual,
     users: `${PLAN_LIMITS.founder.users} users`,
-    contacts: `${PLAN_LIMITS.founder.contacts!.toLocaleString("en")} contacts`,
-    included: ["Inbox", "Contacts", "2 users", "1,000 contacts", "Add-ons à la carte"],
+    aiScans: "500 AI scans/mo",
+    included: ["Inbox", "Contacts", "2 users", "Unlimited contacts", "500 AI scans/mo", "Add-ons à la carte"],
+    founding: true,
   },
   {
     tier: "Starter",
@@ -39,8 +42,8 @@ const plans: Plan[] = [
     monthly: PLAN_LIMITS.starter.priceMonthly,
     annual: PLAN_LIMITS.starter.priceAnnual,
     users: `${PLAN_LIMITS.starter.users} users`,
-    contacts: `${PLAN_LIMITS.starter.contacts!.toLocaleString("en")} contacts`,
-    included: ["Inbox", "Contacts", "5 users", "5,000 contacts", "Add-ons à la carte"],
+    aiScans: "2,000 AI scans/mo",
+    included: ["Inbox", "Contacts", "5 users", "Unlimited contacts", "2,000 AI scans/mo", "Add-ons à la carte"],
   },
   {
     tier: "Growth",
@@ -48,17 +51,17 @@ const plans: Plan[] = [
     monthly: PLAN_LIMITS.growth.priceMonthly,
     annual: PLAN_LIMITS.growth.priceAnnual,
     users: `${PLAN_LIMITS.growth.users} users`,
-    contacts: `${PLAN_LIMITS.growth.contacts!.toLocaleString("en")} contacts`,
-    included: ["Inbox", "Contacts", "15 users", "25,000 contacts", "Add-ons à la carte"],
+    aiScans: "10,000 AI scans/mo",
+    included: ["Inbox", "Contacts", "10 users", "Unlimited contacts", "10,000 AI scans/mo", "Add-ons à la carte"],
     featured: true,
   },
   {
-    tier: "Pro",
-    tagline: "For established companies — everything included",
-    monthly: PLAN_LIMITS.pro.priceMonthly,
-    annual: PLAN_LIMITS.pro.priceAnnual,
+    tier: "Enterprise",
+    tagline: "Dedicated growth partnership",
+    monthly: null,
+    annual: null,
     users: "Unlimited users",
-    contacts: "Unlimited contacts",
+    aiScans: "Unlimited AI scans",
     included: [
       "Inbox + Contacts",
       "Tickets",
@@ -68,8 +71,10 @@ const plans: Plan[] = [
       "Email tracking",
       "Unlimited users",
       "Unlimited contacts",
+      "Dedicated support",
     ],
     allModules: true,
+    enterprise: true,
   },
 ];
 
@@ -84,20 +89,20 @@ const addOns = [
 // Guided questionnaire — customers answer a few questions about their business
 // and we recommend a plan (and add-ons). Each option carries the minimum plan
 // rank it requires; the recommendation is the highest rank across all answers.
-const PLAN_RANK = ["Founder", "Starter", "Growth", "Pro"] as const;
+const PLAN_RANK = ["Founder", "Starter", "Growth", "Enterprise"] as const;
 
 const teamOptions = [
   { label: "Just me / 1–2 people", rank: 0 },
   { label: "3–5 people", rank: 1 },
-  { label: "6–15 people", rank: 2 },
-  { label: "More than 15", rank: 3 },
+  { label: "6–10 people", rank: 2 },
+  { label: "More than 10", rank: 3 },
 ];
 
 const contactOptions = [
-  { label: "Under 1,000", rank: 0 },
-  { label: "1,000–5,000", rank: 1 },
-  { label: "5,000–25,000", rank: 2 },
-  { label: "More than 25,000", rank: 3 },
+  { label: "Under 500 messages/mo", rank: 0 },
+  { label: "500–2,000 messages/mo", rank: 1 },
+  { label: "2,000–10,000 messages/mo", rank: 2 },
+  { label: "More than 10,000 messages/mo", rank: 3 },
 ];
 
 const featureOptions = [
@@ -110,6 +115,10 @@ const featureOptions = [
 
 const faqs = [
   {
+    q: "Why unlimited contacts on every plan?",
+    a: "Your contact list growing shouldn't be a reason to pay more. We believe in being a real growth partner — so we removed contact limits entirely. Plans differ by team size (users) and AI processing volume (scans per month), not by how many customers you have.",
+  },
+  {
     q: "Can I change my plan?",
     a: "Yes — upgrade or downgrade at any time. Changes take effect immediately and we prorate the difference on your next invoice.",
   },
@@ -120,10 +129,6 @@ const faqs = [
   {
     q: "Is there a free trial?",
     a: "We offer a guided demo and a trial workspace so you can try Yippie with your real inbox before committing. Talk to us to get set up.",
-  },
-  {
-    q: "What if I hit my contact limit?",
-    a: "We'll let you know as you approach your limit. You can upgrade to a higher plan at any time to raise your contact and user caps.",
   },
 ];
 
@@ -148,12 +153,13 @@ export default function PricingPage() {
   const chosenAddOns = featureOptions.filter((f) => wantedFeatures.includes(f.key));
   const planPrice = recommendedPlan
     ? annual
-      ? recommendedPlan.annual
-      : recommendedPlan.monthly
+      ? (recommendedPlan.annual ?? null)
+      : (recommendedPlan.monthly ?? null)
     : 0;
+  const isEnterprise = recommendedPlan?.enterprise ?? false;
   const proIncludesAll = recommendedPlan?.allModules ?? false;
   const addOnsTotal = proIncludesAll ? 0 : chosenAddOns.reduce((sum, a) => sum + a.price, 0);
-  const estimatedTotal = planPrice + addOnsTotal;
+  const estimatedTotal = planPrice != null ? planPrice + addOnsTotal : null;
 
   return (
     <div className={styles.page}>
@@ -162,13 +168,13 @@ export default function PricingPage() {
       <section className={styles.hero}>
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
-          Simple, honest pricing
+          Transparent pricing, no games
         </div>
-        <h1 className={styles.heroTitle}>Pricing that grows with you</h1>
+        <h1 className={styles.heroTitle}>Scale without limits.</h1>
         <p className={styles.heroSub}>
-          Every plan includes the Inbox and Contacts core. Add the modules you
-          need à la carte — or go Pro and get everything in one flat price.
-          No hidden fees, cancel anytime.
+          Every plan includes unlimited contacts. Pay for the team size and AI
+          power you need — add modules à la carte as you grow. No hidden fees,
+          cancel anytime.
         </p>
 
         <div className={styles.toggle}>
@@ -198,20 +204,27 @@ export default function PricingPage() {
               className={`${styles.planCard} ${plan.featured ? styles.featured : ""}`}
             >
               {plan.featured && <span className={styles.popularBadge}>Most popular</span>}
+              {plan.founding && <span className={styles.popularBadge}>Founding Member</span>}
               <p className={styles.planTier}>{plan.tier}</p>
               <p className={styles.planTagline}>{plan.tagline}</p>
-              <p className={styles.planPrice}>
-                €{annual ? plan.annual : plan.monthly}
-                <sub>{annual ? "/yr" : "/mo"}</sub>
-              </p>
-              {annual && (
+              {plan.enterprise ? (
+                <p className={styles.planPrice}>Custom</p>
+              ) : (
+                <p className={styles.planPrice}>
+                  €{annual ? plan.annual : plan.monthly}
+                  <sub>{annual ? "/yr" : "/mo"}</sub>
+                </p>
+              )}
+              {annual && !plan.enterprise && plan.monthly != null && (
                 <p className={styles.planDiscount}>
                   10% off — was €{plan.monthly * 12}/yr
                 </p>
               )}
-              <p className={styles.planBilling}>
-                {annual ? "billed annually" : "billed monthly"}
-              </p>
+              {!plan.enterprise && (
+                <p className={styles.planBilling}>
+                  {annual ? "billed annually" : "billed monthly"}
+                </p>
+              )}
               <ul className={styles.planFeatures}>
                 {plan.included.map((f) => (
                   <li key={f}>
@@ -224,7 +237,7 @@ export default function PricingPage() {
                 href={DEMO_PATH}
                 className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}
               >
-                Request demo
+                {plan.enterprise ? "Contact us" : "Request demo"}
               </a>
             </div>
           ))}
@@ -258,7 +271,7 @@ export default function PricingPage() {
             </div>
 
             <div className={styles.quizQuestion}>
-              <p className={styles.quizLabel}>How many contacts do you manage?</p>
+              <p className={styles.quizLabel}>How many support messages do you receive per month?</p>
               <div className={styles.quizOptions}>
                 {contactOptions.map((o) => (
                   <button
@@ -296,35 +309,43 @@ export default function PricingPage() {
                 <p className={styles.quizResultEyebrow}>We recommend</p>
                 <p className={styles.quizResultPlan}>{recommendedPlan.tier}</p>
                 <p className={styles.quizResultTagline}>{recommendedPlan.tagline}</p>
-                <div className={styles.quizBreakdown}>
-                  <div className={styles.quizRow}>
-                    <span>{recommendedPlan.tier} plan</span>
-                    <span>€{planPrice}/mo</span>
-                  </div>
-                  {proIncludesAll ? (
+                {isEnterprise ? (
+                  <p className={styles.quizResultNote}>
+                    Enterprise pricing is custom — let&apos;s talk about what fits your business.
+                  </p>
+                ) : (
+                  <div className={styles.quizBreakdown}>
                     <div className={styles.quizRow}>
-                      <span>All modules included</span>
-                      <span>✓</span>
+                      <span>{recommendedPlan.tier} plan</span>
+                      <span>€{planPrice}/mo</span>
                     </div>
-                  ) : (
-                    chosenAddOns.map((a) => (
-                      <div key={a.key} className={styles.quizRow}>
-                        <span>+ {a.label}</span>
-                        <span>€{a.price}/mo</span>
+                    {proIncludesAll ? (
+                      <div className={styles.quizRow}>
+                        <span>All modules included</span>
+                        <span>✓</span>
                       </div>
-                    ))
-                  )}
-                  <div className={`${styles.quizRow} ${styles.quizTotal}`}>
-                    <span>Estimated total</span>
-                    <span>€{estimatedTotal}{annual ? "/yr" : "/mo"}</span>
+                    ) : (
+                      chosenAddOns.map((a) => (
+                        <div key={a.key} className={styles.quizRow}>
+                          <span>+ {a.label}</span>
+                          <span>€{a.price}/mo</span>
+                        </div>
+                      ))
+                    )}
+                    <div className={`${styles.quizRow} ${styles.quizTotal}`}>
+                      <span>Estimated total</span>
+                      <span>€{estimatedTotal}{annual ? "/yr" : "/mo"}</span>
+                    </div>
                   </div>
-                </div>
-                <p className={styles.quizResultNote}>
-                  {annual ? "Billed annually (10% off). Add-ons also discounted × 12 × 0.9." : "Billed monthly."}{" "}
-                  Add-ons are per workspace.
-                </p>
+                )}
+                {!isEnterprise && (
+                  <p className={styles.quizResultNote}>
+                    {annual ? "Billed annually (10% off). Add-ons also discounted × 12 × 0.9." : "Billed monthly."}{" "}
+                    Add-ons are per workspace.
+                  </p>
+                )}
                 <a href={DEMO_PATH} className={styles.quizResultBtn}>
-                  Request demo →
+                  {isEnterprise ? "Talk to us →" : "Request demo →"}
                 </a>
               </>
             ) : (

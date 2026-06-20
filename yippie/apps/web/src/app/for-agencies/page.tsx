@@ -33,6 +33,10 @@ const painSolutions = [
     pain: "Keeping clients updated is a chore — manual status emails eat your week and still feel impersonal.",
     solve: "Campaign emails with rich templates and tracking let you send polished, on-brand updates at scale. Email tracking shows opens and clicks so you know what landed.",
   },
+  {
+    pain: "Other platforms charge more per client contact — making growth an expensive problem rather than a win.",
+    solve: "Every workspace gets unlimited contacts. Add clients, grow their databases, and scale your agency without worrying about hitting a quota.",
+  },
 ];
 
 export default function ForAgenciesPage() {

@@ -7,6 +7,7 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 const links = [
+  { href: "/", label: "Home" },
   { href: "/modules", label: "Product" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },

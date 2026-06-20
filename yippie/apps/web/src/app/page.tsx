@@ -74,30 +74,34 @@ const plans = [
   {
     tier: "Founder",
     price: `€${PLAN_LIMITS.founder.priceMonthly}`,
-    desc: "For early adopters",
-    features: ["2 users", "1,000 contacts", "Inbox + Contacts", "Add-ons à la carte"],
+    desc: "Founding Member — first 5 spots",
+    features: ["2 users", "Unlimited contacts", "500 AI scans/mo", "Add-ons à la carte"],
     featured: false,
+    founding: true,
   },
   {
     tier: "Starter",
     price: `€${PLAN_LIMITS.starter.priceMonthly}`,
     desc: "For small teams",
-    features: ["5 users", "5,000 contacts", "Inbox + Contacts", "Add-ons à la carte"],
+    features: ["5 users", "Unlimited contacts", "2,000 AI scans/mo", "Add-ons à la carte"],
     featured: false,
+    founding: false,
   },
   {
     tier: "Growth",
     price: `€${PLAN_LIMITS.growth.priceMonthly}`,
     desc: "For growing businesses",
-    features: ["15 users", "25,000 contacts", "Inbox + Contacts", "Priority support"],
+    features: ["10 users", "Unlimited contacts", "10,000 AI scans/mo", "Add-ons à la carte"],
     featured: true,
+    founding: false,
   },
   {
-    tier: "Pro",
-    price: `€${PLAN_LIMITS.pro.priceMonthly}`,
-    desc: "Everything included",
-    features: ["Unlimited users", "Unlimited contacts", "All modules", "Dedicated support"],
+    tier: "Enterprise",
+    price: "Custom",
+    desc: "Dedicated partnership",
+    features: ["Unlimited users", "Unlimited contacts", "Unlimited AI scans", "All modules + dedicated support"],
     featured: false,
+    founding: false,
   },
 ];
 
@@ -177,22 +181,22 @@ export default function HomePage() {
           <Reveal className={styles.heroCopy}>
             <div className={styles.eyebrowPill}>
               <span className={styles.pillDot} />
-              AI customer service for SMBs
+              Your growth partner in customer service
             </div>
             <h1 className={styles.heroTitle}>
               Take back the time<br />that matters.
             </h1>
             <p className={styles.heroSub}>
-              Yippie auto-drafts every support ticket from your inbox. Review, approve,
-              done — so you spend seconds where you used to spend minutes.
+              Yippie auto-drafts every support ticket from your inbox — and grows
+              alongside your business. Review, approve, done.
             </p>
             <div className={styles.heroActions}>
               <a href={DEMO_URL} className={styles.btnPrimary}>
-                Request demo <ArrowRightIcon size={17} />
+                Start growing with us <ArrowRightIcon size={17} />
               </a>
               <a href="/modules" className={styles.btnGhost}>See the product</a>
             </div>
-            <p className={styles.heroMeta}>No credit card · Set up in minutes</p>
+            <p className={styles.heroMeta}>No credit card · Unlimited contacts · Cancel anytime</p>
           </Reveal>
 
           <Reveal className={styles.heroVisual} delay={120}>
@@ -291,13 +295,59 @@ export default function HomePage() {
         </Reveal>
       </section>
 
+      {/* Growth Partner */}
+      <section className={styles.sectionLight}>
+        <Reveal className={styles.sectionHead}>
+          <p className={styles.eyebrow}>// Growth Partner</p>
+          <h2 className={styles.sectionTitle}>We grow when you grow.</h2>
+        </Reveal>
+        <div className={styles.featureRows}>
+          <Reveal className={styles.featureRow}>
+            <div className={styles.featureIcon}>
+              <UsersIcon size={22} />
+            </div>
+            <div>
+              <h3 className={styles.featureTitle}>Unlimited contacts, on every plan</h3>
+              <p className={styles.featureDesc}>
+                From your first customer to your ten-thousandth — your contact limit never
+                changes. No forced upgrade, no surprise cap.
+              </p>
+            </div>
+          </Reveal>
+          <Reveal className={styles.featureRow} delay={70}>
+            <div className={styles.featureIcon}>
+              <BillingIcon size={22} />
+            </div>
+            <div>
+              <h3 className={styles.featureTitle}>Transparent pricing, no games</h3>
+              <p className={styles.featureDesc}>
+                One flat monthly price. No hidden fees, no per-contact charges.
+                You always know exactly what you pay.
+              </p>
+            </div>
+          </Reveal>
+          <Reveal className={styles.featureRow} delay={140}>
+            <div className={styles.featureIcon}>
+              <ChatIcon size={22} />
+            </div>
+            <div>
+              <h3 className={styles.featureTitle}>Reachable people, not a black box</h3>
+              <p className={styles.featureDesc}>
+                We&apos;re here when you need us. Not a ticket queue, not a chatbot.
+                Founders who want to see you succeed.
+              </p>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       {/* Pricing teaser */}
       <section id="pricing" className={styles.section}>
         <Reveal className={styles.sectionHead}>
           <p className={styles.eyebrow}>// Pricing</p>
           <h2 className={styles.sectionTitle}>Simple, honest pricing</h2>
           <p className={styles.sectionSub}>
-            No hidden fees. Cancel anytime. Start small and add modules as you grow.
+            No hidden fees. Unlimited contacts. Start small and add modules as you grow.
           </p>
         </Reveal>
         <div className={styles.pricingGrid}>
@@ -308,8 +358,12 @@ export default function HomePage() {
               delay={i * 60}
             >
               {plan.featured && <span className={styles.priceBadge}>Most popular</span>}
+              {plan.founding && <span className={styles.priceBadge}>Founding Member</span>}
               <p className={styles.priceTier}>{plan.tier}</p>
-              <p className={styles.priceAmount}>{plan.price}<sub>/mo</sub></p>
+              <p className={styles.priceAmount}>
+                {plan.price}
+                {plan.price !== "Custom" && <sub>/mo</sub>}
+              </p>
               <p className={styles.priceDesc}>{plan.desc}</p>
               <ul className={styles.priceFeatures}>
                 {plan.features.map((f) => (
@@ -317,7 +371,7 @@ export default function HomePage() {
                 ))}
               </ul>
               <a href="/pricing" className={`${styles.priceBtn} ${plan.featured ? styles.priceBtnFeatured : ""}`}>
-                View plan
+                {plan.tier === "Enterprise" ? "Contact us" : "View plan"}
               </a>
             </Reveal>
           ))}

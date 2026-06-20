@@ -18,14 +18,11 @@ class PlanTier(str, enum.Enum):
     founder = "founder"
     starter = "starter"
     growth = "growth"
-    pro = "pro"
+    pro = "pro"          # legacy — existing tenants keep this value
+    enterprise = "enterprise"
 
 
-# The tier assigned to existing tenants by the migration. Pro unlocks every
-# feature, so introducing plan gating never locks anyone out of something they
-# can use today — superadmins can later downgrade individual tenants. (Existing
-# 'enterprise' tenants are renamed to 'pro' by the migration.)
-DEFAULT_PLAN = PlanTier.pro
+DEFAULT_PLAN = PlanTier.enterprise
 
 
 # Core features available on every tier (including free). These are the
@@ -61,16 +58,19 @@ PLAN_FEATURES: dict[PlanTier, set[str]] = {
     PlanTier.starter: set(ALL_FEATURES),
     PlanTier.growth: set(ALL_FEATURES),
     PlanTier.pro: set(ALL_FEATURES),
+    PlanTier.enterprise: set(ALL_FEATURES),
 }
 
 
-# Per-plan seat/contact caps and pricing (euros). ``None`` means unlimited.
+# Per-plan seat caps and pricing (euros). ``None`` means unlimited.
+# All plans have unlimited contacts. Plans differ by users and AI scans/month.
 # price_annual = monthly * 12 * 0.9 (10% discount, billed as a single yearly charge)
 PLAN_LIMITS: dict[PlanTier, dict[str, "int | None"]] = {
-    PlanTier.founder: {"users": 2,    "contacts": 1_000,  "price_monthly": 9,   "price_annual": round(9   * 12 * 0.9)},
-    PlanTier.starter: {"users": 5,    "contacts": 5_000,  "price_monthly": 29,  "price_annual": round(29  * 12 * 0.9)},
-    PlanTier.growth:  {"users": 15,   "contacts": 25_000, "price_monthly": 69,  "price_annual": round(69  * 12 * 0.9)},
-    PlanTier.pro:     {"users": None, "contacts": None,   "price_monthly": 99,  "price_annual": round(99  * 12 * 0.9)},
+    PlanTier.founder:    {"users": 2,    "contacts": None, "ai_scans": 500,    "price_monthly": 9,    "price_annual": 97},
+    PlanTier.starter:    {"users": 5,    "contacts": None, "ai_scans": 2_000,  "price_monthly": 19,   "price_annual": 205},
+    PlanTier.growth:     {"users": 10,   "contacts": None, "ai_scans": 10_000, "price_monthly": 49,   "price_annual": 529},
+    PlanTier.pro:        {"users": None, "contacts": None, "ai_scans": None,   "price_monthly": None, "price_annual": None},
+    PlanTier.enterprise: {"users": None, "contacts": None, "ai_scans": None,   "price_monthly": None, "price_annual": None},
 }
 
 

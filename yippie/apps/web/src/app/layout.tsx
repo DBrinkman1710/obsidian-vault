@@ -27,22 +27,28 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Yippie — Customer support, made easy",
+  title: "Yippie — Your growth partner in customer service",
   description:
-    "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.",
+    "Yippie is the AI-powered customer service platform that grows with your business. Unlimited contacts on every plan. Inbox, tickets, contacts, and bookings in one place.",
   metadataBase: new URL(SITE_URL),
   keywords: [
     "customer service",
     "SMB",
+    "growth partner",
     "inbox management",
     "ticket system",
     "AI support",
     "helpdesk",
+    "unlimited contacts",
   ],
+  icons: {
+    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
+    apple: "/apple-icon.png",
+  },
   openGraph: {
-    title: "Yippie — Customer support, made easy",
+    title: "Yippie — Your growth partner in customer service",
     description:
-      "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.",
+      "Unlimited contacts on every plan. AI inbox triage, tickets, and bookings — one platform that scales with you.",
     type: "website",
     url: SITE_URL,
     siteName: "Yippie",
@@ -55,9 +61,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Yippie — Customer support, made easy",
+    title: "Yippie — Your growth partner in customer service",
     description:
-      "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.",
+      "Unlimited contacts on every plan. AI inbox triage, tickets, and bookings — one platform that scales with you.",
     images: ["/logo.svg"],
   },
 };
