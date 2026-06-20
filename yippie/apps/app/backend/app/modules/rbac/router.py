@@ -23,6 +23,13 @@ from app.modules.rbac.schemas import (
 router = APIRouter(prefix="/rbac", tags=["rbac"])
 
 
+@router.post("/provision-defaults", status_code=204)
+async def provision_defaults(current_user: AdminUser, db: DB):
+    """Seed the default Agent + Viewer roles for this tenant (idempotent)."""
+    await service.provision_default_rbac_roles(db, current_user.tenant_id)
+    await db.commit()
+
+
 @router.get("/my-permissions", response_model=MyPermissionsOut)
 async def my_permissions(current_user: CurrentUser, db: DB):
     perms = await service.get_my_permissions(db, current_user)

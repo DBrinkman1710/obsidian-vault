@@ -102,6 +102,10 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
     from app.modules.pipeline.service import provision_default_stages
     await provision_default_stages(db, tenant.id)
 
+    # Seed default RBAC roles (Agent + Viewer) for every new tenant.
+    from app.modules.rbac.service import provision_default_rbac_roles
+    await provision_default_rbac_roles(db, tenant.id)
+
     for email in invites:
         full_name = data.admin_full_name if email == data.admin_email else "Admin"
         try:

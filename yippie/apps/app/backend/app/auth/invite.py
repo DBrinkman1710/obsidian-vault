@@ -20,6 +20,7 @@ async def send_invite_email(
     tenant_id: uuid.UUID,
     role: str,
     tenant_name: str,
+    rbac_role_ids: list[str] | None = None,
 ) -> None:
     settings = get_settings()
     token = create_signed_token(
@@ -29,6 +30,7 @@ async def send_invite_email(
         full_name=full_name,
         tenant_id=str(tenant_id),
         role=role,
+        rbac_role_ids=rbac_role_ids or [],
     )
     base = settings.client_base_url or settings.app_base_url
     link = f"{base}/register?token={token}"

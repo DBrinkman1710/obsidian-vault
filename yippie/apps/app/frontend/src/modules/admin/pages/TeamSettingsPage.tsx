@@ -197,10 +197,16 @@ function DepartmentsPanel() {
 function InviteModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const [form, setForm] = useState({ email: '', full_name: '', role: 'agent' })
+  const [selectedRbacRoles, setSelectedRbacRoles] = useState<string[]>([])
   const [error, setError] = useState('')
 
+  const { data: availableRoles = [] } = useQuery<RbacRole[]>({
+    queryKey: ['rbac-roles'],
+    queryFn: () => api.get('/rbac/roles').then(r => r.data),
+  })
+
   const mutation = useMutation({
-    mutationFn: () => api.post('/team/invite', form).then(r => r.data),
+    mutationFn: () => api.post('/team/invite', { ...form, rbac_role_ids: selectedRbacRoles }).then(r => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['team-users'] }); onClose() },
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to send invite'),
   })
@@ -210,6 +216,10 @@ function InviteModal({ onClose }: { onClose: () => void }) {
     if (!form.email.trim() || !form.full_name.trim()) { setError('Name and email are required'); return }
     setError('')
     mutation.mutate()
+  }
+
+  function toggleRole(id: string) {
+    setSelectedRbacRoles(prev => prev.includes(id) ? prev.filter(r => r !== id) : [...prev, id])
   }
 
   return (
@@ -231,7 +241,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
               onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="jan@company.nl" />
           </div>
           <div>
-            <label className={labelCls}>Role</label>
+            <label className={labelCls}>System role</label>
             <select className={inputCls} value={form.role}
               onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
               <option value="agent">Agent — handles tickets and inbox</option>
@@ -239,6 +249,30 @@ function InviteModal({ onClose }: { onClose: () => void }) {
               <option value="viewer">Viewer — read-only</option>
             </select>
           </div>
+          {availableRoles.length > 0 && (
+            <div>
+              <label className={labelCls}>Access roles <span className="font-normal text-slate-400">(optional)</span></label>
+              <div className="flex flex-wrap gap-2">
+                {availableRoles.map(r => {
+                  const selected = selectedRbacRoles.includes(r.id)
+                  return (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => toggleRole(r.id)}
+                      className={`px-3 py-1 text-xs font-semibold rounded-full border transition-colors ${
+                        selected
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-white text-slate-600 border-slate-200 hover:border-blue-400 hover:text-blue-600'
+                      }`}
+                    >
+                      {r.name}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
           <p className="text-xs text-slate-400">
             They'll receive an email with a link to set their own password. The link is valid for 7 days.
           </p>
@@ -327,14 +361,16 @@ function UserRbacRow({ user, enabledModules }: { user: TeamUser; enabledModules:
   return (
     <>
       <tr className="border-t border-slate-100">
-        <td colSpan={4} className="px-4 py-1.5">
+        <td colSpan={4} className="p-0">
           <button
             onClick={() => setExpanded(e => !e)}
-            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+            className={`w-full flex items-center gap-2 px-4 py-2 text-xs font-medium transition-colors text-left ${
+              expanded ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
+            }`}
           >
-            {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
-            <Shield size={12} />
-            Module access
+            <Shield size={13} className={expanded ? 'text-blue-500' : 'text-slate-400'} />
+            Access roles &amp; permissions
+            {expanded ? <ChevronDown size={12} className="ml-auto" /> : <ChevronRight size={12} className="ml-auto" />}
           </button>
         </td>
       </tr>

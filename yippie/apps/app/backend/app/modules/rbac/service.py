@@ -20,6 +20,21 @@ from app.modules.departments.models import DepartmentMember
 ACCESS_ORDER = {AccessLevel.restricted: 0, AccessLevel.view: 1, AccessLevel.full: 2}
 
 
+DEFAULT_RBAC_ROLES = ["Agent", "Viewer"]
+
+
+async def provision_default_rbac_roles(db: AsyncSession, tenant_id: uuid.UUID) -> None:
+    """Create default Agent + Viewer RBAC roles for a tenant if they don't exist."""
+    existing = await db.execute(
+        select(RbacRole.name).where(RbacRole.tenant_id == tenant_id)
+    )
+    existing_names = {r for r in existing.scalars()}
+    for name in DEFAULT_RBAC_ROLES:
+        if name not in existing_names:
+            db.add(RbacRole(tenant_id=tenant_id, name=name))
+    await db.flush()
+
+
 async def resolve_module_access(db: AsyncSession, user: User, module_key: str) -> AccessLevel:
     """Hierarchical resolution: user-override → dept → rbac-role → default full.
 

@@ -24,7 +24,7 @@ async def list_team_users(current_user: AdminUser, db: DB):
 @router.post("/invite", status_code=status.HTTP_201_CREATED)
 async def invite_team_user(current_user: AdminUser, db: DB, data: schemas.TeamInviteRequest):
     try:
-        return await service.invite_user(db, current_user.tenant_id, data.email, data.full_name, data.role)
+        return await service.invite_user(db, current_user.tenant_id, data.email, data.full_name, data.role, data.rbac_role_ids)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except ResendNotConfiguredError as e:

@@ -104,6 +104,18 @@ async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(ge
         role=UserRole(claims.get("role", "agent")),
     )
     db.add(user)
+    await db.flush()
+
+    # Auto-assign any RBAC roles that were selected at invite time.
+    rbac_role_ids = claims.get("rbac_role_ids") or []
+    if rbac_role_ids:
+        from app.modules.rbac.service import assign_user_rbac_role
+        for role_id_str in rbac_role_ids:
+            try:
+                await assign_user_rbac_role(db, uuid.UUID(claims["tenant_id"]), user.id, uuid.UUID(role_id_str))
+            except Exception:
+                pass  # skip invalid/deleted roles silently
+
     await db.commit()
     await db.refresh(user)
 

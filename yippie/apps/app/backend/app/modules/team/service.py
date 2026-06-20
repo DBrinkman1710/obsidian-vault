@@ -19,7 +19,8 @@ async def list_users(db: AsyncSession, tenant_id: uuid.UUID) -> list[User]:
 
 
 async def invite_user(
-    db: AsyncSession, tenant_id: uuid.UUID, email: str, full_name: str, role: str
+    db: AsyncSession, tenant_id: uuid.UUID, email: str, full_name: str, role: str,
+    rbac_role_ids: list[uuid.UUID] | None = None,
 ) -> dict:
     try:
         role_enum = UserRole(role)
@@ -36,6 +37,7 @@ async def invite_user(
     await send_invite_email(
         to=email, full_name=full_name, tenant_id=tenant_id,
         role=role_enum.value, tenant_name=tenant.name if tenant else "Yippie",
+        rbac_role_ids=[str(r) for r in rbac_role_ids] if rbac_role_ids else [],
     )
     return {"invited": True, "email": email, "role": role_enum.value}
 

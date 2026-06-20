@@ -23,6 +23,7 @@ class TeamInviteRequest(BaseModel):
     email: EmailStr
     full_name: str
     role: str = "agent"  # agent | admin | viewer
+    rbac_role_ids: list[uuid.UUID] = []
 
 
 class TeamUserUpdate(BaseModel):
