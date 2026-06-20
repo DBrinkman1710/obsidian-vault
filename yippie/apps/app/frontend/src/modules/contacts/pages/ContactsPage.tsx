@@ -5,6 +5,7 @@ import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mai
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { TableSkeleton, CardListSkeleton } from '../../../shell/Skeleton'
+import { MutationGate } from '../../../shell/MutationGate'
 import { LabelChip, fetchLabels, type ContactLabel } from '../components/LabelChip'
 import { fetchCompanies, type Company } from '../components/CompanyBadge'
 import { ColumnPicker, resolveColumns } from '../components/ColumnPicker'
@@ -162,12 +163,14 @@ function CompaniesTab({ triggerCreate, onCreateHandled }: {
             className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-900">
             <Download size={14} strokeWidth={2.5} /> Export CSV
           </button>
-          <button
-            onClick={() => { if (confirm(`Delete ${selected.size} company/companies? Contacts will remain.`)) deleteMutation.mutate([...selected]) }}
-            disabled={deleteMutation.isPending}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
-            <Trash2 size={14} strokeWidth={2.5} /> Delete
-          </button>
+          <MutationGate>
+            <button
+              onClick={() => { if (confirm(`Delete ${selected.size} company/companies? Contacts will remain.`)) deleteMutation.mutate([...selected]) }}
+              disabled={deleteMutation.isPending}
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
+              <Trash2 size={14} strokeWidth={2.5} /> Delete
+            </button>
+          </MutationGate>
           <button onClick={() => setSelected(new Set())} className="ml-auto text-slate-400 hover:text-slate-600">
             <X size={16} />
           </button>
@@ -733,28 +736,30 @@ export default function ContactsPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
               <Download size={15} strokeWidth={2.5} /> Export
             </button>
-            {isAdmin && (
-              <button onClick={() => setShowImport(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-                <Upload size={15} strokeWidth={2.5} /> Import
-              </button>
-            )}
-            {isAdmin && (
-              <button
-                onClick={handleNewCompany}
+            <MutationGate>
+              {isAdmin && (
+                <button onClick={() => setShowImport(true)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+                  <Upload size={15} strokeWidth={2.5} /> Import
+                </button>
+              )}
+              {isAdmin && (
+                <button
+                  onClick={handleNewCompany}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                >
+                  <Plus size={15} strokeWidth={2.5} />
+                  New Company
+                </button>
+              )}
+              <Link
+                to="/contacts/new"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
               >
                 <Plus size={15} strokeWidth={2.5} />
-                New Company
-              </button>
-            )}
-            <Link
-              to="/contacts/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-            >
-              <Plus size={15} strokeWidth={2.5} />
-              New Contact
-            </Link>
+                New Contact
+              </Link>
+            </MutationGate>
           </div>
         </div>
 

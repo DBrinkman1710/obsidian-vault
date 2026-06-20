@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import React, { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { UserPlus, X, Plus, Pencil, Trash2, Building } from 'lucide-react'
+import { UserPlus, X, Plus, Pencil, Trash2, Building, ChevronDown, ChevronRight, Shield } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { TemplatePicker } from '../../inbox/components/TemplatePicker'
+import { ModulePermissionsGrid } from '../../../components/ModulePermissionsGrid'
+import { useTenantConfig } from '../../../App'
 
 interface TeamUser {
   id: string
@@ -14,6 +16,9 @@ interface TeamUser {
   created_at: string
   last_login_at: string | null
 }
+
+interface RbacRole { id: string; name: string; created_at: string }
+interface UserRbacRole { id: string; role_id: string; role_name: string }
 
 const ROLE_PILL: Record<string, string> = {
   superadmin: 'bg-purple-100 text-purple-700',
@@ -129,7 +134,6 @@ function DepartmentsPanel() {
 
   return (
     <div className="w-96 flex-shrink-0">
-      {/* Header row — mirrors the Team header for vertical alignment */}
       <div className="flex items-center justify-between mb-8">
         <div>
           <h2 className="text-2xl font-bold text-slate-900 mb-1">Departments</h2>
@@ -287,12 +291,230 @@ function DeleteUserModal({ user, onClose }: { user: TeamUser; onClose: () => voi
   )
 }
 
+// ---------------------------------------------------------------------------
+// User row — expandable RBAC section
+// ---------------------------------------------------------------------------
+
+function UserRbacRow({ user, enabledModules }: { user: TeamUser; enabledModules: string[] }) {
+  const qc = useQueryClient()
+  const [expanded, setExpanded] = useState(false)
+
+  const { data: assignedRoles = [] } = useQuery<UserRbacRole[]>({
+    queryKey: ['user-rbac-roles', user.id],
+    queryFn: () => api.get(`/rbac/users/${user.id}/roles`).then(r => r.data),
+    enabled: expanded,
+  })
+
+  const { data: allRoles = [] } = useQuery<RbacRole[]>({
+    queryKey: ['rbac-roles'],
+    queryFn: () => api.get('/rbac/roles').then(r => r.data),
+    enabled: expanded,
+  })
+
+  const assignMutation = useMutation({
+    mutationFn: (roleId: string) => api.post(`/rbac/users/${user.id}/roles/${roleId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['user-rbac-roles', user.id] }),
+  })
+
+  const removeMutation = useMutation({
+    mutationFn: (roleId: string) => api.delete(`/rbac/users/${user.id}/roles/${roleId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['user-rbac-roles', user.id] }),
+  })
+
+  const assignedRoleIds = new Set(assignedRoles.map(r => r.role_id))
+  const unassignedRoles = allRoles.filter(r => !assignedRoleIds.has(r.id))
+
+  return (
+    <>
+      <tr className="border-t border-slate-100">
+        <td colSpan={4} className="px-4 py-1.5">
+          <button
+            onClick={() => setExpanded(e => !e)}
+            className="flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            {expanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+            <Shield size={12} />
+            Module access
+          </button>
+        </td>
+      </tr>
+      {expanded && (
+        <tr>
+          <td colSpan={4} className="px-4 pb-4">
+            {/* RBAC roles */}
+            <div className="mb-3">
+              <p className="text-xs font-semibold text-slate-500 mb-2">Assigned roles</p>
+              <div className="flex flex-wrap gap-2">
+                {assignedRoles.map(r => (
+                  <span key={r.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
+                    {r.role_name}
+                    <button
+                      onClick={() => removeMutation.mutate(r.role_id)}
+                      disabled={removeMutation.isPending}
+                      className="hover:text-red-500 transition-colors"
+                      title="Remove"
+                    >
+                      <X size={10} />
+                    </button>
+                  </span>
+                ))}
+                {unassignedRoles.length > 0 && (
+                  <select
+                    defaultValue=""
+                    onChange={e => { if (e.target.value) assignMutation.mutate(e.target.value) }}
+                    disabled={assignMutation.isPending}
+                    className="text-xs border border-dashed border-slate-300 rounded-full px-2 py-0.5 text-slate-400 hover:border-blue-400 hover:text-blue-600 transition-colors cursor-pointer"
+                  >
+                    <option value="" disabled>+ Add role</option>
+                    {unassignedRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                )}
+                {assignedRoles.length === 0 && unassignedRoles.length === 0 && (
+                  <p className="text-xs text-slate-400">No roles defined yet — create them in the Roles tab.</p>
+                )}
+              </div>
+            </div>
+
+            {/* Per-module override grid */}
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-1">Per-module override <span className="font-normal text-slate-400">(user-level, overrides role/dept)</span></p>
+              <ModulePermissionsGrid
+                subjectType="user"
+                subjectId={user.id}
+                enabledModules={enabledModules}
+              />
+            </div>
+          </td>
+        </tr>
+      )}
+    </>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Roles tab
+// ---------------------------------------------------------------------------
+
+function RolesTab({ enabledModules }: { enabledModules: string[] }) {
+  const qc = useQueryClient()
+  const [newName, setNewName] = useState('')
+  const [expandedRole, setExpandedRole] = useState<string | null>(null)
+  const [error, setError] = useState('')
+
+  const { data: roles = [], isLoading } = useQuery<RbacRole[]>({
+    queryKey: ['rbac-roles'],
+    queryFn: () => api.get('/rbac/roles').then(r => r.data),
+  })
+
+  const createMutation = useMutation({
+    mutationFn: () => api.post('/rbac/roles', { name: newName.trim() }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rbac-roles'] }); setNewName(''); setError('') },
+    onError: () => setError('Failed to create role'),
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/rbac/roles/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['rbac-roles'] }); qc.invalidateQueries({ queryKey: ['rbac-permissions-all'] }) },
+  })
+
+  function handleCreate(e: React.FormEvent) {
+    e.preventDefault()
+    if (!newName.trim()) { setError('Role name is required'); return }
+    createMutation.mutate()
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">Access Roles</h2>
+          <p className="text-sm text-slate-500">Define roles with per-module access levels, then assign them to team members.</p>
+        </div>
+      </div>
+
+      {/* Create role */}
+      <form onSubmit={handleCreate} className="flex items-center gap-3 mb-6">
+        <input
+          className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+          placeholder="New role name (e.g. Finance Viewer)"
+          value={newName}
+          onChange={e => setNewName(e.target.value)}
+        />
+        <button
+          type="submit"
+          disabled={createMutation.isPending}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+        >
+          <Plus size={15} />
+          Create role
+        </button>
+      </form>
+      {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
+
+      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+
+      {!isLoading && roles.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-2xl border border-slate-200">
+          <Shield size={28} className="text-slate-300 mx-auto mb-2" />
+          <p className="text-sm font-semibold text-slate-500">No roles yet</p>
+          <p className="text-xs text-slate-400 mt-1">Create a role to define module-level access for a group of users.</p>
+        </div>
+      )}
+
+      {roles.length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+          {roles.map(role => (
+            <div key={role.id}>
+              <div className="flex items-center justify-between px-4 py-3">
+                <button
+                  onClick={() => setExpandedRole(expandedRole === role.id ? null : role.id)}
+                  className="flex items-center gap-2 text-sm font-semibold text-slate-800 hover:text-slate-900"
+                >
+                  {expandedRole === role.id ? <ChevronDown size={15} /> : <ChevronRight size={15} />}
+                  {role.name}
+                </button>
+                <button
+                  onClick={() => { if (confirm(`Delete role "${role.name}"?`)) deleteMutation.mutate(role.id) }}
+                  className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
+                  title="Delete role"
+                >
+                  <Trash2 size={13} />
+                </button>
+              </div>
+              {expandedRole === role.id && (
+                <div className="px-4 pb-4 pt-1 bg-slate-50 border-t border-slate-100">
+                  <p className="text-xs text-slate-500 mb-1">Set module access for users assigned this role.</p>
+                  <ModulePermissionsGrid
+                    subjectType="role"
+                    subjectId={role.id}
+                    enabledModules={enabledModules}
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Main page
+// ---------------------------------------------------------------------------
+
+type Tab = 'members' | 'roles'
+
 export default function TeamSettingsPage() {
   const qc = useQueryClient()
   const { user: me } = useAuth()
+  const config = useTenantConfig()
+  const [tab, setTab] = useState<Tab>('members')
   const [showInvite, setShowInvite] = useState(false)
   const [deletingUser, setDeletingUser] = useState<TeamUser | null>(null)
   const [error, setError] = useState('')
+
+  const enabledModules = config?.enabled_modules ?? []
 
   const { data: users, isLoading } = useQuery<TeamUser[]>({
     queryKey: ['team-users'],
@@ -306,101 +528,125 @@ export default function TeamSettingsPage() {
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Update failed'),
   })
 
+  const tabCls = (t: Tab) =>
+    `px-4 py-2 text-sm font-semibold rounded-lg transition-colors ${tab === t ? 'bg-white shadow-sm text-slate-900' : 'text-slate-500 hover:text-slate-700'}`
+
   return (
     <div className="flex gap-8 items-start">
-      {/* Team list */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900 mb-1">Team</h1>
-            <p className="text-sm text-slate-500">Invite and manage the people in your workspace.</p>
+        {/* Tab bar */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="inline-flex items-center gap-1 bg-slate-100 rounded-xl p-1">
+            <button className={tabCls('members')} onClick={() => setTab('members')}>Members</button>
+            <button className={tabCls('roles')} onClick={() => setTab('roles')}>
+              <span className="flex items-center gap-1.5"><Shield size={13} />Roles</span>
+            </button>
           </div>
-          <button
-            onClick={() => setShowInvite(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
-          >
-            <UserPlus size={15} />
-            Invite
-          </button>
+          {tab === 'members' && (
+            <button
+              onClick={() => setShowInvite(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+            >
+              <UserPlus size={15} />
+              Invite
+            </button>
+          )}
         </div>
 
-        {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
-        {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+        {tab === 'members' && (
+          <>
+            <div className="mb-6">
+              <h1 className="text-2xl font-bold text-slate-900 mb-1">Team</h1>
+              <p className="text-sm text-slate-500">Invite and manage the people in your workspace.</p>
+            </div>
 
-        {users && (
-          <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-slate-50 border-b border-slate-200">
-                <tr>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Role</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Last login</th>
-                  <th className="px-4 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {users.map(u => {
-                  const isSelf = u.id === me?.id
-                  const isSuperadmin = u.role === 'superadmin'
-                  const locked = isSelf || isSuperadmin
-                  return (
-                    <tr key={u.id} className={!u.is_active ? 'opacity-50' : ''}>
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-semibold text-slate-900">{u.full_name}{isSelf && <span className="text-slate-400 font-normal"> (you)</span>}</div>
-                        <div className="text-xs text-slate-400">{u.email}</div>
-                      </td>
-                      <td className="px-4 py-3">
-                        {locked ? (
-                          <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${ROLE_PILL[u.role] ?? ROLE_PILL.viewer}`}>{u.role}</span>
-                        ) : (
-                          <select
-                            value={u.role}
-                            onChange={e => updateMutation.mutate({ id: u.id, role: e.target.value })}
-                            className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 capitalize"
-                          >
-                            <option value="admin">admin</option>
-                            <option value="agent">agent</option>
-                            <option value="viewer">viewer</option>
-                          </select>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-xs text-slate-400">
-                        {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        {!locked && (
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => updateMutation.mutate({ id: u.id, is_active: !u.is_active })}
-                              disabled={updateMutation.isPending}
-                              className={`px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors disabled:opacity-50 ${
-                                u.is_active
-                                  ? 'text-slate-500 border-slate-200 hover:bg-slate-50'
-                                  : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
-                              }`}
-                            >
-                              {u.is_active ? 'Deactivate' : 'Activate'}
-                            </button>
-                            <button
-                              onClick={() => setDeletingUser(u)}
-                              className="p-1.5 text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
-                              title="Delete"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        )}
-                      </td>
+            {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+            {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+
+            {users && (
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+                <table className="w-full">
+                  <thead className="bg-slate-50 border-b border-slate-200">
+                    <tr>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Role</th>
+                      <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Last login</th>
+                      <th className="px-4 py-3"></th>
                     </tr>
-                  )
-                })}
-              </tbody>
-            </table>
-          </div>
+                  </thead>
+                  <tbody>
+                    {users.map(u => {
+                      const isSelf = u.id === me?.id
+                      const isSuperadmin = u.role === 'superadmin'
+                      const locked = isSelf || isSuperadmin
+                      return (
+                        <React.Fragment key={u.id}>
+                          <tr className={!u.is_active ? 'opacity-50' : ''}>
+                            <td className="px-4 py-3">
+                              <div className="text-sm font-semibold text-slate-900">{u.full_name}{isSelf && <span className="text-slate-400 font-normal"> (you)</span>}</div>
+                              <div className="text-xs text-slate-400">{u.email}</div>
+                            </td>
+                            <td className="px-4 py-3">
+                              {locked ? (
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${ROLE_PILL[u.role] ?? ROLE_PILL.viewer}`}>{u.role}</span>
+                              ) : (
+                                <select
+                                  value={u.role}
+                                  onChange={e => updateMutation.mutate({ id: u.id, role: e.target.value })}
+                                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 capitalize"
+                                >
+                                  <option value="admin">admin</option>
+                                  <option value="agent">agent</option>
+                                  <option value="viewer">viewer</option>
+                                </select>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-400">
+                              {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}
+                            </td>
+                            <td className="px-4 py-3 text-right">
+                              {!locked && (
+                                <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => updateMutation.mutate({ id: u.id, is_active: !u.is_active })}
+                                    disabled={updateMutation.isPending}
+                                    className={`px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors disabled:opacity-50 ${
+                                      u.is_active
+                                        ? 'text-slate-500 border-slate-200 hover:bg-slate-50'
+                                        : 'text-emerald-600 border-emerald-200 hover:bg-emerald-50'
+                                    }`}
+                                  >
+                                    {u.is_active ? 'Deactivate' : 'Activate'}
+                                  </button>
+                                  <button
+                                    onClick={() => setDeletingUser(u)}
+                                    className="p-1.5 text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+                                    title="Delete"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
+                                </div>
+                              )}
+                            </td>
+                          </tr>
+                          {/* RBAC expand row — only for non-admin, non-self users */}
+                          {!isSuperadmin && enabledModules.length > 0 && (
+                            <UserRbacRow user={u} enabledModules={enabledModules} />
+                          )}
+                        </React.Fragment>
+                      )
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
+            {deletingUser && <DeleteUserModal user={deletingUser} onClose={() => setDeletingUser(null)} />}
+          </>
         )}
 
-        {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
-        {deletingUser && <DeleteUserModal user={deletingUser} onClose={() => setDeletingUser(null)} />}
+        {tab === 'roles' && <RolesTab enabledModules={enabledModules} />}
       </div>
 
       {/* Departments panel */}

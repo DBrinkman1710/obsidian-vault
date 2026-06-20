@@ -7,7 +7,7 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentUser, require_feature, require_module
+from app.auth.dependencies import CurrentUser, check_module_access, require_feature, require_module
 from app.auth.router import router as auth_router
 from app.config import ALL_MODULES, get_settings
 from app.core.models import Tenant
@@ -17,6 +17,7 @@ from app.database import get_db
 from app.modules import MODULES
 from app.modules.chat.router import ws_router as chat_ws_router, webhook_router as chat_webhook_router
 from app.modules.admin.router import router as admin_router
+from app.modules.rbac.router import router as rbac_router
 from app.modules.team.router import router as team_router
 from app.modules.inbox.router import webhook_router as inbox_webhook_router
 from app.modules.emailtracking.webhooks import webhook_router as emailtracking_webhook_router
@@ -58,6 +59,7 @@ def create_app() -> FastAPI:
     app.include_router(auth_router, prefix="/api/v1")
     app.include_router(team_router, prefix="/api/v1")
     app.include_router(admin_router, prefix="/api/v1")
+    app.include_router(rbac_router, prefix="/api/v1")
     # Public webhooks — no auth, must be mounted before module-gated routes
     app.include_router(inbox_webhook_router, prefix="/api/v1")
     # Public stats — no auth, consumed by the marketing site
@@ -107,11 +109,12 @@ def create_app() -> FastAPI:
             ai_auto_scan=tenant.ai_auto_scan,
         )
 
-    # Module routes — all mounted, each gated per-request by tenant's enabled_modules.
+    # Module routes — all mounted, each gated per-request by tenant's enabled_modules
+    # and by the user's RBAC access level for that module.
     # Advanced modules also get a plan gate: require_feature returns 402 when the
     # tenant's plan doesn't unlock the feature, on top of the 403 module gate.
     for name, module_router in MODULES.items():
-        deps = [Depends(require_module(name))]
+        deps = [Depends(require_module(name)), Depends(check_module_access(name))]
         if name in ADVANCED_FEATURES:
             deps.append(Depends(require_feature(name)))
         app.include_router(

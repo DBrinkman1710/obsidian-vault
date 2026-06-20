@@ -8,6 +8,7 @@ import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { CardListSkeleton } from '../../../shell/Skeleton'
+import { MutationGate } from '../../../shell/MutationGate'
 import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
 import { SignaturePicker } from '../components/SignaturePicker'
 
@@ -1165,22 +1166,24 @@ export default function InboxQueue() {
         {selected.size > 0 && (
           <div className="mt-3 flex items-center gap-3 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
             <span className="text-sm font-semibold text-blue-800">{selected.size} selected</span>
-            <button
-              onClick={() => bulkMutation.mutate({ ids: Array.from(selected), action: 'bin' })}
-              disabled={bulkMutation.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-            >
-              <Trash2 size={12} />
-              Move to Bin
-            </button>
-            <button
-              onClick={() => bulkMutation.mutate({ ids: Array.from(selected), action: 'spam' })}
-              disabled={bulkMutation.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors disabled:opacity-50"
-            >
-              <AlertOctagon size={12} />
-              Mark as Spam
-            </button>
+            <MutationGate>
+              <button
+                onClick={() => bulkMutation.mutate({ ids: Array.from(selected), action: 'bin' })}
+                disabled={bulkMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
+              >
+                <Trash2 size={12} />
+                Move to Bin
+              </button>
+              <button
+                onClick={() => bulkMutation.mutate({ ids: Array.from(selected), action: 'spam' })}
+                disabled={bulkMutation.isPending}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors disabled:opacity-50"
+              >
+                <AlertOctagon size={12} />
+                Mark as Spam
+              </button>
+            </MutationGate>
             <button
               onClick={() => setSelected(new Set())}
               className="ml-auto text-xs text-slate-400 hover:text-slate-600 transition-colors"

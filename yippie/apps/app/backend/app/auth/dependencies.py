@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError, jwt
 from sqlalchemy import select, text
@@ -130,3 +130,31 @@ def require_feature(feature: str):
 CurrentUser = Annotated[User, Depends(get_current_user)]
 AdminUser = Annotated[User, Depends(require_admin)]
 SuperAdminUser = Annotated[User, Depends(require_superadmin)]
+
+
+def check_module_access(module_key: str):
+    """Dependency factory — enforces per-user RBAC access level for a module.
+
+    Returns 403 for 'restricted' access. For 'view' access, allows GET/HEAD/OPTIONS
+    but blocks mutating methods (POST/PATCH/PUT/DELETE) with 403.
+    Admins and superadmins always pass through (resolved in service).
+    """
+    async def _check(
+        request: Request,
+        current_user: Annotated[User, Depends(get_current_user)],
+        db: Annotated[AsyncSession, Depends(get_db)],
+    ) -> None:
+        from app.modules.rbac.service import resolve_module_access
+        from app.core.models import AccessLevel
+        level = await resolve_module_access(db, current_user, module_key)
+        if level == AccessLevel.restricted:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": "module_access_restricted", "module": module_key},
+            )
+        if level == AccessLevel.view and request.method not in ("GET", "HEAD", "OPTIONS"):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail={"error": "module_access_view_only", "module": module_key},
+            )
+    return _check

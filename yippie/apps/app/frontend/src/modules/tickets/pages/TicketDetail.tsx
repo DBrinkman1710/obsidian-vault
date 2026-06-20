@@ -3,6 +3,7 @@ import type { CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles } from 'lucide-react'
+import { MutationGate } from '../../../shell/MutationGate'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
@@ -194,78 +195,82 @@ export default function TicketDetail() {
             <span className="flex items-center gap-2 min-w-0">
               ⚠ {overdue ? `SLA overdue (was due ${due.toLocaleString()})` : `SLA due in ${Math.ceil(hoursLeft)}h — ${due.toLocaleString()}`}
             </span>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <button
-                onClick={() => snoozeMutation.mutate()}
-                disabled={snoozeMutation.isPending}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 ${overdue ? 'border-red-300 text-red-700 hover:bg-red-100' : 'border-orange-300 text-orange-700 hover:bg-orange-100'}`}
-              >
-                Snooze 24h
-              </button>
-              {ticket.priority !== 'urgent' && (
+            <MutationGate>
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
-                  onClick={() => priorityMutation.mutate('urgent')}
-                  disabled={priorityMutation.isPending}
+                  onClick={() => snoozeMutation.mutate()}
+                  disabled={snoozeMutation.isPending}
                   className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 ${overdue ? 'border-red-300 text-red-700 hover:bg-red-100' : 'border-orange-300 text-orange-700 hover:bg-orange-100'}`}
                 >
-                  Escalate
+                  Snooze 24h
                 </button>
-              )}
-            </div>
+                {ticket.priority !== 'urgent' && (
+                  <button
+                    onClick={() => priorityMutation.mutate('urgent')}
+                    disabled={priorityMutation.isPending}
+                    className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 ${overdue ? 'border-red-300 text-red-700 hover:bg-red-100' : 'border-orange-300 text-orange-700 hover:bg-orange-100'}`}
+                  >
+                    Escalate
+                  </button>
+                )}
+              </div>
+            </MutationGate>
           </div>
         )
       })()}
 
       <div className="flex items-start justify-between gap-4 mb-2">
         <h1 className="text-2xl font-bold text-slate-900">{ticket.subject}</h1>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <select
-            value={ticket.status}
-            onChange={e => statusMutation.mutate(e.target.value)}
-            disabled={statusMutation.isPending}
-            className="text-xs px-2 py-1 rounded-lg border border-slate-200 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50"
-          >
-            {STATUS_OPTIONS.map(s => (
-              <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>
-            ))}
-          </select>
-          <select
-            value={ticket.priority}
-            onChange={e => priorityMutation.mutate(e.target.value)}
-            disabled={priorityMutation.isPending}
-            className={`text-xs px-2 py-1 rounded-lg border border-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 ${PRIORITY_TEXT[ticket.priority] ?? 'text-slate-600'}`}
-          >
-            {PRIORITY_OPTIONS.map(p => (
-              <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>
-            ))}
-          </select>
-          {bookingEnabled && ticket.contact_id && ticketContact && (
-            <button
-              onClick={() => setBookingOpen(true)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+        <MutationGate>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <select
+              value={ticket.status}
+              onChange={e => statusMutation.mutate(e.target.value)}
+              disabled={statusMutation.isPending}
+              className="text-xs px-2 py-1 rounded-lg border border-slate-200 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50"
             >
-              <CalendarClock size={12} />
-              Send booking link
-            </button>
-          )}
-          <button
-            onClick={() => setMergeOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors"
-            style={{ color: YIPPIE_BLUE, borderColor: `${YIPPIE_BLUE}55` }}
-          >
-            <GitMerge size={12} />
-            Merge
-          </button>
-          {canDelete && (
-            <button
-              onClick={() => { setDeleteError(''); setConfirmingDelete(true) }}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+              {STATUS_OPTIONS.map(s => (
+                <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>
+              ))}
+            </select>
+            <select
+              value={ticket.priority}
+              onChange={e => priorityMutation.mutate(e.target.value)}
+              disabled={priorityMutation.isPending}
+              className={`text-xs px-2 py-1 rounded-lg border border-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 ${PRIORITY_TEXT[ticket.priority] ?? 'text-slate-600'}`}
             >
-              <Trash2 size={12} />
-              Delete
+              {PRIORITY_OPTIONS.map(p => (
+                <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>
+              ))}
+            </select>
+            {bookingEnabled && ticket.contact_id && ticketContact && (
+              <button
+                onClick={() => setBookingOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+              >
+                <CalendarClock size={12} />
+                Send booking link
+              </button>
+            )}
+            <button
+              onClick={() => setMergeOpen(true)}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg transition-colors"
+              style={{ color: YIPPIE_BLUE, borderColor: `${YIPPIE_BLUE}55` }}
+            >
+              <GitMerge size={12} />
+              Merge
             </button>
-          )}
-        </div>
+            {canDelete && (
+              <button
+                onClick={() => { setDeleteError(''); setConfirmingDelete(true) }}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={12} />
+                Delete
+              </button>
+            )}
+          </div>
+        </MutationGate>
       </div>
 
       {bookingEnabled && ticketContact && (
@@ -337,17 +342,19 @@ export default function TicketDetail() {
           rows={4}
           className={`w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 rounded-lg p-2 ${isInternal ? 'bg-amber-50' : 'bg-white'}`}
         />
-        <div className="flex items-center justify-end mt-3 pt-3 border-t border-slate-100">
-          <button
-            onClick={() => commentMutation.mutate()}
-            disabled={!comment.trim() || commentMutation.isPending}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
-          >
-            <Send size={13} />
-            Send
-            {commentMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
-          </button>
-        </div>
+        <MutationGate>
+          <div className="flex items-center justify-end mt-3 pt-3 border-t border-slate-100">
+            <button
+              onClick={() => commentMutation.mutate()}
+              disabled={!comment.trim() || commentMutation.isPending}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+            >
+              <Send size={13} />
+              Send
+              {commentMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
+            </button>
+          </div>
+        </MutationGate>
       </div>
     </div>
     <CustomerPanel contactId={ticket.contact_id ?? null} ticket={ticket} aiAutoScan={config?.ai_auto_scan ?? false} />
