@@ -19,6 +19,7 @@ class UserOut(BaseModel):
     inbound_email: Optional[str] = None
     email_signature: Optional[str] = None
     hotkeys_enabled: bool = True
+    shared_inbox_disabled: bool = False
     contact_column_prefs: Optional[list[dict]] = None
     created_at: datetime
 

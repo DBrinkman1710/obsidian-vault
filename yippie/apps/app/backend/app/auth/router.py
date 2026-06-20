@@ -198,6 +198,7 @@ class UserSelfUpdate(BaseModel):
     inbound_email: Optional[str] = None
     email_signature: Optional[str] = None
     hotkeys_enabled: Optional[bool] = None
+    shared_inbox_disabled: Optional[bool] = None
     contact_column_prefs: Optional[list[dict]] = None
 
 
@@ -231,6 +232,8 @@ async def update_me(
             current_user.inbound_email = None
     if body.hotkeys_enabled is not None:
         current_user.hotkeys_enabled = body.hotkeys_enabled
+    if body.shared_inbox_disabled is not None:
+        current_user.shared_inbox_disabled = body.shared_inbox_disabled
     if "contact_column_prefs" in body.model_fields_set:
         current_user.contact_column_prefs = body.contact_column_prefs
     await db.commit()

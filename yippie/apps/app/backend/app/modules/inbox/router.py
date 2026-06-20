@@ -142,9 +142,17 @@ async def list_drafts(
         return _enrich_drafts(rows)
     tenant = await db.get(Tenant, current_user.tenant_id)
     inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
+    # Personal Work Inbox mode: the shared mailbox is narrowed to mail assigned
+    # to this user (or sent to their personal inbound address).
+    personal_only_user_id = current_user.id if current_user.shared_inbox_disabled else None
+    personal_only_inbound_email = (
+        current_user.inbound_email if current_user.shared_inbox_disabled else None
+    )
     rows = await service.list_drafts(
         db, current_user.tenant_id, status, inbound_email, search=q, contact_id=contact_id,
         department_id=department_id,
+        personal_only_user_id=personal_only_user_id,
+        personal_only_inbound_email=personal_only_inbound_email,
     )
     return _enrich_drafts(rows)
 

@@ -512,6 +512,8 @@ async def list_drafts(
     search: Optional[str] = None,
     contact_id: Optional[uuid.UUID] = None,
     department_id: Optional[uuid.UUID] = None,
+    personal_only_user_id: Optional[uuid.UUID] = None,
+    personal_only_inbound_email: Optional[str] = None,
 ) -> list[tuple[DraftTicket, Optional[str], Optional[str]]]:
     # Always join InboundMessage to include the original email subject and the
     # address the mail was routed to (mailbox diagnostics).
@@ -563,6 +565,14 @@ async def list_drafts(
 
     if department_id:
         q = q.where(DraftTicket.forwarded_to_department_id == department_id)
+
+    if personal_only_user_id is not None:
+        # Personal Work Inbox mode: only drafts assigned to this user, or mail
+        # routed to their own personal inbound address.
+        mine = DraftTicket.assigned_to == personal_only_user_id
+        if personal_only_inbound_email:
+            mine = or_(mine, InboundMessage.inbound_to == personal_only_inbound_email.lower())
+        q = q.where(mine)
 
     result = await db.execute(q.order_by(DraftTicket.created_at.desc()))
     return [(row[0], row[1], row[2]) for row in result.all()]

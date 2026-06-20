@@ -99,6 +99,10 @@ class User(Base):
     email_signature: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Per-user toggle for keyboard shortcuts (e.g. Cmd/Ctrl+Enter to send). Off = no hotkeys fire.
     hotkeys_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    # Personal Work Inbox mode: when True the shared mailbox only surfaces drafts
+    # assigned to this user (or sent to their personal inbound address) instead of
+    # the whole tenant's incoming mail.
+    shared_inbox_disabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     # Per-user Contacts table column config: [{key, label, visible, order}, ...]
     contact_column_prefs: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

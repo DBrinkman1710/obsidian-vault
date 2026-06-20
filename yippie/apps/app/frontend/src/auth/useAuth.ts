@@ -16,6 +16,7 @@ interface User {
   inbound_email?: string | null
   email_signature?: string | null
   hotkeys_enabled?: boolean
+  shared_inbox_disabled?: boolean
   contact_column_prefs?: ContactColumnPref[] | null
 }
 

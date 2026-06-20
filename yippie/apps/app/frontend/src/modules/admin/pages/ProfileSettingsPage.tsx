@@ -10,6 +10,7 @@ export default function ProfileSettingsPage() {
   const { user, refreshUser } = useAuth()
   const [personalEmail, setPersonalEmail] = useState(user?.inbound_email ?? user?.reply_from_email ?? '')
   const [hotkeysEnabled, setHotkeysEnabled] = useState(user?.hotkeys_enabled !== false)
+  const [personalWorkMode, setPersonalWorkMode] = useState(user?.shared_inbox_disabled === true)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
@@ -19,6 +20,7 @@ export default function ProfileSettingsPage() {
       reply_from_email: personalEmail.trim() || null,
       inbound_email: personalEmail.trim() || null,
       hotkeys_enabled: hotkeysEnabled,
+      shared_inbox_disabled: personalWorkMode,
     }).then(r => r.data),
     onSuccess: async () => {
       await refreshUser()
@@ -82,6 +84,24 @@ export default function ProfileSettingsPage() {
               className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${hotkeysEnabled ? 'bg-yippie' : 'bg-slate-300'}`}
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${hotkeysEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-start justify-between gap-4 border-t border-slate-100 pt-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Personal work mode</label>
+              <p className="text-xs text-slate-400 max-w-sm">
+                When on, the shared inbox only shows mail assigned to you (or sent to your personal address). Turn off to see all of your team's incoming mail.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={personalWorkMode}
+              onClick={() => setPersonalWorkMode(v => !v)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${personalWorkMode ? 'bg-yippie' : 'bg-slate-300'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${personalWorkMode ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
           </div>
 
