@@ -61,4 +61,16 @@ async def get_inbound_email_map(db: AsyncSession) -> dict[str, tuple[uuid.UUID, 
             row.inbound_email.lower().strip(),
             (row.id, "ai" in (row.enabled_modules or []) and bool(row.ai_auto_scan)),
         )
+    from app.modules.departments.models import Department
+
+    dept_rows = await db.execute(
+        select(Department.email, Tenant.id, Tenant.enabled_modules, Tenant.ai_auto_scan)
+        .join(Tenant, Department.tenant_id == Tenant.id)
+        .where(Department.email.isnot(None), Tenant.is_active == True)  # noqa: E712
+    )
+    for row in dept_rows:
+        mapping.setdefault(
+            row.email.lower().strip(),
+            (row.id, "ai" in (row.enabled_modules or []) and bool(row.ai_auto_scan)),
+        )
     return mapping
