@@ -1,12 +1,12 @@
 """Add RBAC tables: rbac_roles, rbac_user_roles, permissions_matrix
 
 Revision ID: rbac_001
-Revises: 06a08e251d50, s9t0u1v2w3x4, dept_members_001, n4o5p6q7r8s9
+Revises: f7g8h9i0j1k2, dept_members_001
 Create Date: 2026-06-20
 
-Merges all current heads and creates the three RBAC tables.
-perm_subject_type and access_level_enum are created as named Postgres
-enums (models use create_type=False, so the migration owns them).
+Merges f7g8h9i0j1k2 (demo_expires_at) and dept_members_001 heads,
+then creates the three RBAC tables with perm_subject_type and
+access_level_enum Postgres enums.
 """
 from __future__ import annotations
 
@@ -18,10 +18,8 @@ from sqlalchemy.dialects.postgresql import UUID
 
 revision: str = 'rbac_001'
 down_revision: Union[str, Sequence[str], None] = (
-    '06a08e251d50',
-    's9t0u1v2w3x4',
+    'f7g8h9i0j1k2',
     'dept_members_001',
-    'n4o5p6q7r8s9',
 )
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
