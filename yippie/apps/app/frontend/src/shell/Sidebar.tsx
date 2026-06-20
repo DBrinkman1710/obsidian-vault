@@ -219,7 +219,7 @@ export function Sidebar() {
 
       {/* Bottom section */}
       <div className="border-t border-white/15 px-2 py-3 space-y-0.5">
-        {user?.role === 'superadmin' && ['dev', 'devsandbox'].includes(config?.environment ?? '') && (
+        {user?.role === 'superadmin' && (
           <NavLink
             to="/superadmin/clients"
             title={collapsed ? 'Clients' : undefined}

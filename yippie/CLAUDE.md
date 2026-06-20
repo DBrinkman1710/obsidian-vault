@@ -36,11 +36,11 @@ Staging  → ONE Railway env "Sandbox"          Production pair (live):
 
 | Railway env | Services | Deploys from branch |
 |---|---|---|
-| **Sandbox** (staging) | `Dev Sandbox` + `Sandbox` (both, one Sandbox DB) | `devsandbox` |
+| **Sandbox** (staging) | `Dev Sandbox` + `Sandbox` (both, one Sandbox DB) | `sandbox` |
 | **Commercial** | `Commercial website` (= apps/web → getyippie.com) | `commercial` |
 | **Production** (live) | `Dev Sandbox` + `Sandbox` | ⚠️ NOT wired — still on stale branch `claude/modular-account-management-design-XrQwj`; repoint to the live branch before go-live |
 
-- **Deploy staging:** `git push origin devsandbox` (rebuilds both Sandbox-env services — they share the trigger). The old `git push origin devsandbox:sandbox` mirror push is **retired**; the `sandbox` branch is deleted.
+- **Deploy staging:** `git push origin sandbox` (rebuilds both Sandbox-env services — they share the trigger).
 - **Deploy marketing site:** `git push origin commercial`.
 
 **Key rules:**
