@@ -140,7 +140,7 @@ const modules: Module[] = [
     Icon: ChatIcon,
   },
   {
-    id: "email-tracking",
+    id: "emailtracking",
     kicker: "EMAIL TRACKING",
     title: "Email Tracking — know what landed",
     desc: "The Sent tab shows real-time delivery status for every outbound email: delivered, opened, clicked, or bounced. Stop guessing whether your follow-up reached the right person — see exactly when they opened it.",

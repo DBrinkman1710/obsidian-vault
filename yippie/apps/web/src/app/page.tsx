@@ -3,6 +3,7 @@ import SiteNav from "./components/SiteNav";
 import SiteFooter from "./components/SiteFooter";
 import Reveal from "./components/Reveal";
 import ROICalculator from "./components/ROICalculator";
+import { PLAN_LIMITS } from "@yippie/config/pricing";
 import HourCounter from "./components/HourCounter";
 import {
   InboxIcon,
@@ -72,28 +73,28 @@ const steps = [
 const plans = [
   {
     tier: "Founder",
-    price: "€9",
+    price: `€${PLAN_LIMITS.founder.priceMonthly}`,
     desc: "For early adopters",
     features: ["2 users", "1,000 contacts", "Inbox + Contacts", "Add-ons à la carte"],
     featured: false,
   },
   {
     tier: "Starter",
-    price: "€29",
+    price: `€${PLAN_LIMITS.starter.priceMonthly}`,
     desc: "For small teams",
     features: ["5 users", "5,000 contacts", "Inbox + Contacts", "Add-ons à la carte"],
     featured: false,
   },
   {
     tier: "Growth",
-    price: "€69",
+    price: `€${PLAN_LIMITS.growth.priceMonthly}`,
     desc: "For growing businesses",
     features: ["15 users", "25,000 contacts", "Inbox + Contacts", "Priority support"],
     featured: true,
   },
   {
     tier: "Pro",
-    price: "€99",
+    price: `€${PLAN_LIMITS.pro.priceMonthly}`,
     desc: "Everything included",
     features: ["Unlimited users", "Unlimited contacts", "All modules", "Dedicated support"],
     featured: false,

@@ -7,6 +7,7 @@ import styles from "./page.module.css";
 import {
   TicketIcon, AiIcon, CalendarIcon, KanbanIcon, MailTrackIcon, LayersIcon,
 } from "../components/icons";
+import { PLAN_LIMITS, MODULE_PRICES } from "@yippie/config/pricing";
 
 const DEMO_PATH = "/request-demo";
 
@@ -26,36 +27,36 @@ const plans: Plan[] = [
   {
     tier: "Founder",
     tagline: "For early adopters",
-    monthly: 9,
-    annual: Math.round(9 * 12 * 0.9),       // 97 billed annually
-    users: "2 users",
-    contacts: "1,000 contacts",
+    monthly: PLAN_LIMITS.founder.priceMonthly,
+    annual: PLAN_LIMITS.founder.priceAnnual,
+    users: `${PLAN_LIMITS.founder.users} users`,
+    contacts: `${PLAN_LIMITS.founder.contacts!.toLocaleString("en")} contacts`,
     included: ["Inbox", "Contacts", "2 users", "1,000 contacts", "Add-ons à la carte"],
   },
   {
     tier: "Starter",
     tagline: "For small teams",
-    monthly: 29,
-    annual: Math.round(29 * 12 * 0.9),      // 313 billed annually
-    users: "5 users",
-    contacts: "5,000 contacts",
+    monthly: PLAN_LIMITS.starter.priceMonthly,
+    annual: PLAN_LIMITS.starter.priceAnnual,
+    users: `${PLAN_LIMITS.starter.users} users`,
+    contacts: `${PLAN_LIMITS.starter.contacts!.toLocaleString("en")} contacts`,
     included: ["Inbox", "Contacts", "5 users", "5,000 contacts", "Add-ons à la carte"],
   },
   {
     tier: "Growth",
     tagline: "For growing businesses",
-    monthly: 69,
-    annual: Math.round(69 * 12 * 0.9),      // 745 billed annually
-    users: "15 users",
-    contacts: "25,000 contacts",
+    monthly: PLAN_LIMITS.growth.priceMonthly,
+    annual: PLAN_LIMITS.growth.priceAnnual,
+    users: `${PLAN_LIMITS.growth.users} users`,
+    contacts: `${PLAN_LIMITS.growth.contacts!.toLocaleString("en")} contacts`,
     included: ["Inbox", "Contacts", "15 users", "25,000 contacts", "Add-ons à la carte"],
     featured: true,
   },
   {
     tier: "Pro",
     tagline: "For established companies — everything included",
-    monthly: 99,
-    annual: Math.round(99 * 12 * 0.9),      // 1069 billed annually
+    monthly: PLAN_LIMITS.pro.priceMonthly,
+    annual: PLAN_LIMITS.pro.priceAnnual,
     users: "Unlimited users",
     contacts: "Unlimited contacts",
     included: [
@@ -73,11 +74,11 @@ const plans: Plan[] = [
 ];
 
 const addOns = [
-  { Icon: TicketIcon, name: "Tickets", desc: "Track, assign, and close requests with SLA alerts.", price: 15 },
-  { Icon: AiIcon, name: "AI", desc: "Auto-draft tickets and replies from incoming messages.", price: 19 },
-  { Icon: CalendarIcon, name: "Calendar + Booking", desc: "Share booking links and manage appointments.", price: 12 },
-  { Icon: KanbanIcon, name: "Kanban", desc: "Visual pipeline boards to move work through stages.", price: 12 },
-  { Icon: MailTrackIcon, name: "Email tracking", desc: "See when your sent emails are delivered and opened.", price: 9 },
+  { Icon: TicketIcon, name: "Tickets", desc: "Track, assign, and close requests with SLA alerts.", price: MODULE_PRICES.tickets },
+  { Icon: AiIcon, name: "AI", desc: "Auto-draft tickets and replies from incoming messages.", price: MODULE_PRICES.ai },
+  { Icon: CalendarIcon, name: "Calendar + Booking", desc: "Share booking links and manage appointments.", price: MODULE_PRICES.calendar },
+  { Icon: KanbanIcon, name: "Kanban", desc: "Visual pipeline boards to move work through stages.", price: MODULE_PRICES.kanban },
+  { Icon: MailTrackIcon, name: "Email tracking", desc: "See when your sent emails are delivered and opened.", price: MODULE_PRICES.emailtracking },
 ];
 
 // Guided questionnaire — customers answer a few questions about their business
@@ -100,11 +101,11 @@ const contactOptions = [
 ];
 
 const featureOptions = [
-  { key: "tickets", label: "Ticket tracking + SLAs", price: 15 },
-  { key: "ai", label: "AI auto-drafting", price: 19 },
-  { key: "calendar", label: "Calendar + booking links", price: 12 },
-  { key: "kanban", label: "Kanban pipeline boards", price: 12 },
-  { key: "emailtracking", label: "Email open tracking", price: 9 },
+  { key: "tickets", label: "Ticket tracking + SLAs", price: MODULE_PRICES.tickets },
+  { key: "ai", label: "AI auto-drafting", price: MODULE_PRICES.ai },
+  { key: "calendar", label: "Calendar + booking links", price: MODULE_PRICES.calendar },
+  { key: "kanban", label: "Kanban pipeline boards", price: MODULE_PRICES.kanban },
+  { key: "emailtracking", label: "Email open tracking", price: MODULE_PRICES.emailtracking },
 ];
 
 const faqs = [

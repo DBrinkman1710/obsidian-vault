@@ -25,6 +25,15 @@
     "paths": {
       "@/*": [
         "./src/*"
+      ],
+      "@yippie/config": [
+        "../../packages/config/index.ts"
+      ],
+      "@yippie/config/pricing": [
+        "../../packages/config/pricing.ts"
+      ],
+      "@yippie/config/modules": [
+        "../../packages/config/modules.ts"
       ]
     },
     "noEmit": true,
