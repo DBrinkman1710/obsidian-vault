@@ -208,6 +208,7 @@ export default function HomePage() {
           {trustNames.map((n) => (
             <span key={n} className={styles.trustName}>{n}</span>
           ))}
+          <span className={styles.trustNamePlaceholder}>[Your Company]</span>
         </div>
       </section>
 

@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/blog/5-ways-ai-saves-smb-customer-service-time", priority: 0.6, changeFrequency: "monthly" },
     { path: "/blog/how-to-reduce-customer-service-response-time", priority: 0.6, changeFrequency: "monthly" },
     { path: "/request-demo", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/privacy", priority: 0.3, changeFrequency: "yearly" },
   ];
 
   return staticRoutes.map((r) => ({

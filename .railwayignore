@@ -1,0 +1,6 @@
+yippie/node_modules
+yippie/apps/app/node_modules
+yippie/apps/web/node_modules
+yippie/packages/*/node_modules
+yippie/.git
+yippie/apps/app/frontend/node_modules
