@@ -29,6 +29,8 @@ class TeamInviteRequest(BaseModel):
 class TeamUserUpdate(BaseModel):
     is_active: Optional[bool] = None
     role: Optional[str] = None  # agent | admin | viewer
+    email: Optional[EmailStr] = None
+    full_name: Optional[str] = None
 
 
 class BrandingUpdate(BaseModel):

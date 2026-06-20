@@ -287,6 +287,70 @@ function InviteModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState({ email: user.email, full_name: user.full_name, role: user.role })
+  const [error, setError] = useState('')
+
+  const mutation = useMutation({
+    mutationFn: () => api.patch(`/team/users/${user.id}`, {
+      email: form.email.trim(),
+      full_name: form.full_name.trim(),
+      role: form.role,
+    }).then(r => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['team-users'] }); onClose() },
+    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to save changes'),
+  })
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!form.email.trim() || !form.full_name.trim()) { setError('Name and email are required'); return }
+    setError('')
+    mutation.mutate()
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Edit team member</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+          <div>
+            <label className={labelCls}>Name</label>
+            <input className={inputCls} value={form.full_name} autoFocus
+              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jan de Vries" />
+          </div>
+          <div>
+            <label className={labelCls}>Email</label>
+            <input className={inputCls} type="email" value={form.email}
+              onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+            <p className="mt-1 text-xs text-amber-600">This is also their login email — changing it means they must use the new address to sign in.</p>
+          </div>
+          <div>
+            <label className={labelCls}>System role</label>
+            <select className={inputCls} value={form.role}
+              onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
+              <option value="agent">Agent — handles tickets and inbox</option>
+              <option value="admin">Admin — can manage settings and team</option>
+              <option value="viewer">Viewer — read-only</option>
+            </select>
+          </div>
+          {error && <p className="text-xs text-red-500">{error}</p>}
+          <div className="flex gap-3 pt-1">
+            <button type="submit" disabled={mutation.isPending}
+              className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity">
+              {mutation.isPending ? 'Saving…' : 'Save changes'}
+            </button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  )
+}
+
 function DeleteUserModal({ user, onClose }: { user: TeamUser; onClose: () => void }) {
   const qc = useQueryClient()
   const [error, setError] = useState('')
@@ -547,6 +611,7 @@ export default function TeamSettingsPage() {
   const config = useTenantConfig()
   const [tab, setTab] = useState<Tab>('members')
   const [showInvite, setShowInvite] = useState(false)
+  const [editingUser, setEditingUser] = useState<TeamUser | null>(null)
   const [deletingUser, setDeletingUser] = useState<TeamUser | null>(null)
   const [error, setError] = useState('')
 
@@ -617,32 +682,30 @@ export default function TeamSettingsPage() {
                       const locked = isSelf || isSuperadmin
                       return (
                         <React.Fragment key={u.id}>
-                          <tr className={!u.is_active ? 'opacity-50' : ''}>
+                          <tr
+                            className={`${!u.is_active ? 'opacity-50' : ''} ${!locked ? 'cursor-pointer hover:bg-slate-50 transition-colors' : ''}`}
+                            onClick={!locked ? () => setEditingUser(u) : undefined}
+                          >
                             <td className="px-4 py-3">
                               <div className="text-sm font-semibold text-slate-900">{u.full_name}{isSelf && <span className="text-slate-400 font-normal"> (you)</span>}</div>
                               <div className="text-xs text-slate-400">{u.email}</div>
                             </td>
                             <td className="px-4 py-3">
-                              {locked ? (
-                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${ROLE_PILL[u.role] ?? ROLE_PILL.viewer}`}>{u.role}</span>
-                              ) : (
-                                <select
-                                  value={u.role}
-                                  onChange={e => updateMutation.mutate({ id: u.id, role: e.target.value })}
-                                  className="text-xs font-semibold border border-slate-200 rounded-lg px-2 py-1 capitalize"
-                                >
-                                  <option value="admin">admin</option>
-                                  <option value="agent">agent</option>
-                                  <option value="viewer">viewer</option>
-                                </select>
-                              )}
+                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${ROLE_PILL[u.role] ?? ROLE_PILL.viewer}`}>{u.role}</span>
                             </td>
                             <td className="px-4 py-3 text-xs text-slate-400">
                               {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}
                             </td>
-                            <td className="px-4 py-3 text-right">
+                            <td className="px-4 py-3 text-right" onClick={e => e.stopPropagation()}>
                               {!locked && (
                                 <div className="flex items-center justify-end gap-2">
+                                  <button
+                                    onClick={() => setEditingUser(u)}
+                                    className="p-1.5 text-slate-400 hover:text-blue-600 border border-slate-200 rounded-lg hover:bg-blue-50 transition-colors"
+                                    title="Edit"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
                                   <button
                                     onClick={() => updateMutation.mutate({ id: u.id, is_active: !u.is_active })}
                                     disabled={updateMutation.isPending}
@@ -678,6 +741,7 @@ export default function TeamSettingsPage() {
             )}
 
             {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
+            {editingUser && <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} />}
             {deletingUser && <DeleteUserModal user={deletingUser} onClose={() => setDeletingUser(null)} />}
           </>
         )}

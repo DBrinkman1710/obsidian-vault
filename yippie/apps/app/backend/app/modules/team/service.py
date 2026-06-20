@@ -49,6 +49,8 @@ async def update_user(
     acting_user: User,
     is_active: bool | None,
     role: str | None,
+    email: str | None = None,
+    full_name: str | None = None,
 ) -> User:
     user = await db.get(User, user_id)
     if user is None or user.tenant_id != tenant_id:
@@ -68,6 +70,14 @@ async def update_user(
         user.role = role_enum
     if is_active is not None:
         user.is_active = is_active
+    if email is not None:
+        email = email.strip().lower()
+        conflict = await db.scalar(select(User).where(User.email == email))
+        if conflict and conflict.id != user_id:
+            raise ValueError(f"Email '{email}' is already in use")
+        user.email = email
+    if full_name is not None:
+        user.full_name = full_name.strip()
 
     await db.commit()
     await db.refresh(user)

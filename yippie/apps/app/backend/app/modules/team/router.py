@@ -34,7 +34,10 @@ async def invite_team_user(current_user: AdminUser, db: DB, data: schemas.TeamIn
 @router.patch("/users/{user_id}", response_model=schemas.TeamUserOut)
 async def update_team_user(current_user: AdminUser, db: DB, user_id: uuid.UUID, data: schemas.TeamUserUpdate):
     try:
-        return await service.update_user(db, current_user.tenant_id, user_id, current_user, data.is_active, data.role)
+        return await service.update_user(
+            db, current_user.tenant_id, user_id, current_user,
+            data.is_active, data.role, data.email, data.full_name,
+        )
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except LookupError as e:
