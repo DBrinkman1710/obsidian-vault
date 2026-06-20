@@ -14,41 +14,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Two fully isolated data planes. **Sandbox DB ≠ Production DB. Never cross them.**
 
-The four platform URLs still exist, but **as of 2026-06-15 the Railway layout changed**: the old separate "Dev Sandbox" Railway environment was deleted and staging was consolidated into a **single `Sandbox` Railway environment** (so the two staging services can talk over `.railway.internal` private networking and avoid cross-environment egress charges). The conceptual model is unchanged — same two URLs, same shared Sandbox DB; only the env/service/branch layout moved.
+### Branches (as of 2026-06-20)
+
+| Branch | Purpose | What rebuilds |
+|---|---|---|
+| `sandbox` | **Everything** — app platform + marketing site | Railway Watch Paths route to correct services |
+| `live` | Production (not created yet — wire before go-live) | Railway Production env |
+
+- **Deploy everything:** `git push origin sandbox`
+- `commercial` branch: deleted (merged into `sandbox`)
+- `devsandbox` branch: deleted (merged into `sandbox`)
+
+### Railway environments
 
 ```
-Staging  → ONE Railway env "Sandbox"          Production pair (live):
-  devsandbox.getyippie.com ──┐ (service:        dev.getyippie.com ──┐
-                              │  Dev Sandbox)                         │
-                              ├─ Sandbox DB                           ├─ Production DB
-  sandbox.getyippie.com ──────┘ (service:        app.getyippie.com ──┘
-                                 Sandbox)
+sandbox branch push
+  ├─ Watch: apps/app/**  → Railway "Sandbox" env → Sandbox DB → sandbox.getyippie.com
+  └─ Watch: apps/web/**  → Railway "Commercial" env → getyippie.com
 ```
 
-| URL | Railway env / service | Who uses it |
+| URL | What | Who |
 |---|---|---|
-| dev.getyippie.com | Production / `Dev Sandbox` | Diederik (superadmin) — sees all client tenants, manages them, runs his own Yippie instance |
-| app.getyippie.com | Production / `Sandbox` | Client companies — each sees only their own isolated tenant |
-| devsandbox.getyippie.com | **Sandbox** / `Dev Sandbox` | Diederik (superadmin, staging) — same as dev but for testing |
-| sandbox.getyippie.com | **Sandbox** / `Sandbox` | Test clients — staging version of app |
-
-### Railway environments & deploy branches
-
-| Railway env | Services | Deploys from branch |
-|---|---|---|
-| **Sandbox** (staging) | `Dev Sandbox` + `Sandbox` (both, one Sandbox DB) | `sandbox` |
-| **Commercial** | `Commercial website` (= apps/web → getyippie.com) | `sandbox` (was `commercial`, retired 2026-06-20) |
-| **Production** (live) | `Dev Sandbox` + `Sandbox` | ⚠️ NOT wired — still on stale branch `claude/modular-account-management-design-XrQwj`; repoint to the live branch before go-live |
-
-- **Deploy everything (staging + marketing site):** `git push origin sandbox` — rebuilds all services.
+| `sandbox.getyippie.com` | Staging platform | Diederik + test clients |
+| `app.getyippie.com` | **Production platform** | Real clients — superadmin access via email address |
+| `getyippie.com` | Marketing site | Public |
 
 **Key rules:**
-- `dev` and `app` share one Production DB — clients Diederik creates in dev appear in app automatically
-- `devsandbox` and `sandbox` share one Sandbox DB — completely separate from production
-- Clients can only see their own data — tenant isolation via `tenant_id` + `set_tenant_context()` on every request
-- The two staging services must share the same `DATABASE_URL` (same Sandbox DB)
-- **Never point a staging service at the production DB**
-- Promotion flow: build + test in staging (Sandbox env) → deploy code to dev↔app (live)
+- Sandbox DB ≠ Production DB — never cross them
+- Tenant isolation via `tenant_id` + `set_tenant_context()` on every request
+- Promotion flow: test on sandbox URLs → push `live` branch at go-live
 
 ## apps/app — Yippie customer service platform
 
@@ -78,10 +72,10 @@ Set these env vars in Railway per environment:
 - `ANTHROPIC_API_KEY` — for inbox AI scanning
 - `ADMIN_EMAIL` / `ADMIN_PASSWORD` — superadmin credentials
 - `TENANT_ID` / `TENANT_NAME` — first-tenant bootstrap (used once by `seed.py`); optional `ENABLED_MODULES` (comma-separated, defaults to all), `BRANDING_PRIMARY_COLOR`, `BRANDING_LOGO_URL`. After bootstrap, per-tenant config lives on the `Tenant` DB row, not env.
-- `ENVIRONMENT` — set to `devsandbox`, `sandbox`, `dev`, or `production`
+- `ENVIRONMENT` — set to `sandbox` (staging) or `production`
 - `EVOLUTION_API_URL` / `EVOLUTION_API_TOKEN` — WhatsApp gateway (Evolution API instance base URL + global API token); required for Live Chat's WhatsApp send/receive and the QR pairing card to work
 
-**Critical:** the two staging services (`Dev Sandbox` + `Sandbox`, both in the Sandbox Railway env) must share the same `DATABASE_URL` (the Sandbox DB). `ENVIRONMENT` is still set per service to `devsandbox`, `sandbox`, `dev`, or `production`.
+**Critical:** the staging service must use the Sandbox DB `DATABASE_URL`. Never point it at the production DB.
 
 ## apps/web — Marketing site
 
@@ -90,6 +84,48 @@ Next.js 14, minimal content. Completely separate from the platform (own DB-less 
 - Build/start (`apps/web/railway.json`, NIXPACKS): `node .next/standalone/server.js` with `HOSTNAME=0.0.0.0`.
 - ⚠️ **The standalone server binds port 8080.** Railway's domain `targetPort` MUST be **8080** for every domain on this service (custom + auto `*.up.railway.app`), or the edge returns **502** even though the build shows SUCCESS (it's a routing failure, not a crash). This caused the 2026-06-15 getyippie.com outage.
 - Do NOT add apps/web to the staging (Sandbox) or production platform services — it's its own service.
+
+## Parallel dev — running two Claude Code instances simultaneously
+
+Each instance must live in its own **git worktree** on its own branch so they never conflict.
+
+### Setup (run once per secondary session)
+
+```bash
+# From ~/obsidian-vault/yippie/
+./scripts/new-session.sh b "short-description"
+# → Creates ~/yippie-b/ on branch session/b-YYYYMMDD-short-description
+# → Open the second Claude Code in: ~/yippie-b/yippie/
+```
+
+### Rules
+
+| Instance | Working directory | Branch |
+|---|---|---|
+| Primary (A) | `~/obsidian-vault/yippie/` | `sandbox` (as normal) |
+| Secondary (B) | `~/yippie-b/yippie/` | `session/b-…` (never sandbox directly) |
+
+- Secondary instance: **commit freely to its session branch** — never push to `sandbox` directly.
+- Primary instance: **pushes to `origin sandbox`** as normal.
+- Do **not** land a session while the other instance has uncommitted changes, to keep rebases clean.
+
+### Landing the secondary session
+
+When secondary is done:
+
+```bash
+# From ~/obsidian-vault/yippie/  (primary terminal)
+./scripts/land-session.sh b
+# → Rebases session/b-… onto latest sandbox
+# → Merges --no-ff into sandbox and pushes
+# → Removes ~/yippie-b/ worktree and branch
+```
+
+If there are rebase conflicts, resolve them inside `~/yippie-b/` then re-run `land-session.sh b`.
+
+### Slot labels
+
+Use any short label (`b`, `c`, `ui`, `api`, …). Labels only need to be unique at the same time.
 
 ## Monorepo commands
 
