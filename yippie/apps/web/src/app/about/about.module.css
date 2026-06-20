@@ -1,149 +1,166 @@
 /* About page — layout styles only.
-   All shared tokens (card, eyebrow, btnPrimary, etc.) come from content.module.css. */
+   Shared tokens (card, eyebrow, btnPrimary, etc.) come from content.module.css. */
 
-/* ── Mission block ───────────────────────────── */
-.missionWrap {
-  max-width: 760px;
-  margin: 0 auto;
-  text-align: center;
+.homeLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 28px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  transition: color 0.18s;
 }
 
-.missionBody {
+.homeLink:hover {
+  color: var(--brand);
+}
+
+.heroLogoWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 28px;
+  border-radius: 28px;
+  background: linear-gradient(145deg, #f0f7ff 0%, #ffffff 55%, #e8f3ff 100%);
+  border: 1px solid rgba(91, 164, 245, 0.22);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 12px 32px rgba(91, 164, 245, 0.14),
+    0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.heroLogo {
+  width: 72px;
+  height: auto;
+  display: block;
+  filter: drop-shadow(0 2px 6px rgba(26, 95, 180, 0.12));
+}
+
+.storyWrap,
+.philosophyWrap {
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+.storyBody {
   font-size: 17px;
   line-height: 1.8;
   color: var(--text);
-  margin: 0 auto 20px;
-  max-width: 680px;
+  margin: 0 0 20px;
 }
 
-/* ── Stats row ───────────────────────────────── */
-.statsSection {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0;
-  background: var(--ink);
-  padding: 52px var(--gutter);
-}
-
-.stat {
+.extremesList {
+  margin: 0 0 24px;
+  padding-left: 1.25rem;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 0 48px;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 16px;
 }
 
-.stat:last-child {
-  border-right: none;
+.extremesList li {
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--text);
 }
 
-.statValue {
-  font-family: var(--font-display);
-  font-size: clamp(32px, 4vw, 52px);
-  font-weight: 700;
-  color: var(--brand);
-  letter-spacing: -0.03em;
-  line-height: 1;
-}
-
-.statLabel {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.55);
-}
-
-/* ── Team grid ───────────────────────────────── */
-.teamGrid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 18px;
-  max-width: var(--maxw);
-  margin: 0 auto;
-}
-
-.teamCard {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding: 36px 24px 28px;
-  border-radius: var(--r-lg);
-  border: 1px solid var(--border);
-  background: #fff;
-  text-align: center;
-  transition: border-color 0.2s, box-shadow 0.2s, transform 0.2s;
-}
-
-.teamCard:hover {
-  border-color: transparent;
-  box-shadow: var(--shadow-md);
-  transform: translateY(-3px);
-}
-
-.teamAvatar {
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--brand), var(--brand-700));
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 18px;
-  box-shadow: 0 4px 16px rgba(91, 164, 245, 0.25);
-}
-
-.teamInitials {
-  font-family: var(--font-display);
-  font-size: 22px;
-  font-weight: 700;
-  color: #fff;
-  letter-spacing: -0.02em;
-}
-
-.teamName {
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 600;
+.extremesList strong {
   color: var(--ink);
-  letter-spacing: -0.01em;
-  margin-bottom: 6px;
 }
 
-.teamRole {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 500;
+.bulletList {
+  list-style: none;
+  margin: 0 0 28px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.bulletList li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 17px;
+  line-height: 1.75;
+  color: var(--text);
+}
+
+.bulletList li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0.72em;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand);
+  box-shadow: 0 0 0 3px var(--brand-soft);
+}
+
+.bulletList strong {
+  color: var(--ink);
+}
+
+.tagline {
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.5vw, 24px);
+  font-weight: 600;
+  line-height: 1.45;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  margin: 0;
+}
+
+/* Client logos — ready for real names/logos later */
+.clientsSection {
+  padding: 48px var(--gutter) 56px;
+  background: var(--off-white);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: center;
+}
+
+.clientsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 28px 40px;
+  max-width: var(--maxw);
+  margin: 20px auto 0;
+}
+
+.clientLogo {
+  height: 32px;
+  width: auto;
+  opacity: 0.72;
+  filter: grayscale(1);
+  transition: opacity 0.2s, filter 0.2s;
+}
+
+.clientLogo:hover {
+  opacity: 1;
+  filter: none;
+}
+
+.clientName {
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 600;
   color: var(--muted);
-  letter-spacing: 0.02em;
-}
-
-/* ── Responsive ──────────────────────────────── */
-@media (max-width: 860px) {
-  .teamGrid {
-    grid-template-columns: repeat(2, 1fr);
-  }
-
-  .stat {
-    padding: 0 28px;
-    border-right: none;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    padding-bottom: 32px;
-    margin-bottom: 32px;
-  }
-
-  .stat:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-    padding-bottom: 0;
-  }
+  letter-spacing: -0.01em;
 }
 
 @media (max-width: 520px) {
-  .teamGrid {
-    grid-template-columns: 1fr;
+  .heroLogoWrap {
+    width: 104px;
+    height: 104px;
+    border-radius: 24px;
+  }
+
+  .heroLogo {
+    width: 64px;
   }
 }

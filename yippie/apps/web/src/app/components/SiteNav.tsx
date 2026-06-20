@@ -36,7 +36,7 @@ export default function SiteNav() {
     <nav className={`${styles.nav} ${scrolled ? styles.navScrolled : ""}`}>
       <a href="/" className={styles.brand} aria-label="Yippie home">
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-white-bg.svg" alt="Yippie" className={styles.navLogo} />
+        <img src="/logo-white-bg-mark.svg" alt="Yippie" className={styles.navLogo} />
       </a>
 
       <ul className={styles.navLinks}>
