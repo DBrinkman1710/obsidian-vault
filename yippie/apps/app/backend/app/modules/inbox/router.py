@@ -129,7 +129,16 @@ async def list_drafts(
     q: Optional[str] = None,
     contact_id: Optional[uuid.UUID] = Query(None),
     department_id: Optional[uuid.UUID] = Query(None),
+    personal: bool = Query(False),
 ):
+    if personal:
+        # Personal work inbox: drafts explicitly assigned to this user, regardless
+        # of department or which inbound address the mail arrived on.
+        rows = await service.list_drafts(
+            db, current_user.tenant_id, status, search=q, contact_id=contact_id,
+            department_id=department_id, assigned_to=current_user.id,
+        )
+        return _enrich_drafts(rows)
     if mailbox == "personal":
         # Personal mailbox: only mail sent to this user's own inbound address.
         if not current_user.inbound_email:

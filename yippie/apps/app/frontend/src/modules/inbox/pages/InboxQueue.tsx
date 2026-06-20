@@ -746,7 +746,7 @@ export default function InboxQueue() {
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const qc = useQueryClient()
   const config = useTenantConfig()
-  const { user } = useAuth()
+  const { user, refreshUser } = useAuth()
   const { data: signatures } = useSignatures()
   const defaultSigBody = pickDefaultSignature(signatures)?.body ?? null
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
@@ -838,10 +838,20 @@ export default function InboxQueue() {
   const { data: myDepts } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['departments', 'my'],
     queryFn: () => api.get('/departments/my').then(r => r.data),
-    enabled: !!deptId,
     staleTime: 60_000,
   })
-  const activeDeptName = deptId ? myDepts?.find(d => d.id === deptId)?.name : undefined
+  // Personal work inbox preference — when on, the default (non-dept) view shows
+  // only tickets assigned to this user. Persisted on the user via PATCH /me.
+  const personalInboxPref = user?.shared_inbox_disabled ?? false
+  const togglePersonalInbox = useMutation({
+    mutationFn: (next: boolean) =>
+      api.patch('/auth/me', { shared_inbox_disabled: next }).then(r => r.data),
+    onSuccess: async () => {
+      await refreshUser()
+      setSelected(new Set())
+      setPage(0)
+    },
+  })
 
   const searchParam = debouncedSearch || undefined
 
@@ -861,41 +871,52 @@ export default function InboxQueue() {
     refetchIntervalInBackground: false,
   })
 
+  // Personal work inbox only applies to the default (non-department) view.
+  const personalActive = personalInboxPref && !deptId
+  const draftParams = (status: string) => ({
+    status,
+    mailbox,
+    q: searchParam,
+    ...(deptId ? { department_id: deptId } : {}),
+    ...(personalActive ? { personal: true } : {}),
+  })
+  const draftKey = (status: string) => ['drafts', mailbox, status, searchParam, deptId, personalActive] as const
+
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
-    queryKey: ['drafts', mailbox, 'pending', searchParam, deptId],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'pending', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
+    queryKey: draftKey('pending'),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('pending') }).then(r => r.data),
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
     enabled: activeTab === 'pending',
   })
 
   const { data: approvedDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'approved', searchParam, deptId],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'approved', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
+    queryKey: draftKey('approved'),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('approved') }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: rejectedDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'rejected', searchParam, deptId],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'rejected', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
+    queryKey: draftKey('rejected'),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('rejected') }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: forwardedDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'forwarded', searchParam, deptId],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'forwarded', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
+    queryKey: draftKey('forwarded'),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('forwarded') }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: spamDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'spam', searchParam, deptId],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'spam', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
+    queryKey: draftKey('spam'),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('spam') }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: binDrafts } = useQuery({
-    queryKey: ['drafts', mailbox, 'bin', searchParam, deptId],
-    queryFn: () => api.get('/inbox/drafts', { params: { status: 'bin', mailbox, q: searchParam, ...(deptId ? { department_id: deptId } : {}) } }).then(r => r.data),
+    queryKey: draftKey('bin'),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('bin') }).then(r => r.data),
     enabled: activeTab === 'processed',
   })
 
@@ -1013,11 +1034,32 @@ export default function InboxQueue() {
                 </button>
               ))}
             </div>
-            {activeDeptName && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-violet-100 text-violet-700">
-                <Building2 size={13} />
-                Viewing: {activeDeptName}
-              </span>
+            {/* Per-department shared inboxes — one tab per department the user belongs to. */}
+            {(myDepts ?? []).length > 0 && (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={() => { navigate('/inbox'); setSelected(new Set()); setPage(0) }}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                    !deptId ? 'bg-violet-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                  }`}
+                >
+                  <Users size={13} />
+                  All
+                </button>
+                {(myDepts ?? []).map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => { navigate(`/inbox?dept=${d.id}`); setSelected(new Set()); setPage(0) }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
+                      deptId === d.id ? 'bg-violet-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                    }`}
+                    title={`Shared ${d.name} Inbox`}
+                  >
+                    <Building2 size={13} />
+                    Shared {d.name} Inbox
+                  </button>
+                ))}
+              </div>
             )}
           </div>
           <button
@@ -1058,6 +1100,21 @@ export default function InboxQueue() {
               </button>
             )}
           </div>
+          {/* Personal work inbox — persisted preference; shows only your assigned tickets by default. */}
+          <button
+            type="button"
+            disabled={togglePersonalInbox.isPending}
+            onClick={() => togglePersonalInbox.mutate(!personalInboxPref)}
+            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
+              personalInboxPref
+                ? 'bg-blue-50 border-blue-200 text-blue-700'
+                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+            }`}
+            title="Default your inbox to only tickets assigned to you"
+          >
+            <Mail size={13} />
+            Personal work inbox
+          </button>
           <div className="ml-auto">
             <TemplatePicker
               direction="down"

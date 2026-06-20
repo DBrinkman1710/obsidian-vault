@@ -567,8 +567,6 @@ async def list_drafts(
         q = q.where(DraftTicket.forwarded_to_department_id == department_id)
 
     if personal_only_user_id is not None:
-        # Personal Work Inbox mode: only drafts assigned to this user, or mail
-        # routed to their own personal inbound address.
         mine = DraftTicket.assigned_to == personal_only_user_id
         if personal_only_inbound_email:
             mine = or_(mine, InboundMessage.inbound_to == personal_only_inbound_email.lower())
@@ -660,7 +658,7 @@ async def review_draft(
             contact_id=review.contact_id,
             priority=priority,
             assigned_to=review.assigned_to,
-            department_id=review.department_id,
+            department_id=review.department_id or draft.forwarded_to_department_id,
             source=TicketSource.email,
         )
         ticket = await ticket_service.create_ticket(db, tenant_id, reviewer_id, ticket_data)
