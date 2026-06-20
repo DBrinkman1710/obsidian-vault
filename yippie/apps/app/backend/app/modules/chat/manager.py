@@ -27,7 +27,12 @@ class ConnectionManager:
         self._connections[tenant_key][session_id].add(websocket)
 
     def disconnect(self, websocket: WebSocket, tenant_key: str, session_id: str):
-        self._connections[tenant_key][session_id].discard(websocket)
+        bucket = self._connections[tenant_key]
+        bucket[session_id].discard(websocket)
+        if not bucket[session_id]:
+            del bucket[session_id]
+        if not bucket:
+            del self._connections[tenant_key]
 
     async def broadcast_to_session(self, tenant_key: str, session_id: str, data: dict):
         payload = json.dumps(data)
@@ -53,6 +58,8 @@ class ConnectionManager:
 
     def disconnect_agent(self, websocket: WebSocket, tenant_key: str):
         self._agent_connections[tenant_key].discard(websocket)
+        if not self._agent_connections[tenant_key]:
+            del self._agent_connections[tenant_key]
 
     async def broadcast_to_agents(self, tenant_key: str, data: dict):
         payload = json.dumps(data)

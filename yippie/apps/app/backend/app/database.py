@@ -68,12 +68,13 @@ def get_engine():
     if _engine is None:
         settings = get_settings()
         url, sslmode, sslrootcert = _prepare_db_url(settings.database_url)
+        is_prod = settings.environment == "production"
         _engine = _make_engine(
             url, sslmode, sslrootcert,
             echo=settings.environment == "development",
             pool_pre_ping=True,
-            pool_size=5,
-            max_overflow=10,
+            pool_size=5 if is_prod else 2,
+            max_overflow=10 if is_prod else 3,
             pool_timeout=30,
         )
     return _engine
