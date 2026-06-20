@@ -37,10 +37,10 @@ Staging  → ONE Railway env "Sandbox"          Production pair (live):
 | Railway env | Services | Deploys from branch |
 |---|---|---|
 | **Sandbox** (staging) | `Dev Sandbox` + `Sandbox` (both, one Sandbox DB) | `sandbox` |
-| **Commercial** | `Commercial website` (= apps/web → getyippie.com) | `devsandbox` (was `commercial`, retired 2026-06-20) |
+| **Commercial** | `Commercial website` (= apps/web → getyippie.com) | `sandbox` (was `commercial`, retired 2026-06-20) |
 | **Production** (live) | `Dev Sandbox` + `Sandbox` | ⚠️ NOT wired — still on stale branch `claude/modular-account-management-design-XrQwj`; repoint to the live branch before go-live |
 
-- **Deploy staging + marketing site:** `git push origin devsandbox` — rebuilds both Sandbox-env services AND the Commercial website (all on the same branch now).
+- **Deploy everything (staging + marketing site):** `git push origin sandbox` — rebuilds all services.
 
 **Key rules:**
 - `dev` and `app` share one Production DB — clients Diederik creates in dev appear in app automatically
@@ -86,7 +86,7 @@ Set these env vars in Railway per environment:
 ## apps/web — Marketing site
 
 Next.js 14, minimal content. Completely separate from the platform (own DB-less service, not part of the staging/production pairs).
-- Runs as the **`Commercial website`** service in the **Commercial** Railway env, serving **getyippie.com**; deploys from the **`devsandbox`** branch (`git push origin devsandbox`). The `commercial` branch is retired as of 2026-06-20.
+- Runs as the **`Commercial website`** service in the **Commercial** Railway env, serving **getyippie.com**; deploys from the **`sandbox`** branch (`git push origin sandbox`). The `commercial` branch is retired as of 2026-06-20.
 - Build/start (`apps/web/railway.json`, NIXPACKS): `node .next/standalone/server.js` with `HOSTNAME=0.0.0.0`.
 - ⚠️ **The standalone server binds port 8080.** Railway's domain `targetPort` MUST be **8080** for every domain on this service (custom + auto `*.up.railway.app`), or the edge returns **502** even though the build shows SUCCESS (it's a routing failure, not a crash). This caused the 2026-06-15 getyippie.com outage.
 - Do NOT add apps/web to the staging (Sandbox) or production platform services — it's its own service.
