@@ -47,49 +47,41 @@ def upgrade() -> None:
     ))
 
     # rbac_roles: tenant-scoped named roles
-    op.create_table(
-        'rbac_roles',
-        sa.Column('id', UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text('gen_random_uuid()')),
-        sa.Column('tenant_id', UUID(as_uuid=True),
-                  sa.ForeignKey('tenants.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('name', sa.String(100), nullable=False),
-        sa.Column('created_at', sa.DateTime(timezone=True),
-                  server_default=sa.text('now()')),
-    )
+    conn.execute(sa.text("""
+        CREATE TABLE IF NOT EXISTS rbac_roles (
+            id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id  UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+            name       VARCHAR(100) NOT NULL,
+            created_at TIMESTAMPTZ DEFAULT now()
+        )
+    """))
 
     # rbac_user_roles: maps users to RBAC roles (many-to-many)
-    op.create_table(
-        'rbac_user_roles',
-        sa.Column('id', UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text('gen_random_uuid()')),
-        sa.Column('tenant_id', UUID(as_uuid=True), nullable=False),
-        sa.Column('user_id', UUID(as_uuid=True),
-                  sa.ForeignKey('users.id', ondelete='CASCADE'), nullable=False),
-        sa.Column('role_id', UUID(as_uuid=True),
-                  sa.ForeignKey('rbac_roles.id', ondelete='CASCADE'), nullable=False),
-        sa.UniqueConstraint('user_id', 'role_id', name='uq_rbac_user_role'),
-    )
+    conn.execute(sa.text("""
+        CREATE TABLE IF NOT EXISTS rbac_user_roles (
+            id        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id UUID NOT NULL,
+            user_id   UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            role_id   UUID NOT NULL REFERENCES rbac_roles(id) ON DELETE CASCADE,
+            CONSTRAINT uq_rbac_user_role UNIQUE (user_id, role_id)
+        )
+    """))
 
     # permissions_matrix: module access overrides per user/role/dept
-    op.create_table(
-        'permissions_matrix',
-        sa.Column('id', UUID(as_uuid=True), primary_key=True,
-                  server_default=sa.text('gen_random_uuid()')),
-        sa.Column('tenant_id', UUID(as_uuid=True), nullable=False),
-        sa.Column('subject_type',
-                  sa.Enum('user', 'role', 'department',
-                           name='perm_subject_type', create_type=False),
-                  nullable=False),
-        sa.Column('subject_id', UUID(as_uuid=True), nullable=False),
-        sa.Column('module', sa.String(50), nullable=False),
-        sa.Column('access_level',
-                  sa.Enum('full', 'view', 'restricted',
-                           name='access_level_enum', create_type=False),
-                  nullable=False, server_default='full'),
-        sa.UniqueConstraint('tenant_id', 'subject_type', 'subject_id', 'module',
-                            name='uq_permissions_matrix'),
-    )
+    # Use raw SQL to avoid SQLAlchemy's _on_table_create firing CREATE TYPE
+    # even when create_type=False is set (async Alembic context bug).
+    conn.execute(sa.text("""
+        CREATE TABLE IF NOT EXISTS permissions_matrix (
+            id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id   UUID NOT NULL,
+            subject_type perm_subject_type NOT NULL,
+            subject_id  UUID NOT NULL,
+            module      VARCHAR(50) NOT NULL,
+            access_level access_level_enum NOT NULL DEFAULT 'full',
+            CONSTRAINT uq_permissions_matrix
+                UNIQUE (tenant_id, subject_type, subject_id, module)
+        )
+    """))
 
     # RLS: same pattern as n4o5p6q7r8s9 — standard tenant_isolation policy
     for table in RBAC_TABLES:
