@@ -163,6 +163,7 @@ Run these in order. Each step depends on the previous ones working.
 - [ ] Confirm Evolution API instance is live and the WhatsApp QR code pairs correctly (`[LIVECHAT-QR]` fix must ship before this)
 - [ ] Create a test client tenant via the Superadmin panel → invite an agent → agent logs in via `app.getyippie.com`
 - [ ] Check Cloudflare Analytics — no 5xx spike after deploy
+- [ ] Confirm `ENVIRONMENT=production` is set on both Production services — this auto-restores tight scheduler intervals (email flush 5s, AI enrich 10s) and full DB pool (5+10 connections) that are intentionally relaxed in sandbox to cut Railway costs
 
 ---
 
