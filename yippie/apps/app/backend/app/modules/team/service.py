@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import delete as sa_delete, func, select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.invite import send_invite_email
 from app.core.models import Tenant, User, UserRole
+from app.modules.departments.models import Department, DepartmentMember
 
 INVITABLE_ROLES = {UserRole.admin, UserRole.agent, UserRole.viewer}
 
@@ -110,6 +112,52 @@ async def update_org_settings(
     await db.commit()
     await db.refresh(tenant)
     return tenant
+
+
+async def get_user_departments(
+    db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID
+) -> list[Department]:
+    """Return all departments this user belongs to (within the tenant)."""
+    result = await db.execute(
+        select(Department)
+        .join(DepartmentMember, DepartmentMember.department_id == Department.id)
+        .where(
+            DepartmentMember.tenant_id == tenant_id,
+            DepartmentMember.user_id == user_id,
+        )
+        .order_by(Department.name)
+    )
+    return result.scalars().all()
+
+
+async def set_user_departments(
+    db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID, department_ids: list[uuid.UUID]
+) -> None:
+    """Replace all department memberships for a user within the tenant."""
+    # Delete all existing memberships for this user in this tenant
+    await db.execute(
+        sa_delete(DepartmentMember).where(
+            DepartmentMember.tenant_id == tenant_id,
+            DepartmentMember.user_id == user_id,
+        )
+    )
+    # Insert new memberships (only for departments that belong to this tenant)
+    for dept_id in department_ids:
+        dept = await db.scalar(
+            select(Department).where(Department.id == dept_id, Department.tenant_id == tenant_id)
+        )
+        if dept is not None:
+            await db.execute(
+                pg_insert(DepartmentMember)
+                .values(
+                    id=uuid.uuid4(),
+                    tenant_id=tenant_id,
+                    department_id=dept_id,
+                    user_id=user_id,
+                )
+                .on_conflict_do_nothing(index_elements=["department_id", "user_id"])
+            )
+    await db.commit()
 
 
 async def delete_user(
