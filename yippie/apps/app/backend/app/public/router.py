@@ -543,6 +543,35 @@ async def meet_book(
     }
 
 
+class AIDemoRequest(BaseModel):
+    raw_message: str = Field(min_length=1, max_length=4000)
+
+
+@router.post("/ai-demo")
+async def ai_demo(body: AIDemoRequest, request: Request) -> dict:
+    """Live AI demo — no auth. Scans a pasted message and returns structured ticket fields."""
+    from app.modules.inbox.ai_scanner import scan_message
+    from app.config import get_settings
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
+
+    settings = get_settings()
+    if not settings.anthropic_api_key:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="AI service not configured.",
+        )
+
+    result = await scan_message("demo@example.com", body.raw_message.strip(), "email")
+    return {
+        "subject": result.subject,
+        "description": result.description,
+        "priority": result.priority,
+        "category": result.category,
+    }
+
+
 @router.get("/booking/manage/{manage_token}", response_model=ManageBookingOut)
 async def public_get_manage(
     manage_token: uuid.UUID,

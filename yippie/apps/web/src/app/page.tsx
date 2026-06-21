@@ -3,6 +3,7 @@ import SiteNav from "./components/SiteNav";
 import SiteFooter from "./components/SiteFooter";
 import Reveal from "./components/Reveal";
 import ROICalculator from "./components/ROICalculator";
+import InboxDemo from "./components/InboxDemo";
 import { PLAN_LIMITS } from "@/lib/config";
 import HourCounter from "./components/HourCounter";
 import {
@@ -72,36 +73,25 @@ const steps = [
 
 const plans = [
   {
-    tier: "Founder",
-    price: `€${PLAN_LIMITS.founder.priceMonthly}`,
-    desc: "Founding Member — first 5 spots",
-    features: ["2 users", "Unlimited contacts", "500 AI scans/mo", "Add-ons à la carte"],
-    featured: false,
-    founding: true,
-  },
-  {
     tier: "Starter",
     price: `€${PLAN_LIMITS.starter.priceMonthly}`,
-    desc: "For small teams",
-    features: ["5 users", "Unlimited contacts", "2,000 AI scans/mo", "Add-ons à la carte"],
+    desc: "For small teams getting started",
+    features: ["Inbox + Contacts + Tickets", "5 users", "Unlimited contacts", "2,000 AI scans/mo", "Add-ons à la carte"],
     featured: false,
-    founding: false,
   },
   {
     tier: "Growth",
     price: `€${PLAN_LIMITS.growth.priceMonthly}`,
-    desc: "For growing businesses",
-    features: ["10 users", "Unlimited contacts", "10,000 AI scans/mo", "Add-ons à la carte"],
+    desc: "For businesses scaling support",
+    features: ["All core features", "10 users", "Unlimited contacts", "10,000 AI scans/mo", "Add-ons à la carte"],
     featured: true,
-    founding: false,
   },
   {
     tier: "Enterprise",
     price: "Custom",
-    desc: "Dedicated partnership",
-    features: ["Unlimited users", "Unlimited contacts", "Unlimited AI scans", "All modules + dedicated support"],
+    desc: "Dedicated growth partnership",
+    features: ["All modules included", "Unlimited users + contacts", "Unlimited AI scans", "Dedicated support + SLA"],
     featured: false,
-    founding: false,
   },
 ];
 
@@ -277,6 +267,9 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* AI inbox demo */}
+      <InboxDemo demoUrl={DEMO_URL} />
+
       {/* ROI calculator */}
       <ROICalculator appUrl={DEMO_URL} />
 
@@ -358,7 +351,6 @@ export default function HomePage() {
               delay={i * 60}
             >
               {plan.featured && <span className={styles.priceBadge}>Most popular</span>}
-              {plan.founding && <span className={styles.priceBadge}>Founding Member</span>}
               <p className={styles.priceTier}>{plan.tier}</p>
               <p className={styles.priceAmount}>
                 {plan.price}

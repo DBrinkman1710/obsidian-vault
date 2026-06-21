@@ -404,10 +404,10 @@
 
 /* ── Pricing teaser ──────────────────────────── */
 .pricingGrid {
-  max-width: var(--maxw);
+  max-width: 900px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
   align-items: start;
 }
@@ -488,12 +488,13 @@
   .heroVisual { order: 2; }
   .app { height: 340px; }
   .featureRows { grid-template-columns: 1fr; gap: 4px; }
-  .statsBar, .steps, .pricingGrid { grid-template-columns: 1fr; }
+  .statsBar, .steps { grid-template-columns: 1fr; }
+  .pricingGrid { grid-template-columns: 1fr; max-width: 420px; }
   .steps::before { display: none; }
 }
 
 @media (min-width: 561px) and (max-width: 960px) {
-  .pricingGrid { grid-template-columns: 1fr 1fr; }
+  .pricingGrid { grid-template-columns: 1fr 1fr; max-width: 680px; }
 }
 
 @media (max-width: 520px) {

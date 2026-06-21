@@ -27,34 +27,38 @@ type Plan = {
   enterprise?: boolean;
 };
 
+const CORE_FEATURES = ["Inbox", "Contacts", "Tickets", "Activity", "Billing"];
+
 const plans: Plan[] = [
   {
-    tier: "Founder",
-    tagline: "Founding Member — first 5 spots",
-    monthly: PLAN_LIMITS.founder.priceMonthly,
-    annual: PLAN_LIMITS.founder.priceAnnual,
-    users: `${PLAN_LIMITS.founder.users} users`,
-    aiScans: "500 AI scans/mo",
-    included: ["Inbox", "Contacts", "2 users", "Unlimited contacts", "500 AI scans/mo", "Add-ons à la carte"],
-    founding: true,
-  },
-  {
     tier: "Starter",
-    tagline: "For small teams",
+    tagline: "For small teams getting started",
     monthly: PLAN_LIMITS.starter.priceMonthly,
     annual: PLAN_LIMITS.starter.priceAnnual,
     users: `${PLAN_LIMITS.starter.users} users`,
     aiScans: "2,000 AI scans/mo",
-    included: ["Inbox", "Contacts", "5 users", "Unlimited contacts", "2,000 AI scans/mo", "Add-ons à la carte"],
+    included: [
+      ...CORE_FEATURES,
+      "5 users",
+      "Unlimited contacts",
+      "2,000 AI scans/mo",
+      "Add-ons à la carte",
+    ],
   },
   {
     tier: "Growth",
-    tagline: "For growing businesses",
+    tagline: "For businesses scaling support",
     monthly: PLAN_LIMITS.growth.priceMonthly,
     annual: PLAN_LIMITS.growth.priceAnnual,
     users: `${PLAN_LIMITS.growth.users} users`,
     aiScans: "10,000 AI scans/mo",
-    included: ["Inbox", "Contacts", "10 users", "Unlimited contacts", "10,000 AI scans/mo", "Add-ons à la carte"],
+    included: [
+      ...CORE_FEATURES,
+      "10 users",
+      "Unlimited contacts",
+      "10,000 AI scans/mo",
+      "Add-ons à la carte",
+    ],
     featured: true,
   },
   {
@@ -65,15 +69,11 @@ const plans: Plan[] = [
     users: "Unlimited users",
     aiScans: "Unlimited AI scans",
     included: [
-      "Inbox + Contacts",
-      "Tickets",
-      "AI auto-drafting",
-      "Calendar + Booking",
-      "Kanban pipeline",
-      "Email tracking",
+      "All core features + every module",
       "Unlimited users",
       "Unlimited contacts",
-      "Dedicated support",
+      "Unlimited AI scans",
+      "Dedicated support + SLA",
     ],
     allModules: true,
     enterprise: true,
@@ -91,7 +91,7 @@ const addOns = [
 // Guided questionnaire — customers answer a few questions about their business
 // and we recommend a plan (and add-ons). Each option carries the minimum plan
 // rank it requires; the recommendation is the highest rank across all answers.
-const PLAN_RANK = ["Founder", "Starter", "Growth", "Enterprise"] as const;
+const PLAN_RANK = ["Starter", "Starter", "Growth", "Enterprise"] as const;
 
 const teamOptions = [
   { label: "Just me / 1–2 people", rank: 0 },
@@ -199,6 +199,14 @@ export default function PricingPage() {
       </section>
 
       <section className={styles.plansSection}>
+        <div className={styles.founderBanner}>
+          <span className={styles.founderBadge}>Limited offer</span>
+          <p className={styles.founderText}>
+            <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for 2 users, 500 AI scans, all core features + add-ons à la carte.
+          </p>
+          <a href={DEMO_PATH} className={styles.founderBtn}>Claim a founder spot →</a>
+        </div>
+
         <div className={styles.plansGrid}>
           {plans.map((plan) => (
             <div
@@ -206,7 +214,6 @@ export default function PricingPage() {
               className={`${styles.planCard} ${plan.featured ? styles.featured : ""}`}
             >
               {plan.featured && <span className={styles.popularBadge}>Most popular</span>}
-              {plan.founding && <span className={styles.popularBadge}>Founding Member</span>}
               <p className={styles.planTier}>{plan.tier}</p>
               <p className={styles.planTagline}>{plan.tagline}</p>
               {plan.enterprise ? (
