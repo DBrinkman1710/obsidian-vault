@@ -6,6 +6,8 @@ import { useContextMenu, ContextMenu } from '../../components/ContextMenu'
 import { api } from '../../api/client'
 import { useTenantConfig } from '../../App'
 import SendBookingModal from '../booking/SendBookingModal'
+import ContactPeekModal from '../../components/ContactPeekModal'
+import TicketPeekModal from '../../components/TicketPeekModal'
 
 interface CalendarItem {
   kind: 'event' | 'deadline'
@@ -785,6 +787,8 @@ export default function CalendarPage() {
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
+  const [peekContactId, setPeekContactId] = useState<string | null>(null)
+  const [peekTicketId, setPeekTicketId] = useState<string | null>(null)
   const [month, setMonth] = useState(today.getMonth()) // 0-based
   const [modal, setModal] = useState<{ open: boolean; event: CalendarItem | null; defaultDate?: Date }>({ open: false, event: null })
 
@@ -933,7 +937,7 @@ export default function CalendarPage() {
                         <button key={`d-${item.id}`} onClick={() => navigate(`/tickets/${item.ticket_id}`)}
                           title={`Deadline — ${item.title}`}
                           onContextMenu={e => { e.preventDefault(); e.stopPropagation(); ctx.open(e, [
-                            { label: 'View ticket', icon: <ExternalLink size={13} />, onClick: () => navigate(`/tickets/${item.ticket_id}`) },
+                            { label: 'View ticket', icon: <ExternalLink size={13} />, onClick: () => setPeekTicketId(item.ticket_id) },
                           ]) }}
                           className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium truncate border transition-colors ${
                             color === 'red'
@@ -950,8 +954,8 @@ export default function CalendarPage() {
                         title={item.title}
                         onContextMenu={e => { e.preventDefault(); e.stopPropagation(); ctx.open(e, [
                           { label: 'Edit event', icon: <Edit2 size={13} />, onClick: () => setModal({ open: true, event: item }) },
-                          ...(item.contact_id ? [{ label: 'View contact', icon: <User size={13} />, onClick: () => navigate(`/contacts/${item.contact_id}`) }] : []),
-                          ...(item.ticket_id ? [{ label: 'View ticket', icon: <ExternalLink size={13} />, onClick: () => navigate(`/tickets/${item.ticket_id}`) }] : []),
+                          ...(item.contact_id ? [{ label: 'View contact', icon: <User size={13} />, onClick: () => setPeekContactId(item.contact_id) }] : []),
+                          ...(item.ticket_id ? [{ label: 'View ticket', icon: <ExternalLink size={13} />, onClick: () => setPeekTicketId(item.ticket_id) }] : []),
                           { separator: true },
                           { label: 'Delete event', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${item.title}"?`)) deleteEventMut.mutate(item.id) } },
                         ]) }}
@@ -996,6 +1000,8 @@ export default function CalendarPage() {
         />
       )}
       <ContextMenu state={ctx.state} onClose={ctx.close} />
+      <ContactPeekModal contactId={peekContactId} onClose={() => setPeekContactId(null)} />
+      <TicketPeekModal ticketId={peekTicketId} onClose={() => setPeekTicketId(null)} />
 
       {bookingEnabled && (
         <SendBookingModal

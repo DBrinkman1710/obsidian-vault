@@ -1,7 +1,6 @@
-import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Ticket, Trash2, ArrowRight, UserPlus, Check, Archive } from 'lucide-react'
+import { Plus, Ticket, Trash2, UserPlus, Check, Archive } from 'lucide-react'
 import { api } from '../../../api/client'
 import { CardListSkeleton } from '../../../shell/Skeleton'
 import { useAuth } from '../../../auth/useAuth'
@@ -55,7 +54,6 @@ function Badge({ bg, color, children }: { bg: string; color: string; children: R
 
 export default function TicketList() {
   const qc = useQueryClient()
-  const navigate = useNavigate()
   const { user } = useAuth()
   const [statusFilter, setStatusFilter] = useState('')
   const [assignedToMe, setAssignedToMe] = useState(false)
@@ -193,7 +191,6 @@ export default function TicketList() {
               onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)' }}
               onContextMenu={e => ctx.open(e, [
                 { header: t.subject.length > 32 ? t.subject.slice(0, 32) + '…' : t.subject },
-                { label: 'Open ticket', icon: <ArrowRight size={14} />, onClick: () => navigate(`/tickets/${t.id}`) },
                 { label: 'Assign to me', icon: <UserPlus size={14} />, onClick: () => assignMutation.mutate(t.id) },
                 { separator: true },
                 { label: 'Mark resolved', icon: <Check size={14} />, onClick: () => statusMutation.mutate({ id: t.id, status: 'resolved' }) },

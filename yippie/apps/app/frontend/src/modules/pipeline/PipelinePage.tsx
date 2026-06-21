@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, CalendarClock, ExternalLink, GripVertical, Loader2, Plus, Settings2, Trash2, User, X } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
+import { ArrowRight, CalendarClock, GripVertical, Loader2, Plus, Settings2, Trash2, User, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useContextMenu, ContextMenu } from '../../components/ContextMenu'
+import ContactPeekModal from '../../components/ContactPeekModal'
 import { useAuth } from '../../auth/useAuth'
 import { useTenantConfig } from '../../App'
 import SendBookingModal from '../booking/SendBookingModal'
@@ -340,7 +341,6 @@ function ContactCard({
 // ──────────────────────────────────────────────────────────────
 export default function PipelinePage() {
   const qc = useQueryClient()
-  const navigate = useNavigate()
   const { user } = useAuth()
   const config = useTenantConfig()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
@@ -352,6 +352,7 @@ export default function PipelinePage() {
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set())
   const [bookingOpen, setBookingOpen] = useState(false)
   const [singleBooking, setSingleBooking] = useState<{ id: string; full_name: string } | null>(null)
+  const [peekContactId, setPeekContactId] = useState<string | null>(null)
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null)
   const dragContactRef = useRef<{ contactId: string; fromStageId: string } | null>(null)
 
@@ -579,8 +580,7 @@ export default function PipelinePage() {
                     onRemove={() => removeMut.mutate(contact.contact_id)}
                     onContextMenu={e => ctx.open(e, [
                       { header: contact.full_name },
-                      { label: 'View contact', icon: <User size={13} />, onClick: () => navigate(`/contacts/${contact.contact_id}`) },
-                      { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${contact.contact_id}`, '_blank') },
+                      { label: 'View contact', icon: <User size={13} />, onClick: () => setPeekContactId(contact.contact_id) },
                       { separator: true },
                       { header: 'Move to stage' },
                       ...board
@@ -614,6 +614,7 @@ export default function PipelinePage() {
         </div>
       )}
       <ContextMenu state={ctx.state} onClose={ctx.close} />
+      <ContactPeekModal contactId={peekContactId} onClose={() => setPeekContactId(null)} />
     </>
   )
 }

@@ -1437,7 +1437,6 @@ export default function InboxQueue() {
                     }}
                     onContextMenu={e => ctx.open(e, [
                       { header: d.sender_name || d.sender },
-                      { label: 'Review draft', icon: <ArrowRight size={14} />, onClick: () => navigate(`/inbox/drafts/${d.id}`) },
                       { label: 'Approve & create ticket', icon: <Check size={14} />, onClick: () => reviewMutation.mutate({ id: d.id, action: 'approve' }) },
                       { separator: true },
                       { label: 'Reject', icon: <XCircle size={14} />, danger: true, onClick: () => reviewMutation.mutate({ id: d.id, action: 'reject' }) },
