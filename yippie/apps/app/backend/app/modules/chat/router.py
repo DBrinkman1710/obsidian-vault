@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
+import mimetypes
 import random
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 import httpx
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, WebSocket, WebSocketDisconnect, status
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect, status
 from jose import JWTError, jwt
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select
@@ -213,6 +215,10 @@ async def get_messages(session_id: uuid.UUID, current_user: CurrentUser, db: DB)
             "body": m.body,
             "created_at": m.created_at.isoformat(),
             "msg_status": m.msg_status,
+            "msg_type": m.msg_type,
+            "media_url": m.media_url,
+            "media_filename": m.media_filename,
+            "media_mime": m.media_mime,
         }
         for m in msgs
     ]
@@ -290,6 +296,128 @@ async def reply_to_session(
     await manager.broadcast_to_agents(tenant_key, event_data)
 
     return {"id": str(msg.id), "body": msg.body, "created_at": msg.created_at.isoformat(), "msg_status": msg.msg_status}
+
+
+@router.post("/sessions/{session_id}/media", status_code=status.HTTP_201_CREATED)
+async def send_media_to_session(
+    session_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DB,
+    file: UploadFile = File(...),
+    caption: Optional[str] = Form(None),
+):
+    """Upload and send an image or document in a live chat session.
+
+    Accepts multipart/form-data with:
+    - file: the image or document to send
+    - caption: optional caption text (only meaningful for images)
+
+    Images (image/*) are sent via Evolution API as mediatype="image".
+    All other files (PDF, DOCX, etc.) are sent as mediatype="document".
+    """
+    sess_result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.id == session_id,
+            ChatSession.tenant_id == current_user.tenant_id,
+        )
+    )
+    session = sess_result.scalar_one_or_none()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if not session.is_open:
+        raise HTTPException(status_code=409, detail="Session is closed")
+    if session.assigned_to and session.assigned_to != current_user.id:
+        raise HTTPException(status_code=409, detail="Session is assigned to another agent")
+
+    content_type = file.content_type or ""
+    filename = file.filename or "attachment"
+
+    # Guess MIME if not provided by browser
+    if not content_type or content_type == "application/octet-stream":
+        guessed, _ = mimetypes.guess_type(filename)
+        if guessed:
+            content_type = guessed
+
+    file_bytes = await file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=400, detail="File must not be empty")
+
+    # Cap at 16 MB to avoid Evolution API rejections
+    if len(file_bytes) > 16 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="File too large (max 16 MB)")
+
+    media_base64 = base64.b64encode(file_bytes).decode()
+    is_image = content_type.startswith("image/")
+    evo_media_type = "image" if is_image else "document"
+    # Store as a data URI in media_url so the frontend can render it without a separate download
+    data_uri = f"data:{content_type};base64,{media_base64}"
+
+    content_text = caption or filename
+    msg = ChatMessage(
+        tenant_id=current_user.tenant_id,
+        session_id=session.id,
+        sender_type="agent",
+        sender_id=str(current_user.id),
+        body=content_text,
+        msg_type="media",
+        media_url=data_uri,
+        media_filename=filename,
+        media_mime=content_type,
+    )
+    db.add(msg)
+    await db.commit()
+    await db.refresh(msg)
+
+    # Dispatch to WhatsApp
+    if session.source == "whatsapp" and session.whatsapp_phone:
+        tenant = await db.get(Tenant, current_user.tenant_id)
+        if tenant:
+            try:
+                wa_response = await whatsapp_service.send_media(
+                    tenant.slug,
+                    session.whatsapp_phone,
+                    media_base64,
+                    evo_media_type,
+                    filename,
+                    caption,
+                )
+                if wa_response and isinstance(wa_response, dict):
+                    evo_id = (
+                        wa_response.get("key", {}).get("id")
+                        or wa_response.get("id")
+                    )
+                    if evo_id:
+                        msg.evolution_msg_id = evo_id
+                        await db.commit()
+            except Exception:
+                logger.exception("WhatsApp sendMedia failed for session %s", session_id)
+
+    tenant_key = str(current_user.tenant_id)
+    event_data = {
+        "event": "message",
+        "session_id": str(session_id),
+        "sender_type": "agent",
+        "sender_id": str(current_user.id),
+        "body": content_text,
+        "msg_type": "media",
+        "media_url": data_uri,
+        "media_filename": filename,
+        "media_mime": content_type,
+        "created_at": msg.created_at.isoformat(),
+    }
+    await manager.broadcast_to_session(tenant_key, session.visitor_id, event_data)
+    await manager.broadcast_to_agents(tenant_key, event_data)
+
+    return {
+        "id": str(msg.id),
+        "body": msg.body,
+        "msg_type": msg.msg_type,
+        "media_url": msg.media_url,
+        "media_filename": msg.media_filename,
+        "media_mime": msg.media_mime,
+        "created_at": msg.created_at.isoformat(),
+        "msg_status": msg.msg_status,
+    }
 
 
 @router.post("/sessions/{session_id}/close", status_code=status.HTTP_200_OK)

@@ -118,6 +118,51 @@ async def get_pairing_qr(instance_name: str) -> dict:
         return resp.json()
 
 
+async def send_media(
+    instance_name: str,
+    number: str,
+    media_base64: str,
+    media_type: str,
+    filename: str,
+    caption: str | None = None,
+) -> dict | None:
+    """Send an image or document via Evolution API.
+
+    media_type: "image" | "document" (used as Evolution API mediatype)
+    media_base64: raw base64 string (no data URI prefix)
+    Returns the Evolution API response JSON or None on failure.
+    """
+    settings = get_settings()
+    normalized = "".join(ch for ch in number if ch.isdigit())
+    payload: dict = {
+        "number": normalized,
+        "mediatype": media_type,
+        "media": media_base64,
+        "delay": 1200,
+    }
+    if caption:
+        payload["caption"] = caption
+    if media_type == "document":
+        payload["fileName"] = filename
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.post(
+            f"{settings.evolution_api_url}/message/sendMedia/{instance_name}",
+            headers={"Content-Type": "application/json", "apikey": settings.evolution_api_token},
+            json=payload,
+        )
+        if not resp.is_success:
+            logger.error(
+                "Evolution sendMedia %s -> %s %s: %s",
+                instance_name,
+                normalized,
+                resp.status_code,
+                resp.text,
+            )
+        resp.raise_for_status()
+        return resp.json()
+
+
 async def send_text(instance_name: str, number: str, text: str) -> None:
     settings = get_settings()
     # Normalize to bare digits (E.164 without leading +) as required by Evolution API
