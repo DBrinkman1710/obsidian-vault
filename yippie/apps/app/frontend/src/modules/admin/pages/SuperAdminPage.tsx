@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -19,6 +19,11 @@ const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod
 // SaaS plan tiers — mirrors PlanTier on the backend (app/core/plans.py).
 const PLAN_TIERS = ['founder', 'starter', 'growth', 'pro'] as const
 const planLabel = (p: string) => p.charAt(0).toUpperCase() + p.slice(1)
+
+// AI scan limits per plan — mirrors PLAN_LIMITS in app/core/plans.py.
+const PLAN_AI_LIMITS: Record<string, number | null> = {
+  founder: 500, starter: 2_000, growth: 10_000, pro: null, enterprise: null,
+}
 
 type FilterStatus = 'all' | 'active' | 'demo' | 'inactive'
 
@@ -135,6 +140,33 @@ const STATUS_PILL: Record<string, string> = {
   active: 'bg-emerald-100 text-emerald-700',
   demo: 'bg-amber-100 text-amber-700',
   inactive: 'bg-slate-100 text-slate-400',
+}
+
+function DonutChart({ used, limit }: { used: number; limit: number | null }) {
+  if (limit === null) {
+    return (
+      <span className="text-xs text-slate-400" title="Unlimited AI scans">∞</span>
+    )
+  }
+  const pct = Math.min(used / Math.max(limit, 1), 1)
+  const r = 9, cx = 12, cy = 12
+  const circ = 2 * Math.PI * r
+  const dash = pct * circ
+  const stroke = pct > 0.9 ? '#ef4444' : pct > 0.7 ? '#f59e0b' : '#3b82f6'
+  return (
+    <div className="flex flex-col items-center gap-0.5" title={`${used} / ${limit} AI scans this month`}>
+      <svg width={24} height={24} viewBox="0 0 24 24">
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth={3} />
+        <circle
+          cx={cx} cy={cy} r={r} fill="none" stroke={stroke} strokeWidth={3}
+          strokeDasharray={`${dash} ${circ}`}
+          strokeLinecap="round"
+          transform="rotate(-90 12 12)"
+        />
+      </svg>
+      <span className="text-[9px] text-slate-400 tabular-nums leading-none">{used}/{limit}</span>
+    </div>
+  )
 }
 
 function ModuleToggle({ mod, active, onClick }: { mod: string; active: boolean; onClick: () => void }) {
@@ -437,6 +469,7 @@ function EditClientModal({
   onGoLive,
   goingLive,
   isOwnTenant,
+  defaultTab,
 }: {
   tenant: Tenant
   onClose: () => void
@@ -448,11 +481,12 @@ function EditClientModal({
   onGoLive?: () => void
   goingLive?: boolean
   isOwnTenant?: boolean
+  defaultTab?: EditTab
 }) {
   const qc = useQueryClient()
   const { user } = useAuth()
   const isRootOwner = user?.email?.toLowerCase() === ROOT_OWNER_EMAIL
-  const [tab, setTab] = useState<EditTab>('info')
+  const [tab, setTab] = useState<EditTab>(defaultTab ?? 'info')
   const [form, setForm] = useState({
     name: tenant.name,
     inbound_email: tenant.inbound_email ?? '',
@@ -1163,6 +1197,7 @@ interface TenantStatRow {
   contacts_created: number
   active_users_today: number
   ai_usage_today: number
+  ai_usage_period: number
 }
 
 interface SuperAdminStats {
@@ -1293,7 +1328,6 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Tenant</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Plan</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Open</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Overdue</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Pending inbox</th>
@@ -1315,9 +1349,6 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
                     <td className="px-4 py-3">
                       <div className="text-sm font-semibold text-slate-900">{r.name}</div>
                       <div className="text-xs text-slate-400">{r.slug}</div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 capitalize">{r.plan}</span>
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-slate-700 tabular-nums">{r.tickets_open}</td>
                     <td className={`px-4 py-3 text-right text-sm font-semibold tabular-nums ${overdue ? 'text-red-600' : 'text-slate-400'}`}>{r.tickets_overdue}</td>
@@ -1349,16 +1380,37 @@ export default function SuperAdminPage() {
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
+  const [editingTab, setEditingTab] = useState<EditTab | undefined>(undefined)
   const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null)
-const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(null)
+  const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(null)
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
-  const [pageTab, setPageTab] = useState<'dashboard' | 'clients'>('dashboard')
+  const [pageTab, setPageTab] = useState<'dashboard' | 'clients'>('clients')
 
   const { data: allTenants, isLoading } = useQuery<Tenant[]>({
     queryKey: ['superadmin-tenants'],
     queryFn: () => api.get('/admin/tenants').then(r => r.data),
   })
+
+  const monthStart = useMemo(() => {
+    const d = new Date()
+    d.setDate(1); d.setHours(0, 0, 0, 0)
+    return d.toISOString()
+  }, [])
+
+  const { data: monthlyStats } = useQuery<SuperAdminStats>({
+    queryKey: ['superadmin-stats-month', monthStart],
+    queryFn: () => api.get('/admin/stats', { params: { start: monthStart } }).then(r => r.data),
+    staleTime: 300_000,
+  })
+
+  const aiUsageByTenant = useMemo(() => {
+    const map: Record<string, number> = {}
+    for (const row of monthlyStats?.tenants ?? []) {
+      map[String(row.tenant_id)] = row.ai_usage_period
+    }
+    return map
+  }, [monthlyStats])
 
   const ownSlug = config?.tenant_id
   const isOwnTenant = (t: Tenant) => !!ownSlug && t.slug === ownSlug
@@ -1479,8 +1531,8 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
       {/* Top-level tabs */}
       <div className="flex items-center gap-1 border-b border-slate-200 -mt-4">
         {([
-          { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
           { key: 'clients', label: 'Clients', icon: <Building2 size={14} /> },
+          { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
         ] as const).map(({ key, label, icon }) => (
           <button
             key={key}
@@ -1585,6 +1637,8 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
                 </th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Client</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Status</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Plan</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-center">AI</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Modules</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Users</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Created</th>
@@ -1636,17 +1690,30 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-1">
-                        {t.enabled_modules.map(m => (
-                          <span key={m} className="px-1.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-600">{moduleLabel(m)}</span>
-                        ))}
-                      </div>
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 capitalize">{planLabel(t.plan)}</span>
+                    </td>
+                    <td className="px-4 py-3 text-center">
+                      <DonutChart
+                        used={aiUsageByTenant[t.id] ?? 0}
+                        limit={PLAN_AI_LIMITS[t.plan] ?? null}
+                      />
                     </td>
                     <td className="px-4 py-3">
-                      <span className="inline-flex items-center gap-1.5 text-sm text-slate-500">
+                      <button
+                        onClick={() => { setEditingTenant(t); setEditingTab('modules') }}
+                        className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                      >
+                        {t.enabled_modules.length} modules
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        onClick={() => { setEditingTenant(t); setEditingTab('users') }}
+                        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 transition-colors"
+                      >
                         <Users size={13} />
-                        {t.user_count} {t.user_count === 1 ? 'user' : 'users'}
-                      </span>
+                        {t.user_count}
+                      </button>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-400">
                       {new Date(t.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
@@ -1674,7 +1741,7 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
                           </button>
                         )}
                         <button
-                          onClick={() => setEditingTenant(t)}
+                          onClick={() => { setEditingTenant(t); setEditingTab(undefined) }}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                         >
                           <Pencil size={11} />
@@ -1697,15 +1764,16 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
       {editingTenant && (
         <EditClientModal
           tenant={editingTenant}
-          onClose={() => setEditingTenant(null)}
+          onClose={() => { setEditingTenant(null); setEditingTab(undefined) }}
           togglingActive={toggleActiveMutation.isPending}
           onToggleActive={() => toggleActiveMutation.mutate({ id: editingTenant.id, is_active: !editingTenant.is_active })}
           onCopyEmail={() => editingTenant.inbound_email && copyInboundEmail(editingTenant.slug, editingTenant.inbound_email)}
           copied={copiedSlug === editingTenant.slug}
-          onRequestDelete={() => { setEditingTenant(null); setDeletingTenant(editingTenant) }}
+          onRequestDelete={() => { setEditingTenant(null); setEditingTab(undefined); setDeletingTenant(editingTenant) }}
           onGoLive={() => goLiveMutation.mutate(editingTenant.id)}
           goingLive={goLiveMutation.isPending}
           isOwnTenant={isOwnTenant(editingTenant)}
+          defaultTab={editingTab}
         />
       )}
       {deletingTenant && <DeleteClientModal tenant={deletingTenant} onClose={() => setDeletingTenant(null)} />}

@@ -151,6 +151,7 @@ class TenantStatRow(BaseModel):
     contacts_created: int
     active_users_today: int
     ai_usage_today: int
+    ai_usage_period: int
 
 
 class SuperAdminStatsSummary(BaseModel):

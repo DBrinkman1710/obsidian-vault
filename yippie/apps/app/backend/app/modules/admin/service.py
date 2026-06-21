@@ -494,7 +494,7 @@ async def get_superadmin_stats(
         t.id: {
             "tickets_open": 0, "tickets_closed": 0, "tickets_overdue": 0,
             "inbox_pending": 0, "contacts_created": 0,
-            "active_users_today": 0, "ai_usage_today": 0,
+            "active_users_today": 0, "ai_usage_today": 0, "ai_usage_period": 0,
         }
         for t in tenants
     }
@@ -543,12 +543,19 @@ async def get_superadmin_stats(
                         DraftTicket.created_at >= today_start,
                     ), 1))
                 ).label("ai_today"),
+                func.count(
+                    case((and_(
+                        DraftTicket.ai_status == "done",
+                        DraftTicket.created_at >= start,
+                        DraftTicket.created_at <= end,
+                    ), 1))
+                ).label("ai_period"),
             )
             .where(DraftTicket.tenant_id.in_(tenant_ids))
             .group_by(DraftTicket.tenant_id)
         )
         for r in draft_rows:
-            acc[r.tenant_id].update(inbox_pending=r.pending, ai_usage_today=r.ai_today)
+            acc[r.tenant_id].update(inbox_pending=r.pending, ai_usage_today=r.ai_today, ai_usage_period=r.ai_period)
 
         # Contacts created in range (excluding soft-deleted).
         contact_rows = await db.execute(
