@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, Megaphone, MessageSquare, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, Megaphone, MessageSquare, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2, Zap } from 'lucide-react'
 import { api } from '../../../api/client'
 import { Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
@@ -9,6 +9,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { useMobile } from '../../../shell/useMobile'
 import { useTenantConfig } from '../../../App'
 import BroadcastModal from '../components/BroadcastModal'
+import ActionsModal from '../components/ActionsModal'
 
 function timeAgo(dt: string) {
   const diff = Date.now() - new Date(dt).getTime()
@@ -71,6 +72,7 @@ export default function ChatPage() {
   const [showCreateContact, setShowCreateContact] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [historyViewId, setHistoryViewId] = useState<string | null>(null)
+  const [showActionsModal, setShowActionsModal] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
 
   // Multi-select state
@@ -201,27 +203,6 @@ export default function ChatPage() {
       setSelectedId(null)
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
     },
-  })
-
-  const createTicketMutation = useMutation({
-    mutationFn: async (session: any) => {
-      const subject = session.visitor_name || session.whatsapp_phone || 'Chat session'
-      let description: string | undefined
-      try {
-        const msgs = await api.get(`/chat/sessions/${session.id}/messages`).then(r => r.data)
-        const first = (msgs as any[]).find((m: any) => m.sender_type === 'visitor')
-        if (first) description = first.body
-      } catch { /* non-fatal */ }
-      const ticket = await api.post('/tickets', {
-        subject,
-        description,
-        contact_id: session.contact_id ?? undefined,
-        source: 'chat',
-      }).then(r => r.data)
-      await api.patch(`/chat/sessions/${session.id}`, { ticket_id: ticket.id })
-      return ticket
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['chat-sessions'] }),
   })
 
   // Agent WebSocket — real-time events for all sessions in this tenant
@@ -687,7 +668,7 @@ export default function ChatPage() {
               Solve
             </button>
           )}
-          {selectedSession.ticket_id ? (
+          {selectedSession.ticket_id && (
             <button
               onClick={() => navigate(`/tickets/${selectedSession.ticket_id}`)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
@@ -695,16 +676,15 @@ export default function ChatPage() {
             >
               Ticket →
             </button>
-          ) : (
-            <button
-              onClick={() => createTicketMutation.mutate(selectedSession)}
-              disabled={createTicketMutation.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Create ticket from this chat"
-            >
-              {createTicketMutation.isPending ? 'Creating…' : '+ Ticket'}
-            </button>
           )}
+          <button
+            onClick={() => setShowActionsModal(true)}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors"
+            title="Create ticket or send booking"
+          >
+            <Zap size={12} strokeWidth={2.5} />
+            Actions
+          </button>
           {selectedSession.is_open && (
             <button
               onClick={() => closeMutation.mutate(selectedSession.id)}
@@ -896,6 +876,14 @@ export default function ChatPage() {
       )}
       {historyViewId && (
         <HistoryViewModal sessionId={historyViewId} onClose={() => setHistoryViewId(null)} />
+      )}
+      {showActionsModal && selectedSession && (
+        <ActionsModal
+          session={selectedSession}
+          defaultPane={selectedSession.ticket_id ? 'booking' : 'ticket'}
+          onClose={() => setShowActionsModal(false)}
+          onTicketLinked={() => setShowActionsModal(false)}
+        />
       )}
       <ContextMenu state={ctx.state} onClose={ctx.close} />
     </>

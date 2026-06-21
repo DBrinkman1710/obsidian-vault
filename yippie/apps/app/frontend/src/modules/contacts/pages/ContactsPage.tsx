@@ -802,7 +802,7 @@ export default function ContactsPage() {
 
         {/* Tabs */}
         <div className="flex gap-2 mb-0">
-          {(['companies', 'contacts'] as Tab[]).map(tab => (
+          {(['contacts', 'companies'] as Tab[]).map(tab => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
