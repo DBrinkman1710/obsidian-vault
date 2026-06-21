@@ -68,6 +68,7 @@ async def list_contacts(
     limit: int = 50,
     label_id: Optional[uuid.UUID] = None,
     company_id: Optional[uuid.UUID] = None,
+    include_deleted: bool = False,
 ) -> tuple[list[Contact], int]:
     q = select(Contact).where(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
     if search:
@@ -84,7 +85,26 @@ async def list_contacts(
         q = q.where(Contact.company_id == company_id)
     total = await db.scalar(select(func.count()).select_from(q.subquery()))
     result = await db.execute(q.order_by(Contact.created_at.desc()).offset(skip).limit(limit))
-    return result.scalars().all(), total or 0
+    items = list(result.scalars().all())
+
+    if include_deleted and search:
+        term = f"%{search}%"
+        dq = (
+            select(Contact)
+            .where(
+                Contact.tenant_id == tenant_id,
+                Contact.deleted_at.is_not(None),
+                Contact.full_name.ilike(term)
+                | Contact.email.ilike(term)
+                | Contact.company.ilike(term)
+                | Contact.company_rel.has(Company.name.ilike(term)),
+            )
+            .order_by(Contact.deleted_at.desc())
+        )
+        dresult = await db.execute(dq)
+        items.extend(dresult.scalars().all())
+
+    return items, total or 0
 
 
 async def get_contact(db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID) -> Optional[Contact]:

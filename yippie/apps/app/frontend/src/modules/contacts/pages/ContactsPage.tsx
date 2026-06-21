@@ -29,7 +29,7 @@ function downloadBlob(data: BlobPart, filename: string, type: string) {
   URL.revokeObjectURL(url)
 }
 
-type Tab = 'companies' | 'contacts' | 'trash'
+type Tab = 'companies' | 'contacts'
 
 interface Contact {
   id: string
@@ -362,17 +362,23 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   const { data, isLoading } = useQuery({
     queryKey: ['contacts', search, labelFilter, companyFilter],
     queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', {
-      params: { search: search || undefined, label_id: labelFilter || undefined, company_id: companyFilter || undefined },
+      params: {
+        search: search || undefined,
+        label_id: labelFilter || undefined,
+        company_id: companyFilter || undefined,
+        include_deleted: search ? true : undefined,
+      },
     }).then(r => r.data),
   })
 
   const items = data?.items ?? []
-  const allSelected = items.length > 0 && items.every(c => selected.has(c.id))
+  const activeItems = items.filter(c => !c.deleted_at)
+  const allSelected = activeItems.length > 0 && activeItems.every(c => selected.has(c.id))
 
   function toggle(id: string) {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
-  function toggleAll() { setSelected(allSelected ? new Set() : new Set(items.map(c => c.id))) }
+  function toggleAll() { setSelected(allSelected ? new Set() : new Set(activeItems.map(c => c.id))) }
   function clearSelection() { setSelected(new Set()) }
 
   async function exportSelected(ids?: string[]) {
@@ -388,6 +394,16 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.delete(`/contacts/${id}`))),
     onSuccess: () => { clearSelection(); qc.invalidateQueries({ queryKey: ['contacts'] }) },
+  })
+
+  const restoreMutation = useMutation({
+    mutationFn: (id: string) => api.post(`/contacts/${id}/restore`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
+  })
+
+  const permanentDeleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/contacts/${id}/permanent`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
   })
 
   const selectedIds = [...selected]
@@ -480,82 +496,108 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
             <TableSkeleton cols={visibleColumns.length + 2} />
           ) : (
             <tbody className="divide-y divide-slate-100">
-              {items.map(c => (
-                <tr key={c.id} className="hover:bg-slate-50 transition-colors"
-                  onContextMenu={e => ctx.open(e, [
-                    { header: c.full_name },
-                    { label: 'View contact', icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
-                    { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${c.id}`, '_blank') },
-                    { separator: true },
-                    { label: 'Send email', icon: <Mail size={13} />, onClick: () => window.location.href = `mailto:${c.email}` },
-                    { separator: true },
-                    { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${c.full_name}"? This cannot be undone.`)) deleteMutation.mutate([c.id]) } },
-                  ])}>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                  </td>
-                  {visibleColumns.map(col => {
-                    const responsive = col.key === 'name' || col.key === 'email' ? '' : 'hidden md:table-cell'
-                    if (col.key === 'name') return (
-                      <td key={col.key} className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
-                        <div className="flex items-center gap-2.5">
-                          <div className="w-7 h-7 rounded-full bg-blue-100 flex items-center justify-center shrink-0">
-                            <User size={13} className="text-blue-600" />
+              {items.map(c => {
+                const isDeleted = !!c.deleted_at
+                return (
+                  <tr key={c.id}
+                    className={`transition-colors ${isDeleted ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50'}`}
+                    onContextMenu={e => ctx.open(e, isDeleted ? [
+                      { header: c.full_name },
+                      { label: 'Restore', icon: <User size={13} />, onClick: () => restoreMutation.mutate(c.id) },
+                      { label: 'Delete permanently', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) permanentDeleteMutation.mutate(c.id) } },
+                    ] : [
+                      { header: c.full_name },
+                      { label: 'View contact', icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
+                      { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${c.id}`, '_blank') },
+                      { separator: true },
+                      { label: 'Send email', icon: <Mail size={13} />, onClick: () => window.location.href = `mailto:${c.email}` },
+                      { separator: true },
+                      { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${c.full_name}"?`)) deleteMutation.mutate([c.id]) } },
+                    ])}>
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      {!isDeleted && (
+                        <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)}
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                      )}
+                    </td>
+                    {visibleColumns.map(col => {
+                      const responsive = col.key === 'name' || col.key === 'email' ? '' : 'hidden md:table-cell'
+                      if (col.key === 'name') return (
+                        <td key={col.key} className="px-4 py-3 cursor-pointer" onClick={() => !isDeleted && navigate(`/contacts/${c.id}`)}>
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isDeleted ? 'bg-slate-100' : 'bg-blue-100'}`}>
+                              <User size={13} className={isDeleted ? 'text-slate-400' : 'text-blue-600'} />
+                            </div>
+                            <span className={`text-sm font-medium ${isDeleted ? 'text-slate-500 line-through' : 'text-blue-600'}`}>{c.full_name}</span>
                           </div>
-                          <span className="text-sm font-medium text-blue-600">{c.full_name}</span>
+                        </td>
+                      )
+                      if (col.key === 'email') return (
+                        <td key={col.key} className="px-4 py-3 text-sm text-slate-500 cursor-pointer" onClick={() => !isDeleted && navigate(`/contacts/${c.id}`)}>{c.email ?? '—'}</td>
+                      )
+                      if (col.key === 'company') return (
+                        <td key={col.key} className={`${responsive} px-4 py-3`}>
+                          {c.company ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-50 text-slate-500 border-slate-200">
+                              <Building2 size={10} />{c.company.name}
+                            </span>
+                          ) : <span className="text-sm text-slate-400">—</span>}
+                        </td>
+                      )
+                      if (col.key === 'labels') return (
+                        <td key={col.key} className={`${responsive} px-4 py-3`}>
+                          {c.labels.length === 0 ? <span className="text-sm text-slate-400">—</span> : (
+                            <div className="flex flex-wrap gap-1">
+                              {c.labels.slice(0, 3).map(label => <LabelChip key={label.id} label={label} />)}
+                              {c.labels.length > 3 && <span className="text-xs text-slate-400 self-center">+{c.labels.length - 3}</span>}
+                            </div>
+                          )}
+                        </td>
+                      )
+                      if (col.key === 'phone') return (
+                        <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-500`}>{c.phone ?? '—'}</td>
+                      )
+                      if (col.key === 'notes') return (
+                        <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-500`} title={c.notes ?? undefined}>
+                          {c.notes ? (c.notes.length > 40 ? `${c.notes.slice(0, 40)}…` : c.notes) : '—'}
+                        </td>
+                      )
+                      if (col.key === 'created_at') return (
+                        <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-500`}>{c.created_at ? new Date(c.created_at).toLocaleDateString('nl-NL') : '—'}</td>
+                      )
+                      if (col.key === 'updated_at') return (
+                        <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-500`}>{c.updated_at ? new Date(c.updated_at).toLocaleDateString('nl-NL') : '—'}</td>
+                      )
+                      return null
+                    })}
+                    <td className="hidden md:table-cell px-4 py-3" onClick={e => e.stopPropagation()}>
+                      {isDeleted ? (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => restoreMutation.mutate(c.id)}
+                            disabled={restoreMutation.isPending || permanentDeleteMutation.isPending}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            Restore
+                          </button>
+                          <button
+                            onClick={() => { if (confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) permanentDeleteMutation.mutate(c.id) }}
+                            disabled={restoreMutation.isPending || permanentDeleteMutation.isPending}
+                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                          >
+                            Delete
+                          </button>
                         </div>
-                      </td>
-                    )
-                    if (col.key === 'email') return (
-                      <td key={col.key} className="px-4 py-3 text-sm text-slate-600 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>{c.email ?? '—'}</td>
-                    )
-                    if (col.key === 'company') return (
-                      <td key={col.key} className={`${responsive} px-4 py-3 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>
-                        {c.company ? (
-                          <span
-                            onClick={e => { e.stopPropagation(); setCompanyFilter(companyFilter === c.company!.id ? null : c.company!.id) }}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-slate-50 text-slate-600 border-slate-200 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 transition-colors cursor-pointer"
-                            title={`Filter by ${c.company.name}`}>
-                            <Building2 size={10} />{c.company.name}
-                          </span>
-                        ) : <span className="text-sm text-slate-400">—</span>}
-                      </td>
-                    )
-                    if (col.key === 'labels') return (
-                      <td key={col.key} className={`${responsive} px-4 py-3 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>
-                        {c.labels.length === 0 ? <span className="text-sm text-slate-400">—</span> : (
-                          <div className="flex flex-wrap gap-1">
-                            {c.labels.slice(0, 3).map(label => <LabelChip key={label.id} label={label} />)}
-                            {c.labels.length > 3 && <span className="text-xs text-slate-400 self-center">+{c.labels.length - 3}</span>}
-                          </div>
-                        )}
-                      </td>
-                    )
-                    if (col.key === 'phone') return (
-                      <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-600 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>{c.phone ?? '—'}</td>
-                    )
-                    if (col.key === 'notes') return (
-                      <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-600 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)} title={c.notes ?? undefined}>
-                        {c.notes ? (c.notes.length > 40 ? `${c.notes.slice(0, 40)}…` : c.notes) : '—'}
-                      </td>
-                    )
-                    if (col.key === 'created_at') return (
-                      <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-600 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>{c.created_at ? new Date(c.created_at).toLocaleDateString('nl-NL') : '—'}</td>
-                    )
-                    if (col.key === 'updated_at') return (
-                      <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-600 cursor-pointer`} onClick={() => navigate(`/contacts/${c.id}`)}>{c.updated_at ? new Date(c.updated_at).toLocaleDateString('nl-NL') : '—'}</td>
-                    )
-                    return null
-                  })}
-                  <td className="hidden md:table-cell px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <button onClick={() => setEditingContact(c)}
-                      className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Edit">
-                      <Pencil size={13} />
-                    </button>
-                  </td>
-                </tr>
-              ))}
+                      ) : (
+                        <button onClick={() => setEditingContact(c)}
+                          className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Edit">
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           )}
         </table>
@@ -579,92 +621,6 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   )
 }
 
-function TrashTab() {
-  const qc = useQueryClient()
-  const { data: trashed, isLoading } = useQuery<Contact[]>({
-    queryKey: ['contacts-trash'],
-    queryFn: () => api.get<Contact[]>('/contacts/trash').then(r => r.data),
-  })
-
-  const restoreMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/contacts/${id}/restore`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['contacts'] })
-      qc.invalidateQueries({ queryKey: ['contacts-trash'] })
-    },
-  })
-
-  const permanentDeleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/contacts/${id}/permanent`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts-trash'] }),
-  })
-
-  function handlePermanentDelete(c: Contact) {
-    if (!confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) return
-    permanentDeleteMutation.mutate(c.id)
-  }
-
-  if (isLoading) return <TableSkeleton cols={4} />
-
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Deleted on</th>
-              <th className="px-4 py-3 w-36"></th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {(trashed ?? []).map(c => (
-              <tr key={c.id} className="hover:bg-slate-50 transition-colors">
-                <td className="px-4 py-3">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-7 h-7 rounded-full bg-slate-100 flex items-center justify-center shrink-0">
-                      <User size={13} className="text-slate-400" />
-                    </div>
-                    <span className="text-sm font-medium text-slate-700">{c.full_name}</span>
-                  </div>
-                </td>
-                <td className="px-4 py-3 text-sm text-slate-500">{c.email ?? '—'}</td>
-                <td className="px-4 py-3 text-sm text-slate-500">
-                  {c.deleted_at ? new Date(c.deleted_at).toLocaleDateString('nl-NL') : '—'}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <div className="flex items-center justify-end gap-2">
-                    <button
-                      onClick={() => restoreMutation.mutate(c.id)}
-                      disabled={restoreMutation.isPending || permanentDeleteMutation.isPending}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      Restore
-                    </button>
-                    <button
-                      onClick={() => handlePermanentDelete(c)}
-                      disabled={restoreMutation.isPending || permanentDeleteMutation.isPending}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
-                    >
-                      Delete permanently
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      {!isLoading && (trashed ?? []).length === 0 && (
-        <div className="py-12 text-center">
-          <Trash2 size={32} className="text-slate-300 mx-auto mb-3" />
-          <p className="text-sm text-slate-400 font-medium">Trash is empty</p>
-        </div>
-      )}
-    </div>
-  )
-}
 
 const IMPORT_TARGET_FIELDS: { value: string; label: string }[] = [
   { value: 'full_name', label: 'Full name *' },
@@ -815,18 +771,6 @@ export default function ContactsPage() {
               {tab}
             </button>
           ))}
-          {isAdmin && (
-            <button
-              onClick={() => setActiveTab('trash')}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
-                activeTab === 'trash'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-              }`}
-            >
-              Trash
-            </button>
-          )}
         </div>
       </div>
 
@@ -841,9 +785,6 @@ export default function ContactsPage() {
         )}
         {activeTab === 'contacts' && (
           <ContactsTab companyFilter={companyFilter} setCompanyFilter={setCompanyFilter} />
-        )}
-        {activeTab === 'trash' && (
-          <TrashTab />
         )}
       </div>
 
