@@ -94,9 +94,10 @@ function CompanyForm({ initial, onSave, onCancel, isPending, serverError }: {
   )
 }
 
-function CompaniesTab({ triggerCreate, onCreateHandled }: {
+function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
   triggerCreate: boolean
   onCreateHandled: () => void
+  onCompanyClick: (companyId: string) => void
 }) {
   const { user } = useAuth()
   const qc = useQueryClient()
@@ -207,7 +208,12 @@ function CompaniesTab({ triggerCreate, onCreateHandled }: {
                     <Building2 size={15} className="text-blue-500" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm font-semibold text-slate-800 block truncate">{company.name}</span>
+                    <button
+                      onClick={() => onCompanyClick(company.id)}
+                      className="text-sm font-semibold text-slate-800 block truncate text-left hover:text-blue-600 hover:underline transition-colors"
+                    >
+                      {company.name}
+                    </button>
                     {company.domain && <span className="text-xs text-slate-400">{company.domain}</span>}
                   </div>
                   <span className="text-xs text-slate-400 whitespace-nowrap mr-2">
@@ -319,13 +325,15 @@ function EditContactModal({ contact, companies, onClose }: {
   )
 }
 
-function ContactsTab() {
+function ContactsTab({ companyFilter, setCompanyFilter }: {
+  companyFilter: string | null
+  setCompanyFilter: (id: string | null) => void
+}) {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { user, refreshUser } = useAuth()
   const [search, setSearch] = useState('')
   const [labelFilter, setLabelFilter] = useState<string | null>(null)
-  const [companyFilter, setCompanyFilter] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
 
@@ -665,6 +673,7 @@ export default function ContactsPage() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [activeTab, setActiveTab] = useState<Tab>('contacts')
   const [triggerCreate, setTriggerCreate] = useState(false)
+  const [companyFilter, setCompanyFilter] = useState<string | null>(null)
   const [showImport, setShowImport] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
@@ -723,6 +732,11 @@ export default function ContactsPage() {
   function handleNewCompany() {
     setActiveTab('companies')
     setTriggerCreate(true)
+  }
+
+  function handleCompanyClick(companyId: string) {
+    setCompanyFilter(companyId)
+    setActiveTab('contacts')
   }
 
   return (
@@ -799,10 +813,11 @@ export default function ContactsPage() {
           <CompaniesTab
             triggerCreate={triggerCreate}
             onCreateHandled={() => setTriggerCreate(false)}
+            onCompanyClick={handleCompanyClick}
           />
         )}
         {activeTab === 'contacts' && (
-          <ContactsTab />
+          <ContactsTab companyFilter={companyFilter} setCompanyFilter={setCompanyFilter} />
         )}
         {activeTab === 'trash' && (
           <TrashTab />
