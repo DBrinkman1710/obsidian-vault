@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail, ExternalLink } from 'lucide-react'
+import { toast } from 'sonner'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
@@ -343,6 +344,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { user, refreshUser } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [search, setSearch] = useState('')
   const [labelFilter, setLabelFilter] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -404,6 +406,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   const permanentDeleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/contacts/${id}/permanent`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
+    onError: () => toast.error('Failed to permanently delete contact'),
   })
 
   const selectedIds = [...selected]
@@ -504,7 +507,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                     onContextMenu={e => ctx.open(e, isDeleted ? [
                       { header: c.full_name },
                       { label: 'Restore', icon: <User size={13} />, onClick: () => restoreMutation.mutate(c.id) },
-                      { label: 'Delete permanently', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) permanentDeleteMutation.mutate(c.id) } },
+                      ...(isAdmin ? [{ label: 'Delete permanently', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) permanentDeleteMutation.mutate(c.id) } }] : []),
                     ] : [
                       { header: c.full_name },
                       { label: 'View contact', icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
@@ -580,13 +583,15 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                           >
                             Restore
                           </button>
-                          <button
-                            onClick={() => { if (confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) permanentDeleteMutation.mutate(c.id) }}
-                            disabled={restoreMutation.isPending || permanentDeleteMutation.isPending}
-                            className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
-                          >
-                            Delete
-                          </button>
+                          {isAdmin && (
+                            <button
+                              onClick={() => { if (confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) permanentDeleteMutation.mutate(c.id) }}
+                              disabled={restoreMutation.isPending || permanentDeleteMutation.isPending}
+                              className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       ) : (
                         <button onClick={() => setEditingContact(c)}
