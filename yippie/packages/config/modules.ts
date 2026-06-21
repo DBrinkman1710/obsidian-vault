@@ -2,7 +2,7 @@
 export const MODULE_IDS = [
   "inbox", "contacts", "tickets", "calendar",
   "pipeline", "chat", "ai", "emailtracking",
-  "activity", "billing", "departments",
+  "activity", "billing", "departments", "marketing",
 ] as const;
 
 export type ModuleId = typeof MODULE_IDS[number];

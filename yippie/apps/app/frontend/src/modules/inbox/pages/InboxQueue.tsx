@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown, UserCheck } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
@@ -747,6 +747,7 @@ export default function InboxQueue() {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [showProcessedFilter, setShowProcessedFilter] = useState(false)
+  const [assignedToMe, setAssignedToMe] = useState(false)
   const processedFilterRef = useRef<HTMLDivElement>(null)
   // Undo bar state (lives here so the modal can close immediately on send)
   const [pendingCompose, setPendingCompose] = useState<{ composeId: string; recipientCount: number; restoreData: ComposeInitialState } | null>(null)
@@ -754,7 +755,7 @@ export default function InboxQueue() {
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const qc = useQueryClient()
   const config = useTenantConfig()
-  const { user, refreshUser } = useAuth()
+  const { user } = useAuth()
   const { data: signatures } = useSignatures()
   const defaultSigBody = pickDefaultSignature(signatures)?.body ?? null
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
@@ -848,18 +849,6 @@ export default function InboxQueue() {
     queryFn: () => api.get('/departments/my').then(r => r.data),
     staleTime: 60_000,
   })
-  // Personal work inbox preference — when on, the default (non-dept) view shows
-  // only tickets assigned to this user. Persisted on the user via PATCH /me.
-  const personalInboxPref = user?.shared_inbox_disabled ?? false
-  const togglePersonalInbox = useMutation({
-    mutationFn: (next: boolean) =>
-      api.patch('/auth/me', { shared_inbox_disabled: next }).then(r => r.data),
-    onSuccess: async () => {
-      await refreshUser()
-      setSelected(new Set())
-      setPage(0)
-    },
-  })
 
   const searchParam = debouncedSearch || undefined
 
@@ -879,16 +868,13 @@ export default function InboxQueue() {
     refetchIntervalInBackground: false,
   })
 
-  // Personal work inbox only applies to the default (non-department) view.
-  const personalActive = personalInboxPref && !deptId
   const draftParams = (status: string) => ({
     status,
     mailbox,
     q: searchParam,
     ...(deptId ? { department_id: deptId } : {}),
-    ...(personalActive ? { personal: true } : {}),
   })
-  const draftKey = (status: string) => ['drafts', mailbox, status, searchParam, deptId, personalActive] as const
+  const draftKey = (status: string) => ['drafts', mailbox, status, searchParam, deptId] as const
 
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
     queryKey: draftKey('pending'),
@@ -938,11 +924,16 @@ export default function InboxQueue() {
   const allDrafts = activeTab === 'pending' ? (pendingDrafts ?? []) : activeTab === 'sent' ? [] : processedDrafts
   const isLoading = activeTab === 'pending' ? pendingLoading : activeTab === 'sent' ? (trackingEnabled ? outboundLoading : sentLoading) : false
 
+  // Client-side "Assigned to me" filter — applied before pagination.
+  const visibleDrafts = assignedToMe && user?.id
+    ? allDrafts.filter((d: any) => d.assigned_to === user.id)
+    : allDrafts
+
   // Client-side pagination — the full filtered list is already in memory.
-  const totalPages = Math.max(1, Math.ceil(allDrafts.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(visibleDrafts.length / PAGE_SIZE))
   const pageCount = totalPages
   const safePage = Math.min(page, pageCount - 1)
-  const pageDrafts = allDrafts.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
+  const pageDrafts = visibleDrafts.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
 
   // Sent tab: the non-tracking (activity) path has no backend search, so filter
   // it client-side to keep search behaviour consistent across all three tabs.
@@ -1052,22 +1043,6 @@ export default function InboxQueue() {
                 </button>
               ))}
             </div>
-            {/* Personal work inbox toggle — only visible in shared mailbox, all-dept view */}
-            {mailbox === 'shared' && !deptId && (
-              <button
-                onClick={() => togglePersonalInbox.mutate(!personalInboxPref)}
-                disabled={togglePersonalInbox.isPending}
-                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
-                  personalInboxPref
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                }`}
-                title="Only show items assigned to me"
-              >
-                <UserCheck size={13} />
-                My work
-              </button>
-            )}
             {/* Per-department shared inboxes — one tab per department the user belongs to. */}
             {(myDepts ?? []).length > 0 && (
               <div className="flex items-center gap-1.5">
