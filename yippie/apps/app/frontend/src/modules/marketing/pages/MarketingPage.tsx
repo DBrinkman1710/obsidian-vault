@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import GrapesEditor, { GrapesEditorHandle, type PipelineStage, type CampaignButton } from '../../admin/components/GrapesEditor'
-import { FileText, Loader2, Megaphone, Palette, Plus, Trash2, X } from 'lucide-react'
+import { FileText, Loader2, Megaphone, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { fetchLabels, type ContactLabel } from '../../contacts/components/LabelChip'
 
@@ -111,27 +111,6 @@ export default function MarketingPage() {
     setSelectedId(null)
     setIsNew(false)
   }
-
-  const createMutation = useMutation({
-    mutationFn: (payload: object) => api.post('/marketing/campaigns', payload).then(r => r.data as Campaign),
-    onSuccess: async (created, _vars, _ctx) => {
-      qc.invalidateQueries({ queryKey: ['marketing-campaigns'] })
-      setIsNew(false)
-      setSelectedId(created.id)
-      setSaving(false)
-    },
-    onError: () => { setSaving(false); setSaveError('Save failed — please try again') },
-  })
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, payload }: { id: string; payload: object }) =>
-      api.patch(`/marketing/campaigns/${id}`, payload).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['marketing-campaigns'] })
-      setSaving(false)
-    },
-    onError: () => { setSaving(false); setSaveError('Save failed — please try again') },
-  })
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/marketing/campaigns/${id}`),
