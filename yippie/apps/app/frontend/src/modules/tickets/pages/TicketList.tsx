@@ -99,17 +99,6 @@ export default function TicketList() {
           <option value="resolved">Resolved</option>
           <option value="closed">Closed</option>
         </select>
-        <button
-          type="button"
-          onClick={() => setAssignedToMe(v => !v)}
-          className={`px-3 py-2 rounded-lg text-sm font-semibold border transition-colors ${
-            assignedToMe
-              ? 'bg-blue-50 border-blue-200 text-blue-700'
-              : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-          }`}
-        >
-          Assigned to me
-        </button>
       </div>
 
       {selected.size > 0 && (
@@ -143,6 +132,15 @@ export default function TicketList() {
             className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
           />
           <span className="text-xs text-slate-400 font-medium">Select all</span>
+          <button
+            type="button"
+            onClick={() => setAssignedToMe(v => !v)}
+            className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold transition-colors ${
+              assignedToMe ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            Assigned to me
+          </button>
         </div>
       )}
 

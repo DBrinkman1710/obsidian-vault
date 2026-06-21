@@ -1002,10 +1002,10 @@ export default function InboxQueue() {
   }
 
   function toggleSelectAll() {
-    if (selected.size === allDrafts.length) {
+    if (selected.size === visibleDrafts.length) {
       setSelected(new Set())
     } else {
-      setSelected(new Set(allDrafts.map((d: any) => d.id)))
+      setSelected(new Set(visibleDrafts.map((d: any) => d.id)))
     }
   }
 
@@ -1363,13 +1363,23 @@ export default function InboxQueue() {
           <>
             {/* Sticky select-all row */}
             <div className="sticky top-0 z-10 flex items-center justify-between py-2 bg-slate-50">
-              <button
-                onClick={toggleSelectAll}
-                className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
-              >
-                <CheckSquare size={14} className={selected.size === allDrafts.length && allDrafts.length > 0 ? 'text-blue-600' : ''} />
-                {selected.size === allDrafts.length && allDrafts.length > 0 ? 'Deselect all' : `Select all (${allDrafts.length})`}
-              </button>
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={toggleSelectAll}
+                  className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  <CheckSquare size={14} className={selected.size === visibleDrafts.length && visibleDrafts.length > 0 ? 'text-blue-600' : ''} />
+                  {selected.size === visibleDrafts.length && visibleDrafts.length > 0 ? 'Deselect all' : `Select all (${visibleDrafts.length})`}
+                </button>
+                <button
+                  onClick={() => { setAssignedToMe(v => !v); setPage(0) }}
+                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold transition-colors ${
+                    assignedToMe ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+                  }`}
+                >
+                  Assigned to me
+                </button>
+              </div>
               {totalPages > 1 && (
                 <div className="flex items-center gap-2 text-xs text-slate-500">
                   <button
@@ -1471,7 +1481,7 @@ export default function InboxQueue() {
             </div>
 
             {/* Pagination — only when the list overflows one page */}
-            {allDrafts.length > PAGE_SIZE && (
+            {visibleDrafts.length > PAGE_SIZE && (
               <div className="flex items-center justify-center gap-4 mt-5">
                 <button
                   onClick={() => setPage(p => Math.max(0, p - 1))}
