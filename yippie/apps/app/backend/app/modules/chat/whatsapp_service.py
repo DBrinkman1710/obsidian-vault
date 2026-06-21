@@ -163,7 +163,7 @@ async def send_media(
         return resp.json()
 
 
-async def send_text(instance_name: str, number: str, text: str) -> None:
+async def send_text(instance_name: str, number: str, text: str) -> dict | None:
     settings = get_settings()
     # Normalize to bare digits (E.164 without leading +) as required by Evolution API
     normalized = "".join(ch for ch in number if ch.isdigit())
@@ -187,6 +187,7 @@ async def send_text(instance_name: str, number: str, text: str) -> None:
                 resp.text,
             )
         resp.raise_for_status()
+        return resp.json()
 
 
 async def handle_incoming_webhook(
@@ -218,7 +219,8 @@ async def handle_incoming_webhook(
 
     visitor_name: str | None = data.get("pushName") or None
 
-    # Find the open session for this phone, or create one
+    # Find the open session for this phone, or create one.
+    # Primary: exact match on canonical digits.
     result = await db.execute(
         select(ChatSession).where(
             ChatSession.tenant_id == tenant_id,
@@ -227,6 +229,24 @@ async def handle_incoming_webhook(
         )
     )
     session = result.scalar_one_or_none()
+
+    # Fallback: suffix match for local-vs-international mismatch
+    # (e.g. agent stored "0612345678", Evolution JID gives "31612345678").
+    # Compare the last 8 digits — unique enough for mobile numbers within one tenant.
+    if not session and len(phone) >= 8:
+        suffix = phone[-8:]
+        fb = await db.execute(
+            select(ChatSession).where(
+                ChatSession.tenant_id == tenant_id,
+                ChatSession.source == "whatsapp",
+                ChatSession.whatsapp_phone.like(f"%{suffix}"),
+                ChatSession.is_open == True,  # noqa: E712
+            ).limit(1)
+        )
+        session = fb.scalar_one_or_none()
+        if session:
+            session.whatsapp_phone = phone
+            session.visitor_id = phone
 
     is_new_session = False
     if not session:

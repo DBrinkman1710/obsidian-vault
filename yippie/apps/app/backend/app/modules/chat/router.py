@@ -270,15 +270,23 @@ async def reply_to_session(
         if tenant:
             try:
                 wa_response = await whatsapp_service.send_text(tenant.slug, session.whatsapp_phone, text)
-                # Store the Evolution API message ID for delivery status tracking
                 if wa_response and isinstance(wa_response, dict):
+                    # Canonicalize the stored phone to match Evolution's JID so that
+                    # when the contact replies the incoming webhook finds this session.
+                    # (Fixes local-format vs. international-format mismatch, e.g. 0612… vs 31612…)
+                    remote_jid = wa_response.get("key", {}).get("remoteJid", "")
+                    if remote_jid:
+                        canonical = "".join(ch for ch in remote_jid.split("@")[0] if ch.isdigit())
+                        if canonical and canonical != session.whatsapp_phone:
+                            session.whatsapp_phone = canonical
+                            session.visitor_id = canonical
                     evo_id = (
                         wa_response.get("key", {}).get("id")
                         or wa_response.get("id")
                     )
                     if evo_id:
                         msg.evolution_msg_id = evo_id
-                        await db.commit()
+                    await db.commit()
             except Exception:
                 logger.exception("WhatsApp send failed for session %s", session_id)
 
@@ -382,13 +390,19 @@ async def send_media_to_session(
                     caption,
                 )
                 if wa_response and isinstance(wa_response, dict):
+                    remote_jid = wa_response.get("key", {}).get("remoteJid", "")
+                    if remote_jid:
+                        canonical = "".join(ch for ch in remote_jid.split("@")[0] if ch.isdigit())
+                        if canonical and canonical != session.whatsapp_phone:
+                            session.whatsapp_phone = canonical
+                            session.visitor_id = canonical
                     evo_id = (
                         wa_response.get("key", {}).get("id")
                         or wa_response.get("id")
                     )
                     if evo_id:
                         msg.evolution_msg_id = evo_id
-                        await db.commit()
+                    await db.commit()
             except Exception:
                 logger.exception("WhatsApp sendMedia failed for session %s", session_id)
 
