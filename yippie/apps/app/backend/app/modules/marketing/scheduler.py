@@ -188,6 +188,25 @@ async def send_drip_steps():
             await db.commit()
 
 
+@scheduler.scheduled_job("cron", day=1, hour=0, minute=0, id="mktg_engagement_decay")
+async def decay_engagement_scores():
+    """Monthly: decay all contact engagement scores by 10%."""
+    from sqlalchemy import text
+    async with db_session() as db:
+        try:
+            await db.execute(
+                text(
+                    "UPDATE contacts SET engagement_score = GREATEST(0, FLOOR(engagement_score * 0.9)::int) "
+                    "WHERE engagement_score > 0"
+                )
+            )
+            await db.commit()
+            log.info("Monthly engagement score decay applied")
+        except Exception:
+            await db.rollback()
+            log.exception("Failed to apply engagement score decay")
+
+
 def start_scheduler():
     if not scheduler.running:
         scheduler.start()

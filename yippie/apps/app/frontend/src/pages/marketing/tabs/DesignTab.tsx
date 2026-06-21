@@ -66,6 +66,23 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
 
   return (
     <div className="flex h-full flex-col">
+      {/* Personalization chips */}
+      <div className="flex items-center gap-2 border-b border-slate-100 bg-slate-50 px-6 py-2">
+        <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Personalisation</span>
+        {(['{{first_name}}', '{{company}}', '{{email}}'] as const).map((token) => (
+          <button
+            key={token}
+            onClick={() => {
+              const html = editorRef.current?.getHtml() ?? ''
+              editorRef.current?.setContent(html + token, editorRef.current?.getCss() ?? '')
+            }}
+            className="rounded border border-slate-200 bg-white px-2 py-0.5 font-mono text-[11px] text-slate-600 hover:border-blue-300 hover:text-blue-700 transition-colors"
+          >
+            {token}
+          </button>
+        ))}
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3">
         <div className="flex items-center gap-3">

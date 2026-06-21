@@ -150,6 +150,7 @@ export default function ContactDetail() {
   const { id } = useParams<{ id: string }>()
   const config = useTenantConfig()
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
+  const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? false
   const [bookingOpen, setBookingOpen] = useState(false)
 
   const { data: contact, isLoading } = useQuery({
@@ -176,7 +177,23 @@ export default function ContactDetail() {
     <div className="flex flex-col md:flex-row gap-8 items-start">
       <div className="flex-1 min-w-0 max-w-2xl">
         <div className="flex items-start justify-between gap-2 mb-1">
-          <h1 className="text-2xl font-bold text-slate-900">{contact.full_name}</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900">{contact.full_name}</h1>
+            {marketingEnabled && typeof contact.engagement_score === 'number' && (
+              <span
+                title="Engagement score"
+                className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
+                  contact.engagement_score >= 60
+                    ? 'bg-emerald-50 text-emerald-700'
+                    : contact.engagement_score >= 30
+                    ? 'bg-amber-50 text-amber-700'
+                    : 'bg-slate-100 text-slate-500'
+                }`}
+              >
+                {contact.engagement_score}
+              </span>
+            )}
+          </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             {bookingEnabled && (
               <button

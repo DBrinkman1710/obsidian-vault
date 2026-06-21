@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Calendar, Mail, MessageCircle, Send } from 'lucide-react'
+import { Calendar, FlaskConical, Mail, MessageCircle, Send } from 'lucide-react'
 import { Campaign, Channel, marketingApi } from '../api'
 
 export function ScheduleTab({ campaign }: { campaign: Campaign }) {
@@ -20,6 +20,12 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
   const setChannelMut = useMutation({
     mutationFn: (c: Channel) => marketingApi.updateCampaign(campaign.id, { dispatch_channel: c }),
     onSuccess: () => invalidate(),
+  })
+
+  const testSend = useMutation({
+    mutationFn: () => marketingApi.testSend(campaign.id),
+    onSuccess: (r) => toast.success(`Test sent to ${r.to}`),
+    onError: () => toast.error('Test send failed'),
   })
 
   const launch = useMutation({
@@ -89,6 +95,19 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
               <div className="h-6 w-11 rounded-full bg-slate-200 after:absolute after:left-[2px] after:top-[2px] after:h-5 after:w-5 after:rounded-full after:bg-white after:transition-all after:content-[''] peer-checked:bg-blue-600 peer-checked:after:translate-x-5" />
             </label>
           </div>
+        </section>
+
+        {/* Test send */}
+        <section className="rounded-2xl border border-slate-200 bg-white p-5">
+          <h3 className="text-sm font-semibold text-slate-900">Send test to myself</h3>
+          <p className="mt-0.5 text-xs text-slate-400">Preview the email in your inbox before going live. Not tracked.</p>
+          <button
+            onClick={() => testSend.mutate()}
+            disabled={testSend.isPending}
+            className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+          >
+            <FlaskConical size={15} /> {testSend.isPending ? 'Sending…' : 'Send test'}
+          </button>
         </section>
 
         {/* Launch now */}

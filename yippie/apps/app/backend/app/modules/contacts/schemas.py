@@ -98,6 +98,7 @@ class ContactOut(BaseModel):
     created_at: datetime
     updated_at: datetime
     deleted_at: Optional[datetime] = None
+    engagement_score: int = 0
 
     model_config = {"from_attributes": True}
 

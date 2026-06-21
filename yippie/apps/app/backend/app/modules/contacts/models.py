@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, String, Table, Text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, String, Table, Text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -59,6 +59,7 @@ class Contact(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    engagement_score: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
 
     labels: Mapped[list[ContactLabel]] = relationship(
         secondary=contact_label_links,

@@ -18,6 +18,9 @@ export function AudienceTab({ campaign }: { campaign: Campaign }) {
   const qc = useQueryClient()
   const [filterBy, setFilterBy] = useState<FilterBy>(campaign.segment_filter?.filter_by ?? 'all')
   const [filterId, setFilterId] = useState<string | null>(campaign.segment_filter?.filter_id ?? null)
+  const [minEngagement, setMinEngagement] = useState<number | null>(
+    campaign.segment_filter?.min_engagement_score ?? null,
+  )
 
   const { data: labels = [] } = useQuery<Named[]>({
     queryKey: ['contact-labels'],
@@ -53,7 +56,11 @@ export function AudienceTab({ campaign }: { campaign: Campaign }) {
   const save = useMutation({
     mutationFn: () =>
       marketingApi.updateCampaign(campaign.id, {
-        segment_filter: { filter_by: filterBy, filter_id: filterBy === 'all' ? null : filterId },
+        segment_filter: {
+          filter_by: filterBy,
+          filter_id: filterBy === 'all' ? null : filterId,
+          min_engagement_score: minEngagement,
+        },
       }),
     onSuccess: () => {
       toast.success('Audience saved')
@@ -105,6 +112,25 @@ export function AudienceTab({ campaign }: { campaign: Campaign }) {
             {options.length === 0 && <p className="mt-1 text-xs text-slate-400">Nothing to pick here yet.</p>}
           </div>
         )}
+
+        {/* Engagement score filter */}
+        <div className="mt-4">
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+            Min engagement score (0–100)
+          </label>
+          <div className="flex items-center gap-2">
+            <input
+              type="number"
+              min={0}
+              max={100}
+              placeholder="Any"
+              value={minEngagement ?? ''}
+              onChange={(e) => setMinEngagement(e.target.value === '' ? null : Number(e.target.value))}
+              className="w-28 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
+            />
+            <span className="text-xs text-slate-400">Only contacts with score ≥ this value are included.</span>
+          </div>
+        </div>
 
         {/* Preview */}
         <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">

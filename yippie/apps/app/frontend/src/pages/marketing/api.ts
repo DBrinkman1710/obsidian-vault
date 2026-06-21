@@ -8,6 +8,7 @@ export type FilterBy = 'all' | 'label' | 'company' | 'pipeline_stage'
 export interface SegmentFilter {
   filter_by: FilterBy
   filter_id?: string | null
+  min_engagement_score?: number | null
 }
 
 export interface Campaign {
@@ -65,12 +66,28 @@ export interface AnalyticsSummary {
   clicked: number
   replied: number
   unsubscribed: number
+  bounce_count: number
   open_rate: number
   click_rate: number
   reply_rate: number
   ab_winner: Variant | null
   variants: VariantStats[]
   recipients: AnalyticsRecipient[]
+}
+
+export interface ButtonAnalytic {
+  button_id: string
+  label: string
+  click_count: number
+  action_type: string
+  result_label: string | null
+}
+
+export interface MarketingStats {
+  campaigns_sent: number
+  open_rate: number
+  response_rate: number
+  total_opt_outs: number
 }
 
 export interface SegmentPreview {
@@ -83,6 +100,7 @@ export interface Unsubscribe {
   unsubscribed_at: string
   contact_name: string | null
   contact_email: string | null
+  campaign_name: string | null
 }
 
 export const marketingApi = {
@@ -127,4 +145,13 @@ export const marketingApi = {
   listUnsubscribes: () => api.get<Unsubscribe[]>('/marketing/unsubscribes').then(r => r.data),
   removeUnsubscribe: (contactId: string) =>
     api.delete(`/marketing/unsubscribes/${contactId}`).then(r => r.data),
+
+  duplicateCampaign: (id: string) =>
+    api.post<Campaign>(`/marketing/campaigns/${id}/duplicate`).then(r => r.data),
+  testSend: (id: string) =>
+    api.post<{ to: string; campaign_id: string }>(`/marketing/campaigns/${id}/test-send`).then(r => r.data),
+  getButtonAnalytics: (id: string) =>
+    api.get<ButtonAnalytic[]>(`/marketing/campaigns/${id}/button-analytics`).then(r => r.data),
+  getStats: (days = 30) =>
+    api.get<MarketingStats>('/marketing/stats', { params: { days } }).then(r => r.data),
 }

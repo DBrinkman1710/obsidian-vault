@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { AnalyticsRecipient, Campaign, marketingApi, VariantStats } from '../api'
+import { AnalyticsRecipient, ButtonAnalytic, Campaign, marketingApi, VariantStats } from '../api'
 
 const STATUS_TONE: Record<AnalyticsRecipient['status'], string> = {
   sent: 'bg-slate-100 text-slate-600',
@@ -43,6 +43,12 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
     refetchInterval: campaign.status === 'sending' ? 15000 : false,
   })
 
+  const { data: buttonData = [] } = useQuery<ButtonAnalytic[]>({
+    queryKey: ['marketing', 'button-analytics', campaign.id],
+    queryFn: () => marketingApi.getButtonAnalytics(campaign.id),
+    enabled: campaign.status === 'completed' || campaign.status === 'sending',
+  })
+
   if (isLoading || !data) {
     return <div className="p-6 text-sm text-slate-400">Loading analytics…</div>
   }
@@ -52,12 +58,13 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="mx-auto max-w-3xl space-y-6">
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
           <Stat label="Sent" value={data.sent} />
           <Stat label="Opened" value={`${data.open_rate}%`} sub={`${data.opened} contacts`} />
           <Stat label="Clicked" value={`${data.click_rate}%`} sub={`${data.clicked} contacts`} />
           <Stat label="Replied" value={`${data.reply_rate}%`} sub={`${data.replied} contacts`} />
           <Stat label="Opt-outs" value={data.unsubscribed} />
+          <Stat label="Bounced" value={data.bounce_count ?? 0} />
         </div>
 
         {data.variants.length > 0 && (
@@ -75,6 +82,34 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
                 <VariantBar key={v.variant} v={v} max={maxOpened} isWinner={data.ab_winner === v.variant} />
               ))}
             </div>
+          </section>
+        )}
+
+        {buttonData.length > 0 && (
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <div className="border-b border-slate-100 px-4 py-3">
+              <h3 className="text-sm font-semibold text-slate-900">Button clicks</h3>
+            </div>
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <th className="px-4 py-2.5">Button</th>
+                  <th className="px-4 py-2.5">Clicks</th>
+                  <th className="px-4 py-2.5">Action</th>
+                  <th className="px-4 py-2.5">Outcome</th>
+                </tr>
+              </thead>
+              <tbody>
+                {buttonData.map((b) => (
+                  <tr key={b.button_id} className="border-b border-slate-50 last:border-0">
+                    <td className="px-4 py-2.5 text-sm font-medium text-slate-700">{b.label}</td>
+                    <td className="px-4 py-2.5 text-sm font-bold text-slate-900">{b.click_count}</td>
+                    <td className="px-4 py-2.5 text-xs capitalize text-slate-500">{b.action_type.replace('_', ' ')}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500">{b.result_label ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </section>
         )}
 

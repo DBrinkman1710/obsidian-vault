@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Megaphone, Plus, X, Mail, MessageCircle } from 'lucide-react'
-import { Campaign, CampaignStatus, Channel, marketingApi } from './api'
+import { Copy, Megaphone, Plus, UserMinus, X, Mail, MessageCircle } from 'lucide-react'
+import { Campaign, CampaignStatus, Channel, marketingApi, Unsubscribe } from './api'
 import { CampaignDetail } from './CampaignDetail'
 
 const STATUS_STYLES: Record<CampaignStatus, string> = {
@@ -89,14 +89,91 @@ function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreat
   )
 }
 
+function UnsubscribesPanel() {
+  const qc = useQueryClient()
+  const { data: list = [], isLoading } = useQuery<Unsubscribe[]>({
+    queryKey: ['marketing', 'unsubscribes'],
+    queryFn: marketingApi.listUnsubscribes,
+  })
+  const reenable = useMutation({
+    mutationFn: (id: string) => marketingApi.removeUnsubscribe(id),
+    onSuccess: () => {
+      toast.success('Re-enabled')
+      qc.invalidateQueries({ queryKey: ['marketing', 'unsubscribes'] })
+    },
+    onError: () => toast.error('Could not re-enable'),
+  })
+  if (isLoading) return <div className="p-6 text-sm text-slate-400">Loading…</div>
+  return (
+    <div className="h-full overflow-y-auto p-6">
+      <div className="mx-auto max-w-3xl">
+        <h2 className="mb-4 text-sm font-semibold text-slate-900">Opted-out contacts</h2>
+        {list.length === 0 ? (
+          <p className="text-sm text-slate-400">No opt-outs yet.</p>
+        ) : (
+          <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-slate-100 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">
+                  <th className="px-4 py-2.5">Contact</th>
+                  <th className="px-4 py-2.5">Email</th>
+                  <th className="px-4 py-2.5">Date</th>
+                  <th className="px-4 py-2.5">Campaign</th>
+                  <th className="px-4 py-2.5" />
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((u) => (
+                  <tr key={u.contact_id} className="border-b border-slate-50 last:border-0">
+                    <td className="px-4 py-2.5 font-medium text-slate-700">{u.contact_name ?? '—'}</td>
+                    <td className="px-4 py-2.5 font-mono text-xs text-slate-500">{u.contact_email ?? '—'}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500">{new Date(u.unsubscribed_at).toLocaleDateString()}</td>
+                    <td className="px-4 py-2.5 text-xs text-slate-500">{u.campaign_name ?? '—'}</td>
+                    <td className="px-4 py-2.5 text-right">
+                      <button
+                        onClick={() => {
+                          if (confirm('Re-enable this contact for future campaigns?')) reenable.mutate(u.contact_id)
+                        }}
+                        className="rounded border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:border-emerald-300 hover:text-emerald-700 transition-colors"
+                      >
+                        Re-enable
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </section>
+        )}
+      </div>
+    </div>
+  )
+}
+
 export default function MarketingPage() {
   const qc = useQueryClient()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showNew, setShowNew] = useState(false)
+  const [view, setView] = useState<'campaigns' | 'unsubscribes'>('campaigns')
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['marketing', 'campaigns'],
     queryFn: marketingApi.listCampaigns,
+  })
+
+  const { data: stats } = useQuery({
+    queryKey: ['marketing', 'stats'],
+    queryFn: () => marketingApi.getStats(30),
+  })
+
+  const duplicate = useMutation({
+    mutationFn: (id: string) => marketingApi.duplicateCampaign(id),
+    onSuccess: (c) => {
+      toast.success('Campaign duplicated')
+      qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
+      setSelectedId(c.id)
+    },
+    onError: () => toast.error('Could not duplicate'),
   })
 
   const selected = useMemo(
@@ -127,8 +204,24 @@ export default function MarketingPage() {
           </button>
         </div>
 
+        {/* View tabs */}
+        <div className="flex border-b border-slate-100">
+          <button
+            onClick={() => setView('campaigns')}
+            className={`flex-1 py-2 text-xs font-semibold transition-colors ${view === 'campaigns' ? 'border-b-2 border-blue-500 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            Campaigns
+          </button>
+          <button
+            onClick={() => setView('unsubscribes')}
+            className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors ${view === 'unsubscribes' ? 'border-b-2 border-blue-500 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
+          >
+            <UserMinus size={12} /> Opt-outs
+          </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto p-2">
-          {isLoading ? (
+          {view === 'unsubscribes' ? null : isLoading ? (
             <p className="px-2 py-4 text-sm text-slate-400">Loading…</p>
           ) : campaigns.length === 0 ? (
             <div className="px-3 py-10 text-center">
@@ -140,20 +233,29 @@ export default function MarketingPage() {
               {campaigns.map((c) => (
                 <li key={c.id}>
                   <button
-                    onClick={() => setSelectedId(c.id)}
-                    className={`w-full rounded-xl border px-3 py-2.5 text-left transition-colors ${
-                      selectedId === c.id
+                    onClick={() => { setView('campaigns'); setSelectedId(c.id) }}
+                    className={`group w-full rounded-xl border px-3 py-2.5 text-left transition-colors ${
+                      selectedId === c.id && view === 'campaigns'
                         ? 'border-blue-200 bg-blue-50/60'
                         : 'border-transparent hover:bg-slate-50'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="truncate text-sm font-semibold text-slate-800">{c.name}</span>
-                      {c.dispatch_channel === 'whatsapp' ? (
-                        <MessageCircle size={13} className="shrink-0 text-emerald-500" />
-                      ) : (
-                        <Mail size={13} className="shrink-0 text-slate-400" />
-                      )}
+                      <div className="flex shrink-0 items-center gap-1">
+                        <button
+                          onClick={(e) => { e.stopPropagation(); duplicate.mutate(c.id) }}
+                          title="Duplicate"
+                          className="rounded p-0.5 text-slate-300 opacity-0 transition-opacity hover:text-slate-600 group-hover:opacity-100"
+                        >
+                          <Copy size={12} />
+                        </button>
+                        {c.dispatch_channel === 'whatsapp' ? (
+                          <MessageCircle size={13} className="text-emerald-500" />
+                        ) : (
+                          <Mail size={13} className="text-slate-400" />
+                        )}
+                      </div>
                     </div>
                     <p className="mt-0.5 truncate text-xs text-slate-400">{c.subject}</p>
                     <div className="mt-1.5">
@@ -169,14 +271,38 @@ export default function MarketingPage() {
 
       {/* Right — detail */}
       <main className="flex-1 overflow-hidden bg-slate-50">
-        {selected ? (
-          <CampaignDetail campaign={selected} onDeleted={() => setSelectedId(null)} />
+        {view === 'unsubscribes' ? (
+          <UnsubscribesPanel />
         ) : (
-          <div className="flex h-full flex-col items-center justify-center text-center">
-            <Megaphone size={36} className="text-slate-300" />
-            <p className="mt-3 text-sm font-medium text-slate-500">Select a campaign</p>
-            <p className="mt-1 text-xs text-slate-400">or create a new one to get started.</p>
-          </div>
+          <>
+            {/* KPI strip */}
+            {stats && (
+              <div className="grid grid-cols-4 gap-3 border-b border-slate-200 bg-white px-6 py-3">
+                {[
+                  { label: 'Sent (30d)', value: stats.campaigns_sent },
+                  { label: 'Open rate', value: `${stats.open_rate}%` },
+                  { label: 'Response rate', value: `${stats.response_rate}%` },
+                  { label: 'Total opt-outs', value: stats.total_opt_outs },
+                ].map((s) => (
+                  <div key={s.label} className="text-center">
+                    <p className="text-xs text-slate-400">{s.label}</p>
+                    <p className="text-lg font-bold text-slate-900">{s.value}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div className="h-[calc(100%-56px)] overflow-hidden">
+              {selected ? (
+                <CampaignDetail campaign={selected} onDeleted={() => setSelectedId(null)} />
+              ) : (
+                <div className="flex h-full flex-col items-center justify-center text-center">
+                  <Megaphone size={36} className="text-slate-300" />
+                  <p className="mt-3 text-sm font-medium text-slate-500">Select a campaign</p>
+                  <p className="mt-1 text-xs text-slate-400">or create a new one to get started.</p>
+                </div>
+              )}
+            </div>
+          </>
         )}
       </main>
 

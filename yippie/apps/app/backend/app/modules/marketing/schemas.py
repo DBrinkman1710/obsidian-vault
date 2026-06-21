@@ -19,6 +19,7 @@ FilterBy = Literal["label", "company", "pipeline_stage", "all"]
 class SegmentFilter(BaseModel):
     filter_by: FilterBy = "all"
     filter_id: Optional[uuid.UUID] = None
+    min_engagement_score: Optional[int] = None
 
 
 class CampaignCreate(BaseModel):
@@ -105,6 +106,7 @@ class CampaignAnalyticsSummary(BaseModel):
     clicked: int = 0
     replied: int = 0
     unsubscribed: int = 0
+    bounce_count: int = 0
     open_rate: float = 0.0
     click_rate: float = 0.0
     reply_rate: float = 0.0
@@ -142,6 +144,7 @@ class ContactUnsubscribeOut(BaseModel):
     unsubscribed_at: datetime
     contact_name: Optional[str] = None
     contact_email: Optional[str] = None
+    campaign_name: Optional[str] = None
 
 
 # --- Launch / segments ------------------------------------------------------ #
@@ -163,3 +166,23 @@ class LaunchResultOut(BaseModel):
     status: Status
     recipients: int
     skipped_unsubscribed: int = 0
+
+
+class ButtonAnalyticOut(BaseModel):
+    button_id: str
+    label: str
+    click_count: int
+    action_type: str
+    result_label: Optional[str] = None
+
+
+class MarketingStatsOut(BaseModel):
+    campaigns_sent: int = 0
+    open_rate: float = 0.0
+    response_rate: float = 0.0
+    total_opt_outs: int = 0
+
+
+class TestSendOut(BaseModel):
+    to: str
+    campaign_id: str

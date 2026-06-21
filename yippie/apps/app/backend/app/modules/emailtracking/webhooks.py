@@ -70,6 +70,8 @@ async def resend_webhook(request: Request, db: DB):
     if resend_id and event_type in ("email.delivered", "email.opened", "email.clicked", "email.bounced"):
         try:
             await service.handle_event(db, resend_id, event_type, event_time)
+            if event_type == "email.bounced":
+                await _handle_bounce(db, resend_id, data)
             await db.commit()
         except Exception:
             log.exception("Failed to handle Resend event %s for %s", event_type, resend_id)
@@ -83,6 +85,38 @@ async def resend_webhook(request: Request, db: DB):
             await db.rollback()
             log.exception("Failed to handle inbound reply")
     return Response(status_code=200)
+
+
+async def _handle_bounce(db: AsyncSession, resend_id: str, data: dict[str, Any]) -> None:
+    """Record a contact_bounces row when Resend reports a bounce."""
+    from sqlalchemy import select as _select
+    from app.modules.emailtracking.models import OutboundEmail
+    from app.modules.contacts.models import Contact as _Contact
+    from app.modules.marketing.service import record_bounce
+
+    outbound = await service.get_by_resend_id(db, resend_id)
+    if outbound is None:
+        return
+    tenant_id = outbound.tenant_id
+    to_email = outbound.to_email
+    if not tenant_id or not to_email:
+        return
+
+    contact_q = await db.execute(
+        _select(_Contact).where(
+            _Contact.tenant_id == tenant_id,
+            _Contact.email == to_email,
+            _Contact.deleted_at.is_(None),
+        )
+    )
+    contact = contact_q.scalar_one_or_none()
+    bounce_type = data.get("bounce", {}).get("type", "hard") if isinstance(data.get("bounce"), dict) else "hard"
+    await record_bounce(
+        db,
+        tenant_id=tenant_id,
+        contact_id=contact.id if contact else None,
+        bounce_type=bounce_type,
+    )
 
 
 def _extract_sender(data: dict[str, Any]) -> str | None:

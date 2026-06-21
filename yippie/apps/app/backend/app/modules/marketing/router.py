@@ -11,6 +11,7 @@ from app.auth.dependencies import CurrentUser
 from app.database import get_db
 from app.modules.marketing import service
 from app.modules.marketing.schemas import (
+    ButtonAnalyticOut,
     CampaignAnalyticsSummary,
     CampaignCreate,
     CampaignLaunchRequest,
@@ -22,8 +23,10 @@ from app.modules.marketing.schemas import (
     CampaignUpdate,
     ContactUnsubscribeOut,
     LaunchResultOut,
+    MarketingStatsOut,
     SegmentFilter,
     SegmentPreviewOut,
+    TestSendOut,
 )
 
 router = APIRouter(prefix="/marketing", tags=["marketing"])
@@ -77,6 +80,21 @@ async def delete_campaign(campaign_id: uuid.UUID, current_user: CurrentUser, db:
         )
     await service.delete_campaign(db, campaign)
     await db.commit()
+
+
+@router.post("/campaigns/{campaign_id}/duplicate", response_model=CampaignOut, status_code=status.HTTP_201_CREATED)
+async def duplicate_campaign(campaign_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    campaign = await _require_campaign(db, current_user.tenant_id, campaign_id)
+    new_campaign = await service.duplicate_campaign(db, campaign)
+    await db.commit()
+    return new_campaign
+
+
+@router.post("/campaigns/{campaign_id}/test-send", response_model=TestSendOut)
+async def test_send_campaign(campaign_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    campaign = await _require_campaign(db, current_user.tenant_id, campaign_id)
+    result = await service.test_send_campaign(db, campaign, current_user)
+    return result
 
 
 # --- Templates -------------------------------------------------------------- #
@@ -154,6 +172,21 @@ async def schedule_campaign(
 async def get_analytics(campaign_id: uuid.UUID, current_user: CurrentUser, db: DB):
     await _require_campaign(db, current_user.tenant_id, campaign_id)
     return await service.get_campaign_analytics(db, current_user.tenant_id, campaign_id)
+
+
+@router.get("/campaigns/{campaign_id}/button-analytics", response_model=list[ButtonAnalyticOut])
+async def get_button_analytics(campaign_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    await _require_campaign(db, current_user.tenant_id, campaign_id)
+    return await service.get_button_analytics(db, current_user.tenant_id, campaign_id)
+
+
+@router.get("/stats", response_model=MarketingStatsOut)
+async def get_marketing_stats(
+    current_user: CurrentUser,
+    db: DB,
+    days: int = Query(default=30, ge=1, le=365),
+):
+    return await service.get_marketing_stats(db, current_user.tenant_id, days)
 
 
 # --- Sequences (drip) ------------------------------------------------------- #

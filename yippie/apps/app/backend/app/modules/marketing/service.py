@@ -1,4 +1,4 @@
-"""MKTG1 — Marketing module DB operations and dispatch logic.
+"""MKTG1/MKTG2/MKTG3 — Marketing module DB operations and dispatch logic.
 
 Pure service layer: no HTTP concerns. Email goes out via Resend (core.mailer),
 WhatsApp via the Evolution API (chat.whatsapp_service). Open tracking uses a
@@ -14,7 +14,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -25,6 +25,7 @@ from app.modules.marketing.models import (
     CampaignAnalytics,
     CampaignSequence,
     CampaignTemplate,
+    ContactBounce,
     ContactUnsubscribe,
 )
 from app.modules.marketing.schemas import (
@@ -92,6 +93,40 @@ async def update_campaign(
 async def delete_campaign(db: AsyncSession, campaign: Campaign) -> None:
     await db.delete(campaign)
     await db.flush()
+
+
+async def duplicate_campaign(
+    db: AsyncSession, source: Campaign
+) -> Campaign:
+    """Copy a campaign row (reset to draft) and all its templates."""
+    new_campaign = Campaign(
+        tenant_id=source.tenant_id,
+        name=f"{source.name} (copy)",
+        subject=source.subject,
+        dispatch_channel=source.dispatch_channel,
+        status="draft",
+        segment_filter=source.segment_filter,
+        scheduled_at=None,
+        dispatched_at=None,
+        ab_winner=None,
+    )
+    db.add(new_campaign)
+    await db.flush()
+
+    # Copy templates.
+    source_templates = await get_campaign_templates(db, source.id)
+    for tpl in source_templates:
+        new_tpl = CampaignTemplate(
+            campaign_id=new_campaign.id,
+            raw_html=tpl.raw_html,
+            raw_css=tpl.raw_css,
+            design_json=tpl.design_json,
+            campaign_buttons=tpl.campaign_buttons,
+            variant=tpl.variant,
+        )
+        db.add(new_tpl)
+    await db.flush()
+    return new_campaign
 
 
 # --------------------------------------------------------------------------- #
@@ -208,6 +243,9 @@ async def get_segment_contacts(
                 )
             )
         )
+    # Apply min_engagement_score filter if present.
+    if spec.min_engagement_score is not None:
+        q = q.where(Contact.engagement_score >= spec.min_engagement_score)
     # 'all' (or a filter with no id) → every contact in the tenant.
     result = await db.execute(q.order_by(Contact.full_name.asc()))
     return list(result.scalars().all())
@@ -269,15 +307,117 @@ async def list_unsubscribes(
     )
     rows = []
     for unsub, contact in result.all():
+        # Find the most recent campaign the contact interacted with.
+        campaign_name: Optional[str] = None
+        if contact:
+            analytics_res = await db.execute(
+                select(CampaignAnalytics)
+                .where(
+                    CampaignAnalytics.tenant_id == tenant_id,
+                    func.lower(CampaignAnalytics.recipient_email) == contact.email.lower()
+                    if contact.email else False,
+                )
+                .order_by(CampaignAnalytics.updated_at.desc())
+                .limit(1)
+            )
+            analytics_row = analytics_res.scalar_one_or_none()
+            if analytics_row:
+                campaign = await db.get(Campaign, analytics_row.campaign_id)
+                campaign_name = campaign.name if campaign else None
         rows.append(
             {
                 "contact_id": unsub.contact_id,
                 "unsubscribed_at": unsub.unsubscribed_at,
                 "contact_name": contact.full_name if contact else None,
                 "contact_email": contact.email if contact else None,
+                "campaign_name": campaign_name,
             }
         )
     return rows
+
+
+# --------------------------------------------------------------------------- #
+# Bounce handling
+# --------------------------------------------------------------------------- #
+
+async def _get_bounced_emails(
+    db: AsyncSession, tenant_id: uuid.UUID
+) -> set[str]:
+    """Return the set of emails that have a bounce record under this tenant."""
+    result = await db.execute(
+        select(Contact.email)
+        .join(ContactBounce, ContactBounce.contact_id == Contact.id)
+        .where(
+            ContactBounce.tenant_id == tenant_id,
+            Contact.email.isnot(None),
+        )
+        .distinct()
+    )
+    return {row[0].lower() for row in result.all() if row[0]}
+
+
+async def record_bounce(
+    db: AsyncSession,
+    *,
+    tenant_id: uuid.UUID,
+    contact_id: Optional[uuid.UUID],
+    campaign_id: Optional[uuid.UUID] = None,
+    bounce_type: str = "hard",
+) -> ContactBounce:
+    bounce = ContactBounce(
+        tenant_id=tenant_id,
+        contact_id=contact_id,
+        campaign_id=campaign_id,
+        bounce_type=bounce_type,
+    )
+    db.add(bounce)
+    await db.flush()
+    return bounce
+
+
+async def count_campaign_bounces(
+    db: AsyncSession, campaign_id: uuid.UUID
+) -> int:
+    result = await db.scalar(
+        select(func.count())
+        .select_from(ContactBounce)
+        .where(ContactBounce.campaign_id == campaign_id)
+    )
+    return int(result or 0)
+
+
+# --------------------------------------------------------------------------- #
+# Engagement score
+# --------------------------------------------------------------------------- #
+
+_ENGAGEMENT_DELTA = {
+    "opened": 5,
+    "clicked": 10,
+    "replied": 15,
+    "opt_out": -10,
+}
+
+
+async def _update_engagement_score(
+    db: AsyncSession, tenant_id: uuid.UUID, email: str, event: str
+) -> None:
+    """Find the contact by email and update their engagement score."""
+    delta = _ENGAGEMENT_DELTA.get(event, 0)
+    if delta == 0:
+        return
+    result = await db.execute(
+        select(Contact).where(
+            Contact.tenant_id == tenant_id,
+            func.lower(Contact.email) == email.lower().strip(),
+            Contact.deleted_at.is_(None),
+        )
+    )
+    contact = result.scalar_one_or_none()
+    if contact is None:
+        return
+    new_score = max(0, min(100, (contact.engagement_score or 0) + delta))
+    contact.engagement_score = new_score
+    await db.flush()
 
 
 # --------------------------------------------------------------------------- #
@@ -311,6 +451,8 @@ async def mark_opened(db: AsyncSession, tracking_token: uuid.UUID) -> bool:
         return False
     _advance(row, "opened")
     await db.flush()
+    # Update engagement score.
+    await _update_engagement_score(db, row.tenant_id, row.recipient_email, "opened")
     return True
 
 
@@ -320,6 +462,7 @@ async def mark_clicked(db: AsyncSession, tracking_token: uuid.UUID) -> bool:
         return False
     _advance(row, "clicked")
     await db.flush()
+    await _update_engagement_score(db, row.tenant_id, row.recipient_email, "clicked")
     return True
 
 
@@ -346,6 +489,9 @@ async def mark_replied(
     if classification:
         row.reply_classification = classification
     await db.flush()
+    # Engagement: reply → +15; opt-out → −10
+    event = "opt_out" if classification == "Opt-out" else "replied"
+    await _update_engagement_score(db, tenant_id, sender_email, event)
     return row
 
 
@@ -372,6 +518,8 @@ async def get_campaign_analytics(
         .select_from(ContactUnsubscribe)
         .where(ContactUnsubscribe.tenant_id == tenant_id)
     )
+
+    bounce_count = await count_campaign_bounces(db, campaign_id)
 
     def _rate(n: int) -> float:
         return round(100.0 * n / sent, 1) if sent else 0.0
@@ -402,6 +550,7 @@ async def get_campaign_analytics(
         "clicked": clicked,
         "replied": replied,
         "unsubscribed": int(unsub or 0),
+        "bounce_count": bounce_count,
         "open_rate": _rate(opened),
         "click_rate": _rate(clicked),
         "reply_rate": _rate(replied),
@@ -409,6 +558,161 @@ async def get_campaign_analytics(
         "variants": variants,
         "recipients": rows,
     }
+
+
+# --------------------------------------------------------------------------- #
+# Button analytics
+# --------------------------------------------------------------------------- #
+
+async def get_button_analytics(
+    db: AsyncSession, tenant_id: uuid.UUID, campaign_id: uuid.UUID
+) -> list[dict]:
+    """Return per-button click counts from LabelClickToken plus label info from templates."""
+    import json as _json
+    from app.modules.tracking.models import LabelClickToken
+
+    # Gather all button definitions from the campaign templates.
+    templates = await get_campaign_templates(db, campaign_id)
+    button_meta: dict[str, dict] = {}
+    for tpl in templates:
+        if not tpl.campaign_buttons:
+            continue
+        try:
+            buttons = _json.loads(tpl.campaign_buttons) if isinstance(tpl.campaign_buttons, str) else tpl.campaign_buttons
+            if not isinstance(buttons, list):
+                continue
+            for btn in buttons:
+                bid = str(btn.get("id", ""))
+                if not bid:
+                    continue
+                button_meta[bid] = {
+                    "label": btn.get("label") or btn.get("text") or bid,
+                    "action_type": btn.get("action_type") or btn.get("type") or "label",
+                    "result_label": btn.get("result_label") or btn.get("label_name") or None,
+                }
+        except Exception:
+            pass
+
+    # Count clicks per button_id for contacts in this tenant.
+    result = await db.execute(
+        select(LabelClickToken.button_id, func.count().label("click_count"))
+        .where(LabelClickToken.tenant_id == tenant_id)
+        .group_by(LabelClickToken.button_id)
+    )
+    rows = result.all()
+
+    out = []
+    seen_button_ids: set[str] = set()
+    for row in rows:
+        bid = row.button_id
+        seen_button_ids.add(bid)
+        meta = button_meta.get(bid, {})
+        out.append({
+            "button_id": bid,
+            "label": meta.get("label") or bid,
+            "click_count": row.click_count,
+            "action_type": meta.get("action_type") or "label",
+            "result_label": meta.get("result_label"),
+        })
+
+    # Include buttons with zero clicks that appear in the template definitions.
+    for bid, meta in button_meta.items():
+        if bid not in seen_button_ids:
+            out.append({
+                "button_id": bid,
+                "label": meta.get("label") or bid,
+                "click_count": 0,
+                "action_type": meta.get("action_type") or "label",
+                "result_label": meta.get("result_label"),
+            })
+
+    out.sort(key=lambda x: x["click_count"], reverse=True)
+    return out
+
+
+# --------------------------------------------------------------------------- #
+# Marketing page stats
+# --------------------------------------------------------------------------- #
+
+async def get_marketing_stats(
+    db: AsyncSession, tenant_id: uuid.UUID, days: int = 30
+) -> dict:
+    from datetime import timedelta
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Campaigns completed (dispatched) in the window.
+    camp_result = await db.execute(
+        select(Campaign).where(
+            Campaign.tenant_id == tenant_id,
+            Campaign.status == "completed",
+            Campaign.dispatched_at.isnot(None),
+            Campaign.dispatched_at >= cutoff,
+        )
+    )
+    campaigns = list(camp_result.scalars().all())
+    campaigns_sent = len(campaigns)
+
+    if campaigns_sent == 0:
+        opt_outs = await db.scalar(
+            select(func.count())
+            .select_from(ContactUnsubscribe)
+            .where(ContactUnsubscribe.tenant_id == tenant_id)
+        )
+        return {
+            "campaigns_sent": 0,
+            "open_rate": 0.0,
+            "response_rate": 0.0,
+            "total_opt_outs": int(opt_outs or 0),
+        }
+
+    campaign_ids = [c.id for c in campaigns]
+
+    # Total analytics rows for these campaigns.
+    analytics_result = await db.execute(
+        select(CampaignAnalytics).where(
+            CampaignAnalytics.tenant_id == tenant_id,
+            CampaignAnalytics.campaign_id.in_(campaign_ids),
+        )
+    )
+    rows = list(analytics_result.scalars().all())
+    total_sent = len(rows)
+    total_opened = sum(1 for r in rows if _STATUS_RANK.get(r.status, 0) >= _STATUS_RANK["opened"])
+    total_replied = sum(1 for r in rows if r.status == "replied")
+
+    open_rate = round(100.0 * total_opened / total_sent, 1) if total_sent else 0.0
+    response_rate = round(100.0 * total_replied / total_sent, 1) if total_sent else 0.0
+
+    opt_outs = await db.scalar(
+        select(func.count())
+        .select_from(ContactUnsubscribe)
+        .where(ContactUnsubscribe.tenant_id == tenant_id)
+    )
+
+    return {
+        "campaigns_sent": campaigns_sent,
+        "open_rate": open_rate,
+        "response_rate": response_rate,
+        "total_opt_outs": int(opt_outs or 0),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Personalisation token replacement
+# --------------------------------------------------------------------------- #
+
+def _apply_personalization(html: str, contact: Contact) -> str:
+    """Replace {{first_name}}, {{company}}, {{email}} in the HTML."""
+    first_name = (contact.full_name or "").split()[0] if contact.full_name else ""
+    company_name = ""
+    if contact.company_rel is not None:
+        company_name = contact.company_rel.name or ""
+    elif contact.company:
+        company_name = contact.company or ""
+    email = contact.email or ""
+    html = html.replace("{{first_name}}", first_name)
+    html = html.replace("{{company}}", company_name)
+    html = html.replace("{{email}}", email)
+    return html
 
 
 # --------------------------------------------------------------------------- #
@@ -439,6 +743,56 @@ def _select_variant_html(
     return (tpl.raw_html if tpl and tpl.raw_html else "") or ""
 
 
+async def test_send_campaign(
+    db: AsyncSession,
+    campaign: Campaign,
+    agent: object,  # User instance
+) -> dict:
+    """Send a preview of the campaign to the agent's own email address.
+    Does not create campaign_analytics rows.
+    """
+    settings = get_settings()
+    base_url = settings.effective_base_url or settings.app_base_url or ""
+
+    templates_list = await get_campaign_templates(db, campaign.id)
+    templates = {t.variant: t for t in templates_list}
+
+    body_html = _select_variant_html(templates, None)
+
+    # Build a fake "contact" from the agent's own data for personalisation.
+    agent_email = getattr(agent, "email", "") or ""
+    agent_name = getattr(agent, "full_name", "") or ""
+    agent_reply_from = getattr(agent, "reply_from_email", None) or agent_email
+
+    # Apply personalisation using the agent's own data.
+    first_name = agent_name.split()[0] if agent_name else ""
+    preview_html = body_html
+    preview_html = preview_html.replace("{{first_name}}", first_name)
+    preview_html = preview_html.replace("{{company}}", "")
+    preview_html = preview_html.replace("{{email}}", agent_email)
+
+    full_html = render_email_html(
+        body_text=campaign.subject,
+        prerendered_html=preview_html or f"<p>{campaign.subject}</p>",
+    )
+    full_html += f'<div style="text-align:center;padding:8px 0;font-size:11px;color:#9ca3af;">Test send — not tracked</div>'
+
+    from app.core.mailer import send_email
+    try:
+        await send_email(
+            to=agent_email,
+            subject=f"[TEST] {campaign.subject}",
+            body=campaign.subject,
+            html=full_html,
+            from_email=agent_reply_from if agent_reply_from != agent_email else None,
+        )
+    except Exception:
+        log.exception("Test send failed for campaign %s to %s", campaign.id, agent_email)
+        raise
+
+    return {"to": agent_email, "campaign_id": str(campaign.id)}
+
+
 async def launch_campaign(
     db: AsyncSession,
     campaign: Campaign,
@@ -464,13 +818,19 @@ async def launch_campaign(
     )
     contacts = await get_segment_contacts(db, tenant_id, spec)
 
-    # Skip opted-out contacts.
+    # Load bounced emails to skip them.
+    bounced_emails = await _get_bounced_emails(db, tenant_id)
+
+    # Skip opted-out and bounced contacts.
     recipients: list[Contact] = []
     skipped = 0
     for c in contacts:
         if not c.email:
             continue
         if await is_unsubscribed(db, c.id, tenant_id):
+            skipped += 1
+            continue
+        if c.email.lower() in bounced_emails:
             skipped += 1
             continue
         recipients.append(c)
@@ -489,13 +849,16 @@ async def launch_campaign(
     campaign.dispatched_at = datetime.now(timezone.utc)
     await db.flush()
 
-    payloads: list[tuple[Contact, str, str]] = []  # (contact, variant, html)
+    payloads: list[tuple[Contact, str, str]] = []  # (contact, html, to_email)
     for idx, contact in enumerate(dispatch_set):
         token = uuid.uuid4()
         variant: Optional[str] = None
         if has_ab:
             variant = "a" if idx % 2 == 0 else "b"
         body_html = _select_variant_html(templates, variant)
+
+        # Apply personalisation tokens.
+        body_html = _apply_personalization(body_html, contact)
 
         full_html = render_email_html(
             body_text=campaign.subject,
@@ -618,15 +981,15 @@ async def ab_pick_winner(
         else SegmentFilter(filter_by="all")
     )
     contacts = await get_segment_contacts(db, campaign.tenant_id, spec)
-    already = {
-        r.recipient_email.lower()
-        for r in rows
-    }
+    bounced_emails = await _get_bounced_emails(db, campaign.tenant_id)
+    already = {r.recipient_email.lower() for r in rows}
     remaining: list[Contact] = []
     for c in contacts:
         if not c.email or c.email.lower() in already:
             continue
         if await is_unsubscribed(db, c.id, campaign.tenant_id):
+            continue
+        if c.email.lower() in bounced_emails:
             continue
         remaining.append(c)
 
@@ -638,9 +1001,10 @@ async def ab_pick_winner(
     payloads: list[tuple[Contact, str, str]] = []
     for contact in remaining:
         token = uuid.uuid4()
+        personalized = _apply_personalization(win_html, contact)
         full_html = render_email_html(
             body_text=campaign.subject,
-            prerendered_html=win_html or f"<p>{campaign.subject}</p>",
+            prerendered_html=personalized or f"<p>{campaign.subject}</p>",
         )
         full_html += _open_pixel(base_url, token)
         full_html += _unsubscribe_footer(base_url, token)

@@ -105,3 +105,18 @@ class ContactUnsubscribe(Base):
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True)
     unsubscribed_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class ContactBounce(Base):
+    __tablename__ = "contact_bounces"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    campaign_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("campaigns.id", ondelete="SET NULL"), nullable=True
+    )
+    bounce_type: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    bounced_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
