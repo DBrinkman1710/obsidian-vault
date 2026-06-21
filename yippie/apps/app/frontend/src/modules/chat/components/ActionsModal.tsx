@@ -174,12 +174,17 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
   const [activeDay, setActiveDay] = useState<string | null>(null)
   const [slots, setSlots] = useState<{ start: string; end: string }[]>([])
 
-  const [bookingContact, setBookingContact] = useState<{ id: string; full_name: string } | null>(
+  const [bookingContact, setBookingContact] = useState<{ id: string; full_name: string; email?: string | null } | null>(
     session.contact_id ? { id: session.contact_id, full_name: session.visitor_name || '' } : null
   )
   const [bookingQuery, setBookingQuery] = useState('')
   const [bookingDropOpen, setBookingDropOpen] = useState(false)
   const blurTimer = useRef<number | undefined>(undefined)
+
+  // Email prompt — shown when contact has no email before sending booking
+  const [showEmailPrompt, setShowEmailPrompt] = useState(false)
+  const [promptEmail, setPromptEmail] = useState('')
+  const [savingEmail, setSavingEmail] = useState(false)
 
   const { data: bookingSettings } = useQuery<{
     work_start_hour: number; work_end_hour: number; slot_minutes: number
@@ -227,9 +232,8 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
         : [...prev, slot])
   }
 
-  async function handleSendBooking() {
-    if (!bookingContact) { toast.error('Select a contact first.'); return }
-    if (mode === 'propose' && slots.length === 0) { toast.error('Add at least one proposed time.'); return }
+  async function dispatchBooking() {
+    if (!bookingContact) return
     setSending(true)
     try {
       await api.post('/booking/send', {
@@ -247,6 +251,33 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
     }
   }
 
+  async function handleSendBooking() {
+    if (!bookingContact) { toast.error('Select a contact first.'); return }
+    if (mode === 'propose' && slots.length === 0) { toast.error('Add at least one proposed time.'); return }
+    // If contact has no email, prompt the agent to add one before sending
+    if (!bookingContact.email) {
+      setPromptEmail('')
+      setShowEmailPrompt(true)
+      return
+    }
+    await dispatchBooking()
+  }
+
+  async function handleEmailPromptConfirm() {
+    if (!bookingContact || !promptEmail.trim()) return
+    setSavingEmail(true)
+    try {
+      await api.patch(`/contacts/${bookingContact.id}`, { email: promptEmail.trim() })
+      setBookingContact({ ...bookingContact, email: promptEmail.trim() })
+      setShowEmailPrompt(false)
+      await dispatchBooking()
+    } catch {
+      toast.error('Could not save email address.')
+    } finally {
+      setSavingEmail(false)
+    }
+  }
+
   const tabCls = (active: boolean) =>
     `px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${active
       ? 'bg-blue-600 text-white'
@@ -255,7 +286,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div
-        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col"
+        className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col relative"
         onClick={e => e.stopPropagation()}
       >
         {/* Header with tabs */}
@@ -474,6 +505,44 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
             </>
           )}
         </div>
+
+        {/* Email prompt overlay — shown when contact has no email */}
+        {showEmailPrompt && (
+          <div className="absolute inset-0 bg-white/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center p-8 z-30">
+            <div className="w-full max-w-sm bg-white rounded-xl shadow-lg border border-slate-200 p-6 flex flex-col gap-4">
+              <div>
+                <p className="text-sm font-bold text-slate-900 mb-1">No email address on file</p>
+                <p className="text-xs text-slate-500">
+                  This contact has no email address. Enter one to send the booking confirmation.
+                </p>
+              </div>
+              <input
+                type="email"
+                autoFocus
+                value={promptEmail}
+                onChange={e => setPromptEmail(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && promptEmail.trim()) handleEmailPromptConfirm() }}
+                placeholder="Email address"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <div className="flex gap-2">
+                <button
+                  onClick={handleEmailPromptConfirm}
+                  disabled={savingEmail || !promptEmail.trim()}
+                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+                >
+                  {savingEmail ? 'Saving…' : 'Confirm & send'}
+                </button>
+                <button
+                  onClick={() => setShowEmailPrompt(false)}
+                  className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 shrink-0">
