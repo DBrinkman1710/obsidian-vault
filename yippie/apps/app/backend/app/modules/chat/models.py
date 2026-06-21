@@ -44,3 +44,7 @@ class ChatMessage(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     msg_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="sent", default="sent")  # sent | delivered | read
     evolution_msg_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    msg_type: Mapped[str] = mapped_column(String(20), nullable=False, server_default="text", default="text")  # text | media
+    media_url: Mapped[str | None] = mapped_column(Text, nullable=True)  # base64 data URI or reference for media messages
+    media_filename: Mapped[str | None] = mapped_column(String(500), nullable=True)  # original filename for document messages
+    media_mime: Mapped[str | None] = mapped_column(String(100), nullable=True)  # MIME type e.g. image/jpeg, application/pdf

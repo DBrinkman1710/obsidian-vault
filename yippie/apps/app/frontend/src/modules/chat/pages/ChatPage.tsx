@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, Megaphone, MessageSquare, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, FileText, Megaphone, MessageSquare, Paperclip, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2, Zap } from 'lucide-react'
 import { List } from 'react-window'
 import { api } from '../../../api/client'
 import { Checkbox, BulkBar } from '../../../components/Selection'
@@ -192,7 +192,10 @@ export default function ChatPage() {
   const [showActionsModal, setShowActionsModal] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
   const sessionListContainerRef = useRef<HTMLDivElement>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const [sessionListHeight, setSessionListHeight] = useState(600)
+  const [attachedFile, setAttachedFile] = useState<File | null>(null)
+  const [attachPreviewUrl, setAttachPreviewUrl] = useState<string | null>(null)
 
   // Multi-select state
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set())
@@ -283,6 +286,63 @@ export default function ChatPage() {
       qc.invalidateQueries({ queryKey: ['chat-messages', selectedId] })
     },
   })
+
+  const mediaMutation = useMutation({
+    mutationFn: ({ file, caption }: { file: File; caption?: string }) => {
+      const fd = new FormData()
+      fd.append('file', file)
+      if (caption) fd.append('caption', caption)
+      // Axios 1.x auto-sets multipart/form-data with correct boundary for FormData.
+      // We delete the default 'application/json' header so axios's FormData detection fires.
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return api.post(`/chat/sessions/${selectedId}/media`, fd, {
+        headers: { 'Content-Type': undefined },
+      })
+    },
+    onSuccess: () => {
+      clearAttachment()
+      setReplyText('')
+      qc.invalidateQueries({ queryKey: ['chat-messages', selectedId] })
+    },
+  })
+
+  function clearAttachment() {
+    setAttachedFile(null)
+    if (attachPreviewUrl) URL.revokeObjectURL(attachPreviewUrl)
+    setAttachPreviewUrl(null)
+    if (fileInputRef.current) fileInputRef.current.value = ''
+  }
+
+  function attachFile(f: File) {
+    clearAttachment()
+    setAttachedFile(f)
+    if (f.type.startsWith('image/')) {
+      setAttachPreviewUrl(URL.createObjectURL(f))
+    } else {
+      setAttachPreviewUrl(null)
+    }
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0]
+    if (f) attachFile(f)
+  }
+
+  function handleReplyPaste(e: React.ClipboardEvent<HTMLTextAreaElement>) {
+    const files = e.clipboardData?.files
+    if (files && files.length > 0 && files[0].type.startsWith('image/')) {
+      e.preventDefault()
+      attachFile(files[0])
+    }
+  }
+
+  function handleSend() {
+    if (attachedFile) {
+      mediaMutation.mutate({ file: attachedFile, caption: replyText.trim() || undefined })
+    } else if (replyText.trim()) {
+      replyMutation.mutate(replyText.trim())
+    }
+  }
 
   const noteMutation = useMutation({
     mutationFn: (body: string) => api.post(`/chat/sessions/${selectedId}/note`, { body }),
@@ -847,11 +907,33 @@ export default function ChatPage() {
           const isAgent = m.sender_type === 'agent'
           // Merge server-delivered status with any real-time WS update
           const effectiveStatus = localMsgStatuses[m.id] ?? m.msg_status
+          const isMedia = m.msg_type === 'media'
+          const isImage = isMedia && m.media_mime?.startsWith('image/')
           return (
             <div key={m.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[80%] px-4 py-2.5 rounded-2xl shadow-sm ${isAgent ? 'bg-blue-600 text-white' : 'bg-white text-slate-900 border border-slate-200'}`}>
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.body}</p>
-                <div className={`flex items-center justify-end gap-0.5 mt-1 ${isAgent ? 'text-blue-200' : 'text-slate-400'}`}>
+              <div className={`max-w-[80%] rounded-2xl shadow-sm overflow-hidden ${isAgent ? 'bg-blue-600 text-white' : 'bg-white text-slate-900 border border-slate-200'}`}>
+                {isImage && m.media_url ? (
+                  <div>
+                    <img
+                      src={m.media_url}
+                      alt={m.media_filename || 'image'}
+                      className="max-w-xs max-h-64 object-contain block"
+                    />
+                    {m.body && m.body !== m.media_filename && (
+                      <p className={`px-4 pt-2 text-sm leading-relaxed whitespace-pre-wrap ${isAgent ? 'text-white' : 'text-slate-900'}`}>{m.body}</p>
+                    )}
+                  </div>
+                ) : isMedia ? (
+                  <div className={`flex items-center gap-3 px-4 py-3 ${isAgent ? 'text-white' : 'text-slate-700'}`}>
+                    <FileText size={20} className="flex-shrink-0" />
+                    <span className="text-sm font-medium truncate max-w-[180px]">{m.media_filename || m.body}</span>
+                  </div>
+                ) : (
+                  <div className="px-4 py-2.5">
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{m.body}</p>
+                  </div>
+                )}
+                <div className={`flex items-center justify-end gap-0.5 px-4 pb-2 ${isAgent ? 'text-blue-200' : 'text-slate-400'}`}>
                   <span className="text-xs">{formatTime(m.created_at)}</span>
                   {isAgent && <MsgStatusTick status={effectiveStatus} />}
                 </div>
@@ -891,6 +973,14 @@ export default function ChatPage() {
         </div>
       ) : selectedSession.is_open ? (
         <div className="px-4 md:px-6 py-4 border-t border-slate-200 bg-white relative">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,application/pdf,.docx,.doc,.xlsx,.xls,.pptx,.ppt,.txt,.csv"
+            className="hidden"
+            onChange={handleFileInputChange}
+          />
           {showCannedPicker && templates.length > 0 && (
             <div className="absolute bottom-full left-4 md:left-6 right-4 md:right-6 mb-2 bg-white border border-slate-200 rounded-xl shadow-lg max-h-56 overflow-y-auto z-20">
               {templates.map((t: any) => (
@@ -905,23 +995,51 @@ export default function ChatPage() {
               ))}
             </div>
           )}
-          <div className="flex gap-3 items-end">
+          {/* Attachment preview row */}
+          {attachedFile && (
+            <div className="mb-2 flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+              {attachPreviewUrl ? (
+                <img src={attachPreviewUrl} alt="preview" className="h-12 w-12 object-cover rounded-lg flex-shrink-0" />
+              ) : (
+                <div className="h-12 w-12 rounded-lg bg-slate-200 flex items-center justify-center flex-shrink-0">
+                  <FileText size={18} className="text-slate-500" />
+                </div>
+              )}
+              <span className="text-xs text-slate-700 font-medium truncate flex-1">{attachedFile.name}</span>
+              <button
+                onClick={clearAttachment}
+                className="text-slate-400 hover:text-slate-600 flex-shrink-0"
+                title="Remove attachment"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
+          <div className="flex gap-2 items-end">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              title="Attach file"
+              className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors flex-shrink-0"
+            >
+              <Paperclip size={16} />
+            </button>
             <textarea
               value={replyText}
               onChange={e => onReplyChange(e.target.value)}
+              onPaste={handleReplyPaste}
               onKeyDown={e => {
                 if (e.key === 'Enter' && !e.shiftKey && !showCannedPicker) {
                   e.preventDefault()
-                  if (replyText.trim()) replyMutation.mutate(replyText.trim())
+                  handleSend()
                 }
               }}
-              placeholder="Type a reply…  (type / for canned responses)"
+              placeholder={attachedFile ? 'Add a caption (optional)…' : 'Type a reply…  (type / for canned responses)'}
               rows={isMobile ? 2 : 3}
               className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm resize-none font-[inherit] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
             <button
-              onClick={() => { if (replyText.trim()) replyMutation.mutate(replyText.trim()) }}
-              disabled={replyMutation.isPending || !replyText.trim()}
+              onClick={handleSend}
+              disabled={(replyMutation.isPending || mediaMutation.isPending) || (!replyText.trim() && !attachedFile)}
               className="px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-sm rounded-xl transition-colors flex items-center gap-1.5"
             >
               <Send size={14} />
