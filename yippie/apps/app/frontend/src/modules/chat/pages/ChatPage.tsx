@@ -1,7 +1,8 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, Megaphone, MessageSquare, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2, Zap } from 'lucide-react'
+import { List } from 'react-window'
 import { api } from '../../../api/client'
 import { Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
@@ -48,6 +49,122 @@ function MsgStatusTick({ status }: { status?: string }) {
   return null
 }
 
+// ---------------------------------------------------------------------------
+// Virtualised session row — defined outside ChatPage to keep identity stable
+// ---------------------------------------------------------------------------
+type SessionRowData = {
+  sessions: any[]
+  selectedId: string | null
+  selectedSessions: Set<string>
+  hoveredSessionId: string | null
+  setHoveredSessionId: (id: string | null) => void
+  setSelectedId: (id: string | null) => void
+  setSelectedSessions: React.Dispatch<React.SetStateAction<Set<string>>>
+  handleSelectSession: (s: any) => void
+  toggleSessionSelection: (e: React.MouseEvent, id: string) => void
+  statusMutation: any
+  bulkMutation: any
+  ctx: any
+}
+
+function SessionRow({
+  index,
+  style,
+  sessions,
+  selectedId,
+  selectedSessions,
+  hoveredSessionId,
+  setHoveredSessionId,
+  setSelectedId,
+  setSelectedSessions,
+  handleSelectSession,
+  toggleSessionSelection,
+  statusMutation,
+  bulkMutation,
+  ctx,
+}: { index: number; style: React.CSSProperties; ariaAttributes: { 'aria-posinset': number; 'aria-setsize': number; role: 'listitem' } } & SessionRowData) {
+  const s = sessions[index]
+  if (!s) return null
+  const isSelected = selectedSessions.has(s.id)
+  const showCheckbox = isSelected || hoveredSessionId === s.id || selectedSessions.size > 0
+  return (
+    <div
+      style={style}
+      className="relative"
+      onMouseEnter={() => setHoveredSessionId(s.id)}
+      onMouseLeave={() => setHoveredSessionId(null)}
+      onContextMenu={e => ctx.open(e, [
+        { header: s.contact_name ?? s.visitor_name ?? s.whatsapp_phone ?? 'Session' },
+        { label: 'Open conversation', icon: <ArrowRight size={14} />, onClick: () => setSelectedId(s.id) },
+        ...(s.status !== 'solved'
+          ? [{ label: 'Mark resolved', icon: <Check size={14} />, onClick: () => statusMutation.mutate({ sessionId: s.id, status: 'solved' }) }]
+          : [{ label: 'Reopen', icon: <ArrowRight size={14} />, onClick: () => statusMutation.mutate({ sessionId: s.id, status: 'open' }) }]
+        ),
+        { separator: true },
+        {
+          label: 'Delete',
+          icon: <Trash2 size={14} />,
+          danger: true,
+          onClick: () => {
+            if (window.confirm('Delete this session and all its messages? This cannot be undone.')) {
+              bulkMutation.mutate({ action: 'delete', session_ids: [s.id] })
+              if (selectedId === s.id) setSelectedId(null)
+            }
+          },
+        },
+      ])}
+    >
+      {showCheckbox && (
+        <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
+          <Checkbox
+            checked={isSelected}
+            onChange={e => toggleSessionSelection(e as any, s.id)}
+            ariaLabel={`Select session from ${s.visitor_name || s.whatsapp_phone || 'Unknown'}`}
+          />
+        </div>
+      )}
+      <button
+        onClick={() => {
+          if (selectedSessions.size > 0) {
+            setSelectedSessions(prev => {
+              const next = new Set(prev)
+              if (next.has(s.id)) next.delete(s.id)
+              else next.add(s.id)
+              return next
+            })
+          } else {
+            handleSelectSession(s)
+          }
+        }}
+        className={`w-full h-full text-left border-b border-slate-100 flex flex-col gap-1.5 transition-colors ${showCheckbox ? 'px-8 py-3.5' : 'px-5 py-3.5'} ${selectedId === s.id && selectedSessions.size === 0 ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
+      >
+        <div className="flex items-center justify-between">
+          <span className="text-sm font-semibold text-slate-900 truncate">
+            {s.visitor_name || s.whatsapp_phone || 'Unknown'}
+          </span>
+          <span className="text-xs text-slate-400 flex-shrink-0 ml-2">{timeAgo(s.started_at)}</span>
+        </div>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {s.source === 'whatsapp' && (
+            <span className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">WhatsApp</span>
+          )}
+          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full capitalize ${STATUS_STYLES[s.status] ?? 'bg-slate-100 text-slate-500'}`}>
+            {s.status}
+          </span>
+          {s.assigned_to_name && (
+            <span className="text-xs font-medium text-slate-500 truncate">· {s.assigned_to_name}</span>
+          )}
+          {s.unread_count > 0 && (
+            <span className="text-xs font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center ml-auto">
+              {s.unread_count}
+            </span>
+          )}
+        </div>
+      </button>
+    </div>
+  )
+}
+
 export default function ChatPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -74,6 +191,8 @@ export default function ChatPage() {
   const [historyViewId, setHistoryViewId] = useState<string | null>(null)
   const [showActionsModal, setShowActionsModal] = useState(false)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const sessionListContainerRef = useRef<HTMLDivElement>(null)
+  const [sessionListHeight, setSessionListHeight] = useState(600)
 
   // Multi-select state
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set())
@@ -88,6 +207,19 @@ export default function ChatPage() {
     const t = setTimeout(() => setDebouncedQuery(searchQuery), 300)
     return () => clearTimeout(t)
   }, [searchQuery])
+
+  // Track available height for the virtualised session list
+  useEffect(() => {
+    const el = sessionListContainerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        setSessionListHeight(entry.contentRect.height)
+      }
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
 
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ['chat-sessions', filter],
@@ -213,16 +345,25 @@ export default function ChatPage() {
 
     let ws: WebSocket | null = null
     let reconnectTimer: ReturnType<typeof setTimeout>
+    let retries = 0
+    const MAX_RETRIES = 5
+    let destroyed = false
 
     function connect() {
+      if (destroyed) return
       const token = localStorage.getItem('access_token')
       if (!token) return
       const proto = location.protocol === 'https:' ? 'wss' : 'ws'
       ws = new WebSocket(`${proto}://${location.host}/api/v1/chat/ws/agent?token=${encodeURIComponent(token)}`)
 
+      ws.onopen = () => {
+        retries = 0  // reset retry counter on successful connection
+      }
+
       ws.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data) as {
+            type?: string
             event: string
             session_id?: string
             sender_type?: string
@@ -230,6 +371,11 @@ export default function ChatPage() {
             assigned_to?: string | null
             msg_id?: string
             status?: string
+          }
+          // Heartbeat: server sent ping — reply with pong
+          if (data.type === 'ping') {
+            ws?.send(JSON.stringify({ type: 'pong' }))
+            return
           }
           if (data.event === 'msg_status_update' && data.msg_id && data.status) {
             // Update delivery tick for this message in local state
@@ -264,13 +410,27 @@ export default function ChatPage() {
       }
 
       ws.onclose = () => {
-        reconnectTimer = setTimeout(connect, 5000)
+        if (destroyed) return
+        if (retries < MAX_RETRIES) {
+          retries++
+          reconnectTimer = setTimeout(connect, 3000)
+        }
+      }
+
+      ws.onerror = () => {
+        if (destroyed) return
+        ws?.close()
+        if (retries < MAX_RETRIES) {
+          retries++
+          reconnectTimer = setTimeout(connect, 3000)
+        }
       }
     }
 
     connect()
 
     return () => {
+      destroyed = true
       clearTimeout(reconnectTimer)
       ws?.close()
     }
@@ -454,9 +614,9 @@ export default function ChatPage() {
           </div>
         </div>
       )}
-      <div className="flex-1 overflow-y-auto relative">
+      <div className="flex-1 overflow-hidden relative flex flex-col" ref={sessionListContainerRef}>
         {sidebarMode === 'search' ? (
-          <>
+          <div className="flex-1 overflow-y-auto">
             {contactsLoading && <p className="p-5 text-sm text-slate-400">Searching…</p>}
             {!contactsLoading && debouncedQuery.length > 0 && contactResults.length === 0 && (
               <div className="p-8 text-center">
@@ -475,7 +635,7 @@ export default function ChatPage() {
                 <span className="text-xs text-slate-400 truncate">{c.phone || 'No phone number'}</span>
               </button>
             ))}
-          </>
+          </div>
         ) : (
           <>
             {sessionsLoading && <p className="p-5 text-sm text-slate-400">Loading…</p>}
@@ -488,90 +648,32 @@ export default function ChatPage() {
                 </p>
               </div>
             )}
-            {sessions.map((s: any) => {
-              const isSelected = selectedSessions.has(s.id)
-              const showCheckbox = isSelected || hoveredSessionId === s.id || selectedSessions.size > 0
-              return (
-                <div
-                  key={s.id}
-                  className="relative"
-                  onMouseEnter={() => setHoveredSessionId(s.id)}
-                  onMouseLeave={() => setHoveredSessionId(null)}
-                  onContextMenu={e => ctx.open(e, [
-                    { header: s.contact_name ?? s.visitor_name ?? s.whatsapp_phone ?? 'Session' },
-                    { label: 'Open conversation', icon: <ArrowRight size={14} />, onClick: () => setSelectedId(s.id) },
-                    ...(s.status !== 'solved'
-                      ? [{ label: 'Mark resolved', icon: <Check size={14} />, onClick: () => statusMutation.mutate({ sessionId: s.id, status: 'solved' }) }]
-                      : [{ label: 'Reopen', icon: <ArrowRight size={14} />, onClick: () => statusMutation.mutate({ sessionId: s.id, status: 'open' }) }]
-                    ),
-                    { separator: true },
-                    {
-                      label: 'Delete',
-                      icon: <Trash2 size={14} />,
-                      danger: true,
-                      onClick: () => {
-                        if (window.confirm('Delete this session and all its messages? This cannot be undone.')) {
-                          bulkMutation.mutate({ action: 'delete', session_ids: [s.id] })
-                          if (selectedId === s.id) setSelectedId(null)
-                        }
-                      },
-                    },
-                  ])}
-                >
-                  {showCheckbox && (
-                    <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
-                      <Checkbox
-                        checked={isSelected}
-                        onChange={e => toggleSessionSelection(e as any, s.id)}
-                        ariaLabel={`Select session from ${s.visitor_name || s.whatsapp_phone || 'Unknown'}`}
-                      />
-                    </div>
-                  )}
-                  <button
-                    onClick={() => {
-                      if (selectedSessions.size > 0) {
-                        // In multi-select mode, clicking toggles selection
-                        setSelectedSessions(prev => {
-                          const next = new Set(prev)
-                          if (next.has(s.id)) next.delete(s.id)
-                          else next.add(s.id)
-                          return next
-                        })
-                      } else {
-                        handleSelectSession(s)
-                      }
-                    }}
-                    className={`w-full text-left border-b border-slate-100 flex flex-col gap-1.5 transition-colors ${showCheckbox ? 'px-8 py-3.5' : 'px-5 py-3.5'} ${selectedId === s.id && selectedSessions.size === 0 ? 'bg-blue-50' : 'hover:bg-slate-50'}`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-semibold text-slate-900 truncate">
-                        {s.visitor_name || s.whatsapp_phone || 'Unknown'}
-                      </span>
-                      <span className="text-xs text-slate-400 flex-shrink-0 ml-2">{timeAgo(s.started_at)}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {s.source === 'whatsapp' && (
-                        <span className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 px-1.5 py-0.5 rounded-full">WhatsApp</span>
-                      )}
-                      <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full capitalize ${STATUS_STYLES[s.status] ?? 'bg-slate-100 text-slate-500'}`}>
-                        {s.status}
-                      </span>
-                      {s.assigned_to_name && (
-                        <span className="text-xs font-medium text-slate-500 truncate">· {s.assigned_to_name}</span>
-                      )}
-                      {s.unread_count > 0 && (
-                        <span className="text-xs font-bold text-white bg-red-500 px-1.5 py-0.5 rounded-full min-w-[1.25rem] text-center ml-auto">
-                          {s.unread_count}
-                        </span>
-                      )}
-                    </div>
-                  </button>
-                </div>
-              )
-            })}
+            {!sessionsLoading && sessions.length > 0 && (
+              <List
+                rowCount={sessions.length}
+                rowHeight={80}
+                style={{ height: sessionListHeight - 56 }}
+                overscanCount={5}
+                rowComponent={SessionRow}
+                rowProps={{
+                  sessions,
+                  selectedId,
+                  selectedSessions,
+                  hoveredSessionId,
+                  setHoveredSessionId,
+                  setSelectedId,
+                  setSelectedSessions,
+                  handleSelectSession,
+                  toggleSessionSelection,
+                  statusMutation,
+                  bulkMutation,
+                  ctx,
+                }}
+              />
+            )}
 
             {/* Bulk action bar */}
-            <div className="sticky bottom-0 px-3 pt-2 pb-3" style={{ background: '#fff' }}>
+            <div className="px-3 pt-2 pb-3 bg-white" style={{ height: 56 }}>
               <BulkBar
                 count={selectedSessions.size}
                 onClear={() => setSelectedSessions(new Set())}
