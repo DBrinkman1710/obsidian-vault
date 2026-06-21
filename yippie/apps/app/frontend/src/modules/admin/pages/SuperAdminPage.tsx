@@ -5,6 +5,7 @@ import {
   Plus, Users, X, Building2, UserPlus,
   ToggleLeft, ToggleRight, Rocket, FlaskConical, CheckSquare, Square,
   Clipboard, Check, Eye, Trash2, Pencil, Lock,
+  LayoutDashboard, AlertTriangle, Inbox, Sparkles, Ticket as TicketIcon,
 } from 'lucide-react'
 import { api } from '../../../api/client'
 import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
@@ -1149,6 +1150,196 @@ function ResendDiagnosticPanel() {
   )
 }
 
+interface TenantStatRow {
+  tenant_id: string
+  name: string
+  slug: string
+  plan: string
+  is_active: boolean
+  tickets_open: number
+  tickets_closed: number
+  tickets_overdue: number
+  inbox_pending: number
+  contacts_created: number
+  active_users_today: number
+  ai_usage_today: number
+}
+
+interface SuperAdminStats {
+  summary: {
+    total_tenants: number
+    active_tenants: number
+    total_tickets_open: number
+    total_tickets_overdue: number
+    total_inbox_pending: number
+    total_ai_usage_today: number
+    total_contacts_created: number
+  }
+  tenants: TenantStatRow[]
+  start: string
+  end: string
+}
+
+type DateRange = '7d' | '30d' | 'all'
+
+const RANGE_TABS: { key: DateRange; label: string }[] = [
+  { key: '7d', label: '7 days' },
+  { key: '30d', label: '30 days' },
+  { key: 'all', label: 'All time' },
+]
+
+function rangeStart(range: DateRange): string | undefined {
+  if (range === 'all') return undefined
+  const d = new Date()
+  d.setDate(d.getDate() - (range === '7d' ? 7 : 30))
+  return d.toISOString()
+}
+
+function StatCard({ icon, label, value, tone }: {
+  icon: React.ReactNode; label: string; value: number; tone?: 'red' | 'amber' | 'default'
+}) {
+  const toneCls =
+    tone === 'red' ? 'text-red-600' :
+    tone === 'amber' ? 'text-amber-600' :
+    'text-slate-900'
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3.5 flex items-center gap-3">
+      <div className="w-9 h-9 rounded-lg bg-slate-50 flex items-center justify-center text-slate-400 shrink-0">
+        {icon}
+      </div>
+      <div className="min-w-0">
+        <div className={`text-xl font-bold leading-tight ${toneCls}`}>{value}</div>
+        <div className="text-xs text-slate-400 font-medium truncate">{label}</div>
+      </div>
+    </div>
+  )
+}
+
+function DashboardTab({ tenants }: { tenants: Tenant[] }) {
+  const [range, setRange] = useState<DateRange>('7d')
+  const [tenantFilter, setTenantFilter] = useState<string>('')
+
+  const params: Record<string, string> = {}
+  const start = rangeStart(range)
+  if (start) params.start = start
+  if (tenantFilter) params.tenant_id = tenantFilter
+
+  const { data, isLoading } = useQuery<SuperAdminStats>({
+    queryKey: ['superadmin-stats', range, tenantFilter],
+    queryFn: () => api.get('/admin/stats', { params }).then(r => r.data),
+    refetchInterval: 60_000,
+  })
+
+  const summary = data?.summary
+  const rows = data?.tenants ?? []
+
+  return (
+    <div className="flex flex-col gap-5">
+      {/* Controls */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5">
+          {RANGE_TABS.map(({ key, label }) => (
+            <button
+              key={key}
+              onClick={() => setRange(key)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                range === key ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+        <select
+          value={tenantFilter}
+          onChange={e => setTenantFilter(e.target.value)}
+          className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
+        >
+          <option value="">All tenants</option>
+          {tenants.map(t => (
+            <option key={t.id} value={t.id}>{t.name}</option>
+          ))}
+        </select>
+        {tenantFilter && (
+          <button onClick={() => setTenantFilter('')} className="text-xs font-semibold text-slate-400 hover:text-slate-600">
+            Clear filter
+          </button>
+        )}
+        <span className="text-xs text-slate-300 ml-auto">Auto-refreshes every 60s</span>
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <StatCard icon={<Building2 size={16} />} label="Total tenants" value={summary?.total_tenants ?? 0} />
+        <StatCard icon={<Check size={16} />} label="Active tenants" value={summary?.active_tenants ?? 0} />
+        <StatCard icon={<TicketIcon size={16} />} label="Open tickets" value={summary?.total_tickets_open ?? 0} />
+        <StatCard icon={<AlertTriangle size={16} />} label="Overdue tickets" value={summary?.total_tickets_overdue ?? 0} tone={summary && summary.total_tickets_overdue > 0 ? 'red' : 'default'} />
+        <StatCard icon={<Inbox size={16} />} label="Inbox pending" value={summary?.total_inbox_pending ?? 0} />
+      </div>
+
+      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+
+      {!isLoading && rows.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-slate-200">
+          <LayoutDashboard size={28} className="text-slate-300 mx-auto mb-2" />
+          <p className="text-sm text-slate-400 font-medium">No tenant activity to show.</p>
+        </div>
+      )}
+
+      {/* Per-tenant table */}
+      {rows.length > 0 && (
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Tenant</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Plan</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Open</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Overdue</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Pending inbox</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">AI uses today</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Contacts ({range === 'all' ? 'all' : range === '7d' ? '7d' : '30d'})</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {rows.map(r => {
+                const overdue = r.tickets_overdue > 0
+                const atRisk = r.ai_usage_today === 0 && r.tickets_overdue > 2
+                const rowCls = overdue ? 'bg-red-50/60 hover:bg-red-50' : atRisk ? 'bg-amber-50/60 hover:bg-amber-50' : 'hover:bg-slate-50'
+                return (
+                  <tr
+                    key={r.tenant_id}
+                    onClick={() => setTenantFilter(prev => prev === r.tenant_id ? '' : r.tenant_id)}
+                    className={`cursor-pointer transition-colors ${rowCls} ${tenantFilter === r.tenant_id ? 'ring-1 ring-inset ring-blue-300' : ''} ${!r.is_active ? 'opacity-50' : ''}`}
+                  >
+                    <td className="px-4 py-3">
+                      <div className="text-sm font-semibold text-slate-900">{r.name}</div>
+                      <div className="text-xs text-slate-400">{r.slug}</div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 capitalize">{r.plan}</span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-slate-700 tabular-nums">{r.tickets_open}</td>
+                    <td className={`px-4 py-3 text-right text-sm font-semibold tabular-nums ${overdue ? 'text-red-600' : 'text-slate-400'}`}>{r.tickets_overdue}</td>
+                    <td className="px-4 py-3 text-right text-sm text-slate-700 tabular-nums">{r.inbox_pending}</td>
+                    <td className="px-4 py-3 text-right text-sm tabular-nums">
+                      <span className={`inline-flex items-center gap-1 ${r.ai_usage_today > 0 ? 'text-slate-700' : 'text-slate-300'}`}>
+                        {r.ai_usage_today > 0 && <Sparkles size={11} className="text-violet-400" />}
+                        {r.ai_usage_today}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-sm text-slate-700 tabular-nums">{r.contacts_created}</td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SuperAdminPage() {
   const qc = useQueryClient()
   const config = useTenantConfig()
@@ -1162,6 +1353,7 @@ export default function SuperAdminPage() {
 const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(null)
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [pageTab, setPageTab] = useState<'dashboard' | 'clients'>('dashboard')
 
   const { data: allTenants, isLoading } = useQuery<Tenant[]>({
     queryKey: ['superadmin-tenants'],
@@ -1266,18 +1458,46 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Client environments</h1>
-          <p className="text-sm text-slate-400 mt-0.5">Manage all tenant environments</p>
+          <h1 className="text-2xl font-bold text-slate-900">
+            {pageTab === 'dashboard' ? 'Activity dashboard' : 'Client environments'}
+          </h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            {pageTab === 'dashboard' ? 'Live activity across all tenants' : 'Manage all tenant environments'}
+          </p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-        >
-          <Plus size={15} strokeWidth={2.5} />
-          New client
-        </button>
+        {pageTab === 'clients' && (
+          <button
+            onClick={() => setShowCreate(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+          >
+            <Plus size={15} strokeWidth={2.5} />
+            New client
+          </button>
+        )}
       </div>
 
+      {/* Top-level tabs */}
+      <div className="flex items-center gap-1 border-b border-slate-200 -mt-4">
+        {([
+          { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
+          { key: 'clients', label: 'Clients', icon: <Building2 size={14} /> },
+        ] as const).map(({ key, label, icon }) => (
+          <button
+            key={key}
+            onClick={() => setPageTab(key)}
+            className={`inline-flex items-center gap-1.5 px-4 py-2.5 text-sm font-medium transition-colors border-b-2 -mb-px ${
+              pageTab === key ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            {icon}
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {pageTab === 'dashboard' && <DashboardTab tenants={tenants} />}
+
+      {pageTab === 'clients' && (<>
       {/* Filter tabs */}
       <div className="flex items-center gap-1 border-b border-slate-200 -mt-4">
         {FILTER_TABS.map(({ key, label }) => (
@@ -1471,6 +1691,7 @@ const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(
       )}
 
       <ResendDiagnosticPanel />
+      </>)}
 
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}
       {editingTenant && (

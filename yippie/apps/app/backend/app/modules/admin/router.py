@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
 import httpx
@@ -20,6 +21,26 @@ DB = Annotated[AsyncSession, Depends(get_db)]
 @router.get("/tenants", response_model=list[schemas.TenantOut])
 async def list_tenants(_: SuperAdminUser, db: DB):
     return await service.list_tenants(db)
+
+
+@router.get("/stats", response_model=schemas.SuperAdminStats)
+async def get_stats(
+    _: SuperAdminUser,
+    db: DB,
+    start: datetime | None = None,
+    end: datetime | None = None,
+    tenant_id: uuid.UUID | None = None,
+):
+    """Cross-tenant activity dashboard data. Superadmin-only, read-only.
+
+    `start`/`end` are ISO datetimes filtering date-ranged counts (default: last 7
+    days). `tenant_id` narrows the result to a single tenant."""
+    now = datetime.now(timezone.utc)
+    if end is None:
+        end = now
+    if start is None:
+        start = end - timedelta(days=7)
+    return await service.get_superadmin_stats(db, start, end, tenant_id)
 
 
 @router.get("/check-email")

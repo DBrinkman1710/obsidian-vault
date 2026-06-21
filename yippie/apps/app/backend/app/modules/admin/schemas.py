@@ -136,3 +136,35 @@ class BroadcastResult(BaseModel):
     skipped_no_email: int
     skipped_opted_out: int
     failed: int
+
+
+class TenantStatRow(BaseModel):
+    tenant_id: uuid.UUID
+    name: str
+    slug: str
+    plan: str
+    is_active: bool
+    tickets_open: int
+    tickets_closed: int
+    tickets_overdue: int
+    inbox_pending: int
+    contacts_created: int
+    active_users_today: int
+    ai_usage_today: int
+
+
+class SuperAdminStatsSummary(BaseModel):
+    total_tenants: int
+    active_tenants: int
+    total_tickets_open: int
+    total_tickets_overdue: int
+    total_inbox_pending: int
+    total_ai_usage_today: int
+    total_contacts_created: int
+
+
+class SuperAdminStats(BaseModel):
+    summary: SuperAdminStatsSummary
+    tenants: list[TenantStatRow]
+    start: datetime
+    end: datetime

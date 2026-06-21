@@ -16,7 +16,10 @@ from app.modules.admin.schemas import (
     AddAdminRequest,
     BroadcastRequest,
     BroadcastResult,
+    SuperAdminStats,
+    SuperAdminStatsSummary,
     TenantCreate,
+    TenantStatRow,
     TenantUpdate,
 )
 from app.modules.contacts.models import Contact
@@ -456,6 +459,143 @@ async def opt_out_contact(db: AsyncSession, token: str) -> bool:
     contact.broadcast_opted_out = True
     await db.commit()
     return True
+
+
+async def get_superadmin_stats(
+    db: AsyncSession,
+    start: datetime,
+    end: datetime,
+    tenant_id: uuid.UUID | None = None,
+) -> SuperAdminStats:
+    """Cross-tenant activity snapshot for the superadmin dashboard.
+
+    Read-only analytics. Runs without tenant context (no RLS) so it sees every
+    tenant. Date-ranged counts (tickets_closed, contacts_created, inbox_pending)
+    use [start, end]; "today" counts use UTC midnight of the current day.
+    """
+    from sqlalchemy import and_, case
+
+    from app.modules.inbox.models import DraftStatus, DraftTicket
+    from app.modules.tickets.models import Ticket, TicketStatus
+
+    now = datetime.now(timezone.utc)
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    closed_statuses = (TicketStatus.closed, TicketStatus.resolved)
+
+    # Base tenant set (optionally narrowed to one).
+    tenant_q = select(Tenant).order_by(Tenant.name)
+    if tenant_id is not None:
+        tenant_q = tenant_q.where(Tenant.id == tenant_id)
+    tenants = (await db.execute(tenant_q)).scalars().all()
+    tenant_ids = [t.id for t in tenants]
+
+    # Initialise an accumulator per tenant so tenants with no rows still appear.
+    acc: dict[uuid.UUID, dict] = {
+        t.id: {
+            "tickets_open": 0, "tickets_closed": 0, "tickets_overdue": 0,
+            "inbox_pending": 0, "contacts_created": 0,
+            "active_users_today": 0, "ai_usage_today": 0,
+        }
+        for t in tenants
+    }
+
+    if tenant_ids:
+        # Tickets: open (not closed/resolved, not deleted), closed-in-range, overdue.
+        ticket_rows = await db.execute(
+            select(
+                Ticket.tenant_id,
+                func.count(case((Ticket.status.notin_(closed_statuses), 1))).label("open"),
+                func.count(
+                    case((and_(
+                        Ticket.status.in_(closed_statuses),
+                        Ticket.updated_at >= start,
+                        Ticket.updated_at <= end,
+                    ), 1))
+                ).label("closed"),
+                func.count(
+                    case((and_(
+                        Ticket.status.notin_(closed_statuses),
+                        Ticket.sla_due_at.is_not(None),
+                        Ticket.sla_due_at < now,
+                    ), 1))
+                ).label("overdue"),
+            )
+            .where(Ticket.tenant_id.in_(tenant_ids), Ticket.deleted_at.is_(None))
+            .group_by(Ticket.tenant_id)
+        )
+        for r in ticket_rows:
+            acc[r.tenant_id].update(tickets_open=r.open, tickets_closed=r.closed, tickets_overdue=r.overdue)
+
+        # Inbox: pending drafts (in range), and AI-enriched drafts today.
+        draft_rows = await db.execute(
+            select(
+                DraftTicket.tenant_id,
+                func.count(
+                    case((and_(
+                        DraftTicket.status == DraftStatus.pending,
+                        DraftTicket.created_at >= start,
+                        DraftTicket.created_at <= end,
+                    ), 1))
+                ).label("pending"),
+                func.count(
+                    case((and_(
+                        DraftTicket.ai_status == "done",
+                        DraftTicket.created_at >= today_start,
+                    ), 1))
+                ).label("ai_today"),
+            )
+            .where(DraftTicket.tenant_id.in_(tenant_ids))
+            .group_by(DraftTicket.tenant_id)
+        )
+        for r in draft_rows:
+            acc[r.tenant_id].update(inbox_pending=r.pending, ai_usage_today=r.ai_today)
+
+        # Contacts created in range (excluding soft-deleted).
+        contact_rows = await db.execute(
+            select(Contact.tenant_id, func.count(Contact.id).label("created"))
+            .where(
+                Contact.tenant_id.in_(tenant_ids),
+                Contact.deleted_at.is_(None),
+                Contact.created_at >= start,
+                Contact.created_at <= end,
+            )
+            .group_by(Contact.tenant_id)
+        )
+        for r in contact_rows:
+            acc[r.tenant_id]["contacts_created"] = r.created
+
+        # Active users today (logged in since UTC midnight).
+        user_rows = await db.execute(
+            select(User.tenant_id, func.count(User.id).label("active"))
+            .where(
+                User.tenant_id.in_(tenant_ids),
+                User.last_login_at.is_not(None),
+                User.last_login_at >= today_start,
+            )
+            .group_by(User.tenant_id)
+        )
+        for r in user_rows:
+            acc[r.tenant_id]["active_users_today"] = r.active
+
+    rows = [
+        TenantStatRow(
+            tenant_id=t.id, name=t.name, slug=t.slug, plan=t.plan, is_active=t.is_active,
+            **acc[t.id],
+        )
+        for t in tenants
+    ]
+
+    summary = SuperAdminStatsSummary(
+        total_tenants=len(rows),
+        active_tenants=sum(1 for t in tenants if t.is_active),
+        total_tickets_open=sum(r.tickets_open for r in rows),
+        total_tickets_overdue=sum(r.tickets_overdue for r in rows),
+        total_inbox_pending=sum(r.inbox_pending for r in rows),
+        total_ai_usage_today=sum(r.ai_usage_today for r in rows),
+        total_contacts_created=sum(r.contacts_created for r in rows),
+    )
+
+    return SuperAdminStats(summary=summary, tenants=rows, start=start, end=end)
 
 
 async def promote_superadmin(
