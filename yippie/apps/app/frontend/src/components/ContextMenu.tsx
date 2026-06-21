@@ -86,8 +86,9 @@ export function ContextMenu({ state, onClose }: ContextMenuProps) {
     const menuRect = ref.current.getBoundingClientRect()
     const subRect = submenuRef.current.getBoundingClientRect()
     const pad = 8
-    const buttons = ref.current.querySelectorAll<HTMLElement>('[data-item-idx]')
-    const btn = buttons[hoverIdx]
+    // find the hovered item's button element
+    const buttons = ref.current.querySelectorAll('[data-item-idx]')
+    const btn = buttons[hoverIdx] as HTMLElement | undefined
     const itemTop = btn ? btn.getBoundingClientRect().top : menuRect.top
 
     let x = menuRect.right + 4
@@ -272,12 +273,6 @@ export function ContextMenu({ state, onClose }: ContextMenuProps) {
                 key={j}
                 role="menuitem"
                 onClick={() => { onClose(); sub.onClick?.() }}
-                onMouseEnter={e => {
-                  e.currentTarget.style.background = isDanger ? 'var(--status-urgent-bg)' : 'var(--brand-soft)'
-                }}
-                onMouseLeave={e => {
-                  e.currentTarget.style.background = 'transparent'
-                }}
                 style={{
                   width: '100%',
                   display: 'flex',
@@ -295,6 +290,13 @@ export function ContextMenu({ state, onClose }: ContextMenuProps) {
                   color: isDanger ? 'var(--status-urgent)' : 'var(--text-body)',
                   background: 'transparent',
                   transition: 'background 100ms ease',
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = isDanger ? 'var(--status-urgent-bg)' : 'var(--brand-soft)'
+                  e.currentTarget.style.color = isDanger ? 'var(--status-urgent)' : 'var(--text-body)'
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'transparent'
                 }}
               >
                 {sub.icon ? (
