@@ -982,10 +982,25 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
                 {"event": "new_session", "session_id": str(session.id)},
             )
 
+    async def _ping_loop() -> None:
+        """Send a ping every 30 s to detect stale connections."""
+        try:
+            while True:
+                await asyncio.sleep(30)
+                await websocket.send_text(json.dumps({"type": "ping"}))
+        except Exception:
+            pass  # connection gone — receive loop will handle cleanup
+
+    ping_task = asyncio.create_task(_ping_loop())
     try:
         while True:
             raw = await websocket.receive_text()
             data = json.loads(raw)
+
+            # Heartbeat response — nothing to do
+            if data.get("type") == "pong":
+                continue
+
             msg_body = data.get("body", "").strip()
 
             if not msg_body:
@@ -1017,9 +1032,10 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
             # Visitor's WS is keyed by client-side session_id, not the DB UUID
             await manager.broadcast_to_session(tenant_key, session_id, visitor_event)
             await manager.broadcast_to_agents(tenant_key, visitor_event)
-    except WebSocketDisconnect:
-        manager.disconnect(websocket, tenant_key, session_id)
-    except Exception:
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        ping_task.cancel()
         manager.disconnect(websocket, tenant_key, session_id)
 
 
@@ -1052,10 +1068,28 @@ async def agent_ws(websocket: WebSocket, token: str):
         tenant_key = str(user.tenant_id)
 
     await manager.connect_agent(websocket, tenant_key)
+
+    async def _agent_ping_loop() -> None:
+        """Send a ping every 30 s to detect stale agent connections."""
+        try:
+            while True:
+                await asyncio.sleep(30)
+                await websocket.send_text(json.dumps({"type": "ping"}))
+        except Exception:
+            pass  # connection gone — receive loop will handle cleanup
+
+    ping_task = asyncio.create_task(_agent_ping_loop())
     try:
         while True:
-            await websocket.receive_text()  # keepalive pings — payload ignored
-    except WebSocketDisconnect:
-        manager.disconnect_agent(websocket, tenant_key)
-    except Exception:
+            raw = await websocket.receive_text()
+            # Ignore pong responses and legacy keepalive frames
+            try:
+                if json.loads(raw).get("type") == "pong":
+                    continue
+            except Exception:
+                pass
+    except (WebSocketDisconnect, Exception):
+        pass
+    finally:
+        ping_task.cancel()
         manager.disconnect_agent(websocket, tenant_key)
