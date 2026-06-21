@@ -14,6 +14,8 @@ import { useMobile } from '../../../shell/useMobile'
 import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
 import { SignaturePicker } from '../components/SignaturePicker'
 
+interface PipelineStage { id: string; name: string; color: string }
+
 const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English', nl: 'Dutch', fr: 'French', de: 'German', es: 'Spanish',
   pt: 'Portuguese', it: 'Italian', ar: 'Arabic', zh: 'Chinese', ja: 'Japanese',
@@ -270,6 +272,7 @@ export default function DraftReview() {
   const qc = useQueryClient()
   const config = useTenantConfig()
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
+  const isPipelineEnabled = config?.enabled_modules?.includes('pipeline') ?? false
   const { user } = useAuth()
   const { data: signatures } = useSignatures()
   const defaultSig = pickDefaultSignature(signatures)
@@ -317,6 +320,12 @@ export default function DraftReview() {
     enabled: !isProcessed,
   })
 
+  const { data: stages = [] } = useQuery<PipelineStage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    enabled: isPipelineEnabled && !isProcessed,
+  })
+
   const [subject, setSubject] = useState('')
   const [description, setDescription] = useState('')
   const [priority, setPriority] = useState('')
@@ -343,6 +352,8 @@ export default function DraftReview() {
   const [replyFiles, setReplyFiles] = useState<File[]>([])
   const [usePersonalFrom, setUsePersonalFrom] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [actionTab, setActionTab] = useState<'ticket' | 'pipeline'>('ticket')
+  const [selectedPipelineStageId, setSelectedPipelineStageId] = useState('')
 
   // The router reuses this component across draft ids — reset all editable state when
   // the id changes so one draft's reply/suggestions can't leak into another.
@@ -354,6 +365,7 @@ export default function DraftReview() {
     setAppliedSig(defaultSig?.body ?? null)
     setSuggestions([]); setReplyFiles([])
     setSentTo(''); setSendError(''); setActionError('')
+    setActionTab('ticket'); setSelectedPipelineStageId('')
     setUndoUntil(null); setUndoProgress(0); setUndoCancelled(false)
     if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
   }, [id, defaultSig?.body])
@@ -429,6 +441,16 @@ export default function DraftReview() {
       qc.invalidateQueries({ queryKey: ['drafts'] })
       navigate('/inbox')
     },
+  })
+
+  const moveStageMutation = useMutation({
+    mutationFn: (stageId: string) => api.put(`/pipeline/contacts/${contact?.id}/stage`, { stage_id: stageId }),
+    onSuccess: () => {
+      toast.success('Contact moved to pipeline stage.')
+      qc.invalidateQueries({ queryKey: ['contact-pipeline-stage', contact?.id] })
+      qc.invalidateQueries({ queryKey: ['pipeline-board'] })
+    },
+    onError: () => toast.error('Failed to move contact to stage.'),
   })
 
   useEffect(() => {
@@ -792,46 +814,101 @@ export default function DraftReview() {
                 <p className="text-xs text-blue-400 animate-pulse">AI is analyzing this email…</p>
               </div>
             )}
-            {/* Draft ticket fields — pending only */}
+            {/* Actions box — pending only */}
             {!isProcessed && (
-              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm p-4 space-y-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Ticket</p>
-                  {aiEnabled && generateScanMutation.isPending && <span className="text-[10px] text-violet-400 animate-pulse">Generating…</span>}
-                  {aiEnabled && (scanNotRun || aiFailed) && !generateScanMutation.isPending && (
+              <div className="bg-white rounded-2xl border border-slate-100 shadow-sm overflow-hidden">
+                <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+                  <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Actions</p>
+                  {actionTab === 'ticket' && aiEnabled && generateScanMutation.isPending && <span className="text-[10px] text-violet-400 animate-pulse">Generating…</span>}
+                  {actionTab === 'ticket' && aiEnabled && (scanNotRun || aiFailed) && !generateScanMutation.isPending && (
                     <button onClick={() => generateScanMutation.mutate()} disabled={generateScanMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
                       <Sparkles size={9} />
                       {aiFailed ? 'Retry' : 'Generate'}
                     </button>
                   )}
                 </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Subject</label>
-                  <input
-                    value={subject || draft.ai_suggested_subject || ''}
-                    onChange={e => setSubject(e.target.value)}
-                    className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie transition-colors"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-500 mb-2">Priority</label>
-                  <div className="flex gap-2 flex-wrap">
-                    {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
-                      const active = (priority || draft.ai_suggested_priority) === p
-                      return (
-                        <button
-                          key={p}
-                          onClick={() => setPriority(p)}
-                          className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-all ${
-                            active ? 'text-white shadow-sm scale-105' : 'bg-slate-100 text-slate-500'
-                          }`}
-                          style={active ? { background: PRIORITY_COLORS[p] } : {}}
-                        >
-                          {p}
-                        </button>
-                      )
-                    })}
+
+                {isPipelineEnabled && (
+                  <div className="flex border-b border-slate-100">
+                    {(['ticket', 'pipeline'] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setActionTab(t)}
+                        className={`flex-1 py-2 text-[11px] font-semibold capitalize transition-colors ${
+                          actionTab === t
+                            ? 'text-slate-800 border-b-2 border-slate-700 -mb-px bg-white'
+                            : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
                   </div>
+                )}
+
+                <div className="p-4 space-y-4">
+                  {actionTab === 'ticket' ? (
+                    <>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Subject</label>
+                        <input
+                          value={subject || draft.ai_suggested_subject || ''}
+                          onChange={e => setSubject(e.target.value)}
+                          className="w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-2">Priority</label>
+                        <div className="flex gap-2 flex-wrap">
+                          {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
+                            const active = (priority || draft.ai_suggested_priority) === p
+                            return (
+                              <button
+                                key={p}
+                                onClick={() => setPriority(p)}
+                                className={`px-4 py-2 rounded-xl text-sm font-semibold capitalize transition-all ${
+                                  active ? 'text-white shadow-sm scale-105' : 'bg-slate-100 text-slate-500'
+                                }`}
+                                style={active ? { background: PRIORITY_COLORS[p] } : {}}
+                              >
+                                {p}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </>
+                  ) : (
+                    !contact ? (
+                      <p className="text-xs text-slate-400">Link a contact first to move them to a pipeline stage.</p>
+                    ) : stages.length === 0 ? (
+                      <p className="text-xs text-slate-400">No pipeline stages configured yet.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {stages.map(s => (
+                          <button
+                            key={s.id}
+                            onClick={() => setSelectedPipelineStageId(s.id)}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                              selectedPipelineStageId === s.id
+                                ? 'border-slate-700 bg-slate-50 text-slate-900 shadow-sm'
+                                : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+                            {s.name}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => selectedPipelineStageId && moveStageMutation.mutate(selectedPipelineStageId)}
+                          disabled={!selectedPipelineStageId || moveStageMutation.isPending}
+                          className="w-full py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 cursor-pointer mt-2"
+                        >
+                          {moveStageMutation.isPending ? 'Moving…' : 'Move to Stage'}
+                        </button>
+                      </div>
+                    )
+                  )}
                 </div>
               </div>
             )}
@@ -1118,76 +1195,141 @@ export default function DraftReview() {
               </>
             ) : (
               <>
+                {/* Header */}
                 <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
-                  <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Ticket</span>
-                  {aiEnabled && generateScanMutation.isPending && <span className="text-[10px] text-violet-400 animate-pulse">Generating…</span>}
-                  {aiEnabled && (scanNotRun || aiFailed) && !isProcessed && !generateScanMutation.isPending && (
+                  <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Actions</span>
+                  {actionTab === 'ticket' && aiEnabled && generateScanMutation.isPending && <span className="text-[10px] text-violet-400 animate-pulse">Generating…</span>}
+                  {actionTab === 'ticket' && aiEnabled && (scanNotRun || aiFailed) && !isProcessed && !generateScanMutation.isPending && (
                     <button onClick={() => generateScanMutation.mutate()} disabled={generateScanMutation.isPending} className="inline-flex items-center gap-1 text-[10px] font-semibold text-violet-400 hover:text-violet-600 transition-colors disabled:opacity-50 cursor-pointer">
                       <Sparkles size={9} />
                       {aiFailed ? 'Retry' : 'Generate'}
                     </button>
                   )}
                 </div>
-                <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Subject</label>
-                    <input
-                      value={subject || draft.ai_suggested_subject || ''}
-                      onChange={e => setSubject(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie transition-colors"
-                    />
+
+                {/* Tabs — only when pipeline module is active */}
+                {isPipelineEnabled && (
+                  <div className="flex shrink-0 border-b border-slate-100">
+                    {(['ticket', 'pipeline'] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setActionTab(t)}
+                        className={`flex-1 py-2 text-[11px] font-semibold capitalize transition-colors ${
+                          actionTab === t
+                            ? 'text-slate-800 border-b-2 border-slate-700 -mb-px bg-white'
+                            : 'text-slate-400 hover:text-slate-600'
+                        }`}
+                      >
+                        {t}
+                      </button>
+                    ))}
                   </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Description</label>
-                    <textarea
-                      rows={5}
-                      value={description || draft.ai_suggested_description || ''}
-                      onChange={e => setDescription(e.target.value)}
-                      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie transition-colors font-sans"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Priority</label>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
-                        const active = (priority || draft.ai_suggested_priority) === p
-                        return (
-                          <button
-                            key={p}
-                            onClick={() => setPriority(p)}
-                            className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize cursor-pointer transition-all ${
-                              active ? 'text-white shadow-sm scale-105' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                            }`}
-                            style={active ? { background: PRIORITY_COLORS[p] } : {}}
-                          >
-                            {p}
-                          </button>
-                        )
-                      })}
+                )}
+
+                {/* Tab: Ticket */}
+                {actionTab === 'ticket' && (
+                  <>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Subject</label>
+                        <input
+                          value={subject || draft.ai_suggested_subject || ''}
+                          onChange={e => setSubject(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Description</label>
+                        <textarea
+                          rows={5}
+                          value={description || draft.ai_suggested_description || ''}
+                          onChange={e => setDescription(e.target.value)}
+                          className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie transition-colors font-sans"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[11px] font-semibold text-slate-500 mb-1.5">Priority</label>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {(['low', 'medium', 'high', 'urgent'] as const).map(p => {
+                            const active = (priority || draft.ai_suggested_priority) === p
+                            return (
+                              <button
+                                key={p}
+                                onClick={() => setPriority(p)}
+                                className={`px-3 py-1 rounded-lg text-xs font-semibold capitalize cursor-pointer transition-all ${
+                                  active ? 'text-white shadow-sm scale-105' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                                }`}
+                                style={active ? { background: PRIORITY_COLORS[p] } : {}}
+                              >
+                                {p}
+                              </button>
+                            )
+                          })}
+                        </div>
+                        {draft.ai_suggested_category && (
+                          <p className="text-[11px] text-slate-400 mt-2">
+                            AI category: <strong className="text-slate-500">{draft.ai_suggested_category}</strong>
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    {draft.ai_suggested_category && (
-                      <p className="text-[11px] text-slate-400 mt-2">
-                        AI category: <strong className="text-slate-500">{draft.ai_suggested_category}</strong>
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <div className="p-3 border-t border-slate-100 shrink-0 space-y-2">
-                  <button
-                    onClick={handleApprove}
-                    disabled={reviewMutation.isPending}
-                    className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
-                  >
-                    {reviewMutation.isPending ? 'Creating…' : 'Approve & Create Ticket'}
-                  </button>
-                  <button
-                    onClick={() => reviewMutation.mutate({ action: 'reject' })}
-                    disabled={reviewMutation.isPending}
-                    className="w-full py-2 text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors cursor-pointer"
-                  >
-                    Reject
-                  </button>
-                </div>
+                    <div className="p-3 border-t border-slate-100 shrink-0 space-y-2">
+                      <button
+                        onClick={handleApprove}
+                        disabled={reviewMutation.isPending}
+                        className="w-full py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {reviewMutation.isPending ? 'Creating…' : 'Approve & Create Ticket'}
+                      </button>
+                      <button
+                        onClick={() => reviewMutation.mutate({ action: 'reject' })}
+                        disabled={reviewMutation.isPending}
+                        className="w-full py-2 text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors cursor-pointer"
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  </>
+                )}
+
+                {/* Tab: Pipeline */}
+                {actionTab === 'pipeline' && (
+                  <>
+                    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                      {!contact ? (
+                        <p className="text-xs text-slate-400">Link a contact first to move them to a pipeline stage.</p>
+                      ) : stages.length === 0 ? (
+                        <p className="text-xs text-slate-400">No pipeline stages configured yet.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {stages.map(s => (
+                            <button
+                              key={s.id}
+                              onClick={() => setSelectedPipelineStageId(s.id)}
+                              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all cursor-pointer ${
+                                selectedPipelineStageId === s.id
+                                  ? 'border-slate-700 bg-slate-50 text-slate-900 shadow-sm'
+                                  : 'border-slate-200 text-slate-600 hover:border-slate-300 hover:bg-slate-50'
+                              }`}
+                            >
+                              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+                              {s.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    <div className="p-3 border-t border-slate-100 shrink-0">
+                      <button
+                        onClick={() => selectedPipelineStageId && moveStageMutation.mutate(selectedPipelineStageId)}
+                        disabled={!selectedPipelineStageId || !contact || moveStageMutation.isPending}
+                        className="w-full py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                      >
+                        {moveStageMutation.isPending ? 'Moving…' : 'Move to Stage'}
+                      </button>
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
