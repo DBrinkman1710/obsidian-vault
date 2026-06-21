@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
-  ChevronLeft, ChevronRight, Megaphone, GripVertical,
+  ChevronLeft, ChevronRight, Network, Megaphone, GripVertical,
   type LucideIcon,
 } from 'lucide-react'
 import {
