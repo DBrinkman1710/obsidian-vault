@@ -1,8 +1,9 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, GripVertical, Loader2, Plus, Settings2, Trash2, User, X } from 'lucide-react'
-import { Link } from 'react-router-dom'
+import { CalendarClock, ExternalLink, GripVertical, Loader2, Plus, Settings2, Trash2, User, X } from 'lucide-react'
+import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
+import { useContextMenu, ContextMenu } from '../../components/ContextMenu'
 import { useAuth } from '../../auth/useAuth'
 import { useTenantConfig } from '../../App'
 import SendBookingModal from '../booking/SendBookingModal'
@@ -260,6 +261,7 @@ function ContactCard({
   stageName,
   onDragStart,
   onRemove,
+  onContextMenu,
   selectable,
   selected,
   onToggleSelect,
@@ -268,6 +270,7 @@ function ContactCard({
   stageName: string
   onDragStart: () => void
   onRemove: () => void
+  onContextMenu: (e: React.MouseEvent) => void
   selectable: boolean
   selected: boolean
   onToggleSelect: () => void
@@ -283,6 +286,7 @@ function ContactCard({
     <div
       draggable
       onDragStart={onDragStart}
+      onContextMenu={onContextMenu}
       className={`bg-white rounded-xl border px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group ${
         selected ? 'border-blue-400 ring-1 ring-blue-200' : showStaleAlert ? 'border-amber-400 ring-1 ring-amber-200' : 'border-slate-200'}`}
     >
@@ -336,10 +340,12 @@ function ContactCard({
 // ──────────────────────────────────────────────────────────────
 export default function PipelinePage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const config = useTenantConfig()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
+  const ctx = useContextMenu()
 
   const [showManage, setShowManage] = useState(false)
   const [addToStage, setAddToStage] = useState<string | null>(null)
@@ -562,6 +568,12 @@ export default function PipelinePage() {
                       }
                     }}
                     onRemove={() => removeMut.mutate(contact.contact_id)}
+                    onContextMenu={e => ctx.open(e, [
+                      { header: contact.full_name },
+                      { label: 'View contact', icon: <ExternalLink size={14} />, onClick: () => navigate(`/contacts/${contact.contact_id}`) },
+                      { separator: true },
+                      { label: 'Remove from pipeline', icon: <X size={14} />, danger: true, onClick: () => removeMut.mutate(contact.contact_id) },
+                    ])}
                   />
                 ))}
               </div>
@@ -580,6 +592,7 @@ export default function PipelinePage() {
           ))}
         </div>
       )}
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
     </>
   )
 }

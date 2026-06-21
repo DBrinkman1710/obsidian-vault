@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { useContextMenu, ContextMenu } from '../components/ContextMenu'
 import { NavLink, useLocation, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -90,23 +91,10 @@ export function Sidebar() {
 
   const [reordering, setReordering] = useState(false)
   const [localOrder, setLocalOrder] = useState<string[]>([])
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
   const [saving, setSaving] = useState(false)
+  const ctx = useContextMenu()
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
-
-  useEffect(() => {
-    if (!contextMenu) return
-    const close = () => setContextMenu(null)
-    document.addEventListener('click', close, { once: true })
-    return () => document.removeEventListener('click', close)
-  }, [contextMenu])
-
-  function handleContextMenu(e: React.MouseEvent<HTMLElement>) {
-    if (collapsed || reordering) return
-    e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY })
-  }
 
   function enterReorder() {
     setLocalOrder(resolveOrder(user?.sidebar_order, config!.enabled_modules))
@@ -287,7 +275,7 @@ export function Sidebar() {
   return (
     <>
       <aside
-        onContextMenu={handleContextMenu}
+        onContextMenu={e => { if (collapsed || reordering) return; ctx.open(e, [{ label: 'Reorder sidebar', icon: <GripVertical size={14} />, onClick: enterReorder }]) }}
         className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 transition-all duration-200 ${
           collapsed ? 'w-14' : 'w-56'
         }`}
@@ -447,21 +435,7 @@ export function Sidebar() {
         </div>
       </aside>
 
-      {/* Right-click context menu */}
-      {contextMenu && (
-        <div
-          className="fixed z-50 bg-white rounded-md border border-hairline py-1 min-w-[160px]"
-          style={{ boxShadow: 'var(--shadow-lg)', left: contextMenu.x, top: contextMenu.y }}
-        >
-          <button
-            className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-            onClick={e => { e.stopPropagation(); setContextMenu(null); enterReorder() }}
-          >
-            <GripVertical size={14} className="text-slate-400" />
-            Reorder sidebar
-          </button>
-        </div>
-      )}
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
     </>
   )
 }

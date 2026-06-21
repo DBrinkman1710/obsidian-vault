@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Ticket, Trash2, ExternalLink } from 'lucide-react'
+import { Plus, Ticket, Trash2, ArrowRight, UserPlus, Check, Archive } from 'lucide-react'
 import { api } from '../../../api/client'
 import { CardListSkeleton } from '../../../shell/Skeleton'
 import { useAuth } from '../../../auth/useAuth'
@@ -78,6 +78,17 @@ export default function TicketList() {
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => api.delete('/tickets/bulk', { data: { ids } }),
     onSuccess: () => { selection.clear(); qc.invalidateQueries({ queryKey: ['tickets'] }) },
+  })
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, status }: { id: string; status: string }) =>
+      api.patch(`/tickets/${id}/status`, { status }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
+  })
+
+  const assignMutation = useMutation({
+    mutationFn: (id: string) => api.patch(`/tickets/${id}`, { assigned_to: user?.id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
   })
 
   return (
@@ -166,8 +177,12 @@ export default function TicketList() {
               key={t.id}
               className="flex items-center gap-3"
               onContextMenu={e => ctx.open(e, [
-                { header: t.subject },
-                { label: 'Open ticket', icon: <ExternalLink size={14} />, onClick: () => navigate(`/tickets/${t.id}`) },
+                { header: t.subject.length > 32 ? t.subject.slice(0, 32) + '…' : t.subject },
+                { label: 'Open ticket', icon: <ArrowRight size={14} />, onClick: () => navigate(`/tickets/${t.id}`) },
+                { label: 'Assign to me', icon: <UserPlus size={14} />, onClick: () => assignMutation.mutate(t.id) },
+                { separator: true },
+                { label: 'Mark resolved', icon: <Check size={14} />, onClick: () => statusMutation.mutate({ id: t.id, status: 'resolved' }) },
+                { label: 'Close ticket', icon: <Archive size={14} />, onClick: () => statusMutation.mutate({ id: t.id, status: 'closed' }) },
                 { separator: true },
                 {
                   label: 'Delete',

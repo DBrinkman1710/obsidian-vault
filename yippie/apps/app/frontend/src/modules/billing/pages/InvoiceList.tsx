@@ -410,6 +410,7 @@ export default function InvoiceList() {
   const [showAdd, setShowAdd] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [rightClickId, setRightClickId] = useState<string | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
 
   const { data: invoices, isLoading } = useQuery<Invoice[]>({
@@ -537,7 +538,7 @@ export default function InvoiceList() {
                   style={{ background: selection.has(inv.id) ? 'rgba(91,164,245,0.08)' : undefined }}
                   onContextMenu={e => ctx.open(e, [
                     { header: inv.invoice_number },
-                    { label: 'Delete', icon: <Trash2 size={14} />, danger: true, onClick: () => setConfirmDelete(true) },
+                    { label: 'Delete', icon: <Trash2 size={14} />, danger: true, onClick: () => { setRightClickId(inv.id); setConfirmDelete(true) } },
                   ])}
                 >
                   <td className="px-4 py-3">
@@ -572,7 +573,7 @@ export default function InvoiceList() {
       <ContextMenu state={ctx.state} onClose={ctx.close} />
       {showAdd && <AddInvoiceModal onClose={() => setShowAdd(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
-      {confirmDelete && <DeleteModal ids={[...selection.sel]} onClose={() => { setConfirmDelete(false); selection.clear() }} />}
+      {confirmDelete && <DeleteModal ids={rightClickId ? [rightClickId] : [...selection.sel]} onClose={() => { setConfirmDelete(false); setRightClickId(null); selection.clear() }} />}
     </div>
   )
 }

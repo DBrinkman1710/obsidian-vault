@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, Plus, User, ChevronLeft, Upload, Download, Trash2, X, ExternalLink } from 'lucide-react'
+import { Search, Plus, User, ChevronLeft, Upload, Download, Trash2, X, Mail } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { TableSkeleton } from '../../../shell/Skeleton'
@@ -277,8 +277,10 @@ export default function ContactList() {
                   style={{ background: selection.has(c.id) ? 'rgba(91,164,245,0.08)' : undefined }}
                   onContextMenu={e => ctx.open(e, [
                     { header: c.full_name },
-                    { label: 'View contact', icon: <ExternalLink size={14} />, onClick: () => navigate(`/contacts/${c.id}`) },
+                    { label: 'View contact', icon: <User size={14} />, onClick: () => navigate(`/contacts/${c.id}`) },
+                    ...(c.email ? [{ label: 'Send email', icon: <Mail size={14} />, onClick: () => window.open(`mailto:${c.email}`) }] : []),
                     { separator: true },
+                    { label: 'Export', icon: <Download size={14} />, onClick: () => exportContacts([c.id]) },
                     {
                       label: 'Delete',
                       icon: <Trash2 size={14} />,

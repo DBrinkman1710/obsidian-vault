@@ -1,9 +1,10 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import GrapesEditor, { GrapesEditorHandle, type PipelineStage, type CampaignButton } from '../../admin/components/GrapesEditor'
-import { FileText, Loader2, Megaphone, Plus, Trash2, X } from 'lucide-react'
+import { FileText, Loader2, Megaphone, Pencil, Plus, Trash2, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { fetchLabels, type ContactLabel } from '../../contacts/components/LabelChip'
+import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 
 interface Campaign {
   id: string
@@ -35,6 +36,7 @@ export default function MarketingPage() {
   const qc = useQueryClient()
   const editorRef = useRef<GrapesEditorHandle>(null)
   const pendingDesignRef = useRef<string | null | undefined>(undefined)
+  const ctx = useContextMenu()
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isNew, setIsNew] = useState(false)
@@ -214,6 +216,12 @@ export default function MarketingPage() {
                     : 'border-transparent hover:bg-slate-50'
                 }`}
                 onClick={() => openCampaign(c)}
+                onContextMenu={e => ctx.open(e, [
+                  { header: c.name },
+                  { label: 'Edit campaign', icon: <Pencil size={14} />, onClick: () => openCampaign(c) },
+                  { separator: true },
+                  { label: 'Delete', icon: <Trash2 size={14} />, danger: true, onClick: () => { if (confirm(`Delete "${c.name}"?`)) deleteMutation.mutate(c.id) } },
+                ])}
               >
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-semibold truncate ${c.id === selectedId ? 'text-blue-700' : 'text-slate-800'}`}>
@@ -301,6 +309,7 @@ export default function MarketingPage() {
           </div>
         </div>
       </div>
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
     </>
   )
 }

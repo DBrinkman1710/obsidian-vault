@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, CheckCheck, ChevronDown, Megaphone, MessageSquare, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2 } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, Megaphone, MessageSquare, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2 } from 'lucide-react'
 import { api } from '../../../api/client'
 import { Checkbox, BulkBar } from '../../../components/Selection'
+import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { useAuth } from '../../../auth/useAuth'
 import { useMobile } from '../../../shell/useMobile'
 import { useTenantConfig } from '../../../App'
@@ -46,65 +47,6 @@ function MsgStatusTick({ status }: { status?: string }) {
   return null
 }
 
-// Context menu for right-click on session rows
-function SessionContextMenu({
-  x,
-  y,
-  session,
-  onClose,
-  onAction,
-}: {
-  x: number
-  y: number
-  session: any
-  onClose: () => void
-  onAction: (action: 'close' | 'reopen' | 'delete', session: any) => void
-}) {
-  useEffect(() => {
-    function handler(e: MouseEvent | KeyboardEvent) {
-      if (e instanceof KeyboardEvent && e.key !== 'Escape') return
-      onClose()
-    }
-    window.addEventListener('mousedown', handler)
-    window.addEventListener('keydown', handler)
-    return () => {
-      window.removeEventListener('mousedown', handler)
-      window.removeEventListener('keydown', handler)
-    }
-  }, [onClose])
-
-  return (
-    <div
-      className="fixed z-50 bg-white border border-slate-200 rounded-xl shadow-lg py-1 min-w-[160px]"
-      style={{ top: y, left: x }}
-      onMouseDown={e => e.stopPropagation()}
-    >
-      {session.status !== 'solved' && (
-        <button
-          onClick={() => { onAction('close', session); onClose() }}
-          className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-        >
-          Close session
-        </button>
-      )}
-      {session.status === 'solved' && (
-        <button
-          onClick={() => { onAction('reopen', session); onClose() }}
-          className="w-full text-left px-4 py-2 text-sm text-slate-700 hover:bg-slate-50"
-        >
-          Reopen session
-        </button>
-      )}
-      <button
-        onClick={() => { onAction('delete', session); onClose() }}
-        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50"
-      >
-        Delete
-      </button>
-    </div>
-  )
-}
-
 export default function ChatPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -135,8 +77,7 @@ export default function ChatPage() {
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set())
   const [hoveredSessionId, setHoveredSessionId] = useState<string | null>(null)
 
-  // Context menu state
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; session: any } | null>(null)
+  const ctx = useContextMenu()
 
   // Messages state (for local msg_status updates)
   const [localMsgStatuses, setLocalMsgStatuses] = useState<Record<string, string>>({})
@@ -394,24 +335,6 @@ export default function ChatPage() {
     setShowCannedPicker(false)
   }
 
-  function handleContextMenu(e: React.MouseEvent, session: any) {
-    e.preventDefault()
-    setContextMenu({ x: e.clientX, y: e.clientY, session })
-  }
-
-  function handleContextMenuAction(action: 'close' | 'reopen' | 'delete', session: any) {
-    if (action === 'close') {
-      statusMutation.mutate({ sessionId: session.id, status: 'solved' })
-    } else if (action === 'reopen') {
-      statusMutation.mutate({ sessionId: session.id, status: 'open' })
-    } else if (action === 'delete') {
-      if (window.confirm('Delete this session and all its messages? This cannot be undone.')) {
-        bulkMutation.mutate({ action: 'delete', session_ids: [session.id] })
-        if (selectedId === session.id) setSelectedId(null)
-      }
-    }
-  }
-
   function toggleSessionSelection(e: React.MouseEvent, sessionId: string) {
     e.stopPropagation()
     setSelectedSessions(prev => {
@@ -593,7 +516,26 @@ export default function ChatPage() {
                   className="relative"
                   onMouseEnter={() => setHoveredSessionId(s.id)}
                   onMouseLeave={() => setHoveredSessionId(null)}
-                  onContextMenu={e => handleContextMenu(e, s)}
+                  onContextMenu={e => ctx.open(e, [
+                    { header: s.contact_name ?? s.visitor_name ?? s.whatsapp_phone ?? 'Session' },
+                    { label: 'Open conversation', icon: <ArrowRight size={14} />, onClick: () => setSelectedId(s.id) },
+                    ...(s.status !== 'solved'
+                      ? [{ label: 'Mark resolved', icon: <Check size={14} />, onClick: () => statusMutation.mutate({ sessionId: s.id, status: 'solved' }) }]
+                      : [{ label: 'Reopen', icon: <ArrowRight size={14} />, onClick: () => statusMutation.mutate({ sessionId: s.id, status: 'open' }) }]
+                    ),
+                    { separator: true },
+                    {
+                      label: 'Delete',
+                      icon: <Trash2 size={14} />,
+                      danger: true,
+                      onClick: () => {
+                        if (window.confirm('Delete this session and all its messages? This cannot be undone.')) {
+                          bulkMutation.mutate({ action: 'delete', session_ids: [s.id] })
+                          if (selectedId === s.id) setSelectedId(null)
+                        }
+                      },
+                    },
+                  ])}
                 >
                   {showCheckbox && (
                     <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
@@ -955,15 +897,7 @@ export default function ChatPage() {
       {historyViewId && (
         <HistoryViewModal sessionId={historyViewId} onClose={() => setHistoryViewId(null)} />
       )}
-      {contextMenu && (
-        <SessionContextMenu
-          x={contextMenu.x}
-          y={contextMenu.y}
-          session={contextMenu.session}
-          onClose={() => setContextMenu(null)}
-          onAction={handleContextMenuAction}
-        />
-      )}
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
     </>
   )
 

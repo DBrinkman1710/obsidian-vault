@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown, ExternalLink } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown, Check, XCircle } from 'lucide-react'
 import { api } from '../../../api/client'
 import { Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
@@ -994,6 +994,22 @@ export default function InboxQueue() {
     },
   })
 
+  const reviewMutation = useMutation({
+    mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' }) =>
+      api.post(`/inbox/drafts/${id}/review`, { action }).then(r => r.data),
+    onMutate: async ({ id }) => {
+      const key = draftKey('pending')
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData(key)
+      qc.setQueryData(key, (old: any) => (old ?? []).filter((d: any) => d.id !== id))
+      return { prev, key }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(ctx.key, ctx.prev)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drafts'] }),
+  })
+
   function toggleSelect(id: string) {
     setSelected(prev => {
       const next = new Set(prev)
@@ -1420,11 +1436,11 @@ export default function InboxQueue() {
                       boxShadow: isFocused ? 'var(--ring-brand)' : 'var(--shadow-sm)',
                     }}
                     onContextMenu={e => ctx.open(e, [
-                      { header: d.ai_suggested_subject },
-                      { label: 'Review draft', icon: <ExternalLink size={14} />, onClick: () => navigate(`/inbox/drafts/${d.id}`) },
+                      { header: d.sender_name || d.sender },
+                      { label: 'Review draft', icon: <ArrowRight size={14} />, onClick: () => navigate(`/inbox/drafts/${d.id}`) },
+                      { label: 'Approve & create ticket', icon: <Check size={14} />, onClick: () => reviewMutation.mutate({ id: d.id, action: 'approve' }) },
                       { separator: true },
-                      { label: 'Move to Bin', icon: <Trash2 size={14} />, danger: true, onClick: () => bulkMutation.mutate({ ids: [d.id], action: 'bin' }) },
-                      { label: 'Mark as Spam', icon: <AlertOctagon size={14} />, danger: true, onClick: () => bulkMutation.mutate({ ids: [d.id], action: 'spam' }) },
+                      { label: 'Reject', icon: <XCircle size={14} />, danger: true, onClick: () => reviewMutation.mutate({ id: d.id, action: 'reject' }) },
                     ])}
                   >
                     {/* Checkbox */}
