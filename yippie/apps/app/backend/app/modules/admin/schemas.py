@@ -74,6 +74,7 @@ class TenantUserOut(BaseModel):
     full_name: str
     role: str
     is_active: bool
+    last_login_at: Optional[datetime] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

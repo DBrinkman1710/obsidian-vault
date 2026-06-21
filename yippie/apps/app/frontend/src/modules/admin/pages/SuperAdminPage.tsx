@@ -25,6 +25,15 @@ const PLAN_AI_LIMITS: Record<string, number | null> = {
   founder: 500, starter: 2_000, growth: 10_000, pro: null, enterprise: null,
 }
 
+// Per-plan badge color — distinct pill colors so plan distribution is visible at a glance.
+const PLAN_BADGE: Record<string, string> = {
+  founder:    'bg-violet-100 text-violet-700',
+  starter:    'bg-sky-100 text-sky-700',
+  growth:     'bg-emerald-100 text-emerald-700',
+  pro:        'bg-amber-100 text-amber-700',
+  enterprise: 'bg-slate-200 text-slate-700',
+}
+
 type FilterStatus = 'all' | 'active' | 'demo' | 'inactive'
 
 interface Tenant {
@@ -56,6 +65,7 @@ interface TenantUser {
   full_name: string
   role: string
   is_active: boolean
+  last_login_at: string | null
   created_at: string
 }
 
@@ -149,19 +159,20 @@ function DonutChart({ used, limit }: { used: number; limit: number | null }) {
     )
   }
   const pct = Math.min(used / Math.max(limit, 1), 1)
-  const r = 9, cx = 12, cy = 12
+  // neutral below 75 %, orange 75–99 %, red at 100 %
+  const stroke = pct >= 1 ? '#ef4444' : pct >= 0.75 ? '#f59e0b' : '#3b82f6'
+  const r = 14, cx = 20, cy = 20
   const circ = 2 * Math.PI * r
   const dash = pct * circ
-  const stroke = pct > 0.9 ? '#ef4444' : pct > 0.7 ? '#f59e0b' : '#3b82f6'
   return (
     <div className="flex flex-col items-center gap-0.5" title={`${used} / ${limit} AI scans this month`}>
-      <svg width={24} height={24} viewBox="0 0 24 24">
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth={3} />
+      <svg width={40} height={40} viewBox="0 0 40 40">
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth={4} />
         <circle
-          cx={cx} cy={cy} r={r} fill="none" stroke={stroke} strokeWidth={3}
+          cx={cx} cy={cy} r={r} fill="none" stroke={stroke} strokeWidth={4}
           strokeDasharray={`${dash} ${circ}`}
           strokeLinecap="round"
-          transform="rotate(-90 12 12)"
+          transform="rotate(-90 20 20)"
         />
       </svg>
       <span className="text-[9px] text-slate-400 tabular-nums leading-none">{used}/{limit}</span>
@@ -1138,6 +1149,77 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
 }
 
 
+function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const { data, isLoading } = useQuery<TenantUser[]>({
+    queryKey: ['tenant-users', tenant.id],
+    queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then(r => r.data),
+  })
+
+  function fmtLastActive(val: string | null): string {
+    if (!val) return '—'
+    const d = new Date(val)
+    const diff = Date.now() - d.getTime()
+    const mins = Math.floor(diff / 60_000)
+    if (mins < 2) return 'Just now'
+    if (mins < 60) return `${mins}m ago`
+    const hrs = Math.floor(mins / 60)
+    if (hrs < 24) return `${hrs}h ago`
+    const days = Math.floor(hrs / 24)
+    if (days < 7) return `${days}d ago`
+    return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">Users</h2>
+            <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-6">
+          {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+          {!isLoading && (!data || data.length === 0) && (
+            <p className="text-sm text-slate-400">No users yet.</p>
+          )}
+          {data && data.length > 0 && (
+            <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
+              <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 px-4 py-2 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
+                <span>Name / Email</span>
+                <span>Role</span>
+                <span>Last active</span>
+                <span>Status</span>
+              </div>
+              {data.map(u => (
+                <div key={u.id} className={`grid grid-cols-[1fr_auto_auto_auto] gap-x-4 items-center px-4 py-3 ${!u.is_active ? 'opacity-50' : ''}`}>
+                  <div className="min-w-0">
+                    <div className="text-sm font-medium text-slate-900 truncate">{u.full_name}</div>
+                    <div className="text-xs text-slate-400 truncate">{u.email}</div>
+                  </div>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${ROLE_STYLES[u.role] ?? ROLE_STYLES.viewer}`}>{u.role}</span>
+                  <span className="text-xs text-slate-400 tabular-nums shrink-0">{fmtLastActive(u.last_login_at)}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
+                    {u.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          <div className="flex justify-end mt-4">
+            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function ResendDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
   const [copied, setCopied] = useState(false)
@@ -1383,6 +1465,7 @@ export default function SuperAdminPage() {
   const [editingTab, setEditingTab] = useState<EditTab | undefined>(undefined)
   const [deletingTenant, setDeletingTenant] = useState<Tenant | null>(null)
   const [bulkDeletingTenants, setBulkDeletingTenants] = useState<Tenant[] | null>(null)
+  const [viewingUsersTenant, setViewingUsersTenant] = useState<Tenant | null>(null)
   const [filter, setFilter] = useState<FilterStatus>('all')
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [pageTab, setPageTab] = useState<'dashboard' | 'clients'>('clients')
@@ -1684,7 +1767,7 @@ export default function SuperAdminPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className="px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 capitalize">{planLabel(t.plan)}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${PLAN_BADGE[t.plan] ?? 'bg-slate-100 text-slate-600'}`}>{planLabel(t.plan)}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <DonutChart
@@ -1702,8 +1785,9 @@ export default function SuperAdminPage() {
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => { setEditingTenant(t); setEditingTab('users') }}
+                        onClick={() => setViewingUsersTenant(t)}
                         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 transition-colors"
+                        title="View users"
                       >
                         <Users size={13} />
                         {t.user_count}
@@ -1746,6 +1830,9 @@ export default function SuperAdminPage() {
       </>)}
 
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}
+      {viewingUsersTenant && (
+        <TenantUsersModal tenant={viewingUsersTenant} onClose={() => setViewingUsersTenant(null)} />
+      )}
       {editingTenant && (
         <EditClientModal
           tenant={editingTenant}
