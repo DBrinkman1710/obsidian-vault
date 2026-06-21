@@ -205,6 +205,19 @@ async def get_draft(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
     return ctx
 
 
+@router.patch("/drafts/{draft_id}/assign", response_model=DraftTicketOut)
+async def assign_draft(draft_id: uuid.UUID, body: dict, current_user: CurrentUser, db: DB):
+    """Assign (or unassign) a draft to a team member without changing review status."""
+    draft = await service.get_draft(db, current_user.tenant_id, draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    assigned_to = body.get("assigned_to")
+    draft.assigned_to = uuid.UUID(assigned_to) if assigned_to else None
+    await db.commit()
+    await db.refresh(draft)
+    return draft
+
+
 @router.post("/drafts/{draft_id}/review", response_model=DraftTicketOut)
 async def review_draft(draft_id: uuid.UUID, body: DraftReview, current_user: CurrentUser, db: DB):
     if body.action not in ("approve", "reject"):

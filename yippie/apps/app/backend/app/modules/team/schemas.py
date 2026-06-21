@@ -7,6 +7,14 @@ from typing import Optional
 from pydantic import BaseModel, EmailStr
 
 
+class TeamMemberOut(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: str
+
+    model_config = {"from_attributes": True}
+
+
 class TeamUserOut(BaseModel):
     id: uuid.UUID
     email: str

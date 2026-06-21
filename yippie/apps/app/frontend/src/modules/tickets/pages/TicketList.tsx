@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Ticket, Trash2, UserPlus, Check, Archive, GitMerge } from 'lucide-react'
+import { Plus, Ticket, Trash2, UserPlus, Check, Archive, GitMerge, User } from 'lucide-react'
 import { api } from '../../../api/client'
 import { CardListSkeleton } from '../../../shell/Skeleton'
 import { useAuth } from '../../../auth/useAuth'
@@ -90,8 +90,15 @@ export default function TicketList() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
   })
 
+  const { data: teamMembers = [] } = useQuery({
+    queryKey: ['team-members', 'tickets'],
+    queryFn: () => api.get('/team/members', { params: { module: 'tickets' } }).then(r => r.data as { id: string; full_name: string; email: string }[]),
+    staleTime: 60_000,
+  })
+
   const assignMutation = useMutation({
-    mutationFn: (id: string) => api.patch(`/tickets/${id}`, { assigned_to: user?.id }),
+    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+      api.patch(`/tickets/${id}`, { assigned_to: userId }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
   })
 
@@ -227,7 +234,15 @@ export default function TicketList() {
               onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)' }}
               onContextMenu={e => ctx.open(e, [
                 { header: t.subject.length > 32 ? t.subject.slice(0, 32) + '…' : t.subject },
-                { label: 'Assign to me', icon: <UserPlus size={14} />, onClick: () => assignMutation.mutate(t.id) },
+                { label: 'Assign to me', icon: <UserPlus size={14} />, onClick: () => assignMutation.mutate({ id: t.id, userId: user!.id }) },
+                {
+                  label: 'Assign to…',
+                  icon: <User size={14} />,
+                  submenu: teamMembers.map(m => ({
+                    label: m.full_name,
+                    onClick: () => assignMutation.mutate({ id: t.id, userId: m.id }),
+                  })),
+                },
                 { separator: true },
                 { label: 'Mark resolved', icon: <Check size={14} />, onClick: () => statusMutation.mutate({ id: t.id, status: 'resolved' }) },
                 { label: 'Close ticket', icon: <Archive size={14} />, onClick: () => statusMutation.mutate({ id: t.id, status: 'closed' }) },

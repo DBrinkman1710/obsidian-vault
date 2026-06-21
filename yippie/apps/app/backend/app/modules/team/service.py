@@ -17,7 +17,36 @@ async def list_users(db: AsyncSession, tenant_id: uuid.UUID) -> list[User]:
     result = await db.execute(
         select(User).where(User.tenant_id == tenant_id).order_by(User.created_at)
     )
-    return result.scalars().all()
+    return list(result.scalars().all())
+
+
+async def list_assignable_users(db: AsyncSession, tenant_id: uuid.UUID, module: str) -> list[User]:
+    """Return active users who have at least view-level access to the given module.
+
+    Admins/superadmins always qualify. For other roles, check the RBAC matrix —
+    users explicitly restricted at user, dept, or role level are excluded.
+    The default when no matrix entry exists is 'full', so most users qualify.
+    """
+    from app.core.models import AccessLevel
+    from app.modules.rbac.service import resolve_module_access
+
+    result = await db.execute(
+        select(User).where(
+            User.tenant_id == tenant_id,
+            User.is_active.is_(True),
+        ).order_by(User.full_name)
+    )
+    all_users = list(result.scalars().all())
+
+    assignable = []
+    for user in all_users:
+        if user.role in (UserRole.admin, UserRole.superadmin):
+            assignable.append(user)
+            continue
+        level = await resolve_module_access(db, user, module)
+        if level != AccessLevel.restricted:
+            assignable.append(user)
+    return assignable
 
 
 async def invite_user(

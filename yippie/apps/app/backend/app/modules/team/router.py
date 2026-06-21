@@ -1,12 +1,12 @@
 from __future__ import annotations
 
 import uuid
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import AdminUser
+from app.auth.dependencies import AdminUser, CurrentUser
 from app.core.mailer import ResendNotConfiguredError
 from app.database import get_db
 from app.modules.team import schemas, service
@@ -14,6 +14,17 @@ from app.modules.team import schemas, service
 router = APIRouter(prefix="/team", tags=["team"])
 
 DB = Annotated[AsyncSession, Depends(get_db)]
+
+
+@router.get("/members", response_model=list[schemas.TeamMemberOut])
+async def list_team_members(current_user: CurrentUser, db: DB, module: Optional[str] = None):
+    """Lightweight member list available to all authenticated users (for assignment dropdowns).
+
+    Pass ?module=tickets or ?module=inbox to filter to users who have access to that module.
+    """
+    if module:
+        return await service.list_assignable_users(db, current_user.tenant_id, module)
+    return await service.list_users(db, current_user.tenant_id)
 
 
 @router.get("/users", response_model=list[schemas.TeamUserOut])

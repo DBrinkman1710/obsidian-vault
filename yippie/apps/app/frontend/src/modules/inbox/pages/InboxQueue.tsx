@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown, Check, XCircle } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown, Check, XCircle, UserPlus, User } from 'lucide-react'
 import { api } from '../../../api/client'
 import { Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
@@ -1010,6 +1010,18 @@ export default function InboxQueue() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['drafts'] }),
   })
 
+  const { data: inboxTeamMembers = [] } = useQuery({
+    queryKey: ['team-members', 'inbox'],
+    queryFn: () => api.get('/team/members', { params: { module: 'inbox' } }).then(r => r.data as { id: string; full_name: string; email: string }[]),
+    staleTime: 60_000,
+  })
+
+  const assignDraftMutation = useMutation({
+    mutationFn: ({ id, userId }: { id: string; userId: string }) =>
+      api.patch(`/inbox/drafts/${id}/assign`, { assigned_to: userId }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drafts'] }),
+  })
+
   function toggleSelect(id: string) {
     setSelected(prev => {
       const next = new Set(prev)
@@ -1437,6 +1449,16 @@ export default function InboxQueue() {
                     }}
                     onContextMenu={e => ctx.open(e, [
                       { header: d.sender_name || d.sender },
+                      { label: 'Assign to me', icon: <UserPlus size={14} />, onClick: () => assignDraftMutation.mutate({ id: d.id, userId: user!.id }) },
+                      {
+                        label: 'Assign to…',
+                        icon: <User size={14} />,
+                        submenu: inboxTeamMembers.map(m => ({
+                          label: m.full_name,
+                          onClick: () => assignDraftMutation.mutate({ id: d.id, userId: m.id }),
+                        })),
+                      },
+                      { separator: true },
                       { label: 'Approve & create ticket', icon: <Check size={14} />, onClick: () => reviewMutation.mutate({ id: d.id, action: 'approve' }) },
                       { separator: true },
                       { label: 'Reject', icon: <XCircle size={14} />, danger: true, onClick: () => reviewMutation.mutate({ id: d.id, action: 'reject' }) },
