@@ -1431,12 +1431,6 @@ export default function SuperAdminPage() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
   })
 
-  const toggleDemoMutation = useMutation({
-    mutationFn: ({ id, is_demo }: { id: string; is_demo: boolean }) =>
-      api.patch(`/admin/tenants/${id}`, { is_demo }).then(r => r.data),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
-  })
-
   const goLiveMutation = useMutation({
     mutationFn: (id: string) =>
       api.patch(`/admin/tenants/${id}`, { is_demo: false, go_live_at: new Date().toISOString() }).then(r => r.data),

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown, UserCheck } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
@@ -1044,6 +1044,22 @@ export default function InboxQueue() {
                 </button>
               ))}
             </div>
+            {/* Personal work inbox toggle — only visible in shared mailbox, all-dept view */}
+            {mailbox === 'shared' && !deptId && (
+              <button
+                onClick={() => togglePersonalInbox.mutate(!personalInboxPref)}
+                disabled={togglePersonalInbox.isPending}
+                className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50 ${
+                  personalInboxPref
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+                title="Only show items assigned to me"
+              >
+                <UserCheck size={13} />
+                My work
+              </button>
+            )}
             {/* Per-department shared inboxes — one tab per department the user belongs to. */}
             {(myDepts ?? []).length > 0 && (
               <div className="flex items-center gap-1.5">
