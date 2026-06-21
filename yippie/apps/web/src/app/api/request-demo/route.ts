@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, company_name, email } = body as Record<string, unknown>;
+  const { name, company_name, email, questionnaire } = body as Record<string, unknown>;
 
   if (
     typeof name !== "string" || !name.trim() ||
@@ -20,16 +20,21 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "name, company_name, and email are required." }, { status: 400 });
   }
 
+  const payload: Record<string, unknown> = {
+    name: name.trim(),
+    company_name: company_name.trim(),
+    email: email.trim(),
+  };
+  if (questionnaire && typeof questionnaire === "object") {
+    payload.questionnaire = questionnaire;
+  }
+
   let upstream: Response;
   try {
     upstream = await fetch(`${APP_URL}/api/v1/public/request-demo`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: name.trim(),
-        company_name: company_name.trim(),
-        email: email.trim(),
-      }),
+      body: JSON.stringify(payload),
     });
   } catch {
     return NextResponse.json({ error: "Service temporarily unavailable. Please try again." }, { status: 502 });

@@ -63,11 +63,20 @@ async def get_public_stats(db: Annotated[AsyncSession, Depends(get_db)]) -> dict
     }
 
 
+class Questionnaire(BaseModel):
+    team_size: Optional[str] = None
+    industry: Optional[str] = None
+    current_tools: Optional[list[str]] = None
+    pain_points: Optional[list[str]] = None
+    recommended_modules: Optional[list[str]] = None  # what was shown to user
+
+
 class RequestDemo(BaseModel):
     name: str = Field(min_length=1)
     company_name: str = Field(min_length=1)
     email: EmailStr
     slug: Optional[str] = None
+    questionnaire: Optional[Questionnaire] = None
 
 
 def _slugify(value: str) -> str:
@@ -307,15 +316,33 @@ async def request_demo(
     stage = await _ensure_demo_pipeline_stage(db, root_tenant_id)
     await _assign_stage(db, root_tenant_id, contact.id, stage.id)
 
+    q = body.questionnaire
+    q_lines = []
+    if q:
+        if q.team_size:
+            q_lines.append(f"Team size: {q.team_size}")
+        if q.industry:
+            q_lines.append(f"Industry: {q.industry}")
+        if q.current_tools:
+            q_lines.append(f"Current tools: {', '.join(q.current_tools)}")
+        if q.pain_points:
+            q_lines.append(f"Pain points: {', '.join(q.pain_points)}")
+        if q.recommended_modules:
+            q_lines.append(f"Modules recommended: {', '.join(q.recommended_modules)}")
+
+    description = (
+        f"Demo requested by {body.name.strip()} ({email}). "
+        f"Tenant slug: {slug}. Follow up within 3 days."
+    )
+    if q_lines:
+        description += "\n\nQuestionnaire answers:\n" + "\n".join(f"- {line}" for line in q_lines)
+
     now = datetime.now(timezone.utc)
     db.add(Ticket(
         tenant_id=root_tenant_id,
         contact_id=contact.id,
         subject=f"Follow up: {body.company_name.strip()} demo",
-        description=(
-            f"Demo requested by {body.name.strip()} ({email}). "
-            f"Tenant slug: {slug}. Follow up within 3 days."
-        ),
+        description=description,
         status=TicketStatus.open,
         priority=TicketPriority.medium,
         source=MessageSource.manual,

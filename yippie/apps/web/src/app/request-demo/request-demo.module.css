@@ -17,6 +17,193 @@
   padding: 44px 40px;
 }
 
+/* ── Step indicator ──────────────────────────────── */
+.steps {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.stepDot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  background: var(--off-white);
+  border: 1px solid var(--border);
+  color: var(--faint);
+  padding: 0;
+  transition: all 0.18s;
+}
+
+.stepDotActive {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.stepDotDone {
+  background: var(--brand-soft);
+  border-color: var(--brand-ring);
+  color: var(--brand-700);
+  cursor: pointer;
+}
+
+.stepLine {
+  width: 48px;
+  height: 2px;
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.stepLineActive {
+  background: var(--brand-ring);
+}
+
+.stepHint {
+  text-align: center;
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 26px;
+}
+
+/* ── Questionnaire ───────────────────────────────── */
+.question {
+  margin-bottom: 22px;
+}
+
+.qLabel {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 10px;
+}
+
+.qHint {
+  font-weight: 400;
+  font-size: 12px;
+  color: var(--faint);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.chip {
+  padding: 8px 14px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--off-white);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.16s;
+  line-height: 1;
+}
+
+.chip:hover:not(:disabled) {
+  border-color: var(--brand-ring);
+  background: var(--brand-soft);
+}
+
+.chipActive {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+}
+
+.chipActive:hover:not(:disabled) {
+  background: var(--brand-600);
+  border-color: var(--brand-600);
+}
+
+.chip:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* ── Recommendation card ─────────────────────────── */
+.recCard {
+  background: linear-gradient(180deg, var(--brand-soft) 0%, var(--off-white) 100%);
+  border: 1px solid var(--brand-ring);
+  border-radius: var(--r-md);
+  padding: 18px 18px 20px;
+  margin-bottom: 28px;
+}
+
+.recLabel {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-700);
+  margin-bottom: 14px;
+}
+
+.recList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recBadge {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.recIcon {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--r-sm);
+  background: var(--brand-soft);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.recText {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.recName {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.recDesc {
+  font-size: 12.5px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
 /* ── Field group ─────────────────────────────────── */
 .fieldGroup {
   display: flex;
