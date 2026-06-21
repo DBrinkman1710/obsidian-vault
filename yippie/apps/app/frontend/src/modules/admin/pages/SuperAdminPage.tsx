@@ -1720,15 +1720,6 @@ export default function SuperAdminPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        {status === 'active' && !own && (
-                          <button
-                            onClick={() => toggleDemoMutation.mutate({ id: t.id, is_demo: true })}
-                            disabled={toggleDemoMutation.isPending}
-                            className="px-3 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-                          >
-                            Set demo
-                          </button>
-                        )}
                         {t.is_active && !own && (
                           <button
                             onClick={() => impersonateMutation.mutate(t.id)}

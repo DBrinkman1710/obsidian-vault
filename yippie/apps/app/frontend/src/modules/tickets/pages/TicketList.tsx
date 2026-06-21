@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, MessageSquare, Ticket, Trash2, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { CardListSkeleton } from '../../../shell/Skeleton'
+import { useAuth } from '../../../auth/useAuth'
 
 const STATUS_STYLES: Record<string, string> = {
   open:        'bg-blue-100 text-blue-700',
@@ -41,12 +42,19 @@ function timeAgo(dateStr: string): string {
 
 export default function TicketList() {
   const qc = useQueryClient()
+  const { user } = useAuth()
   const [statusFilter, setStatusFilter] = useState('')
+  const [assignedToMe, setAssignedToMe] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
 
   const { data, isLoading } = useQuery({
-    queryKey: ['tickets', statusFilter],
-    queryFn: () => api.get('/tickets', { params: { status: statusFilter || undefined } }).then(r => r.data),
+    queryKey: ['tickets', statusFilter, assignedToMe],
+    queryFn: () => api.get('/tickets', {
+      params: {
+        status: statusFilter || undefined,
+        assigned_to: assignedToMe && user?.id ? user.id : undefined,
+      },
+    }).then(r => r.data),
   })
 
   const items: any[] = data?.items ?? []
@@ -78,18 +86,31 @@ export default function TicketList() {
         </Link>
       </div>
 
-      <select
-        value={statusFilter}
-        onChange={e => setStatusFilter(e.target.value)}
-        className="mb-5 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-      >
-        <option value="">All statuses</option>
-        <option value="open">Open</option>
-        <option value="in_progress">In progress</option>
-        <option value="waiting">Waiting for customer</option>
-        <option value="resolved">Resolved</option>
-        <option value="closed">Closed</option>
-      </select>
+      <div className="flex items-center gap-3 mb-5">
+        <select
+          value={statusFilter}
+          onChange={e => setStatusFilter(e.target.value)}
+          className="px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">All statuses</option>
+          <option value="open">Open</option>
+          <option value="in_progress">In progress</option>
+          <option value="waiting">Waiting for customer</option>
+          <option value="resolved">Resolved</option>
+          <option value="closed">Closed</option>
+        </select>
+        <button
+          type="button"
+          onClick={() => setAssignedToMe(v => !v)}
+          className={`px-3 py-2 rounded-lg text-sm font-semibold border transition-colors ${
+            assignedToMe
+              ? 'bg-blue-50 border-blue-200 text-blue-700'
+              : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
+          }`}
+        >
+          Assigned to me
+        </button>
+      </div>
 
       {selected.size > 0 && (
         <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">

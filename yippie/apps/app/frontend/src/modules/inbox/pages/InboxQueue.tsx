@@ -1110,21 +1110,6 @@ export default function InboxQueue() {
               </button>
             )}
           </div>
-          {/* Personal work inbox — persisted preference; shows only your assigned tickets by default. */}
-          <button
-            type="button"
-            disabled={togglePersonalInbox.isPending}
-            onClick={() => togglePersonalInbox.mutate(!personalInboxPref)}
-            className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold border transition-colors ${
-              personalInboxPref
-                ? 'bg-blue-50 border-blue-200 text-blue-700'
-                : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-50'
-            }`}
-            title="Default your inbox to only tickets assigned to you"
-          >
-            <Mail size={13} />
-            Personal work inbox
-          </button>
           <div className="ml-auto">
             <TemplatePicker
               direction="down"
