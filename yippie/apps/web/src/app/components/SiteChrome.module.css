@@ -221,6 +221,11 @@
   .navLinks, .navRight { display: none; }
   .burger { display: flex; }
   .footerInner { grid-template-columns: 1fr; gap: 36px; }
+
+  /* Solid backgrounds on mobile — backdrop-filter is unreliable on iOS/Android */
+  .nav { background: #fff; }
+  .navScrolled { background: #fff; }
+  .mobileSheet { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
 }
 
 @media (max-width: 540px) {
