@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, ExternalLink, GripVertical, Loader2, Plus, Settings2, Trash2, User, X } from 'lucide-react'
+import { ArrowRight, CalendarClock, ExternalLink, GripVertical, Loader2, Plus, Settings2, Trash2, User, X } from 'lucide-react'
 import { Link, useNavigate } from 'react-router-dom'
 import { api } from '../../api/client'
 import { useContextMenu, ContextMenu } from '../../components/ContextMenu'
@@ -351,6 +351,7 @@ export default function PipelinePage() {
   const [addToStage, setAddToStage] = useState<string | null>(null)
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set())
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [singleBooking, setSingleBooking] = useState<{ id: string; full_name: string } | null>(null)
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null)
   const dragContactRef = useRef<{ contactId: string; fromStageId: string } | null>(null)
 
@@ -455,6 +456,14 @@ export default function PipelinePage() {
           bulk
           open={bookingOpen}
           onClose={() => { setBookingOpen(false); clearSelection() }}
+        />
+      )}
+      {bookingEnabled && singleBooking && (
+        <SendBookingModal
+          contacts={[singleBooking]}
+          bulk={false}
+          open
+          onClose={() => setSingleBooking(null)}
         />
       )}
       {bookingEnabled && selectedContacts.size > 0 && (
@@ -570,9 +579,21 @@ export default function PipelinePage() {
                     onRemove={() => removeMut.mutate(contact.contact_id)}
                     onContextMenu={e => ctx.open(e, [
                       { header: contact.full_name },
-                      { label: 'View contact', icon: <ExternalLink size={14} />, onClick: () => navigate(`/contacts/${contact.contact_id}`) },
+                      { label: 'View contact', icon: <User size={13} />, onClick: () => navigate(`/contacts/${contact.contact_id}`) },
+                      { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${contact.contact_id}`, '_blank') },
                       { separator: true },
-                      { label: 'Remove from pipeline', icon: <X size={14} />, danger: true, onClick: () => removeMut.mutate(contact.contact_id) },
+                      { header: 'Move to stage' },
+                      ...board
+                        .filter(c => c.stage.id !== col.stage.id)
+                        .map(c => ({
+                          label: c.stage.name,
+                          icon: <ArrowRight size={13} />,
+                          onClick: () => moveMut.mutate({ contactId: contact.contact_id, stageId: c.stage.id }),
+                        })),
+                      ...(bookingEnabled ? [
+                        { separator: true },
+                        { label: 'Send booking link', icon: <CalendarClock size={13} />, onClick: () => setSingleBooking({ id: contact.contact_id, full_name: contact.full_name }) },
+                      ] : []),
                     ])}
                   />
                 ))}

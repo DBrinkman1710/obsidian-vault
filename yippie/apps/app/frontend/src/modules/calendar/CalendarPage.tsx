@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, ChevronLeft, ChevronRight, Plus, Settings2, Trash2, X } from 'lucide-react'
+import { CalendarClock, ChevronLeft, ChevronRight, Edit2, ExternalLink, Plus, Settings2, Trash2, User, X } from 'lucide-react'
+import { useContextMenu, ContextMenu } from '../../components/ContextMenu'
 import { api } from '../../api/client'
 import { useTenantConfig } from '../../App'
 import SendBookingModal from '../booking/SendBookingModal'
@@ -159,17 +160,18 @@ function TicketPicker({ selected, onSelect }: {
 // Create / edit modal
 // ---------------------------------------------------------------------------
 
-function EventModal({ event, onClose, onSaved }: {
+function EventModal({ event, onClose, onSaved, defaultDate }: {
   event: CalendarItem | null   // null = create
   onClose: () => void
   onSaved: () => void
+  defaultDate?: Date
 }) {
   const start = event ? new Date(event.start_at) : null
   const end = event?.end_at ? new Date(event.end_at) : null
 
   const [title, setTitle] = useState(event?.title ?? '')
-  const [date, setDate] = useState(start ? toDateInput(start) : toDateInput(new Date()))
-  const [time, setTime] = useState(start && !event?.all_day ? toTimeInput(start) : '09:00')
+  const [date, setDate] = useState(start ? toDateInput(start) : defaultDate ? toDateInput(defaultDate) : toDateInput(new Date()))
+  const [time, setTime] = useState(start && !event?.all_day ? toTimeInput(start) : defaultDate ? '12:00' : '09:00')
   const [endDate, setEndDate] = useState(end ? toDateInput(end) : '')
   const [endTime, setEndTime] = useState(end && !event?.all_day ? toTimeInput(end) : '')
   const [allDay, setAllDay] = useState(event?.all_day ?? false)
@@ -777,13 +779,19 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
 
 export default function CalendarPage() {
   const navigate = useNavigate()
+  const ctx = useContextMenu()
   const qc = useQueryClient()
   const config = useTenantConfig()
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth()) // 0-based
-  const [modal, setModal] = useState<{ open: boolean; event: CalendarItem | null }>({ open: false, event: null })
+  const [modal, setModal] = useState<{ open: boolean; event: CalendarItem | null; defaultDate?: Date }>({ open: false, event: null })
+
+  const deleteEventMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/calendar/events/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar-items'] }),
+  })
   const [bookingsOpen, setBookingsOpen] = useState(false)
   const [newBookingOpen, setNewBookingOpen] = useState(false)
   const [bookingSettingsOpen, setBookingSettingsOpen] = useState(false)
@@ -907,7 +915,8 @@ export default function CalendarPage() {
             const items = itemsByDay.get(key) ?? []
             return (
               <div key={key}
-                className={`min-h-[96px] p-1.5 border-gray-100 ${i % 7 !== 0 ? 'border-l' : ''} ${i >= 7 ? 'border-t' : ''} ${inMonth ? 'bg-white' : 'bg-slate-50/60'}`}>
+                className={`min-h-[96px] p-1.5 border-gray-100 ${i % 7 !== 0 ? 'border-l' : ''} ${i >= 7 ? 'border-t' : ''} ${inMonth ? 'bg-white' : 'bg-slate-50/60'}`}
+                onContextMenu={e => { e.preventDefault(); const noon = new Date(day); noon.setHours(12, 0, 0, 0); ctx.open(e, [{ label: 'New event on this date', icon: <Plus size={13} />, onClick: () => setModal({ open: true, event: null, defaultDate: noon }) }]) }}>
                 <div className="flex justify-end mb-1">
                   <span className={`w-6 h-6 flex items-center justify-center text-xs rounded-full ${
                     isToday ? 'bg-yippie text-white font-bold'
@@ -923,6 +932,9 @@ export default function CalendarPage() {
                       return (
                         <button key={`d-${item.id}`} onClick={() => navigate(`/tickets/${item.ticket_id}`)}
                           title={`Deadline — ${item.title}`}
+                          onContextMenu={e => { e.preventDefault(); e.stopPropagation(); ctx.open(e, [
+                            { label: 'View ticket', icon: <ExternalLink size={13} />, onClick: () => navigate(`/tickets/${item.ticket_id}`) },
+                          ]) }}
                           className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium truncate border transition-colors ${
                             color === 'red'
                               ? 'bg-red-50 text-red-700 border-red-100 hover:bg-red-100'
@@ -936,6 +948,13 @@ export default function CalendarPage() {
                     return (
                       <button key={`e-${item.id}`} onClick={() => setModal({ open: true, event: item })}
                         title={item.title}
+                        onContextMenu={e => { e.preventDefault(); e.stopPropagation(); ctx.open(e, [
+                          { label: 'Edit event', icon: <Edit2 size={13} />, onClick: () => setModal({ open: true, event: item }) },
+                          ...(item.contact_id ? [{ label: 'View contact', icon: <User size={13} />, onClick: () => navigate(`/contacts/${item.contact_id}`) }] : []),
+                          ...(item.ticket_id ? [{ label: 'View ticket', icon: <ExternalLink size={13} />, onClick: () => navigate(`/tickets/${item.ticket_id}`) }] : []),
+                          { separator: true },
+                          { label: 'Delete event', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${item.title}"?`)) deleteEventMut.mutate(item.id) } },
+                        ]) }}
                         className="w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium truncate bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors">
                         {!item.all_day && (
                           <span className="font-semibold mr-1">
@@ -971,10 +990,12 @@ export default function CalendarPage() {
       {modal.open && (
         <EventModal
           event={modal.event}
+          defaultDate={modal.defaultDate}
           onClose={() => setModal({ open: false, event: null })}
           onSaved={() => qc.invalidateQueries({ queryKey: ['calendar-items'] })}
         />
       )}
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
 
       {bookingEnabled && (
         <SendBookingModal

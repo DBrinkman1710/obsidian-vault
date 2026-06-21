@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail } from 'lucide-react'
+import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail, ExternalLink } from 'lucide-react'
+import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { TableSkeleton, CardListSkeleton } from '../../../shell/Skeleton'
@@ -382,6 +383,8 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
     downloadBlob(res.data, 'contacts.csv', 'text/csv')
   }
 
+  const ctx = useContextMenu()
+
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.delete(`/contacts/${id}`))),
     onSuccess: () => { clearSelection(); qc.invalidateQueries({ queryKey: ['contacts'] }) },
@@ -478,7 +481,16 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
           ) : (
             <tbody className="divide-y divide-slate-100">
               {items.map(c => (
-                <tr key={c.id} className="hover:bg-slate-50 transition-colors">
+                <tr key={c.id} className="hover:bg-slate-50 transition-colors"
+                  onContextMenu={e => ctx.open(e, [
+                    { header: c.full_name },
+                    { label: 'View contact', icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
+                    { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${c.id}`, '_blank') },
+                    { separator: true },
+                    { label: 'Send email', icon: <Mail size={13} />, onClick: () => window.location.href = `mailto:${c.email}` },
+                    { separator: true },
+                    { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${c.full_name}"? This cannot be undone.`)) deleteMutation.mutate([c.id]) } },
+                  ])}>
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                     <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)}
                       className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
@@ -562,6 +574,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
           onClose={() => setEditingContact(null)}
         />
       )}
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
     </div>
   )
 }

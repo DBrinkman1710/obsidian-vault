@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import GrapesEditor, { GrapesEditorHandle, type PipelineStage, type CampaignButton } from '../components/GrapesEditor'
-import { FileText, Loader2, Palette, Plus, Trash2, X } from 'lucide-react'
+import { Copy, FileText, Loader2, Palette, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { api } from '../../../api/client'
 import { fetchLabels, type ContactLabel } from '../../contacts/components/LabelChip'
 import { htmlToText } from '../../inbox/components/TemplatePicker'
@@ -110,11 +111,27 @@ export default function TemplatesPage() {
     onError: () => { setSaving(false); setSaveError('Save failed — please try again') },
   })
 
+  const ctx = useContextMenu()
+
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/tickets/templates/${id}`),
     onSuccess: (_data, id) => {
       qc.invalidateQueries({ queryKey: ['templates'] })
       if (id === selectedId) clearSelection()
+    },
+  })
+
+  const duplicateMutation = useMutation({
+    mutationFn: (t: Template) => api.post('/tickets/templates', {
+      name: `${t.name} (copy)`,
+      body: t.body ?? '',
+      design_json: t.design_json ?? null,
+      html_body: t.html_body ?? null,
+      campaign_buttons: t.campaign_buttons ?? null,
+    }).then(r => r.data as Template),
+    onSuccess: (created) => {
+      qc.invalidateQueries({ queryKey: ['templates'] })
+      openTemplate(created)
     },
   })
 
@@ -180,6 +197,12 @@ export default function TemplatesPage() {
                     : 'border-transparent hover:bg-slate-50'
                 }`}
                 onClick={() => openTemplate(t)}
+                onContextMenu={e => ctx.open(e, [
+                  { label: 'Edit', icon: <Pencil size={13} />, onClick: () => openTemplate(t) },
+                  { label: 'Duplicate', icon: <Copy size={13} />, onClick: () => duplicateMutation.mutate(t) },
+                  { separator: true },
+                  { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${t.name}"?`)) deleteMutation.mutate(t.id) } },
+                ])}
               >
                 <div className="flex-1 min-w-0">
                   <p className={`text-sm font-semibold truncate ${t.id === selectedId ? 'text-blue-700' : 'text-slate-800'}`}>
@@ -257,6 +280,7 @@ export default function TemplatesPage() {
           </div>
         </div>
       </div>
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
     </>
   )
 }
