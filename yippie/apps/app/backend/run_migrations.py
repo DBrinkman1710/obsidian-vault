@@ -66,6 +66,12 @@ def main() -> None:
     # --- Pre-flight: check every pending merge migration ---
     problems: list[str] = []
 
+    # Full set of revision IDs already applied to the DB (heads + all their ancestors)
+    db_history: frozenset[str] = (
+        frozenset().union(*(_ancestors(script, h) for h in db_heads))
+        if db_heads else frozenset()
+    )
+
     for rev in script.get_revisions("heads"):
         if rev.revision in db_heads or not rev.is_merge_point:
             continue
@@ -87,9 +93,9 @@ def main() -> None:
             if descendants_in_db:
                 # DB head has already moved past p — stale reference
                 stale[p] = descendants_in_db
-            elif any(h in _ancestors(script, p) for h in db_heads):
-                # p is a new pending migration that descends from a DB head;
-                # alembic will apply it before this merge — not a problem
+            elif (_ancestors(script, p) - {p}).issubset(db_history):
+                # All of p's ancestors are already in the DB — alembic can apply p
+                # (covers linear descendants AND sibling migrations with shared parents)
                 pass
             else:
                 bad.append(p)
