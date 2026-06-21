@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -57,6 +57,8 @@ class CampaignTemplateVariant(BaseModel):
     variant: Optional[Variant] = None
     raw_html: Optional[str] = None
     raw_css: Optional[str] = None
+    design_json: Optional[str] = None
+    campaign_buttons: Optional[Any] = None
 
 
 class CampaignTemplateCreate(BaseModel):
@@ -71,6 +73,8 @@ class CampaignTemplateOut(BaseModel):
     campaign_id: uuid.UUID
     raw_html: Optional[str] = None
     raw_css: Optional[str] = None
+    design_json: Optional[str] = None
+    campaign_buttons: Optional[str] = None
     variant: Optional[Variant] = None
 
 

@@ -51,6 +51,10 @@ class CampaignTemplate(Base):
     )
     raw_html: Mapped[str | None] = mapped_column(Text, nullable=True)
     raw_css: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # GrapesJS project JSON — powers the visual editor in the marketing UI
+    design_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Serialised CampaignButton[] extracted from the GrapesJS design
+    campaign_buttons: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 'a' | 'b' | None — two template variants per campaign for A/B testing.
     variant: Mapped[str | None] = mapped_column(String(1), nullable=True)
 

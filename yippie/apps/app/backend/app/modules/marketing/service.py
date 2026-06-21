@@ -120,6 +120,13 @@ async def set_campaign_templates(
             db.add(row)
         row.raw_html = item.raw_html
         row.raw_css = item.raw_css
+        row.design_json = item.design_json
+        buttons = item.campaign_buttons
+        row.campaign_buttons = (
+            buttons if isinstance(buttons, str)
+            else __import__("json").dumps(buttons) if buttons is not None
+            else None
+        )
     await db.flush()
     return await get_campaign_templates(db, campaign.id)
 

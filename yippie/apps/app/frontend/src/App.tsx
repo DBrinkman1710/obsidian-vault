@@ -40,7 +40,7 @@ const BookingPage = lazy(() => import('./pages/BookingPage'))
 const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
 const MeetPage = lazy(() => import('./pages/MeetPage'))
 const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage'))
-const MarketingPage = lazy(() => import('./pages/marketing/MarketingPage'))
+const MarketingPage = lazy(() => import('./modules/marketing/pages/MarketingPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
