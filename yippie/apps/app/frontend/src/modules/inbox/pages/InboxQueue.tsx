@@ -1418,7 +1418,7 @@ export default function InboxQueue() {
             </div>
 
 
-            <div className="flex flex-col gap-3">
+            <div className="flex flex-col gap-3 min-h-[200px]">
               {pageDrafts.map((d: any, index: number) => {
                 const isFollowUp = d.status === 'approved' && d.follow_up_at
                 const followUpDate = isFollowUp ? new Date(d.follow_up_at) : null
