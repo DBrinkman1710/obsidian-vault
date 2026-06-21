@@ -35,38 +35,40 @@ export default function SiteNav() {
 
   return (
     <nav className={`${styles.nav} ${scrolled ? styles.navScrolled : ""}`}>
-      <a href="/" className={styles.brand} aria-label="Yippie home">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/logo-white-bg-mark.svg" alt="Yippie" className={styles.navLogo} />
-      </a>
-
-      <ul className={styles.navLinks}>
-        {links.map((l) => (
-          <li key={l.href}>
-            <a href={l.href}>{l.label}</a>
-          </li>
-        ))}
-      </ul>
-
-      <div className={styles.navRight}>
-        <a href={APP_URL} className={styles.navLogin}>Log in</a>
-        <a href={DEMO_URL} className={styles.navCta}>
-          Request demo
-          <span aria-hidden="true">→</span>
+      <div className={styles.navInner}>
+        <a href="/" className={styles.brand} aria-label="Yippie home">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo-white-bg-mark.svg" alt="Yippie" className={styles.navLogo} />
         </a>
-      </div>
 
-      <button
-        type="button"
-        className={styles.burger}
-        aria-label={open ? "Close menu" : "Open menu"}
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-      >
-        <span className={`${styles.burgerBar} ${open ? styles.burgerBarTop : ""}`} />
-        <span className={`${styles.burgerBar} ${open ? styles.burgerBarMid : ""}`} />
-        <span className={`${styles.burgerBar} ${open ? styles.burgerBarBot : ""}`} />
-      </button>
+        <ul className={styles.navLinks}>
+          {links.map((l) => (
+            <li key={l.href}>
+              <a href={l.href}>{l.label}</a>
+            </li>
+          ))}
+        </ul>
+
+        <div className={styles.navRight}>
+          <a href={APP_URL} className={styles.navLogin}>Log in</a>
+          <a href={DEMO_URL} className={styles.navCta}>
+            Request demo
+            <span aria-hidden="true">→</span>
+          </a>
+        </div>
+
+        <button
+          type="button"
+          className={styles.burger}
+          aria-label={open ? "Close menu" : "Open menu"}
+          aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+        >
+          <span className={`${styles.burgerBar} ${open ? styles.burgerBarTop : ""}`} />
+          <span className={`${styles.burgerBar} ${open ? styles.burgerBarMid : ""}`} />
+          <span className={`${styles.burgerBar} ${open ? styles.burgerBarBot : ""}`} />
+        </button>
+      </div>
 
       {open && (
         <div className={styles.mobileSheet}>
