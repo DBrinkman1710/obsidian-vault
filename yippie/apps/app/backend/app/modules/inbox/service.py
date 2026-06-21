@@ -27,7 +27,8 @@ async def _match_contact(db: AsyncSession, tenant_id: uuid.UUID, sender: str) ->
     result = await db.execute(
         select(Contact).where(
             Contact.tenant_id == tenant_id,
-            Contact.email == sender.lower().strip(),
+            func.lower(Contact.email) == sender.lower().strip(),
+            Contact.deleted_at.is_(None),
         )
     )
     return result.scalar_one_or_none()

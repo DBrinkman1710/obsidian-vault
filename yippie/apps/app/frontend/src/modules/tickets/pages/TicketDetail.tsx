@@ -1,8 +1,8 @@
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles } from 'lucide-react'
+import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles, UserPlus } from 'lucide-react'
 import { MutationGate } from '../../../shell/MutationGate'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
@@ -519,9 +519,84 @@ function draftSubject(d: any): string {
   return d.final_subject ?? d.ai_suggested_subject ?? d.inbound_subject ?? '(no subject)'
 }
 
+function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; onLinked: () => void; onClose: () => void }) {
+  const [search, setSearch] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+  const qc = useQueryClient()
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  const { data: results, isFetching } = useQuery({
+    queryKey: ['contact-search', search],
+    queryFn: () => api.get('/contacts', { params: { search, limit: 8 } }).then(r => r.data.items ?? r.data),
+    enabled: search.length >= 1,
+    staleTime: 10_000,
+  })
+
+  const link = useMutation({
+    mutationFn: (contactId: string) => api.patch(`/tickets/${ticketId}`, { contact_id: contactId }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['ticket', ticketId] })
+      toast.success('Contact linked.')
+      onLinked()
+    },
+    onError: () => toast.error('Failed to link contact.'),
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl shadow-xl w-full max-w-md mx-4 overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h3 className="text-sm font-semibold text-slate-900">Link contact</h3>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+        </div>
+        <div className="p-4">
+          <input
+            ref={inputRef}
+            type="text"
+            placeholder="Search by name or email…"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+        </div>
+        <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
+          {isFetching && (
+            <p className="text-xs text-slate-400 px-5 py-3">Searching…</p>
+          )}
+          {!isFetching && search.length >= 1 && (!results || results.length === 0) && (
+            <p className="text-xs text-slate-400 px-5 py-3">No contacts found.</p>
+          )}
+          {(results ?? []).map((c: any) => (
+            <button
+              key={c.id}
+              onClick={() => link.mutate(c.id)}
+              disabled={link.isPending}
+              className="w-full text-left px-5 py-3 hover:bg-slate-50 flex items-center gap-3 disabled:opacity-50"
+            >
+              <div className="w-8 h-8 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-xs font-bold shrink-0">
+                {(c.full_name ?? '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-slate-900 truncate">{c.full_name}</p>
+                {c.email && <p className="text-xs text-slate-500 truncate">{c.email}</p>}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | null; ticket: any; aiAutoScan: boolean }) {
   const navigate = useNavigate()
+  const qc = useQueryClient()
   const [openDraft, setOpenDraft] = useState<any | null>(null)
+  const [linkOpen, setLinkOpen] = useState(false)
   // The context-scan briefing no longer auto-runs on open. The agent clicks
   // Generate briefing on demand — unless the tenant opted into ai_auto_scan,
   // in which case the old auto behaviour is restored.
@@ -579,8 +654,15 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       {/* Contact card */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {!contactId ? (
-          <div className="px-4 py-6 text-center">
+          <div className="px-4 py-6 flex flex-col items-center gap-3 text-center">
             <p className="text-xs text-slate-400">No contact linked to this ticket.</p>
+            <button
+              onClick={() => setLinkOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-100 transition-colors"
+            >
+              <UserPlus size={12} />
+              Link contact
+            </button>
           </div>
         ) : contactLoading ? (
           <div className="px-4 py-4 flex items-start gap-3 animate-pulse">
@@ -624,12 +706,20 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
               )}
               <div className="px-4 py-3 flex items-center justify-between">
                 <span className="text-xs text-slate-500">{ticketCount} ticket{ticketCount === 1 ? '' : 's'} total</span>
-                <button
-                  onClick={() => navigate(`/contacts/${contactId}`)}
-                  className="text-xs font-semibold text-blue-600 hover:text-blue-700"
-                >
-                  View contact →
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => setLinkOpen(true)}
+                    className="text-xs font-semibold text-slate-400 hover:text-slate-600"
+                  >
+                    Change
+                  </button>
+                  <button
+                    onClick={() => navigate(`/contacts/${contactId}`)}
+                    className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    View contact →
+                  </button>
+                </div>
               </div>
             </div>
           </>
@@ -754,6 +844,14 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
             </div>
           </div>
         </div>
+      )}
+
+      {linkOpen && (
+        <LinkContactModal
+          ticketId={ticket?.id}
+          onLinked={() => { setLinkOpen(false); qc.invalidateQueries({ queryKey: ['ticket', ticket?.id] }) }}
+          onClose={() => setLinkOpen(false)}
+        />
       )}
     </aside>
   )
