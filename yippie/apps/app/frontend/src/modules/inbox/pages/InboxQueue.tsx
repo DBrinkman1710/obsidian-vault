@@ -1022,6 +1022,20 @@ export default function InboxQueue() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['drafts'] }),
   })
 
+  const { data: allDepartments = [] } = useQuery({
+    queryKey: ['departments-all'],
+    queryFn: () => api.get('/departments/all').then(r => r.data as { id: string; name: string }[]),
+    staleTime: 60_000,
+  })
+
+  const deptNameMap = Object.fromEntries(allDepartments.map(d => [d.id, d.name]))
+
+  const routeDraftMutation = useMutation({
+    mutationFn: ({ id, departmentId }: { id: string; departmentId: string }) =>
+      api.patch(`/inbox/drafts/${id}/route`, { department_id: departmentId }).then(r => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['drafts'] }),
+  })
+
   function toggleSelect(id: string) {
     setSelected(prev => {
       const next = new Set(prev)
@@ -1458,6 +1472,14 @@ export default function InboxQueue() {
                           onClick: () => assignDraftMutation.mutate({ id: d.id, userId: m.id }),
                         })),
                       },
+                      {
+                        label: 'Assign to department…',
+                        icon: <Building2 size={14} />,
+                        submenu: allDepartments.map(dept => ({
+                          label: dept.name,
+                          onClick: () => routeDraftMutation.mutate({ id: d.id, departmentId: dept.id }),
+                        })),
+                      },
                       { separator: true },
                       { label: 'Approve & create ticket', icon: <Check size={14} />, onClick: () => reviewMutation.mutate({ id: d.id, action: 'approve' }) },
                       { separator: true },
@@ -1494,6 +1516,12 @@ export default function InboxQueue() {
                           {d.ai_suggested_category && (
                             <span className="px-2 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-500">
                               {d.ai_suggested_category}
+                            </span>
+                          )}
+                          {d.forwarded_to_department_id && deptNameMap[d.forwarded_to_department_id] && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700">
+                              <Building2 size={10} />
+                              {deptNameMap[d.forwarded_to_department_id]}
                             </span>
                           )}
                           {d.status !== 'pending' && (

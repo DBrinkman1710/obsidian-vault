@@ -26,6 +26,25 @@ router = APIRouter(prefix="/departments", tags=["departments"])
 DB = Annotated[AsyncSession, Depends(get_db)]
 
 
+@router.get("/all", response_model=list[DepartmentOut])
+async def list_all_departments(current_user: CurrentUser, db: DB):
+    """All departments in this tenant — available to any authenticated user (for assignment dropdowns)."""
+    depts = await service.list_departments(db, current_user.tenant_id)
+    return [
+        DepartmentOut(
+            id=d.id,
+            tenant_id=d.tenant_id,
+            name=d.name,
+            email=d.email,
+            reply_template=d.reply_template,
+            sla_working_days=d.sla_working_days,
+            created_at=d.created_at,
+            members=[],
+        )
+        for d in depts
+    ]
+
+
 @router.get("", response_model=list[DepartmentOut])
 async def list_departments(current_user: AdminUser, db: DB):
     return await service.list_departments(db, current_user.tenant_id)

@@ -218,6 +218,24 @@ async def assign_draft(draft_id: uuid.UUID, body: dict, current_user: CurrentUse
     return draft
 
 
+@router.patch("/drafts/{draft_id}/route", response_model=DraftTicketOut)
+async def route_draft_to_department(draft_id: uuid.UUID, body: dict, current_user: CurrentUser, db: DB):
+    """Route a pending draft to a department without creating a ticket.
+
+    Sets forwarded_to_department_id so the draft appears in the department's
+    shared inbox tab. Status stays 'pending' so department members can still
+    approve/reply/reject it.
+    """
+    draft = await service.get_draft(db, current_user.tenant_id, draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail="Draft not found")
+    department_id = body.get("department_id")
+    draft.forwarded_to_department_id = uuid.UUID(department_id) if department_id else None
+    await db.commit()
+    await db.refresh(draft)
+    return draft
+
+
 @router.post("/drafts/{draft_id}/review", response_model=DraftTicketOut)
 async def review_draft(draft_id: uuid.UUID, body: DraftReview, current_user: CurrentUser, db: DB):
     if body.action not in ("approve", "reject"):
