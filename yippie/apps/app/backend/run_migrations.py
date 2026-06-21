@@ -79,13 +79,18 @@ def main() -> None:
         missing = expected_parents - db_heads
 
         # Classify each missing parent
-        stale: dict[str, list[str]] = {}   # parent → list of DB heads that are descendants
-        bad: list[str] = []                 # parent that has no descendant in current heads
+        stale: dict[str, list[str]] = {}   # parent → list of DB heads that supersede it
+        bad: list[str] = []                 # parent unreachable from any DB head
 
         for p in missing:
             descendants_in_db = [h for h in db_heads if p in _ancestors(script, h)]
             if descendants_in_db:
+                # DB head has already moved past p — stale reference
                 stale[p] = descendants_in_db
+            elif any(h in _ancestors(script, p) for h in db_heads):
+                # p is a new pending migration that descends from a DB head;
+                # alembic will apply it before this merge — not a problem
+                pass
             else:
                 bad.append(p)
 
@@ -107,7 +112,8 @@ def main() -> None:
         if bad:
             lines.append(f"  MISSING parents (never applied — manual investigation needed): {bad}")
 
-        problems.append("\n".join(lines))
+        if stale or bad:
+            problems.append("\n".join(lines))
 
     if problems:
         print(
