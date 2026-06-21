@@ -142,7 +142,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
 
   return (
     <div>
-      <div className="relative mb-4 max-w-sm">
+      <div className="relative mb-5 max-w-sm">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
           placeholder="Filter companies…"
@@ -152,8 +152,10 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
       </div>
 
       {showCreate && (
-        <CompanyForm initial={EMPTY} onSave={f => createMutation.mutate(f)} onCancel={() => { setShowCreate(false); createMutation.reset() }}
-          isPending={createMutation.isPending} serverError={createMutation.isError ? errDetail(createMutation.error) : null} />
+        <div className="mb-5">
+          <CompanyForm initial={EMPTY} onSave={f => createMutation.mutate(f)} onCancel={() => { setShowCreate(false); createMutation.reset() }}
+            isPending={createMutation.isPending} serverError={createMutation.isError ? errDetail(createMutation.error) : null} />
+        </div>
       )}
 
       {selected.size > 0 && (
@@ -178,67 +180,75 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
         </div>
       )}
 
-      {displayed.length > 0 && (
-        <div className="flex items-center gap-2 mb-2 px-1">
-          <input type="checkbox" checked={allSelected} onChange={toggleAll}
-            className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-          <span className="text-xs text-slate-400">{allSelected ? 'Deselect all' : 'Select all'}</span>
-        </div>
-      )}
-
-      <div className="flex flex-col gap-3">
-        {displayed.map(company => (
-          <div key={company.id}>
-            {editingId === company.id ? (
-              <CompanyForm
-                initial={{ name: company.name, domain: company.domain ?? '', notes: company.notes ?? '' }}
-                onSave={f => updateMutation.mutate({ id: company.id, f })}
-                onCancel={() => { setEditingId(null); updateMutation.reset() }}
-                isPending={updateMutation.isPending}
-                serverError={updateMutation.isError ? errDetail(updateMutation.error) : null}
-              />
-            ) : (
-              <div className={`bg-white border rounded-xl p-4 flex items-center gap-3 shadow-sm transition-colors ${selected.has(company.id) ? 'border-blue-300 ring-1 ring-blue-200' : 'border-slate-200'}`}>
-                <div onClick={e => e.stopPropagation()}>
-                  <input type="checkbox" checked={selected.has(company.id)} onChange={() => toggle(company.id)}
+      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="px-4 py-3 w-10 text-left">
+                  <input type="checkbox" checked={allSelected} onChange={toggleAll}
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-                </div>
-                <div className="flex flex-1 min-w-0 items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
-                    <Building2 size={15} className="text-blue-500" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <button
-                      onClick={() => onCompanyClick(company.id)}
-                      className="text-sm font-semibold text-slate-800 block truncate text-left hover:text-blue-600 hover:underline transition-colors"
-                    >
-                      {company.name}
-                    </button>
-                    {company.domain && <span className="text-xs text-slate-400">{company.domain}</span>}
-                  </div>
-                  <span className="text-xs text-slate-400 whitespace-nowrap mr-2">
-                    {company.contact_count} contact{company.contact_count !== 1 ? 's' : ''}
-                  </span>
-                </div>
-                {isAdmin && (
-                  <div className="flex gap-2 shrink-0">
-                    <button onClick={() => { setEditingId(company.id); setShowCreate(false) }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
-                      <Pencil size={11} /> Edit
-                    </button>
-                    <button onClick={() => { if (confirm(`Delete "${company.name}"? Contacts will remain without a company.`)) deleteMutation.mutate([company.id]) }}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors">
-                      <Trash2 size={11} /> Delete
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
-
+                </th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left hidden md:table-cell">Domain</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left hidden md:table-cell">Contacts</th>
+                {isAdmin && <th className="px-4 py-3 w-32"></th>}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {displayed.map(company => (
+                editingId === company.id ? (
+                  <tr key={company.id}>
+                    <td colSpan={isAdmin ? 5 : 4} className="px-4 py-3">
+                      <CompanyForm
+                        initial={{ name: company.name, domain: company.domain ?? '', notes: company.notes ?? '' }}
+                        onSave={f => updateMutation.mutate({ id: company.id, f })}
+                        onCancel={() => { setEditingId(null); updateMutation.reset() }}
+                        isPending={updateMutation.isPending}
+                        serverError={updateMutation.isError ? errDetail(updateMutation.error) : null}
+                      />
+                    </td>
+                  </tr>
+                ) : (
+                  <tr key={company.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <input type="checkbox" checked={selected.has(company.id)} onChange={() => toggle(company.id)}
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    </td>
+                    <td className="px-4 py-3 cursor-pointer" onClick={() => onCompanyClick(company.id)}>
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
+                          <Building2 size={13} className="text-blue-500" />
+                        </div>
+                        <span className="text-sm font-medium text-blue-600 hover:underline transition-colors">{company.name}</span>
+                      </div>
+                    </td>
+                    <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600">{company.domain ?? '—'}</td>
+                    <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600">
+                      {company.contact_count} contact{company.contact_count !== 1 ? 's' : ''}
+                    </td>
+                    {isAdmin && (
+                      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                        <div className="flex gap-2 justify-end">
+                          <button onClick={() => { setEditingId(company.id); setShowCreate(false) }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
+                            <Pencil size={11} /> Edit
+                          </button>
+                          <button onClick={() => { if (confirm(`Delete "${company.name}"? Contacts will remain without a company.`)) deleteMutation.mutate([company.id]) }}
+                            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors">
+                            <Trash2 size={11} /> Delete
+                          </button>
+                        </div>
+                      </td>
+                    )}
+                  </tr>
+                )
+              ))}
+            </tbody>
+          </table>
+        </div>
         {displayed.length === 0 && !showCreate && (
-          <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-200">
+          <div className="text-center py-16">
             <Building2 size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-sm text-slate-400 font-medium">No companies yet</p>
             {isAdmin && <p className="text-xs text-slate-400 mt-1">Create one to group your contacts.</p>}

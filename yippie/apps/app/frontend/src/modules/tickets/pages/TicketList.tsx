@@ -144,14 +144,21 @@ export default function TicketList() {
       {isLoading && <CardListSkeleton />}
 
       {items.length > 0 && (
-        <div className="flex items-center gap-3 mb-2 px-1">
-          <Checkbox
-            checked={selection.all}
-            indeterminate={selection.some}
-            onChange={selection.toggleAll}
-            ariaLabel="Select all tickets"
-          />
-          <span className="text-xs font-medium" style={{ color: 'var(--text-muted)' }}>Select all</span>
+        <div className="flex items-center gap-3 mb-2 py-2 bg-slate-50">
+          <button
+            type="button"
+            onClick={selection.toggleAll}
+            className="inline-flex items-center gap-2 text-xs font-medium transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+          >
+            <Checkbox
+              checked={selection.all}
+              indeterminate={selection.some}
+              onChange={selection.toggleAll}
+              ariaLabel="Select all tickets"
+            />
+            {selection.all ? 'Deselect all' : `Select all (${items.length})`}
+          </button>
           <button
             type="button"
             onClick={() => setAssignedToMe(v => !v)}
@@ -175,7 +182,15 @@ export default function TicketList() {
           return (
             <div
               key={t.id}
-              className="flex items-center gap-3"
+              className="border p-4 flex items-start gap-3 transition-all"
+              style={{
+                borderRadius: 'var(--radius-md)',
+                borderColor: isSelected ? 'var(--brand-ring)' : 'var(--border-default)',
+                background: isSelected ? 'rgba(91,164,245,0.08)' : '#fff',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+              onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = 'var(--brand-ring)' }}
+              onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)' }}
               onContextMenu={e => ctx.open(e, [
                 { header: t.subject.length > 32 ? t.subject.slice(0, 32) + '…' : t.subject },
                 { label: 'Open ticket', icon: <ArrowRight size={14} />, onClick: () => navigate(`/tickets/${t.id}`) },
@@ -195,51 +210,40 @@ export default function TicketList() {
                 },
               ])}
             >
-              <Checkbox
-                checked={isSelected}
-                onChange={e => selection.toggle(t.id, e)}
-                ariaLabel={`Select ticket ${t.subject}`}
-              />
-              <Link
-                to={`/tickets/${t.id}`}
-                className="flex-1 bg-white border p-4 flex items-start gap-3 transition-all group"
-                style={{
-                  borderRadius: 'var(--radius-md)',
-                  borderColor: 'var(--border-default)',
-                  boxShadow: 'var(--shadow-sm)',
-                  background: isSelected ? 'rgba(91,164,245,0.08)' : '#fff',
-                }}
-                onMouseEnter={e => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--brand-ring)' }}
-                onMouseLeave={e => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--border-default)' }}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1.5">
-                    <span className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>{t.subject}</span>
-                    <Badge bg={priorityStyle.bg} color={priorityStyle.color}>{t.priority}</Badge>
-                    <Badge bg={statusStyle.bg} color={statusStyle.color}>{STATUS_LABELS[t.status] ?? t.status}</Badge>
-                    {t.department_name && (
-                      <Badge bg="var(--slate-100)" color="var(--text-subtle)">{t.department_name}</Badge>
-                    )}
-                  </div>
-                  <p className="text-xs flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
-                    <span>{new Date(t.created_at).toLocaleDateString()}</span>
-                    {t.last_comment_at && <span>· {timeAgo(t.last_comment_at)}</span>}
-                    {t.sla_due_at && (() => {
-                      const due = new Date(t.sla_due_at)
-                      const hoursLeft = (due.getTime() - Date.now()) / 3_600_000
-                      const overdue = hoursLeft < 0
-                      const urgent = hoursLeft >= 0 && hoursLeft <= 24
-                      return (
-                        <span
-                          className="font-semibold"
-                          style={{ color: overdue ? 'var(--status-urgent)' : urgent ? 'var(--status-high)' : 'var(--text-muted)' }}
-                        >
-                          · {overdue ? '⚠ Overdue' : urgent ? `⚠ SLA due ${due.toLocaleString()}` : `SLA: ${due.toLocaleString()}`}
-                        </span>
-                      )
-                    })()}
-                  </p>
+              <span className="shrink-0 mt-0.5" onClick={e => e.preventDefault()}>
+                <Checkbox
+                  checked={isSelected}
+                  onChange={e => selection.toggle(t.id, e)}
+                  ariaLabel={`Select ticket ${t.subject}`}
+                />
+              </span>
+              <Link to={`/tickets/${t.id}`} className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                  <span className="text-sm font-semibold" style={{ color: 'var(--ink)' }}>{t.subject}</span>
+                  <Badge bg={priorityStyle.bg} color={priorityStyle.color}>{t.priority}</Badge>
+                  <Badge bg={statusStyle.bg} color={statusStyle.color}>{STATUS_LABELS[t.status] ?? t.status}</Badge>
+                  {t.department_name && (
+                    <Badge bg="var(--slate-100)" color="var(--text-subtle)">{t.department_name}</Badge>
+                  )}
                 </div>
+                <p className="text-xs flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
+                  <span>{new Date(t.created_at).toLocaleDateString()}</span>
+                  {t.last_comment_at && <span>· {timeAgo(t.last_comment_at)}</span>}
+                  {t.sla_due_at && (() => {
+                    const due = new Date(t.sla_due_at)
+                    const hoursLeft = (due.getTime() - Date.now()) / 3_600_000
+                    const overdue = hoursLeft < 0
+                    const urgent = hoursLeft >= 0 && hoursLeft <= 24
+                    return (
+                      <span
+                        className="font-semibold"
+                        style={{ color: overdue ? 'var(--status-urgent)' : urgent ? 'var(--status-high)' : 'var(--text-muted)' }}
+                      >
+                        · {overdue ? '⚠ Overdue' : urgent ? `⚠ SLA due ${due.toLocaleString()}` : `SLA: ${due.toLocaleString()}`}
+                      </span>
+                    )
+                  })()}
+                </p>
               </Link>
             </div>
           )

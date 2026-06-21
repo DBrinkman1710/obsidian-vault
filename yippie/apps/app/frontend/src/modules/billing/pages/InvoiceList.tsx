@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Receipt, Plus, Search, Trash2, Download, ChevronDown, Upload, X } from 'lucide-react'
+import { Receipt, Plus, Search, Trash2, Download, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
@@ -411,7 +411,6 @@ export default function InvoiceList() {
   const [showImport, setShowImport] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [rightClickId, setRightClickId] = useState<string | null>(null)
-  const [exportOpen, setExportOpen] = useState(false)
 
   const { data: invoices, isLoading } = useQuery<Invoice[]>({
     queryKey: ['invoices'],
@@ -431,8 +430,7 @@ export default function InvoiceList() {
   const selection = useSelection(filteredIds)
   const ctx = useContextMenu()
 
-  async function exportInvoices(format: 'csv' | 'xlsx') {
-    setExportOpen(false)
+  async function exportInvoices(format: 'csv' | 'xlsx' = 'csv') {
     const params: Record<string, string> = { format }
     if (selection.count) params.ids = [...selection.sel].join(',')
     try {
@@ -451,25 +449,28 @@ export default function InvoiceList() {
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Invoices</h1>
         <div className="flex items-center gap-2">
+          <button onClick={() => exportInvoices('csv')}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+            <Download size={15} strokeWidth={2.5} /> Export
+          </button>
           <button onClick={() => setShowImport(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
-            <Upload size={15} /> Import
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+            <Upload size={15} strokeWidth={2.5} /> Import
           </button>
           <button onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity">
-            <Plus size={15} /> New Invoice
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+            <Plus size={15} strokeWidth={2.5} /> New Invoice
           </button>
         </div>
       </div>
 
-      {/* Search bar */}
-      <div className="relative mb-4 max-w-md">
-        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+      <div className="relative mb-5 max-w-sm">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search by invoice # or contact…"
-          className="w-full pl-9 pr-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+          className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         />
       </div>
 
@@ -491,25 +492,8 @@ export default function InvoiceList() {
         ]}
       />
 
-      {selection.count === 0 && (
-        <div className="flex justify-end mb-4">
-          <div className="relative">
-            <button onClick={() => setExportOpen(o => !o)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg hover:bg-slate-50 transition-colors"
-              style={{ borderColor: 'var(--border-default)', color: 'var(--text-subtle)' }}>
-              <Download size={13} /> Export all <ChevronDown size={12} />
-            </button>
-            {exportOpen && (
-              <div className="absolute right-0 z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
-                <button onClick={() => exportInvoices('csv')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-50">CSV</button>
-                <button onClick={() => exportInvoices('xlsx')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-50">XLSX</button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+<div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         {isLoading && <p className="text-sm text-slate-400 p-6">Loading…</p>}
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -548,15 +532,15 @@ export default function InvoiceList() {
                       ariaLabel={`Select invoice ${inv.invoice_number}`}
                     />
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>{inv.invoice_number}</td>
-                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-body)' }}>{inv.contact_name ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-slate-900 font-mono">{inv.invoice_number}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{inv.contact_name ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLES[inv.status] ?? STATUS_STYLES.draft}`}>
                       {statusLabel(inv.status)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-body)' }}>{(inv.total_cents / 100).toFixed(2)} {inv.currency}</td>
-                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-subtle)' }}>{inv.due_date ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{(inv.total_cents / 100).toFixed(2)} {inv.currency}</td>
+                  <td className="px-4 py-3 text-sm text-slate-500">{inv.due_date ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
