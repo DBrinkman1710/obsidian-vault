@@ -408,6 +408,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
 
 function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void }) {
   const qc = useQueryClient()
+  const [modalTab, setModalTab] = useState<'profile' | 'roles'>('profile')
   const [form, setForm] = useState({ email: user.email, full_name: user.full_name, role: user.role })
   const [error, setError] = useState('')
 
@@ -421,6 +422,27 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to save changes'),
   })
 
+  const { data: assignedRoles = [] } = useQuery<UserRbacRole[]>({
+    queryKey: ['user-rbac-roles', user.id],
+    queryFn: () => api.get(`/rbac/users/${user.id}/roles`).then(r => r.data),
+    enabled: modalTab === 'roles',
+  })
+  const { data: allRoles = [] } = useQuery<RbacRole[]>({
+    queryKey: ['rbac-roles'],
+    queryFn: () => api.get('/rbac/roles').then(r => r.data),
+    enabled: modalTab === 'roles',
+  })
+  const assignMutation = useMutation({
+    mutationFn: (roleId: string) => api.post(`/rbac/users/${user.id}/roles/${roleId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['user-rbac-roles', user.id] }),
+  })
+  const removeMutation = useMutation({
+    mutationFn: (roleId: string) => api.delete(`/rbac/users/${user.id}/roles/${roleId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['user-rbac-roles', user.id] }),
+  })
+  const assignedRoleIds = new Set(assignedRoles.map(r => r.role_id))
+  const unassignedRoles = allRoles.filter(r => !assignedRoleIds.has(r.id))
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!form.email.trim() || !form.full_name.trim()) { setError('Name and email are required'); return }
@@ -430,41 +452,97 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Edit team member</h2>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900">{user.full_name}</h2>
+            <p className="text-xs text-slate-400">{user.email}</p>
+          </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-          <div>
-            <label className={labelCls}>Name</label>
-            <input className={inputCls} value={form.full_name} autoFocus
-              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jan de Vries" />
-          </div>
-          <div>
-            <label className={labelCls}>Email</label>
-            <input className={inputCls} type="email" value={form.email}
-              onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
-            <p className="mt-1 text-xs text-amber-600">This is also their login email — changing it means they must use the new address to sign in.</p>
-          </div>
-          <div>
-            <label className={labelCls}>System role</label>
-            <select className={inputCls} value={form.role}
-              onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
-              <option value="agent">Agent — handles tickets and inbox</option>
-              <option value="admin">Admin — can manage settings and team</option>
-              <option value="viewer">Viewer — read-only</option>
-            </select>
-          </div>
-          {error && <p className="text-xs text-red-500">{error}</p>}
-          <div className="flex gap-3 pt-1">
-            <button type="submit" disabled={mutation.isPending}
-              className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity">
-              {mutation.isPending ? 'Saving…' : 'Save changes'}
+
+        {/* Tabs */}
+        <div className="flex gap-1 px-6 pt-4 shrink-0">
+          {(['profile', 'roles'] as const).map(t => (
+            <button
+              key={t}
+              onClick={() => setModalTab(t)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors capitalize ${modalTab === t ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+            >
+              {t === 'roles' ? 'Access Roles' : 'Profile'}
             </button>
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+          ))}
+        </div>
+
+        {modalTab === 'profile' && (
+          <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4 overflow-y-auto">
+            <div>
+              <label className={labelCls}>Name</label>
+              <input className={inputCls} value={form.full_name} autoFocus
+                onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jan de Vries" />
+            </div>
+            <div>
+              <label className={labelCls}>Login email</label>
+              <input className={inputCls} type="email" value={form.email}
+                onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
+              <p className="mt-1 text-xs text-amber-600">Changing this means they must use the new address to sign in.</p>
+            </div>
+            <div>
+              <label className={labelCls}>System role</label>
+              <select className={inputCls} value={form.role}
+                onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
+                <option value="agent">Agent — handles tickets and inbox</option>
+                <option value="admin">Admin — can manage settings and team</option>
+                <option value="viewer">Viewer — read-only</option>
+              </select>
+            </div>
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <div className="flex gap-3 pt-1">
+              <button type="submit" disabled={mutation.isPending}
+                className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity">
+                {mutation.isPending ? 'Saving…' : 'Save changes'}
+              </button>
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            </div>
+          </form>
+        )}
+
+        {modalTab === 'roles' && (
+          <div className="p-6 overflow-y-auto flex flex-col gap-4">
+            <div>
+              <p className="text-xs font-semibold text-slate-500 mb-2">Assigned access roles</p>
+              <div className="flex flex-wrap gap-2">
+                {assignedRoles.map(r => (
+                  <span key={r.id} className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
+                    {r.role_name}
+                    <button
+                      onClick={() => removeMutation.mutate(r.role_id)}
+                      disabled={removeMutation.isPending}
+                      className="hover:text-red-500 transition-colors ml-0.5"
+                      title="Remove"
+                    >
+                      <X size={11} />
+                    </button>
+                  </span>
+                ))}
+                {unassignedRoles.length > 0 && (
+                  <select
+                    defaultValue=""
+                    onChange={e => { if (e.target.value) { assignMutation.mutate(e.target.value); e.target.value = '' } }}
+                    disabled={assignMutation.isPending}
+                    className="text-xs border border-dashed border-slate-300 rounded-full px-2.5 py-1 text-slate-400 hover:border-blue-400 hover:text-blue-600 transition-colors cursor-pointer"
+                  >
+                    <option value="" disabled>+ Add role</option>
+                    {unassignedRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                  </select>
+                )}
+                {assignedRoles.length === 0 && unassignedRoles.length === 0 && (
+                  <p className="text-xs text-slate-400">No roles defined yet — create them in the Roles tab.</p>
+                )}
+              </div>
+            </div>
           </div>
-        </form>
+        )}
       </div>
     </div>
   )
@@ -809,8 +887,21 @@ export default function TeamSettingsPage() {
                               <div className="text-sm font-semibold text-slate-900">{u.full_name}{isSelf && <span className="text-slate-400 font-normal"> (you)</span>}</div>
                               <div className="text-xs text-slate-400">{u.email}</div>
                             </td>
-                            <td className="px-4 py-3">
-                              <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${ROLE_PILL[u.role] ?? ROLE_PILL.viewer}`}>{u.role}</span>
+                            <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                              {locked ? (
+                                <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${ROLE_PILL[u.role] ?? ROLE_PILL.viewer}`}>{u.role}</span>
+                              ) : (
+                                <select
+                                  value={u.role}
+                                  onChange={e => updateMutation.mutate({ id: u.id, role: e.target.value })}
+                                  disabled={updateMutation.isPending}
+                                  className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-yippie/30 ${ROLE_PILL[u.role] ?? ROLE_PILL.viewer}`}
+                                >
+                                  <option value="agent">agent</option>
+                                  <option value="admin">admin</option>
+                                  <option value="viewer">viewer</option>
+                                </select>
+                              )}
                             </td>
                             <td className="px-4 py-3 text-xs text-slate-400">
                               {u.last_login_at ? new Date(u.last_login_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Never'}
