@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Ticket, Trash2, UserPlus, Check, Archive } from 'lucide-react'
+import { Plus, Ticket, Trash2, UserPlus, Check, Archive, GitMerge } from 'lucide-react'
 import { api } from '../../../api/client'
 import { CardListSkeleton } from '../../../shell/Skeleton'
 import { useAuth } from '../../../auth/useAuth'
@@ -52,11 +52,17 @@ function Badge({ bg, color, children }: { bg: string; color: string; children: R
   )
 }
 
+interface MergeDialog {
+  primary: { id: string; subject: string }
+  secondary: { id: string; subject: string }
+}
+
 export default function TicketList() {
   const qc = useQueryClient()
   const { user } = useAuth()
   const [statusFilter, setStatusFilter] = useState('')
   const [assignedToMe, setAssignedToMe] = useState(false)
+  const [mergeDialog, setMergeDialog] = useState<MergeDialog | null>(null)
 
   const { data, isLoading } = useQuery({
     queryKey: ['tickets', statusFilter, assignedToMe],
@@ -88,6 +94,31 @@ export default function TicketList() {
     mutationFn: (id: string) => api.patch(`/tickets/${id}`, { assigned_to: user?.id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
   })
+
+  const mergeMutation = useMutation({
+    mutationFn: ({ primaryId, secondaryId }: { primaryId: string; secondaryId: string }) =>
+      api.post(`/tickets/${primaryId}/merge`, { secondary_ticket_id: secondaryId }),
+    onSuccess: () => {
+      selection.clear()
+      setMergeDialog(null)
+      qc.invalidateQueries({ queryKey: ['tickets'] })
+    },
+    onError: (err: any) => {
+      alert(err?.response?.data?.detail ?? 'Could not merge tickets — they must belong to the same contact.')
+      setMergeDialog(null)
+    },
+  })
+
+  function openMergeDialog() {
+    const [idA, idB] = [...selection.sel]
+    const ticketA = items.find((t: any) => t.id === idA)
+    const ticketB = items.find((t: any) => t.id === idB)
+    if (!ticketA || !ticketB) return
+    setMergeDialog({
+      primary: { id: ticketA.id, subject: ticketA.subject },
+      secondary: { id: ticketB.id, subject: ticketB.subject },
+    })
+  }
 
   return (
     <div>
@@ -127,6 +158,11 @@ export default function TicketList() {
         count={selection.count}
         onClear={selection.clear}
         actions={[
+          ...(selection.count === 2 ? [{
+            label: 'Merge',
+            icon: <GitMerge size={13} />,
+            onClick: openMergeDialog,
+          }] : []),
           {
             label: 'Delete',
             icon: <Trash2 size={13} />,
@@ -255,6 +291,51 @@ export default function TicketList() {
       )}
 
       <ContextMenu state={ctx.state} onClose={ctx.close} />
+
+      {mergeDialog && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ background: 'rgba(0,0,0,0.35)' }}
+          onClick={() => setMergeDialog(null)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <h2 className="font-semibold text-base mb-1" style={{ color: 'var(--ink)' }}>Merge tickets</h2>
+            <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>
+              Pick which ticket to keep. The other will be closed and its history moved over.
+            </p>
+            <div className="flex flex-col gap-3 mb-6">
+              <button
+                className="w-full text-left px-4 py-3 border rounded-lg text-sm font-medium transition-colors hover:border-blue-400 hover:bg-blue-50"
+                style={{ borderColor: 'var(--border-default)', color: 'var(--ink)' }}
+                onClick={() => mergeMutation.mutate({ primaryId: mergeDialog.primary.id, secondaryId: mergeDialog.secondary.id })}
+                disabled={mergeMutation.isPending}
+              >
+                <span className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--text-muted)' }}>Keep this ticket</span>
+                {mergeDialog.primary.subject}
+              </button>
+              <button
+                className="w-full text-left px-4 py-3 border rounded-lg text-sm font-medium transition-colors hover:border-blue-400 hover:bg-blue-50"
+                style={{ borderColor: 'var(--border-default)', color: 'var(--ink)' }}
+                onClick={() => mergeMutation.mutate({ primaryId: mergeDialog.secondary.id, secondaryId: mergeDialog.primary.id })}
+                disabled={mergeMutation.isPending}
+              >
+                <span className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--text-muted)' }}>Keep this ticket</span>
+                {mergeDialog.secondary.subject}
+              </button>
+            </div>
+            <button
+              className="text-sm font-medium"
+              style={{ color: 'var(--text-muted)' }}
+              onClick={() => setMergeDialog(null)}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

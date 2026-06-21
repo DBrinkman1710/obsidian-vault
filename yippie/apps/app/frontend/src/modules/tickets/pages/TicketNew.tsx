@@ -98,7 +98,7 @@ export default function TicketNew() {
   const [priority, setPriority] = useState('medium')
   const [contact, setContact] = useState<{ id: string; label: string } | null>(null)
   const [departmentId, setDepartmentId] = useState('')
-  const [errors, setErrors] = useState<{ subject?: string }>({})
+  const [errors, setErrors] = useState<{ subject?: string; contact?: string }>({})
 
   const { data: departments } = useQuery({
     queryKey: ['departments'],
@@ -112,8 +112,9 @@ export default function TicketNew() {
   }, [searchParams])
 
   function validate() {
-    const next: { subject?: string } = {}
+    const next: { subject?: string; contact?: string } = {}
     if (!subject.trim()) next.subject = 'Subject is required'
+    if (!contact) next.contact = 'Contact is required'
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -163,9 +164,10 @@ export default function TicketNew() {
 
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-            Contact <span className="font-normal text-slate-400 normal-case">(optional)</span>
+            Contact *
           </label>
           <ContactPicker value={contact} onChange={setContact} />
+          {errors.contact && <p className="text-xs text-red-500 mt-1">{errors.contact}</p>}
         </div>
 
         <div>
