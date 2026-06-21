@@ -11,6 +11,7 @@ from sqlalchemy import select
 from app.config import ALL_MODULES
 from app.core.models import Tenant, User, UserRole
 from app.database import db_session, get_engine
+from app.modules.rbac.service import provision_default_rbac_roles
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -34,7 +35,9 @@ async def main():
         # The env branding only seeds a brand-new tenant (below).
         existing_tenant = await db.scalar(select(Tenant).where(Tenant.slug == tenant_id))
         if existing_tenant:
-            print(f"Tenant '{tenant_id}' already exists — skipping (branding left as set in-app).")
+            print(f"Tenant '{tenant_id}' already exists — ensuring default RBAC roles...")
+            await provision_default_rbac_roles(db, existing_tenant.id)
+            await db.commit()
             return
 
         # Guard 2: user with this email already exists anywhere in the system
@@ -67,6 +70,8 @@ async def main():
             role=UserRole.superadmin,
         )
         db.add(user)
+        await db.flush()
+        await provision_default_rbac_roles(db, tenant.id)
         await db.commit()
         print(f"Created tenant '{tenant_name}' and superadmin '{admin_email}'.")
 

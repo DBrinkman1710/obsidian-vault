@@ -658,108 +658,6 @@ function DeleteUserModal({ user, onClose }: { user: TeamUser; onClose: () => voi
 }
 
 // ---------------------------------------------------------------------------
-// User row — expandable RBAC section
-// ---------------------------------------------------------------------------
-
-function UserRbacRow({ user, enabledModules }: { user: TeamUser; enabledModules: string[] }) {
-  const qc = useQueryClient()
-  const [expanded, setExpanded] = useState(false)
-
-  const { data: assignedRoles = [] } = useQuery<UserRbacRole[]>({
-    queryKey: ['user-rbac-roles', user.id],
-    queryFn: () => api.get(`/rbac/users/${user.id}/roles`).then(r => r.data),
-    enabled: expanded,
-  })
-
-  const { data: allRoles = [] } = useQuery<RbacRole[]>({
-    queryKey: ['rbac-roles'],
-    queryFn: () => api.get('/rbac/roles').then(r => r.data),
-    enabled: expanded,
-  })
-
-  const assignMutation = useMutation({
-    mutationFn: (roleId: string) => api.post(`/rbac/users/${user.id}/roles/${roleId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['user-rbac-roles', user.id] }),
-  })
-
-  const removeMutation = useMutation({
-    mutationFn: (roleId: string) => api.delete(`/rbac/users/${user.id}/roles/${roleId}`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['user-rbac-roles', user.id] }),
-  })
-
-  const assignedRoleIds = new Set(assignedRoles.map(r => r.role_id))
-  const unassignedRoles = allRoles.filter(r => !assignedRoleIds.has(r.id))
-
-  return (
-    <>
-      <tr className="border-t border-slate-100">
-        <td colSpan={4} className="p-0">
-          <button
-            onClick={() => setExpanded(e => !e)}
-            className={`w-full flex items-center gap-2 px-4 py-2 text-xs font-medium transition-colors text-left ${
-              expanded ? 'bg-blue-50 text-blue-600' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-700'
-            }`}
-          >
-            <Shield size={13} className={expanded ? 'text-blue-500' : 'text-slate-400'} />
-            Access roles &amp; permissions
-            {expanded ? <ChevronDown size={12} className="ml-auto" /> : <ChevronRight size={12} className="ml-auto" />}
-          </button>
-        </td>
-      </tr>
-      {expanded && (
-        <tr>
-          <td colSpan={4} className="px-4 pb-4">
-            {/* RBAC roles */}
-            <div className="mb-3">
-              <p className="text-xs font-semibold text-slate-500 mb-2">Assigned roles</p>
-              <div className="flex flex-wrap gap-2">
-                {assignedRoles.map(r => (
-                  <span key={r.id} className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
-                    {r.role_name}
-                    <button
-                      onClick={() => removeMutation.mutate(r.role_id)}
-                      disabled={removeMutation.isPending}
-                      className="hover:text-red-500 transition-colors"
-                      title="Remove"
-                    >
-                      <X size={10} />
-                    </button>
-                  </span>
-                ))}
-                {unassignedRoles.length > 0 && (
-                  <select
-                    defaultValue=""
-                    onChange={e => { if (e.target.value) assignMutation.mutate(e.target.value) }}
-                    disabled={assignMutation.isPending}
-                    className="text-xs border border-dashed border-slate-300 rounded-full px-2 py-0.5 text-slate-400 hover:border-blue-400 hover:text-blue-600 transition-colors cursor-pointer"
-                  >
-                    <option value="" disabled>+ Add role</option>
-                    {unassignedRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-                  </select>
-                )}
-                {assignedRoles.length === 0 && unassignedRoles.length === 0 && (
-                  <p className="text-xs text-slate-400">No roles defined yet — create them in the Roles tab.</p>
-                )}
-              </div>
-            </div>
-
-            {/* Per-module override grid */}
-            <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1">Per-module override <span className="font-normal text-slate-400">(user-level, overrides role/dept)</span></p>
-              <ModulePermissionsGrid
-                subjectType="user"
-                subjectId={user.id}
-                enabledModules={enabledModules}
-              />
-            </div>
-          </td>
-        </tr>
-      )}
-    </>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Roles tab
 // ---------------------------------------------------------------------------
 
@@ -868,142 +766,10 @@ function RolesTab({ enabledModules }: { enabledModules: string[] }) {
 }
 
 // ---------------------------------------------------------------------------
-// Permissions matrix tab — all users × all modules
-// ---------------------------------------------------------------------------
-
-type AccessLevel = 'full' | 'view' | 'restricted'
-
-interface MatrixPermission {
-  id: string
-  subject_type: string
-  subject_id: string
-  module: string
-  access_level: AccessLevel
-}
-
-const LEVEL_CYCLE: AccessLevel[] = ['full', 'view', 'restricted']
-const LEVEL_CELL: Record<AccessLevel, string> = {
-  full: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
-  view: 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100',
-  restricted: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100',
-}
-
-const MODULE_SHORT: Record<string, string> = {
-  inbox: 'Inbox',
-  contacts: 'Contacts',
-  tickets: 'Tickets',
-  calendar: 'Calendar',
-  pipeline: 'Pipeline',
-  booking: 'Booking',
-  activity: 'Activity',
-  billing: 'Billing',
-  chat: 'Live Chat',
-  emailtracking: 'Email Track',
-  departments: 'Departments',
-}
-
-function PermissionsMatrixTab({ users, enabledModules }: { users: TeamUser[]; enabledModules: string[] }) {
-  const qc = useQueryClient()
-
-  const { data: allPerms = [], isLoading } = useQuery<MatrixPermission[]>({
-    queryKey: ['rbac-permissions-all'],
-    queryFn: () => api.get('/rbac/permissions').then(r => r.data),
-  })
-
-  const upsertMutation = useMutation({
-    mutationFn: (body: { subject_type: string; subject_id: string; module: string; access_level: AccessLevel }) =>
-      api.put('/rbac/permissions', body).then(r => r.data),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['rbac-permissions-all'] })
-      qc.invalidateQueries({ queryKey: ['rbac-permissions'] })
-    },
-  })
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/rbac/permissions/${id}`),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['rbac-permissions-all'] })
-      qc.invalidateQueries({ queryKey: ['rbac-permissions'] })
-    },
-  })
-
-  // permMap[userId][module] = Permission
-  const permMap: Record<string, Record<string, MatrixPermission>> = {}
-  for (const p of allPerms) {
-    if (p.subject_type !== 'user') continue
-    if (!permMap[p.subject_id]) permMap[p.subject_id] = {}
-    permMap[p.subject_id][p.module] = p
-  }
-
-  function handleCellClick(userId: string, mod: string) {
-    const existing = permMap[userId]?.[mod]
-    const current: AccessLevel = existing?.access_level ?? 'full'
-    const next = LEVEL_CYCLE[(LEVEL_CYCLE.indexOf(current) + 1) % LEVEL_CYCLE.length]
-    if (next === 'full' && existing) {
-      deleteMutation.mutate(existing.id)
-    } else {
-      upsertMutation.mutate({ subject_type: 'user', subject_id: userId, module: mod, access_level: next })
-    }
-  }
-
-  const activeUsers = users.filter(u => u.role !== 'superadmin')
-  const busy = upsertMutation.isPending || deleteMutation.isPending
-
-  if (isLoading) return <p className="text-sm text-slate-400">Loading…</p>
-
-  return (
-    <div>
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-slate-900 mb-1">Permissions matrix</h1>
-        <p className="text-sm text-slate-500">Click any cell to cycle: <span className="font-semibold text-emerald-700">full</span> → <span className="font-semibold text-orange-600">view</span> → <span className="font-semibold text-red-600">restricted</span> → full. These are user-level overrides and take priority over role and department permissions.</p>
-      </div>
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
-        <table className="text-xs min-w-full">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap sticky left-0 bg-slate-50 z-10">Member</th>
-              {enabledModules.map(mod => (
-                <th key={mod} className="px-3 py-3 text-center font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
-                  {MODULE_SHORT[mod] ?? mod}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {activeUsers.map(u => (
-              <tr key={u.id} className={`${!u.is_active ? 'opacity-50' : ''} hover:bg-slate-50`}>
-                <td className="px-4 py-3 sticky left-0 bg-white hover:bg-slate-50 z-10 border-r border-slate-100">
-                  <div className="font-semibold text-slate-900 whitespace-nowrap">{u.full_name}</div>
-                  <div className="text-slate-400 whitespace-nowrap">{u.email}</div>
-                </td>
-                {enabledModules.map(mod => {
-                  const perm = permMap[u.id]?.[mod]
-                  const level: AccessLevel = perm?.access_level ?? 'full'
-                  return (
-                    <td key={mod} className="px-3 py-3 text-center">
-                      <button
-                        onClick={() => handleCellClick(u.id, mod)}
-                        disabled={busy}
-                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors disabled:opacity-50 cursor-pointer ${LEVEL_CELL[level]}`}
-                      >
-                        {level}
-                      </button>
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
-type Tab = 'members' | 'roles' | 'matrix'
+type Tab = 'members' | 'roles'
 
 export default function TeamSettingsPage() {
   const qc = useQueryClient()
@@ -1042,7 +808,6 @@ export default function TeamSettingsPage() {
             <button className={tabCls('roles')} onClick={() => setTab('roles')}>
               <span className="flex items-center gap-1.5"><Shield size={13} />Roles</span>
             </button>
-            <button className={tabCls('matrix')} onClick={() => setTab('matrix')}>Matrix</button>
           </div>
           {tab === 'members' && (
             <button
@@ -1142,10 +907,6 @@ export default function TeamSettingsPage() {
                               )}
                             </td>
                           </tr>
-                          {/* RBAC expand row — only for non-admin, non-self users */}
-                          {!isSuperadmin && enabledModules.length > 0 && (
-                            <UserRbacRow user={u} enabledModules={enabledModules} />
-                          )}
                         </React.Fragment>
                       )
                     })}
@@ -1161,13 +922,6 @@ export default function TeamSettingsPage() {
         )}
 
         {tab === 'roles' && <RolesTab enabledModules={enabledModules} />}
-
-        {tab === 'matrix' && users && (
-          <PermissionsMatrixTab
-            users={users}
-            enabledModules={enabledModules.filter(m => !['departments', 'ai'].includes(m))}
-          />
-        )}
       </div>
 
       {/* Departments panel */}
