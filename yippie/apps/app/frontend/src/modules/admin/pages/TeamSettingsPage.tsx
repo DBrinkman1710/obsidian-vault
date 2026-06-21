@@ -406,19 +406,53 @@ function InviteModal({ onClose }: { onClose: () => void }) {
   )
 }
 
+interface UserDepartmentOut { id: string; name: string }
+
 function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void }) {
   const qc = useQueryClient()
   const [modalTab, setModalTab] = useState<'profile' | 'roles'>('profile')
   const [form, setForm] = useState({ email: user.email, full_name: user.full_name, role: user.role })
+  const [selectedDeptIds, setSelectedDeptIds] = useState<Set<string>>(new Set())
+  const [deptIdsLoaded, setDeptIdsLoaded] = useState(false)
   const [error, setError] = useState('')
 
+  // All departments for this tenant
+  const { data: allDepts = [] } = useQuery<Dept[]>({
+    queryKey: ['departments'],
+    queryFn: () => api.get('/departments').then(r => r.data),
+  })
+
+  // Current departments for this user
+  const { data: userDepts = [] } = useQuery<UserDepartmentOut[]>({
+    queryKey: ['user-departments', user.id],
+    queryFn: () => api.get(`/team/users/${user.id}/departments`).then(r => r.data),
+  })
+
+  // Seed selectedDeptIds once the user's departments are loaded
+  React.useEffect(() => {
+    if (!deptIdsLoaded && userDepts.length >= 0) {
+      setSelectedDeptIds(new Set(userDepts.map(d => d.id)))
+      setDeptIdsLoaded(true)
+    }
+  }, [userDepts, deptIdsLoaded])
+
   const mutation = useMutation({
-    mutationFn: () => api.patch(`/team/users/${user.id}`, {
-      email: form.email.trim(),
-      full_name: form.full_name.trim(),
-      role: form.role,
-    }).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['team-users'] }); onClose() },
+    mutationFn: async () => {
+      await api.patch(`/team/users/${user.id}`, {
+        email: form.email.trim(),
+        full_name: form.full_name.trim(),
+        role: form.role,
+      })
+      await api.put(`/team/users/${user.id}/departments`, {
+        department_ids: Array.from(selectedDeptIds),
+      })
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['team-users'] })
+      qc.invalidateQueries({ queryKey: ['user-departments', user.id] })
+      qc.invalidateQueries({ queryKey: ['dept-members'] })
+      onClose()
+    },
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to save changes'),
   })
 
@@ -448,6 +482,14 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
     if (!form.email.trim() || !form.full_name.trim()) { setError('Name and email are required'); return }
     setError('')
     mutation.mutate()
+  }
+
+  function toggleDept(id: string) {
+    setSelectedDeptIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
   }
 
   return (
@@ -496,6 +538,35 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
                 <option value="viewer">Viewer — read-only</option>
               </select>
             </div>
+            {allDepts.length > 0 && (
+              <div>
+                <label className={labelCls}>Departments</label>
+                <div className="flex flex-col gap-1.5">
+                  {allDepts.map(dept => {
+                    const checked = selectedDeptIds.has(dept.id)
+                    return (
+                      <label
+                        key={dept.id}
+                        className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border cursor-pointer transition-colors select-none ${
+                          checked
+                            ? 'bg-blue-50 border-blue-300 text-blue-800'
+                            : 'border-slate-200 text-slate-700 hover:bg-slate-50'
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => toggleDept(dept.id)}
+                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium">{dept.name}</span>
+                        <span className="ml-auto text-xs text-slate-400">{dept.email}</span>
+                      </label>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
             {error && <p className="text-xs text-red-500">{error}</p>}
             <div className="flex gap-3 pt-1">
               <button type="submit" disabled={mutation.isPending}

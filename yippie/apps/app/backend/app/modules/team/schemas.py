@@ -45,3 +45,14 @@ class OrgSettingsUpdate(BaseModel):
 class OrgSettingsOut(BaseModel):
     kvk_nummer: Optional[str] = None
     btw_nummer: Optional[str] = None
+
+
+class UserDepartmentOut(BaseModel):
+    id: uuid.UUID
+    name: str
+
+    model_config = {"from_attributes": True}
+
+
+class UserDepartmentsUpdate(BaseModel):
+    department_ids: list[uuid.UUID] = []
