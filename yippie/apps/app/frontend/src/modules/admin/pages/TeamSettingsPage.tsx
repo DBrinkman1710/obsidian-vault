@@ -797,10 +797,142 @@ function RolesTab({ enabledModules }: { enabledModules: string[] }) {
 }
 
 // ---------------------------------------------------------------------------
+// Permissions matrix tab — all users × all modules
+// ---------------------------------------------------------------------------
+
+type AccessLevel = 'full' | 'view' | 'restricted'
+
+interface MatrixPermission {
+  id: string
+  subject_type: string
+  subject_id: string
+  module: string
+  access_level: AccessLevel
+}
+
+const LEVEL_CYCLE: AccessLevel[] = ['full', 'view', 'restricted']
+const LEVEL_CELL: Record<AccessLevel, string> = {
+  full: 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100',
+  view: 'bg-orange-50 text-orange-600 border-orange-200 hover:bg-orange-100',
+  restricted: 'bg-red-50 text-red-600 border-red-200 hover:bg-red-100',
+}
+
+const MODULE_SHORT: Record<string, string> = {
+  inbox: 'Inbox',
+  contacts: 'Contacts',
+  tickets: 'Tickets',
+  calendar: 'Calendar',
+  pipeline: 'Pipeline',
+  booking: 'Booking',
+  activity: 'Activity',
+  billing: 'Billing',
+  chat: 'Live Chat',
+  emailtracking: 'Email Track',
+  departments: 'Departments',
+}
+
+function PermissionsMatrixTab({ users, enabledModules }: { users: TeamUser[]; enabledModules: string[] }) {
+  const qc = useQueryClient()
+
+  const { data: allPerms = [], isLoading } = useQuery<MatrixPermission[]>({
+    queryKey: ['rbac-permissions-all'],
+    queryFn: () => api.get('/rbac/permissions').then(r => r.data),
+  })
+
+  const upsertMutation = useMutation({
+    mutationFn: (body: { subject_type: string; subject_id: string; module: string; access_level: AccessLevel }) =>
+      api.put('/rbac/permissions', body).then(r => r.data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rbac-permissions-all'] })
+      qc.invalidateQueries({ queryKey: ['rbac-permissions'] })
+    },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/rbac/permissions/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['rbac-permissions-all'] })
+      qc.invalidateQueries({ queryKey: ['rbac-permissions'] })
+    },
+  })
+
+  // permMap[userId][module] = Permission
+  const permMap: Record<string, Record<string, MatrixPermission>> = {}
+  for (const p of allPerms) {
+    if (p.subject_type !== 'user') continue
+    if (!permMap[p.subject_id]) permMap[p.subject_id] = {}
+    permMap[p.subject_id][p.module] = p
+  }
+
+  function handleCellClick(userId: string, mod: string) {
+    const existing = permMap[userId]?.[mod]
+    const current: AccessLevel = existing?.access_level ?? 'full'
+    const next = LEVEL_CYCLE[(LEVEL_CYCLE.indexOf(current) + 1) % LEVEL_CYCLE.length]
+    if (next === 'full' && existing) {
+      deleteMutation.mutate(existing.id)
+    } else {
+      upsertMutation.mutate({ subject_type: 'user', subject_id: userId, module: mod, access_level: next })
+    }
+  }
+
+  const activeUsers = users.filter(u => u.role !== 'superadmin')
+  const busy = upsertMutation.isPending || deleteMutation.isPending
+
+  if (isLoading) return <p className="text-sm text-slate-400">Loading…</p>
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-900 mb-1">Permissions matrix</h1>
+        <p className="text-sm text-slate-500">Click any cell to cycle: <span className="font-semibold text-emerald-700">full</span> → <span className="font-semibold text-orange-600">view</span> → <span className="font-semibold text-red-600">restricted</span> → full. These are user-level overrides and take priority over role and department permissions.</p>
+      </div>
+      <div className="bg-white rounded-2xl border border-slate-200 overflow-x-auto">
+        <table className="text-xs min-w-full">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="px-4 py-3 text-left font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap sticky left-0 bg-slate-50 z-10">Member</th>
+              {enabledModules.map(mod => (
+                <th key={mod} className="px-3 py-3 text-center font-semibold text-slate-500 uppercase tracking-wide whitespace-nowrap">
+                  {MODULE_SHORT[mod] ?? mod}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {activeUsers.map(u => (
+              <tr key={u.id} className={`${!u.is_active ? 'opacity-50' : ''} hover:bg-slate-50`}>
+                <td className="px-4 py-3 sticky left-0 bg-white hover:bg-slate-50 z-10 border-r border-slate-100">
+                  <div className="font-semibold text-slate-900 whitespace-nowrap">{u.full_name}</div>
+                  <div className="text-slate-400 whitespace-nowrap">{u.email}</div>
+                </td>
+                {enabledModules.map(mod => {
+                  const perm = permMap[u.id]?.[mod]
+                  const level: AccessLevel = perm?.access_level ?? 'full'
+                  return (
+                    <td key={mod} className="px-3 py-3 text-center">
+                      <button
+                        onClick={() => handleCellClick(u.id, mod)}
+                        disabled={busy}
+                        className={`px-2.5 py-1 rounded-full text-xs font-semibold border transition-colors disabled:opacity-50 cursor-pointer ${LEVEL_CELL[level]}`}
+                      >
+                        {level}
+                      </button>
+                    </td>
+                  )
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
 // Main page
 // ---------------------------------------------------------------------------
 
-type Tab = 'members' | 'roles'
+type Tab = 'members' | 'roles' | 'matrix'
 
 export default function TeamSettingsPage() {
   const qc = useQueryClient()
@@ -839,6 +971,7 @@ export default function TeamSettingsPage() {
             <button className={tabCls('roles')} onClick={() => setTab('roles')}>
               <span className="flex items-center gap-1.5"><Shield size={13} />Roles</span>
             </button>
+            <button className={tabCls('matrix')} onClick={() => setTab('matrix')}>Matrix</button>
           </div>
           {tab === 'members' && (
             <button
@@ -957,6 +1090,13 @@ export default function TeamSettingsPage() {
         )}
 
         {tab === 'roles' && <RolesTab enabledModules={enabledModules} />}
+
+        {tab === 'matrix' && users && (
+          <PermissionsMatrixTab
+            users={users}
+            enabledModules={enabledModules.filter(m => !['departments', 'ai'].includes(m))}
+          />
+        )}
       </div>
 
       {/* Departments panel */}
