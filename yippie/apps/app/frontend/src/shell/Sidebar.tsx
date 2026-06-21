@@ -289,14 +289,14 @@ export function Sidebar() {
     <>
       <aside
         onContextMenu={handleContextMenu}
-        className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 overflow-y-auto transition-all duration-200 ${
+        className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 transition-all duration-200 ${
           collapsed ? 'w-14' : 'w-56'
         }`}
         style={primaryColor ? { backgroundColor: primaryColor } : undefined}
       >
 
-        {/* Logo + tenant */}
-        <div className={`pt-6 pb-5 ${collapsed ? 'px-3' : 'px-5'}`}>
+        {/* Logo + tenant — pinned */}
+        <div className={`pt-6 pb-5 shrink-0 ${collapsed ? 'px-3' : 'px-5'}`}>
           <div className="flex items-center mb-1">
             <img src="/logo-blue-bg-mark.svg" alt="Yippie" className={collapsed ? 'h-8 w-8 shrink-0' : 'h-10 w-10 shrink-0'} />
           </div>
@@ -314,9 +314,9 @@ export function Sidebar() {
           )}
         </div>
 
-        {/* Reorder action bar */}
+        {/* Reorder action bar — pinned */}
         {reordering && !collapsed && (
-          <div className="px-2 pb-2 flex gap-1.5">
+          <div className="px-2 pb-2 shrink-0 flex gap-1.5">
             <button
               onClick={saveOrder}
               disabled={saving}
@@ -334,8 +334,8 @@ export function Sidebar() {
           </div>
         )}
 
-        {/* Nav */}
-        <nav className="flex-1 px-2 space-y-0.5">
+        {/* Module nav — scrolls independently */}
+        <nav className="flex-1 min-h-0 overflow-y-auto px-2 space-y-0.5">
           {reordering ? (
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <SortableContext items={orderedMods} strategy={verticalListSortingStrategy}>
@@ -351,8 +351,8 @@ export function Sidebar() {
           )}
         </nav>
 
-        {/* Bottom section */}
-        <div className="border-t border-white/15 px-2 py-3 space-y-0.5">
+        {/* Settings nav — scrolls independently */}
+        <div className="border-t border-white/15 px-2 pt-2 pb-1 shrink-0 overflow-y-auto space-y-0.5" style={{ maxHeight: '13rem' }}>
           {user?.role === 'superadmin' && (
             <NavLink
               to="/superadmin/clients"
@@ -404,9 +404,12 @@ export function Sidebar() {
               {!collapsed && <span>Superadmins</span>}
             </NavLink>
           )}
+        </div>
 
+        {/* Footer — pinned: email, sign out, collapse */}
+        <div className="border-t border-white/15 px-2 py-2 shrink-0">
           {!collapsed && (
-            <div className="px-3 pt-2 pb-1">
+            <div className="px-3 pt-1 pb-1">
               <p className="text-white/50 text-[11px] truncate mb-2">{user?.email}</p>
               <button
                 onClick={logout}
