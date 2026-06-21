@@ -38,6 +38,8 @@ const RequestDemoPage = lazy(() => import('./pages/RequestDemoPage'))
 const DemoEnterPage = lazy(() => import('./pages/DemoEnterPage'))
 const BookingPage = lazy(() => import('./pages/BookingPage'))
 const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
+const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage'))
+const MarketingPage = lazy(() => import('./pages/marketing/MarketingPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -91,6 +93,17 @@ export default function App() {
         <Routes>
           <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
           <Route path="/book/:token" element={<BookingPage />} />
+        </Routes>
+      </Suspense>
+    )
+  }
+
+  // Public unsubscribe — standalone, no shell or auth.
+  if (window.location.pathname.startsWith('/unsubscribe/')) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/unsubscribe/:token" element={<UnsubscribePage />} />
         </Routes>
       </Suspense>
     )
@@ -217,6 +230,11 @@ export default function App() {
 
               <Route path="/activity" element={
                 <ModuleGate module="activity"><PagePad><ActivityFeed /></PagePad></ModuleGate>
+              } />
+
+              {/* MarketingPage manages its own two-panel layout — no PagePad wrapper */}
+              <Route path="/marketing" element={
+                <ModuleGate module="marketing"><MarketingPage /></ModuleGate>
               } />
 
               <Route path="/settings" element={

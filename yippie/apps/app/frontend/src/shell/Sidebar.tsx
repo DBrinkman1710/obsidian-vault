@@ -5,7 +5,7 @@ import { toast } from 'sonner'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
-  ChevronLeft, ChevronRight, Network,
+  ChevronLeft, ChevronRight, Network, Megaphone,
   type LucideIcon,
 } from 'lucide-react'
 import { useTenantConfig } from '../App'
@@ -21,6 +21,7 @@ const MODULE_MAP: Record<string, { label: string; Icon: LucideIcon; path: string
   activity: { label: 'Activity',  Icon: Activity,      path: '/activity' },
   billing:  { label: 'Billing',   Icon: CreditCard,    path: '/billing' },
   chat:     { label: 'Live Chat', Icon: MessageSquare, path: '/chat' },
+  marketing: { label: 'Marketing', Icon: Megaphone,    path: '/marketing' },
   departments: { label: 'Departments', Icon: Network,  path: '/settings/departments' },
 }
 

@@ -11,6 +11,7 @@ from app.modules.calendar.router import router as calendar_router
 from app.modules.pipeline.router import router as pipeline_router
 from app.modules.booking.router import router as booking_router
 from app.modules.departments.router import router as departments_router
+from app.modules.marketing.router import router as marketing_router
 
 MODULES: dict[str, APIRouter] = {
     "contacts": contacts_router,
@@ -24,4 +25,5 @@ MODULES: dict[str, APIRouter] = {
     "pipeline": pipeline_router,
     "booking": booking_router,
     "departments": departments_router,
+    "marketing": marketing_router,
 }

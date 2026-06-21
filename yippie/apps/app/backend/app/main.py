@@ -23,14 +23,17 @@ from app.modules.inbox.router import webhook_router as inbox_webhook_router
 from app.modules.emailtracking.webhooks import webhook_router as emailtracking_webhook_router
 from app.public.router import router as public_router
 from app.modules.tracking.router import router as tracking_router
+from app.modules.marketing.public_router import router as marketing_tracking_router
 from app.modules.inbox.email_poller import start_scheduler as start_email_poller
 from app.modules.tickets.automation.sla_escalation import start_scheduler as start_sla_scheduler
+from app.modules.marketing.scheduler import start_scheduler as start_marketing_scheduler
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     start_sla_scheduler()
     start_email_poller()
+    start_marketing_scheduler()
     yield
 
 
@@ -66,6 +69,8 @@ def create_app() -> FastAPI:
     app.include_router(public_router, prefix="/api/v1")
     # Public tracked-click endpoint — no auth, contacts click from email
     app.include_router(tracking_router, prefix="/api/v1")
+    # Public campaign open-pixel + unsubscribe endpoints — no auth
+    app.include_router(marketing_tracking_router, prefix="/api/v1")
     # Public Resend webhook — no auth, Resend posts delivery events here
     app.include_router(emailtracking_webhook_router, prefix="/api/v1")
     # Chat websockets — mounted without the require_module/require_feature
