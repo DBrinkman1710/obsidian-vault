@@ -11,6 +11,8 @@ export default function ProfileSettingsPage() {
   const [personalEmail, setPersonalEmail] = useState(user?.inbound_email ?? user?.reply_from_email ?? '')
   const [hotkeysEnabled, setHotkeysEnabled] = useState(user?.hotkeys_enabled !== false)
   const [personalWorkMode, setPersonalWorkMode] = useState(user?.shared_inbox_disabled === true)
+  const [aliases, setAliases] = useState<string[]>(user?.send_from_aliases ?? [])
+  const [newAlias, setNewAlias] = useState('')
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
 
@@ -21,6 +23,7 @@ export default function ProfileSettingsPage() {
       inbound_email: personalEmail.trim() || null,
       hotkeys_enabled: hotkeysEnabled,
       shared_inbox_disabled: personalWorkMode,
+      send_from_aliases: aliases.length > 0 ? aliases : [],
     }).then(r => r.data),
     onSuccess: async () => {
       await refreshUser()
@@ -63,6 +66,59 @@ export default function ProfileSettingsPage() {
             <p className="mt-1.5 text-xs text-slate-400">
               One address for both directions: mail sent to it lands in your Personal inbox, and you can pick it as the "From" address when replying or composing.
             </p>
+          </div>
+
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-slate-500">Send-from aliases</label>
+            </div>
+            <p className="mb-2 text-xs text-slate-400">
+              Extra addresses you can pick as "From" when composing or replying. These are display labels only — mail is delivered via your shared inbox domain.
+            </p>
+            <div className="space-y-1.5 mb-2">
+              {aliases.map((alias, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <span className="flex-1 text-sm text-slate-700 bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 truncate">{alias}</span>
+                  <button
+                    type="button"
+                    onClick={() => setAliases(aliases.filter((_, j) => j !== i))}
+                    className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Remove alias"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ))}
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="email"
+                value={newAlias}
+                onChange={e => setNewAlias(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault()
+                    const v = newAlias.trim()
+                    if (v && !aliases.includes(v)) setAliases([...aliases, v])
+                    setNewAlias('')
+                  }
+                }}
+                placeholder="alias@example.com"
+                className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const v = newAlias.trim()
+                  if (v && !aliases.includes(v)) setAliases([...aliases, v])
+                  setNewAlias('')
+                }}
+                disabled={!newAlias.trim()}
+                className="px-3 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-200 disabled:opacity-40 transition-colors"
+              >
+                Add
+              </button>
+            </div>
           </div>
 
           <div className="border-t border-slate-100 pt-5">

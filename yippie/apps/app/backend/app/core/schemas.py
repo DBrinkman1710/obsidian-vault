@@ -22,6 +22,8 @@ class UserOut(BaseModel):
     shared_inbox_disabled: bool = False
     contact_column_prefs: Optional[list[dict]] = None
     sidebar_order: Optional[list[str]] = None
+    send_from_aliases: Optional[list[str]] = None
+    tour_completed: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

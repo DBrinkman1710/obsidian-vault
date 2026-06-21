@@ -350,7 +350,7 @@ export default function DraftReview() {
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
   const [replyFiles, setReplyFiles] = useState<File[]>([])
-  const [usePersonalFrom, setUsePersonalFrom] = useState(false)
+  const [fromEmail, setFromEmail] = useState<string | null>(null)
   const [actionError, setActionError] = useState('')
   const [actionTab, setActionTab] = useState<'ticket' | 'pipeline'>('ticket')
   const [selectedPipelineStageId, setSelectedPipelineStageId] = useState('')
@@ -367,6 +367,7 @@ export default function DraftReview() {
     setSentTo(''); setSendError(''); setActionError('')
     setActionTab('ticket'); setSelectedPipelineStageId('')
     setUndoUntil(null); setUndoProgress(0); setUndoCancelled(false)
+    setFromEmail(null)
     if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
   }, [id, defaultSig?.body])
 
@@ -539,8 +540,8 @@ export default function DraftReview() {
       const form = new FormData()
       form.append('reply_text', replyText)
       replyFiles.forEach(f => form.append('attachments', f))
-      if (usePersonalFrom && user?.reply_from_email) {
-        form.append('from_email', user.reply_from_email)
+      if (fromEmail) {
+        form.append('from_email', fromEmail)
       }
       const res = await api.post(`/inbox/drafts/${id}/send-reply`, form, {
         headers: { 'Content-Type': undefined },
@@ -1443,24 +1444,36 @@ export default function DraftReview() {
                     }}
                   />
                 </label>
-                {/* From selector — only shown when user has a personal reply address */}
-                {user?.reply_from_email && (
-                  <div className="flex items-center gap-1 text-xs text-slate-500">
+                {/* From selector — only shown when user has a personal reply address or aliases */}
+                {(user?.reply_from_email || (user?.send_from_aliases ?? []).length > 0) && (
+                  <div className="flex items-center gap-1 text-xs text-slate-500 flex-wrap">
                     <span className="text-slate-400">From:</span>
                     <button
                       type="button"
-                      onClick={() => setUsePersonalFrom(false)}
-                      className={`px-2 py-0.5 rounded-md transition-colors ${!usePersonalFrom ? 'bg-yippie/10 text-yippie font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
+                      onClick={() => setFromEmail(null)}
+                      className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === null ? 'bg-yippie/10 text-yippie font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
                     >
                       Shared
                     </button>
-                    <button
-                      type="button"
-                      onClick={() => setUsePersonalFrom(true)}
-                      className={`px-2 py-0.5 rounded-md transition-colors ${usePersonalFrom ? 'bg-yippie/10 text-yippie font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
-                    >
-                      {user.reply_from_email}
-                    </button>
+                    {user?.reply_from_email && (
+                      <button
+                        type="button"
+                        onClick={() => setFromEmail(user.reply_from_email!)}
+                        className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === user.reply_from_email ? 'bg-yippie/10 text-yippie font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
+                      >
+                        {user.reply_from_email}
+                      </button>
+                    )}
+                    {(user?.send_from_aliases ?? []).map(alias => (
+                      <button
+                        key={alias}
+                        type="button"
+                        onClick={() => setFromEmail(alias)}
+                        className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === alias ? 'bg-yippie/10 text-yippie font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
+                      >
+                        {alias}
+                      </button>
+                    ))}
                   </div>
                 )}
                 <div className="text-xs">

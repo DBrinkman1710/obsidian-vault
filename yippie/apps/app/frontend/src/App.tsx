@@ -1,3 +1,4 @@
+import WelcomeTour from './components/WelcomeTour'
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
@@ -81,7 +82,7 @@ function useGlobalHotkeys() {
 }
 
 export default function App() {
-  const { token, refreshUser, impersonating, exitImpersonation } = useAuth()
+  const { token, user, refreshUser, impersonating, exitImpersonation } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
   const [configError, setConfigError] = useState(false)
   useGlobalHotkeys()
@@ -168,6 +169,7 @@ export default function App() {
 
   return (
     <TenantConfigContext.Provider value={config}>
+      {user && !user.tour_completed && <WelcomeTour />}
       <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
         <Sidebar />
         <main className="flex-1 overflow-hidden flex flex-col pb-16 md:pb-0">

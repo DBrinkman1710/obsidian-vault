@@ -104,6 +104,10 @@ class User(Base):
     contact_column_prefs: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     # Per-user sidebar module order: list of module key strings (e.g. ["inbox", "tickets", ...])
     sidebar_order: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # Extra "From" addresses for compose/reply beyond the single reply_from_email.
+    send_from_aliases: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # True once the user has dismissed the first-login guided tour.
+    tour_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

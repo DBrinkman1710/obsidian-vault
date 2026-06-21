@@ -347,7 +347,7 @@ interface ComposeInitialState {
   recipients: { email: string; label: string }[]
   subject: string
   body: string
-  usePersonalFrom: boolean
+  fromEmail: string | null
   templateHtml?: string | null
   campaignButtonsJson?: string | null
 }
@@ -380,7 +380,7 @@ function ComposeModal({
   const [showAiPrompt, setShowAiPrompt] = useState(false)
   const [composeFiles, setComposeFiles] = useState<File[]>([])
   const [demoResult, setDemoResult] = useState<{ demo: true } | null>(null)
-  const [usePersonalFrom, setUsePersonalFrom] = useState(initialState?.usePersonalFrom ?? false)
+  const [fromEmail, setFromEmail] = useState<string | null>(initialState?.fromEmail ?? null)
   const [body, setBody] = useState(initialState?.body ?? '')
   const sigPrefilledRef = useRef(false)
 
@@ -446,8 +446,8 @@ function ComposeModal({
       if (templateHtml) fd.append('html_body', templateHtml)
       if (campaignButtonsJson) fd.append('campaign_buttons_json', campaignButtonsJson)
       composeFiles.forEach(f => fd.append('attachments', f))
-      if (usePersonalFrom && user?.reply_from_email) {
-        fd.append('from_email', user.reply_from_email)
+      if (fromEmail) {
+        fd.append('from_email', fromEmail)
       }
       return api.post('/inbox/compose', fd, { headers: { 'Content-Type': undefined } }).then(r => r.data)
     },
@@ -462,7 +462,7 @@ function ComposeModal({
       onSendQueued({
         composeId: data.compose_id,
         recipientCount: data.recipients ?? 1,
-        restoreData: { recipients, subject, body, usePersonalFrom, templateHtml, campaignButtonsJson },
+        restoreData: { recipients, subject, body, fromEmail, templateHtml, campaignButtonsJson },
       })
       onClose()
     },
@@ -668,17 +668,25 @@ function ComposeModal({
                 }}
               />
             </label>
-            {user?.reply_from_email && (
-              <div className="flex items-center gap-1 text-xs text-slate-500">
+            {(user?.reply_from_email || (user?.send_from_aliases ?? []).length > 0) && (
+              <div className="flex items-center gap-1 text-xs text-slate-500 flex-wrap">
                 <span className="text-slate-400">From:</span>
-                <button type="button" onClick={() => setUsePersonalFrom(false)}
-                  className={`px-2 py-0.5 rounded-md transition-colors ${!usePersonalFrom ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
+                <button type="button" onClick={() => setFromEmail(null)}
+                  className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === null ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
                   Shared
                 </button>
-                <button type="button" onClick={() => setUsePersonalFrom(true)}
-                  className={`px-2 py-0.5 rounded-md transition-colors ${usePersonalFrom ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
-                  {user.reply_from_email}
-                </button>
+                {user?.reply_from_email && (
+                  <button type="button" onClick={() => setFromEmail(user.reply_from_email!)}
+                    className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === user.reply_from_email ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
+                    {user.reply_from_email}
+                  </button>
+                )}
+                {(user?.send_from_aliases ?? []).map(alias => (
+                  <button key={alias} type="button" onClick={() => setFromEmail(alias)}
+                    className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === alias ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
+                    {alias}
+                  </button>
+                ))}
               </div>
             )}
             {sendError
@@ -1090,11 +1098,11 @@ export default function InboxQueue() {
           </div>
           <button
             onClick={() => {
-              setComposeInitial(mailbox === 'personal' && !!user?.inbound_email ? {
+              setComposeInitial(mailbox === 'personal' && !!user?.reply_from_email ? {
                 recipients: [],
                 subject: '',
                 body: defaultSigBody ? `\n\n${defaultSigBody}` : '',
-                usePersonalFrom: true,
+                fromEmail: user.reply_from_email,
               } : null)
               setShowCompose(true)
             }}
@@ -1137,7 +1145,7 @@ export default function InboxQueue() {
                   recipients: [],
                   subject: '',
                   body: defaultSigBody ? `${text}\n\n${defaultSigBody}` : text,
-                  usePersonalFrom: false,
+                  fromEmail: null,
                   templateHtml: isHtml ? tmplBody : null,
                   campaignButtonsJson: isHtml ? (buttons ?? null) : null,
                 })

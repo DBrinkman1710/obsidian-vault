@@ -201,6 +201,8 @@ class UserSelfUpdate(BaseModel):
     shared_inbox_disabled: Optional[bool] = None
     contact_column_prefs: Optional[list[dict]] = None
     sidebar_order: Optional[list[str]] = None
+    send_from_aliases: Optional[list[str]] = None
+    tour_completed: Optional[bool] = None
 
 
 @router.patch("/me", response_model=UserOut)
@@ -239,6 +241,10 @@ async def update_me(
         current_user.contact_column_prefs = body.contact_column_prefs
     if "sidebar_order" in body.model_fields_set:
         current_user.sidebar_order = body.sidebar_order
+    if "send_from_aliases" in body.model_fields_set:
+        current_user.send_from_aliases = body.send_from_aliases or []
+    if body.tour_completed is not None:
+        current_user.tour_completed = body.tour_completed
     await db.commit()
     await db.refresh(current_user)
     return UserOut.model_validate(current_user)
