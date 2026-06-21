@@ -345,6 +345,7 @@ export default function PipelinePage() {
   const [addToStage, setAddToStage] = useState<string | null>(null)
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set())
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [dragOverStageId, setDragOverStageId] = useState<string | null>(null)
   const dragContactRef = useRef<{ contactId: string; fromStageId: string } | null>(null)
 
   function toggleContact(id: string) {
@@ -364,17 +365,54 @@ export default function PipelinePage() {
   const moveMut = useMutation({
     mutationFn: ({ contactId, stageId }: { contactId: string; stageId: string }) =>
       api.put(`/pipeline/contacts/${contactId}/stage`, { stage_id: stageId }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline-board'] }),
+    onMutate: async ({ contactId, stageId }) => {
+      await qc.cancelQueries({ queryKey: ['pipeline-board'] })
+      const prev = qc.getQueryData<BoardColumn[]>(['pipeline-board'])
+      qc.setQueryData<BoardColumn[]>(['pipeline-board'], old => {
+        if (!old) return old
+        let moved: BoardContact | undefined
+        const without = old.map(col => ({
+          ...col,
+          contacts: col.contacts.filter(c => {
+            if (c.contact_id === contactId) { moved = c; return false }
+            return true
+          }),
+        }))
+        if (!moved) return old
+        return without.map(col =>
+          col.stage.id === stageId
+            ? { ...col, contacts: [...col.contacts, { ...moved!, entered_at: new Date().toISOString(), days_in_stage: 0, stale_alert: false }] }
+            : col
+        )
+      })
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['pipeline-board'], ctx.prev)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['pipeline-board'] }),
   })
 
   const removeMut = useMutation({
     mutationFn: (contactId: string) => api.delete(`/pipeline/contacts/${contactId}/stage`),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['pipeline-board'] }),
+    onMutate: async (contactId) => {
+      await qc.cancelQueries({ queryKey: ['pipeline-board'] })
+      const prev = qc.getQueryData<BoardColumn[]>(['pipeline-board'])
+      qc.setQueryData<BoardColumn[]>(['pipeline-board'], old =>
+        old?.map(col => ({ ...col, contacts: col.contacts.filter(c => c.contact_id !== contactId) }))
+      )
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['pipeline-board'], ctx.prev)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['pipeline-board'] }),
   })
 
   const allContactIds = new Set(board.flatMap(col => col.contacts.map(c => c.contact_id)))
 
   function handleDrop(toStageId: string) {
+    setDragOverStageId(null)
     const drag = dragContactRef.current
     if (!drag || drag.fromStageId === toStageId) return
     moveMut.mutate({ contactId: drag.contactId, stageId: toStageId })
@@ -486,8 +524,11 @@ export default function PipelinePage() {
           {board.map(col => (
             <div
               key={col.stage.id}
-              className="shrink-0 w-64 flex flex-col rounded-xl bg-slate-100 overflow-hidden"
-              onDragOver={e => e.preventDefault()}
+              className={`shrink-0 w-64 flex flex-col rounded-xl overflow-hidden transition-colors ${
+                dragOverStageId === col.stage.id ? 'bg-blue-50 ring-2 ring-blue-300' : 'bg-slate-100'
+              }`}
+              onDragOver={e => { e.preventDefault(); setDragOverStageId(col.stage.id) }}
+              onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverStageId(null) }}
               onDrop={() => handleDrop(col.stage.id)}
             >
               {/* Column header */}

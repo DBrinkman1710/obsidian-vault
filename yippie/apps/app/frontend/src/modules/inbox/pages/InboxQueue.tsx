@@ -977,6 +977,16 @@ export default function InboxQueue() {
   const bulkMutation = useMutation({
     mutationFn: ({ ids, action }: { ids: string[]; action: 'bin' | 'spam' }) =>
       api.post('/inbox/drafts/bulk-action', { ids, action }).then(r => r.data),
+    onMutate: async ({ ids }) => {
+      const key = draftKey('pending')
+      await qc.cancelQueries({ queryKey: key })
+      const prev = qc.getQueryData(key)
+      qc.setQueryData(key, (old: any) => (old ?? []).filter((d: any) => !ids.includes(d.id)))
+      return { prev, key }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev !== undefined) qc.setQueryData(ctx.key, ctx.prev)
+    },
     onSuccess: () => {
       setSelected(new Set())
       qc.invalidateQueries({ queryKey: ['drafts'] })
