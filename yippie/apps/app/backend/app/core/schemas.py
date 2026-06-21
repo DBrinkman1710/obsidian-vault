@@ -21,6 +21,7 @@ class UserOut(BaseModel):
     hotkeys_enabled: bool = True
     shared_inbox_disabled: bool = False
     contact_column_prefs: Optional[list[dict]] = None
+    sidebar_order: Optional[list[str]] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

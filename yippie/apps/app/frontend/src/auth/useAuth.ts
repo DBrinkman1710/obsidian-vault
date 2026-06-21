@@ -18,6 +18,7 @@ interface User {
   hotkeys_enabled?: boolean
   shared_inbox_disabled?: boolean
   contact_column_prefs?: ContactColumnPref[] | null
+  sidebar_order?: string[] | null
 }
 
 export interface ContactColumnPref {

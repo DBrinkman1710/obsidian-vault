@@ -102,6 +102,8 @@ class User(Base):
     shared_inbox_disabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     # Per-user Contacts table column config: [{key, label, visible, order}, ...]
     contact_column_prefs: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Per-user sidebar module order: list of module key strings (e.g. ["inbox", "tickets", ...])
+    sidebar_order: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

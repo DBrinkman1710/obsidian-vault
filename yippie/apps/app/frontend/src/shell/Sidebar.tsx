@@ -5,9 +5,23 @@ import { toast } from 'sonner'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
-  ChevronLeft, ChevronRight, Network, Megaphone,
+  ChevronLeft, ChevronRight, Network, Megaphone, GripVertical,
   type LucideIcon,
 } from 'lucide-react'
+import {
+  DndContext,
+  type DragEndEvent,
+  PointerSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core'
+import {
+  SortableContext,
+  useSortable,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useTenantConfig } from '../App'
 import { useAuth } from '../auth/useAuth'
 import { api } from '../api/client'
@@ -27,9 +41,40 @@ const MODULE_MAP: Record<string, { label: string; Icon: LucideIcon; path: string
 
 const STORAGE_KEY = 'yippie:sidebarCollapsed'
 
+function resolveOrder(savedOrder: string[] | null | undefined, enabledMods: string[]): string[] {
+  const enabled = enabledMods.filter(m => MODULE_MAP[m])
+  if (!savedOrder || savedOrder.length === 0) return enabled
+  const saved = savedOrder.filter(m => MODULE_MAP[m] && enabled.includes(m))
+  const newMods = enabled.filter(m => !saved.includes(m))
+  return [...saved, ...newMods]
+}
+
+function SortableModItem({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      {...attributes}
+      className="relative"
+    >
+      <button
+        {...listeners}
+        className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-white/40 hover:text-white/70 cursor-grab active:cursor-grabbing z-10"
+        tabIndex={-1}
+        onClick={e => e.preventDefault()}
+        aria-label="Drag to reorder"
+      >
+        <GripVertical size={13} />
+      </button>
+      {children}
+    </div>
+  )
+}
+
 export function Sidebar() {
   const config = useTenantConfig()
-  const { user, logout } = useAuth()
+  const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
@@ -42,6 +87,60 @@ export function Sidebar() {
       try { localStorage.setItem(STORAGE_KEY, String(next)) } catch { /* ignore */ }
       return next
     })
+  }
+
+  const [reordering, setReordering] = useState(false)
+  const [localOrder, setLocalOrder] = useState<string[]>([])
+  const [contextMenu, setContextMenu] = useState<{ x: number; y: number } | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  useEffect(() => {
+    if (!contextMenu) return
+    const close = () => setContextMenu(null)
+    document.addEventListener('click', close, { once: true })
+    return () => document.removeEventListener('click', close)
+  }, [contextMenu])
+
+  function handleContextMenu(e: React.MouseEvent<HTMLElement>) {
+    if (collapsed || reordering) return
+    e.preventDefault()
+    setContextMenu({ x: e.clientX, y: e.clientY })
+  }
+
+  function enterReorder() {
+    setLocalOrder(resolveOrder(user?.sidebar_order, config!.enabled_modules))
+    setReordering(true)
+  }
+
+  function cancelReorder() {
+    setReordering(false)
+    setLocalOrder([])
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event
+    if (over && active.id !== over.id) {
+      setLocalOrder(prev => {
+        const oldIndex = prev.indexOf(String(active.id))
+        const newIndex = prev.indexOf(String(over.id))
+        return arrayMove(prev, oldIndex, newIndex)
+      })
+    }
+  }
+
+  async function saveOrder() {
+    setSaving(true)
+    try {
+      await api.patch('/auth/me', { sidebar_order: localOrder })
+      await refreshUser()
+      setReordering(false)
+    } catch {
+      toast.error('Failed to save sidebar order')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const { data: draftCount, isFetching: inboxFetching } = useQuery({
@@ -104,7 +203,6 @@ export function Sidebar() {
 
   const primaryColor = config.branding.primary_color
 
-  // Shared nav-link class builder
   function navCls(isActive: boolean) {
     return `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
       isActive
@@ -113,199 +211,251 @@ export function Sidebar() {
     }`
   }
 
-  return (
-    <aside
-      className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 overflow-y-auto transition-all duration-200 ${
-        collapsed ? 'w-14' : 'w-56'
-      }`}
-      style={primaryColor ? { backgroundColor: primaryColor } : undefined}
-    >
+  const orderedMods = reordering ? localOrder : resolveOrder(user?.sidebar_order, config.enabled_modules)
 
-      {/* Logo + tenant */}
-      <div className={`pt-6 pb-5 ${collapsed ? 'px-3' : 'px-5'}`}>
-        <div className="flex items-center mb-1">
-          <img src="/logo-blue-bg-mark.svg" alt="Yippie" className={collapsed ? 'h-8 w-8 shrink-0' : 'h-10 w-10 shrink-0'} />
-        </div>
-        {!collapsed && config.branding.logo_url && (
-          <div className="mt-2 mb-1">
-            <img
-              src={config.branding.logo_url}
-              alt={config.tenant_name}
-              className="h-6 object-contain max-w-[120px]"
-            />
-          </div>
-        )}
-        {!collapsed && (
-          <p className="text-white/60 text-xs font-medium pl-0.5 truncate">{config.tenant_name}</p>
-        )}
-      </div>
-
-      {/* Nav — ordered by config.enabled_modules (set by superadmin) */}
-      <nav className="flex-1 px-2 space-y-0.5">
-        {config.enabled_modules
-          .filter(mod => MODULE_MAP[mod])
-          .map(mod => {
-            const { label, Icon, path } = MODULE_MAP[mod]
-            return (
-              <div key={mod}>
-              <NavLink
-                to={path}
-                title={collapsed ? label : undefined}
-                className={({ isActive }) => navCls(isActive)}
-              >
-                <Icon size={16} strokeWidth={2} className="shrink-0" />
-                {!collapsed && <span className="flex-1">{label}</span>}
-                {!collapsed && mod === 'inbox' && (
-                  <div className="flex items-center gap-1.5">
-                    <span
-                      className={`w-2 h-2 rounded-full shrink-0 ${
-                        inboxFetching ? 'bg-green-500' : 'bg-slate-400'
-                      }`}
-                      title={inboxFetching ? 'Refreshing…' : 'Idle'}
-                    />
-                    {badgeLabel && (
-                      <span className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
-                        {badgeLabel}
-                      </span>
-                    )}
-                  </div>
-                )}
-
-                {!collapsed && mod === 'chat' && chatBadge && (
-                  <span className="bg-green-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
-                    {chatBadge}
-                  </span>
-                )}
-                {!collapsed && mod === 'tickets' && (redBadge || orangeBadge) && (
-                  <div className="flex items-center gap-1">
-                    {redBadge && (
-                      <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
-                        {redBadge}
-                      </span>
-                    )}
-                    {orangeBadge && (
-                      <span className="bg-orange-400 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
-                        {orangeBadge}
-                      </span>
-                    )}
-                  </div>
-                )}
-              </NavLink>
-
-              {mod === 'inbox' && !collapsed && myDepts && myDepts.length > 0 && (
-                <div className="pl-5 mt-0.5 space-y-0.5">
-                  {myDepts.map(dept => {
-                    const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
-                    const isThisDept = params.get('dept') === dept.id
-                    return (
-                      <NavLink
-                        key={dept.id}
-                        to={`/inbox?dept=${dept.id}`}
-                        className={() => `flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
-                          isThisDept ? 'bg-white/20 text-white font-semibold' : 'text-white/65 hover:bg-white/10 hover:text-white'
-                        }`}
-                      >
-                        <Network size={12} strokeWidth={2} className="shrink-0" />
-                        <span className="truncate">{dept.name}</span>
-                      </NavLink>
-                    )
-                  })}
-                </div>
-              )}
-              </div>
-            )
-          })
-        }
-      </nav>
-
-      {/* Bottom section */}
-      <div className="border-t border-white/15 px-2 py-3 space-y-0.5">
-        {user?.role === 'superadmin' && (
-          <NavLink
-            to="/superadmin/clients"
-            title={collapsed ? 'Clients' : undefined}
-            className={({ isActive }) => navCls(isActive)}
-          >
-            <Building2 size={16} strokeWidth={2} />
-            {!collapsed && <span>Clients</span>}
-          </NavLink>
-        )}
-
+  function renderModNavItem(mod: string) {
+    const { label, Icon, path } = MODULE_MAP[mod]
+    return (
+      <div key={mod}>
         <NavLink
-          to="/settings/profile"
-          title={collapsed ? 'Profile' : undefined}
+          to={path}
+          title={collapsed ? label : undefined}
           className={({ isActive }) => navCls(isActive)}
+          style={reordering ? { paddingRight: '2rem' } : undefined}
         >
-          <UserCircle size={16} strokeWidth={2} />
-          {!collapsed && <span>Profile</span>}
+          <Icon size={16} strokeWidth={2} className="shrink-0" />
+          {!collapsed && <span className="flex-1">{label}</span>}
+          {!collapsed && mod === 'inbox' && (
+            <div className="flex items-center gap-1.5">
+              <span
+                className={`w-2 h-2 rounded-full shrink-0 ${
+                  inboxFetching ? 'bg-green-500' : 'bg-slate-400'
+                }`}
+                title={inboxFetching ? 'Refreshing…' : 'Idle'}
+              />
+              {badgeLabel && (
+                <span className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                  {badgeLabel}
+                </span>
+              )}
+            </div>
+          )}
+          {!collapsed && mod === 'chat' && chatBadge && (
+            <span className="bg-green-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+              {chatBadge}
+            </span>
+          )}
+          {!collapsed && mod === 'tickets' && (redBadge || orangeBadge) && (
+            <div className="flex items-center gap-1">
+              {redBadge && (
+                <span className="bg-red-500 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                  {redBadge}
+                </span>
+              )}
+              {orangeBadge && (
+                <span className="bg-orange-400 text-white text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+                  {orangeBadge}
+                </span>
+              )}
+            </div>
+          )}
         </NavLink>
 
-        {(user?.role === 'admin' || user?.role === 'superadmin') && (
-          <>
-            <NavLink
-              to="/settings/team"
-              title={collapsed ? 'Team' : undefined}
-              className={({ isActive }) => navCls(isActive)}
-            >
-              <Users size={16} strokeWidth={2} />
-              {!collapsed && <span>Team</span>}
-            </NavLink>
-            <NavLink
-              to="/settings"
-              title={collapsed ? 'Settings' : undefined}
-              className={() => navCls(settingsActive)}
-            >
-              <Settings size={16} strokeWidth={2} />
-              {!collapsed && <span>Settings</span>}
-            </NavLink>
-          </>
+        {mod === 'inbox' && !collapsed && myDepts && myDepts.length > 0 && (
+          <div className="pl-5 mt-0.5 space-y-0.5">
+            {myDepts.map(dept => {
+              const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+              const isThisDept = params.get('dept') === dept.id
+              return (
+                <NavLink
+                  key={dept.id}
+                  to={`/inbox?dept=${dept.id}`}
+                  className={() => `flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                    isThisDept ? 'bg-white/20 text-white font-semibold' : 'text-white/65 hover:bg-white/10 hover:text-white'
+                  }`}
+                >
+                  <Network size={12} strokeWidth={2} className="shrink-0" />
+                  <span className="truncate">{dept.name}</span>
+                </NavLink>
+              )
+            })}
+          </div>
         )}
+      </div>
+    )
+  }
 
-        {user?.role === 'superadmin' && (
-          <NavLink
-            to="/settings/superadmins"
-            title={collapsed ? 'Superadmins' : undefined}
-            className={({ isActive }) => navCls(isActive)}
-          >
-            <ShieldCheck size={16} strokeWidth={2} />
-            {!collapsed && <span>Superadmins</span>}
-          </NavLink>
-        )}
+  return (
+    <>
+      <aside
+        onContextMenu={handleContextMenu}
+        className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 overflow-y-auto transition-all duration-200 ${
+          collapsed ? 'w-14' : 'w-56'
+        }`}
+        style={primaryColor ? { backgroundColor: primaryColor } : undefined}
+      >
 
-        {!collapsed && (
-          <div className="px-3 pt-2 pb-1">
-            <p className="text-white/50 text-[11px] truncate mb-2">{user?.email}</p>
+        {/* Logo + tenant */}
+        <div className={`pt-6 pb-5 ${collapsed ? 'px-3' : 'px-5'}`}>
+          <div className="flex items-center mb-1">
+            <img src="/logo-blue-bg-mark.svg" alt="Yippie" className={collapsed ? 'h-8 w-8 shrink-0' : 'h-10 w-10 shrink-0'} />
+          </div>
+          {!collapsed && config.branding.logo_url && (
+            <div className="mt-2 mb-1">
+              <img
+                src={config.branding.logo_url}
+                alt={config.tenant_name}
+                className="h-6 object-contain max-w-[120px]"
+              />
+            </div>
+          )}
+          {!collapsed && (
+            <p className="text-white/60 text-xs font-medium pl-0.5 truncate">{config.tenant_name}</p>
+          )}
+        </div>
+
+        {/* Reorder action bar */}
+        {reordering && !collapsed && (
+          <div className="px-2 pb-2 flex gap-1.5">
             <button
-              onClick={logout}
-              className="flex items-center gap-2 w-full text-white/70 hover:text-white text-sm font-medium transition-colors cursor-pointer"
+              onClick={saveOrder}
+              disabled={saving}
+              className="flex-1 text-xs font-semibold py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors disabled:opacity-50"
             >
-              <LogOut size={14} strokeWidth={2} />
-              Sign out
+              {saving ? 'Saving…' : 'Done'}
+            </button>
+            <button
+              onClick={cancelReorder}
+              disabled={saving}
+              className="text-xs font-medium py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors"
+            >
+              Cancel
             </button>
           </div>
         )}
 
-        {collapsed && (
-          <button
-            onClick={logout}
-            title="Sign out"
-            className="flex items-center justify-center w-full py-2.5 text-white/70 hover:text-white transition-colors cursor-pointer"
-          >
-            <LogOut size={14} strokeWidth={2} />
-          </button>
-        )}
+        {/* Nav */}
+        <nav className="flex-1 px-2 space-y-0.5">
+          {reordering ? (
+            <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
+              <SortableContext items={orderedMods} strategy={verticalListSortingStrategy}>
+                {orderedMods.map(mod => (
+                  <SortableModItem key={mod} id={mod}>
+                    {renderModNavItem(mod)}
+                  </SortableModItem>
+                ))}
+              </SortableContext>
+            </DndContext>
+          ) : (
+            orderedMods.map(mod => renderModNavItem(mod))
+          )}
+        </nav>
 
-        {/* Collapse toggle */}
-        <div className="flex justify-end pt-1">
-          <button
-            onClick={toggleCollapsed}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+        {/* Bottom section */}
+        <div className="border-t border-white/15 px-2 py-3 space-y-0.5">
+          {user?.role === 'superadmin' && (
+            <NavLink
+              to="/superadmin/clients"
+              title={collapsed ? 'Clients' : undefined}
+              className={({ isActive }) => navCls(isActive)}
+            >
+              <Building2 size={16} strokeWidth={2} />
+              {!collapsed && <span>Clients</span>}
+            </NavLink>
+          )}
+
+          <NavLink
+            to="/settings/profile"
+            title={collapsed ? 'Profile' : undefined}
+            className={({ isActive }) => navCls(isActive)}
           >
-            {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            <UserCircle size={16} strokeWidth={2} />
+            {!collapsed && <span>Profile</span>}
+          </NavLink>
+
+          {(user?.role === 'admin' || user?.role === 'superadmin') && (
+            <>
+              <NavLink
+                to="/settings/team"
+                title={collapsed ? 'Team' : undefined}
+                className={({ isActive }) => navCls(isActive)}
+              >
+                <Users size={16} strokeWidth={2} />
+                {!collapsed && <span>Team</span>}
+              </NavLink>
+              <NavLink
+                to="/settings"
+                title={collapsed ? 'Settings' : undefined}
+                className={() => navCls(settingsActive)}
+              >
+                <Settings size={16} strokeWidth={2} />
+                {!collapsed && <span>Settings</span>}
+              </NavLink>
+            </>
+          )}
+
+          {user?.role === 'superadmin' && (
+            <NavLink
+              to="/settings/superadmins"
+              title={collapsed ? 'Superadmins' : undefined}
+              className={({ isActive }) => navCls(isActive)}
+            >
+              <ShieldCheck size={16} strokeWidth={2} />
+              {!collapsed && <span>Superadmins</span>}
+            </NavLink>
+          )}
+
+          {!collapsed && (
+            <div className="px-3 pt-2 pb-1">
+              <p className="text-white/50 text-[11px] truncate mb-2">{user?.email}</p>
+              <button
+                onClick={logout}
+                className="flex items-center gap-2 w-full text-white/70 hover:text-white text-sm font-medium transition-colors cursor-pointer"
+              >
+                <LogOut size={14} strokeWidth={2} />
+                Sign out
+              </button>
+            </div>
+          )}
+
+          {collapsed && (
+            <button
+              onClick={logout}
+              title="Sign out"
+              className="flex items-center justify-center w-full py-2.5 text-white/70 hover:text-white transition-colors cursor-pointer"
+            >
+              <LogOut size={14} strokeWidth={2} />
+            </button>
+          )}
+
+          {/* Collapse toggle */}
+          <div className="flex justify-end pt-1">
+            <button
+              onClick={toggleCollapsed}
+              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
+            >
+              {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          className="fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 py-1 min-w-[160px]"
+          style={{ left: contextMenu.x, top: contextMenu.y }}
+        >
+          <button
+            className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+            onClick={e => { e.stopPropagation(); setContextMenu(null); enterReorder() }}
+          >
+            <GripVertical size={14} className="text-slate-400" />
+            Reorder sidebar
           </button>
         </div>
-      </div>
-    </aside>
+      )}
+    </>
   )
 }

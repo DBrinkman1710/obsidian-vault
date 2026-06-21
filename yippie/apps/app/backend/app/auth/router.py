@@ -200,6 +200,7 @@ class UserSelfUpdate(BaseModel):
     hotkeys_enabled: Optional[bool] = None
     shared_inbox_disabled: Optional[bool] = None
     contact_column_prefs: Optional[list[dict]] = None
+    sidebar_order: Optional[list[str]] = None
 
 
 @router.patch("/me", response_model=UserOut)
@@ -236,6 +237,8 @@ async def update_me(
         current_user.shared_inbox_disabled = body.shared_inbox_disabled
     if "contact_column_prefs" in body.model_fields_set:
         current_user.contact_column_prefs = body.contact_column_prefs
+    if "sidebar_order" in body.model_fields_set:
+        current_user.sidebar_order = body.sidebar_order
     await db.commit()
     await db.refresh(current_user)
     return UserOut.model_validate(current_user)
