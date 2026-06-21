@@ -10,6 +10,8 @@ import {
 import { PLAN_LIMITS, MODULE_PRICES } from "@/lib/config";
 
 const DEMO_PATH = "/request-demo";
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
+const TALK_PATH = `${APP_URL}/meet/default`;
 
 type Plan = {
   tier: string;
@@ -234,10 +236,10 @@ export default function PricingPage() {
                 ))}
               </ul>
               <a
-                href={DEMO_PATH}
+                href={plan.enterprise ? TALK_PATH : DEMO_PATH}
                 className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}
               >
-                {plan.enterprise ? "Contact us" : "Request demo"}
+                {plan.enterprise ? "Book a call" : "Request demo"}
               </a>
             </div>
           ))}
@@ -344,8 +346,8 @@ export default function PricingPage() {
                     Add-ons are per workspace.
                   </p>
                 )}
-                <a href={DEMO_PATH} className={styles.quizResultBtn}>
-                  {isEnterprise ? "Talk to us →" : "Request demo →"}
+                <a href={isEnterprise ? TALK_PATH : DEMO_PATH} className={styles.quizResultBtn}>
+                  {isEnterprise ? "Book a call →" : "Request demo →"}
                 </a>
               </>
             ) : (
@@ -413,8 +415,8 @@ export default function PricingPage() {
           Tell us about your team and we&apos;ll help you pick the right plan and
           add-ons. No pressure, no credit card.
         </p>
-        <a href={DEMO_PATH} className={styles.btnPrimary}>
-          Talk to us →
+        <a href={TALK_PATH} className={styles.btnPrimary}>
+          Book a call →
         </a>
       </section>
 

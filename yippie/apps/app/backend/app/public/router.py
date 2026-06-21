@@ -396,6 +396,153 @@ async def demo_enter(token: str, db: Annotated[AsyncSession, Depends(get_db)]):
 # BK7 manage endpoints — MUST be declared before /booking/{token_id} so FastAPI
 # does not swallow /booking/manage/{x} as if it were a token_id.
 
+class MeetBookRequest(BaseModel):
+    name: str = Field(min_length=1)
+    email: EmailStr
+    slot_start: datetime
+    slot_end: datetime
+    message: Optional[str] = None
+
+
+@router.get("/meet/{slug}")
+async def meet_get(
+    slug: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Return available booking slots for a tenant by slug — no auth required."""
+    from app.core.models import Tenant
+    from app.modules.booking import service as booking_service
+
+    tenant = await db.scalar(
+        select(Tenant).where(Tenant.slug == slug, Tenant.is_active == True)  # noqa: E712
+    )
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+
+    await set_tenant_context(db, str(tenant.id))
+    settings = await booking_service.get_or_create_settings(db, tenant.id)
+    days_ahead = max(settings.booking_expiry_days, 14)
+    slots = await booking_service.get_available_slots(db, tenant.id, settings, days_ahead)
+    return {
+        "tenant_name": tenant.name,
+        "available_slots": [
+            {"start": s.start.isoformat(), "end": s.end.isoformat(), "available": s.available}
+            for s in slots
+        ],
+    }
+
+
+@router.post("/meet/{slug}", status_code=201)
+async def meet_book(
+    slug: str,
+    body: MeetBookRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Book a meeting slot directly from the marketing site — no auth, no pre-existing token."""
+    import asyncio
+
+    from app.core.models import Tenant, User, UserRole
+    from app.modules.booking import service as booking_service
+    from app.modules.calendar.models import CalendarEvent
+    from app.modules.contacts.models import Contact
+    from app.modules.pipeline.service import _assign_stage
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
+
+    tenant = await db.scalar(
+        select(Tenant).where(Tenant.slug == slug, Tenant.is_active == True)  # noqa: E712
+    )
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+
+    await set_tenant_context(db, str(tenant.id))
+
+    email = body.email.lower().strip()
+    slot_start = body.slot_start.replace(tzinfo=timezone.utc) if body.slot_start.tzinfo is None else body.slot_start
+    slot_end = body.slot_end.replace(tzinfo=timezone.utc) if body.slot_end.tzinfo is None else body.slot_end
+
+    if slot_end <= slot_start:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid time slot.")
+
+    conflict = await db.scalar(
+        select(CalendarEvent.id).where(
+            CalendarEvent.tenant_id == tenant.id,
+            CalendarEvent.start_at < slot_end,
+            CalendarEvent.end_at > slot_start,
+        )
+    )
+    if conflict is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="That time is no longer available. Please pick another slot.",
+        )
+
+    contact = await db.scalar(
+        select(Contact).where(
+            Contact.tenant_id == tenant.id,
+            func.lower(Contact.email) == email,
+            Contact.deleted_at == None,  # noqa: E711
+        )
+    )
+    if contact is None:
+        contact = Contact(
+            tenant_id=tenant.id,
+            full_name=body.name.strip(),
+            email=email,
+        )
+        db.add(contact)
+        await db.flush()
+
+    admin = await db.scalar(
+        select(User).where(
+            User.tenant_id == tenant.id,
+            User.role == UserRole.admin,
+            User.is_active == True,  # noqa: E712
+        ).limit(1)
+    )
+    if admin is None:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Booking not available right now.",
+        )
+
+    event = CalendarEvent(
+        tenant_id=tenant.id,
+        title=f"Meeting with {contact.full_name}",
+        start_at=slot_start,
+        end_at=slot_end,
+        contact_id=contact.id,
+        created_by=admin.id,
+        description=body.message or None,
+    )
+    db.add(event)
+
+    settings = await booking_service.get_or_create_settings(db, tenant.id)
+    if settings.post_booking_stage_id is not None:
+        await _assign_stage(db, tenant.id, contact.id, settings.post_booking_stage_id)
+
+    await db.commit()
+    await db.refresh(event)
+
+    try:
+        asyncio.create_task(
+            booking_service._notify_customer_confirmed(event, contact, tenant)
+        )
+        asyncio.create_task(
+            booking_service._notify_agent_confirmed(event, contact, admin)
+        )
+    except Exception:
+        pass
+
+    return {
+        "event_id": str(event.id),
+        "start_at": event.start_at.isoformat(),
+        "end_at": event.end_at.isoformat(),
+    }
+
+
 @router.get("/booking/manage/{manage_token}", response_model=ManageBookingOut)
 async def public_get_manage(
     manage_token: uuid.UUID,

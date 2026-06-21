@@ -38,6 +38,7 @@ const RequestDemoPage = lazy(() => import('./pages/RequestDemoPage'))
 const DemoEnterPage = lazy(() => import('./pages/DemoEnterPage'))
 const BookingPage = lazy(() => import('./pages/BookingPage'))
 const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
+const MeetPage = lazy(() => import('./pages/MeetPage'))
 const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage'))
 const MarketingPage = lazy(() => import('./pages/marketing/MarketingPage'))
 
@@ -93,6 +94,16 @@ export default function App() {
         <Routes>
           <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
           <Route path="/book/:token" element={<BookingPage />} />
+        </Routes>
+      </Suspense>
+    )
+  }
+
+  if (window.location.pathname.startsWith('/meet/')) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/meet/:slug" element={<MeetPage />} />
         </Routes>
       </Suspense>
     )
