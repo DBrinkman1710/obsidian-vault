@@ -365,7 +365,6 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         search: search || undefined,
         label_id: labelFilter || undefined,
         company_id: companyFilter || undefined,
-        include_deleted: search ? true : undefined,
       },
     }).then(r => r.data),
   })
