@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Receipt, Plus, Search, X, Trash2, Download, ChevronDown, Upload } from 'lucide-react'
+import { Receipt, Plus, Search, Trash2, Download, ChevronDown, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
+import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 
 // UI status labels mapped onto the backend InvoiceStatus enum values.
 const STATUS_OPTIONS = [
@@ -405,7 +407,6 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 
 export default function InvoiceList() {
   const [search, setSearch] = useState('')
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showAdd, setShowAdd] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -425,23 +426,14 @@ export default function InvoiceList() {
     )
   }, [invoices, search])
 
-  function toggle(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
-
-  const allSelected = filtered.length > 0 && filtered.every(inv => selected.has(inv.id))
-  function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(filtered.map(inv => inv.id)))
-  }
+  const filteredIds = filtered.map(inv => inv.id)
+  const selection = useSelection(filteredIds)
+  const ctx = useContextMenu()
 
   async function exportInvoices(format: 'csv' | 'xlsx') {
     setExportOpen(false)
     const params: Record<string, string> = { format }
-    if (selected.size) params.ids = [...selected].join(',')
+    if (selection.count) params.ids = [...selection.sel].join(',')
     try {
       const res = await api.get('/billing/invoices/export', { params, responseType: 'blob' })
       const type = format === 'xlsx'
@@ -452,8 +444,6 @@ export default function InvoiceList() {
       toast.error('Export failed')
     }
   }
-
-  const selectedIds = [...selected]
 
   return (
     <div>
@@ -482,35 +472,30 @@ export default function InvoiceList() {
         />
       </div>
 
-      {/* Bulk action bar */}
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl">
-          <span className="text-sm font-medium text-slate-600">{selected.size} selected</span>
-          <button onClick={() => setConfirmDelete(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors">
-            <Trash2 size={13} /> Delete
-          </button>
-          <div className="relative">
-            <button onClick={() => setExportOpen(o => !o)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
-              <Download size={13} /> Export <ChevronDown size={12} />
-            </button>
-            {exportOpen && (
-              <div className="absolute z-10 mt-1 bg-white border border-slate-200 rounded-lg shadow-lg overflow-hidden">
-                <button onClick={() => exportInvoices('csv')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-50">CSV</button>
-                <button onClick={() => exportInvoices('xlsx')} className="block w-full text-left px-4 py-2 text-xs hover:bg-slate-50">XLSX</button>
-              </div>
-            )}
-          </div>
-          <button onClick={() => setSelected(new Set())} className="ml-auto text-xs text-slate-400 hover:text-slate-600">Clear</button>
-        </div>
-      )}
+      <BulkBar
+        count={selection.count}
+        onClear={selection.clear}
+        actions={[
+          {
+            label: 'Export CSV',
+            icon: <Download size={13} />,
+            onClick: () => exportInvoices('csv'),
+          },
+          {
+            label: 'Delete',
+            icon: <Trash2 size={13} />,
+            danger: true,
+            onClick: () => setConfirmDelete(true),
+          },
+        ]}
+      />
 
-      {selected.size === 0 && (
+      {selection.count === 0 && (
         <div className="flex justify-end mb-4">
           <div className="relative">
             <button onClick={() => setExportOpen(o => !o)}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors">
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border rounded-lg hover:bg-slate-50 transition-colors"
+              style={{ borderColor: 'var(--border-default)', color: 'var(--text-subtle)' }}>
               <Download size={13} /> Export all <ChevronDown size={12} />
             </button>
             {exportOpen && (
@@ -530,7 +515,12 @@ export default function InvoiceList() {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3 w-10">
-                  <input type="checkbox" checked={allSelected} onChange={toggleAll} className="rounded border-slate-300" />
+                  <Checkbox
+                    checked={selection.all}
+                    indeterminate={selection.some}
+                    onChange={selection.toggleAll}
+                    ariaLabel="Select all invoices"
+                  />
                 </th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Invoice #</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Contact</th>
@@ -541,19 +531,31 @@ export default function InvoiceList() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map(inv => (
-                <tr key={inv.id} className="hover:bg-slate-50 transition-colors">
+                <tr
+                  key={inv.id}
+                  className="transition-colors"
+                  style={{ background: selection.has(inv.id) ? 'rgba(91,164,245,0.08)' : undefined }}
+                  onContextMenu={e => ctx.open(e, [
+                    { header: inv.invoice_number },
+                    { label: 'Delete', icon: <Trash2 size={14} />, danger: true, onClick: () => setConfirmDelete(true) },
+                  ])}
+                >
                   <td className="px-4 py-3">
-                    <input type="checkbox" checked={selected.has(inv.id)} onChange={() => toggle(inv.id)} className="rounded border-slate-300" />
+                    <Checkbox
+                      checked={selection.has(inv.id)}
+                      onChange={e => selection.toggle(inv.id, e)}
+                      ariaLabel={`Select invoice ${inv.invoice_number}`}
+                    />
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium text-slate-900">{inv.invoice_number}</td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{inv.contact_name ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--ink)', fontFamily: 'var(--font-mono)' }}>{inv.invoice_number}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-body)' }}>{inv.contact_name ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLES[inv.status] ?? STATUS_STYLES.draft}`}>
                       {statusLabel(inv.status)}
                     </span>
                   </td>
-                  <td className="px-4 py-3 text-sm text-slate-700">{(inv.total_cents / 100).toFixed(2)} {inv.currency}</td>
-                  <td className="px-4 py-3 text-sm text-slate-500">{inv.due_date ?? '—'}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-body)' }}>{(inv.total_cents / 100).toFixed(2)} {inv.currency}</td>
+                  <td className="px-4 py-3 text-sm" style={{ color: 'var(--text-subtle)' }}>{inv.due_date ?? '—'}</td>
                 </tr>
               ))}
             </tbody>
@@ -567,9 +569,10 @@ export default function InvoiceList() {
         )}
       </div>
 
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
       {showAdd && <AddInvoiceModal onClose={() => setShowAdd(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
-      {confirmDelete && <DeleteModal ids={selectedIds} onClose={() => { setConfirmDelete(false); setSelected(new Set()) }} />}
+      {confirmDelete && <DeleteModal ids={[...selection.sel]} onClose={() => { setConfirmDelete(false); selection.clear() }} />}
     </div>
   )
 }

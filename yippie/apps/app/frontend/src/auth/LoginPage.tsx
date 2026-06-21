@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Mail, Lock } from 'lucide-react'
 import { useAuth } from './useAuth'
 
 export default function LoginPage() {
@@ -26,61 +27,138 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="mb-8 text-center">
-          <div className="inline-flex items-center gap-2 mb-2">
-            <svg viewBox="0 0 36 36" className="w-8 h-8" fill="#5BA4F5">
-              <circle cx="10" cy="8" r="4" />
-              <path d="M4 28 Q10 36 18 30" strokeWidth="3.5" stroke="#5BA4F5" fill="none" strokeLinecap="round"/>
-              <circle cx="21" cy="5" r="2.5" />
-            </svg>
-            <span className="text-2xl font-bold text-slate-900">yippie</span>
-          </div>
-          <p className="text-sm text-slate-500">Sign in to your workspace</p>
-        </div>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center p-6 bgGrid"
+      style={{ background: 'var(--off-white)' }}
+    >
+      {/* Logo lockup above card */}
+      <img
+        src="/logo-lockup-onLight.svg"
+        alt="Yippie"
+        className="mb-8 object-contain"
+        style={{ height: 52 }}
+      />
 
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-600">
-                {error}
-              </div>
-            )}
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Email</label>
+      {/* Card */}
+      <div
+        className="w-full bg-white"
+        style={{
+          maxWidth: 400,
+          borderRadius: 'var(--radius-lg)',
+          boxShadow: 'var(--shadow-lg)',
+          padding: '32px',
+        }}
+      >
+        <p
+          className="font-mono text-[12px] font-semibold mb-3"
+          style={{ color: 'var(--brand-deep)' }}
+        >
+          // Sign in
+        </p>
+        <h1
+          className="font-display font-bold mb-6"
+          style={{ fontSize: 26, letterSpacing: '-0.02em', color: 'var(--ink)' }}
+        >
+          Welcome back
+        </h1>
+
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          {error && (
+            <div
+              className="rounded-md px-4 py-3 text-sm"
+              style={{
+                background: 'var(--status-urgent-bg)',
+                border: '1px solid rgba(220,38,38,0.2)',
+                color: 'var(--status-urgent)',
+              }}
+            >
+              {error}
+            </div>
+          )}
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold" style={{ color: 'var(--text-subtle)' }}>
+              Email
+            </label>
+            <div className="relative">
+              <Mail
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                style={{ color: 'var(--text-muted)' }}
+              />
               <input
                 type="email"
                 placeholder="you@company.com"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
-                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-9 pr-3 py-2.5 text-sm border outline-none transition-shadow"
+                style={{
+                  borderRadius: 'var(--radius-sm)',
+                  borderColor: 'var(--border-default)',
+                  color: 'var(--ink)',
+                  fontFamily: 'var(--font-body)',
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.boxShadow = 'var(--ring-brand)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.boxShadow = 'none' }}
                 required
               />
             </div>
-            <div className="flex flex-col gap-1.5">
-              <label className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Password</label>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-xs font-semibold" style={{ color: 'var(--text-subtle)' }}>
+              Password
+            </label>
+            <div className="relative">
+              <Lock
+                size={15}
+                className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none"
+                style={{ color: 'var(--text-muted)' }}
+              />
               <input
                 type="password"
                 placeholder="••••••••"
                 value={password}
                 onChange={e => setPassword(e.target.value)}
-                className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full pl-9 pr-3 py-2.5 text-sm border outline-none transition-shadow"
+                style={{
+                  borderRadius: 'var(--radius-sm)',
+                  borderColor: 'var(--border-default)',
+                  color: 'var(--ink)',
+                  fontFamily: 'var(--font-body)',
+                }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--brand)'; e.currentTarget.style.boxShadow = 'var(--ring-brand)' }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--border-default)'; e.currentTarget.style.boxShadow = 'none' }}
                 required
               />
             </div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold text-sm rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed mt-2"
-            >
-              {loading ? 'Signing in…' : 'Sign in'}
-            </button>
-            <Link to="/forgot-password" className="text-sm text-slate-400 hover:text-slate-600 text-center">
-              Forgot password?
-            </Link>
-          </form>
-        </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full py-3 font-semibold text-sm text-white mt-1 transition-all cursor-pointer disabled:cursor-not-allowed disabled:opacity-60"
+            style={{
+              borderRadius: 'var(--radius-sm)',
+              background: loading ? 'var(--brand)' : 'var(--ink)',
+              fontFamily: 'var(--font-body)',
+            }}
+            onMouseEnter={e => { if (!loading) e.currentTarget.style.background = 'var(--brand)' }}
+            onMouseLeave={e => { if (!loading) e.currentTarget.style.background = 'var(--ink)' }}
+          >
+            {loading ? 'Signing in…' : 'Sign in'}
+          </button>
+
+          <Link
+            to="/forgot-password"
+            className="text-sm text-center transition-colors"
+            style={{ color: 'var(--text-muted)' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-subtle)' }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)' }}
+          >
+            Forgot password?
+          </Link>
+        </form>
       </div>
     </div>
   )

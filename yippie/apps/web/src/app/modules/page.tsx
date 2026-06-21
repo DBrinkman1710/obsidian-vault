@@ -158,9 +158,9 @@ const modules: Module[] = [
     id: "templates",
     kicker: "TEMPLATES",
     title: "Templates — polished emails in seconds",
-    desc: "Build rich HTML email templates with the Unlayer drag-and-drop editor and save them for the whole team. Add campaign buttons that apply a pipeline stage the moment a customer clicks — no developer required.",
+    desc: "Build rich HTML email templates with a drag-and-drop editor and save them for the whole team. Add campaign buttons that apply a pipeline stage the moment a customer clicks — no developer required.",
     bullets: [
-      "Drag-and-drop Unlayer editor — no HTML knowledge needed",
+      "Drag-and-drop editor — no HTML knowledge needed",
       "Team-wide template library accessible from any reply window",
       "Campaign buttons that trigger pipeline stage moves on click",
       "Preview on desktop and mobile before sending",

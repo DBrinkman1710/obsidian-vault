@@ -204,7 +204,7 @@ export function Sidebar() {
   const primaryColor = config.branding.primary_color
 
   function navCls(isActive: boolean) {
-    return `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+    return `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
       isActive
         ? 'bg-white/20 text-white font-semibold'
         : 'text-white/75 hover:bg-white/10 hover:text-white'
@@ -270,7 +270,7 @@ export function Sidebar() {
                 <NavLink
                   key={dept.id}
                   to={`/inbox?dept=${dept.id}`}
-                  className={() => `flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-medium transition-colors ${
+                  className={() => `flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
                     isThisDept ? 'bg-white/20 text-white font-semibold' : 'text-white/65 hover:bg-white/10 hover:text-white'
                   }`}
                 >
@@ -295,23 +295,27 @@ export function Sidebar() {
         style={primaryColor ? { backgroundColor: primaryColor } : undefined}
       >
 
-        {/* Logo + tenant — pinned */}
-        <div className={`pt-6 pb-5 shrink-0 ${collapsed ? 'px-3' : 'px-5'}`}>
-          <div className="flex items-center mb-1">
-            <img src="/logo-blue-bg-mark.svg" alt="Yippie" className={collapsed ? 'h-8 w-8 shrink-0' : 'h-10 w-10 shrink-0'} />
-          </div>
-          {!collapsed && config.branding.logo_url && (
-            <div className="mt-2 mb-1">
+        {/* Workspace header — pinned */}
+        <div className={`pt-5 pb-4 shrink-0 ${collapsed ? 'px-2' : 'px-3'}`}>
+          <div className="flex items-center gap-3">
+            {/* White tile holding the logo mark */}
+            <div
+              className="shrink-0 flex items-center justify-center bg-white rounded-md"
+              style={{ width: 44, height: 44, boxShadow: 'var(--shadow-sm)' }}
+            >
               <img
-                src={config.branding.logo_url}
-                alt={config.tenant_name}
-                className="h-6 object-contain max-w-[120px]"
+                src="/logo-mark-tight.svg"
+                alt="Yippie"
+                className="w-7 h-7 object-contain"
               />
             </div>
-          )}
-          {!collapsed && (
-            <p className="text-white/60 text-xs font-medium pl-0.5 truncate">{config.tenant_name}</p>
-          )}
+            {!collapsed && (
+              <div className="min-w-0">
+                <p className="font-display font-bold text-white text-sm leading-tight">Yippie</p>
+                <p className="text-white/70 text-xs truncate leading-tight mt-0.5">{config.tenant_name}</p>
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Reorder action bar — pinned */}
@@ -447,8 +451,8 @@ export function Sidebar() {
       {/* Right-click context menu */}
       {contextMenu && (
         <div
-          className="fixed z-50 bg-white rounded-xl shadow-xl border border-slate-200 py-1 min-w-[160px]"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
+          className="fixed z-50 bg-white rounded-md border border-hairline py-1 min-w-[160px]"
+          style={{ boxShadow: 'var(--shadow-lg)', left: contextMenu.x, top: contextMenu.y }}
         >
           <button
             className="flex items-center gap-2.5 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"

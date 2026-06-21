@@ -1,166 +1,129 @@
 /* About page — layout styles only.
-   Shared tokens (card, eyebrow, btnPrimary, etc.) come from content.module.css. */
+   Shared tokens (card, eyebrow, btnPrimary, grid, etc.) come from content.module.css. */
 
-.homeLink {
+/* ── Hero founder pill ───────────────────────────────────────────── */
+.founderPill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 28px;
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--muted);
-  transition: color 0.18s;
+  gap: 10px;
+  padding: 6px 16px 6px 6px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--border);
+  background: #fff;
+  box-shadow: var(--shadow-sm);
+  margin-top: 8px;
 }
 
-.homeLink:hover {
-  color: var(--brand);
-}
-
-.heroLogoWrap {
+.founderAvatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--brand-soft-2), var(--brand-soft));
+  border: 1px solid var(--brand-ring);
+  color: var(--brand-700);
+  font-family: var(--font-display);
+  font-size: 13px;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 120px;
-  height: 120px;
-  margin: 0 auto 28px;
-  border-radius: 28px;
-  background: linear-gradient(145deg, #f0f7ff 0%, #ffffff 55%, #e8f3ff 100%);
-  border: 1px solid rgba(91, 164, 245, 0.22);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 12px 32px rgba(91, 164, 245, 0.14),
-    0 2px 8px rgba(15, 23, 42, 0.06);
+  flex-shrink: 0;
 }
 
-.heroLogo {
-  width: 72px;
-  height: auto;
-  display: block;
-  filter: drop-shadow(0 2px 6px rgba(26, 95, 180, 0.12));
+.founderName {
+  font-size: 13.5px;
+  color: var(--muted);
+}
+.founderName strong {
+  color: var(--ink);
 }
 
-.storyWrap,
-.philosophyWrap {
-  max-width: 720px;
+/* ── Story section ───────────────────────────────────────────────── */
+.storyWrap {
+  max-width: 860px;
   margin: 0 auto;
 }
 
 .storyBody {
-  font-size: 17px;
+  font-size: 17.5px;
   line-height: 1.8;
   color: var(--text);
   margin: 0 0 20px;
 }
-
-.extremesList {
-  margin: 0 0 24px;
-  padding-left: 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.extremesList li {
-  font-size: 17px;
-  line-height: 1.75;
-  color: var(--text);
-}
-
-.extremesList strong {
+.storyBody strong {
   color: var(--ink);
 }
 
-.bulletList {
-  list-style: none;
-  margin: 0 0 28px;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.bulletList li {
-  position: relative;
-  padding-left: 22px;
-  font-size: 17px;
-  line-height: 1.75;
-  color: var(--text);
-}
-
-.bulletList li::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 0.72em;
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--brand);
-  box-shadow: 0 0 0 3px var(--brand-soft);
-}
-
-.bulletList strong {
-  color: var(--ink);
-}
-
-.tagline {
-  font-family: var(--font-display);
-  font-size: clamp(20px, 2.5vw, 24px);
+.extremeNum {
+  font-family: var(--font-mono);
+  font-size: 13px;
   font-weight: 600;
-  line-height: 1.45;
+  color: var(--brand-700);
+  display: block;
+  margin-bottom: 8px;
+}
+
+.thesis {
+  font-family: var(--font-display);
+  font-size: clamp(22px, 2.8vw, 32px);
+  font-weight: 700;
   letter-spacing: -0.02em;
   color: var(--ink);
+  line-height: 1.28;
+  margin: 36px 0 0;
+}
+
+.thesisAccent {
+  color: var(--brand-700);
+}
+
+/* ── Section centering helper ────────────────────────────────────── */
+.sectionCenter {
+  text-align: center;
+  max-width: 620px;
+  margin: 0 auto 48px;
+}
+
+/* ── Journey grid ────────────────────────────────────────────────── */
+.journeyGrid {
+  max-width: var(--maxw);
+  margin: 0 auto;
+}
+
+.journeyRole {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--brand-700);
+  margin-bottom: 10px;
+  text-transform: uppercase;
+}
+
+/* ── Philosophy grid ─────────────────────────────────────────────── */
+.philosophyGrid {
+  max-width: var(--maxw);
+  margin: 0 auto 36px;
+}
+
+/* ── Tagline ─────────────────────────────────────────────────────── */
+.tagline {
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--brand-700);
   margin: 0;
 }
 
-/* Client logos — ready for real names/logos later */
-.clientsSection {
-  padding: 48px var(--gutter) 56px;
-  background: var(--off-white);
-  border-top: 1px solid var(--border);
-  border-bottom: 1px solid var(--border);
-  text-align: center;
-}
-
-.clientsRow {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 28px 40px;
-  max-width: var(--maxw);
-  margin: 20px auto 0;
-}
-
-.clientLogo {
-  height: 32px;
-  width: auto;
-  opacity: 0.72;
-  filter: grayscale(1);
-  transition: opacity 0.2s, filter 0.2s;
-}
-
-.clientLogo:hover {
-  opacity: 1;
-  filter: none;
-}
-
-.clientName {
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--muted);
-  letter-spacing: -0.01em;
+/* ── Responsive ──────────────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .thesis {
+    font-size: clamp(20px, 5vw, 28px);
+  }
 }
 
 @media (max-width: 520px) {
-  .heroLogoWrap {
-    width: 104px;
-    height: 104px;
-    border-radius: 24px;
-  }
-
-  .heroLogo {
-    width: 64px;
+  .founderPill {
+    flex-direction: row;
   }
 }

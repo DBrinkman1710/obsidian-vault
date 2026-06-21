@@ -1,14 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, Pencil, X, Sparkles, Send, Users, Plus, Trash2, AlertOctagon, CheckSquare, Square, Paperclip, ChevronLeft, ChevronRight, Building2, Palette, Search, ChevronDown, ExternalLink } from 'lucide-react'
 import { api } from '../../../api/client'
+import { Checkbox, BulkBar } from '../../../components/Selection'
+import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { CardListSkeleton } from '../../../shell/Skeleton'
-import { MutationGate } from '../../../shell/MutationGate'
 import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
 import { SignaturePicker } from '../components/SignaturePicker'
 
@@ -741,6 +742,7 @@ export default function InboxQueue() {
   const [showCompose, setShowCompose] = useState(false)
   const [composeInitial, setComposeInitial] = useState<ComposeInitialState | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const ctx = useContextMenu()
   const [page, setPage] = useState(0)
   const [selectedSentItem, setSelectedSentItem] = useState<any | null>(null)
   // Shared search query — persists across Pending/Processed/Sent tab switches.
@@ -1214,35 +1216,24 @@ export default function InboxQueue() {
         )}
 
         {/* Bulk action bar */}
-        {selected.size > 0 && (
-          <div className="mt-3 flex items-center gap-3 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
-            <span className="text-sm font-semibold text-blue-800">{selected.size} selected</span>
-            <MutationGate>
-              <button
-                onClick={() => bulkMutation.mutate({ ids: Array.from(selected), action: 'bin' })}
-                disabled={bulkMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
-              >
-                <Trash2 size={12} />
-                Move to Bin
-              </button>
-              <button
-                onClick={() => bulkMutation.mutate({ ids: Array.from(selected), action: 'spam' })}
-                disabled={bulkMutation.isPending}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-orange-600 bg-orange-50 border border-orange-200 rounded-lg hover:bg-orange-100 transition-colors disabled:opacity-50"
-              >
-                <AlertOctagon size={12} />
-                Mark as Spam
-              </button>
-            </MutationGate>
-            <button
-              onClick={() => setSelected(new Set())}
-              className="ml-auto text-xs text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              Cancel
-            </button>
-          </div>
-        )}
+        <BulkBar
+          count={selected.size}
+          onClear={() => setSelected(new Set())}
+          actions={[
+            {
+              label: 'Move to Bin',
+              icon: <Trash2 size={13} />,
+              danger: true,
+              onClick: () => bulkMutation.mutate({ ids: Array.from(selected), action: 'bin' }),
+            },
+            {
+              label: 'Mark as Spam',
+              icon: <AlertOctagon size={13} />,
+              danger: true,
+              onClick: () => bulkMutation.mutate({ ids: Array.from(selected), action: 'spam' }),
+            },
+          ]}
+        />
 
         <div className="h-4" />
       </div>
@@ -1366,16 +1357,25 @@ export default function InboxQueue() {
               <div className="flex items-center gap-3">
                 <button
                   onClick={toggleSelectAll}
-                  className="inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 transition-colors"
+                  className="inline-flex items-center gap-2 text-xs font-medium transition-colors"
+                  style={{ color: 'var(--text-muted)' }}
                 >
-                  <CheckSquare size={14} className={selected.size === visibleDrafts.length && visibleDrafts.length > 0 ? 'text-blue-600' : ''} />
+                  <Checkbox
+                    checked={selected.size === visibleDrafts.length && visibleDrafts.length > 0}
+                    indeterminate={selected.size > 0 && selected.size < visibleDrafts.length}
+                    onChange={toggleSelectAll}
+                    ariaLabel="Select all"
+                  />
                   {selected.size === visibleDrafts.length && visibleDrafts.length > 0 ? 'Deselect all' : `Select all (${visibleDrafts.length})`}
                 </button>
                 <button
                   onClick={() => { setAssignedToMe(v => !v); setPage(0) }}
-                  className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-semibold transition-colors ${
-                    assignedToMe ? 'bg-blue-600 text-white' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
-                  }`}
+                  className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold transition-colors"
+                  style={{
+                    borderRadius: 'var(--radius-sm)',
+                    background: assignedToMe ? 'var(--brand-soft)' : 'transparent',
+                    color: assignedToMe ? 'var(--brand-deep)' : 'var(--text-muted)',
+                  }}
                 >
                   Assigned to me
                 </button>
@@ -1412,19 +1412,29 @@ export default function InboxQueue() {
                 return (
                   <div
                     key={d.id}
-                    className={`bg-white rounded-xl border shadow-sm p-4 flex items-start gap-3 transition-all ${
-                      isFocused ? 'border-blue-400 ring-2 ring-blue-200' : isSelected ? 'border-blue-300 ring-1 ring-blue-200' : 'border-slate-200 hover:border-blue-300 hover:shadow-md'
-                    }`}
+                    className="border p-4 flex items-start gap-3 transition-all"
+                    style={{
+                      borderRadius: 'var(--radius-md)',
+                      borderColor: isFocused ? 'var(--brand)' : isSelected ? 'var(--brand-ring)' : 'var(--border-default)',
+                      background: isSelected ? 'rgba(91,164,245,0.08)' : '#fff',
+                      boxShadow: isFocused ? 'var(--ring-brand)' : 'var(--shadow-sm)',
+                    }}
+                    onContextMenu={e => ctx.open(e, [
+                      { header: d.ai_suggested_subject },
+                      { label: 'Review draft', icon: <ExternalLink size={14} />, onClick: () => navigate(`/inbox/drafts/${d.id}`) },
+                      { separator: true },
+                      { label: 'Move to Bin', icon: <Trash2 size={14} />, danger: true, onClick: () => bulkMutation.mutate({ ids: [d.id], action: 'bin' }) },
+                      { label: 'Mark as Spam', icon: <AlertOctagon size={14} />, danger: true, onClick: () => bulkMutation.mutate({ ids: [d.id], action: 'spam' }) },
+                    ])}
                   >
                     {/* Checkbox */}
-                    <button
-                      onClick={e => { e.preventDefault(); toggleSelect(d.id) }}
-                      className={`shrink-0 mt-0.5 w-4 h-4 rounded border-2 flex items-center justify-center transition-colors ${
-                        isSelected ? 'bg-blue-600 border-blue-600' : 'border-slate-300 hover:border-blue-400'
-                      }`}
-                    >
-                      {isSelected && <span className="text-white text-[10px] font-bold">✓</span>}
-                    </button>
+                    <span className="shrink-0 mt-0.5">
+                      <Checkbox
+                        checked={isSelected}
+                        onChange={e => { e.preventDefault(); toggleSelect(d.id) }}
+                        ariaLabel={`Select ${d.ai_suggested_subject}`}
+                      />
+                    </span>
 
                     {/* Card content — full click area links to draft */}
                     <Link
@@ -1580,6 +1590,7 @@ export default function InboxQueue() {
           </div>
         </div>
       )}
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
     </div>
   )
 }

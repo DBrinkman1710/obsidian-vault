@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Check, CheckCheck, ChevronDown, Megaphone, MessageSquare, QrCode, Search, Send, SquarePen, UserPlus, Users, X } from 'lucide-react'
+import { ArrowLeft, Check, CheckCheck, ChevronDown, Megaphone, MessageSquare, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2 } from 'lucide-react'
 import { api } from '../../../api/client'
+import { Checkbox, BulkBar } from '../../../components/Selection'
 import { useAuth } from '../../../auth/useAuth'
 import { useMobile } from '../../../shell/useMobile'
 import { useTenantConfig } from '../../../App'
@@ -596,12 +597,10 @@ export default function ChatPage() {
                 >
                   {showCheckbox && (
                     <div className="absolute left-2 top-1/2 -translate-y-1/2 z-10">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         checked={isSelected}
-                        onChange={() => {}}
-                        onClick={e => toggleSessionSelection(e, s.id)}
-                        className="w-4 h-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                        onChange={e => toggleSessionSelection(e as any, s.id)}
+                        ariaLabel={`Select session from ${s.visitor_name || s.whatsapp_phone || 'Unknown'}`}
                       />
                     </div>
                   )}
@@ -649,38 +648,17 @@ export default function ChatPage() {
             })}
 
             {/* Bulk action bar */}
-            {selectedSessions.size > 0 && (
-              <div className="sticky bottom-0 bg-white border-t border-slate-200 px-3 py-2.5 flex items-center gap-2 shadow-md">
-                <span className="text-xs font-semibold text-slate-600 mr-1">{selectedSessions.size} selected</span>
-                <button
-                  onClick={() => handleBulkAction('close')}
-                  disabled={bulkMutation.isPending}
-                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-                >
-                  Close ({selectedSessions.size})
-                </button>
-                <button
-                  onClick={() => handleBulkAction('reopen')}
-                  disabled={bulkMutation.isPending}
-                  className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-                >
-                  Reopen ({selectedSessions.size})
-                </button>
-                <button
-                  onClick={() => handleBulkAction('delete')}
-                  disabled={bulkMutation.isPending}
-                  className="px-2.5 py-1 bg-red-50 hover:bg-red-100 text-red-700 border border-red-200 rounded-lg text-xs font-semibold transition-colors disabled:opacity-50"
-                >
-                  Delete ({selectedSessions.size})
-                </button>
-                <button
-                  onClick={() => setSelectedSessions(new Set())}
-                  className="ml-auto p-1 text-slate-400 hover:text-slate-600"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            )}
+            <div className="sticky bottom-0 px-3 pt-2 pb-3" style={{ background: '#fff' }}>
+              <BulkBar
+                count={selectedSessions.size}
+                onClear={() => setSelectedSessions(new Set())}
+                actions={[
+                  { label: 'Close', onClick: () => handleBulkAction('close') },
+                  { label: 'Reopen', onClick: () => handleBulkAction('reopen') },
+                  { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => handleBulkAction('delete') },
+                ]}
+              />
+            </div>
           </>
         )}
       </div>

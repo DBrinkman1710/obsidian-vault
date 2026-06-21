@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, Plus, User, ChevronLeft, Upload, Download, Trash2, X, Mail } from 'lucide-react'
+import { Search, Plus, User, ChevronLeft, Upload, Download, Trash2, X, ExternalLink } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { TableSkeleton } from '../../../shell/Skeleton'
 import { LabelChip, fetchLabels, type ContactLabel } from '../components/LabelChip'
 import { CompanyBadge, fetchCompanies, type CompanyRef } from '../components/CompanyBadge'
+import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
+import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 
 interface Contact {
   id: string
@@ -48,7 +50,6 @@ export default function ContactList() {
   const [search, setSearch] = useState('')
   const [labelFilter, setLabelFilter] = useState<string | null>(null)
   const [companyFilter, setCompanyFilter] = useState<string | null>(companyId ?? null)
-  const [selected, setSelected] = useState<Set<string>>(new Set())
   const [showImport, setShowImport] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
@@ -70,21 +71,11 @@ export default function ContactList() {
   })
 
   const items = data?.items ?? []
-  const allSelected = items.length > 0 && items.every(c => selected.has(c.id))
+  const ids = items.map(c => c.id)
+  const selection = useSelection(ids)
+  const ctx = useContextMenu()
 
-  function toggle(id: string) {
-    setSelected(prev => {
-      const next = new Set(prev)
-      next.has(id) ? next.delete(id) : next.add(id)
-      return next
-    })
-  }
-  function toggleAll() {
-    setSelected(allSelected ? new Set() : new Set(items.map(c => c.id)))
-  }
-  function clearSelection() {
-    setSelected(new Set())
-  }
+  function clearSelection() { selection.clear() }
 
   const importMutation = useMutation({
     mutationFn: (file: File) => {
@@ -134,8 +125,6 @@ export default function ContactList() {
     setImportResult(null)
     setImportError(null)
   }
-
-  const selectedIds = [...selected]
 
   return (
     <div>
@@ -237,52 +226,37 @@ export default function ContactList() {
         </div>
       )}
 
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
-          <span className="text-sm font-semibold text-blue-900">{selected.size} selected</span>
-          <div className="h-4 w-px bg-blue-200" />
-          <button
-            onClick={() => exportContacts(selectedIds)}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-900"
-          >
-            <Download size={14} strokeWidth={2.5} />
-            Export selected
-          </button>
-          <button
-            onClick={() => {
-              if (confirm(`Delete ${selected.size} contact(s)? This cannot be undone.`)) {
-                deleteMutation.mutate(selectedIds)
-              }
-            }}
-            disabled={deleteMutation.isPending}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50"
-          >
-            <Trash2 size={14} strokeWidth={2.5} />
-            Delete selected
-          </button>
-          <button
-            onClick={() => alert('Compose from contacts — feature coming')}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900"
-          >
-            <Mail size={14} strokeWidth={2.5} />
-            Compose
-          </button>
-          <button onClick={clearSelection} className="ml-auto text-slate-400 hover:text-slate-600">
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      <BulkBar
+        count={selection.count}
+        onClear={selection.clear}
+        actions={[
+          {
+            label: 'Export',
+            icon: <Download size={13} />,
+            onClick: () => exportContacts([...selection.sel]),
+          },
+          {
+            label: 'Delete',
+            icon: <Trash2 size={13} />,
+            danger: true,
+            onClick: () => {
+              if (confirm(`Delete ${selection.count} contact(s)? This cannot be undone.`))
+                deleteMutation.mutate([...selection.sel])
+            },
+          },
+        ]}
+      />
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <table className="w-full">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
               <th className="px-4 py-3 w-10 text-left">
-                <input
-                  type="checkbox"
-                  checked={allSelected}
-                  onChange={toggleAll}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                <Checkbox
+                  checked={selection.all}
+                  indeterminate={selection.some}
+                  onChange={selection.toggleAll}
+                  ariaLabel="Select all contacts"
                 />
               </th>
               <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
@@ -299,14 +273,28 @@ export default function ContactList() {
               {items.map(c => (
                 <tr
                   key={c.id}
-                  className="hover:bg-slate-50 transition-colors"
+                  className="transition-colors"
+                  style={{ background: selection.has(c.id) ? 'rgba(91,164,245,0.08)' : undefined }}
+                  onContextMenu={e => ctx.open(e, [
+                    { header: c.full_name },
+                    { label: 'View contact', icon: <ExternalLink size={14} />, onClick: () => navigate(`/contacts/${c.id}`) },
+                    { separator: true },
+                    {
+                      label: 'Delete',
+                      icon: <Trash2 size={14} />,
+                      danger: true,
+                      onClick: () => {
+                        if (confirm('Delete this contact? This cannot be undone.'))
+                          deleteMutation.mutate([c.id])
+                      },
+                    },
+                  ])}
                 >
                   <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selected.has(c.id)}
-                      onChange={() => toggle(c.id)}
-                      className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                    <Checkbox
+                      checked={selection.has(c.id)}
+                      onChange={e => selection.toggle(c.id, e)}
+                      ariaLabel={`Select ${c.full_name}`}
                     />
                   </td>
                   <td className="px-4 py-3 cursor-pointer" onClick={() => navigate(`/contacts/${c.id}`)}>
@@ -359,6 +347,8 @@ export default function ContactList() {
           </div>
         )}
       </div>
+
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
 
       {showImport && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeImport}>
