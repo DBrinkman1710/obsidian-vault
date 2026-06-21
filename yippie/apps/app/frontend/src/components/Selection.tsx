@@ -83,7 +83,7 @@ export function Checkbox({ checked, indeterminate = false, onChange, size = 18, 
   )
 }
 
-/* ── BulkBar — ink bar above list when count > 0 ────────────────────── */
+/* ── BulkBar — fixed floating bar at page bottom when count > 0 ─────── */
 export interface BulkAction {
   label: string
   icon?: React.ReactNode
@@ -100,31 +100,17 @@ interface BulkBarProps {
 export function BulkBar({ count, onClear, actions = [] }: BulkBarProps) {
   if (!count) return null
   return (
-    <div
-      className="flex items-center gap-3 mb-3 px-4 py-2.5"
-      style={{
-        borderRadius: 'var(--radius-md)',
-        background: 'var(--ink)',
-        color: '#fff',
-        boxShadow: 'var(--shadow-md)',
-      }}
-    >
-      <span className="font-mono text-[12.5px] font-semibold shrink-0 whitespace-nowrap">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl shadow-lg whitespace-nowrap">
+      <span className="text-sm font-semibold text-blue-900 shrink-0">
         {count} selected
       </span>
-      <span className="w-px h-[18px] shrink-0" style={{ background: 'rgba(255,255,255,0.2)' }} />
-      <div className="flex gap-1.5 flex-1 flex-wrap">
+      <div className="h-4 w-px bg-blue-200 shrink-0" />
+      <div className="flex gap-4 flex-wrap">
         {actions.map(a => (
           <button
             key={a.label}
             onClick={a.onClick}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-[13px] font-semibold text-white cursor-pointer transition-opacity hover:opacity-90"
-            style={{
-              borderRadius: 'var(--radius-sm)',
-              border: '1px solid rgba(255,255,255,0.18)',
-              background: a.danger ? 'rgba(239,68,68,0.9)' : 'rgba(255,255,255,0.08)',
-              fontFamily: 'var(--font-body)',
-            }}
+            className={`inline-flex items-center gap-1.5 text-sm font-medium ${a.danger ? 'text-red-600 hover:text-red-800' : 'text-blue-700 hover:text-blue-900'}`}
           >
             {a.icon}
             {a.label}
@@ -134,17 +120,9 @@ export function BulkBar({ count, onClear, actions = [] }: BulkBarProps) {
       <button
         onClick={onClear}
         aria-label="Clear selection"
-        className="inline-flex items-center gap-1.5 text-[13px] font-semibold cursor-pointer transition-opacity hover:opacity-100 shrink-0"
-        style={{
-          color: 'rgba(255,255,255,0.7)',
-          background: 'transparent',
-          border: 'none',
-          fontFamily: 'var(--font-body)',
-          padding: '6px 8px',
-        }}
+        className="text-slate-400 hover:text-slate-600 ml-2 shrink-0"
       >
-        <X size={14} />
-        Clear
+        <X size={16} />
       </button>
     </div>
   )

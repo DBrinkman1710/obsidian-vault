@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail, ExternalLink } from 'lucide-react'
 import { toast } from 'sonner'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
+import { BulkBar } from '../../../components/Selection'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { TableSkeleton, CardListSkeleton } from '../../../shell/Skeleton'
@@ -160,27 +161,23 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
         </div>
       )}
 
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
-          <span className="text-sm font-semibold text-blue-900">{selected.size} selected</span>
-          <div className="h-4 w-px bg-blue-200" />
-          <button onClick={exportSelectedCsv}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-900">
-            <Download size={14} strokeWidth={2.5} /> Export CSV
-          </button>
-          <MutationGate>
-            <button
-              onClick={() => { if (confirm(`Delete ${selected.size} company/companies? Contacts will remain.`)) deleteMutation.mutate([...selected]) }}
-              disabled={deleteMutation.isPending}
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
-              <Trash2 size={14} strokeWidth={2.5} /> Delete
-            </button>
-          </MutationGate>
-          <button onClick={() => setSelected(new Set())} className="ml-auto text-slate-400 hover:text-slate-600">
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      <BulkBar
+        count={selected.size}
+        onClear={() => setSelected(new Set())}
+        actions={[
+          {
+            label: 'Export CSV',
+            icon: <Download size={14} strokeWidth={2.5} />,
+            onClick: exportSelectedCsv,
+          },
+          {
+            label: 'Delete',
+            icon: <Trash2 size={14} strokeWidth={2.5} />,
+            danger: true,
+            onClick: () => { if (confirm(`Delete ${selected.size} company/companies? Contacts will remain.`)) deleteMutation.mutate([...selected]) },
+          },
+        ]}
+      />
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -453,29 +450,28 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         </div>
       )}
 
-      {selected.size > 0 && (
-        <div className="flex items-center gap-3 mb-4 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl">
-          <span className="text-sm font-semibold text-blue-900">{selected.size} selected</span>
-          <div className="h-4 w-px bg-blue-200" />
-          <button onClick={() => alert('Compose from contacts — coming soon')}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-600 hover:text-slate-900">
-            <Mail size={14} strokeWidth={2.5} /> Compose
-          </button>
-          <button onClick={() => exportSelected(selectedIds)}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-900">
-            <Download size={14} strokeWidth={2.5} /> Export selected
-          </button>
-          <button
-            onClick={() => { if (confirm(`Delete ${selected.size} contact(s)? This cannot be undone.`)) deleteMutation.mutate(selectedIds) }}
-            disabled={deleteMutation.isPending}
-            className="inline-flex items-center gap-1.5 text-sm font-medium text-red-600 hover:text-red-800 disabled:opacity-50">
-            <Trash2 size={14} strokeWidth={2.5} /> Delete selected
-          </button>
-          <button onClick={clearSelection} className="ml-auto text-slate-400 hover:text-slate-600">
-            <X size={16} />
-          </button>
-        </div>
-      )}
+      <BulkBar
+        count={selected.size}
+        onClear={clearSelection}
+        actions={[
+          {
+            label: 'Compose',
+            icon: <Mail size={14} strokeWidth={2.5} />,
+            onClick: () => alert('Compose from contacts — coming soon'),
+          },
+          {
+            label: 'Export selected',
+            icon: <Download size={14} strokeWidth={2.5} />,
+            onClick: () => exportSelected(selectedIds),
+          },
+          {
+            label: 'Delete selected',
+            icon: <Trash2 size={14} strokeWidth={2.5} />,
+            danger: true,
+            onClick: () => { if (confirm(`Delete ${selected.size} contact(s)? This cannot be undone.`)) deleteMutation.mutate(selectedIds) },
+          },
+        ]}
+      />
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
