@@ -276,7 +276,7 @@ export function Sidebar() {
     <>
       <aside
         onContextMenu={e => { if (collapsed || reordering) return; ctx.open(e, [{ label: 'Reorder sidebar', icon: <GripVertical size={14} />, onClick: enterReorder }]) }}
-        className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 transition-all duration-200 ${
+        className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 transition-all duration-200 relative z-10 ${
           collapsed ? 'w-14' : 'w-56'
         }`}
         style={primaryColor ? { backgroundColor: primaryColor } : undefined}
