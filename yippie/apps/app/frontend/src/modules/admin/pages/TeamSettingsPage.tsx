@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { UserPlus, X, Plus, Pencil, Trash2, Building, ChevronDown, ChevronRight, Shield } from 'lucide-react'
+import { UserPlus, X, Plus, Pencil, Trash2, Building, ChevronDown, ChevronRight, Shield, UserMinus } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { TemplatePicker } from '../../inbox/components/TemplatePicker'
@@ -34,14 +34,20 @@ interface Dept { id: string; name: string; email: string; sla_working_days: numb
 type DeptForm = { name: string; email: string; sla_working_days: string; reply_template: string }
 const DEPT_EMPTY: DeptForm = { name: '', email: '', sla_working_days: '3', reply_template: '' }
 
-function DeptModal({ dept, onClose }: { dept?: Dept; onClose: () => void }) {
+interface DeptMember { user_id: string; email: string; full_name: string; role: string }
+
+function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }) {
   const qc = useQueryClient()
+  const config = useTenantConfig()
+  const enabledModules = config?.enabled_modules ?? []
+
+  const [tab, setTab] = useState<'settings' | 'members' | 'permissions'>(dept ? 'settings' : 'settings')
   const [form, setForm] = useState<DeptForm>(dept
     ? { name: dept.name, email: dept.email, sla_working_days: String(dept.sla_working_days), reply_template: dept.reply_template ?? '' }
     : DEPT_EMPTY)
   const [error, setError] = useState('')
 
-  const mutation = useMutation({
+  const saveMutation = useMutation({
     mutationFn: () => {
       const payload = {
         name: form.name.trim(),
@@ -51,7 +57,7 @@ function DeptModal({ dept, onClose }: { dept?: Dept; onClose: () => void }) {
       }
       return dept ? api.patch(`/departments/${dept.id}`, payload) : api.post('/departments', payload)
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); onClose() },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); if (!dept) onClose() },
     onError: () => setError('Failed to save'),
   })
 
@@ -59,59 +65,170 @@ function DeptModal({ dept, onClose }: { dept?: Dept; onClose: () => void }) {
     e.preventDefault()
     if (!form.name.trim() || !form.email.trim()) { setError('Name and email are required'); return }
     setError('')
-    mutation.mutate()
+    saveMutation.mutate()
   }
+
+  // Members tab data
+  const { data: members = [], isLoading: membersLoading } = useQuery<DeptMember[]>({
+    queryKey: ['dept-members', dept?.id],
+    queryFn: () => api.get(`/departments/${dept!.id}/members`).then(r => r.data),
+    enabled: !!dept && tab === 'members',
+  })
+  const { data: allUsers = [] } = useQuery<TeamUser[]>({
+    queryKey: ['team-users'],
+    queryFn: () => api.get('/team/members').then(r => r.data),
+    enabled: !!dept && tab === 'members',
+  })
+
+  const addMemberMutation = useMutation({
+    mutationFn: (userId: string) => api.post(`/departments/${dept!.id}/members`, { user_id: userId }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dept-members', dept?.id] }),
+  })
+  const removeMemberMutation = useMutation({
+    mutationFn: (userId: string) => api.delete(`/departments/${dept!.id}/members/${userId}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['dept-members', dept?.id] }),
+  })
+
+  const memberIds = new Set(members.map(m => m.user_id))
+  const addableUsers = allUsers.filter(u => !memberIds.has(u.id) && u.is_active)
+
+  const tabs = dept
+    ? [{ key: 'settings', label: 'Settings' }, { key: 'members', label: 'Members' }, { key: 'permissions', label: 'Permissions' }] as const
+    : [{ key: 'settings', label: 'Settings' }] as const
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">{dept ? 'Edit' : 'New'} Department</h2>
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[85vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
+          <h2 className="text-lg font-bold text-slate-900">{dept ? dept.name : 'New Department'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
-          <div>
-            <label className={labelCls}>Name *</label>
-            <input className={inputCls} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Finance" autoFocus />
+
+        {/* Tabs */}
+        {dept && (
+          <div className="flex gap-1 px-6 pt-4 shrink-0">
+            {tabs.map(t => (
+              <button
+                key={t.key}
+                onClick={() => setTab(t.key)}
+                className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${tab === t.key ? 'bg-slate-900 text-white' : 'text-slate-500 hover:bg-slate-100'}`}
+              >
+                {t.label}
+              </button>
+            ))}
           </div>
-          <div>
-            <label className={labelCls}>Email *</label>
-            <input className={inputCls} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="finance@company.nl" />
-          </div>
-          <div>
-            <label className={labelCls}>SLA (working days)</label>
-            <input className={`${inputCls} w-24`} type="number" min={1} max={90} value={form.sla_working_days} onChange={e => setForm(p => ({ ...p, sla_working_days: e.target.value }))} />
-          </div>
-          <div>
-            <label className={labelCls}>Default reply template</label>
-            <div className="flex items-center gap-2 mb-1.5">
-              <TemplatePicker
-                onSelect={(body) => setForm(p => ({ ...p, reply_template: body.replace(/<[^>]*>/g, '').trim() }))}
-                direction="down"
-              />
-              {form.reply_template && (
-                <button type="button" onClick={() => setForm(p => ({ ...p, reply_template: '' }))}
-                  className="text-xs text-red-500 hover:text-red-700 font-medium">
-                  Clear
-                </button>
-              )}
+        )}
+
+        {/* Settings tab */}
+        {tab === 'settings' && (
+          <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4 overflow-y-auto">
+            <div>
+              <label className={labelCls}>Name *</label>
+              <input className={inputCls} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Finance" autoFocus />
             </div>
-            {form.reply_template ? (
-              <p className="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 border border-slate-200 line-clamp-3">
-                {form.reply_template}
-              </p>
-            ) : (
-              <p className="text-xs text-slate-400">No template selected</p>
+            <div>
+              <label className={labelCls}>Email *</label>
+              <input className={inputCls} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="finance@company.nl" />
+            </div>
+            <div>
+              <label className={labelCls}>SLA (working days)</label>
+              <input className={`${inputCls} w-24`} type="number" min={1} max={90} value={form.sla_working_days} onChange={e => setForm(p => ({ ...p, sla_working_days: e.target.value }))} />
+            </div>
+            <div>
+              <label className={labelCls}>Default reply template</label>
+              <div className="flex items-center gap-2 mb-1.5">
+                <TemplatePicker
+                  onSelect={(body) => setForm(p => ({ ...p, reply_template: body.replace(/<[^>]*>/g, '').trim() }))}
+                  direction="down"
+                />
+                {form.reply_template && (
+                  <button type="button" onClick={() => setForm(p => ({ ...p, reply_template: '' }))}
+                    className="text-xs text-red-500 hover:text-red-700 font-medium">Clear</button>
+                )}
+              </div>
+              {form.reply_template
+                ? <p className="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 border border-slate-200 line-clamp-3">{form.reply_template}</p>
+                : <p className="text-xs text-slate-400">No template selected</p>
+              }
+            </div>
+            {error && <p className="text-xs text-red-500">{error}</p>}
+            <div className="flex gap-3 pt-1">
+              <button type="submit" disabled={saveMutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors">
+                {saveMutation.isPending ? 'Saving…' : 'Save'}
+              </button>
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            </div>
+          </form>
+        )}
+
+        {/* Members tab */}
+        {tab === 'members' && dept && (
+          <div className="p-6 flex flex-col gap-5 overflow-y-auto">
+            {/* Current members */}
+            <div>
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Current members</p>
+              {membersLoading && <p className="text-xs text-slate-400">Loading…</p>}
+              {!membersLoading && members.length === 0 && (
+                <p className="text-xs text-slate-400">No members yet.</p>
+              )}
+              <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
+                {members.map(m => (
+                  <div key={m.user_id} className="flex items-center justify-between px-4 py-2.5">
+                    <div>
+                      <p className="text-sm font-medium text-slate-900">{m.full_name}</p>
+                      <p className="text-xs text-slate-400">{m.email}</p>
+                    </div>
+                    <button
+                      onClick={() => removeMemberMutation.mutate(m.user_id)}
+                      disabled={removeMemberMutation.isPending}
+                      className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
+                      title="Remove from department"
+                    >
+                      <UserMinus size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Add existing users */}
+            {addableUsers.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Add member</p>
+                <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
+                  {addableUsers.map(u => (
+                    <div key={u.id} className="flex items-center justify-between px-4 py-2.5">
+                      <div>
+                        <p className="text-sm font-medium text-slate-900">{u.full_name}</p>
+                        <p className="text-xs text-slate-400">{u.email}</p>
+                      </div>
+                      <button
+                        onClick={() => addMemberMutation.mutate(u.id)}
+                        disabled={addMemberMutation.isPending}
+                        className="px-2.5 py-1 text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg transition-colors"
+                      >
+                        Add
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
             )}
           </div>
-          {error && <p className="text-xs text-red-500">{error}</p>}
-          <div className="flex gap-3 pt-1">
-            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors">
-              {mutation.isPending ? 'Saving…' : 'Save'}
-            </button>
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+        )}
+
+        {/* Permissions tab */}
+        {tab === 'permissions' && dept && (
+          <div className="p-6 overflow-y-auto">
+            <p className="text-xs text-slate-500 mb-3">Set module access for everyone in <strong>{dept.name}</strong>. Full is the default.</p>
+            <ModulePermissionsGrid
+              subjectType="department"
+              subjectId={dept.id}
+              enabledModules={enabledModules.filter(m => !['departments', 'ai'].includes(m))}
+            />
           </div>
-        </form>
+        )}
       </div>
     </div>
   )
@@ -120,7 +237,7 @@ function DeptModal({ dept, onClose }: { dept?: Dept; onClose: () => void }) {
 function DepartmentsPanel() {
   const qc = useQueryClient()
   const [showNew, setShowNew] = useState(false)
-  const [editing, setEditing] = useState<Dept | null>(null)
+  const [selected, setSelected] = useState<Dept | null>(null)
 
   const { data: departments, isLoading } = useQuery<Dept[]>({
     queryKey: ['departments'],
@@ -163,21 +280,23 @@ function DepartmentsPanel() {
         {departments && departments.length > 0 && (
           <div className="divide-y divide-slate-100">
             {departments.map(dept => (
-              <div key={dept.id} className="flex items-center justify-between gap-2 px-4 py-3">
+              <div
+                key={dept.id}
+                onClick={() => setSelected(dept)}
+                className="flex items-center justify-between gap-2 px-4 py-3 cursor-pointer hover:bg-slate-50 transition-colors"
+              >
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <span className="text-sm font-semibold text-slate-900 truncate">{dept.name}</span>
-                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700 shrink-0">{dept.sla_working_days}d</span>
+                    <span className="px-1.5 py-0.5 rounded-full text-[10px] font-bold bg-violet-100 text-violet-700 shrink-0">{dept.sla_working_days}d SLA</span>
                   </div>
                   <p className="text-xs text-slate-400 truncate">{dept.email}</p>
                 </div>
                 <div className="flex gap-1 shrink-0">
-                  <button onClick={() => setEditing(dept)} className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Edit">
-                    <Pencil size={13} />
-                  </button>
                   <button
-                    onClick={() => { if (confirm(`Delete "${dept.name}"?`)) deleteMutation.mutate(dept.id) }}
-                    className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors" title="Delete"
+                    onClick={e => { e.stopPropagation(); if (confirm(`Delete "${dept.name}"?`)) deleteMutation.mutate(dept.id) }}
+                    className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
+                    title="Delete"
                   >
                     <Trash2 size={13} />
                   </button>
@@ -188,8 +307,8 @@ function DepartmentsPanel() {
         )}
       </div>
 
-      {showNew && <DeptModal onClose={() => setShowNew(false)} />}
-      {editing && <DeptModal dept={editing} onClose={() => setEditing(null)} />}
+      {showNew && <DeptDetailModal onClose={() => setShowNew(false)} />}
+      {selected && <DeptDetailModal dept={selected} onClose={() => setSelected(null)} />}
     </div>
   )
 }
