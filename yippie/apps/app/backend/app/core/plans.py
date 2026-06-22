@@ -65,12 +65,15 @@ PLAN_FEATURES: dict[PlanTier, set[str]] = {
 # Per-plan seat caps and pricing (euros). ``None`` means unlimited.
 # All plans have unlimited contacts. Plans differ by users and AI scans/month.
 # price_annual = monthly * 12 * 0.9 (10% discount, billed as a single yearly charge)
-PLAN_LIMITS: dict[PlanTier, dict[str, "int | None"]] = {
-    PlanTier.founder:    {"users": 2,    "contacts": None, "ai_scans": 500,    "price_monthly": 9,    "price_annual": 97},
-    PlanTier.starter:    {"users": 5,    "contacts": None, "ai_scans": 2_000,  "price_monthly": 19,   "price_annual": 205},
-    PlanTier.growth:     {"users": 10,   "contacts": None, "ai_scans": 10_000, "price_monthly": 49,   "price_annual": 529},
-    PlanTier.pro:        {"users": None, "contacts": None, "ai_scans": None,   "price_monthly": None, "price_annual": None},
-    PlanTier.enterprise: {"users": None, "contacts": None, "ai_scans": None,   "price_monthly": None, "price_annual": None},
+# ``module_discount`` is the fraction off à la carte paid add-on modules
+# (MODULE_PRICES) this plan grants — e.g. 0.5 == 50% off. The Founder plan is a
+# limited launch offer: 10 seats plus 50% off every paid add-on module.
+PLAN_LIMITS: dict[PlanTier, dict[str, "int | float | None"]] = {
+    PlanTier.founder:    {"users": 10,   "contacts": None, "ai_scans": 500,    "price_monthly": 9,    "price_annual": 97,   "module_discount": 0.5},
+    PlanTier.starter:    {"users": 5,    "contacts": None, "ai_scans": 2_000,  "price_monthly": 19,   "price_annual": 205,  "module_discount": 0.0},
+    PlanTier.growth:     {"users": 10,   "contacts": None, "ai_scans": 10_000, "price_monthly": 49,   "price_annual": 529,  "module_discount": 0.0},
+    PlanTier.pro:        {"users": None, "contacts": None, "ai_scans": None,   "price_monthly": None, "price_annual": None, "module_discount": 0.0},
+    PlanTier.enterprise: {"users": None, "contacts": None, "ai_scans": None,   "price_monthly": None, "price_annual": None, "module_discount": 0.0},
 }
 
 
@@ -97,9 +100,23 @@ def _coerce_plan(plan: "PlanTier | str | None") -> PlanTier:
         return PlanTier.founder
 
 
-def limits_for_plan(plan: "PlanTier | str | None") -> dict[str, "int | None"]:
-    """The seat/contact caps a plan permits (``None`` == unlimited)."""
+def limits_for_plan(plan: "PlanTier | str | None") -> dict[str, "int | float | None"]:
+    """The seat/contact caps + module discount a plan permits (``None`` == unlimited)."""
     return dict(PLAN_LIMITS.get(_coerce_plan(plan), PLAN_LIMITS[PlanTier.founder]))
+
+
+def module_discount_for_plan(plan: "PlanTier | str | None") -> float:
+    """Fraction off paid add-on modules this plan grants (0.0–1.0)."""
+    limits = PLAN_LIMITS.get(_coerce_plan(plan), PLAN_LIMITS[PlanTier.founder])
+    return float(limits.get("module_discount") or 0.0)
+
+
+def module_prices_for_plan(plan: "PlanTier | str | None") -> dict[str, int]:
+    """À la carte module prices after this plan's add-on discount is applied."""
+    discount = module_discount_for_plan(plan)
+    if discount <= 0:
+        return dict(MODULE_PRICES)
+    return {name: round(price * (1 - discount)) for name, price in MODULE_PRICES.items()}
 
 
 def features_for_plan(plan: "PlanTier | str | None") -> set[str]:

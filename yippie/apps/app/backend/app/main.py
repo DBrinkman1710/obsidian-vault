@@ -11,7 +11,7 @@ from app.auth.dependencies import CurrentUser, check_module_access, require_feat
 from app.auth.router import router as auth_router
 from app.config import ALL_MODULES, get_settings
 from app.core.models import Tenant
-from app.core.plans import ADVANCED_FEATURES, MODULE_PRICES, features_for_plan, limits_for_plan
+from app.core.plans import ADVANCED_FEATURES, features_for_plan, limits_for_plan, module_prices_for_plan
 from app.core.schemas import TenantConfigOut
 from app.database import get_db
 from app.modules import MODULES
@@ -116,7 +116,7 @@ def create_app() -> FastAPI:
             plan=tenant.plan,
             allowed_features=allowed_features,
             plan_limits=limits_for_plan(tenant.plan),
-            module_prices=dict(MODULE_PRICES),
+            module_prices=module_prices_for_plan(tenant.plan),
             ai_auto_scan=tenant.ai_auto_scan,
         )
 
