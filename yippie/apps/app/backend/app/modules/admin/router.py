@@ -356,7 +356,7 @@ async def evolution_check(_: SuperAdminUser, db: DB):
                         test_resp = await client.post(
                             f"{base}/message/sendText/{slug}",
                             headers={"Content-Type": "application/json", **headers},
-                            json={"number": digits_only, "textMessage": {"text": "_diag_"}},
+                            json={"number": digits_only, "text": "_diag_"},
                         )
                         entry["send_digits_status"] = test_resp.status_code
                         ct2 = test_resp.headers.get("content-type", "")
@@ -393,7 +393,7 @@ async def evolution_send_test(_: SuperAdminUser, body: EvolutionSendTestBody):
         resp = await client.post(
             f"{base}/message/sendText/{body.instance}",
             headers=headers,
-            json={"number": body.number, "textMessage": {"text": body.message}},
+            json={"number": body.number, "text": body.message},
         )
         ct = resp.headers.get("content-type", "")
         resp_body = resp.json() if "application/json" in ct else resp.text
