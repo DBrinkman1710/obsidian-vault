@@ -421,7 +421,7 @@ async def meet_get(
 
     await set_tenant_context(db, str(tenant.id))
     settings = await booking_service.get_or_create_settings(db, tenant.id)
-    days_ahead = max(settings.booking_expiry_days, 14)
+    days_ahead = max(getattr(settings, "booking_window_days", 60) or 60, 14)
     slots = await booking_service.get_available_slots(db, tenant.id, settings, days_ahead)
     return {
         "tenant_name": tenant.name,
@@ -615,7 +615,7 @@ async def public_get_manage(
     now = _dt.now(_tz.utc)
     locked = (start - now) <= timedelta(hours=cancel_edit_hours_before)
 
-    days_ahead = max(settings.booking_expiry_days, 14)
+    days_ahead = max(getattr(settings, "booking_window_days", 60) or 60, 14)
     available = await booking_service.get_available_slots(
         db, token.tenant_id, settings, days_ahead
     )
@@ -719,7 +719,7 @@ async def public_get_booking(
     tenant = await db.get(Tenant, token.tenant_id)
     contact = await db.get(Contact, token.contact_id)
     settings = await booking_service.get_or_create_settings(db, token.tenant_id)
-    days_ahead = max(settings.booking_expiry_days, 14)
+    days_ahead = max(getattr(settings, "booking_window_days", 60) or 60, 14)
     available = await booking_service.get_available_slots(
         db, token.tenant_id, settings, days_ahead
     )

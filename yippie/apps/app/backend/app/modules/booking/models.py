@@ -22,6 +22,11 @@ class CalendarSettings(Base):
     work_end_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=17)
     slot_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=30)
     booking_expiry_days: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
+    # How many days into the future public booking pages offer slots. Distinct
+    # from booking_expiry_days (which governs how long an invite link is valid).
+    booking_window_days: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=60, server_default="60"
+    )
     post_booking_stage_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("pipeline_stages.id", ondelete="SET NULL"),

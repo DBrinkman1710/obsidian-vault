@@ -326,6 +326,7 @@ interface CalendarSettings {
   work_end_hour: number
   slot_minutes: number
   booking_expiry_days: number
+  booking_window_days: number
   post_booking_stage_id: string | null
   use_weekly_slots: boolean
   weekly_slots: Record<string, WeeklySlotEntry[]> | null
@@ -743,6 +744,16 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
                 Customers cannot reschedule or cancel within this many hours of their appointment.
               </p>
             </div>
+            <div>
+              <label className={labelCls}>How far ahead customers can book</label>
+              <select className={inputCls} value={current.booking_window_days ?? 60}
+                onChange={e => update({ booking_window_days: Number(e.target.value) })}>
+                {[14, 30, 60, 90, 120, 180].map(d => <option key={d} value={d}>{d} days</option>)}
+              </select>
+              <p className="mt-1 text-xs text-slate-400">
+                The booking and meeting pages offer open slots up to this many days into the future.
+              </p>
+            </div>
             <div className="flex items-center gap-3 pt-1">
               <button
                 onClick={() => saveMut.mutate({
@@ -750,6 +761,7 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
                   work_end_hour: current.work_end_hour,
                   slot_minutes: current.slot_minutes,
                   booking_expiry_days: current.booking_expiry_days,
+                  booking_window_days: current.booking_window_days,
                   post_booking_stage_id: current.post_booking_stage_id,
                   use_weekly_slots: current.use_weekly_slots,
                   weekly_slots: current.weekly_slots,
