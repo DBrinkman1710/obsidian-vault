@@ -456,6 +456,7 @@ async def _send_booking_invitation(
             body_text,
             tenant_name=tenant_name,
             primary_color=primary_color,
+            logo_url=tenant.logo_url if tenant else None,
             prerendered_html=content,
         )
         await send_email(to=contact.email, subject=subject, body=body_text, html=html_body)
@@ -527,6 +528,7 @@ async def _notify_customer_confirmed(
             body_text,
             tenant_name=tenant_name,
             primary_color=primary_color,
+            logo_url=tenant.logo_url if tenant else None,
             prerendered_html=content,
         )
         await send_email(to=contact.email, subject=subject, body=body_text, html=html_body)
@@ -763,6 +765,7 @@ async def _notify_customer_rescheduled(
             body_text,
             tenant_name=tenant_name,
             primary_color=primary_color,
+            logo_url=tenant.logo_url if tenant else None,
             prerendered_html=content,
         )
         await send_email(to=contact.email, subject=subject, body=body_text, html=html_body)

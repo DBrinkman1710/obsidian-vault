@@ -515,6 +515,7 @@ async def forward_draft(draft_id: uuid.UUID, body: ForwardRequest, current_user:
                     dept_body,
                     tenant_name=tenant.name if tenant else None,
                     primary_color=tenant.primary_color if tenant else None,
+                    logo_url=tenant.logo_url if tenant else None,
                 ),
             )
         except ResendNotConfiguredError:

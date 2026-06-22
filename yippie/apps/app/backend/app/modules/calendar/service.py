@@ -210,6 +210,7 @@ async def _notify_contact(db: AsyncSession, event: CalendarEvent) -> None:
         tenant = await db.get(Tenant, event.tenant_id)
         tenant_name = tenant.name if tenant else "Yippie"
         primary_color = tenant.primary_color if tenant else None
+        logo_url = tenant.logo_url if tenant else None
 
         when = _format_when(event.start_at, event.end_at, event.all_day)
         subject = f"You're invited: {event.title}"
@@ -237,6 +238,7 @@ async def _notify_contact(db: AsyncSession, event: CalendarEvent) -> None:
             body_text,
             tenant_name=tenant_name,
             primary_color=primary_color,
+            logo_url=logo_url,
             prerendered_html=content,
         )
 

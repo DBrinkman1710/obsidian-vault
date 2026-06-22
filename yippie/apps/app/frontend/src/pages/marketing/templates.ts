@@ -66,4 +66,40 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
       <p style="margin:0 0 8px;">${button('Take another look')}</p>
     `),
   },
+  {
+    id: 'yippie-professional',
+    name: 'Yippie — Professional',
+    description: 'Branded email with logo header and clean layout.',
+    html: `<table align="center" width="100%" style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;border-spacing:0;">
+  <!-- Logo header -->
+  <tr>
+    <td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-radius:8px 8px 0 0;">
+      <img src="https://getyippie.com/logo-512.png" alt="Logo" style="height:36px;border:0;display:inline-block;" />
+    </td>
+  </tr>
+  <!-- Accent bar -->
+  <tr><td style="height:4px;background:#5BA4F5;"></td></tr>
+  <!-- Body -->
+  <tr>
+    <td style="background:#ffffff;padding:40px 40px 32px;border-radius:0 0 8px 8px;">
+      <h1 style="font-size:22px;font-weight:700;color:#0f172a;margin:0 0 16px;">Hello from our team 👋</h1>
+      <p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 14px;">
+        We have something important to share with you. This email was sent just for you, and we'd love for you to take a moment to read it.
+      </p>
+      <p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 28px;">
+        If you have any questions, just hit reply — a real person will get back to you.
+      </p>
+      <p style="margin:0 0 8px;text-align:center;">
+        <a href="#" style="display:inline-block;padding:13px 32px;background:#5BA4F5;color:#ffffff;border-radius:8px;font-weight:600;text-decoration:none;font-size:15px;">Take action</a>
+      </p>
+    </td>
+  </tr>
+  <!-- Footer -->
+  <tr>
+    <td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">
+      Sent with Yippie
+    </td>
+  </tr>
+</table>`,
+  },
 ]

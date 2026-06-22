@@ -993,6 +993,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                         c["reply_text"],
                         tenant_name=tenant.name if tenant else None,
                         primary_color=tenant.primary_color if tenant else None,
+                        logo_url=tenant.logo_url if tenant else None,
                         campaign_buttons_html=campaign_buttons_html,
                     )
                 resend_id = await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body)

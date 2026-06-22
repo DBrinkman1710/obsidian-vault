@@ -71,7 +71,7 @@ def _paragraphs(text: str) -> str:
 
     escaped = html.escape(stashed)
     escaped = _URL_RE.sub(
-        r'<a href="\1" style="color:#2563eb;word-break:break-all;">\1</a>', escaped
+        r'<a href="\1" style="color:#5BA4F5;word-break:break-all;">\1</a>', escaped
     )
     parts = [p.strip().replace("\n", "<br>") for p in re.split(r"\n\s*\n", escaped) if p.strip()]
     rendered = "".join(
@@ -187,41 +187,76 @@ def inject_button_tracking(html_content: str, buttons: list[dict], token_map: di
     return pattern.sub(replacer, html_content)
 
 
+FALLBACK_LOGO_URL = "https://getyippie.com/logo-512.png"
+
+_SAFE_URL_RE = re.compile(r"^https?://", re.IGNORECASE)
+
+
+def _safe_logo_url(logo_url: str | None) -> str | None:
+    """Validate and escape a logo URL. Returns None if the URL is unsafe."""
+    if not logo_url:
+        return None
+    url = logo_url.strip()
+    if not _SAFE_URL_RE.match(url):
+        return None
+    return html.escape(url, quote=True)
+
+
 def render_email_html(
     body_text: str,
     tenant_name: str | None = None,
     primary_color: str | None = None,
+    logo_url: str | None = None,
     prerendered_html: str | None = None,
     campaign_buttons_html: str = "",
 ) -> str:
-    """Render the plain-text body into the standard Yippie HTML layout.
+    """Render the plain-text body into the professional Yippie HTML email layout.
 
-    When ``prerendered_html`` is set (Unlayer template export), it is embedded
-    directly in the white card instead of paragraph-escaping ``body_text``.
-    ``campaign_buttons_html`` (Phase 9C tracked buttons) is injected after the
-    content block, inside the white card."""
+    When ``prerendered_html`` is set (Unlayer/GrapesJS template export), it is
+    embedded directly in the white card instead of paragraph-escaping
+    ``body_text``. ``campaign_buttons_html`` (Phase 9C tracked buttons) is
+    injected after the content block, inside the white card.
+
+    The layout:
+      - Full-width #f1f5f9 background
+      - 600px centered container
+      - White logo header (tenant logo or Yippie fallback) + 4px accent bar
+      - White body card with 40px padding
+      - Small gray footer
+    """
     accent = _safe_color(primary_color)
     content = prerendered_html if prerendered_html is not None else _paragraphs(body_text)
-    header = (
-        f'<div style="font-size:14px;font-weight:600;color:#374151;'
-        f'padding:14px 24px;border-bottom:1px solid #e5e7eb;">{html.escape(tenant_name)}</div>'
-        if tenant_name
-        else ""
+
+    # Logo header: prefer tenant's logo_url, fall back to Yippie default
+    effective_logo = _safe_logo_url(logo_url) or FALLBACK_LOGO_URL
+    alt_text = html.escape(tenant_name or "Yippie")
+    logo_img = (
+        f'<img src="{effective_logo}" alt="{alt_text}" '
+        f'style="height:40px;max-width:200px;border:0;display:inline-block;" />'
     )
+    header_block = (
+        f'<div style="background:#ffffff;padding:24px 40px 20px;text-align:center;'
+        f'border-radius:8px 8px 0 0;">'
+        f'{logo_img}'
+        f'</div>'
+        f'<div style="height:4px;background:{accent};"></div>'
+    )
+
     return (
         '<!DOCTYPE html>'
-        '<html><body style="margin:0;padding:0;background:#f3f4f6;">'
-        '<div style="max-width:600px;margin:0 auto;padding:24px 12px;'
+        '<html><body style="margin:0;padding:0;background:#f1f5f9;">'
+        '<div style="max-width:600px;margin:0 auto;padding:32px 16px;'
         "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"
         'font-size:15px;color:#1f2937;">'
-        '<div style="background:#ffffff;border-radius:8px;overflow:hidden;'
-        'border:1px solid #e5e7eb;">'
-        f'<div style="height:4px;background:{accent};"></div>'
-        f"{header}"
-        f'<div style="padding:24px;">{content}</div>'
-        f"{campaign_buttons_html}"
-        "</div>"
-        '<div style="text-align:center;padding:16px 0;font-size:12px;color:#9ca3af;">'
-        "Sent with Yippie</div>"
-        "</div></body></html>"
+        f'{header_block}'
+        '<div style="background:#ffffff;border-radius:0 0 8px 8px;'
+        'box-shadow:0 1px 3px rgba(0,0,0,0.08);padding:40px 40px 32px;'
+        'line-height:1.65;">'
+        f'{content}'
+        f'{campaign_buttons_html}'
+        '</div>'
+        '<div style="text-align:center;padding:20px 0;font-size:12px;color:#94a3b8;">'
+        'Sent with Yippie'
+        '</div>'
+        '</div></body></html>'
     )
