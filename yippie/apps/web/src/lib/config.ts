@@ -7,11 +7,14 @@ export const PLAN_LIMITS = {
 } as const;
 
 export const MODULE_PRICES = {
-  tickets:       15,
-  ai:            19,
-  calendar:      12,
-  kanban:        12,
-  emailtracking:  9,
+  tickets:     15,
+  ai:          19,
+  calendar:    12,
+  kanban:      12,
+  chat:        15,
+  marketing:   15,
+  departments:  9,
+  billing:      9,
 } as const;
 
 export type PlanTier = keyof typeof PLAN_LIMITS;
