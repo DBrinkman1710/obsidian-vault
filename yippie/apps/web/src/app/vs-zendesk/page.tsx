@@ -31,8 +31,8 @@ const rows: { feature: string; yippie: Cell; other: Cell }[] = [
 ];
 
 function CellView({ value }: { value: Cell }) {
-  if (value === "yes") return <span className={styles.yes} aria-label="Yes">✓</span>;
-  if (value === "no") return <span className={styles.no} aria-label="No">✗</span>;
+  if (value === "yes") return <span className={styles.yes} aria-label="Yes">Yes</span>;
+  if (value === "no") return <span className={styles.no} aria-label="No">No</span>;
   return <span className={styles.partial}>{value}</span>;
 }
 
