@@ -285,9 +285,9 @@ async def reply_to_session(
                                     ChatSession.whatsapp_phone == canonical,
                                     ChatSession.is_open == True,  # noqa: E712
                                     ChatSession.id != session.id,
-                                )
+                                ).limit(1)
                             )
-                            sibling = sibling_result.scalar_one_or_none()
+                            sibling = sibling_result.scalars().first()
                             if sibling:
                                 # Two open sessions for the same contact — merge the duplicate
                                 # into the canonical one so all history is in one place.
@@ -301,9 +301,10 @@ async def reply_to_session(
                                     .values(session_id=sibling.id)
                                 )
                                 now = datetime.now(timezone.utc)
+                                hide_hours = (tenant.hide_solved_chats_hours or 72) + 1
                                 session.is_open = False
                                 session.status = "solved"
-                                session.solved_at = now
+                                session.solved_at = now - timedelta(hours=hide_hours)
                                 session.ended_at = now
                                 active_session_id = sibling.id
                                 session = sibling
