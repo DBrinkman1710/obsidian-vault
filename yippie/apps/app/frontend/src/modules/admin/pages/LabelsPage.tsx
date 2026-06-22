@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { GripVertical, Layers, MessageSquare, Palette, Building2, Plus, Settings2, Trash2 } from 'lucide-react'
+import { GripVertical, Layers, MessageSquare, Palette, Building2, Plus, Settings2, Tag, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
@@ -275,6 +275,130 @@ function KanbanStagesPanel() {
   )
 }
 
+interface ContactLabel {
+  id: string
+  name: string
+  color: string
+}
+
+function ContactLabelsCard() {
+  const qc = useQueryClient()
+  const [editId, setEditId] = useState<string | null>(null)
+  const [name, setName] = useState('')
+  const [color, setColor] = useState('#64748b')
+  const [error, setError] = useState('')
+
+  const { data: labels = [] } = useQuery<ContactLabel[]>({
+    queryKey: ['contact-labels'],
+    queryFn: () => api.get('/contacts/labels').then(r => r.data),
+  })
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['contact-labels'] })
+
+  const createMut = useMutation({
+    mutationFn: (b: object) => api.post('/contacts/labels', b),
+    onSuccess: () => { invalidate(); resetForm() },
+    onError: () => setError('Save failed'),
+  })
+  const updateMut = useMutation({
+    mutationFn: ({ id, b }: { id: string; b: object }) => api.patch(`/contacts/labels/${id}`, b),
+    onSuccess: () => { invalidate(); resetForm() },
+    onError: () => setError('Save failed'),
+  })
+  const deleteMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/contacts/labels/${id}`),
+    onSuccess: () => invalidate(),
+  })
+
+  function resetForm() { setEditId(null); setName(''); setColor('#64748b'); setError('') }
+  function startEdit(l: ContactLabel) { setEditId(l.id); setName(l.name); setColor(l.color); setError('') }
+  function handleSave() {
+    if (!name.trim()) { setError('Name required'); return }
+    const body = { name: name.trim(), color }
+    if (editId) updateMut.mutate({ id: editId, b: body })
+    else createMut.mutate(body)
+  }
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden mb-8">
+      <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-100">
+        <Tag size={16} className="text-slate-400" />
+        <h2 className="text-base font-semibold text-slate-900">Contact labels</h2>
+        <span className="ml-auto text-xs text-slate-400">{labels.length} label{labels.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      <div className="divide-y divide-slate-50">
+        {labels.length === 0 && (
+          <p className="px-6 py-8 text-sm text-slate-400 text-center">No labels yet. Add one below.</p>
+        )}
+        {labels.map(l => (
+          <div key={l.id} className="flex items-center gap-3 px-6 py-3 hover:bg-slate-50">
+            <span className="w-3 h-3 rounded-full shrink-0" style={{ background: l.color }} />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-slate-800 truncate">{l.name}</p>
+            </div>
+            <button
+              onClick={() => startEdit(l)}
+              className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+              title="Edit"
+            >
+              <Settings2 size={13} />
+            </button>
+            <button
+              onClick={() => { if (confirm(`Delete label "${l.name}"?`)) deleteMut.mutate(l.id) }}
+              className="shrink-0 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+              title="Delete"
+            >
+              <Trash2 size={13} />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      <div className="border-t border-slate-100 px-6 py-5 bg-slate-50 space-y-3">
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+          {editId ? 'Edit label' : 'New label'}
+        </p>
+        <div className="flex gap-2">
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => e.key === 'Enter' && handleSave()}
+            placeholder="Label name…"
+            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          <input
+            type="color"
+            value={color}
+            onChange={e => setColor(e.target.value)}
+            className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5"
+            title="Label colour"
+          />
+        </div>
+        {error && <p className="text-xs text-red-500">{error}</p>}
+        <div className="flex gap-2">
+          <button
+            onClick={handleSave}
+            disabled={createMut.isPending || updateMut.isPending}
+            className="flex items-center gap-1.5 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
+          >
+            <Plus size={14} />
+            {editId ? 'Update label' : 'Add label'}
+          </button>
+          {editId && (
+            <button
+              onClick={resetForm}
+              className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-sm font-semibold text-slate-600 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function LabelsPage() {
   const { user } = useAuth()
   const config = useTenantConfig()
@@ -327,6 +451,7 @@ export default function LabelsPage() {
         </div>
         {mutation.isError && <p className="mt-2 text-xs text-red-500">Failed to save — try again.</p>}
       </div>
+      {isAdmin && <ContactLabelsCard />}
       {isAdmin && <LiveChatSettingsCard />}
       {isAdmin && <KanbanStagesPanel />}
     </div>
