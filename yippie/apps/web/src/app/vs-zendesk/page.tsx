@@ -9,12 +9,12 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
 export const metadata: Metadata = {
   title: "Yippie vs Zendesk — The SMB-Friendly Zendesk Alternative",
   description:
-    "Looking for a Zendesk alternative for small business? Yippie is purpose-built help desk software for SMBs — AI inbox triage, booking, and flat workspace pricing from €9.",
+    "Looking for a Zendesk alternative for small business? Yippie is purpose-built help desk software for SMBs — booking and flat workspace pricing from €19/month.",
   alternates: { canonical: "/vs-zendesk" },
   openGraph: {
     title: "Yippie vs Zendesk — The SMB-Friendly Alternative",
     description:
-      "A simpler, flat-priced Zendesk alternative built for SMBs. AI inbox triage, booking, and easy onboarding included.",
+      "A simpler, flat-priced Zendesk alternative built for SMBs. Booking and easy onboarding included, from €19/month.",
     url: "https://getyippie.com/vs-zendesk",
     type: "website",
   },
@@ -22,13 +22,12 @@ export const metadata: Metadata = {
 
 type Cell = "yes" | "no" | string;
 const rows: { feature: string; yippie: Cell; other: Cell }[] = [
-  { feature: "AI inbox triage included", yippie: "yes", other: "Paid add-on" },
   { feature: "Flat workspace pricing", yippie: "yes", other: "no" },
   { feature: "Built-in booking system", yippie: "yes", other: "no" },
   { feature: "Easy onboarding (live in a day)", yippie: "yes", other: "Complex setup" },
   { feature: "Purpose-built for SMBs", yippie: "yes", other: "Enterprise-first" },
   { feature: "Kanban pipeline", yippie: "yes", other: "no" },
-  { feature: "Starting price", yippie: "from €9 / workspace", other: "~€55 / agent / mo" },
+  { feature: "Starting price", yippie: "from €19 / month", other: "~€55 / agent / mo" },
 ];
 
 function CellView({ value }: { value: Cell }) {
@@ -94,27 +93,17 @@ export default function VsZendeskPage() {
         <h2 className={styles.sectionTitle}>Built for your size, not theirs</h2>
         <div className={styles.grid}>
           <div className={styles.card}>
-            <div className={styles.iconWrap}>💸</div>
             <h3 className={styles.cardTitle}>Flat, predictable pricing</h3>
             <p className={styles.cardDesc}>
-              Pay per workspace from €9, not €55+ per agent. Add teammates without
-              watching the bill balloon every time you hire.
+              Pay per workspace from €19/month, not €55+ per agent. Add teammates
+              without watching the bill balloon every time you hire.
             </p>
           </div>
           <div className={styles.card}>
-            <div className={styles.iconWrap}>⚡</div>
             <h3 className={styles.cardTitle}>Live in a day, not a quarter</h3>
             <p className={styles.cardDesc}>
               No implementation consultant required. Connect your inbox, invite
               your team, and you are answering tickets the same afternoon.
-            </p>
-          </div>
-          <div className={styles.card}>
-            <div className={styles.iconWrap}>🤖</div>
-            <h3 className={styles.cardTitle}>AI included, not upsold</h3>
-            <p className={styles.cardDesc}>
-              Inbox triage, suggested replies, and customer briefings come standard
-              — no premium AI tier to unlock the features that save you time.
             </p>
           </div>
         </div>
