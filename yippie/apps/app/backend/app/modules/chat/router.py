@@ -127,16 +127,12 @@ async def _find_or_create_open_session(
     visitor_name: Optional[str] = None,
 ) -> ChatSession:
     # Normalize to digits only — Evolution API sends remoteJid without + (e.g. "31612345678")
-    # while contacts may store "+31612345678". Keep them consistent so lookups always match.
-    phone = "".join(ch for ch in phone if ch.isdigit())
-    result = await db.execute(
-        select(ChatSession).where(
-            ChatSession.tenant_id == tenant_id,
-            ChatSession.whatsapp_phone == phone,
-            ChatSession.is_open == True,  # noqa: E712
-        )
-    )
-    session = result.scalar_one_or_none()
+    # while contacts may store "+31612345678" or a local format ("0612345678"). Reuse the
+    # shared lookup (exact + suffix fallback) so a session opened from an inbound message in
+    # international format is found here too — otherwise a second session would be created and
+    # the contact would have one session for receiving and one for sending.
+    phone = whatsapp_service.normalize_phone(phone)
+    session = await whatsapp_service.find_open_session_for_phone(db, tenant_id, phone)
     if not session:
         session = ChatSession(
             tenant_id=tenant_id,

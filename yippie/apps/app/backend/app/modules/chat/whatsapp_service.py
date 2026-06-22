@@ -13,6 +13,68 @@ from app.modules.chat.models import ChatMessage, ChatSession
 logger = logging.getLogger(__name__)
 
 
+def normalize_phone(phone: str) -> str:
+    """Canonicalize a phone number to digits only.
+
+    Evolution API sends remoteJid without a leading + (e.g. "31612345678"),
+    while contacts may store "+31612345678" or a local format like "0612345678".
+    Both the inbound (webhook) and outbound (agent send / broadcast) paths must
+    use this so a single open session matches in both directions.
+    """
+    return "".join(ch for ch in phone if ch.isdigit())
+
+
+async def find_open_session_for_phone(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    phone: str,
+) -> ChatSession | None:
+    """Find the single open WhatsApp session for a phone number.
+
+    Tries an exact match on canonical digits first, then falls back to an
+    8-digit suffix match to bridge local-vs-international format mismatches
+    (e.g. an inbound JID "31612345678" matching a session opened from a
+    locally-formatted contact "0612345678"). When a suffix match is found the
+    stored number is canonicalized so future lookups hit the exact path.
+
+    This is shared by the inbound webhook and the outbound send/broadcast paths
+    so both directions resolve to the *same* session — fixing the bug where a
+    contact ended up with two sessions (one for sending, one for receiving).
+    """
+    phone = normalize_phone(phone)
+    if not phone:
+        return None
+
+    result = await db.execute(
+        select(ChatSession).where(
+            ChatSession.tenant_id == tenant_id,
+            ChatSession.whatsapp_phone == phone,
+            ChatSession.is_open == True,  # noqa: E712
+        )
+    )
+    session = result.scalar_one_or_none()
+    if session:
+        return session
+
+    # Fallback: suffix match for local-vs-international mismatch.
+    # Compare the last 8 digits — unique enough for mobile numbers within one tenant.
+    if len(phone) >= 8:
+        suffix = phone[-8:]
+        fb = await db.execute(
+            select(ChatSession).where(
+                ChatSession.tenant_id == tenant_id,
+                ChatSession.source == "whatsapp",
+                ChatSession.whatsapp_phone.like(f"%{suffix}"),
+                ChatSession.is_open == True,  # noqa: E712
+            ).limit(1)
+        )
+        session = fb.scalar_one_or_none()
+        if session and session.whatsapp_phone != phone:
+            session.whatsapp_phone = phone
+            session.visitor_id = phone
+    return session
+
+
 def _headers() -> dict:
     settings = get_settings()
     return {"apikey": settings.evolution_api_token}
@@ -208,7 +270,7 @@ async def handle_incoming_webhook(
 
     remote_jid: str = key.get("remoteJid", "")
     # Normalize to digits only — matches the format stored via _find_or_create_open_session
-    phone = "".join(ch for ch in remote_jid.split("@")[0] if ch.isdigit()) if remote_jid else ""
+    phone = normalize_phone(remote_jid.split("@")[0]) if remote_jid else ""
     if not phone:
         return None
 
@@ -219,34 +281,10 @@ async def handle_incoming_webhook(
 
     visitor_name: str | None = data.get("pushName") or None
 
-    # Find the open session for this phone, or create one.
-    # Primary: exact match on canonical digits.
-    result = await db.execute(
-        select(ChatSession).where(
-            ChatSession.tenant_id == tenant_id,
-            ChatSession.whatsapp_phone == phone,
-            ChatSession.is_open == True,  # noqa: E712
-        )
-    )
-    session = result.scalar_one_or_none()
-
-    # Fallback: suffix match for local-vs-international mismatch
-    # (e.g. agent stored "0612345678", Evolution JID gives "31612345678").
-    # Compare the last 8 digits — unique enough for mobile numbers within one tenant.
-    if not session and len(phone) >= 8:
-        suffix = phone[-8:]
-        fb = await db.execute(
-            select(ChatSession).where(
-                ChatSession.tenant_id == tenant_id,
-                ChatSession.source == "whatsapp",
-                ChatSession.whatsapp_phone.like(f"%{suffix}"),
-                ChatSession.is_open == True,  # noqa: E712
-            ).limit(1)
-        )
-        session = fb.scalar_one_or_none()
-        if session:
-            session.whatsapp_phone = phone
-            session.visitor_id = phone
+    # Find the single open session for this phone (exact, then suffix fallback),
+    # shared with the outbound send/broadcast path so one session serves both
+    # directions.
+    session = await find_open_session_for_phone(db, tenant_id, phone)
 
     is_new_session = False
     if not session:
