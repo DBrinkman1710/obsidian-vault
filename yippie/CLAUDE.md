@@ -77,6 +77,23 @@ Set these env vars in Railway per environment:
 
 **Critical:** the staging service must use the Sandbox DB `DATABASE_URL`. Never point it at the production DB.
 
+### Migration safety — MUST CHECK BEFORE EVERY PUSH
+
+`run_migrations.py` runs a preflight on every Railway deploy and **aborts the entire deploy** if a merge migration lists a stale parent. This killed 7 consecutive builds on 2026-06-22.
+
+**Before pushing any migration change, always verify:**
+```bash
+cd apps/app/backend
+python3 -m alembic heads   # must return exactly ONE line
+```
+
+If you see two heads, create a merge migration:
+```bash
+python3 -m alembic merge head1 head2 -m "merge open heads"
+```
+
+**The failure mode:** A merge migration is created when the DB has heads `[A, B]`. Later, `B` gets merged into `A` (e.g. by another merge migration), leaving only `A` in the DB. The original merge migration still lists `B` in its `down_revision`. `run_migrations.py` detects `B` is stale and aborts. Fix: replace the stale ID with its descendant in the migration's `down_revision`.
+
 ## apps/web — Marketing site
 
 Next.js 14, minimal content. Completely separate from the platform (own DB-less service, not part of the staging/production pairs).
