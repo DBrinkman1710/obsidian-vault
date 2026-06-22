@@ -994,8 +994,6 @@ export default function InboxQueue() {
     }
   }
 
-  const trackingEnabled = config?.enabled_modules?.includes('emailtracking')
-
   const { data: myDepts } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['departments', 'my'],
     queryFn: () => api.get('/departments/my').then(r => r.data),
@@ -1004,18 +1002,12 @@ export default function InboxQueue() {
 
   const searchParam = debouncedSearch || undefined
 
-  const { data: sentEvents, isLoading: sentLoading } = useQuery({
-    queryKey: ['activity-sent'],
-    queryFn: () => api.get('/activity', { params: { limit: 500 } }).then(r =>
-      (r.data as any[]).filter((e: any) => e.event_type === 'email.replied' || e.event_type === 'email.composed')
-    ),
-    enabled: activeTab === 'sent',
-  })
-
+  // Sent tab — single source of truth: the consolidated marketing outbound feed.
+  // No module check, no activity-log fallback; one endpoint, one set of columns.
   const { data: outboundEmails, isLoading: outboundLoading } = useQuery({
     queryKey: ['outbound-emails', searchParam],
-    queryFn: () => api.get('/emailtracking/outbound', { params: { limit: 200, q: searchParam } }).then(r => r.data as any[]),
-    enabled: activeTab === 'sent' && !!trackingEnabled,
+    queryFn: () => api.get('/marketing/outbound', { params: { limit: 200, q: searchParam } }).then(r => r.data as any[]),
+    enabled: activeTab === 'sent',
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   })
@@ -1074,7 +1066,7 @@ export default function InboxQueue() {
     : allProcessed.filter((d: any) => d.status === processedFilter)
 
   const allDrafts = activeTab === 'pending' ? (pendingDrafts ?? []) : activeTab === 'sent' ? [] : processedDrafts
-  const isLoading = activeTab === 'pending' ? pendingLoading : activeTab === 'sent' ? (trackingEnabled ? outboundLoading : sentLoading) : false
+  const isLoading = activeTab === 'pending' ? pendingLoading : activeTab === 'sent' ? outboundLoading : false
 
   // Client-side "Assigned to me" filter — applied before pagination.
   const visibleDrafts = assignedToMe && user?.id
@@ -1087,24 +1079,8 @@ export default function InboxQueue() {
   const safePage = Math.min(page, pageCount - 1)
   const pageDrafts = visibleDrafts.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE)
 
-  // Sent tab: the non-tracking (activity) path has no backend search, so filter
-  // it client-side to keep search behaviour consistent across all three tabs.
-  const filteredSentEvents = (sentEvents ?? []).filter((ev: any) => {
-    if (!debouncedSearch) return true
-    const q = debouncedSearch.toLowerCase()
-    return (
-      (ev.payload?.subject ?? '').toLowerCase().includes(q) ||
-      (ev.payload?.to ?? '').toLowerCase().includes(q) ||
-      (ev.payload?.preview ?? '').toLowerCase().includes(q)
-    )
-  })
-
   // Sent tab pagination — 9 mails/page, mirroring the Pending cadence (PAGE_SIZE).
-  const sentList: any[] = activeTab === 'sent'
-    ? (trackingEnabled && (outboundEmails ?? []).length > 0
-        ? outboundEmails!
-        : filteredSentEvents ?? [])
-    : []
+  const sentList: any[] = activeTab === 'sent' ? (outboundEmails ?? []) : []
   const sentPageCount = Math.max(1, Math.ceil(sentList.length / PAGE_SIZE))
   const sentSafePage = Math.min(page, sentPageCount - 1)
   const pageSentList = sentList.slice(sentSafePage * PAGE_SIZE, (sentSafePage + 1) * PAGE_SIZE)
@@ -1480,56 +1456,34 @@ export default function InboxQueue() {
             {sentList.length > 0 && (
               <div className="flex flex-col gap-3">
                 {pageSentList.map((item: any) => {
-                  const isActivityEvent = !!item.event_type
-                  // Activity events have a real draft_id in payload → link to DraftReview.
-                  // Tracking-path OutboundEmail items → open body modal instead.
-                  const draftId = isActivityEvent ? item.payload?.draft_id : null
-                  const CardEl = draftId ? Link : 'div'
-                  const cardProps = draftId ? { to: `/inbox/drafts/${draftId}` } : {}
-                  const subject = isActivityEvent ? (item.payload?.subject ?? '(no subject)') : (item.subject ?? '(no subject)')
-                  const toAddr = isActivityEvent ? item.payload?.to : item.to_email
-                  const kind = isActivityEvent ? item.event_type : item.kind
-                  const isCompose = isActivityEvent ? kind === 'email.composed' : kind === 'compose'
-                  const handleCardClick = !isActivityEvent
-                    ? () => setSelectedSentItem(item)
-                    : (!draftId ? () => setSelectedSentItem({
-                        subject: item.payload?.subject,
-                        to_email: item.payload?.to,
-                        created_at: item.created_at,
-                        status: null,
-                        body: item.payload?.preview || null,
-                        kind: 'compose',
-                        draft_id: null,
-                      }) : undefined)
+                  const subject = item.subject ?? '(no subject)'
+                  const toAddr = item.to_email
+                  const isCompose = item.kind === 'compose'
                   return (
-                    <CardEl
+                    <div
                       key={item.id}
-                      {...(cardProps as any)}
-                      onClick={handleCardClick}
+                      onClick={() => setSelectedSentItem(item)}
                       className="bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex items-start gap-3 transition-all hover:border-blue-300 hover:shadow-md cursor-pointer"
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <Send size={13} className="text-slate-400 shrink-0" />
                           <span className="text-sm font-semibold text-slate-900 truncate">{subject}</span>
-                          {!isActivityEvent && statusBadge(item.status)}
+                          {statusBadge(item.status)}
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${isCompose ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
                             {isCompose ? 'Composed' : 'Reply'}
                           </span>
                         </div>
                         {toAddr && <p className="text-xs text-slate-500">To: {toAddr}</p>}
-                        {isActivityEvent && item.payload?.preview && (
-                          <p className="text-xs text-slate-400 line-clamp-2 mt-0.5">{item.payload.preview}</p>
-                        )}
-                        {!isActivityEvent && item.delivered_at && (
+                        {item.delivered_at && (
                           <p className="text-xs text-slate-400 mt-0.5">Delivered: {new Date(item.delivered_at).toLocaleString()}</p>
                         )}
-                        {!isActivityEvent && item.opened_at && (
+                        {item.opened_at && (
                           <p className="text-xs text-blue-500 mt-0.5">Opened: {new Date(item.opened_at).toLocaleString()}</p>
                         )}
                       </div>
                       <p className="text-xs text-slate-400 shrink-0">{new Date(item.created_at).toLocaleString()}</p>
-                    </CardEl>
+                    </div>
                   )
                 })}
               </div>

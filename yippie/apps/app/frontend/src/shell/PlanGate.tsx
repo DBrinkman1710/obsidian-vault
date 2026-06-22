@@ -4,13 +4,13 @@ import { useTenantConfig } from '../App'
 /** The advanced features that are plan-gated. Mirrors ADVANCED_FEATURES on the
  * backend (app/core/plans.py). Core modules (inbox/tickets/contacts/activity/
  * billing) are never plan-gated and don't need a PlanGate wrapper. */
-export const PLAN_GATED_FEATURES = ['chat', 'calendar', 'pipeline', 'emailtracking', 'ai'] as const
+export const PLAN_GATED_FEATURES = ['chat', 'calendar', 'pipeline', 'marketing', 'ai'] as const
 
 const FEATURE_LABELS: Record<string, string> = {
   chat: 'Live chat',
   calendar: 'Calendar',
   pipeline: 'Kanban',
-  emailtracking: 'Email tracking',
+  marketing: 'Marketing',
   ai: 'AI',
 }
 

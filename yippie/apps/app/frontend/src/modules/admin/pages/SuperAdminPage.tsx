@@ -11,9 +11,9 @@ import { api } from '../../../api/client'
 import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 
-const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'ai', 'emailtracking', 'departments', 'marketing']
+const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'ai', 'departments', 'marketing']
 
-const MODULE_LABELS: Record<string, string> = { ai: 'AI', booking: 'Booking', departments: 'Departments', emailtracking: 'Email Tracking' }
+const MODULE_LABELS: Record<string, string> = { ai: 'AI', booking: 'Booking', departments: 'Departments', marketing: 'Marketing' }
 const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod
 
 // SaaS plan tiers — mirrors PlanTier on the backend (app/core/plans.py).
