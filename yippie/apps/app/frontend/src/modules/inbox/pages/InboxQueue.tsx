@@ -362,11 +362,13 @@ interface SendQueuedPayload {
 function ComposeModal({
   onClose,
   aiEnabled,
+  marketingEnabled,
   onSendQueued,
   initialState,
 }: {
   onClose: () => void
   aiEnabled: boolean
+  marketingEnabled: boolean
   onSendQueued: (payload: SendQueuedPayload) => void
   initialState?: ComposeInitialState | null
 }) {
@@ -1734,6 +1736,7 @@ export default function InboxQueue() {
         <ComposeModal
           onClose={() => { setShowCompose(false); setComposeInitial(null) }}
           aiEnabled={aiEnabled}
+          marketingEnabled={marketingEnabled}
           onSendQueued={handleSendQueued}
           initialState={composeInitial}
         />
