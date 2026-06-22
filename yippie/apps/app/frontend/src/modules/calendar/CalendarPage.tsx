@@ -331,6 +331,7 @@ interface CalendarSettings {
   use_weekly_slots: boolean
   weekly_slots: Record<string, WeeklySlotEntry[]> | null
   cancel_edit_hours_before: number
+  timezone: string
 }
 
 type BookingTab = 'pending' | 'counter_proposed' | 'booked' | 'expired'
@@ -754,6 +755,23 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
                 The booking and meeting pages offer open slots up to this many days into the future.
               </p>
             </div>
+            <div>
+              <label className={labelCls}>Timezone</label>
+              <select className={inputCls} value={current.timezone ?? 'Europe/Amsterdam'}
+                onChange={e => update({ timezone: e.target.value })}>
+                <option value="Europe/Amsterdam">Europe/Amsterdam (CET/CEST)</option>
+                <option value="Europe/London">Europe/London (GMT/BST)</option>
+                <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                <option value="Europe/Berlin">Europe/Berlin (CET/CEST)</option>
+                <option value="Africa/Nairobi">Africa/Nairobi (EAT)</option>
+                <option value="Africa/Johannesburg">Africa/Johannesburg (SAST)</option>
+                <option value="America/New_York">America/New_York (EST/EDT)</option>
+                <option value="UTC">UTC</option>
+              </select>
+              <p className="mt-1 text-xs text-slate-400">
+                Work hours above are interpreted in this timezone.
+              </p>
+            </div>
             <div className="flex items-center gap-3 pt-1">
               <button
                 onClick={() => saveMut.mutate({
@@ -766,6 +784,7 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
                   use_weekly_slots: current.use_weekly_slots,
                   weekly_slots: current.weekly_slots,
                   cancel_edit_hours_before: current.cancel_edit_hours_before,
+                  timezone: current.timezone,
                 })}
                 disabled={saveMut.isPending}
                 className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-opacity"

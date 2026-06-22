@@ -39,6 +39,9 @@ class CalendarSettings(Base):
     cancel_edit_hours_before: Mapped[int] = mapped_column(
         Integer, nullable=False, default=24, server_default="24"
     )
+    timezone: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="Europe/Amsterdam", server_default="Europe/Amsterdam"
+    )
 
 
 class BookingToken(Base):

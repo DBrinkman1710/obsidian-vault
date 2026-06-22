@@ -6,6 +6,7 @@ import logging
 import os
 import uuid
 from datetime import datetime, time, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Optional
 
 from sqlalchemy import select
@@ -98,6 +99,12 @@ async def get_available_slots(
     window_start: Optional[datetime] = None
     window_end: Optional[datetime] = None
 
+    tz_name = getattr(settings, "timezone", None) or "Europe/Amsterdam"
+    try:
+        tz = ZoneInfo(tz_name)
+    except ZoneInfoNotFoundError:
+        tz = ZoneInfo("Europe/Amsterdam")
+
     use_weekly = bool(getattr(settings, "use_weekly_slots", False))
     weekly_slots_map: dict = {}
     if use_weekly and settings.weekly_slots:
@@ -124,7 +131,7 @@ async def get_available_slots(
                     h, m = (int(x) for x in raw_time.split(":"))
                 except (ValueError, AttributeError):
                     continue  # skip malformed entries
-                slot_start = datetime.combine(day, time(hour=h, minute=m), tzinfo=timezone.utc)
+                slot_start = datetime.combine(day, time(hour=h, minute=m), tzinfo=tz).astimezone(timezone.utc)
                 slot_end = slot_start + timedelta(minutes=30)
                 if slot_start <= now:
                     continue  # skip past slots
@@ -140,10 +147,8 @@ async def get_available_slots(
             day = today + timedelta(days=offset)
             if day.weekday() >= 5:
                 continue
-            cursor = datetime.combine(day, time(hour=settings.work_start_hour), tzinfo=timezone.utc)
-            day_end = datetime.combine(day, time(hour=0), tzinfo=timezone.utc) + timedelta(
-                hours=settings.work_end_hour
-            )
+            cursor = datetime.combine(day, time(hour=settings.work_start_hour), tzinfo=tz).astimezone(timezone.utc)
+            day_end = datetime.combine(day, time(hour=settings.work_end_hour), tzinfo=tz).astimezone(timezone.utc)
             while cursor + step <= day_end:
                 slot_start = cursor
                 slot_end = cursor + step
