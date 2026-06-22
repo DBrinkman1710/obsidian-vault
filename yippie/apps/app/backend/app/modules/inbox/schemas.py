@@ -43,6 +43,7 @@ class DraftTicketOut(BaseModel):
     forwarded_to_department_id: Optional[uuid.UUID]
     detected_language: Optional[str] = None
     ai_status: str = "done"
+    opened_at: Optional[datetime] = None
     created_at: datetime
     inbound_subject: Optional[str] = None
     inbound_to: Optional[str] = None

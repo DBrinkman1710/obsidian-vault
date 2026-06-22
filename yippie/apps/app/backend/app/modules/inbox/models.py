@@ -83,6 +83,8 @@ class DraftTicket(Base):
     follow_up_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # When the draft was last moved to bin/spam — drives the retention jobs (item 42)
     status_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set on first view in DraftReview — drives "unread" sidebar badge
+    opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

@@ -938,7 +938,7 @@ export default function InboxQueue() {
   // Unread counts for mailbox tabs
   const { data: inboxCounts } = useQuery({
     queryKey: ['inbox-counts', deptId],
-    queryFn: () => api.get<{ pending: number; personal: number }>('/inbox/drafts/count', {
+    queryFn: () => api.get<{ pending: number; personal: number; unread: number; unread_personal: number }>('/inbox/drafts/count', {
       params: deptId ? { department_id: deptId } : {},
     }).then(r => r.data),
     refetchInterval: 15_000,
@@ -1207,8 +1207,8 @@ export default function InboxQueue() {
             {/* Mailbox switch: shared (whole team) vs personal (mail to your own address) */}
             <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
               {([
-                { value: 'shared', label: 'Shared', icon: <Users size={13} />, count: inboxCounts?.pending },
-                { value: 'personal', label: 'Personal', icon: <Mail size={13} />, count: inboxCounts?.personal },
+                { value: 'shared', label: 'Shared', icon: <Users size={13} />, count: inboxCounts?.unread ?? inboxCounts?.pending },
+                { value: 'personal', label: 'Personal', icon: <Mail size={13} />, count: inboxCounts?.unread_personal ?? inboxCounts?.personal },
               ] as { value: Mailbox; label: string; icon: React.ReactNode; count?: number }[]).map(m => {
                 const displayCount = m.count !== undefined && m.count > 0 ? (m.count > 9 ? '9+' : m.count.toString()) : null
                 return (

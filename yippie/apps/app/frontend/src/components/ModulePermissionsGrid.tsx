@@ -23,13 +23,10 @@ const MODULE_LABELS: Record<string, string> = {
   contacts: 'Contacts',
   tickets: 'Tickets',
   calendar: 'Calendar',
-  pipeline: 'Pipeline',
-  booking: 'Booking',
+  pipeline: 'Kanban',
   activity: 'Activity',
   billing: 'Billing',
   chat: 'Live Chat',
-  ai: 'AI',
-  departments: 'Departments',
   marketing: 'Marketing',
 }
 

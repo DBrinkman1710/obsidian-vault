@@ -13,7 +13,7 @@ import { useTenantConfig } from '../../../App'
 
 const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'ai', 'departments', 'marketing']
 
-const MODULE_LABELS: Record<string, string> = { ai: 'AI', booking: 'Booking', departments: 'Departments', marketing: 'Marketing' }
+const MODULE_LABELS: Record<string, string> = { pipeline: 'Kanban', ai: 'AI', booking: 'Booking', departments: 'Departments', marketing: 'Marketing' }
 const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod
 
 // SaaS plan tiers — mirrors PlanTier on the backend (app/core/plans.py).

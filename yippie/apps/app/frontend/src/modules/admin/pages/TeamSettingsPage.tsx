@@ -225,7 +225,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
             <ModulePermissionsGrid
               subjectType="department"
               subjectId={dept.id}
-              enabledModules={enabledModules.filter(m => !['departments', 'ai'].includes(m))}
+              enabledModules={enabledModules.filter(m => !['booking', 'departments', 'ai'].includes(m))}
             />
           </div>
         )}
@@ -753,7 +753,7 @@ function RolesTab({ enabledModules }: { enabledModules: string[] }) {
                   <ModulePermissionsGrid
                     subjectType="role"
                     subjectId={role.id}
-                    enabledModules={enabledModules}
+                    enabledModules={enabledModules.filter(m => !['booking', 'ai', 'departments'].includes(m))}
                   />
                 </div>
               )}

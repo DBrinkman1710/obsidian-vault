@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, FileText, Megaphone, MessageSquare, Paperclip, Power, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, Clock, FileText, Megaphone, MessageSquare, Paperclip, Power, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2, Zap } from 'lucide-react'
 import { List } from 'react-window'
 import { api } from '../../../api/client'
 import { Checkbox, BulkBar } from '../../../components/Selection'
@@ -37,6 +37,9 @@ const STATUS_STYLES: Record<string, string> = {
 
 // Delivery tick indicator for outbound agent messages
 function MsgStatusTick({ status }: { status?: string }) {
+  if (status === 'sending') {
+    return <Clock size={12} className="inline-block text-blue-200 ml-1 flex-shrink-0 opacity-60" />
+  }
   if (!status || status === 'sent') {
     return <Check size={12} className="inline-block text-blue-200 ml-1 flex-shrink-0" />
   }
@@ -280,10 +283,28 @@ export default function ChatPage() {
   })
 
   const replyMutation = useMutation({
-    mutationFn: (body: string) => api.post(`/chat/sessions/${selectedId}/reply`, { body }),
-    onSuccess: () => {
+    mutationFn: (body: string) => api.post(`/chat/sessions/${selectedId}/reply`, { body }).then(r => r.data),
+    onMutate: async (body: string) => {
+      await qc.cancelQueries({ queryKey: ['chat-messages', selectedId] })
+      const previous = qc.getQueryData(['chat-messages', selectedId])
+      const tempId = `_temp_${Date.now()}`
+      qc.setQueryData(['chat-messages', selectedId], (old: any) => [
+        ...(old ?? []),
+        { id: tempId, body, sender_type: 'agent', msg_type: 'text', msg_status: 'sending', created_at: new Date().toISOString() },
+      ])
       setReplyText('')
-      qc.invalidateQueries({ queryKey: ['chat-messages', selectedId] })
+      return { previous, tempId, sessionId: selectedId }
+    },
+    onSuccess: (data, _body, ctx) => {
+      qc.setQueryData(['chat-messages', ctx?.sessionId], (old: any) =>
+        (old ?? []).map((m: any) => m.id === ctx?.tempId ? { ...m, ...data } : m)
+      )
+    },
+    onError: (_err, body, ctx) => {
+      if (ctx?.previous !== undefined) {
+        qc.setQueryData(['chat-messages', ctx?.sessionId], ctx.previous)
+      }
+      setReplyText(body)
     },
   })
 
@@ -437,6 +458,7 @@ export default function ChatPage() {
             event: string
             session_id?: string
             sender_type?: string
+            sender_id?: string
             body?: string
             assigned_to?: string | null
             msg_id?: string
@@ -451,7 +473,11 @@ export default function ChatPage() {
             // Update delivery tick for this message in local state
             setLocalMsgStatuses(prev => ({ ...prev, [data.msg_id!]: data.status! }))
           } else if (data.event === 'message') {
-            qc.invalidateQueries({ queryKey: ['chat-messages', data.session_id] })
+            // Own agent messages are already handled by optimistic update + mutation onSuccess
+            const isOwnMessage = data.sender_type === 'agent' && data.sender_id === user?.id
+            if (!isOwnMessage) {
+              qc.invalidateQueries({ queryKey: ['chat-messages', data.session_id] })
+            }
             if (data.sender_type === 'visitor') {
               qc.invalidateQueries({ queryKey: ['chat-sessions'] })
               qc.invalidateQueries({ queryKey: ['chat-open-count'] })
@@ -932,7 +958,7 @@ export default function ChatPage() {
           const isMedia = m.msg_type === 'media'
           const isImage = isMedia && m.media_mime?.startsWith('image/')
           return (
-            <div key={m.id} className={`flex ${isAgent ? 'justify-end' : 'justify-start'}`}>
+            <div key={m.id} className={`flex animate-msg-enter ${isAgent ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[80%] rounded-2xl shadow-sm overflow-hidden ${isAgent ? 'bg-blue-600 text-white' : 'bg-white text-slate-900 border border-slate-200'}`}>
                 {isImage && m.media_url ? (
                   <div>

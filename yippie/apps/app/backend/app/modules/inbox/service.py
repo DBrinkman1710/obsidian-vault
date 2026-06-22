@@ -477,6 +477,7 @@ async def count_pending_drafts(
     inbound_email: Optional[str] = None,
     include_legacy: bool = True,
     department_id: Optional[uuid.UUID] = None,
+    unread_only: bool = False,
 ) -> int:
     now = datetime.now(timezone.utc)
     q = (
@@ -500,6 +501,8 @@ async def count_pending_drafts(
         q = q.where(addr_filter)
     if department_id:
         q = q.where(DraftTicket.forwarded_to_department_id == department_id)
+    if unread_only:
+        q = q.where(DraftTicket.opened_at.is_(None))
     result = await db.execute(q)
     return result.scalar_one()
 

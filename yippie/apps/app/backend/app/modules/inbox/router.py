@@ -196,7 +196,10 @@ async def count_pending_drafts(
         shared_count = await service.count_pending_drafts(
             db, current_user.tenant_id, department_id=department_id
         )
-        return {"pending": shared_count, "personal": 0}
+        shared_unread = await service.count_pending_drafts(
+            db, current_user.tenant_id, department_id=department_id, unread_only=True
+        )
+        return {"pending": shared_count, "personal": 0, "unread": shared_unread, "unread_personal": 0}
     tenant = await db.get(Tenant, current_user.tenant_id)
     inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
     shared_count = await service.count_pending_drafts(
@@ -206,7 +209,14 @@ async def count_pending_drafts(
         db, current_user.tenant_id, current_user.inbound_email, include_legacy=False,
         department_id=department_id,
     )
-    return {"pending": shared_count, "personal": personal_count}
+    shared_unread = await service.count_pending_drafts(
+        db, current_user.tenant_id, inbound_email, department_id=department_id, unread_only=True
+    )
+    personal_unread = await service.count_pending_drafts(
+        db, current_user.tenant_id, current_user.inbound_email, include_legacy=False,
+        department_id=department_id, unread_only=True,
+    )
+    return {"pending": shared_count, "personal": personal_count, "unread": shared_unread, "unread_personal": personal_unread}
 
 
 @router.get("/drafts/{draft_id}", response_model=DraftWithContextOut)
@@ -214,6 +224,10 @@ async def get_draft(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
     ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
     if not ctx:
         raise HTTPException(status_code=404, detail="Draft not found")
+    draft = ctx["draft"]
+    if draft is not None and draft.opened_at is None:
+        draft.opened_at = datetime.now(timezone.utc)
+        await db.commit()
     return ctx
 
 

@@ -65,7 +65,7 @@ async def resolve_module_access(db: AsyncSession, user: User, module_key: str) -
         if rows:
             return max(rows, key=lambda r: ACCESS_ORDER[r.access_level]).access_level
 
-    return AccessLevel.full
+    return AccessLevel.view if user.role == UserRole.viewer else AccessLevel.full
 
 
 async def get_my_permissions(db: AsyncSession, user: User) -> dict[str, str]:
