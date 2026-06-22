@@ -301,7 +301,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
             <p className="text-sm text-slate-600">The admin account is ready to log in.</p>
           )}
           <div className="flex justify-end">
-            <button onClick={onClose} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">Done</button>
+            <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">Done</button>
           </div>
         </div>
       </div>
@@ -457,7 +457,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <button type="button" onClick={() => { setError(''); setStep(step - 1) }} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors mr-auto">Back</button>
             )}
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
+            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed">
               {step < WIZARD_STEPS.length - 1 ? 'Next' : mutation.isPending ? 'Creating…' : 'Create client'}
             </button>
           </div>
@@ -943,7 +943,7 @@ function EditClientModal({
               <button
                 onClick={handleSave}
                 disabled={mutation.isPending}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+                className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
               >
                 {mutation.isPending ? 'Saving…' : 'Save changes'}
               </button>
@@ -1060,7 +1060,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
               ✓ Invite sent to <strong>{invited}</strong> — they appear in the list once they set their password.
             </p>
             <div className="flex justify-end">
-              <button onClick={onClose} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">Done</button>
+              <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">Done</button>
             </div>
           </div>
         ) : (
@@ -1082,7 +1082,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 justify-end pt-1">
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
+            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed">
               {mutation.isPending ? 'Adding…' : form.password.trim() ? 'Add admin' : 'Send invite'}
             </button>
           </div>
@@ -1643,7 +1643,7 @@ export default function SuperAdminPage() {
         {pageTab === 'clients' && (
           <button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             <Plus size={15} strokeWidth={2.5} />
             New client

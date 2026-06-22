@@ -154,7 +154,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
             </div>
             {error && <p className="text-xs text-red-500">{error}</p>}
             <div className="flex gap-3 pt-1">
-              <button type="submit" disabled={saveMutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors">
+              <button type="submit" disabled={saveMutation.isPending} className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
                 {saveMutation.isPending ? 'Saving…' : 'Save'}
               </button>
               <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
@@ -206,7 +206,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
                       <button
                         onClick={() => addMemberMutation.mutate(u.id)}
                         disabled={addMemberMutation.isPending}
-                        className="px-2.5 py-1 text-xs font-semibold bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white rounded-lg transition-colors"
+                        className="px-2.5 py-1 text-xs font-semibold bg-yippie hover:opacity-90 disabled:opacity-50 text-white rounded-lg transition-opacity"
                       >
                         Add
                       </button>

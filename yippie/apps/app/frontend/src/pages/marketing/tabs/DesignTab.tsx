@@ -116,7 +116,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
           <button
             onClick={() => save.mutate()}
             disabled={save.isPending}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            className="flex items-center gap-1.5 rounded-lg bg-yippie px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
             <Save size={14} /> {save.isPending ? 'Saving…' : 'Save'}
           </button>

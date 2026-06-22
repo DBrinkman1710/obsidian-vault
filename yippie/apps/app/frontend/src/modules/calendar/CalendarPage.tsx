@@ -279,7 +279,7 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
 
           <div className="flex items-center gap-3 pt-1">
             <button type="submit" disabled={saveMutation.isPending}
-              className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-opacity">
+              className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
               {saveMutation.isPending ? 'Saving…' : event ? 'Save changes' : 'Create event'}
             </button>
             <button type="button" onClick={onClose}
@@ -581,7 +581,7 @@ function WeeklyGrid({
                 <span className="text-xs text-slate-400">cap</span>
                 <button
                   onClick={() => commitAdd(dayKey)}
-                  className="px-3 py-1 bg-blue-600 text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-opacity"
+                  className="px-3 py-1 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 transition-opacity"
                 >
                   Add
                 </button>
@@ -787,7 +787,7 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
                   timezone: current.timezone,
                 })}
                 disabled={saveMut.isPending}
-                className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-lg transition-opacity"
+                className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
               >
                 {saveMut.isPending ? 'Saving…' : 'Save settings'}
               </button>
@@ -897,7 +897,7 @@ export default function CalendarPage() {
             </>
           )}
           <button onClick={() => setModal({ open: true, event: null })}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-lg transition-opacity">
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
             <Plus size={15} strokeWidth={2.5} /> New event
           </button>
         </div>

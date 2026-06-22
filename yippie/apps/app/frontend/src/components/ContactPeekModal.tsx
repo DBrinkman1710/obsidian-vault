@@ -34,7 +34,7 @@ export default function ContactPeekModal({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm relative"
+        className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative"
         onClick={e => e.stopPropagation()}
       >
         <button

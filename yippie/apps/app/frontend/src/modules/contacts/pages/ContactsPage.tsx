@@ -48,7 +48,7 @@ interface Contact {
 
 interface FormState { name: string; domain: string; notes: string }
 const EMPTY: FormState = { name: '', domain: '', notes: '' }
-const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function errDetail(e: unknown) {
@@ -85,7 +85,7 @@ function CompanyForm({ initial, onSave, onCancel, isPending, serverError }: {
       {(error || serverError) && <p className="text-sm text-red-500">{error || serverError}</p>}
       <div className="flex gap-3">
         <button type="submit" disabled={isPending}
-          className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+          className="bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-opacity">
           {isPending ? 'Saving…' : 'Save'}
         </button>
         <button type="button" onClick={onCancel}
@@ -150,7 +150,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
         <input
           placeholder="Filter companies…"
           value={search} onChange={e => setSearch(e.target.value)}
-          className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
         />
       </div>
 
@@ -186,7 +186,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
               <tr>
                 <th className="px-4 py-3 w-10 text-left">
                   <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-yippie/30 cursor-pointer" />
                 </th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left hidden md:table-cell">Domain</th>
@@ -212,10 +212,10 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
                   <tr key={company.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={selected.has(company.id)} onChange={() => toggle(company.id)}
-                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                        className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-yippie/30 cursor-pointer" />
                     </td>
                     <td className="px-4 py-3 cursor-pointer" onClick={() => onCompanyClick(company.id)}>
-                      <div className="flex items-center gap-2.5">
+                      <div className="flex items-center gap-3">
                         <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
                           <Building2 size={13} className="text-blue-500" />
                         </div>
@@ -320,7 +320,7 @@ function EditContactModal({ contact, companies, onClose }: {
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={mutation.isPending}
-              className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
+              className="bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-opacity">
               {mutation.isPending ? 'Saving…' : 'Save'}
             </button>
             <button type="button" onClick={onClose}
@@ -415,7 +415,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
           <input
             placeholder="Search by name, email, or company…"
             value={search} onChange={e => setSearch(e.target.value)}
-            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
         </div>
         <div className="ml-auto">
@@ -438,7 +438,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
 
       {companyFilter && companies && (
         <div className="flex items-center gap-1.5 mb-4">
-          <span className="text-xs text-slate-500 font-medium">Company:</span>
+          <span className="text-xs text-slate-400 font-medium">Company:</span>
           <button
             onClick={() => setCompanyFilter(null)}
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
@@ -479,7 +479,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
             <tr>
               <th className="px-4 py-3 w-10 text-left">
                 <input type="checkbox" checked={allSelected} onChange={toggleAll}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-yippie/30 cursor-pointer" />
               </th>
               {visibleColumns.map(col => (
                 <th key={col.key}
@@ -515,14 +515,14 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       {!isDeleted && (
                         <input type="checkbox" checked={selected.has(c.id)} onChange={() => toggle(c.id)}
-                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                          className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-yippie/30 cursor-pointer" />
                       )}
                     </td>
                     {visibleColumns.map(col => {
                       const responsive = col.key === 'name' || col.key === 'email' ? '' : 'hidden md:table-cell'
                       if (col.key === 'name') return (
                         <td key={col.key} className="px-4 py-3 cursor-pointer" onClick={() => !isDeleted && navigate(`/contacts/${c.id}`)}>
-                          <div className="flex items-center gap-2.5">
+                          <div className="flex items-center gap-3">
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isDeleted ? 'bg-slate-100' : 'bg-blue-100'}`}>
                               <User size={13} className={isDeleted ? 'text-slate-400' : 'text-blue-600'} />
                             </div>
@@ -561,10 +561,10 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                         </td>
                       )
                       if (col.key === 'created_at') return (
-                        <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-500`}>{c.created_at ? new Date(c.created_at).toLocaleDateString('nl-NL') : '—'}</td>
+                        <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-400`}>{c.created_at ? new Date(c.created_at).toLocaleDateString('nl-NL') : '—'}</td>
                       )
                       if (col.key === 'updated_at') return (
-                        <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-500`}>{c.updated_at ? new Date(c.updated_at).toLocaleDateString('nl-NL') : '—'}</td>
+                        <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-400`}>{c.updated_at ? new Date(c.updated_at).toLocaleDateString('nl-NL') : '—'}</td>
                       )
                       return null
                     })}
@@ -739,7 +739,7 @@ export default function ContactsPage() {
               {isAdmin && (
                 <button
                   onClick={handleNewCompany}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
                 >
                   <Plus size={15} strokeWidth={2.5} />
                   New Company
@@ -747,7 +747,7 @@ export default function ContactsPage() {
               )}
               <Link
                 to="/contacts/new"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
               >
                 <Plus size={15} strokeWidth={2.5} />
                 New Contact
@@ -764,7 +764,7 @@ export default function ContactsPage() {
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
                 activeTab === tab
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-yippie text-white'
                   : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
@@ -797,12 +797,12 @@ export default function ContactsPage() {
               <h2 className="text-lg font-bold text-slate-900">Import contacts</h2>
               <button onClick={closeImport} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
             </div>
-            <p className="text-sm text-slate-500 mb-5">Upload a CSV, JSON, or XLSX file.</p>
+            <p className="text-sm text-slate-400 mb-5">Upload a CSV, JSON, or XLSX file.</p>
 
             {!importResult && !preview ? (
               <>
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4">
-                  <p className="text-xs text-slate-500 mb-2">
+                  <p className="text-xs text-slate-400 mb-2">
                     Columns: <span className="font-mono text-slate-700">full_name*</span>, email, phone, company, notes
                   </p>
                   <button onClick={() => downloadBlob(TEMPLATE_CSV, 'contacts-template.csv', 'text/csv')}
@@ -814,14 +814,14 @@ export default function ContactsPage() {
                   <div className="mb-4 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">{importError}</div>
                 )}
                 <button onClick={() => fileRef.current?.click()} disabled={previewMutation.isPending}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-60">
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity disabled:opacity-50">
                   <Upload size={15} strokeWidth={2.5} />
                   {previewMutation.isPending ? 'Reading…' : 'Choose file'}
                 </button>
               </>
             ) : !importResult && preview ? (
               <>
-                <p className="text-xs text-slate-500 mb-3">Match each column in your file to a Yippie field.</p>
+                <p className="text-xs text-slate-400 mb-3">Match each column in your file to a Yippie field.</p>
                 <div className="max-h-64 overflow-y-auto flex flex-col gap-2 mb-4 pr-1">
                   {preview.headers.map(h => (
                     <div key={h} className="flex items-center gap-2">
@@ -830,7 +830,7 @@ export default function ContactsPage() {
                       <select
                         value={mapping[h] ?? ''}
                         onChange={e => setMapping(p => ({ ...p, [h]: e.target.value }))}
-                        className="w-40 shrink-0 px-2 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                        className="w-40 shrink-0 px-2 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie">
                         <option value="">— skip —</option>
                         {IMPORT_TARGET_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
                       </select>
@@ -847,7 +847,7 @@ export default function ContactsPage() {
                 )}
                 <div className="flex gap-3">
                   <button onClick={runImport} disabled={!mappedToFullName || importMutation.isPending}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors">
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
                     <Upload size={15} strokeWidth={2.5} />
                     {importMutation.isPending ? 'Importing…' : 'Import'}
                   </button>
@@ -870,7 +870,7 @@ export default function ContactsPage() {
                   </ul>
                 )}
                 <button onClick={closeImport}
-                  className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+                  className="w-full px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
                   Done
                 </button>
               </>

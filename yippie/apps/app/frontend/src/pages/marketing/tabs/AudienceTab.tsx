@@ -159,7 +159,7 @@ export function AudienceTab({ campaign }: { campaign: Campaign }) {
         <button
           onClick={() => save.mutate()}
           disabled={!canSave || save.isPending}
-          className="mt-5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+          className="mt-5 rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
           {save.isPending ? 'Saving…' : 'Save audience'}
         </button>

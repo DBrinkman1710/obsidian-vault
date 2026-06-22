@@ -111,7 +111,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
             <button
               onClick={() => { if (selectedId) moveMut.mutate(selectedId) }}
               disabled={!selectedId || moveMut.isPending}
-              className="flex-1 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors"
+              className="flex-1 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity"
             >
               Save
             </button>
@@ -198,7 +198,7 @@ export default function ContactDetail() {
             {bookingEnabled && (
               <button
                 onClick={() => setBookingOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
               >
                 <CalendarClock size={14} strokeWidth={2.5} />
                 Send booking link
@@ -206,7 +206,7 @@ export default function ContactDetail() {
             )}
             <Link
               to={newTicketUrl}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               <Plus size={14} strokeWidth={2.5} />
               New Ticket
@@ -330,7 +330,7 @@ function CompanyBlock({ contactId, company }: { contactId: string; company: Comp
               type="button"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="inline-flex items-center px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
             >
               {saveMutation.isPending ? 'Saving…' : 'Save'}
               {saveMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
@@ -407,7 +407,7 @@ function LabelsBlock({ contactId, labels }: { contactId: string; labels: Contact
               type="button"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="inline-flex items-center px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="inline-flex items-center px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
             >
               {saveMutation.isPending ? 'Saving…' : 'Save'}
               {saveMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}

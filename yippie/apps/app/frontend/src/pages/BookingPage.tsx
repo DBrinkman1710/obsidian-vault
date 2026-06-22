@@ -174,7 +174,7 @@ function CounterProposeForm({ onSuccess }: { onSuccess: () => void }) {
         <button
           type="submit"
           disabled={submitting}
-          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+          className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
         >
           {submitting ? 'Sending…' : 'Send proposal'}
         </button>
@@ -436,7 +436,7 @@ export default function BookingPage() {
             <button
               onClick={() => confirm(picked)}
               disabled={confirming}
-              className="w-full mt-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+              className="w-full mt-5 py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               {confirming ? 'Booking…' : `Book ${fmtSlotLong(picked.start, picked.end)}`}
             </button>

@@ -321,7 +321,7 @@ export default function BookingManagePage() {
           <button
             onClick={handleReschedule}
             disabled={submitting}
-            className="w-full mt-5 py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="w-full mt-5 py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             {submitting ? 'Rescheduling…' : `Confirm reschedule to ${fmtSlotLong(picked.start, picked.end)}`}
           </button>

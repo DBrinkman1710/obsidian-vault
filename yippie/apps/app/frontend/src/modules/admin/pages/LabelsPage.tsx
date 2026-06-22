@@ -68,7 +68,7 @@ function OrgDetailsCard() {
       <button
         onClick={() => mutation.mutate()}
         disabled={mutation.isPending || !dirty}
-        className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
+        className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
       >
         {mutation.isPending ? 'Saving…' : 'Save'}
       </button>
@@ -118,7 +118,7 @@ function LiveChatSettingsCard() {
         <button
           onClick={() => mutation.mutate()}
           disabled={mutation.isPending || !dirty || !hours}
-          className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
+          className="px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
         >
           {mutation.isPending ? 'Saving…' : 'Save'}
         </button>
@@ -256,7 +256,7 @@ function KanbanStagesPanel() {
           <button
             onClick={handleSave}
             disabled={createMut.isPending || updateMut.isPending}
-            className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="flex items-center gap-1.5 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             <Plus size={14} />
             {editId ? 'Update stage' : 'Add stage'}
@@ -320,7 +320,7 @@ export default function LabelsPage() {
           <button
             onClick={() => mutation.mutate()}
             disabled={mutation.isPending || color === (config?.branding?.primary_color ?? DEFAULT_COLOR)}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             {mutation.isPending ? 'Saving…' : saved ? 'Saved!' : 'Save'}
           </button>

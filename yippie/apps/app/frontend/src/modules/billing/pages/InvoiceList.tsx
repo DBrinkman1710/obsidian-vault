@@ -47,7 +47,7 @@ interface ContactLite {
 }
 
 const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
-const labelCls = 'block text-xs font-semibold text-slate-500 mb-1.5'
+const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function statusLabel(s: string) {
   return STATUS_LABELS[s] ?? s.charAt(0).toUpperCase() + s.slice(1)
@@ -458,7 +458,7 @@ export default function InvoiceList() {
             <Upload size={15} strokeWidth={2.5} /> Import
           </button>
           <button onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
             <Plus size={15} strokeWidth={2.5} /> New Invoice
           </button>
         </div>

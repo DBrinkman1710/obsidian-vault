@@ -529,7 +529,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                 <button
                   onClick={handleEmailPromptConfirm}
                   disabled={savingEmail || !promptEmail.trim()}
-                  className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+                  className="flex-1 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
                 >
                   {savingEmail ? 'Saving…' : 'Confirm & send'}
                 </button>
@@ -551,7 +551,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
               <button
                 onClick={handleCreateTicket}
                 disabled={ticketMutation.isPending}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+                className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
               >
                 {ticketMutation.isPending ? 'Creating…' : 'Create ticket'}
               </button>
@@ -566,7 +566,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
               <button
                 onClick={handleSendBooking}
                 disabled={sending || !bookingContact}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+                className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
               >
                 {sending ? 'Sending…' : 'Send booking link'}
               </button>

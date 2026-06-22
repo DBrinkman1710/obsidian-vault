@@ -142,7 +142,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
 
         {/* Add / edit form */}
         <div className="shrink-0 border-t border-slate-100 px-6 py-4 bg-slate-50 space-y-3">
-          <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+          <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">
             {editId ? 'Edit stage' : 'New stage'}
           </p>
           <div className="flex gap-2">
@@ -165,7 +165,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
             <button
               onClick={handleSave}
               disabled={createMut.isPending || updateMut.isPending}
-              className="flex-1 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+              className="flex-1 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               {editId ? 'Update' : 'Add stage'}
             </button>
@@ -288,7 +288,7 @@ function ContactCard({
       draggable
       onDragStart={onDragStart}
       onContextMenu={onContextMenu}
-      className={`bg-white rounded-xl border px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow group ${
+      className={`bg-white rounded-xl border px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:bg-slate-50 transition-colors group ${
         selected ? 'border-blue-400 ring-1 ring-blue-200' : showStaleAlert ? 'border-amber-400 ring-1 ring-amber-200' : 'border-slate-200'}`}
     >
       <div className="flex items-start justify-between gap-1">
@@ -475,14 +475,14 @@ export default function PipelinePage() {
           <div className="h-4 w-px bg-slate-200" />
           <button
             onClick={() => setBookingOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             <CalendarClock size={14} strokeWidth={2.5} />
             Send booking link to {selectedContacts.size} contact{selectedContacts.size !== 1 ? 's' : ''}
           </button>
           <button
             onClick={clearSelection}
-            className="text-sm font-medium text-slate-500 hover:text-slate-700"
+            className="text-sm font-medium text-slate-400 hover:text-slate-700"
           >
             Clear selection
           </button>
@@ -527,7 +527,7 @@ export default function PipelinePage() {
           {isAdmin && (
             <button
               onClick={() => setShowManage(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              className="flex items-center gap-1.5 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               <Plus size={14} />
               Create first stage

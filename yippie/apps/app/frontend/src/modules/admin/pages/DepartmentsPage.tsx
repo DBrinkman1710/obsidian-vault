@@ -107,7 +107,7 @@ function DeptForm({ initial, onSave, onCancel, isPending }: {
       <div className="flex gap-3">
         <button
           type="submit" disabled={isPending}
-          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+          className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
         >
           {isPending ? 'Saving…' : 'Save'}
         </button>
@@ -201,7 +201,7 @@ function DepartmentDetailModal({ dept, onClose }: { dept: Dept; onClose: () => v
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-200 sticky top-0 bg-white rounded-t-2xl">
           <h2 className="text-lg font-bold text-slate-900">{dept.name}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={20} />
@@ -242,7 +242,7 @@ function DepartmentDetailModal({ dept, onClose }: { dept: Dept; onClose: () => v
               <button
                 onClick={() => saveSettings.mutate()}
                 disabled={saveSettings.isPending}
-                className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+                className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
               >
                 {saveSettings.isPending ? 'Saving…' : savedSettings ? 'Saved ✓' : 'Save settings'}
               </button>
@@ -299,7 +299,7 @@ function DepartmentDetailModal({ dept, onClose }: { dept: Dept; onClose: () => v
                 <button
                   onClick={() => addUserId && addMember.mutate(addUserId)}
                   disabled={!addUserId || addMember.isPending}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed whitespace-nowrap"
+                  className="px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed whitespace-nowrap"
                 >
                   Add
                 </button>
@@ -330,7 +330,7 @@ function DepartmentDetailModal({ dept, onClose }: { dept: Dept; onClose: () => v
               <button
                 onClick={() => invite.mutate()}
                 disabled={!inviteEmail.trim() || !inviteName.trim() || invite.isPending}
-                className="self-start px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+                className="self-start px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
               >
                 {invite.isPending ? 'Sending…' : 'Send invite'}
               </button>
@@ -407,7 +407,7 @@ function DeadlineSettingsCard() {
         <button
           onClick={() => saveMutation.mutate()}
           disabled={!loaded || saveMutation.isPending}
-          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+          className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
         >
           {saveMutation.isPending ? 'Saving…' : saved ? 'Saved ✓' : 'Save'}
         </button>
@@ -457,7 +457,7 @@ export default function DepartmentsPage() {
         {!showCreate && (
           <button
             onClick={() => setShowCreate(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity whitespace-nowrap"
           >
             <Plus size={15} strokeWidth={2.5} />
             New Department

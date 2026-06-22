@@ -1298,7 +1298,7 @@ function ContactModal({ contactId, onClose, navigate }: { contactId: string; onC
           <button
             onClick={() => save.mutate()}
             disabled={save.isPending}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             {save.isPending ? 'Saving…' : 'Save'}
           </button>
@@ -1332,7 +1332,7 @@ function CreateContactModal({ phone, name, onClose, onCreated }: { phone: string
           <button
             onClick={() => create.mutate()}
             disabled={create.isPending || !fullName.trim()}
-            className="px-4 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             {create.isPending ? 'Creating…' : 'Create & link'}
           </button>

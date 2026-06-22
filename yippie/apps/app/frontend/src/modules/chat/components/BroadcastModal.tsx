@@ -171,7 +171,7 @@ export default function BroadcastModal({ open, onClose }: Props) {
           <button
             onClick={() => broadcastMutation.mutate()}
             disabled={selectedIds.size === 0 || !message.trim() || broadcastMutation.isPending}
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             {broadcastMutation.isPending ? 'Sending…' : 'Send Broadcast'}
           </button>

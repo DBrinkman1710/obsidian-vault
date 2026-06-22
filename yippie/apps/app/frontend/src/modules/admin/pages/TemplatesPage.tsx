@@ -165,7 +165,7 @@ export default function TemplatesPage() {
             <button
               onClick={openNew}
               title="New template"
-              className="p-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors"
+              className="p-1.5 bg-yippie hover:opacity-90 text-white rounded-lg transition-opacity"
             >
               <Plus size={14} strokeWidth={2.5} />
             </button>
@@ -249,7 +249,7 @@ export default function TemplatesPage() {
             <button
               onClick={handleSave}
               disabled={saving || !editorReady}
-              className="shrink-0 inline-flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="shrink-0 inline-flex items-center gap-2 px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
             >
               {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : 'Save'}
             </button>

@@ -127,7 +127,7 @@ export default function ContactNew() {
           <button
             type="submit"
             disabled={mutation.isPending}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed"
+            className="bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-opacity disabled:cursor-not-allowed"
           >
             {mutation.isPending ? 'Saving…' : 'Create contact'}
           </button>

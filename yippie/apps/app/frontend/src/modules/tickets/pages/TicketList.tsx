@@ -309,12 +309,11 @@ export default function TicketList() {
 
       {mergeDialog && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center"
-          style={{ background: 'rgba(0,0,0,0.35)' }}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
           onClick={() => setMergeDialog(null)}
         >
           <div
-            className="bg-white rounded-xl shadow-2xl p-6 max-w-md w-full mx-4"
+            className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4"
             onClick={e => e.stopPropagation()}
           >
             <h2 className="font-semibold text-base mb-1" style={{ color: 'var(--ink)' }}>Merge tickets</h2>

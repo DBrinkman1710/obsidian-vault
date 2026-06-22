@@ -904,7 +904,7 @@ export default function DraftReview() {
                         <button
                           onClick={() => selectedPipelineStageId && moveStageMutation.mutate(selectedPipelineStageId)}
                           disabled={!selectedPipelineStageId || moveStageMutation.isPending}
-                          className="w-full py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 cursor-pointer mt-2"
+                          className="w-full py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity disabled:opacity-50 cursor-pointer mt-2"
                         >
                           {moveStageMutation.isPending ? 'Moving…' : 'Move to Stage'}
                         </button>
@@ -1171,7 +1171,7 @@ export default function DraftReview() {
                           <button
                             onClick={() => reopenMutation.mutate()}
                             disabled={reopenMutation.isPending}
-                            className="shrink-0 text-xs font-semibold px-3 py-1.5 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 cursor-pointer"
+                            className="shrink-0 text-xs font-semibold px-3 py-1.5 bg-yippie text-white rounded-lg hover:opacity-90 transition-opacity disabled:opacity-50 cursor-pointer"
                           >
                             {reopenMutation.isPending ? 'Reopening…' : 'Reopen'}
                           </button>
@@ -1325,7 +1325,7 @@ export default function DraftReview() {
                       <button
                         onClick={() => selectedPipelineStageId && moveStageMutation.mutate(selectedPipelineStageId)}
                         disabled={!selectedPipelineStageId || !contact || moveStageMutation.isPending}
-                        className="w-full py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 cursor-pointer"
+                        className="w-full py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity disabled:opacity-50 cursor-pointer"
                       >
                         {moveStageMutation.isPending ? 'Moving…' : 'Move to Stage'}
                       </button>
@@ -1503,7 +1503,7 @@ export default function DraftReview() {
                 <button
                   onClick={handleSendReply}
                   disabled={sending || !!undoUntil || !!sentTo || !replyText.trim()}
-                  className={`inline-flex items-center gap-1 px-4 py-1.5 text-xs font-semibold rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed ${
+                  className={`inline-flex items-center gap-1 px-4 py-1.5 text-xs font-semibold rounded-lg transition-opacity cursor-pointer disabled:cursor-not-allowed ${
                     sentTo
                       ? 'bg-emerald-50 text-emerald-600 border border-emerald-200'
                       : undoUntil

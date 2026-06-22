@@ -101,7 +101,7 @@ export default function WelcomeTour() {
           </button>
           <button
             onClick={next}
-            className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-xl transition-colors"
+            className="flex-1 inline-flex items-center justify-center gap-1.5 px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             {isLast ? 'Get started' : 'Next'}
             {!isLast && <ChevronRight size={15} />}

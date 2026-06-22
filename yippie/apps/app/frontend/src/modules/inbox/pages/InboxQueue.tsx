@@ -242,7 +242,7 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
               type="button"
               onClick={handleConfirm}
               disabled={selectedCount === 0 || adding}
-              className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
             >
               {adding ? 'Adding…' : `Add${selectedCount > 0 ? ` (${selectedCount})` : ''}`}
             </button>
@@ -280,7 +280,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
     <div ref={ref} className="relative">
       <div className="flex gap-2">
         <input
-          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30"
           value={search}
           onChange={e => { setSearch(e.target.value); setOpen(true) }}
           onFocus={() => setOpen(true)}
@@ -301,7 +301,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
           <div className="px-3 py-2 border-b border-slate-100">
             <div className="flex gap-2">
               <input
-                className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-400"
+                className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-yippie/30"
                 value={freeEmail}
                 onChange={e => setFreeEmail(e.target.value)}
                 placeholder="Or type an email address directly…"
@@ -315,7 +315,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
               <button
                 type="button"
                 onClick={() => { if (freeEmail.includes('@')) { onAdd(freeEmail, freeEmail); setFreeEmail('') } }}
-                className="px-2 py-1 bg-blue-600 text-white text-xs rounded"
+                className="px-2 py-1 bg-yippie hover:opacity-90 text-white text-xs rounded transition-opacity"
               >
                 <Plus size={11} />
               </button>
@@ -482,7 +482,7 @@ function ComposeModal({
           </div>
           <h2 className="text-lg font-bold text-slate-900 mb-2">Demo mode</h2>
           <p className="text-sm text-amber-600 mb-1">This workspace is in demo mode — no email was sent.</p>
-          <button onClick={onClose} className="mt-6 px-6 py-2 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition-colors">
+          <button onClick={onClose} className="mt-6 px-6 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
             Done
           </button>
         </div>
@@ -546,7 +546,7 @@ function ComposeModal({
               {showAiPrompt && (
                 <div className="mt-3 flex gap-2">
                   <input
-                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30"
                     value={aiPrompt}
                     onChange={e => setAiPrompt(e.target.value)}
                     placeholder="e.g. Follow up with clients about their overdue invoices, polite tone"
@@ -556,7 +556,7 @@ function ComposeModal({
                     type="button"
                     onClick={() => suggestMutation.mutate()}
                     disabled={!aiPrompt.trim() || suggestMutation.isPending}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+                    className="px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
                   >
                     {suggestMutation.isPending ? 'Writing…' : 'Suggest'}
                   </button>
@@ -569,7 +569,7 @@ function ComposeModal({
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Subject</label>
             <input
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30"
               value={subject}
               onChange={e => setSubject(e.target.value)}
               placeholder="Subject line…"
@@ -630,7 +630,7 @@ function ComposeModal({
               </div>
             ) : (
               <textarea
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none font-[inherit]"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 resize-none font-[inherit]"
                 rows={14}
                 value={body}
                 onChange={e => setBody(e.target.value)}
@@ -707,7 +707,7 @@ function ComposeModal({
               onClick={() => sendMutation.mutate()}
               disabled={!canSend}
               title="Cmd/Ctrl + Enter"
-              className="inline-flex items-center justify-center gap-2 min-w-[116px] px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="inline-flex items-center justify-center gap-2 min-w-[116px] px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
             >
               <Send size={13} />
               {sendMutation.isPending ? 'Sending…' : 'Send'}
@@ -1279,7 +1279,7 @@ export default function InboxQueue() {
               } : null)
               setShowCompose(true)
             }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             <Pencil size={14} />
             Compose
@@ -1312,7 +1312,7 @@ export default function InboxQueue() {
               <TemplatePicker
                 direction="down"
                 triggerIconSize={14}
-                triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
                 onSelect={(tmplBody, isHtml, buttons) => {
                   const text = isHtml ? htmlToText(tmplBody) : tmplBody
                   setComposeInitial({
@@ -1338,7 +1338,7 @@ export default function InboxQueue() {
               onClick={() => handleTabSwitch(tab)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
                 activeTab === tab
-                  ? 'bg-blue-600 text-white'
+                  ? 'bg-slate-900 text-white'
                   : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >

@@ -190,7 +190,7 @@ function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
               ✓ Invite sent to <strong>{sent}</strong> — they appear in this list once they set their password.
             </p>
             <div className="flex justify-end">
-              <button onClick={onClose} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors">Done</button>
+              <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">Done</button>
             </div>
           </div>
         ) : (
@@ -213,7 +213,7 @@ function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
             {error && <p className="text-sm text-red-500">{error}</p>}
             <div className="flex gap-3 justify-end pt-1">
               <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
-              <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
+              <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed">
                 {mutation.isPending ? 'Sending…' : 'Send invite'}
               </button>
             </div>
@@ -310,7 +310,7 @@ export default function SuperadminsSettingsPage() {
           {isRootOwner && (
             <button
               onClick={() => setShowInvite(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors flex-shrink-0"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity flex-shrink-0"
             >
               <UserPlus size={14} />
               Invite superadmin

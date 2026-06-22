@@ -171,7 +171,7 @@ export default function TicketDetail() {
               </p>
               {deleteError && <p className="text-sm text-red-500">{deleteError}</p>}
               <div className="flex gap-3 justify-end">
-                <button onClick={() => setConfirmingDelete(false)} className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Cancel</button>
+                <button onClick={() => setConfirmingDelete(false)} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Cancel</button>
                 <button
                   onClick={() => deleteMutation.mutate()}
                   disabled={deleteMutation.isPending}
@@ -347,7 +347,7 @@ export default function TicketDetail() {
             <button
               onClick={() => commentMutation.mutate()}
               disabled={!comment.trim() || commentMutation.isPending}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
             >
               <Send size={13} />
               Send

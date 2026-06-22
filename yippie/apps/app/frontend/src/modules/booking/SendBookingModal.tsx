@@ -375,7 +375,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
           <button
             onClick={handleSend}
             disabled={sending || effectiveContacts.length === 0}
-            className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             {sending ? 'Sending…' : 'Send booking link'}
           </button>

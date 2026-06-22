@@ -226,7 +226,7 @@ export default function MeetPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors"
+            className="w-full py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             {submitting ? 'Booking…' : 'Confirm booking'}
           </button>
@@ -317,7 +317,7 @@ export default function MeetPage() {
       {picked && (
         <button
           onClick={() => setStep('details')}
-          className="w-full mt-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+          className="w-full mt-5 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
         >
           Continue — {fmtSlotLong(picked.start, picked.end)}
         </button>

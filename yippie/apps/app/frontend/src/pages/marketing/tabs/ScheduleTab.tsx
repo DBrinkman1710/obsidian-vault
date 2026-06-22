@@ -119,7 +119,7 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
               if (confirm('Send this campaign now?')) launch.mutate()
             }}
             disabled={locked || launch.isPending}
-            className="mt-3 flex items-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50"
+            className="mt-3 flex items-center gap-2 rounded-xl bg-yippie px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
             <Send size={15} /> {launch.isPending ? 'Launching…' : 'Launch now'}
           </button>

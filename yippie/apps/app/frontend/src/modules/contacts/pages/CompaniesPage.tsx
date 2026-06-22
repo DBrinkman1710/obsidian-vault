@@ -45,7 +45,7 @@ function CompanyForm({ initial, onSave, onCancel, isPending, serverError }: {
       {(error || serverError) && <p className="text-sm text-red-500">{error || serverError}</p>}
       <div className="flex gap-3">
         <button type="submit" disabled={isPending}
-          className="px-5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-sm font-semibold rounded-lg transition-colors">
+          className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
           {isPending ? 'Saving…' : 'Save'}
         </button>
         <button type="button" onClick={onCancel}
@@ -86,7 +86,7 @@ export default function CompaniesPage() {
         <div className="flex flex-col items-end gap-2">
           {isAdmin && !showCreate && (
             <button onClick={() => { setShowCreate(true); setEditingId(null) }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors whitespace-nowrap">
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity whitespace-nowrap">
               <Plus size={15} strokeWidth={2.5} />
               New Company
             </button>

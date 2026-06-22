@@ -55,8 +55,7 @@ export default function TicketPeekModal({ ticketId, onClose }: TicketPeekModalPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(0,0,0,0.45)' }}
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={onClose}
     >
       <div

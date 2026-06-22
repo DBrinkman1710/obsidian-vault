@@ -159,7 +159,7 @@ export default function ContactList() {
             )}
             <Link
               to="/contacts/new"
-              className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               <Plus size={15} strokeWidth={2.5} />
               New Contact
@@ -394,7 +394,7 @@ export default function ContactList() {
                 <button
                   onClick={() => fileRef.current?.click()}
                   disabled={importMutation.isPending}
-                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors disabled:opacity-60"
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity disabled:opacity-50"
                 >
                   <Upload size={15} strokeWidth={2.5} />
                   {importMutation.isPending ? 'Importing…' : 'Choose file'}
@@ -416,7 +416,7 @@ export default function ContactList() {
                 )}
                 <button
                   onClick={closeImport}
-                  className="w-full px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                  className="w-full px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
                 >
                   Done
                 </button>
