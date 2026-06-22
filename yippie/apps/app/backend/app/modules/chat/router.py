@@ -337,7 +337,7 @@ async def reply_to_session(
                 await db.rollback()
                 logger.exception("WhatsApp send failed for session %s", session_id)
                 raise HTTPException(
-                    status_code=502,
+                    status_code=422,
                     detail="WhatsApp delivery failed — check that WhatsApp is still connected",
                 )
     else:
@@ -467,7 +467,7 @@ async def send_media_to_session(
                 await db.rollback()
                 logger.exception("WhatsApp sendMedia failed for session %s", session_id)
                 raise HTTPException(
-                    status_code=502,
+                    status_code=422,
                     detail="WhatsApp delivery failed — check that WhatsApp is still connected",
                 )
     else:
