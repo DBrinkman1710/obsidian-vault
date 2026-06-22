@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.invite import send_invite_email
 from app.core.models import Tenant, User, UserRole
+from app.core.plans import limits_for_plan
 from app.modules.departments.models import Department, DepartmentMember
 
 INVITABLE_ROLES = {UserRole.admin, UserRole.agent, UserRole.viewer}
@@ -65,6 +66,20 @@ async def invite_user(
         raise ValueError(f"A user with email '{email}' already exists.")
 
     tenant = await db.get(Tenant, tenant_id)
+    limits = limits_for_plan(tenant.plan if tenant else None)
+    max_users = limits.get("users")
+    if max_users is not None:
+        current_count = await db.scalar(
+            select(func.count()).select_from(User).where(
+                User.tenant_id == tenant_id,
+                User.is_active.is_(True),
+            )
+        )
+        if (current_count or 0) >= max_users:
+            raise ValueError(
+                f"Your {(tenant.plan or 'current').title()} plan is limited to {max_users} users. "
+                "Upgrade to add more team members."
+            )
     await send_invite_email(
         to=email, full_name=full_name, tenant_id=tenant_id,
         role=role_enum.value, tenant_name=tenant.name if tenant else "Yippie",
