@@ -70,7 +70,7 @@ PLAN_FEATURES: dict[PlanTier, set[str]] = {
 # limited launch offer: 10 seats plus 50% off every paid add-on module.
 PLAN_LIMITS: dict[PlanTier, dict[str, "int | float | None"]] = {
     PlanTier.founder:    {"users": 10,   "contacts": None, "ai_scans": 500,    "price_monthly": 9,    "price_annual": 97,   "module_discount": 0.5},
-    PlanTier.starter:    {"users": 5,    "contacts": None, "ai_scans": 2_000,  "price_monthly": 19,   "price_annual": 205,  "module_discount": 0.0},
+    PlanTier.starter:    {"users": 3,    "contacts": None, "ai_scans": 2_000,  "price_monthly": 19,   "price_annual": 205,  "module_discount": 0.0},
     PlanTier.growth:     {"users": 10,   "contacts": None, "ai_scans": 10_000, "price_monthly": 49,   "price_annual": 529,  "module_discount": 0.0},
     PlanTier.pro:        {"users": None, "contacts": None, "ai_scans": None,   "price_monthly": None, "price_annual": None, "module_discount": 0.0},
     PlanTier.enterprise: {"users": None, "contacts": None, "ai_scans": None,   "price_monthly": None, "price_annual": None, "module_discount": 0.0},

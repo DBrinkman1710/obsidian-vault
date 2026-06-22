@@ -39,7 +39,7 @@ const plans: Plan[] = [
     aiScans: "2,000 AI scans/mo",
     included: [
       ...CORE_FEATURES,
-      "5 users",
+      `${PLAN_LIMITS.starter.users} users`,
       "Unlimited contacts",
       "2,000 AI scans/mo",
       "Add-ons à la carte",
