@@ -283,10 +283,10 @@ async def reply_to_session(
                 if wa_response and isinstance(wa_response, dict):
                     # Canonicalize the stored phone to match Evolution's JID so that
                     # when the contact replies the incoming webhook finds this session.
-                    # (Fixes local-format vs. international-format mismatch, e.g. 0612… vs 31612…)
+                    # Uses normalize_phone so @lid JIDs are preserved (not stripped to digits).
                     remote_jid = wa_response.get("key", {}).get("remoteJid", "")
                     if remote_jid:
-                        canonical = "".join(ch for ch in remote_jid.split("@")[0] if ch.isdigit())
+                        canonical = whatsapp_service.normalize_phone(remote_jid)
                         if canonical and canonical != session.whatsapp_phone:
                             # Check if another open session already owns the canonical phone.
                             # This is the "two open sessions per contact" bug: an inbound session
@@ -450,7 +450,7 @@ async def send_media_to_session(
                 if wa_response and isinstance(wa_response, dict):
                     remote_jid = wa_response.get("key", {}).get("remoteJid", "")
                     if remote_jid:
-                        canonical = "".join(ch for ch in remote_jid.split("@")[0] if ch.isdigit())
+                        canonical = whatsapp_service.normalize_phone(remote_jid)
                         if canonical and canonical != session.whatsapp_phone:
                             session.whatsapp_phone = canonical
                             session.visitor_id = canonical

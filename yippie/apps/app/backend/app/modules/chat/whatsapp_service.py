@@ -14,13 +14,22 @@ logger = logging.getLogger(__name__)
 
 
 def normalize_phone(phone: str) -> str:
-    """Canonicalize a phone number to digits only.
+    """Canonicalize a WhatsApp JID or phone number for storage and sending.
 
-    Evolution API sends remoteJid without a leading + (e.g. "31612345678"),
-    while contacts may store "+31612345678" or a local format like "0612345678".
-    Both the inbound (webhook) and outbound (agent send / broadcast) paths must
-    use this so a single open session matches in both directions.
+    - Standard remoteJids (e.g. "31612345678@s.whatsapp.net" or "31612345678"):
+      stripped to digits only so local-format contact phones can match.
+    - Non-standard JIDs (e.g. "120022928212099@lid", "@newsletter"):
+      kept as "digits@type" — these are WhatsApp LIDs / privacy identifiers and
+      must be sent back to Evolution with their JID type intact, otherwise
+      Evolution appends @s.whatsapp.net and the delivery fails.
+    - Contact phone strings ("+31612345678", "0612345678"): digits only.
     """
+    if "@" in phone:
+        user, jid_type = phone.split("@", 1)
+        digits = "".join(ch for ch in user if ch.isdigit())
+        if jid_type == "s.whatsapp.net":
+            return digits  # standard phone — digits are enough
+        return f"{digits}@{jid_type}"  # LID / newsletter — preserve the type
     return "".join(ch for ch in phone if ch.isdigit())
 
 
@@ -58,6 +67,10 @@ async def find_open_session_for_phone(
     session = result.scalar_one_or_none()
     if session:
         return session
+
+    # Suffix fallback only applies to plain digit phone numbers, not JIDs.
+    if "@" in phone:
+        return None
 
     # Fallback: suffix match for local-vs-international mismatch.
     # Compare the last 8 digits — unique enough for mobile numbers within one tenant.
@@ -217,7 +230,7 @@ async def send_media(
     Returns the Evolution API response JSON or None on failure.
     """
     settings = get_settings()
-    normalized = "".join(ch for ch in number if ch.isdigit())
+    normalized = number if "@" in number else "".join(ch for ch in number if ch.isdigit())
     payload: dict = {
         "number": normalized,
         "mediaMessage": {
@@ -250,8 +263,9 @@ async def send_media(
 
 async def send_text(instance_name: str, number: str, text: str) -> dict | None:
     settings = get_settings()
-    # Normalize to bare digits (E.164 without leading +) as required by Evolution API
-    normalized = "".join(ch for ch in number if ch.isdigit())
+    # Full JIDs (e.g. "120022928212099@lid") are passed as-is; plain phone numbers
+    # are stripped to digits (E.164 without leading +) as Evolution API expects.
+    normalized = number if "@" in number else "".join(ch for ch in number if ch.isdigit())
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(
             f"{settings.evolution_api_url}/message/sendText/{instance_name}",
@@ -292,8 +306,9 @@ async def handle_incoming_webhook(
         return None
 
     remote_jid: str = key.get("remoteJid", "")
-    # Normalize to digits only — matches the format stored via _find_or_create_open_session
-    phone = normalize_phone(remote_jid.split("@")[0]) if remote_jid else ""
+    # Pass full JID to normalize_phone — it preserves @lid and other non-standard
+    # types so LID-based contacts can be sent back to correctly.
+    phone = normalize_phone(remote_jid) if remote_jid else ""
     if not phone:
         return None
 
