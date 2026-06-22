@@ -32,7 +32,7 @@ const articleJsonLd = {
   description: DESCRIPTION,
   datePublished: DATE,
   dateModified: DATE,
-  author: { "@type": "Organization", name: "Yippie" },
+  author: { "@type": "Person", name: "Diederik Brinkman" },
   publisher: {
     "@type": "Organization",
     name: "Yippie",
@@ -55,6 +55,7 @@ export default function Post() {
         <a href="/blog" className={styles.backLink}>← Back to blog</a>
         <div className={styles.articleDate}>June 5, 2026</div>
         <h1 className={styles.articleTitle}>{TITLE}</h1>
+        <div className={styles.articleByline}>By Diederik Brinkman</div>
 
         <div className={styles.articleBody}>
           <p>

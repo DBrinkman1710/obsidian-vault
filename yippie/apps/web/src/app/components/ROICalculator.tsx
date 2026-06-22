@@ -253,7 +253,8 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
     setValues((prev) => ({ ...prev, tickets: defaults.tickets }));
   };
 
-  const hoursSaved = (values.tickets * values.minutes * (values.automatable / 100)) / 60;
+  const hoursSaved =
+    (values.tickets * values.staff * values.minutes * (values.automatable / 100)) / 60;
   const euroSaved = hoursSaved * values.rate;
   const payback = formatPayback(euroSaved);
 

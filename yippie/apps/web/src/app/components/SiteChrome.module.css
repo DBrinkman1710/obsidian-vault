@@ -66,6 +66,60 @@
 .navLinks a:hover { color: var(--ink); }
 .navLinks a:hover::after { width: 100%; }
 
+/* ── Use cases dropdown ──────────────────────── */
+.navDropdown { position: relative; }
+.navDropdownTrigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  transition: color 0.18s;
+}
+.navDropdown:hover .navDropdownTrigger { color: var(--ink); }
+.navDropdownCaret { font-size: 10px; transition: transform 0.18s; }
+.navDropdown:hover .navDropdownCaret { transform: translateY(1px); }
+
+.navDropdownMenu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%) translateY(6px);
+  min-width: 168px;
+  list-style: none;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+  padding: 6px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.18s, transform 0.18s, visibility 0.18s;
+}
+.navDropdown:hover .navDropdownMenu,
+.navDropdown:focus-within .navDropdownMenu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(2px);
+}
+.navDropdownMenu a {
+  display: block;
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  transition: background 0.15s, color 0.15s;
+}
+.navDropdownMenu a::after { content: none; }
+.navDropdownMenu a:hover { background: var(--off-white); color: var(--ink); }
+
 .navRight { display: flex; align-items: center; gap: 18px; }
 
 .navLogin {

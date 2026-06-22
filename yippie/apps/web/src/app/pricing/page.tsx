@@ -202,7 +202,7 @@ export default function PricingPage() {
         <div className={styles.founderBanner}>
           <span className={styles.founderBadge}>Limited offer</span>
           <p className={styles.founderText}>
-            <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for 2 users, 500 AI scans, all core features + add-ons à la carte.
+            <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
           </p>
           <a href={DEMO_PATH} className={styles.founderBtn}>Claim a founder spot →</a>
         </div>

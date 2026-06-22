@@ -14,6 +14,11 @@ const links = [
   { href: "/blog", label: "Blog" },
 ];
 
+const useCaseLinks = [
+  { href: "/for-smbs", label: "For SMBs" },
+  { href: "/for-agencies", label: "For agencies" },
+];
+
 export default function SiteNav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -47,6 +52,19 @@ export default function SiteNav() {
               <a href={l.href}>{l.label}</a>
             </li>
           ))}
+          <li className={styles.navDropdown}>
+            <button type="button" className={styles.navDropdownTrigger} aria-haspopup="true">
+              Use cases
+              <span className={styles.navDropdownCaret} aria-hidden="true">▾</span>
+            </button>
+            <ul className={styles.navDropdownMenu}>
+              {useCaseLinks.map((l) => (
+                <li key={l.href}>
+                  <a href={l.href}>{l.label}</a>
+                </li>
+              ))}
+            </ul>
+          </li>
         </ul>
 
         <div className={styles.navRight}>
@@ -74,6 +92,11 @@ export default function SiteNav() {
         <div className={styles.mobileSheet}>
           <ul className={styles.mobileLinks}>
             {links.map((l) => (
+              <li key={l.href}>
+                <a href={l.href} onClick={() => setOpen(false)}>{l.label}</a>
+              </li>
+            ))}
+            {useCaseLinks.map((l) => (
               <li key={l.href}>
                 <a href={l.href} onClick={() => setOpen(false)}>{l.label}</a>
               </li>
