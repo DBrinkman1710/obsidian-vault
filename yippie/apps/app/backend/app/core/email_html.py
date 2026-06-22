@@ -187,7 +187,7 @@ def inject_button_tracking(html_content: str, buttons: list[dict], token_map: di
     return pattern.sub(replacer, html_content)
 
 
-FALLBACK_LOGO_URL = "https://getyippie.com/logo-512.png"
+FALLBACK_LOGO_URL = "https://getyippie.com/logo-white-bg.svg"
 
 _SAFE_URL_RE = re.compile(r"^https?://", re.IGNORECASE)
 
@@ -228,11 +228,12 @@ def render_email_html(
     content = prerendered_html if prerendered_html is not None else _paragraphs(body_text)
 
     # Logo header: prefer tenant's logo_url, fall back to Yippie default
-    effective_logo = _safe_logo_url(logo_url) or FALLBACK_LOGO_URL
+    safe_custom = _safe_logo_url(logo_url)
+    effective_logo = safe_custom or FALLBACK_LOGO_URL
     alt_text = html.escape(tenant_name or "Yippie")
     logo_img = (
         f'<img src="{effective_logo}" alt="{alt_text}" '
-        f'style="height:40px;max-width:200px;border:0;display:inline-block;" />'
+        f'style="height:44px;max-width:220px;border:0;display:inline-block;" />'
     )
     header_block = (
         f'<div style="background:#ffffff;padding:24px 40px 20px;text-align:center;'

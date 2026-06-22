@@ -74,7 +74,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   <!-- Logo header -->
   <tr>
     <td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-radius:8px 8px 0 0;">
-      <img src="https://getyippie.com/logo-512.png" alt="Logo" style="height:36px;border:0;display:inline-block;" />
+      <img src="https://getyippie.com/logo-white-bg.svg" alt="Yippie" style="height:36px;border:0;display:inline-block;" />
     </td>
   </tr>
   <!-- Accent bar -->
