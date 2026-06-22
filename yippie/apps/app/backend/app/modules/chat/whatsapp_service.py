@@ -222,7 +222,6 @@ async def send_media(
         "number": normalized,
         "mediatype": media_type,
         "media": media_base64,
-        "delay": 1200,
     }
     if caption:
         payload["caption"] = caption
@@ -258,7 +257,6 @@ async def send_text(instance_name: str, number: str, text: str) -> dict | None:
             json={
                 "number": normalized,
                 "text": text,
-                "delay": 1200,
             },
         )
         if not resp.is_success:
