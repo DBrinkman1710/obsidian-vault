@@ -40,8 +40,7 @@ function Shell({ children }: { children: React.ReactNode }) {
           <img
             src="/logo-lockup-onLight.svg"
             alt="Yippie"
-            className="inline-block object-contain"
-            style={{ height: 40 }}
+            className="w-56 mx-auto object-contain"
           />
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">

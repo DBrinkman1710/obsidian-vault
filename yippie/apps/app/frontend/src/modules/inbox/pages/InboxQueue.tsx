@@ -1207,8 +1207,8 @@ export default function InboxQueue() {
             {/* Mailbox switch: shared (whole team) vs personal (mail to your own address) */}
             <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
               {([
-                { value: 'shared', label: 'Shared', icon: <Users size={13} />, count: inboxCounts?.unread ?? inboxCounts?.pending },
-                { value: 'personal', label: 'Personal', icon: <Mail size={13} />, count: inboxCounts?.unread_personal ?? inboxCounts?.personal },
+                { value: 'shared', label: 'Shared', icon: <Users size={13} />, count: inboxCounts?.unread },
+                { value: 'personal', label: 'Personal', icon: <Mail size={13} />, count: inboxCounts?.unread_personal },
               ] as { value: Mailbox; label: string; icon: React.ReactNode; count?: number }[]).map(m => {
                 const displayCount = m.count !== undefined && m.count > 0 ? (m.count > 9 ? '9+' : m.count.toString()) : null
                 return (

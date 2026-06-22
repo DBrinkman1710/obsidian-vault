@@ -35,8 +35,7 @@ export default function LoginPage() {
       <img
         src="/logo-lockup-onLight.svg"
         alt="Yippie"
-        className="mb-8 object-contain"
-        style={{ height: 52 }}
+        className="mb-8 object-contain w-56 mx-auto"
       />
 
       {/* Card */}
