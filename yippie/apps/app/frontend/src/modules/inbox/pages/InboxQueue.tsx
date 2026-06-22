@@ -580,20 +580,22 @@ function ComposeModal({
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Message</label>
               <div className="flex items-center gap-2">
                 <SignaturePicker onPick={pickSignature} />
-                <TemplatePicker
-                  onSelect={(tmplBody, isHtml, buttons) => {
-                    const sig = appliedSig ? `\n\n${appliedSig}` : ''
-                    if (isHtml) {
-                      setTemplateHtml(tmplBody)
-                      setCampaignButtonsJson(buttons ?? null)
-                      setBody(htmlToText(tmplBody) + sig)  // plain-text fallback, not shown in UI
-                    } else {
-                      setTemplateHtml(null)
-                      setCampaignButtonsJson(null)
-                      setBody(tmplBody + sig)
-                    }
-                  }}
-                />
+                {marketingEnabled && (
+                  <TemplatePicker
+                    onSelect={(tmplBody, isHtml, buttons) => {
+                      const sig = appliedSig ? `\n\n${appliedSig}` : ''
+                      if (isHtml) {
+                        setTemplateHtml(tmplBody)
+                        setCampaignButtonsJson(buttons ?? null)
+                        setBody(htmlToText(tmplBody) + sig)  // plain-text fallback, not shown in UI
+                      } else {
+                        setTemplateHtml(null)
+                        setCampaignButtonsJson(null)
+                        setBody(tmplBody + sig)
+                      }
+                    }}
+                  />
+                )}
               </div>
             </div>
             {templateHtml !== null ? (
@@ -901,6 +903,7 @@ export default function InboxQueue() {
   const { data: signatures } = useSignatures()
   const defaultSigBody = pickDefaultSignature(signatures)?.body ?? null
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
+  const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? true
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
@@ -1302,25 +1305,27 @@ export default function InboxQueue() {
               </button>
             )}
           </div>
-          <div className="ml-auto">
-            <TemplatePicker
-              direction="down"
-              triggerIconSize={14}
-              triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
-              onSelect={(tmplBody, isHtml, buttons) => {
-                const text = isHtml ? htmlToText(tmplBody) : tmplBody
-                setComposeInitial({
-                  recipients: [],
-                  subject: '',
-                  body: defaultSigBody ? `${text}\n\n${defaultSigBody}` : text,
-                  fromEmail: null,
-                  templateHtml: isHtml ? tmplBody : null,
-                  campaignButtonsJson: isHtml ? (buttons ?? null) : null,
-                })
-                setShowCompose(true)
-              }}
-            />
-          </div>
+          {marketingEnabled && (
+            <div className="ml-auto">
+              <TemplatePicker
+                direction="down"
+                triggerIconSize={14}
+                triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg transition-colors"
+                onSelect={(tmplBody, isHtml, buttons) => {
+                  const text = isHtml ? htmlToText(tmplBody) : tmplBody
+                  setComposeInitial({
+                    recipients: [],
+                    subject: '',
+                    body: defaultSigBody ? `${text}\n\n${defaultSigBody}` : text,
+                    fromEmail: null,
+                    templateHtml: isHtml ? tmplBody : null,
+                    campaignButtonsJson: isHtml ? (buttons ?? null) : null,
+                  })
+                  setShowCompose(true)
+                }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Tabs (shared across all three tabs) */}
