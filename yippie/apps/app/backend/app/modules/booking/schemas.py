@@ -58,6 +58,7 @@ class BookingTokenCreate(BaseModel):
     mode: Literal["open", "propose"]
     proposed_slots: Optional[list[SlotProposal]] = None
     message: Optional[str] = None
+    stage_id_override: Optional[uuid.UUID] = None
 
     @model_validator(mode="after")
     def _propose_requires_slots(self) -> "BookingTokenCreate":
@@ -79,6 +80,7 @@ class BookingTokenOut(BaseModel):
     booked_at: Optional[datetime] = None
     event_id: Optional[uuid.UUID] = None
     customer_proposed_slots: Optional[list] = None
+    stage_id_override: Optional[uuid.UUID] = None
     created_at: datetime
     status: Literal["pending", "booked", "expired", "counter_proposed"]
 
