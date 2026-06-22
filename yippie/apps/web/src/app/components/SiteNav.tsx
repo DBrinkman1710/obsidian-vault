@@ -9,6 +9,7 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 const links = [
   { href: "/", label: "Home" },
   { href: "/modules", label: "Product" },
+  { href: "/for-smbs", label: "Use cases" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
   { href: "/blog", label: "Blog" },
@@ -52,19 +53,6 @@ export default function SiteNav() {
               <a href={l.href}>{l.label}</a>
             </li>
           ))}
-          <li className={styles.navDropdown}>
-            <button type="button" className={styles.navDropdownTrigger} aria-haspopup="true">
-              Use cases
-              <span className={styles.navDropdownCaret} aria-hidden="true">▾</span>
-            </button>
-            <ul className={styles.navDropdownMenu}>
-              {useCaseLinks.map((l) => (
-                <li key={l.href}>
-                  <a href={l.href}>{l.label}</a>
-                </li>
-              ))}
-            </ul>
-          </li>
         </ul>
 
         <div className={styles.navRight}>
