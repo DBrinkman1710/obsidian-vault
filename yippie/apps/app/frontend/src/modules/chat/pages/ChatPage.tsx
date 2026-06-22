@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, FileText, Megaphone, MessageSquare, Paperclip, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, FileText, Megaphone, MessageSquare, Paperclip, Power, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2, Zap } from 'lucide-react'
 import { List } from 'react-window'
 import { api } from '../../../api/client'
 import { Checkbox, BulkBar } from '../../../components/Selection'
@@ -397,6 +397,16 @@ export default function ChatPage() {
     },
   })
 
+  const resetMutation = useMutation({
+    mutationFn: () => api.post('/chat/reset').then(r => r.data),
+    onSuccess: () => {
+      setSelectedId(null)
+      qc.invalidateQueries({ queryKey: ['chat-sessions'] })
+      qc.invalidateQueries({ queryKey: ['whatsapp-status'] })
+      qc.invalidateQueries({ queryKey: ['whatsapp-qr'] })
+    },
+  })
+
   // Agent WebSocket — real-time events for all sessions in this tenant
   useEffect(() => {
     if ('Notification' in window && Notification.permission === 'default') {
@@ -616,6 +626,18 @@ export default function ChatPage() {
                 className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
               >
                 <Megaphone size={16} />
+              </button>
+              <button
+                onClick={() => {
+                  if (window.confirm('Disconnect WhatsApp and delete ALL chat sessions and messages? This cannot be undone.')) {
+                    resetMutation.mutate()
+                  }
+                }}
+                disabled={resetMutation.isPending}
+                title="Disconnect WhatsApp & remove all chats"
+                className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+              >
+                {resetMutation.isPending ? <span className="text-xs">…</span> : <Power size={16} />}
               </button>
               {isDevEnv && (
                 <button

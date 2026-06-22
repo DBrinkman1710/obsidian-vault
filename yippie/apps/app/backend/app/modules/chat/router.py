@@ -686,6 +686,29 @@ async def clear_all_sessions(current_user: CurrentUser, db: DB):
     return {"deleted": len(ids)}
 
 
+@router.post("/reset", status_code=status.HTTP_200_OK)
+async def reset_livechat(current_user: CurrentUser, db: DB):
+    """Disconnect WhatsApp and delete all sessions + messages for this tenant."""
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    disconnected = False
+    if tenant:
+        try:
+            disconnected = await whatsapp_service.disconnect_instance(tenant.slug)
+        except Exception:
+            logger.exception("Could not disconnect WhatsApp for tenant '%s'", tenant.slug)
+
+    session_result = await db.execute(
+        select(ChatSession).where(ChatSession.tenant_id == current_user.tenant_id)
+    )
+    sessions = session_result.scalars().all()
+    ids = [s.id for s in sessions]
+    if ids:
+        await db.execute(delete(ChatMessage).where(ChatMessage.session_id.in_(ids)))
+        await db.execute(delete(ChatSession).where(ChatSession.id.in_(ids)))
+    await db.commit()
+    return {"disconnected": disconnected, "deleted": len(ids)}
+
+
 class ChatSettingsBody(BaseModel):
     hide_solved_chats_hours: int
 

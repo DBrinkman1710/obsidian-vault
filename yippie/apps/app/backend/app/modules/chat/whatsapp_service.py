@@ -164,6 +164,25 @@ async def get_connection_state(instance_name: str) -> str:
         return ""
 
 
+async def disconnect_instance(instance_name: str) -> bool:
+    """Log out the WhatsApp session on this Evolution API instance.
+
+    Returns True if the logout was confirmed, False if the instance was not
+    found or already disconnected (both are treated as success for a reset flow).
+    Raises on unexpected HTTP errors.
+    """
+    base = _base_url()
+    async with httpx.AsyncClient(timeout=10) as client:
+        resp = await client.delete(
+            f"{base}/instance/logout/{instance_name}",
+            headers=_headers(),
+        )
+        if resp.status_code == 404:
+            return False
+        resp.raise_for_status()
+        return True
+
+
 async def get_pairing_qr(instance_name: str) -> dict:
     base = _base_url()
     async with httpx.AsyncClient(timeout=15) as client:
