@@ -123,16 +123,90 @@ def _demo_client_base_url() -> str:
     return settings.client_base_url or settings.effective_base_url or settings.app_base_url
 
 
-async def _reject_active_user_email(db: AsyncSession, email: str) -> None:
-    """Block demo provisioning when the address already belongs to an active Yippie user."""
-    from app.core.models import User
+# Testing exception — this address always bypasses the "already registered" /
+# "already has a demo" checks so demo creation can be exercised end-to-end.
+DEMO_BYPASS_EMAILS = {"diederik1710@icloud.com"}
 
-    user = await db.scalar(select(User).where(func.lower(User.email) == email.lower().strip()))
-    if user and user.is_active:
+
+async def _reject_active_user_email(db: AsyncSession, email: str) -> None:
+    """Block demo provisioning when the address already belongs to a Yippie account.
+
+    Distinguishes two cases with distinct, user-facing 409 messages:
+      * the email is a live (non-demo) tenant  -> tell them to log in
+      * the email already has a pending/active demo -> tell them it's pending
+
+    The address(es) in ``DEMO_BYPASS_EMAILS`` skip all checks (testing exception).
+    """
+    from app.core.models import Tenant, User
+
+    email = email.lower().strip()
+    if email in DEMO_BYPASS_EMAILS:
+        return
+
+    row = await db.execute(
+        select(User, Tenant)
+        .join(Tenant, Tenant.id == User.tenant_id)
+        .where(func.lower(User.email) == email)
+    )
+    result = row.first()
+    if result is None:
+        return
+
+    user, tenant = result
+
+    # An existing demo tenant (pending or still within its lifetime) for this email.
+    if tenant.is_demo:
+        now = datetime.now(timezone.utc)
+        active_demo = tenant.demo_expires_at is None or tenant.demo_expires_at > now
+        if active_demo:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="A demo for this email is already pending or active.",
+            )
+        # Expired demo — fall through and let a fresh demo be provisioned.
+        return
+
+    # A live (non-demo) account.
+    if user.is_active:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="Email address already active, use app.getyippie.com to log in.",
+            detail="This email is already registered with a Yippie account.",
         )
+
+
+async def _purge_stale_demo_for_email(db: AsyncSession, email: str) -> None:
+    """Remove any existing demo tenant (and its users) for ``email``.
+
+    Used so a fresh demo can be provisioned when:
+      * the address is a testing-bypass email, or
+      * its previous demo has expired / been deactivated.
+
+    Only demo tenants are ever touched here — a live (non-demo) account is left
+    untouched (and is already rejected upstream by ``_reject_active_user_email``).
+    create_tenant rejects any colliding user, so the old demo tenant (with all of
+    its rows) must be wiped first.
+    """
+    from app.core.models import Tenant, User
+    from app.modules.admin.service import TENANT_DELETE_ORDER
+
+    email = email.lower().strip()
+    rows = await db.execute(
+        select(User, Tenant)
+        .join(Tenant, Tenant.id == User.tenant_id)
+        .where(func.lower(User.email) == email)
+    )
+    seen: set[uuid.UUID] = set()
+    for _user, tenant in rows.all():
+        if not tenant.is_demo or tenant.id in seen:
+            continue  # never delete a live account; wipe each tenant once
+        seen.add(tenant.id)
+        for table in TENANT_DELETE_ORDER:
+            await db.execute(
+                text(f"DELETE FROM {table} WHERE tenant_id = :tid"),
+                {"tid": str(tenant.id)},
+            )
+        await db.delete(tenant)
+        await db.flush()
 
 
 async def _ensure_demo_pipeline_stage(db: AsyncSession, tenant_id: uuid.UUID):
@@ -227,7 +301,13 @@ async def request_demo(
     _check_rate_limit(ip)
 
     email = body.email.lower().strip()
+    # Rejects live accounts and already-active demos with distinct 409 messages;
+    # returns cleanly for new emails, expired demos, and the testing-bypass email.
     await _reject_active_user_email(db, email)
+
+    # Any leftover demo tenant/user for this email (expired demo, or a bypass-email
+    # re-test) is wiped so create_tenant's "user already exists" guard won't fire.
+    await _purge_stale_demo_for_email(db, email)
 
     root_tenant_id = await _resolve_root_tenant_id(db)
 
