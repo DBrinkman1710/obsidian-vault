@@ -14,7 +14,7 @@ import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect, status
 from jose import JWTError, jwt
 from pydantic import BaseModel
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
@@ -289,11 +289,22 @@ async def reply_to_session(
                             )
                             sibling = sibling_result.scalar_one_or_none()
                             if sibling:
-                                # Move this message into the canonical session and
-                                # close the duplicate so both directions share one session.
-                                msg.session_id = sibling.id
+                                # Two open sessions for the same contact — merge the duplicate
+                                # into the canonical one so all history is in one place.
+                                # Move every message (including this one) to the canonical session.
+                                await db.execute(
+                                    update(ChatMessage)
+                                    .where(
+                                        ChatMessage.session_id == session.id,
+                                        ChatMessage.tenant_id == current_user.tenant_id,
+                                    )
+                                    .values(session_id=sibling.id)
+                                )
+                                now = datetime.now(timezone.utc)
                                 session.is_open = False
-                                session.ended_at = datetime.now(timezone.utc)
+                                session.status = "solved"
+                                session.solved_at = now
+                                session.ended_at = now
                                 active_session_id = sibling.id
                                 session = sibling
                             else:
@@ -1018,7 +1029,7 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
 
     # Handle message status update events (delivery/read receipts)
     event_type = payload.get("event") or payload.get("type", "")
-    if event_type == "message.update" or payload.get("action") == "message.update":
+    if event_type in ("message.update", "MESSAGES_UPDATE") or payload.get("action") == "message.update":
         try:
             data = payload.get("data", payload)
             evo_msg_id = data.get("key", {}).get("id") or data.get("id")
@@ -1062,6 +1073,10 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
             "sender_type": "visitor",
             "sender_id": result["visitor_id"],
             "body": result["body"],
+            "msg_type": result.get("msg_type", "text"),
+            "media_url": result.get("media_url"),
+            "media_mime": result.get("media_mime"),
+            "media_filename": result.get("media_filename"),
             "created_at": result["created_at"],
             "assigned_to": result.get("assigned_to"),
         }

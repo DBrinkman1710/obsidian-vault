@@ -259,7 +259,6 @@ async def send_text(instance_name: str, number: str, text: str) -> dict | None:
                 "number": normalized,
                 "text": text,
                 "delay": 1200,
-                "linkPreview": True,
             },
         )
         if not resp.is_success:
@@ -297,9 +296,55 @@ async def handle_incoming_webhook(
         return None
 
     message = data.get("message", {})
-    text = message.get("conversation") or message.get("extendedTextMessage", {}).get("text", "")
+
+    # Extract text and media from the WhatsApp message payload.
+    text: str = message.get("conversation") or message.get("extendedTextMessage", {}).get("text") or ""
+    msg_type = "text"
+    media_url: str | None = None
+    media_mime: str | None = None
+    media_filename: str | None = None
+
     if not text:
-        return None
+        # Reactions don't need to appear in chat — skip silently.
+        if "reactionMessage" in message:
+            return None
+
+        if "imageMessage" in message:
+            img = message["imageMessage"]
+            text = img.get("caption") or "📷 Photo"
+            msg_type = "media"
+            media_mime = img.get("mimetype", "image/jpeg")
+            # Evolution API may include the decoded image as base64 in the webhook
+            b64 = (
+                data.get("base64")
+                or data.get("mediaData", {}).get("media")
+                or data.get("mediaData", {}).get("base64")
+                or img.get("jpegThumbnail")  # low-res thumbnail is better than nothing
+            )
+            if b64:
+                media_url = f"data:{media_mime};base64,{b64}"
+        elif "videoMessage" in message:
+            vid = message["videoMessage"]
+            text = vid.get("caption") or "🎥 Video"
+            msg_type = "media"
+            media_mime = vid.get("mimetype", "video/mp4")
+        elif "documentMessage" in message:
+            doc = message["documentMessage"]
+            media_filename = doc.get("fileName") or "document"
+            text = doc.get("caption") or media_filename
+            msg_type = "media"
+            media_mime = doc.get("mimetype", "application/octet-stream")
+            b64 = data.get("base64") or data.get("mediaData", {}).get("media")
+            if b64:
+                media_url = f"data:{media_mime};base64,{b64}"
+        elif "audioMessage" in message or "pttMessage" in message:
+            text = "🎤 Voice message"
+            msg_type = "media"
+            media_mime = "audio/ogg"
+        elif "stickerMessage" in message:
+            text = "🎭 Sticker"
+        else:
+            return None
 
     visitor_name: str | None = data.get("pushName") or None
 
@@ -333,6 +378,10 @@ async def handle_incoming_webhook(
         sender_type="visitor",
         sender_id=phone,
         body=text,
+        msg_type=msg_type,
+        media_url=media_url,
+        media_mime=media_mime,
+        media_filename=media_filename,
     )
     db.add(msg)
     await db.commit()
@@ -342,6 +391,10 @@ async def handle_incoming_webhook(
         "session_id": str(session.id),
         "visitor_id": session.visitor_id,
         "body": text,
+        "msg_type": msg_type,
+        "media_url": media_url,
+        "media_mime": media_mime,
+        "media_filename": media_filename,
         "created_at": msg.created_at.isoformat(),
         "unread_count": session.unread_count,
         "is_new_session": is_new_session,
