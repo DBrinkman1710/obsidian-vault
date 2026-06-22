@@ -32,7 +32,7 @@ export default function TermsPage() {
           <h2>Introduction</h2>
           <p>
             These Terms of Service ("Terms") govern your access to and use of Yippie
-            (getyippie.com), a B2B customer service platform operated by Yippie B.V.,
+            (getyippie.com), a B2B customer service platform operated by Yippie,
             a Dutch company. By accessing or using the Platform, you agree to be bound
             by these Terms. If you do not agree, you may not use the Platform.
           </p>
