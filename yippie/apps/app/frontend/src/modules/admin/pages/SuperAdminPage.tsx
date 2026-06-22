@@ -931,7 +931,7 @@ function EditClientModal({
 
           {error && <p className="text-sm text-red-500">{error}</p>}
 
-          <div className="flex gap-3 justify-end pt-2">
+          <div className={`flex gap-3 pt-2 ${tab === 'actions' || tab === 'users' ? 'justify-center' : 'justify-end'}`}>
             <button
               type="button"
               onClick={onClose}
