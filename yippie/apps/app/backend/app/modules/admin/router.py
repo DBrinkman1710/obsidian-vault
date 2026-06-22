@@ -264,6 +264,14 @@ async def evolution_check(_: SuperAdminUser, db: DB):
     result["tenants_in_db"] = [{"slug": s, "id": i} for s, i in tenants]
 
     async with httpx.AsyncClient(timeout=10) as client:
+        # 0. Version probe
+        try:
+            ver_resp = await client.get(base, headers=headers)
+            ct = ver_resp.headers.get("content-type", "")
+            result["version_probe"] = ver_resp.json() if "application/json" in ct else ver_resp.text[:300]
+        except Exception as exc:
+            result["version_probe_error"] = f"{type(exc).__name__}: {exc}"
+
         # 1. Fetch all instances from Evolution
         try:
             instances_resp = await client.get(f"{base}/instance/fetchInstances", headers=headers)
@@ -276,7 +284,10 @@ async def evolution_check(_: SuperAdminUser, db: DB):
             result["fetch_instances_error"] = f"{type(exc).__name__}: {exc}"
             return result
 
-        # 2. Per-tenant: connection state + webhook config
+        # 2. Per-tenant: connection state + webhook config + LID contact lookup
+        from app.modules.chat.models import ChatSession
+        from sqlalchemy import select as _select
+
         per_tenant = []
         for slug, tenant_id in tenants:
             entry: dict = {"slug": slug, "tenant_id": tenant_id}
@@ -302,6 +313,58 @@ async def evolution_check(_: SuperAdminUser, db: DB):
                 entry["webhook_body"] = wh_resp.json() if wh_resp.status_code == 200 else wh_resp.text
             except Exception as exc:
                 entry["webhook_error"] = f"{type(exc).__name__}: {exc}"
+
+            # Check for any @lid phones in open sessions — these can't be replied to
+            # unless Evolution supports @lid sends. Look up their contact in Evolution.
+            try:
+                lid_rows = await db.execute(
+                    _select(ChatSession.whatsapp_phone, ChatSession.visitor_name).where(
+                        ChatSession.tenant_id == uuid.UUID(tenant_id),
+                        ChatSession.whatsapp_phone.like("%@lid"),
+                        ChatSession.is_open == True,  # noqa: E712
+                    ).limit(5)
+                )
+                lid_sessions = [{"phone": p, "name": n} for p, n in lid_rows.all()]
+                entry["lid_sessions"] = lid_sessions
+
+                if lid_sessions:
+                    sample_lid = lid_sessions[0]["phone"]
+                    # Try to find the real phone via Evolution's contact fetch
+                    try:
+                        contacts_resp = await client.post(
+                            f"{base}/contact/fetchContacts/{slug}",
+                            headers={"Content-Type": "application/json", **headers},
+                            json={"where": {}},
+                        )
+                        entry["fetchContacts_status"] = contacts_resp.status_code
+                        if contacts_resp.status_code == 200:
+                            contacts = contacts_resp.json()
+                            # Filter to the LID contact only
+                            matching = [c for c in (contacts if isinstance(contacts, list) else contacts.get("contacts", []))
+                                        if sample_lid.split("@")[0] in str(c.get("id", "")) or
+                                           sample_lid.split("@")[0] in str(c.get("remoteJid", "")) or
+                                           sample_lid.split("@")[0] in str(c.get("lid", ""))]
+                            entry["fetchContacts_lid_match"] = matching[:3]
+                        else:
+                            entry["fetchContacts_body"] = contacts_resp.text[:300]
+                    except Exception as exc:
+                        entry["fetchContacts_error"] = f"{type(exc).__name__}: {exc}"
+
+                    # Also try a direct send-test with just digits to see if Evolution accepts it
+                    try:
+                        digits_only = sample_lid.split("@")[0]
+                        test_resp = await client.post(
+                            f"{base}/message/sendText/{slug}",
+                            headers={"Content-Type": "application/json", **headers},
+                            json={"number": digits_only, "textMessage": {"text": "_diag_"}},
+                        )
+                        entry["send_digits_status"] = test_resp.status_code
+                        ct2 = test_resp.headers.get("content-type", "")
+                        entry["send_digits_body"] = test_resp.json() if "application/json" in ct2 else test_resp.text[:300]
+                    except Exception as exc:
+                        entry["send_digits_error"] = f"{type(exc).__name__}: {exc}"
+            except Exception as exc:
+                entry["lid_check_error"] = f"{type(exc).__name__}: {exc}"
 
             per_tenant.append(entry)
 
