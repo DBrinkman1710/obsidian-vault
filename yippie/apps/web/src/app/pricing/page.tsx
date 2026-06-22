@@ -5,7 +5,8 @@ import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "./page.module.css";
 import {
-  TicketIcon, AiIcon, CalendarIcon, KanbanIcon, MailTrackIcon, LayersIcon,
+  TicketIcon, AiIcon, CalendarIcon, KanbanIcon, ChatIcon, LayersIcon,
+  BillingIcon, MailTrackIcon, TeamIcon,
 } from "../components/icons";
 import { PLAN_LIMITS, MODULE_PRICES } from "@/lib/config";
 
@@ -27,7 +28,7 @@ type Plan = {
   enterprise?: boolean;
 };
 
-const CORE_FEATURES = ["Inbox", "Contacts", "Tickets", "Activity", "Billing"];
+const CORE_FEATURES = ["Inbox", "Contacts", "Activity"];
 
 const plans: Plan[] = [
   {
@@ -85,7 +86,10 @@ const addOns = [
   { Icon: AiIcon, name: "AI", desc: "Auto-draft tickets and replies from incoming messages.", price: MODULE_PRICES.ai },
   { Icon: CalendarIcon, name: "Calendar + Booking", desc: "Share booking links and manage appointments.", price: MODULE_PRICES.calendar },
   { Icon: KanbanIcon, name: "Kanban", desc: "Visual pipeline boards to move work through stages.", price: MODULE_PRICES.kanban },
-  { Icon: MailTrackIcon, name: "Email tracking", desc: "See when your sent emails are delivered and opened.", price: MODULE_PRICES.emailtracking },
+  { Icon: ChatIcon, name: "Live Chat", desc: "Embed a chat widget and manage WhatsApp conversations.", price: MODULE_PRICES.chat },
+  { Icon: MailTrackIcon, name: "Marketing", desc: "Email campaigns, A/B testing, open tracking, and drip sequences.", price: MODULE_PRICES.marketing },
+  { Icon: TeamIcon, name: "Departments", desc: "Route tickets and chats to the right team automatically.", price: MODULE_PRICES.departments },
+  { Icon: BillingIcon, name: "Billing", desc: "Issue invoices, track payments, and manage subscriptions.", price: MODULE_PRICES.billing },
 ];
 
 // Guided questionnaire — customers answer a few questions about their business
@@ -112,7 +116,10 @@ const featureOptions = [
   { key: "ai", label: "AI auto-drafting", price: MODULE_PRICES.ai },
   { key: "calendar", label: "Calendar + booking links", price: MODULE_PRICES.calendar },
   { key: "kanban", label: "Kanban pipeline boards", price: MODULE_PRICES.kanban },
-  { key: "emailtracking", label: "Email open tracking", price: MODULE_PRICES.emailtracking },
+  { key: "chat", label: "Live Chat (web + WhatsApp)", price: MODULE_PRICES.chat },
+  { key: "marketing", label: "Email campaigns + tracking", price: MODULE_PRICES.marketing },
+  { key: "departments", label: "Departments + routing", price: MODULE_PRICES.departments },
+  { key: "billing", label: "Billing + invoicing", price: MODULE_PRICES.billing },
 ];
 
 const faqs = [

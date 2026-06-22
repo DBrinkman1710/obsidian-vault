@@ -27,12 +27,11 @@ DEFAULT_PLAN = PlanTier.enterprise
 
 # Core features available on every tier (including free). These are the
 # headcount-reduction core of the product, so they are never plan-gated.
+# Tickets and Billing are now paid add-ons, not included in the base plan.
 CORE_FEATURES: set[str] = {
     "inbox",
-    "tickets",
     "contacts",
     "activity",
-    "billing",
 }
 
 # Advanced features, unlocked progressively by tier. Names match module keys in
@@ -41,8 +40,11 @@ ADVANCED_FEATURES: set[str] = {
     "chat",
     "calendar",
     "pipeline",
-    "emailtracking",
     "ai",
+    "tickets",
+    "billing",
+    "marketing",
+    "departments",
 }
 
 ALL_FEATURES: set[str] = CORE_FEATURES | ADVANCED_FEATURES
@@ -77,14 +79,18 @@ PLAN_LIMITS: dict[PlanTier, dict[str, "int | float | None"]] = {
 }
 
 
-# À la carte module add-on prices (placeholder, euros per month). Keyed by the
-# module name in ``app.modules.MODULES``.
+# À la carte module add-on prices (euros per month). Keyed by the module name
+# in ``app.modules.MODULES``. Core modules (inbox/contacts/activity) are always
+# included; everything else is a paid add-on.
 MODULE_PRICES: dict[str, int] = {
     "tickets": 15,
     "ai": 19,
     "calendar": 12,
     "kanban": 12,
-    "emailtracking": 9,
+    "chat": 15,
+    "marketing": 15,
+    "departments": 9,
+    "billing": 9,
 }
 
 

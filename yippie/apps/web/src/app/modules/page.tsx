@@ -16,6 +16,7 @@ import {
   TemplateIcon,
   ActivityIcon,
   TeamIcon,
+  BillingIcon,
   CheckIcon,
   ArrowRightIcon,
 } from "../components/icons";
@@ -26,12 +27,12 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 export const metadata: Metadata = {
   title: "Modules — Yippie customer service platform",
   description:
-    "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, email tracking, templates, activity, and team — all built for SMBs.",
+    "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, and team — all built for SMBs.",
   alternates: { canonical: "/modules" },
   openGraph: {
     title: "Modules — Yippie customer service platform",
     description:
-      "Explore every module in Yippie: inbox, tickets, contacts, calendar, pipeline, live chat, email tracking, templates, activity, and team.",
+      "Explore every module in Yippie: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, and team.",
     url: "https://getyippie.com/modules",
     type: "website",
   },
@@ -140,34 +141,49 @@ const modules: Module[] = [
     Icon: ChatIcon,
   },
   {
-    id: "emailtracking",
-    kicker: "EMAIL TRACKING",
-    title: "Email Tracking — know what landed",
-    desc: "The Sent tab shows real-time delivery status for every outbound email: delivered, opened, clicked, or bounced. Stop guessing whether your follow-up reached the right person — see exactly when they opened it.",
+    id: "marketing",
+    kicker: "MARKETING",
+    title: "Marketing — campaigns that convert",
+    desc: "Send personalised email campaigns to any audience segment, run A/B tests, track every open and click in real time, and drip sequences that follow up automatically. Built directly into your workspace — no separate tool needed.",
     bullets: [
-      "Real-time open, click, and bounce tracking on all outbound mail",
-      "Sent tab with delivery timestamps at a glance",
-      "Bounce alerts so you can fix bad addresses immediately",
-      "Works on individual replies and bulk campaign sends",
+      "Drag-and-drop email editor with A/B variant testing",
+      "Audience segments: filter by label, company, or pipeline stage",
+      "Real-time open, click, and bounce tracking on all sends",
+      "Drip sequences for automated follow-up sequences",
     ],
-    shot: "/shots/email-tracking.png",
-    path: "/billing",
+    shot: "/shots/marketing.png",
+    path: "/marketing",
     Icon: MailTrackIcon,
   },
   {
-    id: "templates",
-    kicker: "TEMPLATES",
-    title: "Templates — polished emails in seconds",
-    desc: "Build rich HTML email templates with a drag-and-drop editor and save them for the whole team. Add campaign buttons that apply a pipeline stage the moment a customer clicks — no developer required.",
+    id: "departments",
+    kicker: "DEPARTMENTS",
+    title: "Departments — right person, every time",
+    desc: "Create named departments, add agents to each, and let inbound email route automatically to the correct team. Tickets and live chats follow the same routing rules — so customer queries never sit in the wrong inbox.",
     bullets: [
-      "Drag-and-drop editor — no HTML knowledge needed",
-      "Team-wide template library accessible from any reply window",
-      "Campaign buttons that trigger pipeline stage moves on click",
-      "Preview on desktop and mobile before sending",
+      "Create departments and assign agents with one click",
+      "Inbound email auto-routes by recipient address",
+      "Tickets carry the department forward from inbox to resolution",
+      "Personal department inbox tabs in the shared inbox",
     ],
-    shot: "/shots/templates.png",
-    path: "/settings/templates",
-    Icon: TemplateIcon,
+    shot: "/shots/departments.png",
+    path: "/settings/departments",
+    Icon: TeamIcon,
+  },
+  {
+    id: "billing",
+    kicker: "BILLING",
+    title: "Billing — invoices without the admin",
+    desc: "Create and send invoices directly from your workspace. Track payment status, bulk-export for your accountant, and store customer KvK and BTW numbers on every contact — no separate billing tool required.",
+    bullets: [
+      "Create invoices with line items, due dates, and status tracking",
+      "Bulk delete or export invoices as CSV or XLSX",
+      "Store KvK and BTW (VAT) numbers on the tenant and contacts",
+      "Debounced search across all invoices instantly",
+    ],
+    shot: "/shots/billing.png",
+    path: "/billing",
+    Icon: BillingIcon,
   },
   {
     id: "activity",
@@ -260,12 +276,12 @@ export default function ModulesPage() {
           The product
         </div>
         <h1 className={contentStyles.heroTitle}>
-          Ten modules. One platform.
+          Twelve modules. One platform.
         </h1>
         <p className={contentStyles.heroSub}>
-          Inbox, tickets, contacts, calendar, pipeline, live chat, email
-          tracking, templates, activity, and team — all working together,
-          all in one workspace.
+          Inbox, tickets, contacts, calendar, pipeline, live chat, marketing,
+          departments, billing, templates, activity, and team — all working
+          together, all in one workspace.
         </p>
         <div className={contentStyles.heroActions}>
           <a href={DEMO_URL} className={contentStyles.btnPrimary}>
