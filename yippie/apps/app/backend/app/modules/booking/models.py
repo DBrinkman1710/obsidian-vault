@@ -70,6 +70,11 @@ class BookingToken(Base):
     manage_token: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), nullable=True, unique=True
     )
+    stage_id_override: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("pipeline_stages.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

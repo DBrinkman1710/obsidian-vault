@@ -11,6 +11,7 @@ interface CalendarSettings {
   booking_expiry_days: number
 }
 
+interface PipelineStage { id: string; name: string }
 interface SlotProposal { start: string; end: string }
 interface ContactOption { id: string; full_name: string; email?: string | null }
 
@@ -43,6 +44,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
   const today = new Date()
   const [mode, setMode] = useState<'open' | 'propose'>('open')
   const [message, setMessage] = useState('')
+  const [stageIdOverride, setStageIdOverride] = useState<string>('')
   const [sending, setSending] = useState(false)
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -63,6 +65,12 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
   const { data: settings } = useQuery<CalendarSettings>({
     queryKey: ['booking-settings'],
     queryFn: () => api.get('/booking/settings').then(r => r.data),
+    enabled: open,
+  })
+
+  const { data: stages = [] } = useQuery<PipelineStage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
     enabled: open,
   })
 
@@ -123,6 +131,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
         proposed_slots: useMode === 'propose'
           ? slots.map(s => ({ start: s.start, end: s.end }))
           : undefined,
+        stage_id_override: stageIdOverride || undefined,
       }
       await Promise.all(
         effectiveContacts.map(c => api.post('/booking/send', { ...payload, contact_id: c.id })),
@@ -138,7 +147,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
   }
 
   function reset() {
-    setMode('open'); setMessage(''); setSlots([]); setActiveDay(null)
+    setMode('open'); setMessage(''); setStageIdOverride(''); setSlots([]); setActiveDay(null)
     setYear(today.getFullYear()); setMonth(today.getMonth())
     setPickedContact(null); setContactQuery('')
   }
@@ -328,6 +337,24 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                   </div>
                 </div>
               )}
+            </div>
+          )}
+
+          {stages.length > 0 && (
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+                Move to stage after booking (optional)
+              </label>
+              <select
+                value={stageIdOverride}
+                onChange={e => setStageIdOverride(e.target.value)}
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">— Use default —</option>
+                {stages.map(s => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
             </div>
           )}
 

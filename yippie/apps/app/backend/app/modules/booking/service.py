@@ -223,6 +223,7 @@ async def create_booking_token(
         proposed_slots=proposed,
         message=data.message,
         expires_at=_now() + timedelta(days=settings.booking_expiry_days),
+        stage_id_override=data.stage_id_override,
     )
     db.add(token)
     await db.commit()
@@ -375,14 +376,18 @@ async def confirm_booking(
     token.manage_token = uuid.uuid4()
 
     # Move contact to the configured post-booking pipeline stage, if any.
+    # Per-send override (stage_id_override) takes precedence over the global setting.
     settings = await db.scalar(
         select(CalendarSettings).where(CalendarSettings.tenant_id == token.tenant_id)
     )
-    if settings is not None and settings.post_booking_stage_id is not None:
+    effective_stage_id = token.stage_id_override or (
+        settings.post_booking_stage_id if settings is not None else None
+    )
+    if effective_stage_id is not None:
         from app.modules.pipeline.service import _assign_stage
 
         await _assign_stage(
-            db, token.tenant_id, token.contact_id, settings.post_booking_stage_id
+            db, token.tenant_id, token.contact_id, effective_stage_id
         )
 
     await db.commit()
