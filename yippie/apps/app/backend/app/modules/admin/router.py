@@ -8,8 +8,11 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from sqlalchemy import select as sa_select
+
 from app.auth.dependencies import SuperAdminUser
 from app.config import get_settings
+from app.core.models import Tenant
 from app.database import get_db
 from app.modules.admin import schemas, service
 
@@ -232,5 +235,75 @@ async def resend_check(_: SuperAdminUser):
                 result["detail_body"] = body_resp.json() if body_resp.status_code == 200 else body_resp.text
             else:
                 result["detail_body"] = "no emails in list"
+
+    return result
+
+
+@router.get("/evolution-check")
+async def evolution_check(_: SuperAdminUser, db: DB):
+    """Diagnostic: probes the Evolution API — reachability, instances, connection states, and webhook config."""
+    settings = get_settings()
+    result: dict = {
+        "config": {
+            "EVOLUTION_API_URL": settings.evolution_api_url or None,
+            "EVOLUTION_API_TOKEN_set": bool(settings.evolution_api_token),
+            "effective_base_url": settings.effective_base_url or None,
+        }
+    }
+
+    if not settings.evolution_api_url:
+        result["error"] = "EVOLUTION_API_URL not set"
+        return result
+
+    base = settings.evolution_api_url.rstrip("/")
+    headers = {"apikey": settings.evolution_api_token}
+
+    tenant_rows = await db.execute(sa_select(Tenant.slug, Tenant.id))
+    tenants = [(slug, str(tid)) for slug, tid in tenant_rows.all()]
+    result["tenants_in_db"] = [{"slug": s, "id": i} for s, i in tenants]
+
+    async with httpx.AsyncClient(timeout=10) as client:
+        # 1. Fetch all instances from Evolution
+        try:
+            instances_resp = await client.get(f"{base}/instance/fetchInstances", headers=headers)
+            result["fetch_instances_status"] = instances_resp.status_code
+            if instances_resp.status_code == 200:
+                result["fetch_instances_body"] = instances_resp.json()
+            else:
+                result["fetch_instances_body"] = instances_resp.text
+        except Exception as exc:
+            result["fetch_instances_error"] = f"{type(exc).__name__}: {exc}"
+            return result
+
+        # 2. Per-tenant: connection state + webhook config
+        per_tenant = []
+        for slug, tenant_id in tenants:
+            entry: dict = {"slug": slug, "tenant_id": tenant_id}
+
+            try:
+                state_resp = await client.get(
+                    f"{base}/instance/connectionState/{slug}", headers=headers
+                )
+                entry["connection_state_status"] = state_resp.status_code
+                if state_resp.status_code == 200:
+                    data = state_resp.json()
+                    entry["connection_state"] = (
+                        data.get("instance", {}).get("state") or data.get("state") or data
+                    )
+                else:
+                    entry["connection_state"] = state_resp.text
+            except Exception as exc:
+                entry["connection_state_error"] = f"{type(exc).__name__}: {exc}"
+
+            try:
+                wh_resp = await client.get(f"{base}/webhook/find/{slug}", headers=headers)
+                entry["webhook_status"] = wh_resp.status_code
+                entry["webhook_body"] = wh_resp.json() if wh_resp.status_code == 200 else wh_resp.text
+            except Exception as exc:
+                entry["webhook_error"] = f"{type(exc).__name__}: {exc}"
+
+            per_tenant.append(entry)
+
+        result["per_tenant"] = per_tenant
 
     return result

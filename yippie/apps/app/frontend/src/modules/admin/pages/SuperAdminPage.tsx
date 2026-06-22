@@ -1220,6 +1220,52 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
   )
 }
 
+function EvolutionDiagnosticPanel() {
+  const [result, setResult] = useState<any>(null)
+  const [copied, setCopied] = useState(false)
+
+  const mutation = useMutation({
+    mutationFn: () => api.get('/admin/evolution-check').then(r => r.data),
+    onSuccess: (data) => setResult(data),
+  })
+
+  function copyAll() {
+    navigator.clipboard.writeText(JSON.stringify(result, null, 2))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  return (
+    <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+      <div className="flex items-center gap-2 px-4 py-2.5">
+        <FlaskConical size={14} className="text-slate-400 shrink-0" />
+        <span className="text-sm font-semibold text-slate-700 flex-1">Evolution API diagnostics</span>
+        {result && (
+          <button
+            onClick={copyAll}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            {copied ? <Check size={12} className="text-emerald-500" /> : <Clipboard size={12} />}
+            {copied ? 'Copied' : 'Copy all'}
+          </button>
+        )}
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+          className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-semibold rounded-lg transition-colors"
+        >
+          {mutation.isPending ? 'Checking…' : 'Run check'}
+        </button>
+      </div>
+      {result && (
+        <pre className="border-t border-slate-100 bg-slate-50 rounded-b-xl px-4 py-3 text-xs text-slate-700 overflow-auto max-h-64 whitespace-pre-wrap">
+          {JSON.stringify(result, null, 2)}
+        </pre>
+      )}
+    </div>
+  )
+}
+
 function ResendDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
   const [copied, setCopied] = useState(false)
@@ -1827,6 +1873,7 @@ export default function SuperAdminPage() {
       )}
 
       <ResendDiagnosticPanel />
+      <EvolutionDiagnosticPanel />
       </>)}
 
       {showCreate && <CreateClientModal onClose={() => setShowCreate(false)} />}
