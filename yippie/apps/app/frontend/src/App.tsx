@@ -1,4 +1,5 @@
 import WelcomeTour from './components/WelcomeTour'
+import SetupChecklist from './components/SetupChecklist'
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
@@ -170,6 +171,7 @@ export default function App() {
   return (
     <TenantConfigContext.Provider value={config}>
       {user && !user.tour_completed && <WelcomeTour />}
+      <SetupChecklist />
       <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
         <Sidebar />
         <main className="flex-1 min-w-0 overflow-hidden flex flex-col pb-16 md:pb-0">

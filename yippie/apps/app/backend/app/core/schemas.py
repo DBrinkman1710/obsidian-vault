@@ -24,6 +24,7 @@ class UserOut(BaseModel):
     sidebar_order: Optional[list[str]] = None
     send_from_aliases: Optional[list[str]] = None
     tour_completed: bool = False
+    setup_checklist_dismissed: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}

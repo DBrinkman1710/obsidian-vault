@@ -21,6 +21,7 @@ interface User {
   sidebar_order?: string[] | null
   send_from_aliases?: string[] | null
   tour_completed?: boolean
+  setup_checklist_dismissed?: boolean
 }
 
 export interface ContactColumnPref {

@@ -68,6 +68,8 @@ class Tenant(Base):
     # Solved live-chat sessions drop off the active list after this many hours.
     # Display filter only — messages are retained permanently.
     hide_solved_chats_hours: Mapped[int] = mapped_column(Integer, nullable=False, server_default="72")
+    # Tracks which onboarding drip emails have been sent: e.g. ["day3", "day7"].
+    onboarding_drip_sent: Mapped[list | None] = mapped_column(JSONB, nullable=True, server_default="[]")
     # When False (default) the inbox AI never runs automatically — agents click the
     # Generate button per draft. Set True to restore the old auto-scan-on-arrival
     # behaviour (background enrich_queued_drafts job). Editable via superadmin modal.
@@ -108,6 +110,8 @@ class User(Base):
     send_from_aliases: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     # True once the user has dismissed the first-login guided tour.
     tour_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    # True once the user has dismissed the post-tour setup checklist widget.
+    setup_checklist_dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

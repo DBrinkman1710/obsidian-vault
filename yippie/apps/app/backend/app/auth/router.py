@@ -203,6 +203,7 @@ class UserSelfUpdate(BaseModel):
     sidebar_order: Optional[list[str]] = None
     send_from_aliases: Optional[list[str]] = None
     tour_completed: Optional[bool] = None
+    setup_checklist_dismissed: Optional[bool] = None
 
 
 @router.patch("/me", response_model=UserOut)
@@ -245,6 +246,8 @@ async def update_me(
         current_user.send_from_aliases = body.send_from_aliases or []
     if body.tour_completed is not None:
         current_user.tour_completed = body.tour_completed
+    if body.setup_checklist_dismissed is not None:
+        current_user.setup_checklist_dismissed = body.setup_checklist_dismissed
     await db.commit()
     await db.refresh(current_user)
     return UserOut.model_validate(current_user)

@@ -23,7 +23,7 @@ export default function RegisterPage() {
     try {
       const { data } = await api.post('/auth/register', { token, password, full_name: fullName || undefined })
       setSession(data.access_token, data.user)
-      navigate('/')
+      navigate('/inbox')
     } catch (err: any) {
       setError(err.response?.data?.detail ?? 'Registration failed — the invite link may have expired.')
     } finally {
