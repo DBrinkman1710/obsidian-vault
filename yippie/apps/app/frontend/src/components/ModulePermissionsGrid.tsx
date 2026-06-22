@@ -29,8 +29,8 @@ const MODULE_LABELS: Record<string, string> = {
   billing: 'Billing',
   chat: 'Live Chat',
   ai: 'AI',
-  emailtracking: 'Email Tracking',
   departments: 'Departments',
+  marketing: 'Marketing',
 }
 
 const LEVEL_OPTIONS: AccessLevel[] = ['full', 'view', 'restricted']
