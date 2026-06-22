@@ -338,7 +338,7 @@ async def reply_to_session(
                 logger.exception("WhatsApp send failed for session %s", session_id)
                 raise HTTPException(
                     status_code=422,
-                    detail=f"WhatsApp send failed ({type(exc).__name__}): {exc}",
+                    detail="WhatsApp delivery failed — check that WhatsApp is still connected",
                 )
     else:
         await db.commit()
