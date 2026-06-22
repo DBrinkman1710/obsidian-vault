@@ -273,6 +273,7 @@ export default function DraftReview() {
   const config = useTenantConfig()
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
   const isPipelineEnabled = config?.enabled_modules?.includes('pipeline') ?? false
+  const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? true
   const { user } = useAuth()
   const { data: signatures } = useSignatures()
   const defaultSig = pickDefaultSignature(signatures)
@@ -1366,13 +1367,15 @@ export default function DraftReview() {
                   </>
                 )}
                 <SignaturePicker onPick={pickSignature} />
-                <TemplatePicker
-                  context={msg ? `${msg.subject ?? ''}\n\n${msg.raw_body ?? ''}` : ''}
-                  onSelect={(body, isHtml) => {
-                    const text = isHtml ? htmlToText(body) : body
-                    setReplyText(prev => prev.trim() ? `${text}\n\n${prev}` : text)
-                  }}
-                />
+                {marketingEnabled && (
+                  <TemplatePicker
+                    context={msg ? `${msg.subject ?? ''}\n\n${msg.raw_body ?? ''}` : ''}
+                    onSelect={(body, isHtml) => {
+                      const text = isHtml ? htmlToText(body) : body
+                      setReplyText(prev => prev.trim() ? `${text}\n\n${prev}` : text)
+                    }}
+                  />
+                )}
               </div>
             </div>
 

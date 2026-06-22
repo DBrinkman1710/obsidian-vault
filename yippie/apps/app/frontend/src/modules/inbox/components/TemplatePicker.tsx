@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useMutation, useQuery } from '@tanstack/react-query'
-import { FileText, Palette, Settings2, Sparkles, X } from 'lucide-react'
+import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
+import { FileText, Megaphone, Palette, Settings2, Sparkles, X } from 'lucide-react'
 import { api } from '../../../api/client'
+import { useTenantConfig } from '../../../App'
 
 interface Template {
   id: string
@@ -10,6 +11,24 @@ interface Template {
   body: string
   html_body: string | null
   campaign_buttons: string | null
+  /** 'response' = standard ticket template; 'campaign' = from a marketing campaign */
+  source?: 'response' | 'campaign'
+  campaignName?: string
+}
+
+interface Campaign {
+  id: string
+  name: string
+  subject: string
+  status: string
+}
+
+interface CampaignTemplateRaw {
+  id: string
+  campaign_id: string
+  raw_html: string | null
+  campaign_buttons: string | null
+  variant: string | null
 }
 
 interface Props {
@@ -29,12 +48,53 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const ref = useRef<HTMLDivElement>(null)
+  const config = useTenantConfig()
+  const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? false
 
-  const { data: templates = [] } = useQuery<Template[]>({
+  const { data: responseTemplates = [] } = useQuery<Template[]>({
     queryKey: ['templates'],
     queryFn: () => api.get('/tickets/templates').then(r => r.data),
     enabled: open,
   })
+
+  // Fetch marketing campaigns when picker is open and marketing module is enabled.
+  const { data: campaigns = [] } = useQuery<Campaign[]>({
+    queryKey: ['marketing-campaigns-picker'],
+    queryFn: () => api.get('/marketing/campaigns').then(r => r.data),
+    enabled: open && marketingEnabled,
+  })
+
+  // Fetch templates for each campaign in parallel.
+  const campaignTemplateQueries = useQueries({
+    queries: campaigns.map(c => ({
+      queryKey: ['marketing-campaign-templates-picker', c.id],
+      queryFn: () =>
+        api.get<CampaignTemplateRaw[]>(`/marketing/campaigns/${c.id}/templates`).then(r => r.data),
+      enabled: open && marketingEnabled && campaigns.length > 0,
+    })),
+  })
+
+  // Flatten campaign template query results into usable Template objects.
+  const campaignTemplates: Template[] = campaigns.flatMap((c, i) => {
+    const result = campaignTemplateQueries[i]
+    if (!result?.data) return []
+    return result.data
+      .filter(ct => ct.raw_html)
+      .map(ct => ({
+        id: `campaign-${ct.id}`,
+        name: c.name,
+        body: htmlToText(ct.raw_html!),
+        html_body: ct.raw_html!,
+        campaign_buttons: ct.campaign_buttons ?? null,
+        source: 'campaign' as const,
+        campaignName: c.name,
+      }))
+  })
+
+  // All response templates tagged with source.
+  const taggedResponseTemplates: Template[] = responseTemplates.map(t => ({ ...t, source: 'response' as const }))
+
+  const allTemplates: Template[] = [...taggedResponseTemplates, ...campaignTemplates]
 
   const suggestMutation = useMutation({
     mutationFn: () => api.post('/tickets/templates/ai-suggest', { context: context ?? '' }).then(r => r.data),
@@ -42,7 +102,7 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
 
   const displayed: Template[] = suggestMutation.data
     ? (suggestMutation.data as Template[])
-    : templates.filter(t =>
+    : allTemplates.filter(t =>
         !search || t.name.toLowerCase().includes(search.toLowerCase()) || t.body.toLowerCase().includes(search.toLowerCase())
       )
 
@@ -112,7 +172,7 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
           <div className="max-h-64 overflow-y-auto">
             {displayed.length === 0 && (
               <p className="text-xs text-slate-400 text-center py-6">
-                {templates.length === 0 ? 'No templates yet' : 'No matches'}
+                {allTemplates.length === 0 ? 'No templates yet' : 'No matches'}
               </p>
             )}
             {displayed.map(t => (
@@ -122,7 +182,15 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
                 onClick={() => handleSelect(t)}
                 className="w-full text-left px-3 py-2.5 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
               >
-                <p className="text-sm font-semibold text-slate-800 mb-0.5">{t.name}</p>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <p className="text-sm font-semibold text-slate-800 truncate flex-1">{t.name}</p>
+                  {t.source === 'campaign' && (
+                    <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-semibold">
+                      <Megaphone size={9} />
+                      Campaign
+                    </span>
+                  )}
+                </div>
                 {t.html_body ? (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-[10px] font-semibold">
                     <Palette size={9} />
