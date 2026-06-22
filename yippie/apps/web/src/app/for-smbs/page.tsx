@@ -64,32 +64,34 @@ export default function ForSmbsPage() {
       </section>
 
       <section className={styles.section}>
-        <p className={styles.eyebrow}>The problem</p>
-        <h2 className={styles.sectionTitle}>The everyday struggles — solved</h2>
-        <p className={styles.sectionSub}>
-          Three things slow every small business down. Here is how Yippie fixes
-          each one.
-        </p>
-        <div className={styles.rows}>
-          {painSolutions.map((row, i) => (
-            <div key={i} className={styles.row}>
-              <div className={styles.painCard}>
-                <div className={`${styles.painLabel} ${styles.painLabelBad}`}>The pain</div>
-                <p className={styles.painText}>{row.pain}</p>
-              </div>
-              <div className={styles.solveCard}>
-                <div className={`${styles.painLabel} ${styles.painLabelGood}`}>With Yippie</div>
-                <p className={styles.painText}>{row.solve}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className={styles.proof}>
-          <p className={styles.proofText}>Join 100+ SMBs saving 10+ hours/week</p>
-          <p className={styles.proofSub}>
-            Thousands of hours of customer service already automated by Yippie — and counting.
+        <div className={styles.sectionInner}>
+          <p className={styles.eyebrow}>The problem</p>
+          <h2 className={styles.sectionTitle}>The everyday struggles — solved</h2>
+          <p className={styles.sectionSub}>
+            Three things slow every small business down. Here is how Yippie fixes
+            each one.
           </p>
+          <div className={styles.rows}>
+            {painSolutions.map((row, i) => (
+              <div key={i} className={styles.row}>
+                <div className={styles.painCard}>
+                  <div className={`${styles.painLabel} ${styles.painLabelBad}`}>The pain</div>
+                  <p className={styles.painText}>{row.pain}</p>
+                </div>
+                <div className={styles.solveCard}>
+                  <div className={`${styles.painLabel} ${styles.painLabelGood}`}>With Yippie</div>
+                  <p className={styles.painText}>{row.solve}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.proof}>
+            <p className={styles.proofText}>Join 100+ SMBs saving 10+ hours/week</p>
+            <p className={styles.proofSub}>
+              Thousands of hours of customer service already automated by Yippie — and counting.
+            </p>
+          </div>
         </div>
       </section>
 

@@ -60,51 +60,55 @@ export default function VsZendeskPage() {
       </section>
 
       <section className={styles.section}>
-        <p className={styles.eyebrow}>Side by side</p>
-        <h2 className={styles.sectionTitle}>How Yippie compares to Zendesk</h2>
-        <p className={styles.sectionSub}>
-          Same core help desk capabilities — without the enterprise price tag or
-          setup overhead.
-        </p>
-        <div className={styles.tableWrap}>
-          <table className={styles.table}>
-            <thead>
-              <tr>
-                <th>Feature</th>
-                <th className={styles.colYippie}>Yippie</th>
-                <th>Zendesk</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.feature}>
-                  <td>{r.feature}</td>
-                  <td className={styles.center}><CellView value={r.yippie} /></td>
-                  <td className={styles.center}><CellView value={r.other} /></td>
+        <div className={styles.sectionInner}>
+          <p className={styles.eyebrow}>Side by side</p>
+          <h2 className={styles.sectionTitle}>How Yippie compares to Zendesk</h2>
+          <p className={styles.sectionSub}>
+            Same core help desk capabilities — without the enterprise price tag or
+            setup overhead.
+          </p>
+          <div className={styles.tableWrap}>
+            <table className={styles.table}>
+              <thead>
+                <tr>
+                  <th>Feature</th>
+                  <th className={styles.colYippie}>Yippie</th>
+                  <th>Zendesk</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.feature}>
+                    <td>{r.feature}</td>
+                    <td className={styles.center}><CellView value={r.yippie} /></td>
+                    <td className={styles.center}><CellView value={r.other} /></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </section>
 
       <section className={styles.sectionLight}>
-        <p className={styles.eyebrow}>Why SMBs switch</p>
-        <h2 className={styles.sectionTitle}>Built for your size, not theirs</h2>
-        <div className={styles.grid}>
-          <div className={styles.card}>
-            <h3 className={styles.cardTitle}>Flat, predictable pricing</h3>
-            <p className={styles.cardDesc}>
-              Pay per workspace from €19/month, not €55+ per agent. Add teammates
-              without watching the bill balloon every time you hire.
-            </p>
-          </div>
-          <div className={styles.card}>
-            <h3 className={styles.cardTitle}>Live in a day, not a quarter</h3>
-            <p className={styles.cardDesc}>
-              No implementation consultant required. Connect your inbox, invite
-              your team, and you are answering tickets the same afternoon.
-            </p>
+        <div className={styles.sectionInner}>
+          <p className={styles.eyebrow}>Why SMBs switch</p>
+          <h2 className={styles.sectionTitle}>Built for your size, not theirs</h2>
+          <div className={styles.grid}>
+            <div className={styles.card}>
+              <h3 className={styles.cardTitle}>Flat, predictable pricing</h3>
+              <p className={styles.cardDesc}>
+                Pay per workspace from €19/month, not €55+ per agent. Add teammates
+                without watching the bill balloon every time you hire.
+              </p>
+            </div>
+            <div className={styles.card}>
+              <h3 className={styles.cardTitle}>Live in a day, not a quarter</h3>
+              <p className={styles.cardDesc}>
+                No implementation consultant required. Connect your inbox, invite
+                your team, and you are answering tickets the same afternoon.
+              </p>
+            </div>
           </div>
         </div>
       </section>

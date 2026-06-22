@@ -120,6 +120,9 @@
 .section { padding: 90px var(--gutter); }
 .sectionLight { padding: 90px var(--gutter); background: var(--off-white); border-block: 1px solid var(--border); }
 
+/* Inner max-width container — apply inside every section for consistent 1180px centering */
+.sectionInner { max-width: var(--maxw); margin: 0 auto; }
+
 .eyebrow {
   font-family: var(--font-mono);
   font-size: 13px;

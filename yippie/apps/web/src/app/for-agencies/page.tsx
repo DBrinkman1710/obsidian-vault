@@ -64,24 +64,26 @@ export default function ForAgenciesPage() {
       </section>
 
       <section className={styles.section}>
-        <p className={styles.eyebrow}>The problem</p>
-        <h2 className={styles.sectionTitle}>Agency support, without the chaos</h2>
-        <p className={styles.sectionSub}>
-          The hidden costs of managing many clients — and how Yippie removes them.
-        </p>
-        <div className={styles.rows}>
-          {painSolutions.map((row, i) => (
-            <div key={i} className={styles.row}>
-              <div className={styles.painCard}>
-                <div className={`${styles.painLabel} ${styles.painLabelBad}`}>The pain</div>
-                <p className={styles.painText}>{row.pain}</p>
+        <div className={styles.sectionInner}>
+          <p className={styles.eyebrow}>The problem</p>
+          <h2 className={styles.sectionTitle}>Agency support, without the chaos</h2>
+          <p className={styles.sectionSub}>
+            The hidden costs of managing many clients — and how Yippie removes them.
+          </p>
+          <div className={styles.rows}>
+            {painSolutions.map((row, i) => (
+              <div key={i} className={styles.row}>
+                <div className={styles.painCard}>
+                  <div className={`${styles.painLabel} ${styles.painLabelBad}`}>The pain</div>
+                  <p className={styles.painText}>{row.pain}</p>
+                </div>
+                <div className={styles.solveCard}>
+                  <div className={`${styles.painLabel} ${styles.painLabelGood}`}>With Yippie</div>
+                  <p className={styles.painText}>{row.solve}</p>
+                </div>
               </div>
-              <div className={styles.solveCard}>
-                <div className={`${styles.painLabel} ${styles.painLabelGood}`}>With Yippie</div>
-                <p className={styles.painText}>{row.solve}</p>
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </section>
 
