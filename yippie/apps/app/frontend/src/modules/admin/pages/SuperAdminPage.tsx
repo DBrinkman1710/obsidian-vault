@@ -1222,25 +1222,42 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
 
 function EvolutionDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
+  const [sendResult, setSendResult] = useState<any>(null)
   const [copied, setCopied] = useState(false)
+  const [testNumber, setTestNumber] = useState('')
 
   const mutation = useMutation({
     mutationFn: () => api.get('/admin/evolution-check').then(r => r.data),
     onSuccess: (data) => setResult(data),
   })
 
+  const sendMutation = useMutation({
+    mutationFn: () => api.post('/admin/evolution-send-test', {
+      number: testNumber.trim(),
+      message: 'Yippie diagnostics test',
+      instance: 'default',
+    }).then(r => r.data),
+    onSuccess: (data) => setSendResult(data),
+  })
+
   function copyAll() {
-    navigator.clipboard.writeText(JSON.stringify(result, null, 2))
+    const all = {
+      ...(result ? { check: result } : {}),
+      ...(sendResult ? { send_test: sendResult } : {}),
+    }
+    navigator.clipboard.writeText(JSON.stringify(all, null, 2))
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
+
+  const combined = result || sendResult
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="flex items-center gap-2 px-4 py-2.5">
         <FlaskConical size={14} className="text-slate-400 shrink-0" />
         <span className="text-sm font-semibold text-slate-700 flex-1">Evolution API diagnostics</span>
-        {result && (
+        {combined && (
           <button
             onClick={copyAll}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
@@ -1257,9 +1274,33 @@ function EvolutionDiagnosticPanel() {
           {mutation.isPending ? 'Checking…' : 'Run check'}
         </button>
       </div>
-      {result && (
+      {/* Test send row */}
+      <div className="flex items-center gap-2 px-4 py-2 border-t border-slate-100">
+        <span className="text-xs text-slate-500 shrink-0">Test send to:</span>
+        <input
+          value={testNumber}
+          onChange={e => setTestNumber(e.target.value)}
+          placeholder="31612345678 or 120022928212099@lid"
+          className="flex-1 px-2 py-1 text-xs border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400"
+        />
+        <button
+          onClick={() => sendMutation.mutate()}
+          disabled={sendMutation.isPending || !testNumber.trim()}
+          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors"
+        >
+          {sendMutation.isPending ? 'Sending…' : 'Send test'}
+        </button>
+      </div>
+      {(result || sendResult) && (
         <pre className="border-t border-slate-100 bg-slate-50 rounded-b-xl px-4 py-3 text-xs text-slate-700 overflow-auto max-h-64 whitespace-pre-wrap">
-          {JSON.stringify(result, null, 2)}
+          {JSON.stringify(
+            {
+              ...(result ? { check: result } : {}),
+              ...(sendResult ? { send_test: sendResult } : {}),
+            },
+            null,
+            2
+          )}
         </pre>
       )}
     </div>

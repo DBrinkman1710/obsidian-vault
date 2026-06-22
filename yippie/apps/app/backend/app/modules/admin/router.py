@@ -4,6 +4,8 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+import re
+
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
@@ -350,19 +352,6 @@ async def evolution_check(_: SuperAdminUser, db: DB):
                     except Exception as exc:
                         entry["fetchContacts_error"] = f"{type(exc).__name__}: {exc}"
 
-                    # Also try a direct send-test with just digits to see if Evolution accepts it
-                    try:
-                        digits_only = sample_lid.split("@")[0]
-                        test_resp = await client.post(
-                            f"{base}/message/sendText/{slug}",
-                            headers={"Content-Type": "application/json", **headers},
-                            json={"number": digits_only, "text": "_diag_"},
-                        )
-                        entry["send_digits_status"] = test_resp.status_code
-                        ct2 = test_resp.headers.get("content-type", "")
-                        entry["send_digits_body"] = test_resp.json() if "application/json" in ct2 else test_resp.text[:300]
-                    except Exception as exc:
-                        entry["send_digits_error"] = f"{type(exc).__name__}: {exc}"
             except Exception as exc:
                 entry["lid_check_error"] = f"{type(exc).__name__}: {exc}"
 
@@ -385,6 +374,9 @@ async def evolution_send_test(_: SuperAdminUser, body: EvolutionSendTestBody):
     settings = get_settings()
     if not settings.evolution_api_url:
         return {"error": "EVOLUTION_API_URL not set"}
+
+    if not re.fullmatch(r"[a-zA-Z0-9_-]+", body.instance):
+        return {"error": "invalid instance name"}
 
     base = settings.evolution_api_url.rstrip("/")
     headers = {"Content-Type": "application/json", "apikey": settings.evolution_api_token}

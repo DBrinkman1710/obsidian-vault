@@ -68,8 +68,29 @@ async def find_open_session_for_phone(
     if session:
         return session
 
-    # Suffix fallback only applies to plain digit phone numbers, not JIDs.
+    # Suffix fallback for @lid contacts: bridge old bare-digit sessions that were
+    # stored before normalize_phone started preserving the @lid suffix.
     if "@" in phone:
+        digits = phone.split("@")[0]
+        if len(digits) >= 8:
+            suffix = digits[-8:]
+            rows = await db.execute(
+                select(ChatSession)
+                .where(
+                    ChatSession.tenant_id == tenant_id,
+                    ChatSession.is_open == True,  # noqa: E712
+                    ChatSession.source == "whatsapp",
+                    ~ChatSession.whatsapp_phone.contains("@"),
+                    ChatSession.whatsapp_phone.like(f"%{suffix}"),
+                )
+                .limit(1)
+            )
+            session = rows.scalars().first()
+            if session:
+                # Canonicalize the stored phone to the new @lid format
+                session.whatsapp_phone = phone
+                session.visitor_id = phone
+                return session
         return None
 
     # Fallback: suffix match for local-vs-international mismatch.
