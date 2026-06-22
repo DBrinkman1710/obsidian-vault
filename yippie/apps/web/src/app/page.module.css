@@ -22,6 +22,16 @@
   filter: blur(10px);
   pointer-events: none;
 }
+.heroLogoMark {
+  position: absolute;
+  bottom: -60px;
+  right: -40px;
+  width: 480px;
+  height: auto;
+  opacity: 0.10;
+  pointer-events: none;
+  user-select: none;
+}
 .heroInner {
   position: relative;
   z-index: 1;
