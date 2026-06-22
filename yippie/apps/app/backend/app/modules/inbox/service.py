@@ -707,6 +707,26 @@ async def bulk_update_drafts(
     return result.rowcount
 
 
+async def bulk_assign_drafts(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    draft_ids: list[uuid.UUID],
+    update_fields: dict,
+) -> int:
+    """Bulk assign drafts. update_fields maps column names to values (None = clear).
+    Returns count of updated rows."""
+    from sqlalchemy import update as sa_update
+    if not update_fields:
+        return 0
+    result = await db.execute(
+        sa_update(DraftTicket)
+        .where(DraftTicket.tenant_id == tenant_id, DraftTicket.id.in_(draft_ids))
+        .values(**update_fields)
+    )
+    await db.commit()
+    return result.rowcount
+
+
 # --- Spam/Bin retention (item 42) ---
 
 SPAM_TO_BIN_WORKING_DAYS = 10

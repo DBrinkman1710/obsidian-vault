@@ -731,6 +731,146 @@ const RETENTION_NOTES: Partial<Record<ProcessedFilter, string>> = {
 
 const PAGE_SIZE = 9
 
+interface Assignee {
+  id: string
+  full_name: string
+  email: string | null
+}
+
+function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => void; onDone: () => void }) {
+  const [tab, setTab] = useState<'users' | 'departments'>('users')
+  const qc = useQueryClient()
+  const [assigning, setAssigning] = useState(false)
+
+  const { data: assignees = [] } = useQuery({
+    queryKey: ['inbox-assignees'],
+    queryFn: () => api.get<Assignee[]>('/inbox/drafts/assignees').then(r => r.data),
+  })
+
+  const { data: depts = [] } = useQuery({
+    queryKey: ['departments', 'my'],
+    queryFn: () => api.get<Array<{ id: string; name: string }>>('/departments/my').then(r => r.data),
+  })
+
+  async function assignToUser(userId: string) {
+    setAssigning(true)
+    try {
+      await api.post('/inbox/drafts/bulk-assign', { ids, assigned_to_user_id: userId })
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+      onDone()
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  async function assignToDepartment(deptId: string) {
+    setAssigning(true)
+    try {
+      await api.post('/inbox/drafts/bulk-assign', { ids, department_id: deptId })
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+      onDone()
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  async function unassign() {
+    setAssigning(true)
+    try {
+      await api.post('/inbox/drafts/bulk-assign', { ids, assigned_to_user_id: null })
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+      onDone()
+    } finally {
+      setAssigning(false)
+    }
+  }
+
+  const tabCls = (t: typeof tab) =>
+    `px-4 py-2 text-sm font-semibold border-b-2 transition-colors ${tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'}`
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full flex flex-col" style={{ maxHeight: '80vh' }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-base font-bold text-slate-900">Assign to</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+        </div>
+
+        <div className="flex border-b border-slate-100 shrink-0 px-2">
+          <button className={tabCls('users')} onClick={() => setTab('users')}>
+            <Users size={13} className="inline mr-1.5 -mt-0.5" />
+            Users
+          </button>
+          <button className={tabCls('departments')} onClick={() => setTab('departments')}>
+            <Building2 size={13} className="inline mr-1.5 -mt-0.5" />
+            Departments
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          {tab === 'users' && (
+            <>
+              {assignees.map(assignee => (
+                <button
+                  key={assignee.id}
+                  type="button"
+                  onClick={() => assignToUser(assignee.id)}
+                  disabled={assigning}
+                  className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 disabled:opacity-50 transition-colors text-left"
+                >
+                  <User size={15} className="text-slate-400 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-slate-900">{assignee.full_name}</div>
+                    {assignee.email && <div className="text-xs text-slate-400 truncate">{assignee.email}</div>}
+                  </div>
+                </button>
+              ))}
+              {assignees.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">No assignees available</div>}
+            </>
+          )}
+
+          {tab === 'departments' && (
+            <>
+              {depts.map(dept => (
+                <button
+                  key={dept.id}
+                  type="button"
+                  onClick={() => assignToDepartment(dept.id)}
+                  disabled={assigning}
+                  className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 last:border-0 hover:bg-slate-50 disabled:opacity-50 transition-colors text-left"
+                >
+                  <Building2 size={15} className="text-slate-400 shrink-0" />
+                  <span className="text-sm font-medium text-slate-900">{dept.name}</span>
+                </button>
+              ))}
+              {depts.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">No departments</div>}
+            </>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2 px-6 py-4 border-t border-slate-100 shrink-0">
+          <button
+            type="button"
+            onClick={unassign}
+            disabled={assigning}
+            className="flex-1 px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors disabled:cursor-not-allowed"
+          >
+            Unassign
+          </button>
+          <button
+            type="button"
+            onClick={onClose}
+            disabled={assigning}
+            className="flex-1 px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors disabled:cursor-not-allowed"
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function InboxQueue() {
   const [activeTab, setActiveTab] = useState<Tab>('pending')
   const [mailbox, setMailbox] = useState<Mailbox>('shared')
@@ -792,6 +932,16 @@ export default function InboxQueue() {
     queryFn: () => api.get<{ topics: string[] }>('/inbox/trending').then(r => r.data.topics),
     staleTime: 15 * 60_000,
     refetchInterval: 15 * 60_000,
+    refetchIntervalInBackground: false,
+  })
+
+  // Unread counts for mailbox tabs
+  const { data: inboxCounts } = useQuery({
+    queryKey: ['inbox-counts', deptId],
+    queryFn: () => api.get<{ pending: number; personal: number }>('/inbox/drafts/count', {
+      params: deptId ? { department_id: deptId } : {},
+    }).then(r => r.data),
+    refetchInterval: 15_000,
     refetchIntervalInBackground: false,
   })
 
@@ -975,6 +1125,15 @@ export default function InboxQueue() {
     return () => window.removeEventListener('keydown', handler)
   }, [user?.hotkeys_enabled, pageDrafts, focusedIdx, navigate])
 
+  const bulkAssignMutation = useMutation({
+    mutationFn: ({ ids, assigned_to_user_id }: { ids: string[]; assigned_to_user_id: string | null }) =>
+      api.post('/inbox/drafts/bulk-assign', { ids, assigned_to_user_id }).then(r => r.data),
+    onSuccess: () => {
+      setSelected(new Set())
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+    },
+  })
+
   const bulkMutation = useMutation({
     mutationFn: ({ ids, action }: { ids: string[]; action: 'bin' | 'spam' }) =>
       api.post('/inbox/drafts/bulk-action', { ids, action }).then(r => r.data),
@@ -1053,6 +1212,8 @@ export default function InboxQueue() {
     }
   }
 
+  const [showAssignModal, setShowAssignModal] = useState(false)
+
   const handleTabSwitch = (tab: Tab) => {
     setActiveTab(tab)
     setSelected(new Set())
@@ -1070,22 +1231,34 @@ export default function InboxQueue() {
             {/* Mailbox switch: shared (whole team) vs personal (mail to your own address) */}
             <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
               {([
-                { value: 'shared', label: 'Shared', icon: <Users size={13} /> },
-                { value: 'personal', label: 'Personal', icon: <Mail size={13} /> },
-              ] as { value: Mailbox; label: string; icon: React.ReactNode }[]).map(m => (
-                <button
-                  key={m.value}
-                  onClick={() => { setMailbox(m.value); setSelected(new Set()); setPage(0) }}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
-                    mailbox === m.value
-                      ? 'bg-blue-600 text-white'
-                      : 'text-slate-500 hover:bg-slate-50'
-                  }`}
-                >
-                  {m.icon}
-                  {m.label}
-                </button>
-              ))}
+                { value: 'shared', label: 'Shared', icon: <Users size={13} />, count: inboxCounts?.pending },
+                { value: 'personal', label: 'Personal', icon: <Mail size={13} />, count: inboxCounts?.personal },
+              ] as { value: Mailbox; label: string; icon: React.ReactNode; count?: number }[]).map(m => {
+                const displayCount = m.count !== undefined && m.count > 0 ? (m.count > 9 ? '9+' : m.count.toString()) : null
+                return (
+                  <button
+                    key={m.value}
+                    onClick={() => { setMailbox(m.value); setSelected(new Set()); setPage(0) }}
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                      mailbox === m.value
+                        ? 'bg-blue-600 text-white'
+                        : 'text-slate-500 hover:bg-slate-50'
+                    }`}
+                  >
+                    {m.icon}
+                    {m.label}
+                    {displayCount && (
+                      <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${
+                        mailbox === m.value
+                          ? 'bg-white/30 text-white'
+                          : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        {displayCount}
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
             {/* Per-department shared inboxes — one tab per department the user belongs to. */}
             {(myDepts ?? []).length > 0 && (
@@ -1274,6 +1447,16 @@ export default function InboxQueue() {
               danger: true,
               onClick: () => bulkMutation.mutate({ ids: Array.from(selected), action: 'spam' }),
             },
+            {
+              label: 'Assign to me',
+              icon: <User size={13} />,
+              onClick: () => bulkAssignMutation.mutate({ ids: Array.from(selected), assigned_to_user_id: user?.id ?? null }),
+            },
+            {
+              label: 'Assign to…',
+              icon: <UserPlus size={13} />,
+              onClick: () => setShowAssignModal(true),
+            },
           ]}
         />
 
@@ -1454,7 +1637,7 @@ export default function InboxQueue() {
                 return (
                   <div
                     key={d.id}
-                    className="border p-4 flex items-start gap-3 transition-all"
+                    className={`border flex items-start gap-3 transition-all ${mailbox === 'personal' ? 'p-3' : 'p-4'}`}
                     style={{
                       borderRadius: 'var(--radius-md)',
                       borderColor: isFocused ? 'var(--brand)' : isSelected ? 'var(--brand-ring)' : 'var(--border-default)',
@@ -1503,7 +1686,7 @@ export default function InboxQueue() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1.5">
                           {SOURCE_ICON[d.source] ?? <Mail size={13} className="text-slate-400" />}
-                          <span className="text-sm font-semibold text-slate-900 group-hover:text-blue-700 transition-colors">{d.ai_suggested_subject}</span>
+                          <span className={`font-semibold text-slate-900 group-hover:text-blue-700 transition-colors ${mailbox === 'personal' ? 'text-xs' : 'text-sm'}`}>{d.ai_suggested_subject}</span>
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${PRIORITY_STYLES[d.ai_suggested_priority]}`}>
                             {d.ai_suggested_priority}
                           </span>
@@ -1589,6 +1772,14 @@ export default function InboxQueue() {
           aiEnabled={aiEnabled}
           onSendQueued={handleSendQueued}
           initialState={composeInitial}
+        />
+      )}
+
+      {showAssignModal && (
+        <AssignModal
+          ids={Array.from(selected)}
+          onClose={() => setShowAssignModal(false)}
+          onDone={() => { setSelected(new Set()); setShowAssignModal(false) }}
         />
       )}
 

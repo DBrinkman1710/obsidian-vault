@@ -19,7 +19,7 @@ from app.auth.dependencies import CurrentUser, require_module
 from app.config import get_settings
 from app.core.email_html import render_email_html
 from app.core.mailer import ResendNotConfiguredError, email_domain, is_valid_email, send_email
-from app.core.models import Tenant
+from app.core.models import Tenant, User
 from app.core.tenant import resolve_tenant_by_slug
 from app.database import get_db, db_session
 from app.modules.activity import service as activity_service
@@ -36,6 +36,18 @@ from app.modules.inbox.schemas import (
 
 class ForwardRequest(BaseModel):
     department_id: uuid.UUID
+
+
+class AssigneeOut(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: str | None
+
+
+class BulkAssignRequest(BaseModel):
+    ids: list[uuid.UUID]
+    assigned_to_user_id: Optional[uuid.UUID] = None
+    department_id: Optional[uuid.UUID] = None
 
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
@@ -545,6 +557,37 @@ async def bulk_action_drafts(body: BulkActionRequest, current_user: CurrentUser,
         raise HTTPException(status_code=400, detail="ids must not be empty")
     new_status = DraftStatus.bin if body.action == "bin" else DraftStatus.spam
     count = await service.bulk_update_drafts(db, current_user.tenant_id, body.ids, new_status)
+    return {"updated": count}
+
+
+@router.get("/drafts/assignees", response_model=list[AssigneeOut])
+async def list_draft_assignees(current_user: CurrentUser, db: DB):
+    """List active users available for assignment in this tenant."""
+    result = await db.execute(
+        select(User.id, User.full_name, User.email).where(
+            User.tenant_id == current_user.tenant_id,
+            User.is_active == True,
+        ).order_by(User.full_name)
+    )
+    return [
+        AssigneeOut(id=row[0], full_name=row[1], email=row[2])
+        for row in result.all()
+    ]
+
+
+@router.post("/drafts/bulk-assign")
+async def bulk_assign_drafts(body: BulkAssignRequest, current_user: CurrentUser, db: DB):
+    """Bulk assign drafts to a user and/or forward to a department."""
+    if not body.ids:
+        raise HTTPException(status_code=400, detail="ids must not be empty")
+    update_fields: dict = {}
+    if "assigned_to_user_id" in body.model_fields_set:
+        update_fields["assigned_to"] = body.assigned_to_user_id
+    if "department_id" in body.model_fields_set:
+        update_fields["forwarded_to_department_id"] = body.department_id
+    if not update_fields:
+        return {"updated": 0}
+    count = await service.bulk_assign_drafts(db, current_user.tenant_id, body.ids, update_fields)
     return {"updated": count}
 
 
