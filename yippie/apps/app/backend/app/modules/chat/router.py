@@ -126,12 +126,25 @@ async def _find_or_create_open_session(
     contact_id: Optional[uuid.UUID] = None,
     visitor_name: Optional[str] = None,
 ) -> ChatSession:
-    # Normalize to digits only — Evolution API sends remoteJid without + (e.g. "31612345678")
-    # while contacts may store "+31612345678" or a local format ("0612345678"). Reuse the
-    # shared lookup (exact + suffix fallback) so a session opened from an inbound message in
-    # international format is found here too — otherwise a second session would be created and
-    # the contact would have one session for receiving and one for sending.
     phone = whatsapp_service.normalize_phone(phone)
+
+    # Contact-id lookup first — more reliable than phone-format matching when the agent
+    # opens a conversation for a contact that already has an inbound session.
+    if contact_id:
+        cid_result = await db.execute(
+            select(ChatSession).where(
+                ChatSession.tenant_id == tenant_id,
+                ChatSession.contact_id == contact_id,
+                ChatSession.source == "whatsapp",
+                ChatSession.is_open == True,  # noqa: E712
+            ).limit(1)
+        )
+        existing = cid_result.scalars().first()
+        if existing:
+            if visitor_name and not existing.visitor_name:
+                existing.visitor_name = visitor_name
+            return existing
+
     session = await whatsapp_service.find_open_session_for_phone(db, tenant_id, phone)
     if not session:
         session = ChatSession(
@@ -257,7 +270,7 @@ async def reply_to_session(
         body=text,
     )
     db.add(msg)
-    await db.commit()
+    await db.flush()
     await db.refresh(msg)
 
     # Dispatch via WhatsApp if this session came from WhatsApp
@@ -317,9 +330,19 @@ async def reply_to_session(
                     )
                     if evo_id:
                         msg.evolution_msg_id = evo_id
-                    await db.commit()
+                await db.commit()
+            except HTTPException:
+                raise
             except Exception:
+                await db.rollback()
                 logger.exception("WhatsApp send failed for session %s", session_id)
+                raise HTTPException(
+                    status_code=502,
+                    detail="WhatsApp delivery failed — check that WhatsApp is still connected",
+                )
+    else:
+        await db.commit()
+        await db.refresh(msg)
 
     tenant_key = str(current_user.tenant_id)
     event_data = {
@@ -408,7 +431,7 @@ async def send_media_to_session(
         media_mime=content_type,
     )
     db.add(msg)
-    await db.commit()
+    await db.flush()
     await db.refresh(msg)
 
     # Dispatch to WhatsApp
@@ -437,9 +460,19 @@ async def send_media_to_session(
                     )
                     if evo_id:
                         msg.evolution_msg_id = evo_id
-                    await db.commit()
+                await db.commit()
+            except HTTPException:
+                raise
             except Exception:
+                await db.rollback()
                 logger.exception("WhatsApp sendMedia failed for session %s", session_id)
+                raise HTTPException(
+                    status_code=502,
+                    detail="WhatsApp delivery failed — check that WhatsApp is still connected",
+                )
+    else:
+        await db.commit()
+        await db.refresh(msg)
 
     tenant_key = str(current_user.tenant_id)
     event_data = {

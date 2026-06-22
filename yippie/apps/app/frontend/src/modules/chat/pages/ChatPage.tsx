@@ -199,6 +199,7 @@ export default function ChatPage() {
   const [sessionListHeight, setSessionListHeight] = useState(600)
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
   const [attachPreviewUrl, setAttachPreviewUrl] = useState<string | null>(null)
+  const [replyError, setReplyError] = useState<string | null>(null)
 
   // Multi-select state
   const [selectedSessions, setSelectedSessions] = useState<Set<string>>(new Set())
@@ -285,6 +286,7 @@ export default function ChatPage() {
   const replyMutation = useMutation({
     mutationFn: (body: string) => api.post(`/chat/sessions/${selectedId}/reply`, { body }).then(r => r.data),
     onMutate: async (body: string) => {
+      setReplyError(null)
       await qc.cancelQueries({ queryKey: ['chat-messages', selectedId] })
       const previous = qc.getQueryData(['chat-messages', selectedId])
       const tempId = `_temp_${Date.now()}`
@@ -300,11 +302,12 @@ export default function ChatPage() {
         (old ?? []).map((m: any) => m.id === ctx?.tempId ? { ...m, ...data } : m)
       )
     },
-    onError: (_err, body, ctx) => {
+    onError: (err: any, body, ctx) => {
       if (ctx?.previous !== undefined) {
         qc.setQueryData(['chat-messages', ctx?.sessionId], ctx.previous)
       }
       setReplyText(body)
+      setReplyError(err?.response?.data?.detail ?? 'Message not sent — check WhatsApp is connected')
     },
   })
 
@@ -548,6 +551,7 @@ export default function ChatPage() {
     setSelectedId(s.id)
     setActiveTab('messages')
     setShowReassign(false)
+    setReplyError(null)
     if (isMobile) setShowConversation(true)
     // Auto-assign on open: claim unassigned open sessions for this agent.
     if (!s.assigned_to && s.status === 'open') {
@@ -1042,6 +1046,10 @@ export default function ChatPage() {
                 </button>
               ))}
             </div>
+          )}
+          {/* Send error */}
+          {replyError && (
+            <p className="text-xs text-red-600 mb-2">{replyError}</p>
           )}
           {/* Attachment preview row */}
           {attachedFile && (
