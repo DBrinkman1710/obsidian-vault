@@ -30,7 +30,7 @@ echo "→ Fetching latest sandbox…"
 git -C "$REPO_ROOT" fetch origin sandbox:sandbox 2>/dev/null || \
   git -C "$REPO_ROOT" fetch origin sandbox
 
-echo "→ Creating worktree at $WORKTREE on branch $BRANCH…"
+echo "→ Creating worktree at $WORKTREE on branch ${BRANCH}…"
 git -C "$REPO_ROOT" worktree add "$WORKTREE" -b "$BRANCH" sandbox
 
 echo ""
