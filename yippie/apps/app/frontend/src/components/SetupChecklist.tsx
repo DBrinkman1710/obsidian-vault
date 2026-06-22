@@ -17,7 +17,6 @@ export default function SetupChecklist() {
   const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
   const [collapsed, setCollapsed] = useState(false)
-  const [allDoneVisible, setAllDoneVisible] = useState(false)
 
   const isAdmin = user?.role === 'admin'
 
@@ -68,7 +67,6 @@ export default function SetupChecklist() {
 
   useEffect(() => {
     if (allDone) {
-      setAllDoneVisible(true)
       const t = setTimeout(() => dismissMutation.mutate(), 3000)
       return () => clearTimeout(t)
     }
