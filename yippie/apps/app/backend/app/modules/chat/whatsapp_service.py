@@ -220,13 +220,15 @@ async def send_media(
     normalized = "".join(ch for ch in number if ch.isdigit())
     payload: dict = {
         "number": normalized,
-        "mediatype": media_type,
-        "media": media_base64,
+        "mediaMessage": {
+            "mediatype": media_type,
+            "media": media_base64,
+        },
     }
     if caption:
-        payload["caption"] = caption
+        payload["mediaMessage"]["caption"] = caption
     if media_type == "document":
-        payload["fileName"] = filename
+        payload["mediaMessage"]["fileName"] = filename
 
     async with httpx.AsyncClient(timeout=30) as client:
         resp = await client.post(
@@ -256,7 +258,9 @@ async def send_text(instance_name: str, number: str, text: str) -> dict | None:
             headers={"Content-Type": "application/json", "apikey": settings.evolution_api_token},
             json={
                 "number": normalized,
-                "text": text,
+                "textMessage": {
+                    "text": text,
+                },
             },
         )
         if not resp.is_success:
