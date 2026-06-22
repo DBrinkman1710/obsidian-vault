@@ -261,6 +261,7 @@ async def reply_to_session(
     await db.refresh(msg)
 
     # Dispatch via WhatsApp if this session came from WhatsApp
+    active_session_id = session_id  # may change below if we merge duplicate sessions
     if session.source == "whatsapp" and session.whatsapp_phone:
         tenant = await db.get(Tenant, current_user.tenant_id)
         if tenant:
@@ -274,8 +275,30 @@ async def reply_to_session(
                     if remote_jid:
                         canonical = "".join(ch for ch in remote_jid.split("@")[0] if ch.isdigit())
                         if canonical and canonical != session.whatsapp_phone:
-                            session.whatsapp_phone = canonical
-                            session.visitor_id = canonical
+                            # Check if another open session already owns the canonical phone.
+                            # This is the "two open sessions per contact" bug: an inbound session
+                            # was created with the E.164 JID while an outbound session was created
+                            # from the locally-formatted contact phone. Merge them now.
+                            sibling_result = await db.execute(
+                                select(ChatSession).where(
+                                    ChatSession.tenant_id == current_user.tenant_id,
+                                    ChatSession.whatsapp_phone == canonical,
+                                    ChatSession.is_open == True,  # noqa: E712
+                                    ChatSession.id != session.id,
+                                )
+                            )
+                            sibling = sibling_result.scalar_one_or_none()
+                            if sibling:
+                                # Move this message into the canonical session and
+                                # close the duplicate so both directions share one session.
+                                msg.session_id = sibling.id
+                                session.is_open = False
+                                session.ended_at = datetime.now(timezone.utc)
+                                active_session_id = sibling.id
+                                session = sibling
+                            else:
+                                session.whatsapp_phone = canonical
+                                session.visitor_id = canonical
                     evo_id = (
                         wa_response.get("key", {}).get("id")
                         or wa_response.get("id")
@@ -289,7 +312,7 @@ async def reply_to_session(
     tenant_key = str(current_user.tenant_id)
     event_data = {
         "event": "message",
-        "session_id": str(session_id),
+        "session_id": str(active_session_id),
         "sender_type": "agent",
         "sender_id": str(current_user.id),
         "body": text,
@@ -298,6 +321,10 @@ async def reply_to_session(
     # Visitor's WS is keyed by visitor_id (the client-side UUID for widget, phone for WA)
     await manager.broadcast_to_session(tenant_key, session.visitor_id, event_data)
     await manager.broadcast_to_agents(tenant_key, event_data)
+    if active_session_id != session_id:
+        # A merge happened — notify agents so the session list and the closed duplicate refresh.
+        await manager.broadcast_to_agents(tenant_key, {"event": "session_update", "session_id": str(session_id)})
+        await manager.broadcast_to_agents(tenant_key, {"event": "session_update", "session_id": str(active_session_id)})
 
     return {"id": str(msg.id), "body": msg.body, "created_at": msg.created_at.isoformat(), "msg_status": msg.msg_status}
 

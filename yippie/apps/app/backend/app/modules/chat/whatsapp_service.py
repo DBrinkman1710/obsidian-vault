@@ -28,18 +28,21 @@ async def find_open_session_for_phone(
     db: AsyncSession,
     tenant_id: uuid.UUID,
     phone: str,
+    canonicalize: bool = False,
 ) -> ChatSession | None:
     """Find the single open WhatsApp session for a phone number.
 
     Tries an exact match on canonical digits first, then falls back to an
     8-digit suffix match to bridge local-vs-international format mismatches
     (e.g. an inbound JID "31612345678" matching a session opened from a
-    locally-formatted contact "0612345678"). When a suffix match is found the
-    stored number is canonicalized so future lookups hit the exact path.
+    locally-formatted contact "0612345678").
 
-    This is shared by the inbound webhook and the outbound send/broadcast paths
-    so both directions resolve to the *same* session — fixing the bug where a
-    contact ended up with two sessions (one for sending, one for receiving).
+    When canonicalize=True (inbound path only), a suffix match also updates the
+    stored phone to the E.164 digits from the incoming remoteJid so future
+    lookups hit the exact path. The outbound path (agent create/broadcast)
+    passes canonicalize=False so it never overwrites an international-format
+    phone with a local one — which would violate the open-session unique index
+    and cause send+receive to land in separate sessions.
     """
     phone = normalize_phone(phone)
     if not phone:
@@ -69,7 +72,7 @@ async def find_open_session_for_phone(
             ).limit(1)
         )
         session = fb.scalar_one_or_none()
-        if session and session.whatsapp_phone != phone:
+        if session and canonicalize and session.whatsapp_phone != phone:
             session.whatsapp_phone = phone
             session.visitor_id = phone
     return session
@@ -281,10 +284,10 @@ async def handle_incoming_webhook(
 
     visitor_name: str | None = data.get("pushName") or None
 
-    # Find the single open session for this phone (exact, then suffix fallback),
-    # shared with the outbound send/broadcast path so one session serves both
-    # directions.
-    session = await find_open_session_for_phone(db, tenant_id, phone)
+    # Find the single open session for this phone (exact, then suffix fallback).
+    # canonicalize=True so a suffix match also updates the stored phone to the
+    # E.164 remoteJid digits — keeping the session findable by future inbound messages.
+    session = await find_open_session_for_phone(db, tenant_id, phone, canonicalize=True)
 
     is_new_session = False
     if not session:
