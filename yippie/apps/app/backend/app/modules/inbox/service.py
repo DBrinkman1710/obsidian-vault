@@ -9,6 +9,8 @@ from typing import Optional
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
+from app.core.models import Tenant, User
 from app.modules.contacts.models import Contact
 from app.modules.billing.models import Invoice, InvoiceStatus, Subscription
 from app.modules.tickets.models import Ticket
@@ -1032,3 +1034,32 @@ async def flush_pending_sends(db: AsyncSession) -> None:
             log.exception("Failed to dispatch pending send %s", c["id"])
 
     await db.commit()
+
+
+async def get_tenant_inbound_email(db: AsyncSession, tenant_id: uuid.UUID) -> str | None:
+    tenant = await db.get(Tenant, tenant_id)
+    return (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
+
+
+async def list_assignees(
+    db: AsyncSession, tenant_id: uuid.UUID
+) -> list[tuple[uuid.UUID, str, str | None]]:
+    result = await db.execute(
+        select(User.id, User.full_name, User.email).where(
+            User.tenant_id == tenant_id,
+            User.is_active == True,  # noqa: E712
+        ).order_by(User.full_name)
+    )
+    return list(result.all())
+
+
+async def find_contact_id_by_email(
+    db: AsyncSession, tenant_id: uuid.UUID, email: str
+) -> uuid.UUID | None:
+    result = await db.execute(
+        select(Contact.id).where(
+            Contact.tenant_id == tenant_id,
+            func.lower(Contact.email) == email.lower(),
+        ).limit(1)
+    )
+    return result.scalar_one_or_none()

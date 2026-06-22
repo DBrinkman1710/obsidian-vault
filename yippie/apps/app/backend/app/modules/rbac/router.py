@@ -48,7 +48,7 @@ async def list_roles(current_user: AdminUser, db: DB):
 @router.post("/roles", response_model=RbacRoleOut, status_code=201)
 async def create_role(body: RbacRoleCreate, current_user: AdminUser, db: DB):
     if not body.name.strip():
-        raise HTTPException(400, "Role name is required")
+        raise HTTPException(status_code=400, detail="Role name is required")
     role = await service.create_role(db, current_user.tenant_id, body.name)
     await db.commit()
     return role
@@ -58,7 +58,7 @@ async def create_role(body: RbacRoleCreate, current_user: AdminUser, db: DB):
 async def delete_role(role_id: uuid.UUID, current_user: AdminUser, db: DB):
     deleted = await service.delete_role(db, current_user.tenant_id, role_id)
     if not deleted:
-        raise HTTPException(404, "Role not found")
+        raise HTTPException(status_code=404, detail="Role not found")
     await db.commit()
 
 
@@ -75,7 +75,7 @@ async def list_user_rbac_roles(user_id: uuid.UUID, current_user: AdminUser, db: 
 async def assign_user_rbac_role(user_id: uuid.UUID, role_id: uuid.UUID, current_user: AdminUser, db: DB):
     link = await service.assign_user_rbac_role(db, current_user.tenant_id, user_id, role_id)
     if not link:
-        raise HTTPException(404, "Role not found")
+        raise HTTPException(status_code=404, detail="Role not found")
     await db.commit()
     return {"ok": True}
 
@@ -84,7 +84,7 @@ async def assign_user_rbac_role(user_id: uuid.UUID, role_id: uuid.UUID, current_
 async def remove_user_rbac_role(user_id: uuid.UUID, role_id: uuid.UUID, current_user: AdminUser, db: DB):
     removed = await service.remove_user_rbac_role(db, current_user.tenant_id, user_id, role_id)
     if not removed:
-        raise HTTPException(404, "Assignment not found")
+        raise HTTPException(status_code=404, detail="Assignment not found")
     await db.commit()
 
 
@@ -116,5 +116,5 @@ async def upsert_permission(body: PermissionsMatrixUpsert, current_user: AdminUs
 async def delete_permission(permission_id: uuid.UUID, current_user: AdminUser, db: DB):
     deleted = await service.delete_permission(db, current_user.tenant_id, permission_id)
     if not deleted:
-        raise HTTPException(404, "Permission entry not found")
+        raise HTTPException(status_code=404, detail="Permission entry not found")
     await db.commit()

@@ -256,7 +256,7 @@ async def list_unsubscribes(current_user: CurrentUser, db: DB):
 
 @router.delete("/unsubscribes/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def remove_unsubscribe(contact_id: uuid.UUID, current_user: CurrentUser, db: DB):
-    await service.remove_unsubscribe(db, contact_id, current_user.tenant_id)
+    await service.remove_unsubscribe(db, current_user.tenant_id, contact_id)
     await db.commit()
 
 

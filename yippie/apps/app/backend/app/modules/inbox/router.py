@@ -11,15 +11,13 @@ import httpx
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status  # noqa: F401
 from fastapi.responses import Response
-from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from pydantic import BaseModel
 
 from app.auth.dependencies import CurrentUser, require_module
 from app.config import get_settings
 from app.core.email_html import render_email_html
 from app.core.mailer import ResendNotConfiguredError, email_domain, is_valid_email, send_email
-from app.core.models import Tenant, User
+from app.core.models import Tenant
 from app.core.tenant import resolve_tenant_by_slug
 from app.database import get_db, db_session
 from app.modules.activity import service as activity_service
@@ -29,25 +27,14 @@ from app.modules.inbox import service, ai_scanner
 from app.modules.inbox.attachments import fetch_attachment_list, fetch_attachment_bytes
 from app.modules.inbox.models import DraftStatus
 from app.modules.inbox.schemas import (
+    AssigneeOut,
+    BulkActionRequest,
+    BulkAssignRequest,
+    ComposeSuggestRequest,
     DraftReview, DraftTicketOut, DraftWithContextOut,
+    ForwardRequest,
     LinkContactRequest, ImproveReplyRequest,
 )
-
-
-class ForwardRequest(BaseModel):
-    department_id: uuid.UUID
-
-
-class AssigneeOut(BaseModel):
-    id: uuid.UUID
-    full_name: str
-    email: str | None
-
-
-class BulkAssignRequest(BaseModel):
-    ids: list[uuid.UUID]
-    assigned_to_user_id: Optional[uuid.UUID] = None
-    department_id: Optional[uuid.UUID] = None
 
 
 router = APIRouter(prefix="/inbox", tags=["inbox"])
@@ -161,8 +148,7 @@ async def list_drafts(
             department_id=department_id,
         )
         return _enrich_drafts(rows)
-    tenant = await db.get(Tenant, current_user.tenant_id)
-    inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
+    inbound_email = await service.get_tenant_inbound_email(db, current_user.tenant_id)
     # Personal Work Inbox mode: the shared mailbox is narrowed to mail assigned
     # to this user (or sent to their personal inbound address).
     personal_only_user_id = current_user.id if current_user.shared_inbox_disabled else None
@@ -200,8 +186,7 @@ async def count_pending_drafts(
             db, current_user.tenant_id, department_id=department_id, unread_only=True
         )
         return {"pending": shared_count, "personal": 0, "unread": shared_unread, "unread_personal": 0}
-    tenant = await db.get(Tenant, current_user.tenant_id)
-    inbound_email = (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
+    inbound_email = await service.get_tenant_inbound_email(db, current_user.tenant_id)
     shared_count = await service.count_pending_drafts(
         db, current_user.tenant_id, inbound_email, department_id=department_id
     )
@@ -558,11 +543,6 @@ async def clear_followup(draft_id: uuid.UUID, current_user: CurrentUser, db: DB)
 
 # --- Bulk actions ---
 
-class BulkActionRequest(BaseModel):
-    ids: list[uuid.UUID]
-    action: str  # "bin" | "spam"
-
-
 @router.post("/drafts/bulk-action")
 async def bulk_action_drafts(body: BulkActionRequest, current_user: CurrentUser, db: DB):
     """Move multiple drafts to bin or spam."""
@@ -578,16 +558,8 @@ async def bulk_action_drafts(body: BulkActionRequest, current_user: CurrentUser,
 @router.get("/drafts/assignees", response_model=list[AssigneeOut])
 async def list_draft_assignees(current_user: CurrentUser, db: DB):
     """List active users available for assignment in this tenant."""
-    result = await db.execute(
-        select(User.id, User.full_name, User.email).where(
-            User.tenant_id == current_user.tenant_id,
-            User.is_active == True,
-        ).order_by(User.full_name)
-    )
-    return [
-        AssigneeOut(id=row[0], full_name=row[1], email=row[2])
-        for row in result.all()
-    ]
+    rows = await service.list_assignees(db, current_user.tenant_id)
+    return [AssigneeOut(id=row[0], full_name=row[1], email=row[2]) for row in rows]
 
 
 @router.post("/drafts/bulk-assign")
@@ -607,16 +579,6 @@ async def bulk_assign_drafts(body: BulkAssignRequest, current_user: CurrentUser,
 
 
 # --- Compose (outbound, direct send) ---
-
-class ComposeRequest(BaseModel):
-    to: list[str]          # list of email addresses
-    subject: str
-    body: str
-
-
-class ComposeSuggestRequest(BaseModel):
-    prompt: str            # agent's brief describing the email to write
-
 
 @router.post("/compose", status_code=status.HTTP_200_OK)
 async def compose_send(
@@ -663,14 +625,9 @@ async def compose_send(
         # to, so resolve each recipient to a contact by email (best effort).
         recipient_contact_id = None
         if campaign_buttons_json:
-            from app.modules.contacts.models import Contact
-            contact_row = await db.execute(
-                select(Contact.id).where(
-                    Contact.tenant_id == current_user.tenant_id,
-                    func.lower(Contact.email) == str(recipient).lower(),
-                ).limit(1)
+            recipient_contact_id = await service.find_contact_id_by_email(
+                db, current_user.tenant_id, str(recipient)
             )
-            recipient_contact_id = contact_row.scalar_one_or_none()
         await service.queue_send(
             db=db,
             draft_id=compose_id,

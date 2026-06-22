@@ -140,3 +140,34 @@ class WhatsAppWebhookPayload(BaseModel):
     From: str
     Body: str
     ProfileName: Optional[str] = None
+
+
+class ForwardRequest(BaseModel):
+    department_id: uuid.UUID
+
+
+class AssigneeOut(BaseModel):
+    id: uuid.UUID
+    full_name: str
+    email: str | None
+
+
+class BulkAssignRequest(BaseModel):
+    ids: list[uuid.UUID]
+    assigned_to_user_id: Optional[uuid.UUID] = None
+    department_id: Optional[uuid.UUID] = None
+
+
+class BulkActionRequest(BaseModel):
+    ids: list[uuid.UUID]
+    action: str  # "bin" | "spam"
+
+
+class ComposeRequest(BaseModel):
+    to: list[str]
+    subject: str
+    body: str
+
+
+class ComposeSuggestRequest(BaseModel):
+    prompt: str

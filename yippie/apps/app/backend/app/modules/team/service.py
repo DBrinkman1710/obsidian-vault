@@ -158,22 +158,6 @@ async def update_org_settings(
     return tenant
 
 
-async def get_user_departments(
-    db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID
-) -> list[Department]:
-    """Return all departments this user belongs to (within the tenant)."""
-    result = await db.execute(
-        select(Department)
-        .join(DepartmentMember, DepartmentMember.department_id == Department.id)
-        .where(
-            DepartmentMember.tenant_id == tenant_id,
-            DepartmentMember.user_id == user_id,
-        )
-        .order_by(Department.name)
-    )
-    return result.scalars().all()
-
-
 async def set_user_departments(
     db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID, department_ids: list[uuid.UUID]
 ) -> None:

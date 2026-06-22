@@ -264,7 +264,7 @@ async def preview_segment(
 # --------------------------------------------------------------------------- #
 
 async def is_unsubscribed(
-    db: AsyncSession, contact_id: uuid.UUID, tenant_id: uuid.UUID
+    db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID
 ) -> bool:
     result = await db.execute(
         select(ContactUnsubscribe.contact_id).where(
@@ -276,16 +276,16 @@ async def is_unsubscribed(
 
 
 async def create_unsubscribe(
-    db: AsyncSession, contact_id: uuid.UUID, tenant_id: uuid.UUID
+    db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID
 ) -> None:
-    if await is_unsubscribed(db, contact_id, tenant_id):
+    if await is_unsubscribed(db, tenant_id, contact_id):
         return
     db.add(ContactUnsubscribe(contact_id=contact_id, tenant_id=tenant_id))
     await db.flush()
 
 
 async def remove_unsubscribe(
-    db: AsyncSession, contact_id: uuid.UUID, tenant_id: uuid.UUID
+    db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID
 ) -> None:
     await db.execute(
         delete(ContactUnsubscribe).where(
@@ -827,7 +827,7 @@ async def launch_campaign(
     for c in contacts:
         if not c.email:
             continue
-        if await is_unsubscribed(db, c.id, tenant_id):
+        if await is_unsubscribed(db, tenant_id, c.id):
             skipped += 1
             continue
         if c.email.lower() in bounced_emails:
@@ -987,7 +987,7 @@ async def ab_pick_winner(
     for c in contacts:
         if not c.email or c.email.lower() in already:
             continue
-        if await is_unsubscribed(db, c.id, campaign.tenant_id):
+        if await is_unsubscribed(db, campaign.tenant_id, c.id):
             continue
         if c.email.lower() in bounced_emails:
             continue

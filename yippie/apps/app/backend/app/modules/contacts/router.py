@@ -8,7 +8,6 @@ from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import AdminUser, CurrentUser
@@ -274,14 +273,7 @@ async def list_trash(current_user: AdminUser, db: DB):
 
 @router.post("/{contact_id}/restore", response_model=ContactOut)
 async def restore_contact(contact_id: uuid.UUID, current_user: AdminUser, db: DB):
-    result = await db.execute(
-        select(Contact).where(
-            Contact.tenant_id == current_user.tenant_id,
-            Contact.id == contact_id,
-            Contact.deleted_at.is_not(None),
-        )
-    )
-    contact = result.scalar_one_or_none()
+    contact = await service.get_deleted_contact(db, current_user.tenant_id, contact_id)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found in trash")
     await service.restore_contact(db, contact)
@@ -290,18 +282,10 @@ async def restore_contact(contact_id: uuid.UUID, current_user: AdminUser, db: DB
 
 @router.delete("/{contact_id}/permanent", status_code=status.HTTP_204_NO_CONTENT)
 async def permanently_delete_contact(contact_id: uuid.UUID, current_user: AdminUser, db: DB):
-    result = await db.execute(
-        select(Contact).where(
-            Contact.tenant_id == current_user.tenant_id,
-            Contact.id == contact_id,
-            Contact.deleted_at.is_not(None),
-        )
-    )
-    contact = result.scalar_one_or_none()
+    contact = await service.get_deleted_contact(db, current_user.tenant_id, contact_id)
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found in trash")
-    await db.delete(contact)
-    await db.commit()
+    await service.permanently_delete_contact(db, contact)
 
 
 @router.get("/{contact_id}", response_model=ContactOut)

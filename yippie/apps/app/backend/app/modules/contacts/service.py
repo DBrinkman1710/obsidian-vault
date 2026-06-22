@@ -189,6 +189,24 @@ async def delete_contact(db: AsyncSession, contact: Contact) -> None:
     await db.commit()
 
 
+async def get_deleted_contact(
+    db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID
+) -> Contact | None:
+    result = await db.execute(
+        select(Contact).where(
+            Contact.tenant_id == tenant_id,
+            Contact.id == contact_id,
+            Contact.deleted_at.is_not(None),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def permanently_delete_contact(db: AsyncSession, contact: Contact) -> None:
+    await db.delete(contact)
+    await db.commit()
+
+
 async def restore_contact(db: AsyncSession, contact: Contact) -> None:
     contact.deleted_at = None
     await db.commit()

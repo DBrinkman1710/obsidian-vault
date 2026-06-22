@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import AdminUser, CurrentUser
 from app.core.mailer import ResendNotConfiguredError
 from app.database import get_db
+from app.modules.departments import service as dept_service
 from app.modules.team import schemas, service
 
 router = APIRouter(prefix="/team", tags=["team"])
@@ -87,7 +88,7 @@ async def get_user_departments(current_user: AdminUser, db: DB, user_id: uuid.UU
     user = await db.get(User, user_id)
     if user is None or user.tenant_id != current_user.tenant_id:
         raise HTTPException(status_code=404, detail="User not found")
-    return await service.get_user_departments(db, current_user.tenant_id, user_id)
+    return await dept_service.get_departments_for_user(db, current_user.tenant_id, user_id)
 
 
 @router.put("/users/{user_id}/departments", status_code=status.HTTP_204_NO_CONTENT)

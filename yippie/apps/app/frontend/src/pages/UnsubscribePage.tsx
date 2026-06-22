@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
+import { api } from '../api/client'
 
 // Public unsubscribe confirmation. The backend GET /track/unsubscribe/{token}
 // records the opt-out and returns an HTML page; here we call it from the SPA
@@ -13,8 +14,8 @@ export default function UnsubscribePage() {
       setState('error')
       return
     }
-    fetch(`/api/v1/track/unsubscribe/${token}`)
-      .then((r) => setState(r.ok ? 'done' : 'error'))
+    api.get(`/track/unsubscribe/${token}`)
+      .then(() => setState('done'))
       .catch(() => setState('error'))
   }, [token])
 
