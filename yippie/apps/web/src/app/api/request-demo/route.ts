@@ -60,8 +60,22 @@ export async function POST(req: NextRequest) {
     );
   }
 
+  // Surface the upstream reason when we have one (validation 422, service
+  // 503, etc.) rather than collapsing every failure into a generic message,
+  // which made real causes impossible to diagnose.
+  const upstreamBody = await upstream.json().catch(() => null);
+  const rawDetail = upstreamBody?.detail;
+  let detail: string | null = null;
+  if (typeof rawDetail === "string") {
+    detail = rawDetail;
+  } else if (Array.isArray(rawDetail) && rawDetail.length > 0) {
+    // FastAPI 422 validation errors are a list of {loc, msg, ...}
+    const first = rawDetail[0];
+    if (first && typeof first.msg === "string") detail = first.msg;
+  }
+
   return NextResponse.json(
-    { error: "Something went wrong. Please try again." },
+    { error: detail ?? "Something went wrong. Please try again." },
     { status: 502 }
   );
 }
