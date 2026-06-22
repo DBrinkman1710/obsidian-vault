@@ -230,7 +230,10 @@ async def send_media(
     Returns the Evolution API response JSON or None on failure.
     """
     settings = get_settings()
-    normalized = "".join(ch for ch in number.split("@")[0] if ch.isdigit())
+    if number.endswith("@lid"):
+        normalized = number
+    else:
+        normalized = "".join(ch for ch in number.split("@")[0] if ch.isdigit())
     payload: dict = {
         "number": normalized,
         "mediaMessage": {
@@ -263,9 +266,12 @@ async def send_media(
 
 async def send_text(instance_name: str, number: str, text: str) -> dict | None:
     settings = get_settings()
-    # Evolution API v2 wants bare digits — @lid and @s.whatsapp.net suffixes cause 400.
-    # v2 resolves the digits to the correct JID (including @lid contacts) internally.
-    normalized = "".join(ch for ch in number.split("@")[0] if ch.isdigit())
+    # @lid JIDs must be passed as-is — Evolution v2.3.5+ sends to them directly.
+    # Standard numbers: strip to bare digits (Evolution appends @s.whatsapp.net).
+    if number.endswith("@lid"):
+        normalized = number
+    else:
+        normalized = "".join(ch for ch in number.split("@")[0] if ch.isdigit())
     async with httpx.AsyncClient(timeout=10) as client:
         resp = await client.post(
             f"{settings.evolution_api_url}/message/sendText/{instance_name}",
