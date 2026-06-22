@@ -11,19 +11,19 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 const JOURNEY = [
   {
     Icon: InboxIcon,
-    company: "Bol.com",
+    company: "A major online retailer",
     role: "High-volume consumer support",
     desc: "Managing thousands of customer queries daily — the shared mailbox was always one message away from chaos.",
   },
   {
     Icon: CalendarIcon,
-    company: "HeatTransformers",
+    company: "A heat-pump installer",
     role: "Heat-pump installation planning",
     desc: "Complex scheduling across field teams and customers. Coordination that should have taken minutes took hours.",
   },
   {
     Icon: TeamIcon,
-    company: "Medspace",
+    company: "A healthcare scheduling vendor",
     role: "Hospital department scheduling software",
     desc: "Critical support where nothing could slip. Enterprise tools slowed everyone down instead of speeding things up.",
   },
@@ -92,9 +92,9 @@ export default function AboutPage() {
           <Reveal>
             <p className={aboutStyles.storyBody}>
               For years I worked the frontlines of customer service and planning — high-volume
-              consumer support at <strong>Bol.com</strong>, complex installation scheduling at{" "}
-              <strong>HeatTransformers</strong>, and critical software support for hospital
-              departments at <strong>Medspace</strong>.
+              consumer support at <strong>a major online retailer</strong>, complex installation
+              scheduling at <strong>a heat-pump installer</strong>, and critical software support
+              for hospital departments at <strong>a healthcare scheduling vendor</strong>.
             </p>
             <p className={aboutStyles.storyBody}>
               Different industries, same two extremes — every single time:
@@ -114,7 +114,7 @@ export default function AboutPage() {
                 <span className={aboutStyles.extremeNum}>02</span>
                 <h3 className={styles.cardTitle}>Enterprise bloat</h3>
                 <p className={styles.cardDesc}>
-                  Over-engineered platforms like Zoho and Atlassian: heavy, hyper-complex, and
+                  Over-engineered enterprise platforms: heavy, hyper-complex, and
                   packed with features 90% of small businesses will never touch.
                 </p>
               </div>
