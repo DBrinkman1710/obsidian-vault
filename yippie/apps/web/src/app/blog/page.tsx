@@ -55,15 +55,17 @@ export default function BlogIndexPage() {
       </section>
 
       <section className={styles.section}>
-        <div className={styles.blogGrid}>
-          {posts.map((post) => (
-            <a key={post.slug} href={`/blog/${post.slug}`} className={styles.blogCard}>
-              <div className={styles.blogDate}>{post.dateLabel}</div>
-              <h2 className={styles.blogTitle}>{post.title}</h2>
-              <p className={styles.blogExcerpt}>{post.excerpt}</p>
-              <span className={styles.blogReadMore}>Read more →</span>
-            </a>
-          ))}
+        <div className={styles.sectionInner}>
+          <div className={styles.blogGrid}>
+            {posts.map((post) => (
+              <a key={post.slug} href={`/blog/${post.slug}`} className={styles.blogCard}>
+                <div className={styles.blogDate}>{post.dateLabel}</div>
+                <h2 className={styles.blogTitle}>{post.title}</h2>
+                <p className={styles.blogExcerpt}>{post.excerpt}</p>
+                <span className={styles.blogReadMore}>Read more →</span>
+              </a>
+            ))}
+          </div>
         </div>
       </section>
 
