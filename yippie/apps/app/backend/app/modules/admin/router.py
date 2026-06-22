@@ -6,6 +6,7 @@ from typing import Annotated
 
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from sqlalchemy import select as sa_select
@@ -307,3 +308,34 @@ async def evolution_check(_: SuperAdminUser, db: DB):
         result["per_tenant"] = per_tenant
 
     return result
+
+
+class EvolutionSendTestBody(BaseModel):
+    number: str
+    message: str = "test"
+    instance: str = "default"
+
+
+@router.post("/evolution-send-test")
+async def evolution_send_test(_: SuperAdminUser, body: EvolutionSendTestBody):
+    """Diagnostic: make a raw sendText call to Evolution API and return the full response."""
+    settings = get_settings()
+    if not settings.evolution_api_url:
+        return {"error": "EVOLUTION_API_URL not set"}
+
+    base = settings.evolution_api_url.rstrip("/")
+    headers = {"Content-Type": "application/json", "apikey": settings.evolution_api_token}
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        resp = await client.post(
+            f"{base}/message/sendText/{body.instance}",
+            headers=headers,
+            json={"number": body.number, "textMessage": {"text": body.message}},
+        )
+        ct = resp.headers.get("content-type", "")
+        resp_body = resp.json() if "application/json" in ct else resp.text
+        return {
+            "request": {"number": body.number, "instance": body.instance},
+            "status": resp.status_code,
+            "body": resp_body,
+        }

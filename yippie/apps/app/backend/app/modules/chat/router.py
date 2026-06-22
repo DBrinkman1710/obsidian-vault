@@ -333,12 +333,25 @@ async def reply_to_session(
                 await db.commit()
             except HTTPException:
                 raise
+            except httpx.HTTPStatusError as exc:
+                await db.rollback()
+                evo_detail = exc.response.text[:400]
+                try:
+                    body = exc.response.json()
+                    evo_detail = body.get("message") or body.get("error") or str(body)[:400]
+                except Exception:
+                    pass
+                logger.error("WhatsApp send failed [%s]: %s", exc.response.status_code, evo_detail)
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"Evolution API {exc.response.status_code}: {evo_detail}",
+                )
             except Exception as exc:
                 await db.rollback()
                 logger.exception("WhatsApp send failed for session %s", session_id)
                 raise HTTPException(
                     status_code=422,
-                    detail="WhatsApp delivery failed — check that WhatsApp is still connected",
+                    detail=f"WhatsApp send error: {type(exc).__name__}: {str(exc)[:300]}",
                 )
     else:
         await db.commit()
