@@ -20,6 +20,7 @@ from app.modules.admin.router import router as admin_router
 from app.modules.rbac.router import router as rbac_router
 from app.modules.team.router import router as team_router
 from app.modules.inbox.router import webhook_router as inbox_webhook_router
+from app.modules.emailtracking.router import router as emailtracking_router
 from app.modules.emailtracking.webhooks import webhook_router as emailtracking_webhook_router
 from app.public.router import router as public_router
 from app.modules.tracking.router import router as tracking_router
@@ -73,6 +74,11 @@ def create_app() -> FastAPI:
     app.include_router(marketing_tracking_router, prefix="/api/v1")
     # Public Resend webhook — no auth, Resend posts delivery events here
     app.include_router(emailtracking_webhook_router, prefix="/api/v1")
+    # Legacy emailtracking outbound endpoint (MODULE-RENAME) — folded into the
+    # marketing module as GET /marketing/outbound. Kept mounted (auth-gated, no
+    # module gate) for backwards compatibility while the frontend transitions to
+    # the new path. Remove once no client calls GET /emailtracking/outbound.
+    app.include_router(emailtracking_router, prefix="/api/v1")
     # Chat websockets — mounted without the require_module/require_feature
     # dependencies applied to the gated module routers below, since those
     # depend on HTTPBearer (HTTP-only) and break websocket connections.

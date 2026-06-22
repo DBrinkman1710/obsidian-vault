@@ -9,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser
 from app.database import get_db
+from app.modules.emailtracking import service as emailtracking_service
+from app.modules.emailtracking.schemas import OutboundEmailOut
 from app.modules.marketing import service
 from app.modules.marketing.schemas import (
     ButtonAnalyticOut,
@@ -256,3 +258,15 @@ async def list_unsubscribes(current_user: CurrentUser, db: DB):
 async def remove_unsubscribe(contact_id: uuid.UUID, current_user: CurrentUser, db: DB):
     await service.remove_unsubscribe(db, contact_id, current_user.tenant_id)
     await db.commit()
+
+
+# --- Outbound transactional email tracking ---------------------------------- #
+# Folded in from the former standalone ``emailtracking`` module (MODULE-RENAME):
+# transactional agent emails tracked via the OutboundEmail model + Resend webhook
+# are now surfaced under marketing as ``GET /marketing/outbound``.
+
+@router.get("/outbound", response_model=list[OutboundEmailOut])
+async def list_outbound(current_user: CurrentUser, db: DB, limit: int = 200, q: str | None = None):
+    return await emailtracking_service.list_outbound(
+        db, tenant_id=current_user.tenant_id, limit=limit, search=q
+    )
