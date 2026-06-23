@@ -37,11 +37,12 @@ class Shipment(Base):
     __table_args__ = (
         Index("ix_shipments_tenant_status", "tenant_id", "status"),
         Index("ix_shipments_tenant_carrier", "tenant_id", "carrier"),
+        Index("ix_shipments_tenant_order_ref", "tenant_id", "order_reference"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
-    tracking_number: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    tracking_number: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     carrier: Mapped[Carrier] = mapped_column(Enum(Carrier), nullable=False, default=Carrier.other)
     status: Mapped[ShipmentStatus] = mapped_column(
         Enum(ShipmentStatus), nullable=False, default=ShipmentStatus.registered

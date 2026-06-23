@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Kanban, CalendarClock, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Pencil, Kanban, CalendarClock, ChevronDown, ChevronUp, Package } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelChip'
@@ -167,6 +167,64 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
   )
 }
 
+const SHIPMENT_STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  registered:        { bg: 'bg-slate-100',   text: 'text-slate-600',  label: 'Registered' },
+  in_transit:        { bg: 'bg-blue-100',    text: 'text-blue-700',   label: 'In transit' },
+  out_for_delivery:  { bg: 'bg-amber-100',   text: 'text-amber-700',  label: 'Out for delivery' },
+  delivered:         { bg: 'bg-emerald-100', text: 'text-emerald-700',label: 'Delivered' },
+  exception:         { bg: 'bg-red-100',     text: 'text-red-700',    label: 'Exception' },
+  returned:          { bg: 'bg-orange-100',  text: 'text-orange-700', label: 'Returned' },
+  cancelled:         { bg: 'bg-slate-100',   text: 'text-slate-500',  label: 'Cancelled' },
+}
+
+function ShipmentsBlock({ contactId }: { contactId: string }) {
+  const config = useTenantConfig()
+  const isEnabled = config?.enabled_modules?.includes('shipments') ?? false
+
+  const { data } = useQuery({
+    queryKey: ['contact-shipments', contactId],
+    queryFn: () => api.get('/shipments', { params: { contact_id: contactId, limit: 5 } }).then(r => r.data),
+    enabled: isEnabled,
+  })
+
+  if (!isEnabled) return null
+
+  const items: any[] = data?.items ?? []
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
+      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
+        <Package size={12} className="text-slate-400" />
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex-1">Orders</h3>
+      </div>
+      {items.length === 0 ? (
+        <p className="text-xs text-slate-400 px-4 py-4">No orders found.</p>
+      ) : (
+        <div className="divide-y divide-slate-100">
+          {items.map((s: any) => {
+            const style = SHIPMENT_STATUS_STYLES[s.status] ?? { bg: 'bg-slate-100', text: 'text-slate-500', label: s.status }
+            return (
+              <div key={s.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-700 truncate">
+                    {s.order_reference ?? s.tracking_number ?? '—'}
+                  </p>
+                  {s.tracking_number && s.order_reference && (
+                    <p className="text-[10px] text-slate-400 truncate">{s.tracking_number}</p>
+                  )}
+                </div>
+                <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${style.bg} ${style.text}`}>
+                  {style.label}
+                </span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ContactDetail() {
   const { id } = useParams<{ id: string }>()
   const config = useTenantConfig()
@@ -304,6 +362,7 @@ export default function ContactDetail() {
         </div>
 
         <PipelineStageBlock contactId={id!} />
+        <ShipmentsBlock contactId={id!} />
       </aside>
     </div>
   )

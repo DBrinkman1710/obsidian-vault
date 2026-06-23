@@ -781,9 +781,29 @@ function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; o
   )
 }
 
+const SHIPMENT_STATUS_STYLES: Record<string, { bg: string; text: string; label: string }> = {
+  registered:        { bg: 'bg-slate-100',   text: 'text-slate-600',  label: 'Registered' },
+  in_transit:        { bg: 'bg-blue-100',    text: 'text-blue-700',   label: 'In transit' },
+  out_for_delivery:  { bg: 'bg-amber-100',   text: 'text-amber-700',  label: 'Out for delivery' },
+  delivered:         { bg: 'bg-emerald-100', text: 'text-emerald-700',label: 'Delivered' },
+  exception:         { bg: 'bg-red-100',     text: 'text-red-700',    label: 'Exception' },
+  returned:          { bg: 'bg-orange-100',  text: 'text-orange-700', label: 'Returned' },
+  cancelled:         { bg: 'bg-slate-100',   text: 'text-slate-500',  label: 'Cancelled' },
+}
+
+function ShipmentStatusPill({ status }: { status: string }) {
+  const s = SHIPMENT_STATUS_STYLES[status] ?? { bg: 'bg-slate-100', text: 'text-slate-500', label: status }
+  return (
+    <span className={`shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full ${s.bg} ${s.text}`}>
+      {s.label}
+    </span>
+  )
+}
+
 function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | null; ticket: any; aiAutoScan: boolean }) {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const config = useTenantConfig()
   const [openDraft, setOpenDraft] = useState<any | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [contactPanelOpen, setContactPanelOpen] = useState(false)
@@ -804,6 +824,8 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
     }, 600)
   }
 
+  const shipmentsEnabled = config?.enabled_modules?.includes('shipments') ?? false
+
   const { data: contact, isLoading: contactLoading } = useQuery({
     queryKey: ['contact', contactId],
     queryFn: () => api.get(`/contacts/${contactId}`).then(r => r.data),
@@ -820,6 +842,11 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
     queryKey: ['contact-tickets', contactId],
     queryFn: () => api.get(`/tickets`, { params: { contact_id: contactId } }).then(r => r.data),
     enabled: !!contactId,
+  })
+  const { data: shipmentsData } = useQuery({
+    queryKey: ['contact-shipments', contactId],
+    queryFn: () => api.get('/shipments', { params: { contact_id: contactId, limit: 3 } }).then(r => r.data),
+    enabled: !!contactId && shipmentsEnabled,
   })
 
   const recent = (drafts ?? []).slice(0, 5)
@@ -1003,6 +1030,34 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
           </div>
         )}
       </div>
+
+      {/* Orders card — visible when shipments module is enabled and contact is linked */}
+      {contactId && shipmentsEnabled && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
+          <div className="px-4 py-3 border-b border-slate-100">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Orders</h3>
+          </div>
+          {(shipmentsData?.items ?? []).length === 0 ? (
+            <p className="text-xs text-slate-400 px-4 py-4">No orders found.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {(shipmentsData?.items ?? []).map((s: any) => (
+                <div key={s.id} className="px-4 py-3 flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-slate-700 truncate">
+                      {s.order_reference ?? s.tracking_number ?? '—'}
+                    </p>
+                    {s.tracking_number && s.order_reference && (
+                      <p className="text-[10px] text-slate-400 truncate">{s.tracking_number}</p>
+                    )}
+                  </div>
+                  <ShipmentStatusPill status={s.status} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {openDraft && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">

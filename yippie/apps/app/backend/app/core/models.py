@@ -96,6 +96,9 @@ class Tenant(Base):
     # Secret is used for HMAC webhook verification; never returned raw to the frontend.
     sendcloud_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
     sendcloud_api_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Generic ERP order webhook — ERPs push order/tracking updates to /webhooks/orders/{slug}.
+    # If set, the X-Api-Key header must match; if unset, all requests are accepted (easy onboarding).
+    orders_webhook_secret: Mapped[str | None] = mapped_column(String(100), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     users: Mapped[list[User]] = relationship("User", back_populates="tenant")

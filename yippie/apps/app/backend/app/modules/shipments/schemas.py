@@ -10,7 +10,7 @@ from app.modules.shipments.models import Carrier, ShipmentStatus
 
 
 class ShipmentCreate(BaseModel):
-    tracking_number: str
+    tracking_number: Optional[str] = None
     carrier: Carrier = Carrier.other
     contact_id: Optional[uuid.UUID] = None
     order_reference: Optional[str] = None
@@ -39,7 +39,7 @@ class ShipmentEventOut(BaseModel):
 class ShipmentOut(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
-    tracking_number: str
+    tracking_number: Optional[str]
     carrier: Carrier
     status: ShipmentStatus
     contact_id: Optional[uuid.UUID]
@@ -75,3 +75,18 @@ class SendcloudSettingsOut(BaseModel):
     sendcloud_api_key_set: bool
     sendcloud_api_secret_set: bool
     sendcloud_webhook_url: str
+
+
+class ErpOrderPayload(BaseModel):
+    order_number: str
+    tracking_number: Optional[str] = None
+    carrier: Carrier = Carrier.other
+    status: ShipmentStatus = ShipmentStatus.registered
+    contact_email: Optional[str] = None
+    description: Optional[str] = None
+    estimated_delivery: Optional[datetime] = None
+
+
+class WebhookSettingsOut(BaseModel):
+    orders_webhook_url: str
+    orders_webhook_secret_set: bool

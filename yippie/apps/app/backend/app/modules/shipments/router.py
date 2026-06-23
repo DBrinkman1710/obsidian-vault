@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 import logging
 import uuid
 from typing import Annotated, Optional
@@ -20,6 +21,7 @@ from app.modules.shipments.schemas import (
     ShipmentList,
     ShipmentOut,
     ShipmentUpdate,
+    WebhookSettingsOut,
 )
 
 log = logging.getLogger(__name__)
@@ -31,6 +33,29 @@ DB = Annotated[AsyncSession, Depends(get_db)]
 
 
 # Settings endpoints — must be declared before /{id} to avoid being captured as an ID
+
+@router.get("/settings/webhook", response_model=WebhookSettingsOut)
+async def get_webhook_settings(current_user: AdminUser, db: DB):
+    from app.core.models import Tenant
+    settings = get_settings()
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    slug = tenant.slug if tenant else ""
+    return await service.get_erp_webhook_settings(db, current_user.tenant_id, settings.effective_base_url, slug)
+
+
+@router.post("/settings/webhook/rotate", response_model=WebhookSettingsOut)
+async def rotate_webhook_secret(current_user: AdminUser, db: DB):
+    from app.core.models import Tenant
+    settings = get_settings()
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    slug = tenant.slug if tenant else ""
+    try:
+        result = await service.rotate_erp_webhook_secret(db, current_user.tenant_id, settings.effective_base_url, slug)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    await db.commit()
+    return result
+
 
 @router.get("/settings/sendcloud", response_model=SendcloudSettingsOut)
 async def get_sendcloud_settings(current_user: CurrentUser, db: DB):
@@ -135,7 +160,38 @@ async def refresh_shipment(shipment_id: uuid.UUID, current_user: CurrentUser, db
     return result
 
 
-# Public webhook — no auth
+# Public webhooks — no auth
+
+@webhook_router.post("/orders/{tenant_slug}", include_in_schema=False)
+async def erp_orders_webhook(tenant_slug: str, request: Request, db: DB):
+    from app.core.models import Tenant
+    from sqlalchemy import select
+    from app.modules.shipments.schemas import ErpOrderPayload
+
+    tenant = await db.scalar(select(Tenant).where(Tenant.slug == tenant_slug))
+    if not tenant:
+        return Response(status_code=200)
+
+    if tenant.orders_webhook_secret:
+        api_key = request.headers.get("X-Api-Key", "")
+        if not hmac.compare_digest(api_key, tenant.orders_webhook_secret):
+            return Response(status_code=200)
+
+    try:
+        data = await request.json()
+        payload = ErpOrderPayload(**data)
+    except Exception:
+        return Response(status_code=200)
+
+    try:
+        await service.handle_erp_order_webhook(db, tenant.id, payload)
+        await db.commit()
+    except Exception:
+        log.exception("ERP orders webhook failed for tenant %s", tenant_slug)
+        await db.rollback()
+
+    return Response(status_code=200)
+
 
 @webhook_router.post("/sendcloud/{tenant_slug}", include_in_schema=False)
 async def sendcloud_webhook(tenant_slug: str, request: Request, db: DB):

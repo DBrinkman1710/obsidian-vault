@@ -13,12 +13,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.shipments.models import Carrier, Shipment, ShipmentEvent, ShipmentStatus
 from app.modules.shipments.schemas import (
+    ErpOrderPayload,
     SendcloudSettingsOut,
     SendcloudSettingsUpdate,
     ShipmentCreate,
     ShipmentDetail,
     ShipmentOut,
     ShipmentUpdate,
+    WebhookSettingsOut,
 )
 
 log = logging.getLogger(__name__)
@@ -140,7 +142,7 @@ async def create_shipment(
     shipment = Shipment(
         tenant_id=tenant_id,
         created_by=created_by,
-        tracking_number=body.tracking_number.strip(),
+        tracking_number=body.tracking_number.strip() if body.tracking_number else None,
         carrier=body.carrier,
         contact_id=body.contact_id,
         order_reference=body.order_reference,
@@ -299,6 +301,98 @@ async def get_sendcloud_settings(
         sendcloud_api_key_set=bool(tenant and tenant.sendcloud_api_key),
         sendcloud_api_secret_set=bool(tenant and tenant.sendcloud_api_secret),
         sendcloud_webhook_url=f"{app_base_url}/api/v1/webhooks/shipments/sendcloud/{slug}",
+    )
+
+
+async def handle_erp_order_webhook(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    payload: ErpOrderPayload,
+) -> None:
+    from app.database import set_tenant_context
+    from app.modules.contacts.models import Contact
+
+    await set_tenant_context(db, str(tenant_id))
+
+    shipment = await db.scalar(
+        select(Shipment).where(
+            Shipment.tenant_id == tenant_id,
+            Shipment.order_reference == payload.order_number,
+            Shipment.deleted_at.is_(None),
+        ).order_by(Shipment.created_at.desc())
+    )
+
+    contact_id = None
+    if payload.contact_email:
+        contact = await db.scalar(
+            select(Contact).where(
+                Contact.tenant_id == tenant_id,
+                Contact.email == payload.contact_email.lower().strip(),
+                Contact.deleted_at.is_(None),
+            )
+        )
+        if contact:
+            contact_id = contact.id
+
+    now = datetime.now(timezone.utc)
+
+    if shipment is None:
+        shipment = Shipment(
+            tenant_id=tenant_id,
+            order_reference=payload.order_number,
+            tracking_number=payload.tracking_number,
+            carrier=payload.carrier,
+            status=payload.status,
+            contact_id=contact_id,
+            estimated_delivery=payload.estimated_delivery,
+            last_event_description=payload.description[:500] if payload.description else None,
+            last_event_at=now if payload.description else None,
+        )
+        db.add(shipment)
+    else:
+        if payload.tracking_number is not None:
+            shipment.tracking_number = payload.tracking_number
+        shipment.carrier = payload.carrier
+        shipment.status = payload.status
+        if contact_id:
+            shipment.contact_id = contact_id
+        if payload.estimated_delivery:
+            shipment.estimated_delivery = payload.estimated_delivery
+        if payload.description:
+            shipment.last_event_description = payload.description[:500]
+            shipment.last_event_at = now
+
+    await db.flush()
+
+
+async def get_erp_webhook_settings(
+    db: AsyncSession, tenant_id: uuid.UUID, base_url: str, slug: str
+) -> WebhookSettingsOut:
+    from app.core.models import Tenant
+
+    tenant = await db.get(Tenant, tenant_id)
+    return WebhookSettingsOut(
+        orders_webhook_url=f"{base_url}/api/v1/webhooks/orders/{slug}",
+        orders_webhook_secret_set=bool(tenant and tenant.orders_webhook_secret),
+    )
+
+
+async def rotate_erp_webhook_secret(
+    db: AsyncSession, tenant_id: uuid.UUID, base_url: str, slug: str
+) -> WebhookSettingsOut:
+    import secrets as _secrets
+    from app.core.models import Tenant
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise LookupError("Tenant not found")
+
+    tenant.orders_webhook_secret = _secrets.token_urlsafe(32)
+    await db.flush()
+
+    return WebhookSettingsOut(
+        orders_webhook_url=f"{base_url}/api/v1/webhooks/orders/{slug}",
+        orders_webhook_secret_set=True,
     )
 
 
