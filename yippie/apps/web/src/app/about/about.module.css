@@ -124,6 +124,10 @@
 
 @media (max-width: 520px) {
   .founderPill {
-    flex-direction: row;
+    flex-wrap: wrap;
+    max-width: 100%;
+  }
+  .founderName {
+    font-size: 12.5px;
   }
 }

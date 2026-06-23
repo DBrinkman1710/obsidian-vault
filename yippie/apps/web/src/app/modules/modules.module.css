@@ -354,5 +354,5 @@
 
 @media (max-width: 520px) {
   .frameUrl { display: none; }
-  .navLink { padding: 12px 10px; font-size: 10.5px; }
+  .navLink { padding: 12px 10px; font-size: 10.5px; min-height: 44px; }
 }

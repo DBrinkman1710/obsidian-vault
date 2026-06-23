@@ -293,3 +293,10 @@
 @media (max-width: 720px) {
   .demo { grid-template-columns: 1fr; }
 }
+
+@media (max-width: 520px) {
+  .textarea { max-height: 120px; }
+  .runBtn { padding: 15px 24px; min-height: 48px; }
+  .approveBtn { padding: 11px 18px; min-height: 44px; }
+  .editBtn { padding: 11px 16px; min-height: 44px; }
+}

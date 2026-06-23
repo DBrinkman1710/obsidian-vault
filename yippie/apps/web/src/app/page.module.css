@@ -513,4 +513,6 @@
 
 @media (max-width: 520px) {
   .frameUrl { display: none; }
+  .trustRow { gap: 10px 20px; }
+  .trustName, .trustNamePlaceholder { font-size: 15px; }
 }

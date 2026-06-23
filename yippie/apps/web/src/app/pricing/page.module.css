@@ -408,9 +408,8 @@
   .addOnsGrid { grid-template-columns: repeat(2, 1fr); max-width: 560px; }
 }
 @media (max-width: 560px) {
+  .hero { padding-top: 88px; padding-bottom: 40px; }
   .plansGrid { grid-template-columns: 1fr; max-width: 420px; }
-}
-@media (max-width: 560px) {
   .addOnsGrid { grid-template-columns: 1fr; max-width: 420px; }
   .addOnDesc { min-height: 0; }
 }
