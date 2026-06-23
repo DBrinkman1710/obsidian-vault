@@ -4,9 +4,7 @@ import json
 from dataclasses import dataclass, field
 from typing import Optional
 
-import anthropic
-
-from app.config import get_settings
+from app.modules.ai.client import ai_completion
 
 LANGUAGE_NAMES = {
     "en": "English", "nl": "Dutch", "fr": "French", "de": "German",
@@ -24,14 +22,6 @@ class AIScanResult:
     language: str = field(default="en")
 
 
-def _client() -> anthropic.AsyncAnthropic:
-    return anthropic.AsyncAnthropic(api_key=get_settings().anthropic_api_key)
-
-
-def _model() -> str:
-    return get_settings().ai_model
-
-
 def _strip_fences(text: str) -> str:
     if text.startswith("```"):
         lines = text.split("\n")
@@ -42,15 +32,6 @@ def _strip_fences(text: str) -> str:
 
 # Cap the body sent to the model to bound cost/latency on very large emails.
 MAX_SCAN_BODY_CHARS = 8000
-
-
-def _message_text(message) -> str:
-    """Safely extract text from an Anthropic response that may have empty/non-text content."""
-    for block in getattr(message, "content", None) or []:
-        text = getattr(block, "text", None)
-        if text:
-            return text.strip()
-    return ""
 
 
 def _parse_json(text: str, fallback):
@@ -84,11 +65,8 @@ Priority guidance:
 - medium: normal request or question
 - low: general inquiry, feedback"""
 
-    message = await _client().messages.create(
-        model=_model(), max_tokens=512,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    data = _parse_json(_message_text(message), fallback={})
+    text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=512)
+    data = _parse_json(text, fallback={})
     if not isinstance(data, dict):
         data = {}
     return AIScanResult(
@@ -143,11 +121,7 @@ RECENT TICKET HISTORY (newest first):
 
 Return 4-6 short keywords or phrases, comma-separated, capturing who this customer is and what matters most right now (e.g. "VIP customer, overdue invoice, 3rd complaint this month, prefers Dutch"). No full sentences, no bullet points, no labels — just the comma-separated list."""
 
-    message = await _client().messages.create(
-        model=_model(), max_tokens=80,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return _message_text(message)
+    return await ai_completion([{"role": "user", "content": prompt}], max_tokens=80)
 
 
 async def generate_reply_draft(
@@ -170,11 +144,7 @@ Issue: {description}{context_block}
 
 Begin with: {greeting},"""
 
-    message = await _client().messages.create(
-        model=_model(), max_tokens=400,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    return _message_text(message)
+    return await ai_completion([{"role": "user", "content": prompt}], max_tokens=400)
 
 
 async def generate_reply_improvements(
@@ -198,19 +168,15 @@ Current reply:
 Return a JSON array of up to 3 objects:
 [{{"label": "short description e.g. More empathetic tone", "revised_text": "complete rewrite of the reply in {lang_name}"}}]"""
 
-    message = await _client().messages.create(
-        model=_model(), max_tokens=1200,
-        messages=[{"role": "user", "content": prompt}],
-    )
-    parsed = _parse_json(_message_text(message), fallback=[])
+    text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=1200)
+    parsed = _parse_json(text, fallback=[])
     return parsed[:3] if isinstance(parsed, list) else []
 
 
 async def generate_compose_suggestion(prompt: str) -> dict:
     """Generate email subject + body from a plain-text brief."""
-    message = await _client().messages.create(
-        model=_model(), max_tokens=512,
-        messages=[{
+    text = await ai_completion(
+        [{
             "role": "user",
             "content": (
                 f"Write a professional customer service email based on this brief:\n\n{prompt}\n\n"
@@ -218,8 +184,8 @@ async def generate_compose_suggestion(prompt: str) -> dict:
                 "Keep the body concise and friendly. Sign off as 'The Support Team'."
             ),
         }],
+        max_tokens=512,
     )
-    text = _message_text(message)
     data = _parse_json(text, fallback=None)
     if isinstance(data, dict):
         return {"subject": data.get("subject", ""), "body": data.get("body", "")}

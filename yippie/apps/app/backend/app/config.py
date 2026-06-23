@@ -19,6 +19,12 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 60 * 8
     anthropic_api_key: str = ""
     ai_model: str = "claude-haiku-4-5-20251001"
+    # AI provider routing: "anthropic" (default) | "deepseek-api" | "self-hosted"
+    ai_provider: str = "anthropic"
+    # DeepSeek API key — used when ai_provider="deepseek-api"; set AI_MODEL=deepseek-chat
+    deepseek_api_key: str = ""
+    # Self-hosted OpenAI-compatible endpoint — used when ai_provider="self-hosted"
+    ai_base_url: str = ""
     environment: str = "development"
     resend_api_key: str = ""
     resend_from: str = ""

@@ -15,6 +15,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.modules.ai.client import ai_completion
 from app.modules.marketing import service
 
 log = logging.getLogger(__name__)
@@ -30,25 +31,14 @@ _PROMPT = (
 
 
 async def classify_reply(body: str) -> str:
-    """Classify a reply body via Claude Haiku. Falls back to 'Other'."""
-    settings = get_settings()
-    if not settings.anthropic_api_key or not (body or "").strip():
+    """Classify a reply body via the configured AI provider. Falls back to 'Other'."""
+    if not (body or "").strip():
         return "Other"
     try:
-        import anthropic
-
-        client = anthropic.AsyncAnthropic(api_key=settings.anthropic_api_key)
-        message = await client.messages.create(
-            model=settings.ai_model,
+        text = await ai_completion(
+            [{"role": "user", "content": _PROMPT + body[:4000]}],
             max_tokens=16,
-            messages=[{"role": "user", "content": _PROMPT + body[:4000]}],
         )
-        text = ""
-        for block in getattr(message, "content", None) or []:
-            t = getattr(block, "text", None)
-            if t:
-                text += t
-        text = text.strip()
         for label in _LABELS:
             if label.lower() in text.lower():
                 return label
