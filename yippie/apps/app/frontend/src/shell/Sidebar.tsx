@@ -158,8 +158,8 @@ export function Sidebar() {
     staleTime: 60_000,
   })
 
-  const unreadCount: number = draftCount?.unread ?? draftCount?.pending ?? 0
-  const badgeLabel = unreadCount === 0 ? null : unreadCount > 9 ? '9+' : String(unreadCount)
+  const pendingCount: number = draftCount?.pending ?? 0
+  const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
   const redCount: number = deadlineData?.red ?? 0
   const orangeCount: number = deadlineData?.orange ?? 0
   const redBadge = redCount === 0 ? null : redCount > 9 ? '9+' : String(redCount)

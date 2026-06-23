@@ -67,7 +67,7 @@ export function Checkbox({ checked, indeterminate = false, onChange, size = 18, 
       tabIndex={0}
       aria-checked={indeterminate ? 'mixed' : checked}
       aria-label={ariaLabel}
-      onClick={onChange}
+      onClick={e => { e.stopPropagation(); onChange(e) }}
       onKeyDown={handleKey}
       style={{ display: 'inline-flex', flexShrink: 0, cursor: 'pointer', lineHeight: 0, borderRadius: 5 }}
     >
