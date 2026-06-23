@@ -185,11 +185,13 @@
   z-index: 1;
 }
 
-/* Placeholder sits behind the image; visible only before image loads */
+/* Placeholder sits behind the image; visible only before image loads.
+   pointer-events: none so it never intercepts clicks meant for the lightbox trigger. */
 .screenshotPlaceholder {
   position: absolute;
   inset: 0;
   z-index: 0;
+  pointer-events: none;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -226,7 +228,7 @@
   padding: 0;
   border: 0;
   background: none;
-  cursor: zoom-in;
+  cursor: pointer;
 }
 
 .lightboxOverlay {
@@ -240,6 +242,8 @@
   background: rgba(0, 0, 0, 0.8);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+  cursor: default;
+  pointer-events: all;
 }
 
 .lightboxInner {

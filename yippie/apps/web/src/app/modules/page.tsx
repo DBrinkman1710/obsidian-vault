@@ -236,7 +236,7 @@ const modules: Module[] = [
   {
     id: "tracking",
     kicker: "TRACKING",
-    title: "Track & Trace — shipments in one view",
+    title: "Tracking — shipments in one view",
     desc: "Add shipment tracking numbers directly to contacts and tickets. Get live carrier updates for DHL, UPS, PostNL, and FedEx in your workspace — no more copy-pasting tracking links.",
     bullets: [
       "DHL, UPS, FedEx, and PostNL tracking out of the box",

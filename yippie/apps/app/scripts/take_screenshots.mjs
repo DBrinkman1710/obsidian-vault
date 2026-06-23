@@ -131,10 +131,34 @@ async function main() {
     try {
       await page.goto(`${BASE_URL}${path}`, { waitUntil: "domcontentloaded", timeout: 60000 });
       await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
-      await sleep(2500);
-      // Hide SLA overdue toast on every page (fixed element, no close button).
+      await sleep(2000);
+
+      // Per-page: click away every overlay widget before screenshotting.
+      try {
+        const skip = page.getByLabel("Skip tour");
+        if (await skip.isVisible({ timeout: 700 })) { await skip.click(); await sleep(350); }
+      } catch {}
+      try {
+        const dismiss = page.getByLabel("Dismiss");
+        if (await dismiss.isVisible({ timeout: 700 })) { await dismiss.click(); await sleep(350); }
+      } catch {}
+      // Nuke any remaining fixed overlay elements by text.
+      await hideFixed("Get started");
       await hideFixed("overdue tickets need attention");
+      await hideFixed("Demo environment");
       await sleep(200);
+
+      // Marketing: open the first completed campaign so its detail panel shows.
+      if (path === "/marketing") {
+        try {
+          const completedCampaign = page.locator("text=June Product Update").first();
+          if (await completedCampaign.isVisible({ timeout: 3000 })) {
+            await completedCampaign.click();
+            await sleep(1500); // wait for right panel to load
+          }
+        } catch { /* no campaign visible */ }
+      }
+
       await page.screenshot({ path: outPath, fullPage: false });
       console.log(`  + ${file}  (${path})`);
       ok++;

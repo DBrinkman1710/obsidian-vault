@@ -708,6 +708,155 @@ def seed_tracking_events(api: Api, contacts: list[dict]) -> None:
     print(f"  + {ok2} commerce events ingested")
 
 
+def seed_team_members(api: Api, tenant_id: str, superadmin_token: str) -> None:
+    """Add two extra admin users to the tenant via the superadmin-only endpoint.
+
+    AddAdminRequest accepts {email, password?, full_name} — there is no `role`
+    field; the endpoint always creates admins. Requires the superadmin token, so
+    we swap it in for these calls and restore the impersonation token after."""
+    print("\nSeeding team members...")
+    members = [
+        {"email": "thomas.berg@bright-horizons.demo", "full_name": "Thomas Berg", "password": "Demo2026!"},
+        {"email": "lisa.van.der.meer@bright-horizons.demo", "full_name": "Lisa van der Meer", "password": "Demo2026!"},
+    ]
+    imp_token = api.token
+    api.token = superadmin_token
+    try:
+        for m in members:
+            res = api.post(
+                f"/admin/tenants/{tenant_id}/users",
+                json=m,
+                ok=(200, 201, 409),
+                label=f"add user {m['email']}",
+            )
+            if res is not None:
+                print(f"  + team member {m['full_name']}")
+    finally:
+        api.token = imp_token
+
+
+def seed_calendar_month(api: Api) -> None:
+    """Add a fuller spread of June/July 2026 calendar events so the calendar
+    looks like a real, busy month rather than a handful of relative-date events."""
+    print("\nSeeding monthly calendar events...")
+
+    def at(year: int, month: int, d: int, hour: int, minute: int = 0) -> datetime:
+        return datetime(year, month, d, hour, minute, tzinfo=timezone.utc)
+
+    def ev(title: str, start: datetime, dur_min: int = 60):
+        return {
+            "title": title,
+            "start_at": iso(start),
+            "end_at": iso(start + timedelta(minutes=dur_min)),
+            "all_day": False,
+            "contact_id": None,
+            "calendar_type": "shared",
+            "notify_contact": False,
+        }
+
+    events = [
+        ev("Kickoff meeting TechVault",                 at(2026, 6, 3, 10, 0)),
+        ev("Maandelijks support review",                at(2026, 6, 9, 14, 0)),
+        ev("Nova Agency onboarding",                    at(2026, 6, 12, 11, 0)),
+        ev("Q2 retrospective",                          at(2026, 6, 16, 15, 30)),
+        ev("Booking: Sophie Visser — adviesgesprek",    at(2026, 6, 20, 9, 0)),
+        ev("Team standup",                              at(2026, 6, 24, 9, 0), 30),
+        ev("Demo Pro-plan — Liam de Boer",              at(2026, 6, 26, 14, 0)),
+        ev("Maandafsluiting facturatie",                at(2026, 7, 1, 10, 0)),
+    ]
+    for e in events:
+        res = api.post("/calendar/events", json=e, label=f"event {e['title'][:30]}")
+        if res:
+            print(f"  + event {e['title'][:40]}")
+
+
+def update_shipment_statuses(api: Api) -> None:
+    """Give the 4 seeded shipments a believable spread of statuses instead of all
+    sitting in 'registered'."""
+    print("\nUpdating shipment statuses...")
+    data = api.get("/shipments", ok=(200,), label="list shipments")
+    shipments = []
+    if isinstance(data, dict):
+        shipments = data.get("items", data.get("shipments", []))
+    elif isinstance(data, list):
+        shipments = data
+    if not shipments:
+        print("  (no shipments returned — skipped)")
+        return
+
+    # Order from the ShipmentStatus enum: registered, in_transit, out_for_delivery, delivered.
+    target_statuses = ["delivered", "in_transit", "out_for_delivery", "registered"]
+    for ship, new_status in zip(shipments, target_statuses):
+        sid = ship.get("id")
+        if not sid:
+            continue
+        res = api.patch(f"/shipments/{sid}", json={"status": new_status},
+                        ok=(200, 201), label=f"shipment {sid[:8]} -> {new_status}")
+        if res is not None:
+            print(f"  ~ shipment {sid[:8]} -> {new_status}")
+
+
+def seed_marketing_extra(api: Api) -> None:
+    """Add a few more marketing campaigns so the list looks like an ongoing
+    program — a couple sent/launched, one left as a draft."""
+    print("\nSeeding extra marketing campaigns...")
+    template_html = (
+        "<h1>Hallo {{name}}</h1>"
+        "<p>Een korte update vanuit het Bright Horizons-team.</p>"
+        "<p>Met vriendelijke groet,<br/>Bright Horizons</p>"
+    )
+
+    sent_campaigns = [
+        {"name": "April Nieuwsbrief", "subject": "Lente-update: nieuwe functies in april"},
+        {"name": "May Feature Highlights", "subject": "Wat is er nieuw in mei bij Bright Horizons"},
+    ]
+    for spec in sent_campaigns:
+        c = api.post("/marketing/campaigns",
+                     json={**spec, "dispatch_channel": "email"},
+                     label=f"campaign {spec['name']}")
+        if not c:
+            continue
+        print(f"  + campaign {spec['name']}")
+        api.post(f"/marketing/campaigns/{c['id']}/templates",
+                 json={"templates": [{"variant": None, "raw_html": template_html}]},
+                 ok=(200, 201), label=f"template ({spec['name']})")
+        launched = api.post(f"/marketing/campaigns/{c['id']}/launch", json={"enable_ab": False},
+                            ok=(200, 201), label=f"launch {spec['name']}")
+        if launched:
+            print(f"  ~ launched {spec['name']} -> {launched.get('status')}")
+
+    # One draft campaign (no launch).
+    c_draft = api.post("/marketing/campaigns",
+                       json={"name": "Q3 Webinar Invite", "subject": "Uitnodiging: webinar klantenservice automatiseren",
+                             "dispatch_channel": "email"},
+                       label="campaign Q3 Webinar Invite")
+    if c_draft:
+        print("  + campaign Q3 Webinar Invite (draft)")
+        api.post(f"/marketing/campaigns/{c_draft['id']}/templates",
+                 json={"templates": [{"variant": None,
+                                      "raw_html": "<h1>Webinar</h1><p>Hallo {{name}}, doe mee aan ons webinar.</p>"}]},
+                 ok=(200, 201), label="template (Q3 Webinar Invite)")
+
+
+def seed_chat(api: Api, tenant_id: str, superadmin_token: str) -> None:
+    """Inject realistic WhatsApp chat sessions via the superadmin-only seed-chat
+    endpoint. Swaps in the superadmin token for the call and restores after."""
+    print("\nSeeding chat sessions...")
+    imp_token = api.token
+    api.token = superadmin_token
+    try:
+        res = api.post(
+            f"/admin/tenants/{tenant_id}/seed-chat",
+            json={},
+            ok=(200, 201),
+            label="seed chat",
+        )
+    finally:
+        api.token = imp_token
+    if res:
+        print(f"  + {res.get('created', 0)} chat sessions created")
+
+
 # --------------------------------------------------------------------------- #
 # Main
 # --------------------------------------------------------------------------- #
@@ -741,22 +890,33 @@ def main() -> int:
         contacts_data = api.get("/contacts", ok=(200,), label="list contacts") or {}
         contacts = contacts_data.get("items", []) if isinstance(contacts_data, dict) else contacts_data
         seed_tracking_events(api, contacts)
+        # New overhaul steps (idempotent-ish; safe to re-run on an existing tenant).
+        seed_team_members(api, tenant_id, superadmin_token)
+        seed_calendar_month(api)
+        update_shipment_statuses(api)
+        seed_marketing_extra(api)
+        seed_chat(api, tenant_id, superadmin_token)
     else:
         companies = seed_companies(api)
         contacts = seed_contacts(api, companies)
         seed_departments(api)
+        seed_team_members(api, tenant_id, superadmin_token)
         seed_tickets(api, contacts)
         seed_calendar(api, contacts)
+        seed_calendar_month(api)
         seed_pipeline(api, contacts)
         cleanup_default_pipeline_stages(api)
         seed_invoices(api, contacts)
         seed_subscriptions(api, contacts)
         seed_marketing(api)
+        seed_marketing_extra(api)
         seed_shipments(api, contacts)
+        update_shipment_statuses(api)
         seed_booking(api)
         dismiss_tour(api)
         seed_inbox(api, tenant_id, superadmin_token)
         seed_tracking_events(api, contacts)
+        seed_chat(api, tenant_id, superadmin_token)
 
     print("\n" + "=" * 27)
     print("=== DEMO TENANT READY ===")

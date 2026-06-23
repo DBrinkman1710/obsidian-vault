@@ -16,7 +16,7 @@ from sqlalchemy import select as sa_select
 from app.auth.dependencies import SuperAdminUser
 from app.config import get_settings
 from app.core.models import Tenant
-from app.database import get_db
+from app.database import get_db, set_tenant_context
 from app.modules.admin import schemas, service
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -481,4 +481,118 @@ async def seed_inbox_items(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
             created += 1
         except Exception:
             pass
+    return {"created": created}
+
+
+@router.post("/tenants/{tenant_id}/seed-chat", status_code=201)
+async def seed_chat_sessions(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
+    """Inject realistic WhatsApp chat sessions for demo/screenshot purposes (superadmin only).
+
+    Creates up to 3 WhatsApp sessions (one per contact that has a phone) with a
+    short, believable back-and-forth conversation. Idempotent-ish: skips a contact
+    if it already has an open WhatsApp session."""
+    from app.modules.chat.models import ChatMessage, ChatSession
+    from app.modules.contacts.models import Contact
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    await set_tenant_context(db, tenant_id)
+
+    # First 3 contacts that have a phone number.
+    contact_rows = await db.execute(
+        sa_select(Contact)
+        .where(
+            Contact.tenant_id == tenant_id,
+            Contact.phone.is_not(None),
+            Contact.deleted_at.is_(None),
+        )
+        .order_by(Contact.created_at)
+        .limit(3)
+    )
+    contacts = contact_rows.scalars().all()
+    if not contacts:
+        return {"created": 0, "detail": "No contacts with a phone number"}
+
+    # Three realistic Dutch WhatsApp conversations (visitor = customer, agent = support).
+    conversations = [
+        [
+            ("visitor", "Hoi! Ik heb een vraag over mijn bestelling, kan iemand me helpen?"),
+            ("agent", "Goedemiddag! Natuurlijk, waar gaat het over?"),
+            ("visitor", "Mijn pakket zou gisteren geleverd worden maar er is niets gekomen."),
+            ("agent", "Vervelend. Ik zie in het systeem dat de bezorging vertraagd is — het wordt vandaag voor 17:00 bezorgd."),
+            ("visitor", "Top, bedankt voor het snelle antwoord!"),
+            ("agent", "Graag gedaan! Laat het weten als er nog iets is. 👍"),
+        ],
+        [
+            ("visitor", "Goedemorgen, kan ik mijn abonnement upgraden naar het Growth-plan?"),
+            ("agent", "Goedemorgen! Zeker, dat kan ik direct voor je regelen."),
+            ("visitor", "Wat zijn de kosten daarvan per maand?"),
+            ("agent", "Het Growth-plan is €39 per maand, inclusief alle support-modules."),
+            ("visitor", "Prima, doe maar. Vanaf wanneer gaat dat in?"),
+            ("agent", "Ik zet het vandaag voor je klaar, het gaat per direct in. Je ontvangt een bevestiging per mail."),
+        ],
+        [
+            ("visitor", "Hallo, de factuur die ik ontving klopt volgens mij niet."),
+            ("agent", "Hallo! Ik kijk het graag voor je na. Welk factuurnummer betreft het?"),
+            ("visitor", "INV-0007, er staat 21% BTW maar het zou 9% moeten zijn."),
+            ("agent", "Je hebt gelijk, dat is een fout aan onze kant. Ik stuur je vandaag nog een gecorrigeerde factuur."),
+            ("visitor", "Fijn, dank je wel!"),
+        ],
+    ]
+
+    created = 0
+    base_time = datetime.now(timezone.utc) - timedelta(days=2)
+    for idx, contact in enumerate(contacts):
+        convo = conversations[idx % len(conversations)]
+        phone = (contact.phone or "").strip()
+
+        # Skip if an open WhatsApp session already exists for this contact.
+        existing = await db.scalar(
+            sa_select(ChatSession.id).where(
+                ChatSession.tenant_id == tenant_id,
+                ChatSession.contact_id == contact.id,
+                ChatSession.source == "whatsapp",
+                ChatSession.is_open == True,  # noqa: E712
+            )
+        )
+        if existing:
+            continue
+
+        # Stagger sessions a few hours apart so the list looks organic.
+        started = base_time + timedelta(hours=idx * 5)
+        # The last message from the customer is unread; agent-ended convos are read.
+        last_sender = convo[-1][0]
+        unread = 1 if last_sender == "visitor" else 0
+
+        session = ChatSession(
+            tenant_id=tenant_id,
+            source="whatsapp",
+            visitor_id=phone,
+            visitor_name=contact.full_name,
+            whatsapp_phone=phone,
+            contact_id=contact.id,
+            status="open",
+            is_open=True,
+            unread_count=unread,
+            started_at=started,
+        )
+        db.add(session)
+        await db.flush()
+
+        for m_idx, (sender_type, body) in enumerate(convo):
+            msg = ChatMessage(
+                tenant_id=tenant_id,
+                session_id=session.id,
+                sender_type=sender_type,
+                sender_id=phone if sender_type == "visitor" else "agent",
+                body=body,
+                created_at=started + timedelta(minutes=m_idx * 3),
+                msg_status="read" if sender_type == "agent" else "delivered",
+            )
+            db.add(msg)
+        created += 1
+
+    await db.commit()
     return {"created": created}
