@@ -3,6 +3,7 @@ sets their own password. Used by team invites, client onboarding and
 superadmin invites; the only path that creates password-less accounts."""
 from __future__ import annotations
 
+import html as _html
 import uuid
 from datetime import timedelta
 
@@ -53,17 +54,41 @@ async def send_invite_email(
 
 
 async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> None:
-    body = (
-        f"Hi {full_name},\n\n"
-        f"Demo sent.\n\n"
-        f"Enter your demo workspace here (one click, no password needed):\n{magic_link}\n\n"
-        f"Team Yippie"
+    first_name = full_name.split()[0] if full_name else full_name
+    safe_name = _html.escape(first_name)
+    safe_link = _html.escape(magic_link)
+
+    plain_body = (
+        f"Hi {first_name},\n\n"
+        f"Thank you for requesting a Yippie demo — really appreciate you taking the time.\n\n"
+        f"Your workspace is ready. Click the link below to get started (no password needed):\n{magic_link}\n\n"
+        f"If you have any questions while exploring, just reply to this email — I read everything.\n\n"
+        f"Looking forward to hearing what you think,\n"
+        f"Diederik\n"
+        f"Founder, Yippie"
     )
+
+    prerendered = (
+        f'<p style="margin:0 0 16px;">Hi {safe_name},</p>'
+        f'<p style="margin:0 0 16px;">Thank you for requesting a Yippie demo — really appreciate you taking the time.</p>'
+        f'<p style="margin:0 0 24px;">Your workspace is ready. Click the button below to get started — no password needed.</p>'
+        f'<div style="text-align:center;margin:32px 0;">'
+        f'<a href="{safe_link}" style="display:inline-block;background:#5BA4F5;color:#ffffff;'
+        f'text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">'
+        f'Open your Yippie workspace</a>'
+        f'</div>'
+        f'<p style="margin:24px 0 16px;">If you have any questions while you\'re exploring, just reply to this email — I read everything.</p>'
+        f'<p style="margin:0;">Looking forward to hearing what you think,<br><strong>Diederik</strong><br>'
+        f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
+    )
+
     await send_email(
         to=to,
-        subject="Your Yippie demo",
-        body=body,
-        html=render_email_html(body, tenant_name="Yippie"),
+        subject="Your Yippie workspace is ready",
+        body=plain_body,
+        html=render_email_html(prerendered_html=prerendered, tenant_name="Yippie"),
+        from_email="Diederik from Yippie <diederik@getyippie.com>",
+        reply_to="diederik@getyippie.com",
     )
 
 
