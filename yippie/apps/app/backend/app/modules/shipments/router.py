@@ -207,10 +207,7 @@ async def sendcloud_webhook(tenant_slug: str, request: Request, db: DB):
     if not tenant:
         return Response(status_code=200)
 
-    settings = get_settings()
-    if settings.environment not in ("development", "local", "test"):
-        if not tenant.sendcloud_api_secret:
-            return Response(status_code=200)
+    if tenant.sendcloud_api_secret:
         if not service.verify_sendcloud_signature(tenant.sendcloud_api_secret, body, signature):
             return Response(status_code=403, content="Invalid signature")
 
