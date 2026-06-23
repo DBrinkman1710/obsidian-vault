@@ -206,6 +206,34 @@ async def broadcast_to_tenant(
         raise HTTPException(status_code=400, detail=str(e))
 
 
+@router.post("/tenants/{tenant_id}/resend-domain", response_model=schemas.TenantOut)
+async def provision_resend_domain(
+    _: SuperAdminUser, db: DB, tenant_id: uuid.UUID, data: schemas.ProvisionDomainRequest
+):
+    """Register a custom sending domain in Resend for this tenant."""
+    try:
+        return await service.provision_resend_domain(db, tenant_id, data.domain)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Resend API error: {e}")
+
+
+@router.post("/tenants/{tenant_id}/resend-domain/verify", response_model=schemas.TenantOut)
+async def verify_resend_domain(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
+    """Trigger DNS re-check for the tenant's Resend domain and refresh its status."""
+    try:
+        return await service.verify_resend_domain(db, tenant_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"Resend API error: {e}")
+
+
 @router.get("/unsubscribe/{token}")
 async def unsubscribe(token: str, db: DB):
     """Public — a contact clicks this from a broadcast email to opt out. No auth."""

@@ -461,6 +461,84 @@ async def broadcast_to_tenant(
     )
 
 
+async def provision_resend_domain(
+    db: AsyncSession, tenant_id: uuid.UUID, domain: str
+) -> Tenant:
+    """Register a custom sending domain in Resend and store the DNS records on the tenant."""
+    import httpx
+
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.resend_api_key:
+        raise ValueError("RESEND_API_KEY is not configured")
+
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise LookupError("Tenant not found")
+
+    domain = domain.strip().lower()
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            "https://api.resend.com/domains",
+            headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+            json={"name": domain},
+            timeout=15,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+    tenant.resend_domain_id = data["id"]
+    tenant.resend_domain_name = data["name"]
+    tenant.resend_domain_status = data.get("status", "not_started")
+    tenant.resend_domain_records = data.get("records", [])
+    await db.commit()
+    await db.refresh(tenant)
+    return tenant
+
+
+async def verify_resend_domain(db: AsyncSession, tenant_id: uuid.UUID) -> Tenant:
+    """Ask Resend to re-check the DNS records and update the domain status."""
+    import httpx
+
+    from app.config import get_settings
+
+    settings = get_settings()
+    if not settings.resend_api_key:
+        raise ValueError("RESEND_API_KEY is not configured")
+
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise LookupError("Tenant not found")
+    if not tenant.resend_domain_id:
+        raise ValueError("No Resend domain provisioned for this tenant")
+
+    async with httpx.AsyncClient() as client:
+        # Trigger re-verification
+        verify_resp = await client.post(
+            f"https://api.resend.com/domains/{tenant.resend_domain_id}/verify",
+            headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+            timeout=15,
+        )
+        verify_resp.raise_for_status()
+
+        # Fetch updated status + records
+        get_resp = await client.get(
+            f"https://api.resend.com/domains/{tenant.resend_domain_id}",
+            headers={"Authorization": f"Bearer {settings.resend_api_key}"},
+            timeout=15,
+        )
+        get_resp.raise_for_status()
+        data = get_resp.json()
+
+    tenant.resend_domain_status = data.get("status", tenant.resend_domain_status)
+    tenant.resend_domain_records = data.get("records", tenant.resend_domain_records)
+    await db.commit()
+    await db.refresh(tenant)
+    return tenant
+
+
 async def opt_out_contact(db: AsyncSession, token: str) -> bool:
     """Flip broadcast_opted_out for the contact encoded in the unsubscribe token."""
     try:

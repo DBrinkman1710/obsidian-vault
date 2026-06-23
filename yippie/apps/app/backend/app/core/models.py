@@ -78,6 +78,12 @@ class Tenant(Base):
     whatsapp_phone_number_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     whatsapp_access_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     whatsapp_verify_token: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Resend custom sending domain — provisioned via superadmin and verified by the client adding DNS records.
+    # resend_domain_records holds the list of DNS records returned by the Resend API (SPF, DKIM, …).
+    resend_domain_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    resend_domain_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    resend_domain_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    resend_domain_records: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     users: Mapped[list[User]] = relationship("User", back_populates="tenant")

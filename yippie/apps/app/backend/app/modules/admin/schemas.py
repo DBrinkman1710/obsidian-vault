@@ -62,6 +62,10 @@ class TenantOut(BaseModel):
     whatsapp_access_token: Optional[str]
     whatsapp_verify_token: Optional[str]
     ai_auto_scan: bool = False
+    resend_domain_id: Optional[str] = None
+    resend_domain_name: Optional[str] = None
+    resend_domain_status: Optional[str] = None
+    resend_domain_records: Optional[list] = None
     user_count: int
     created_at: datetime
 
@@ -124,6 +128,10 @@ class InviteSuperadminRequest(BaseModel):
 class BulkModuleRequest(BaseModel):
     module: str
     enabled: bool
+
+
+class ProvisionDomainRequest(BaseModel):
+    domain: str
 
 
 class BroadcastRequest(BaseModel):
