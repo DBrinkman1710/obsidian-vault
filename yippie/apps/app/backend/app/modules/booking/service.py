@@ -224,6 +224,7 @@ async def create_booking_token(
         message=data.message,
         expires_at=_now() + timedelta(days=settings.booking_expiry_days),
         stage_id_override=data.stage_id_override,
+        from_email=data.from_email or None,
     )
     db.add(token)
     await db.commit()
@@ -469,7 +470,15 @@ async def _send_booking_invitation(
             logo_url=tenant.logo_url if tenant else None,
             prerendered_html=content,
         )
-        await send_email(to=contact.email, subject=subject, body=body_text, html=html_body)
+        personal_email = getattr(token, "from_email", None)
+        await send_email(
+            to=contact.email,
+            subject=subject,
+            body=body_text,
+            html=html_body,
+            from_email=personal_email or None,
+            reply_to=personal_email or None,
+        )
     except Exception:  # noqa: BLE001 — notification must never break the request
         logger.exception("Failed to send booking invitation for token %s", getattr(token, "id", "?"))
 

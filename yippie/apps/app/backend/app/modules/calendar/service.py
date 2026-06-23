@@ -84,16 +84,31 @@ async def list_calendar_items(
     tenant_id: uuid.UUID,
     start: datetime,
     end: datetime,
+    calendar_type: Optional[str] = None,
+    user_id: Optional[uuid.UUID] = None,
 ) -> list[CalendarItem]:
-    """Standalone events plus open-ticket deadlines whose date falls in [start, end)."""
+    """Standalone events plus open-ticket deadlines whose date falls in [start, end).
+
+    calendar_type:
+      "shared"   — team events only (any creator)
+      "personal" — current user's personal events only (requires user_id)
+      None / "all" — all events
+    """
     # 1. Standalone events
+    filters = [
+        CalendarEvent.tenant_id == tenant_id,
+        CalendarEvent.start_at >= start,
+        CalendarEvent.start_at < end,
+    ]
+    if calendar_type == "shared":
+        filters.append(CalendarEvent.calendar_type == "shared")
+    elif calendar_type == "personal" and user_id is not None:
+        filters.append(CalendarEvent.calendar_type == "personal")
+        filters.append(CalendarEvent.created_by == user_id)
+
     result = await db.execute(
         select(CalendarEvent)
-        .where(
-            CalendarEvent.tenant_id == tenant_id,
-            CalendarEvent.start_at >= start,
-            CalendarEvent.start_at < end,
-        )
+        .where(*filters)
         .order_by(CalendarEvent.start_at)
     )
     events = list(result.scalars().all())
@@ -114,6 +129,8 @@ async def list_calendar_items(
             contact_name=contact_names.get(e.contact_id) if e.contact_id else None,
             ticket_id=e.ticket_id,
             ticket_subject=ticket_subjects.get(e.ticket_id) if e.ticket_id else None,
+            calendar_type=e.calendar_type,
+            created_by=e.created_by,
         )
         for e in events
     ]

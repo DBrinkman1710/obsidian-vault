@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../api/client'
+import { useAuth } from '../../auth/useAuth'
 
 interface CalendarSettings {
   work_start_hour: number
@@ -42,9 +43,11 @@ function fmtSlot(start: Date, end: Date): string {
 
 export default function SendBookingModal({ contacts = [], bulk = false, open, onClose }: Props) {
   const today = new Date()
+  const user = useAuth(s => s.user)
   const [mode, setMode] = useState<'open' | 'propose'>('open')
   const [message, setMessage] = useState('')
   const [stageIdOverride, setStageIdOverride] = useState<string>('')
+  const [sendFromPersonal, setSendFromPersonal] = useState(false)
   const [sending, setSending] = useState(false)
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -132,6 +135,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
           ? slots.map(s => ({ start: s.start, end: s.end }))
           : undefined,
         stage_id_override: stageIdOverride || undefined,
+        from_email: sendFromPersonal && user?.reply_from_email ? user.reply_from_email : undefined,
       }
       await Promise.all(
         effectiveContacts.map(c => api.post('/booking/send', { ...payload, contact_id: c.id })),
@@ -147,7 +151,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
   }
 
   function reset() {
-    setMode('open'); setMessage(''); setStageIdOverride(''); setSlots([]); setActiveDay(null)
+    setMode('open'); setMessage(''); setStageIdOverride(''); setSendFromPersonal(false); setSlots([]); setActiveDay(null)
     setYear(today.getFullYear()); setMonth(today.getMonth())
     setPickedContact(null); setContactQuery('')
   }
@@ -356,6 +360,20 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                 ))}
               </select>
             </div>
+          )}
+
+          {user?.reply_from_email && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={sendFromPersonal}
+                onChange={e => setSendFromPersonal(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              />
+              <span className="text-sm text-slate-700 font-medium">
+                Send from <span className="text-slate-500 font-normal">{user.reply_from_email}</span>
+              </span>
+            </label>
           )}
 
           <div>

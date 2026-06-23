@@ -23,6 +23,8 @@ interface CalendarItem {
   ticket_subject: string | null
   ticket_status: string | null
   ticket_priority: string | null
+  calendar_type: string | null
+  created_by: string | null
 }
 
 interface EventPayload {
@@ -33,7 +35,10 @@ interface EventPayload {
   all_day: boolean
   contact_id: string | null
   ticket_id: string | null
+  calendar_type: string
 }
+
+type CalendarTypeFilter = 'all' | 'shared' | 'personal'
 
 interface PickerOption { id: string; label: string }
 
@@ -178,6 +183,8 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
   const [endTime, setEndTime] = useState(end && !event?.all_day ? toTimeInput(end) : '')
   const [allDay, setAllDay] = useState(event?.all_day ?? false)
   const [description, setDescription] = useState(event?.description ?? '')
+  const [calendarType, setCalendarType] = useState<'shared' | 'personal'>(
+    (event?.calendar_type as 'shared' | 'personal') ?? 'shared')
   const [contact, setContact] = useState<PickerOption | null>(
     event?.contact_id ? { id: event.contact_id, label: event.contact_name ?? 'Linked contact' } : null)
   const [ticket, setTicket] = useState<PickerOption | null>(
@@ -218,6 +225,7 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
       all_day: allDay,
       contact_id: contact?.id ?? null,
       ticket_id: ticket?.id ?? null,
+      calendar_type: calendarType,
     })
   }
 
@@ -265,6 +273,20 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
               className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
             <span className="text-sm text-slate-700 font-medium">All day</span>
           </label>
+
+          <div>
+            <label className={labelCls}>Visibility</label>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setCalendarType('shared')}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${calendarType === 'shared' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                Shared (team)
+              </button>
+              <button type="button" onClick={() => setCalendarType('personal')}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${calendarType === 'personal' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                Personal (only me)
+              </button>
+            </div>
+          </div>
 
           <div>
             <label className={labelCls}>Description</label>
@@ -827,6 +849,7 @@ export default function CalendarPage() {
     mutationFn: (id: string) => api.delete(`/calendar/events/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar-items'] }),
   })
+  const [calendarTypeFilter, setCalendarTypeFilter] = useState<CalendarTypeFilter>('all')
   const [bookingsOpen, setBookingsOpen] = useState(false)
   const [newBookingOpen, setNewBookingOpen] = useState(false)
   const [bookingSettingsOpen, setBookingSettingsOpen] = useState(false)
@@ -843,9 +866,13 @@ export default function CalendarPage() {
   const rangeEnd = new Date(days[41].getFullYear(), days[41].getMonth(), days[41].getDate() + 1)
 
   const { data, isLoading } = useQuery({
-    queryKey: ['calendar-items', dateKey(rangeStart), dateKey(rangeEnd)],
+    queryKey: ['calendar-items', dateKey(rangeStart), dateKey(rangeEnd), calendarTypeFilter],
     queryFn: () => api.get<{ items: CalendarItem[] }>('/calendar/items', {
-      params: { start: rangeStart.toISOString(), end: rangeEnd.toISOString() },
+      params: {
+        start: rangeStart.toISOString(),
+        end: rangeEnd.toISOString(),
+        ...(calendarTypeFilter !== 'all' ? { calendar_type: calendarTypeFilter } : {}),
+      },
     }).then(r => r.data.items),
   })
 
@@ -901,6 +928,23 @@ export default function CalendarPage() {
             <Plus size={15} strokeWidth={2.5} /> New event
           </button>
         </div>
+      </div>
+
+      {/* Calendar type filter */}
+      <div className="flex items-center gap-1 mb-4">
+        {(['all', 'shared', 'personal'] as CalendarTypeFilter[]).map(t => (
+          <button
+            key={t}
+            onClick={() => setCalendarTypeFilter(t)}
+            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors capitalize ${
+              calendarTypeFilter === t
+                ? 'bg-blue-600 text-white'
+                : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {t === 'all' ? 'All events' : t === 'shared' ? 'Shared' : 'Personal'}
+          </button>
+        ))}
       </div>
 
       {bookingEnabled && bookingsOpen && (
