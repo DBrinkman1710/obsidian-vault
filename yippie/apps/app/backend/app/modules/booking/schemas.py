@@ -59,6 +59,7 @@ class BookingTokenCreate(BaseModel):
     proposed_slots: Optional[list[SlotProposal]] = None
     message: Optional[str] = None
     stage_id_override: Optional[uuid.UUID] = None
+    from_email: Optional[str] = None
 
     @model_validator(mode="after")
     def _propose_requires_slots(self) -> "BookingTokenCreate":

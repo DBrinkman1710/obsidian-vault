@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,10 +29,15 @@ async def list_items(
     db: DB,
     start: datetime = Query(..., description="Range start (ISO 8601, inclusive)"),
     end: datetime = Query(..., description="Range end (ISO 8601, exclusive)"),
+    calendar_type: Optional[str] = Query(None, description="Filter: shared | personal | all"),
 ):
     if end <= start:
         raise HTTPException(status_code=400, detail="end must be after start")
-    items = await service.list_calendar_items(db, current_user.tenant_id, start, end)
+    items = await service.list_calendar_items(
+        db, current_user.tenant_id, start, end,
+        calendar_type=calendar_type,
+        user_id=current_user.id,
+    )
     return CalendarItemList(items=items)
 
 

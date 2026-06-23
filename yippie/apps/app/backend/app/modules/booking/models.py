@@ -75,6 +75,7 @@ class BookingToken(Base):
         ForeignKey("pipeline_stages.id", ondelete="SET NULL"),
         nullable=True,
     )
+    from_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

@@ -15,6 +15,7 @@ class CalendarEventCreate(BaseModel):
     all_day: bool = False
     contact_id: Optional[uuid.UUID] = None
     ticket_id: Optional[uuid.UUID] = None
+    calendar_type: str = "shared"
     # Request-only: when True (default) and a contact is linked, the contact is
     # emailed an invitation/notification. Not persisted to the DB.
     notify_contact: bool = True
@@ -34,6 +35,7 @@ class CalendarEventUpdate(BaseModel):
     all_day: Optional[bool] = None
     contact_id: Optional[uuid.UUID] = None
     ticket_id: Optional[uuid.UUID] = None
+    calendar_type: Optional[str] = None
     # Request-only: suppress the contact notification on update. Not persisted.
     notify_contact: bool = True
 
@@ -51,6 +53,7 @@ class CalendarEventOut(BaseModel):
     ticket_id: Optional[uuid.UUID] = None
     ticket_subject: Optional[str] = None
     created_by: uuid.UUID
+    calendar_type: str = "shared"
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -71,6 +74,8 @@ class CalendarItem(BaseModel):
     contact_name: Optional[str] = None
     ticket_id: Optional[uuid.UUID] = None
     ticket_subject: Optional[str] = None
+    calendar_type: Optional[str] = None  # "shared" | "personal" — None for deadline items
+    created_by: Optional[uuid.UUID] = None
     # Deadline-only context, used by the UI for urgency colouring
     ticket_status: Optional[str] = None
     ticket_priority: Optional[str] = None
