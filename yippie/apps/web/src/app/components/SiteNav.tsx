@@ -9,7 +9,6 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 const links = [
   { href: "/", label: "Home" },
   { href: "/modules", label: "Product" },
-  { href: "/for-smbs", label: "Use cases" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
   { href: "/blog", label: "Blog" },
@@ -31,7 +30,6 @@ export default function SiteNav() {
     return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
-  // Lock body scroll while the mobile sheet is open.
   useEffect(() => {
     document.body.style.overflow = open ? "hidden" : "";
     return () => {
@@ -53,14 +51,25 @@ export default function SiteNav() {
               <a href={l.href}>{l.label}</a>
             </li>
           ))}
+          <li className={styles.navDropdown}>
+            <button type="button" className={styles.navDropdownTrigger} tabIndex={0}>
+              Use cases <span className={styles.navDropdownCaret} aria-hidden="true">▾</span>
+            </button>
+            <ul className={styles.navDropdownMenu}>
+              {useCaseLinks.map((l) => (
+                <li key={l.href}>
+                  <a href={l.href}>{l.label}</a>
+                </li>
+              ))}
+            </ul>
+          </li>
         </ul>
 
         <div className={styles.navRight}>
-          <a href={APP_URL} className={styles.navLogin}>Log in</a>
-          <a href={DEMO_URL} className={styles.navLogin}>Request demo</a>
-          <a href="/signup" className={styles.navCta}>
-            Sign up
-            <span aria-hidden="true">→</span>
+          <a href={`${APP_URL}/login`} className={styles.navLogin}>Log in</a>
+          <a href={DEMO_URL} className={styles.navLoginOutline}>Request demo</a>
+          <a href={`${APP_URL}/register`} className={styles.navCta}>
+            Sign up <span aria-hidden="true">→</span>
           </a>
         </div>
 
@@ -92,11 +101,14 @@ export default function SiteNav() {
             ))}
           </ul>
           <div className={styles.mobileActions}>
-            <a href={APP_URL} className={styles.mobileLogin} onClick={() => setOpen(false)}>
+            <a href={`${APP_URL}/login`} className={styles.mobileLogin} onClick={() => setOpen(false)}>
               Log in
             </a>
-            <a href={DEMO_URL} className={styles.navCta} onClick={() => setOpen(false)}>
-              Request demo →
+            <a href={DEMO_URL} className={styles.mobileLogin} onClick={() => setOpen(false)}>
+              Request demo
+            </a>
+            <a href={`${APP_URL}/register`} className={styles.navCta} onClick={() => setOpen(false)}>
+              Sign up →
             </a>
           </div>
         </div>

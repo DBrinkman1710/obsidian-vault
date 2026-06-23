@@ -176,7 +176,7 @@ export default function HomePage() {
         <div className={styles.heroGlow} aria-hidden="true" />
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src="/logo-blue-bg-mark.svg"
+          src="/logo-white-bg-mark.svg"
           alt=""
           aria-hidden="true"
           className={styles.heroLogoMark}

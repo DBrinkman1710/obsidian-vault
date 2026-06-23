@@ -68,6 +68,8 @@ export default function AboutPage() {
 
       {/* Hero */}
       <section className={styles.hero}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
         <Reveal>
           <p className={styles.eyebrow}>About</p>
           <h1 className={styles.heroTitle}>

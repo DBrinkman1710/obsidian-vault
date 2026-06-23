@@ -1,7 +1,22 @@
 export function AuthShell({ subtitle, children }: { subtitle: string; children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
+    <div className="relative min-h-screen bg-slate-50 flex items-center justify-center p-4 overflow-hidden">
+      <img
+        src="/logo-white-bg-mark.svg"
+        alt=""
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%) rotate(15deg)',
+          width: '780px',
+          opacity: 0.07,
+          pointerEvents: 'none',
+          userSelect: 'none',
+        }}
+      />
+      <div className="w-full max-w-sm relative z-10">
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-3">
             <img src="/logo.svg" alt="Yippie" className="h-24 w-auto" />

@@ -33,6 +33,19 @@
 }
 .hero > * { position: relative; z-index: 1; }
 
+.pageLogoMark {
+  position: absolute !important;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-12deg);
+  width: 960px;
+  height: auto;
+  opacity: 0.055;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0 !important;
+}
+
 .heroTag {
   display: inline-flex;
   align-items: center;

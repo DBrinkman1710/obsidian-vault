@@ -42,6 +42,8 @@ export default function BlogIndexPage() {
       <SiteNav />
 
       <section className={styles.hero}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
           Yippie blog
