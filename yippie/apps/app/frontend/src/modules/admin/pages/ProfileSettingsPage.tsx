@@ -29,9 +29,7 @@ export default function ProfileSettingsPage() {
     }).then(r => r.data),
     onSuccess: async () => {
       await refreshUser()
-      setSaved(true)
-      setError('')
-      setTimeout(() => setSaved(false), 3000)
+      window.location.reload()
     },
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to save — try again.'),
   })
