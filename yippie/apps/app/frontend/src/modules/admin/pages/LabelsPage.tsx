@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
+import { SendcloudSettingsCard } from '../../shipments/components/SendcloudSettingsCard'
 
 interface PipelineStage {
   id: string
@@ -454,6 +455,7 @@ export default function LabelsPage() {
       {isAdmin && <ContactLabelsCard />}
       {isAdmin && <LiveChatSettingsCard />}
       {isAdmin && <KanbanStagesPanel />}
+      {isAdmin && config?.enabled_modules?.includes('shipments') && <SendcloudSettingsCard />}
     </div>
   )
 }

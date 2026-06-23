@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
-  ChevronLeft, ChevronRight, Network, Megaphone, GripVertical,
+  ChevronLeft, ChevronRight, Network, Megaphone, GripVertical, Package,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -39,6 +39,7 @@ const MODULE_MAP: Record<string, { labelKey: TKey; Icon: LucideIcon; path: strin
   billing:  { labelKey: 'billing',  Icon: CreditCard,    path: '/billing' },
   chat:     { labelKey: 'livechat', Icon: MessageSquare, path: '/chat' },
   marketing: { labelKey: 'marketing', Icon: Megaphone,   path: '/marketing' },
+  shipments: { labelKey: 'shipments', Icon: Package,     path: '/tracking' },
 }
 
 const STORAGE_KEY = 'yippie:sidebarCollapsed'

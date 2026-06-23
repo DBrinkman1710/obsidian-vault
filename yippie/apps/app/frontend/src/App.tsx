@@ -35,6 +35,9 @@ const ProfileSettingsPage      = lazy(() => import('./modules/admin/pages/Profil
 const TemplatesPage            = lazy(() => import('./modules/admin/pages/TemplatesPage'))
 const SubscriptionPage         = lazy(() => import('./modules/admin/pages/SubscriptionPage'))
 
+const ShipmentList   = lazy(() => import('./modules/shipments/pages/ShipmentList'))
+const ShipmentDetail = lazy(() => import('./modules/shipments/pages/ShipmentDetail'))
+
 const TrackConfirmPage = lazy(() => import('./pages/TrackConfirmPage'))
 const RequestDemoPage = lazy(() => import('./pages/RequestDemoPage'))
 const DemoEnterPage = lazy(() => import('./pages/DemoEnterPage'))
@@ -250,6 +253,13 @@ export default function App() {
               {/* MarketingPage manages its own two-panel layout — no PagePad wrapper */}
               <Route path="/marketing" element={
                 <ModuleGate module="marketing"><MarketingPage /></ModuleGate>
+              } />
+
+              <Route path="/tracking" element={
+                <ModuleGate module="shipments"><PagePad><ShipmentList /></PagePad></ModuleGate>
+              } />
+              <Route path="/tracking/:id" element={
+                <ModuleGate module="shipments"><PagePad><ShipmentDetail /></PagePad></ModuleGate>
               } />
 
               <Route path="/settings" element={

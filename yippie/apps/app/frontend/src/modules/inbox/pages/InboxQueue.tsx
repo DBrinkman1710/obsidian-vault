@@ -1525,7 +1525,7 @@ export default function InboxQueue() {
         )}
 
         {activeTab !== 'sent' && isLoading && <CardListSkeleton rows={5} />}
-        {!isLoading && pageDrafts.length === 0 && activeTab === 'pending' && (
+        {!isLoading && allDrafts.length === 0 && activeTab === 'pending' && (
           <AllCaughtUp />
         )}
         {activeTab === 'processed' && !isLoading && allDrafts.length === 0 && (
@@ -1604,7 +1604,7 @@ export default function InboxQueue() {
                 return (
                   <div
                     key={d.id}
-                    className={`border flex items-start gap-3 transition-all ${mailbox === 'personal' ? 'p-3' : 'p-4'}`}
+                    className="border flex items-start gap-3 transition-all p-4"
                     style={{
                       borderRadius: 'var(--radius-md)',
                       borderColor: isFocused ? 'var(--brand)' : isSelected ? 'var(--brand-ring)' : 'var(--border-default)',
@@ -1653,7 +1653,7 @@ export default function InboxQueue() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1.5">
                           {SOURCE_ICON[d.source] ?? <Mail size={13} className="text-slate-400" />}
-                          <span className={`font-semibold text-slate-900 group-hover:text-blue-700 transition-colors ${mailbox === 'personal' ? 'text-xs' : 'text-sm'}`}>{d.ai_suggested_subject}</span>
+                          <span className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors text-sm">{d.ai_suggested_subject}</span>
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${PRIORITY_STYLES[d.ai_suggested_priority]}`}>
                             {d.ai_suggested_priority}
                           </span>

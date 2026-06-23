@@ -92,6 +92,10 @@ class Tenant(Base):
     # Rolling AI scan counter — reset to 0 at the start of each billing period.
     ai_scans_used_this_period: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     ai_scans_period_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Sendcloud shipping integration — public key + secret key per tenant.
+    # Secret is used for HMAC webhook verification; never returned raw to the frontend.
+    sendcloud_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)
+    sendcloud_api_secret: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     users: Mapped[list[User]] = relationship("User", back_populates="tenant")

@@ -30,6 +30,7 @@ from app.modules.tickets.automation.sla_escalation import start_scheduler as sta
 from app.modules.marketing.scheduler import start_scheduler as start_marketing_scheduler
 from app.modules.stripe_platform.router import router as stripe_router
 from app.modules.stripe_platform.webhooks import webhook_router as stripe_webhook_router
+from app.modules.shipments.router import webhook_router as shipments_webhook_router
 
 
 @asynccontextmanager
@@ -78,6 +79,8 @@ def create_app() -> FastAPI:
     app.include_router(emailtracking_webhook_router, prefix="/api/v1")
     # Public Stripe webhook — no auth, Stripe posts billing events here
     app.include_router(stripe_webhook_router, prefix="/api/v1")
+    # Public Sendcloud shipment webhook — no auth, Sendcloud POSTs here
+    app.include_router(shipments_webhook_router, prefix="/api/v1")
     # Legacy emailtracking outbound endpoint (MODULE-RENAME) — folded into the
     # marketing module as GET /marketing/outbound. Kept mounted (auth-gated, no
     # module gate) for backwards compatibility while the frontend transitions to
