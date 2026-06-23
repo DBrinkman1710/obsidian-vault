@@ -1339,7 +1339,7 @@ export default function InboxQueue() {
               onClick={() => handleTabSwitch(tab)}
               className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
                 activeTab === tab
-                  ? 'bg-slate-900 text-white'
+                  ? 'bg-yippie text-white'
                   : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
