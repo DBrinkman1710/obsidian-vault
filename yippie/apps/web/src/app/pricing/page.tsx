@@ -48,10 +48,25 @@ const plans: Plan[] = [
   },
   {
     tier: "Growth",
-    tagline: "For businesses scaling support",
+    tagline: "For growing teams handling real volume",
     monthly: PLAN_LIMITS.growth.priceMonthly,
     annual: PLAN_LIMITS.growth.priceAnnual,
     users: `${PLAN_LIMITS.growth.users} users`,
+    aiScans: "5,000 AI scans/mo",
+    included: [
+      ...CORE_FEATURES,
+      "5 users",
+      "Unlimited contacts",
+      "5,000 AI scans/mo",
+      "Add-ons à la carte",
+    ],
+  },
+  {
+    tier: "Pro",
+    tagline: "For established support operations",
+    monthly: PLAN_LIMITS.pro.priceMonthly,
+    annual: PLAN_LIMITS.pro.priceAnnual,
+    users: `${PLAN_LIMITS.pro.users} users`,
     aiScans: "10,000 AI scans/mo",
     included: [
       ...CORE_FEATURES,
@@ -95,19 +110,19 @@ const addOns = [
 // Guided questionnaire — customers answer a few questions about their business
 // and we recommend a plan (and add-ons). Each option carries the minimum plan
 // rank it requires; the recommendation is the highest rank across all answers.
-const PLAN_RANK = ["Starter", "Starter", "Growth", "Enterprise"] as const;
+const PLAN_RANK = ["Starter", "Growth", "Pro", "Enterprise"] as const;
 
 const teamOptions = [
-  { label: "Just me / 1–2 people", rank: 0 },
-  { label: "3–5 people", rank: 1 },
+  { label: "1–3 people", rank: 0 },
+  { label: "4–5 people", rank: 1 },
   { label: "6–10 people", rank: 2 },
   { label: "More than 10", rank: 3 },
 ];
 
 const contactOptions = [
   { label: "Under 500 messages/mo", rank: 0 },
-  { label: "500–2,000 messages/mo", rank: 1 },
-  { label: "2,000–10,000 messages/mo", rank: 2 },
+  { label: "500–5,000 messages/mo", rank: 1 },
+  { label: "5,000–10,000 messages/mo", rank: 2 },
   { label: "More than 10,000 messages/mo", rank: 3 },
 ];
 
