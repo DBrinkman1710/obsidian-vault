@@ -116,9 +116,9 @@ def main() -> None:
             )
 
         if bad:
-            lines.append(f"  MISSING parents (never applied — manual investigation needed): {bad}")
+            lines.append(f"  INFO: pending parents (will be applied by alembic before this merge): {bad}")
 
-        if stale or bad:
+        if stale:
             problems.append("\n".join(lines))
 
     if problems:
