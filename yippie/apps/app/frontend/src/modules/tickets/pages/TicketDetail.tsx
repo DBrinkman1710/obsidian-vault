@@ -825,6 +825,8 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
   }
 
   const shipmentsEnabled = config?.enabled_modules?.includes('tracking') ?? false
+  const salesEnabled = config?.enabled_modules?.includes('sales') ?? false
+  const saasEnabled  = config?.enabled_modules?.includes('saas') ?? false
 
   const { data: contact, isLoading: contactLoading } = useQuery({
     queryKey: ['contact', contactId],
@@ -847,6 +849,21 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
     queryKey: ['contact-shipments', contactId],
     queryFn: () => api.get('/shipments', { params: { contact_id: contactId, limit: 3 } }).then(r => r.data),
     enabled: !!contactId && shipmentsEnabled,
+  })
+  const { data: commerceEvents } = useQuery({
+    queryKey: ['contact-commerce-events', contactId],
+    queryFn: () => api.get(`/sales/contacts/${contactId}/events`, { params: { limit: 5 } }).then(r => r.data),
+    enabled: !!contactId && salesEnabled,
+  })
+  const { data: saasHealth } = useQuery({
+    queryKey: ['contact-saas-health', contactId],
+    queryFn: () => api.get(`/saas/contacts/${contactId}/health`).then(r => r.data).catch(() => null),
+    enabled: !!contactId && saasEnabled,
+  })
+  const { data: saasEvents } = useQuery({
+    queryKey: ['contact-saas-events', contactId],
+    queryFn: () => api.get(`/saas/contacts/${contactId}/events`, { params: { limit: 5 } }).then(r => r.data),
+    enabled: !!contactId && saasEnabled,
   })
 
   const recent = (drafts ?? []).slice(0, 5)
@@ -1052,6 +1069,82 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                     )}
                   </div>
                   <ShipmentStatusPill status={s.status} />
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Commerce activity card — Sales module */}
+      {contactId && salesEnabled && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
+          <div className="px-4 py-3 border-b border-slate-100">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Website activity</h3>
+          </div>
+          {(commerceEvents ?? []).length === 0 ? (
+            <p className="text-xs text-slate-400 px-4 py-4">No browsing data yet.</p>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {(commerceEvents ?? []).map((ev: any) => (
+                <div key={ev.id} className="px-4 py-2.5 flex items-center gap-2">
+                  <span className="text-[10px] font-semibold text-slate-500 bg-slate-100 rounded px-1.5 py-0.5 flex-shrink-0">
+                    {ev.event_type}
+                  </span>
+                  <span className="text-[10px] text-slate-500 truncate flex-1">
+                    {ev.properties?.url ?? ev.properties?.product ?? ''}
+                  </span>
+                  <span className="text-[10px] text-slate-400 flex-shrink-0">
+                    {new Date(ev.created_at).toLocaleDateString()}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SaaS health card — SAAS module */}
+      {contactId && saasEnabled && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
+          <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Product usage</h3>
+            {saasHealth && (
+              <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
+                saasHealth.color === 'green' ? 'bg-green-100 text-green-700' :
+                saasHealth.color === 'amber' ? 'bg-amber-100 text-amber-700' :
+                'bg-red-100 text-red-700'
+              }`}>
+                {saasHealth.score}/100
+              </span>
+            )}
+          </div>
+          {!saasHealth && (saasEvents ?? []).length === 0 ? (
+            <p className="text-xs text-slate-400 px-4 py-4">No product data yet.</p>
+          ) : (
+            <div className="px-4 py-3 space-y-2">
+              {saasHealth && (
+                <div className="flex items-center gap-2 text-xs text-slate-500">
+                  <span className="flex-shrink-0">Health score</span>
+                  <div className="flex-1 bg-slate-100 rounded-full h-1.5">
+                    <div
+                      className={`h-1.5 rounded-full ${saasHealth.color === 'green' ? 'bg-green-500' : saasHealth.color === 'amber' ? 'bg-amber-400' : 'bg-red-500'}`}
+                      style={{ width: `${saasHealth.score}%` }}
+                    />
+                  </div>
+                </div>
+              )}
+              {(saasEvents ?? []).slice(0, 4).map((ev: any) => (
+                <div key={ev.id} className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 rounded px-1.5 py-0.5 flex-shrink-0">
+                    {ev.event_type}
+                  </span>
+                  <span className="text-[10px] text-slate-500 truncate flex-1">
+                    {ev.properties?.feature ?? ev.properties?.step ?? ev.properties?.code ?? ''}
+                  </span>
+                  <span className="text-[10px] text-slate-400 flex-shrink-0">
+                    {new Date(ev.created_at).toLocaleDateString()}
+                  </span>
                 </div>
               ))}
             </div>

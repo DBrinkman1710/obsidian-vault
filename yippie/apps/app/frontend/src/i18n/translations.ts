@@ -14,6 +14,8 @@ export const translations = {
     marketing:   'Marketing',
     departments: 'Departments',
     tracking:    'Tracking',
+    sales:       'Sales',
+    saas:        'Product Analytics',
     // Sidebar settings nav
     profile:  'Profile',
     team:     'Team',
@@ -50,6 +52,8 @@ export const translations = {
     marketing:   'Marketing',
     departments: 'Afdelingen',
     tracking:    'Tracking',
+    sales:       'Sales',
+    saas:        'Product Analytics',
     // Sidebar settings nav
     profile:  'Profiel',
     team:     'Team',

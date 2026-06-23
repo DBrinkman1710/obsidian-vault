@@ -953,4 +953,123 @@ async def submit_lead(
             await _assign_stage(db, tenant.id, contact.id, stage.id)
 
     await db.commit()
+
+
+# ---------------------------------------------------------------------------
+# JS snippet ingest — [SALES-MOD1] + [SAAS-MOD1]
+# ---------------------------------------------------------------------------
+
+# Simple in-process rate limiter: max 200 calls per IP per minute.
+_track_rate: dict[str, list[float]] = defaultdict(list)
+_TRACK_RATE_LIMIT = 200
+_TRACK_RATE_WINDOW = 60  # seconds
+
+
+class TrackingEventIn(BaseModel):
+    event_type: str = Field(min_length=1, max_length=100)
+    properties: dict = {}
+    session_id: str | None = None
+    sdk_version: str | None = None
+
+
+class TrackingBatch(BaseModel):
+    token: uuid.UUID
+    anonymous_id: str = Field(default="", max_length=200)
+    contact_email: str | None = None
+    # 'saas' or 'commerce'; the snippet sets this automatically
+    event_domain: str = Field(default="saas", pattern="^(saas|commerce)$")
+    events: list[TrackingEventIn] = Field(default_factory=list, max_length=50)
+
+
+@router.post("/track", include_in_schema=False)
+async def track_events(
+    body: TrackingBatch,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Unauthenticated event ingest for sales.js and saas.js snippets.
+
+    Authenticates via Tenant.tracking_token; writes to saas_events; optionally
+    links anonymous_id → contact by email via saas_identity.
+    """
+    from app.modules.saas.models import SaasEvent, SaasIdentity
+    from app.modules.contacts.models import Contact
+
+    # Rate limit per IP
+    client_ip = request.client.host if request.client else "unknown"
+    now_ts = time.time()
+    bucket = _track_rate[client_ip]
+    bucket[:] = [t for t in bucket if now_ts - t < _TRACK_RATE_WINDOW]
+    if len(bucket) >= _TRACK_RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="Too many requests")
+    bucket.append(now_ts)
+
+    # Resolve tenant by tracking_token (no RLS needed — token lookup is global)
+    from app.core.models import Tenant as TenantModel
+    tenant_row = await db.execute(
+        select(TenantModel).where(TenantModel.tracking_token == body.token)
+    )
+    tenant = tenant_row.scalar_one_or_none()
+    if tenant is None:
+        raise HTTPException(status_code=401, detail="Invalid tracking token")
+    if not tenant.is_active:
+        raise HTTPException(status_code=403, detail="Tenant inactive")
+
+    # Optionally link anonymous_id → contact by email
+    contact_id: uuid.UUID | None = None
+    if body.contact_email:
+        await set_tenant_context(db, str(tenant.id))
+        contact_row = await db.execute(
+            select(Contact).where(
+                Contact.tenant_id == tenant.id,
+                Contact.email == body.contact_email.lower().strip(),
+                Contact.deleted_at.is_(None),
+            )
+        )
+        contact = contact_row.scalar_one_or_none()
+        if contact and body.anonymous_id:
+            # Upsert identity mapping
+            existing_identity = await db.execute(
+                select(SaasIdentity).where(
+                    SaasIdentity.tenant_id == tenant.id,
+                    SaasIdentity.anonymous_id == body.anonymous_id,
+                )
+            )
+            if not existing_identity.scalar_one_or_none():
+                db.add(SaasIdentity(
+                    tenant_id=tenant.id,
+                    anonymous_id=body.anonymous_id,
+                    contact_id=contact.id,
+                ))
+            contact_id = contact.id
+
+    # Resolve contact_id from existing identity mapping if not yet known
+    if contact_id is None and body.anonymous_id:
+        await set_tenant_context(db, str(tenant.id))
+        ident_row = await db.execute(
+            select(SaasIdentity).where(
+                SaasIdentity.tenant_id == tenant.id,
+                SaasIdentity.anonymous_id == body.anonymous_id,
+            )
+        )
+        ident = ident_row.scalar_one_or_none()
+        if ident:
+            contact_id = ident.contact_id
+
+    # Write events
+    await set_tenant_context(db, str(tenant.id))
+    for ev in body.events:
+        db.add(SaasEvent(
+            tenant_id=tenant.id,
+            contact_id=contact_id,
+            anonymous_id=body.anonymous_id,
+            event_domain=body.event_domain,
+            event_type=ev.event_type,
+            properties=ev.properties,
+            session_id=ev.session_id,
+            sdk_version=ev.sdk_version,
+        ))
+
+    await db.commit()
+    return {"ok": True, "ingested": len(body.events)}
     return {"ok": True}

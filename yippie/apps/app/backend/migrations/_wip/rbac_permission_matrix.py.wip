@@ -1,0 +1,100 @@
+"""add rbac_roles, rbac_user_roles, permissions_matrix for RBAC1
+
+Revision ID: r1b2c3d4e5f7
+Revises: z9a0b1c2d3e4
+Create Date: 2026-06-18
+
+asyncpg requires one SQL command per op.execute() (extended query protocol).
+"""
+from typing import Sequence, Union
+from alembic import op
+
+revision: str = 'r1b2c3d4e5f7'
+down_revision: Union[str, None] = 'z9a0b1c2d3e4'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    # --- enums ----------------------------------------------------------------
+    op.execute("CREATE TYPE IF NOT EXISTS perm_subject_type AS ENUM ('user', 'role', 'department')")
+    op.execute("CREATE TYPE IF NOT EXISTS access_level_enum AS ENUM ('full', 'view', 'restricted')")
+
+    # --- rbac_roles -----------------------------------------------------------
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS rbac_roles (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+            name VARCHAR(100) NOT NULL,
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        )
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_rbac_roles_tenant ON rbac_roles (tenant_id)")
+
+    op.execute("ALTER TABLE rbac_roles ENABLE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE rbac_roles FORCE ROW LEVEL SECURITY")
+    op.execute("DROP POLICY IF EXISTS tenant_isolation ON rbac_roles")
+    op.execute("""
+        CREATE POLICY tenant_isolation ON rbac_roles
+            USING     (tenant_id = app_tenant_id())
+            WITH CHECK (tenant_id = app_tenant_id())
+    """)
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON rbac_roles TO app_user")
+
+    # --- rbac_user_roles ------------------------------------------------------
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS rbac_user_roles (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id UUID NOT NULL,
+            user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            role_id UUID NOT NULL REFERENCES rbac_roles(id) ON DELETE CASCADE,
+            UNIQUE (user_id, role_id)
+        )
+    """)
+    op.execute("CREATE INDEX IF NOT EXISTS ix_rbac_user_roles_tenant ON rbac_user_roles (tenant_id)")
+    op.execute("CREATE INDEX IF NOT EXISTS ix_rbac_user_roles_user ON rbac_user_roles (user_id)")
+
+    op.execute("ALTER TABLE rbac_user_roles ENABLE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE rbac_user_roles FORCE ROW LEVEL SECURITY")
+    op.execute("DROP POLICY IF EXISTS tenant_isolation ON rbac_user_roles")
+    op.execute("""
+        CREATE POLICY tenant_isolation ON rbac_user_roles
+            USING     (tenant_id = app_tenant_id())
+            WITH CHECK (tenant_id = app_tenant_id())
+    """)
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON rbac_user_roles TO app_user")
+
+    # --- permissions_matrix ---------------------------------------------------
+    op.execute("""
+        CREATE TABLE IF NOT EXISTS permissions_matrix (
+            id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+            tenant_id UUID NOT NULL,
+            subject_type perm_subject_type NOT NULL,
+            subject_id UUID NOT NULL,
+            module VARCHAR(50) NOT NULL,
+            access_level access_level_enum NOT NULL DEFAULT 'full',
+            UNIQUE (tenant_id, subject_type, subject_id, module)
+        )
+    """)
+    op.execute(
+        "CREATE INDEX IF NOT EXISTS ix_permissions_matrix_lookup "
+        "ON permissions_matrix (tenant_id, subject_type, subject_id)"
+    )
+
+    op.execute("ALTER TABLE permissions_matrix ENABLE ROW LEVEL SECURITY")
+    op.execute("ALTER TABLE permissions_matrix FORCE ROW LEVEL SECURITY")
+    op.execute("DROP POLICY IF EXISTS tenant_isolation ON permissions_matrix")
+    op.execute("""
+        CREATE POLICY tenant_isolation ON permissions_matrix
+            USING     (tenant_id = app_tenant_id())
+            WITH CHECK (tenant_id = app_tenant_id())
+    """)
+    op.execute("GRANT SELECT, INSERT, UPDATE, DELETE ON permissions_matrix TO app_user")
+
+
+def downgrade() -> None:
+    op.execute("DROP TABLE IF EXISTS permissions_matrix")
+    op.execute("DROP TABLE IF EXISTS rbac_user_roles")
+    op.execute("DROP TABLE IF EXISTS rbac_roles")
+    op.execute("DROP TYPE IF EXISTS access_level_enum")
+    op.execute("DROP TYPE IF EXISTS perm_subject_type")

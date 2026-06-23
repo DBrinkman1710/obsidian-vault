@@ -46,6 +46,8 @@ const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
 const MeetPage = lazy(() => import('./pages/MeetPage'))
 const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage'))
 const MarketingPage = lazy(() => import('./pages/marketing/MarketingPage'))
+const SalesPage     = lazy(() => import('./pages/sales/SalesPage'))
+const SaasPage      = lazy(() => import('./pages/saas/SaasPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -260,6 +262,13 @@ export default function App() {
               } />
               <Route path="/tracking/:id" element={
                 <ModuleGate module="shipments"><PagePad><ShipmentDetail /></PagePad></ModuleGate>
+              } />
+
+              <Route path="/sales" element={
+                <ModuleGate module="sales"><PagePad><SalesPage /></PagePad></ModuleGate>
+              } />
+              <Route path="/saas" element={
+                <ModuleGate module="saas"><PagePad><SaasPage /></PagePad></ModuleGate>
               } />
 
               <Route path="/settings" element={

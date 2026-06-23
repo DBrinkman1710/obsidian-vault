@@ -28,6 +28,7 @@ from app.modules.marketing.public_router import router as marketing_tracking_rou
 from app.modules.inbox.email_poller import start_scheduler as start_email_poller
 from app.modules.tickets.automation.sla_escalation import start_scheduler as start_sla_scheduler
 from app.modules.marketing.scheduler import start_scheduler as start_marketing_scheduler
+from app.modules.saas.scheduler import start_scheduler as start_saas_scheduler
 from app.modules.stripe_platform.router import router as stripe_router
 from app.modules.stripe_platform.webhooks import webhook_router as stripe_webhook_router
 from app.modules.shipments.router import webhook_router as shipments_webhook_router
@@ -38,6 +39,7 @@ async def lifespan(app: FastAPI):
     start_sla_scheduler()
     start_email_poller()
     start_marketing_scheduler()
+    start_saas_scheduler()
     yield
 
 

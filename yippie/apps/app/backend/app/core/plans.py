@@ -91,6 +91,8 @@ MODULE_PRICES: dict[str, int] = {
     "marketing": 9,
     "departments": 7,
     "billing": 7,
+    "sales": 20,
+    "saas": 20,
 }
 
 
