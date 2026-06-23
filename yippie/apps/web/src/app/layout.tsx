@@ -42,8 +42,8 @@ export const metadata: Metadata = {
     "unlimited contacts",
   ],
   icons: {
-    icon: [{ url: "/icon.svg", type: "image/svg+xml" }],
-    apple: "/apple-icon.png",
+    icon: [{ url: "/favicon.svg", type: "image/svg+xml" }],
+    shortcut: "/favicon.svg",
   },
   openGraph: {
     title: "Yippie — Your growth partner in customer service",
