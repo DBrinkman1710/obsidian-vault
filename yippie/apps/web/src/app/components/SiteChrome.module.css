@@ -14,12 +14,13 @@
 }
 
 .navInner {
+  position: relative;
   width: 100%;
   height: 100%;
   padding: 0 24px 0 var(--gutter);
-  display: grid;
-  grid-template-columns: auto 1fr auto;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
 }
 
 .navScrolled {
@@ -37,9 +38,11 @@
 }
 
 .navLinks {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
-  justify-content: center;
   gap: 22px;
   list-style: none;
 }
@@ -283,9 +286,8 @@
 
 /* ── Responsive ──────────────────────────────── */
 @media (max-width: 860px) {
-  .navInner { grid-template-columns: auto auto; }
   .navLinks, .navRight { display: none; }
-  .burger { display: flex; justify-self: end; }
+  .burger { display: flex; }
   .footerInner { grid-template-columns: 1fr; gap: 36px; }
 
   /* Solid backgrounds on mobile — backdrop-filter is unreliable on iOS/Android */
