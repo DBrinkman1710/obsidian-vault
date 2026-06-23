@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import Reveal from "../components/Reveal";
 import contentStyles from "../components/content.module.css";
 import styles from "./modules.module.css";
+import Lightbox from "./Lightbox";
 import {
   InboxIcon,
   TicketIcon,
@@ -303,15 +303,7 @@ function ScreenshotFrame({
         </span>
       </div>
       <div className={styles.screenshotWrap}>
-        <Image
-          src={src}
-          alt={alt}
-          width={800}
-          height={500}
-          unoptimized
-          className={styles.screenshot}
-          onError={undefined}
-        />
+        <Lightbox src={src} alt={alt} imageClassName={styles.screenshot} />
         {/* Fallback overlay — visible only when image fails to load.
             We always render the Image; the placeholder is layered behind. */}
         <div className={styles.screenshotPlaceholder} aria-hidden="true">

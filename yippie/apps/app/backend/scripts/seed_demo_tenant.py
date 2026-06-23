@@ -500,10 +500,75 @@ def seed_booking(api: Api) -> None:
 # --------------------------------------------------------------------------- #
 
 def dismiss_tour(api: Api) -> None:
-    """Mark the welcome tour as completed so it doesn't overlay screenshots."""
-    res = api.patch("/auth/me", json={"tour_completed": True}, ok=(200, 201), label="dismiss tour")
+    """Mark the welcome tour completed AND dismiss the setup checklist so neither
+    overlays the screenshots."""
+    res = api.patch(
+        "/auth/me",
+        json={"tour_completed": True, "setup_checklist_dismissed": True},
+        ok=(200, 201),
+        label="dismiss tour + setup checklist",
+    )
     if res:
-        print("  ~ welcome tour marked completed")
+        print("  ~ welcome tour + setup checklist dismissed")
+
+
+def seed_inbox(api: Api, tenant_id: str, superadmin_token: str) -> None:
+    """Inject realistic inbox draft items via the superadmin-only seed endpoint.
+
+    The current `api` is impersonating the tenant admin, but the seed-inbox
+    endpoint requires a superadmin token — so we swap the token for the call and
+    restore the impersonation token afterwards."""
+    print("\nSeeding inbox items...")
+    imp_token = api.token
+    api.token = superadmin_token
+    try:
+        res = api.post(
+            f"/admin/tenants/{tenant_id}/seed-inbox",
+            json={},
+            ok=(200, 201),
+            label="seed inbox",
+        )
+    finally:
+        api.token = imp_token
+    if res:
+        print(f"  + {res.get('created', 0)} inbox items created")
+
+
+def cleanup_default_pipeline_stages(api: Api) -> None:
+    """Delete the 5 empty DEFAULT pipeline stages so only the custom (populated)
+    stages remain visible. Only deletes default-named stages that have 0 contacts."""
+    print("\nCleaning up default pipeline stages...")
+    default_names = {"Questionnaire Lead", "Lead", "Demo", "Call Planned", "Live"}
+
+    stages = api.get("/pipeline/stages", ok=(200,), label="list pipeline stages") or []
+    if isinstance(stages, dict):
+        stages = stages.get("items", stages.get("stages", []))
+    if not stages:
+        print("  (no stages returned — skipped)")
+        return
+
+    # Cross-check contact counts via the board (each column is {stage, contacts}).
+    board = api.get("/pipeline/board", ok=(200,), label="pipeline board") or []
+    counts: dict[str, int] = {}
+    if isinstance(board, list):
+        for col in board:
+            stage = col.get("stage", {}) if isinstance(col, dict) else {}
+            sid = stage.get("id")
+            contacts = col.get("contacts") or []
+            if sid is not None:
+                counts[str(sid)] = len(contacts)
+
+    for s in stages:
+        sid = str(s.get("id"))
+        name = s.get("name", "")
+        # Prefer the board's live count; fall back to the stage's own contact_count.
+        count = counts.get(sid, s.get("contact_count", 0))
+        if name in default_names and count == 0:
+            r = api.request("DELETE", f"/pipeline/stages/{sid}")
+            if r.status_code in (200, 204):
+                print(f"  - deleted empty default stage '{name}'")
+            else:
+                print(f"  ! delete stage '{name}' -> {r.status_code}: {r.text[:200]}")
 
 
 def seed_tracking_events(api: Api, contacts: list[dict]) -> None:
@@ -659,6 +724,10 @@ def main() -> int:
         return 1
     tenant_id, already_existed = result
 
+    # Keep the superadmin token: a few endpoints (seed-inbox) are superadmin-only
+    # and must not use the impersonation token.
+    superadmin_token = api.token
+
     if not impersonate(api, tenant_id):
         return 1
 
@@ -666,6 +735,8 @@ def main() -> int:
         # Tenant exists — only run the new steps we hadn't done before.
         print("\nTenant already seeded — patching with missing data only…")
         dismiss_tour(api)
+        cleanup_default_pipeline_stages(api)
+        seed_inbox(api, tenant_id, superadmin_token)
         # Fetch existing contacts to use for tracking events
         contacts_data = api.get("/contacts", ok=(200,), label="list contacts") or {}
         contacts = contacts_data.get("items", []) if isinstance(contacts_data, dict) else contacts_data
@@ -677,12 +748,14 @@ def main() -> int:
         seed_tickets(api, contacts)
         seed_calendar(api, contacts)
         seed_pipeline(api, contacts)
+        cleanup_default_pipeline_stages(api)
         seed_invoices(api, contacts)
         seed_subscriptions(api, contacts)
         seed_marketing(api)
         seed_shipments(api, contacts)
         seed_booking(api)
         dismiss_tour(api)
+        seed_inbox(api, tenant_id, superadmin_token)
         seed_tracking_events(api, contacts)
 
     print("\n" + "=" * 27)

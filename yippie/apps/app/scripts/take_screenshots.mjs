@@ -87,6 +87,32 @@ async function main() {
     // Tour not present — fine.
   }
 
+  // Dismiss SetupChecklist widget (bottom-right "Get started" card).
+  try {
+    const dismissBtn = page.getByLabel("Dismiss");
+    if (await dismissBtn.isVisible({ timeout: 4000 })) {
+      await dismissBtn.click();
+      await sleep(800);
+      console.log("  ~ dismissed setup checklist");
+    }
+  } catch {
+    /* not present */
+  }
+
+  // Close the SLA "overdue tickets need attention" toast if present (it overlaps content).
+  try {
+    const toast = page.locator("text=overdue tickets need attention").first();
+    if (await toast.isVisible({ timeout: 2000 })) {
+      const toastParent = toast.locator("..");
+      const closeInToast = toastParent.locator("button").last();
+      if (await closeInToast.isVisible({ timeout: 1000 })) await closeInToast.click();
+      await sleep(400);
+      console.log("  ~ dismissed SLA overdue toast");
+    }
+  } catch {
+    /* no toast */
+  }
+
   // --- Screenshot each module -------------------------------------------- //
   let ok = 0;
   let failed = 0;

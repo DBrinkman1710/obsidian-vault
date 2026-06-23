@@ -456,3 +456,29 @@ async def evolution_send_test(_: SuperAdminUser, body: EvolutionSendTestBody):
             "status": resp.status_code,
             "body": resp_body,
         }
+
+
+@router.post("/tenants/{tenant_id}/seed-inbox", status_code=201)
+async def seed_inbox_items(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
+    """Inject realistic inbox draft items for demo/screenshot purposes (superadmin only)."""
+    from app.modules.inbox.service import ingest_email
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    emails = [
+        {"sender": "daan.jansen@brighthorizons.nl",   "subject": "Inloggen lukt niet na wachtwoordreset",         "body": "Goedemiddag,\n\nSinds gisteravond kan ik niet meer inloggen op het portaal. Ik heb mijn wachtwoord gereset maar de link werkt niet meer. Kunnen jullie dit snel oplossen?\n\nMet vriendelijke groet,\nDaan Jansen"},
+        {"sender": "lucas.bakker@techvault.io",        "subject": "API geeft 403 Forbidden — productie geblokkeerd","body": "Hoi,\n\nOnze API-integratie geeft bij elke aanroep een 403 Forbidden. De API-key is correct. Kunnen jullie de rechten controleren? Dit blokkeert onze productie.\n\nLucas Bakker\nTechVault Solutions"},
+        {"sender": "julia.meijer@nova-agency.nl",      "subject": "Factuur INV-2024-0892 bedrag klopt niet",       "body": "Beste support,\n\nFactuur INV-2024-0892 is verkeerd. Er staat €399 maar we spraken €349/maand af. Kunnen jullie een gecorrigeerde versie sturen?\n\nJulia Meijer"},
+        {"sender": "sem.smit@nova-agency.nl",          "subject": "Demo inplannen voor ons team (8 personen)",     "body": "Hoi,\n\nWij willen graag een demo voor ons complete support-team. Kunnen jullie een slot voorstellen voor volgende week?\n\nGroeten, Sem"},
+        {"sender": "sophie.visser@techvault.io",       "subject": "CSV-export contacten werkt niet in Chrome",     "body": "Goedemorgen,\n\nIk probeer contacten te exporteren als CSV maar de download start niet. Chrome op Windows. Kan iemand helpen?\n\nSophie Visser"},
+        {"sender": "noah.vandijk@outlook.com",         "subject": "Onboarding vragen — nieuw Pro-contract",        "body": "Dag team,\n\nWe zijn gestart met het Pro-pakket en hebben vragen:\n1. Hoe koppel ik onze eigen domeinnaam?\n2. Kunnen we extra gebruikers toevoegen?\n\nNoah van Dijk"},
+    ]
+    created = 0
+    for e in emails:
+        try:
+            await ingest_email(db, tenant_id, sender=e["sender"], subject=e["subject"], body=e["body"], ai_scan=False)
+            created += 1
+        except Exception:
+            pass
+    return {"created": created}
