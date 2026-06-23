@@ -25,7 +25,7 @@ function GlobalModulesPanel() {
   const mutation = useMutation({
     mutationFn: ({ module, enabled }: { module: string; enabled: boolean }) =>
       api.patch('/admin/modules', { module, enabled }).then(r => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenants-modules'] }); setPending(null) },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenants-modules'] }); setPending(null); window.location.reload() },
     onError: () => setPending(null),
   })
 
