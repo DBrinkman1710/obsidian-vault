@@ -188,7 +188,9 @@
 .mobileSheet {
   position: fixed;
   top: 68px; left: 0; right: 0; bottom: 0;
-  background: #fff;
+  background: #fff !important;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   padding: 24px var(--gutter) 40px;
   display: flex;
   flex-direction: column;
@@ -288,7 +290,7 @@
   .footerInner { grid-template-columns: 1fr; gap: 36px; }
 
   /* Solid backgrounds on mobile — backdrop-filter is unreliable on iOS/Android */
-  .nav { background: #fff; }
+  .nav { background: #fff; backdrop-filter: none; -webkit-backdrop-filter: none; }
   .navScrolled { background: #fff; }
 }
 
