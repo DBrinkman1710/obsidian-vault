@@ -1,9 +1,10 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
-import { FileText, Megaphone, Palette, Settings2, Sparkles, X } from 'lucide-react'
+import { FileText, Loader2, Megaphone, Palette, Settings2, Sparkles, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
+
+const TemplatesPageLazy = lazy(() => import('../../admin/pages/TemplatesPage'))
 
 interface Template {
   id: string
@@ -47,6 +48,7 @@ export function htmlToText(html: string): string {
 export function TemplatePicker({ onSelect, context, triggerClassName, triggerIconSize, direction = 'up' }: Props) {
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
+  const [showManager, setShowManager] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const config = useTenantConfig()
   const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? false
@@ -134,6 +136,30 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
         Templates
       </button>
 
+      {/* Full-screen template manager overlay */}
+      {showManager && (
+        <div className="fixed inset-0 z-[60] flex flex-col bg-white">
+          <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-8 py-4">
+            <h2 className="text-sm font-bold text-slate-900">Templates</h2>
+            <button
+              onClick={() => setShowManager(false)}
+              className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+            >
+              <X size={16} />
+            </button>
+          </div>
+          <div className="flex-1 min-h-0 overflow-auto p-8">
+            <Suspense fallback={
+              <div className="flex h-40 items-center justify-center">
+                <Loader2 size={20} className="animate-spin text-blue-400" />
+              </div>
+            }>
+              <TemplatesPageLazy />
+            </Suspense>
+          </div>
+        </div>
+      )}
+
       {open && (
         <div className={`absolute z-50 right-0 w-80 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden ${
           direction === 'up' ? 'bottom-full mb-2' : 'top-full mt-2'
@@ -203,14 +229,14 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
             ))}
           </div>
 
-          <Link
-            to="/settings/templates"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-1.5 px-3 py-2.5 border-t border-slate-100 text-xs font-semibold text-slate-500 hover:text-blue-600 hover:bg-slate-50 transition-colors"
+          <button
+            type="button"
+            onClick={() => { setOpen(false); setShowManager(true) }}
+            className="flex w-full items-center gap-1.5 px-3 py-2.5 border-t border-slate-100 text-xs font-semibold text-slate-500 hover:text-blue-600 hover:bg-slate-50 transition-colors"
           >
             <Settings2 size={12} />
             Manage templates
-          </Link>
+          </button>
         </div>
       )}
     </div>

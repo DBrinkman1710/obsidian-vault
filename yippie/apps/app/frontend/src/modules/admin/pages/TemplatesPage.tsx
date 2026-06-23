@@ -170,7 +170,7 @@ export default function TemplatesPage() {
   return (
     <>
       {/* Template list */}
-      <div className="h-[calc(100vh-6rem)] min-h-[560px]">
+      <div className="h-full min-h-[560px]">
         <aside className="w-[360px] h-full bg-white border border-slate-200 rounded-xl flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3.5 border-b border-slate-100">
             <h1 className="text-sm font-bold text-slate-900">Templates</h1>
@@ -267,11 +267,11 @@ export default function TemplatesPage() {
 
       {/* Full-screen editor modal */}
       <div
-        className={`fixed inset-0 z-50 flex items-center justify-center bg-black/40 transition-opacity duration-200 ${
+        className={`fixed inset-0 z-50 flex flex-col bg-white transition-opacity duration-200 ${
           hasSelection ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
-        <div className="bg-white rounded-2xl w-[90vw] h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+        <div className="flex flex-col h-full overflow-hidden">
           <div className="flex items-center gap-3 px-6 py-4 border-b border-slate-100 shrink-0">
             <input
               className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
