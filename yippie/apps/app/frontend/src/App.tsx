@@ -258,10 +258,10 @@ export default function App() {
               } />
 
               <Route path="/tracking" element={
-                <ModuleGate module="shipments"><PagePad><ShipmentList /></PagePad></ModuleGate>
+                <ModuleGate module="tracking"><PagePad><ShipmentList /></PagePad></ModuleGate>
               } />
               <Route path="/tracking/:id" element={
-                <ModuleGate module="shipments"><PagePad><ShipmentDetail /></PagePad></ModuleGate>
+                <ModuleGate module="tracking"><PagePad><ShipmentDetail /></PagePad></ModuleGate>
               } />
 
               <Route path="/sales" element={
