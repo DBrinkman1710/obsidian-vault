@@ -43,8 +43,12 @@
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 22px;
+  gap: 4px;
   list-style: none;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  padding: 4px 6px;
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .navLinks a {
