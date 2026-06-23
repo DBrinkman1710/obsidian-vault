@@ -120,24 +120,23 @@
 .navDropdownMenu a::after { content: none; }
 .navDropdownMenu a:hover { background: var(--off-white); color: var(--ink); }
 
-.navRight { display: flex; align-items: center; gap: 16px; justify-self: end; white-space: nowrap; }
+.navRight { display: flex; align-items: center; gap: 8px; justify-self: end; white-space: nowrap; }
 
-.navLogin {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--muted);
-  transition: color 0.18s;
-}
-.navLogin:hover { color: var(--ink); }
-
+.navLogin,
 .navLoginOutline {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 14px;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--border);
   font-size: 14px;
   font-weight: 500;
-  color: var(--muted);
+  color: var(--text);
   white-space: nowrap;
-  transition: color 0.18s;
+  transition: border-color 0.18s, color 0.18s;
 }
-.navLoginOutline:hover { color: var(--ink); }
+.navLogin:hover,
+.navLoginOutline:hover { border-color: var(--brand); color: var(--ink); }
 
 .navCta {
   display: inline-flex;
@@ -145,15 +144,17 @@
   gap: 6px;
   background: var(--ink);
   color: #fff;
-  padding: 8px 16px;
+  padding: 7px 16px;
   border-radius: var(--r-sm);
+  border: 1px solid var(--ink);
   font-size: 14px;
   font-weight: 600;
   white-space: nowrap;
-  transition: transform 0.15s, box-shadow 0.2s, background 0.2s;
+  transition: transform 0.15s, box-shadow 0.2s, background 0.2s, border-color 0.2s;
 }
 .navCta:hover {
   background: var(--brand);
+  border-color: var(--brand);
   transform: translateY(-1px);
   box-shadow: var(--shadow-brand);
 }
