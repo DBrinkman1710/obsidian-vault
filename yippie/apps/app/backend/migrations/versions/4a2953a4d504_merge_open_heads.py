@@ -1,7 +1,7 @@
 """merge open heads
 
 Revision ID: 4a2953a4d504
-Revises: p7q8r9s0t1u2, rd1_resend_domain_provisioning
+Revises: 7aaecb9a1dbb
 Create Date: 2026-06-23 09:32:56.654099
 
 """
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 
 
 revision: str = '4a2953a4d504'
-down_revision: Union[str, None] = ('p7q8r9s0t1u2', 'rd1_resend_domain_provisioning')
+down_revision: Union[str, None] = '7aaecb9a1dbb'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
