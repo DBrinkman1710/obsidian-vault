@@ -296,21 +296,8 @@ export default function ContactDetail() {
             </div>
           </div>
           <div className="divide-y divide-slate-100">
-            <div className="px-4 py-3">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Email</p>
-              <p className="text-xs text-slate-700">{contact.email || '—'}</p>
-            </div>
-            <div className="px-4 py-3">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Phone</p>
-              <div className="flex items-center gap-2 flex-wrap">
-                <p className="text-xs text-slate-700">{contact.phone || '—'}</p>
-                {isLocalDutchFormat(contact.phone) && (
-                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
-                    Local format
-                  </span>
-                )}
-              </div>
-            </div>
+            <EmailRow contactId={id!} email={contact.email ?? null} />
+            <PhoneRow contactId={id!} phone={contact.phone ?? null} />
             <CompanyRow contactId={id!} company={contact.company ?? null} />
             <LabelsRow contactId={id!} labels={contact.labels ?? []} />
           </div>
@@ -318,6 +305,145 @@ export default function ContactDetail() {
 
         <PipelineStageBlock contactId={id!} />
       </aside>
+    </div>
+  )
+}
+
+function EmailRow({ contactId, email }: { contactId: string; email: string | null }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.patch(`/contacts/${contactId}`, { email: value || null }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact', contactId] })
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      setEditing(false)
+    },
+    onError: () => toast.error('Failed to update email.'),
+  })
+
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</p>
+        {!editing && (
+          <button
+            type="button"
+            onClick={() => { setValue(email ?? ''); setEditing(true) }}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <Pencil size={9} />
+            Edit
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div className="flex flex-col gap-2">
+          <input
+            autoFocus
+            type="email"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            placeholder="email@example.com"
+            className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong — try again.</p>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className="inline-flex items-center px-3 py-1 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
+            >
+              {saveMutation.isPending ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <p className="text-xs text-slate-700">{email || '—'}</p>
+      )}
+    </div>
+  )
+}
+
+function PhoneRow({ contactId, phone }: { contactId: string; phone: string | null }) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.patch(`/contacts/${contactId}`, { phone: value || null }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact', contactId] })
+      qc.invalidateQueries({ queryKey: ['contacts'] })
+      setEditing(false)
+    },
+    onError: () => toast.error('Failed to update phone.'),
+  })
+
+  return (
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Phone</p>
+        {!editing && (
+          <button
+            type="button"
+            onClick={() => { setValue(phone ?? ''); setEditing(true) }}
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+          >
+            <Pencil size={9} />
+            Edit
+          </button>
+        )}
+      </div>
+      {editing ? (
+        <div className="flex flex-col gap-2">
+          <input
+            autoFocus
+            type="tel"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            placeholder="+31 6 12345678"
+            className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
+          />
+          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong — try again.</p>}
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => saveMutation.mutate()}
+              disabled={saveMutation.isPending}
+              className="inline-flex items-center px-3 py-1 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
+            >
+              {saveMutation.isPending ? 'Saving…' : 'Save'}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditing(false)}
+              className="px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 flex-wrap">
+          <p className="text-xs text-slate-700">{phone || '—'}</p>
+          {isLocalDutchFormat(phone) && (
+            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+              Local format
+            </span>
+          )}
+        </div>
+      )}
     </div>
   )
 }
