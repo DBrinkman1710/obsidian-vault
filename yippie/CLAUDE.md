@@ -163,9 +163,18 @@ railway down --service "Production" --environment Sandbox --yes
 
 - Leaves **Postgres** and **Redis** running (cheap; preserves sandbox data and schema)
 - Leaves **Production** and **Commercial** environments completely untouched
-- To bring sandbox back: `git push origin sandbox` — Railway redeploys from existing config
 
-Check current sandbox status:
+### Bringing Sandbox back online
+
+```bash
+# From ~/yippie/yippie/ — triggers Railway to redeploy from existing service config
+git push origin sandbox
+```
+
+Railway picks up the push via Watch Paths and rebuilds both the app platform and Evolution API. No config changes needed — env vars, domains, and DB connections are all preserved.
+
+### Check current sandbox status
+
 ```bash
 railway status
 ```
