@@ -6,6 +6,7 @@ from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
+from app.config import ALL_MODULES
 from app.core.plans import PlanTier
 
 
