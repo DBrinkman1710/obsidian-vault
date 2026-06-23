@@ -4,7 +4,7 @@ from sqlalchemy import select, update
 from app.core.models import User, UserRole
 from app.database import db_session, get_engine
 
-EMAIL = os.getenv("ADMIN_EMAIL", "diederik1710@gmail.com")
+EMAIL = os.getenv("ADMIN_EMAIL", "")
 
 
 async def main():

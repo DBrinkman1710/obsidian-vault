@@ -19,7 +19,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = logging.getLogger(__name__)
 
-from app.auth.dependencies import CurrentUser
+from app.auth.dependencies import AdminUser, CurrentUser
 from app.config import get_settings
 from app.core.models import Tenant, User
 from app.core.tenant import resolve_tenant_by_slug
@@ -563,6 +563,10 @@ async def patch_session(session_id: uuid.UUID, body: PatchSessionBody, current_u
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     if body.ticket_id is not None:
+        from app.modules.tickets.models import Ticket
+        ticket = await db.get(Ticket, body.ticket_id)
+        if not ticket or ticket.tenant_id != current_user.tenant_id:
+            raise HTTPException(status_code=404, detail="Ticket not found")
         session.ticket_id = body.ticket_id
         session.status = "ticket"
     if body.contact_id is not None:
@@ -758,7 +762,7 @@ async def clear_all_sessions(current_user: CurrentUser, db: DB):
 
 
 @router.post("/reset", status_code=status.HTTP_200_OK)
-async def reset_livechat(current_user: CurrentUser, db: DB):
+async def reset_livechat(current_user: AdminUser, db: DB):
     """Disconnect WhatsApp and delete all sessions + messages for this tenant."""
     tenant = await db.get(Tenant, current_user.tenant_id)
     disconnected = False
@@ -1078,8 +1082,17 @@ async def broadcast(
 async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
     """Receive inbound WhatsApp messages from Evolution API. No auth — called by Evolution.
     https://{env}.getyippie.com/api/v1/chat/webhooks/{slug}/whatsapp"""
+    body = await request.body()
+    settings = get_settings()
+    if settings.evolution_webhook_secret:
+        import hashlib
+        import hmac as _hmac
+        sig = request.headers.get("X-Evolution-Signature", "")
+        expected = _hmac.new(settings.evolution_webhook_secret.encode(), body, hashlib.sha256).hexdigest()
+        if not _hmac.compare_digest(sig, expected):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid webhook signature")
     try:
-        payload = await request.json()
+        payload = json.loads(body)
     except Exception:
         return {"status": "ignored"}
 
@@ -1159,7 +1172,7 @@ async def get_widget_session_messages(visitor_id: str, tenant_slug: str, db: DB)
     Returns {"messages": [...]} even when no session exists (empty list).
     """
     try:
-        tenant_id = await resolve_tenant_uuid(db)
+        tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
     except Exception:
         return {"messages": []}
 
@@ -1208,6 +1221,12 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
     Visitors connect with: wss://host/api/v1/chat/ws/{tenant_slug}/{session_id}
     session_id is generated client-side on first connect, then reused.
     """
+    try:
+        uuid.UUID(session_id)
+    except ValueError:
+        await websocket.close(code=1008)
+        return
+
     # Resolve tenant by slug — rejects unknown slugs cleanly
     try:
         async with db_session() as db:

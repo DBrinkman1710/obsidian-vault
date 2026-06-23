@@ -31,6 +31,7 @@ export default function SetupChecklist() {
     queryKey: ['setup-closed-ticket'],
     queryFn: () => api.get('/tickets', { params: { status: 'closed', limit: 1 } }).then(r => r.data as { items: { id: string }[]; total: number }),
     staleTime: 5 * 60 * 1000,
+    enabled: !!user && !!user.tour_completed && !user.setup_checklist_dismissed,
   })
 
   const gates: Gate[] = [
@@ -66,11 +67,11 @@ export default function SetupChecklist() {
   })
 
   useEffect(() => {
-    if (allDone) {
+    if (allDone && !dismissMutation.isPending && !dismissMutation.isSuccess) {
       const t = setTimeout(() => dismissMutation.mutate(), 3000)
       return () => clearTimeout(t)
     }
-  }, [allDone])
+  }, [allDone, dismissMutation.isPending, dismissMutation.isSuccess])
 
   if (!user?.tour_completed || user?.setup_checklist_dismissed) return null
   // Only show while data is loading or there's something to do

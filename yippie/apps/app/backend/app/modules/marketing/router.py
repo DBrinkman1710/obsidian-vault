@@ -7,7 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentUser
+from app.auth.dependencies import AdminUser, CurrentUser
 from app.database import get_db
 from app.modules.emailtracking import service as emailtracking_service
 from app.modules.emailtracking.schemas import OutboundEmailOut
@@ -73,7 +73,7 @@ async def update_campaign(
 
 
 @router.delete("/campaigns/{campaign_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_campaign(campaign_id: uuid.UUID, current_user: CurrentUser, db: DB):
+async def delete_campaign(campaign_id: uuid.UUID, current_user: AdminUser, db: DB):
     campaign = await _require_campaign(db, current_user.tenant_id, campaign_id)
     if campaign.status != "draft":
         raise HTTPException(
@@ -125,7 +125,7 @@ async def set_templates(
 @router.post("/campaigns/{campaign_id}/launch", response_model=LaunchResultOut)
 async def launch_campaign(
     campaign_id: uuid.UUID,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DB,
     body: CampaignLaunchRequest | None = None,
 ):

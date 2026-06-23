@@ -224,7 +224,10 @@ async def list_deleted_contacts(db: AsyncSession, tenant_id: uuid.UUID) -> list[
 async def purge_old_deleted_contacts(db: AsyncSession) -> int:
     cutoff = datetime.now(timezone.utc) - timedelta(days=30)
     result = await db.execute(
-        delete(Contact).where(Contact.deleted_at < cutoff)
+        delete(Contact).where(
+            Contact.deleted_at.isnot(None),
+            Contact.deleted_at < cutoff,
+        )
     )
     await db.commit()
     return result.rowcount

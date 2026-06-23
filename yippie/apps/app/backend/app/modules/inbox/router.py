@@ -668,12 +668,6 @@ webhook_router = APIRouter(prefix="/inbox", tags=["inbox-webhooks"])
 WDB = Annotated[AsyncSession, Depends(get_db)]
 
 
-@webhook_router.post("/webhooks/email", status_code=status.HTTP_200_OK)
-async def email_webhook(request: Request):
-    """Legacy shared Resend webhook — kept for backward compat. Poller handles ingestion."""
-    return {"status": "ok"}
-
-
 @webhook_router.post("/webhooks/{tenant_slug}/email", status_code=status.HTTP_200_OK)
 async def tenant_email_webhook(tenant_slug: str, request: Request, db: WDB):
     """Per-tenant Resend inbound webhook. Configure one route per client in Resend,
@@ -690,6 +684,14 @@ async def twilio_webhook(tenant_slug: str, request: Request, db: WDB):
     """Twilio WhatsApp inbound webhook — no auth required. Configure one URL per
     client in Twilio: https://{env}.getyippie.com/api/v1/inbox/webhooks/{slug}/whatsapp"""
     form = await request.form()
+    from app.config import get_settings as _gs
+    _settings = _gs()
+    if _settings.twilio_auth_token:
+        from twilio.request_validator import RequestValidator
+        validator = RequestValidator(_settings.twilio_auth_token)
+        sig = request.headers.get("X-Twilio-Signature", "")
+        if not validator.validate(str(request.url), dict(form), sig):
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid Twilio signature")
     tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
     tenant = await db.get(Tenant, tenant_id)
     # Only auto-scan when the tenant has the AI module AND opted into auto-scan;

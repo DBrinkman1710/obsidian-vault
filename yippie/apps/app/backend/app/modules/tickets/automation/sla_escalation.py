@@ -18,7 +18,7 @@ log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
-@scheduler.scheduled_job("interval", minutes=5, id="sla_escalation")
+@scheduler.scheduled_job("interval", minutes=5, id="sla_escalation", max_instances=1, coalesce=True)
 async def escalate_overdue_tickets():
     now = datetime.now(timezone.utc)
     async with db_session() as db:
@@ -40,7 +40,7 @@ async def escalate_overdue_tickets():
             await db.commit()
 
 
-@scheduler.scheduled_job("interval", hours=1, id="auto_close")
+@scheduler.scheduled_job("interval", hours=1, id="auto_close", max_instances=1, coalesce=True)
 async def auto_close_stale_tickets():
     # Per-tenant: each ticket is closed once it has gone its OWN tenant's
     # auto_close_days without an update. This scheduler session never calls
@@ -63,7 +63,7 @@ async def auto_close_stale_tickets():
             await db.commit()
 
 
-@scheduler.scheduled_job("interval", hours=1, id="demo_expiry_check")
+@scheduler.scheduled_job("interval", hours=1, id="demo_expiry_check", max_instances=1, coalesce=True)
 async def demo_expiry_check():
     """Deactivate demo tenants past demo_expires_at and notify the platform owner."""
     import os
@@ -71,7 +71,7 @@ async def demo_expiry_check():
     from app.core.mailer import send_email
     from app.core.models import Tenant
 
-    admin_email = os.getenv("ADMIN_EMAIL", "diederik1710@gmail.com")
+    admin_email = os.getenv("ADMIN_EMAIL", "")
     now = datetime.now(timezone.utc)
     legacy_cutoff = now - timedelta(days=7)
     async with db_session() as db:
@@ -104,7 +104,7 @@ async def demo_expiry_check():
             await db.commit()
 
 
-@scheduler.scheduled_job("interval", hours=1, id="contact_retention_purge")
+@scheduler.scheduled_job("interval", hours=1, id="contact_retention_purge", max_instances=1, coalesce=True)
 async def contact_retention_purge():
     """Hard-delete contacts that have been soft-deleted for more than 30 days."""
     from app.modules.contacts import service as contacts_service
@@ -115,7 +115,7 @@ async def contact_retention_purge():
             log.info("Purged %d contact(s) older than 30 days", count)
 
 
-@scheduler.scheduled_job("interval", hours=24, id="onboarding_drip")
+@scheduler.scheduled_job("interval", hours=24, id="onboarding_drip", max_instances=1, coalesce=True)
 async def onboarding_drip():
     """Send day-3 and day-7 onboarding emails to tenants that haven't completed setup."""
     from app.core.mailer import send_email
@@ -130,6 +130,8 @@ async def onboarding_drip():
             select(Tenant).where(
                 Tenant.is_active.is_(True),
                 Tenant.is_demo.is_(False),
+                Tenant.created_at >= now - timedelta(days=8),
+                Tenant.created_at < now - timedelta(days=3),
             )
         )
         tenants = result.scalars().all()
@@ -169,6 +171,7 @@ async def onboarding_drip():
                 select(func.count(Ticket.id)).where(
                     Ticket.tenant_id == tenant.id,
                     Ticket.status == TicketStatus.closed,
+                    Ticket.deleted_at.is_(None),
                 )
             )
             ticket_done = (ticket_result.scalar_one() or 0) > 0
@@ -183,6 +186,8 @@ async def onboarding_drip():
 
             if send_day3:
                 if missing:
+                    from app.core.email_html import render_email_html
+                    from app.core.mailer import send_email
                     subject = f"Getting started with Yippie — {len(missing)} step{'s' if len(missing) > 1 else ''} left"
                     body = (
                         f"Hi {admin.full_name},\n\n"
@@ -193,14 +198,17 @@ async def onboarding_drip():
                         "Questions? Just reply — a real person reads it.\n\n"
                         "Take back the time that matters,\nTeam Yippie"
                     )
+                    html = render_email_html(body, subject)
                     try:
-                        await send_email(to=admin.email, subject=subject, body=body)
+                        await send_email(to=admin.email, subject=subject, body=body, html=html)
+                        drip_sent = [*drip_sent, "day3"]
+                        tenant.onboarding_drip_sent = drip_sent
                     except Exception:
                         log.exception("Failed to send day-3 drip to %s", admin.email)
-                drip_sent = [*drip_sent, "day3"]
-                tenant.onboarding_drip_sent = drip_sent
 
             if send_day7:
+                from app.core.email_html import render_email_html
+                from app.core.mailer import send_email
                 subject = f"One week on Yippie — tips for {tenant.name}"
                 tips = [
                     "  - Use keyboard shortcuts (j/k to move, r to reply, e to close) — Settings → Profile to enable",
@@ -216,12 +224,13 @@ async def onboarding_drip():
                     + "\n\nReply any time with questions.\n\n"
                     "Take back the time that matters,\nTeam Yippie"
                 )
+                html = render_email_html(body, subject)
                 try:
-                    await send_email(to=admin.email, subject=subject, body=body)
+                    await send_email(to=admin.email, subject=subject, body=body, html=html)
+                    drip_sent = [*drip_sent, "day7"]
+                    tenant.onboarding_drip_sent = drip_sent
                 except Exception:
                     log.exception("Failed to send day-7 drip to %s", admin.email)
-                drip_sent = [*drip_sent, "day7"]
-                tenant.onboarding_drip_sent = drip_sent
 
         await db.commit()
 

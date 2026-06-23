@@ -72,8 +72,10 @@ async def find_open_session_for_phone(
     # stored before normalize_phone started preserving the @lid suffix.
     if "@" in phone:
         digits = phone.split("@")[0]
-        if len(digits) >= 8:
-            suffix = digits[-8:]
+        min_suffix = 6
+        suffix_len = min(12, len(digits))
+        if len(digits) >= min_suffix:
+            suffix = digits[-suffix_len:]
             rows = await db.execute(
                 select(ChatSession)
                 .where(
@@ -87,10 +89,13 @@ async def find_open_session_for_phone(
             )
             session = rows.scalars().first()
             if session:
-                # Canonicalize the stored phone to the new @lid format
-                session.whatsapp_phone = phone
-                session.visitor_id = phone
+                if canonicalize:
+                    session.whatsapp_phone = phone
+                    session.visitor_id = phone
                 return session
+        # @lid with fewer than min_suffix digits or no suffix match — fall through
+        # to the standard suffix fallback rather than returning None (which would
+        # cause a duplicate open session to be created for the same contact).
         return None
 
     # Fallback: suffix match for local-vs-international mismatch.

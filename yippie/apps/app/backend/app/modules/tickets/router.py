@@ -85,7 +85,7 @@ async def update_template(template_id: uuid.UUID, body: TemplateUpdate, current_
 
 
 @router.delete("/templates/{template_id}", status_code=204)
-async def delete_template(template_id: uuid.UUID, current_user: CurrentUser, db: DB):
+async def delete_template(template_id: uuid.UUID, current_user: AdminUser, db: DB):
     ok = await service.delete_template(db, current_user.tenant_id, template_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Template not found")

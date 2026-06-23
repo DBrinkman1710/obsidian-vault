@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
@@ -180,9 +180,20 @@ class ChangePasswordRequest(BaseModel):
 @router.patch("/me/password")
 async def change_password(
     body: ChangePasswordRequest,
+    request: Request,
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        try:
+            _claims = jwt.decode(auth_header[7:], get_settings().secret_key, algorithms=[get_settings().algorithm])
+            if _claims.get("imp"):
+                raise HTTPException(status_code=403, detail="Password changes are blocked in impersonation sessions")
+        except HTTPException:
+            raise
+        except Exception:
+            pass
     if not pwd_context.verify(body.current_password, current_user.hashed_password):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Current password is incorrect")
     if len(body.new_password) < 8:
@@ -217,7 +228,14 @@ async def update_me(
     if "email_signature" in body.model_fields_set:
         current_user.email_signature = (body.email_signature or "").strip() or None
     if "reply_from_email" in body.model_fields_set:
-        current_user.reply_from_email = body.reply_from_email or None
+        addr = (body.reply_from_email or "").strip()
+        if addr:
+            import re as _re
+            if not _re.match(r"^[^@]+@[^@]+\.[^@]+$", addr):
+                raise HTTPException(status_code=400, detail="reply_from_email must be a valid email address")
+            current_user.reply_from_email = addr.lower()
+        else:
+            current_user.reply_from_email = None
     if "inbound_email" in body.model_fields_set:
         addr = (body.inbound_email or "").lower().strip()
         if addr:
@@ -246,8 +264,8 @@ async def update_me(
         current_user.send_from_aliases = body.send_from_aliases or []
     if body.tour_completed is not None:
         current_user.tour_completed = body.tour_completed
-    if body.setup_checklist_dismissed is not None:
-        current_user.setup_checklist_dismissed = body.setup_checklist_dismissed
+    if body.setup_checklist_dismissed is True:
+        current_user.setup_checklist_dismissed = True
     await db.commit()
     await db.refresh(current_user)
     return UserOut.model_validate(current_user)

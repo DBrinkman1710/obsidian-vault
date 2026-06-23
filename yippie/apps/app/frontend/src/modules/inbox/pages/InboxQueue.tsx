@@ -1,3 +1,4 @@
+import DOMPurify from 'dompurify'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -414,7 +415,7 @@ function ComposeModal({
 
   useEffect(() => {
     if (templateEditorRef.current && !templateEditFromEditor.current) {
-      templateEditorRef.current.innerHTML = templateHtml ?? ''
+      templateEditorRef.current.innerHTML = DOMPurify.sanitize(templateHtml ?? '')
     }
     templateEditFromEditor.current = false
   }, [templateHtml])

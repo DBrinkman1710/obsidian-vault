@@ -27,6 +27,11 @@ class Settings(BaseSettings):
     # Evolution API (WhatsApp) — self-hosted gateway, one instance per tenant slug.
     evolution_api_url: str = ""
     evolution_api_token: str = ""
+    # Optional HMAC secret for verifying incoming Evolution webhook signatures.
+    # Set EVOLUTION_WEBHOOK_SECRET in Railway to enable; omit to skip the check.
+    evolution_webhook_secret: str = ""
+    # Optional Twilio auth token for verifying inbound WhatsApp webhook signatures.
+    twilio_auth_token: str = ""
     # Public URL of this environment's client app (e.g. https://sandbox.getyippie.com)
     # — used for links in invite and password-reset emails.
     app_base_url: str = ""

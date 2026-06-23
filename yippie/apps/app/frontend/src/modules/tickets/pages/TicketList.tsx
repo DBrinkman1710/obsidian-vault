@@ -87,7 +87,10 @@ export default function TicketList() {
   const statusMutation = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.patch(`/tickets/${id}/status`, { status }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['tickets'] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['tickets'] })
+      qc.invalidateQueries({ queryKey: ['setup-closed-ticket'] })
+    },
   })
 
   const { data: teamMembers = [] } = useQuery({

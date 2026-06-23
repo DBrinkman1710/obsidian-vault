@@ -112,9 +112,12 @@ async def patch_tenant_user(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID, use
 
 
 @router.post("/tenants/{tenant_id}/impersonate")
-async def impersonate_tenant(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
+async def impersonate_tenant(current_superadmin: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
     """Mint a short-lived token for the tenant's first active admin, so a
     superadmin can view the client's environment without their password."""
+    import logging as _logging
+    _log = _logging.getLogger(__name__)
+
     result = await service.get_impersonation_target(db, tenant_id)
     if result is None:
         raise HTTPException(status_code=404, detail="No active admin user in this tenant")
@@ -124,6 +127,10 @@ async def impersonate_tenant(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
     from datetime import timedelta
 
     token = create_access_token(str(user.id), get_settings(), expires=timedelta(hours=1), imp=True)
+    _log.warning(
+        "IMPERSONATION: superadmin %s (%s) impersonated tenant %s (user %s)",
+        current_superadmin.email, str(current_superadmin.id), tenant.name, user.email,
+    )
     return {
         "access_token": token,
         "impersonated_tenant_name": tenant.name,
@@ -376,7 +383,7 @@ async def evolution_send_test(_: SuperAdminUser, body: EvolutionSendTestBody):
         return {"error": "EVOLUTION_API_URL not set"}
 
     if not re.fullmatch(r"[a-zA-Z0-9_-]+", body.instance):
-        return {"error": "invalid instance name"}
+        raise HTTPException(status_code=400, detail="invalid instance name")
 
     base = settings.evolution_api_url.rstrip("/")
     headers = {"Content-Type": "application/json", "apikey": settings.evolution_api_token}

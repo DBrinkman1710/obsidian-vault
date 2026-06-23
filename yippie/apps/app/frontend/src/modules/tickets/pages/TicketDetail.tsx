@@ -88,7 +88,10 @@ export default function TicketDetail() {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
       toast.error('Failed to update status.')
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['ticket', id] })
+      qc.invalidateQueries({ queryKey: ['setup-closed-ticket'] })
+    },
   })
 
   const priorityMutation = useMutation({

@@ -257,8 +257,10 @@ async def delete_tenant(
         raise ValueError("Cannot delete your own tenant")
 
     name = tenant.name
+    _allowed = frozenset(TENANT_DELETE_ORDER)
     for table in TENANT_DELETE_ORDER:
-        await db.execute(text(f"DELETE FROM {table} WHERE tenant_id = :tid"), {"tid": str(tenant_id)})
+        assert table in _allowed, f"BUG: unknown table {table!r} in delete loop"
+        await db.execute(text("DELETE FROM " + table + " WHERE tenant_id = :tid"), {"tid": str(tenant_id)})
     await db.delete(tenant)
     await db.commit()
     return {"deleted": True, "tenant": name}
@@ -366,13 +368,25 @@ async def bulk_toggle_module(db: AsyncSession, module: str, enabled: bool) -> di
 BROADCAST_BATCH_SIZE = 10
 
 
-def encode_unsubscribe_token(contact_id: uuid.UUID) -> str:
-    return base64.urlsafe_b64encode(contact_id.bytes).decode("ascii").rstrip("=")
+def encode_unsubscribe_token(contact_id: uuid.UUID, tenant_id: uuid.UUID | None = None) -> str:
+    from datetime import timedelta
+    from app.auth.tokens import create_signed_token
+    return create_signed_token("unsubscribe", timedelta(days=30), cid=str(contact_id), tid=str(tenant_id or ""))
 
 
 def decode_unsubscribe_token(token: str) -> uuid.UUID:
-    padded = token + "=" * (-len(token) % 4)
-    return uuid.UUID(bytes=base64.urlsafe_b64decode(padded))
+    """Decode an unsubscribe token. Accepts both the legacy base64 format and the
+    new HMAC-signed JWT format for backward compatibility with already-sent emails."""
+    from app.auth.tokens import verify_signed_token
+    payload = verify_signed_token(token, "unsubscribe")
+    if payload is not None:
+        return uuid.UUID(payload["cid"])
+    # Legacy base64 fallback (no expiry, no signature — kept so old links still work)
+    try:
+        padded = token + "=" * (-len(token) % 4)
+        return uuid.UUID(bytes=base64.urlsafe_b64decode(padded))
+    except Exception:
+        raise ValueError("Invalid unsubscribe token")
 
 
 async def broadcast_to_tenant(
@@ -411,7 +425,7 @@ async def broadcast_to_tenant(
     for i in range(0, len(recipients), BROADCAST_BATCH_SIZE):
         batch = recipients[i : i + BROADCAST_BATCH_SIZE]
         for contact in batch:
-            token = encode_unsubscribe_token(contact.id)
+            token = encode_unsubscribe_token(contact.id, tenant_id)
             unsubscribe_url = f"{base_url}/api/v1/admin/unsubscribe/{token}"
             text_footer = f"\n\n—\nUnsubscribe from these emails: {unsubscribe_url}"
             html_body = render_email_html(

@@ -26,7 +26,7 @@ router = APIRouter(prefix="/public", tags=["public"])
 AVG_MINUTES_PER_TICKET = 15
 
 # The platform owner — demo follow-up contacts/tickets land in this user's tenant.
-ROOT_OWNER_EMAIL = os.getenv("ADMIN_EMAIL", "diederik1710@gmail.com").lower()
+ROOT_OWNER_EMAIL = os.getenv("ADMIN_EMAIL", "").lower()
 
 # Cached root-owner tenant id (per process); resolved once from the DB.
 _root_tenant_id: Optional[uuid.UUID] = None
@@ -125,7 +125,7 @@ def _demo_client_base_url() -> str:
 
 # Testing exception — this address always bypasses the "already registered" /
 # "already has a demo" checks so demo creation can be exercised end-to-end.
-DEMO_BYPASS_EMAILS = {"diederik1710@icloud.com"}
+DEMO_BYPASS_EMAILS = {e.strip().lower() for e in os.getenv("DEMO_BYPASS_EMAILS", "").split(",") if e.strip()}
 
 
 async def _reject_active_user_email(db: AsyncSession, email: str) -> None:
@@ -200,9 +200,11 @@ async def _purge_stale_demo_for_email(db: AsyncSession, email: str) -> None:
         if not tenant.is_demo or tenant.id in seen:
             continue  # never delete a live account; wipe each tenant once
         seen.add(tenant.id)
+        _allowed = frozenset(TENANT_DELETE_ORDER)
         for table in TENANT_DELETE_ORDER:
+            assert table in _allowed, f"BUG: unknown table {table!r} in delete loop"
             await db.execute(
-                text(f"DELETE FROM {table} WHERE tenant_id = :tid"),
+                text("DELETE FROM " + table + " WHERE tenant_id = :tid"),
                 {"tid": str(tenant.id)},
             )
         await db.delete(tenant)

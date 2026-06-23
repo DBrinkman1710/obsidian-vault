@@ -210,6 +210,14 @@ async def import_preview(
     return ImportPreview(headers=headers, preview_rows=rows[:3])
 
 
+_ALLOWED_IMPORT_TYPES = {
+    "text/csv",
+    "application/json",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+}
+_MAX_IMPORT_SIZE = 10_000_000  # 10 MB
+
+
 @router.post("/import", response_model=ImportResult)
 async def import_contacts(
     current_user: AdminUser,
@@ -218,6 +226,11 @@ async def import_contacts(
     column_mapping: Optional[str] = Form(None),
 ):
     content = await file.read()
+    if len(content) > _MAX_IMPORT_SIZE:
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
+    mime = (file.content_type or "").split(";")[0].strip()
+    if mime and mime not in _ALLOWED_IMPORT_TYPES:
+        raise HTTPException(status_code=415, detail="Unsupported file type — use CSV, JSON, or XLSX")
     if not content:
         raise HTTPException(status_code=400, detail="Empty file")
     rows = _parse_import_file(file.filename or "", content)
