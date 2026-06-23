@@ -267,9 +267,7 @@ export default function App() {
               <Route path="/sales" element={
                 <ModuleGate module="sales"><PagePad><SalesPage /></PagePad></ModuleGate>
               } />
-              <Route path="/saas" element={
-                <ModuleGate module="saas"><PagePad><SaasPage /></PagePad></ModuleGate>
-              } />
+              <Route path="/saas" element={<PagePad><SaasPage /></PagePad>} />
 
               <Route path="/settings" element={
                 <ModuleGate module="contacts"><PagePad><LabelsPage /></PagePad></ModuleGate>

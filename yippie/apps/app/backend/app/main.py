@@ -29,6 +29,7 @@ from app.modules.inbox.email_poller import start_scheduler as start_email_poller
 from app.modules.tickets.automation.sla_escalation import start_scheduler as start_sla_scheduler
 from app.modules.marketing.scheduler import start_scheduler as start_marketing_scheduler
 from app.modules.saas.scheduler import start_scheduler as start_saas_scheduler
+from app.modules.saas.router import router as saas_router
 from app.modules.stripe_platform.router import router as stripe_router
 from app.modules.stripe_platform.webhooks import webhook_router as stripe_webhook_router
 from app.modules.shipments.router import webhook_router as shipments_webhook_router
@@ -131,6 +132,9 @@ def create_app() -> FastAPI:
             stripe_publishable_key=settings.stripe_publishable_key,
             ai_scans_used_this_period=tenant.ai_scans_used_this_period,
         )
+
+    # SaaS analytics — always active for all tenants (internal tracking, no module gate)
+    app.include_router(saas_router, prefix="/api/v1")
 
     # Stripe auth-protected endpoints — no module gate (always accessible)
     app.include_router(stripe_router, prefix="/api/v1")
