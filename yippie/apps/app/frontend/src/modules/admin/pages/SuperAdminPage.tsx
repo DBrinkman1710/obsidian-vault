@@ -1194,11 +1194,11 @@ function EditClientModal({
                 <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Lead capture widget</label>
                 <p className="text-xs text-slate-400 mb-2">Paste this snippet anywhere on the client's website to add a "Get in touch" button.</p>
                 <div className="flex items-start gap-2">
-                  <pre className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all font-mono text-slate-700">{`<script src="https://app.getyippie.com/public/lead-widget.js" data-tenant="${tenant.slug}"></script>`}</pre>
+                  <pre className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all font-mono text-slate-700">{`<script src="https://app.getyippie.com/lead-widget.js" data-tenant="${tenant.slug}"></script>`}</pre>
                   <button
                     type="button"
                     onClick={() => {
-                      navigator.clipboard.writeText(`<script src="https://app.getyippie.com/public/lead-widget.js" data-tenant="${tenant.slug}"></script>`)
+                      navigator.clipboard.writeText(`<script src="https://app.getyippie.com/lead-widget.js" data-tenant="${tenant.slug}"></script>`)
                       setEmbedCopied(true)
                       setTimeout(() => setEmbedCopied(false), 2000)
                     }}
