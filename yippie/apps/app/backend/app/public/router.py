@@ -321,6 +321,7 @@ async def request_demo(
     # demo link instead.
     pwd = secrets.token_urlsafe(32)
     try:
+        from app.config import ALL_MODULES
         tenant = await create_tenant(
             db,
             TenantCreate(
@@ -330,6 +331,7 @@ async def request_demo(
                 admin_full_name=body.name.strip(),
                 is_demo=True,
                 admin_password=pwd,
+                enabled_modules=ALL_MODULES,
             ),
         )
     except ValueError as e:
