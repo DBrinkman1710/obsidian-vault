@@ -96,7 +96,7 @@ def create_app() -> FastAPI:
     # Chat inbound webhooks — no auth, Evolution API POSTs here
     app.include_router(chat_webhook_router, prefix="/api/v1")
 
-    @app.get("/api/v1/health", tags=["health"], include_in_schema=False)
+    @app.api_route("/api/v1/health", methods=["GET", "HEAD"], tags=["health"], include_in_schema=False)
     async def health(db: Annotated[AsyncSession, Depends(get_db)]):
         await db.execute(text("SELECT 1"))
         return {"status": "ok"}
