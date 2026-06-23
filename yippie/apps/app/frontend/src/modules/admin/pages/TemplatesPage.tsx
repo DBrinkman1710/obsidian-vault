@@ -6,6 +6,7 @@ import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { api } from '../../../api/client'
 import { fetchLabels, type ContactLabel } from '../../contacts/components/LabelChip'
 import { htmlToText } from '../../inbox/components/TemplatePicker'
+import { STARTER_TEMPLATES } from '../../../pages/marketing/templates'
 
 interface Template {
   id: string
@@ -88,6 +89,17 @@ export default function TemplatesPage() {
   function clearSelection() {
     setSelectedId(null)
     setIsNew(false)
+  }
+
+  function openStarter(html: string) {
+    setEditorEverOpened(true)
+    setSelectedId(null)
+    setIsNew(true)
+    setName('')
+    setExistingBody('')
+    setSaveError('')
+    // Load HTML directly into GrapesJS project data format
+    loadIntoEditor(JSON.stringify({ pages: [{ component: html }] }))
   }
 
   const createMutation = useMutation({
@@ -174,6 +186,28 @@ export default function TemplatesPage() {
           <div className="flex-1 overflow-y-auto">
             {isLoading && <p className="text-xs text-slate-400 px-4 py-4">Loading…</p>}
 
+            {/* Starter templates */}
+            <div className="px-3 pt-3 pb-1">
+              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Starter templates</p>
+              <div className="space-y-1.5">
+                {STARTER_TEMPLATES.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => openStarter(t.html)}
+                    className="w-full rounded-xl border border-slate-200 p-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/50"
+                  >
+                    <p className="text-xs font-semibold text-slate-800">{t.name}</p>
+                    <p className="mt-0.5 text-[11px] leading-snug text-slate-400">{t.description}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Divider + user templates header */}
+            <div className="mt-3 border-t border-slate-100 px-3 pt-3 pb-1">
+              <p className="mb-1 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">My templates</p>
+            </div>
+
             {isNew && (
               <div className="px-4 py-3 bg-blue-50 border-l-2 border-blue-600">
                 <p className="text-sm font-semibold text-blue-700 truncate">{name.trim() || 'New template'}</p>
@@ -182,9 +216,9 @@ export default function TemplatesPage() {
             )}
 
             {!isLoading && templates?.length === 0 && !isNew && (
-              <div className="text-center px-4 py-10">
-                <FileText size={26} className="text-slate-300 mx-auto mb-2" />
-                <p className="text-xs text-slate-400">No templates yet. Create one with the + button.</p>
+              <div className="text-center px-4 py-6">
+                <FileText size={22} className="text-slate-300 mx-auto mb-2" />
+                <p className="text-xs text-slate-400">No templates yet. Pick a starter above or use the + button.</p>
               </div>
             )}
 

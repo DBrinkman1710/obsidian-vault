@@ -12,19 +12,17 @@ export interface GrapesEditorHandle {
 interface Props {
   initialHtml?: string
   initialCss?: string
+  onReady?: () => void
 }
 
-/**
- * Thin GrapesJS wrapper using the newsletter preset. The parent reads HTML/CSS
- * imperatively via the ref on Save. The editor is created once on mount and
- * destroyed on unmount to avoid leaking canvases between campaign switches.
- */
 export const GrapesEditor = forwardRef<GrapesEditorHandle, Props>(function GrapesEditor(
-  { initialHtml = '', initialCss = '' },
+  { initialHtml = '', initialCss = '', onReady },
   ref,
 ) {
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<Editor | null>(null)
+  const onReadyRef = useRef(onReady)
+  onReadyRef.current = onReady
 
   useImperativeHandle(ref, () => ({
     getHtml: () => editorRef.current?.getHtml() ?? '',
@@ -54,6 +52,7 @@ export const GrapesEditor = forwardRef<GrapesEditorHandle, Props>(function Grape
     editor.setComponents(initialHtml || '<p style="padding:24px;">Start designing your email…</p>')
     if (initialCss) editor.setStyle(initialCss)
     editorRef.current = editor
+    onReadyRef.current?.()
 
     return () => {
       try {
