@@ -4,7 +4,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.saas.models import SaasEvent, SaasIdentity
@@ -67,7 +67,9 @@ async def get_stats(db: AsyncSession, tenant_id: uuid.UUID) -> SalesStatsOut:
     )
     last_event_at = last_result.scalar_one_or_none()
 
-    # Top pages by pageview count
+    # Top pages by pageview count — GROUP BY 1 (ordinal) avoids the asyncpg
+    # parameterisation issue where ->> gets split into two bind params and
+    # PostgreSQL can't prove SELECT and GROUP BY reference the same expression.
     pages_result = await db.execute(
         select(
             SaasEvent.properties["url"].astext.label("url"),
@@ -78,7 +80,7 @@ async def get_stats(db: AsyncSession, tenant_id: uuid.UUID) -> SalesStatsOut:
             SaasEvent.event_domain == "commerce",
             SaasEvent.event_type == "pageview",
         )
-        .group_by(SaasEvent.properties["url"].astext)
+        .group_by(text("1"))
         .order_by(func.count().desc())
         .limit(10)
     )

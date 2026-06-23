@@ -19,6 +19,9 @@ import {
   BillingIcon,
   CheckIcon,
   ArrowRightIcon,
+  TrackingIcon,
+  SalesIcon,
+  SaasIcon,
 } from "../components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
@@ -27,12 +30,12 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 export const metadata: Metadata = {
   title: "Modules — Yippie customer service platform",
   description:
-    "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, and team — all built for SMBs.",
+    "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, team, tracking, sales, and SaaS billing — all built for SMBs.",
   alternates: { canonical: "/modules" },
   openGraph: {
     title: "Modules — Yippie customer service platform",
     description:
-      "Explore every module in Yippie: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, and team.",
+      "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, team, tracking, sales, and SaaS billing — all built for SMBs.",
     url: "https://getyippie.com/modules",
     type: "website",
   },
@@ -215,6 +218,66 @@ const modules: Module[] = [
     path: "/settings/team",
     Icon: TeamIcon,
   },
+  {
+    id: "templates",
+    kicker: "TEMPLATES",
+    title: "Templates — replies that stay on-brand",
+    desc: "Build a library of canned responses for your most common questions. Agents pick the right template with one click and personalise before sending — so every reply is fast, consistent, and on-brand.",
+    bullets: [
+      "Shared template library across the whole team",
+      "Personalise before sending — edit inline without leaving the ticket",
+      "Drag-and-drop email editor for rich HTML campaigns",
+      "AI-powered subject and body suggestions",
+    ],
+    shot: "/shots/templates.png",
+    path: "/settings/templates",
+    Icon: TemplateIcon,
+  },
+  {
+    id: "tracking",
+    kicker: "TRACKING",
+    title: "Track & Trace — shipments in one view",
+    desc: "Add shipment tracking numbers directly to contacts and tickets. Get live carrier updates for DHL, UPS, PostNL, and FedEx in your workspace — no more copy-pasting tracking links.",
+    bullets: [
+      "DHL, UPS, FedEx, and PostNL tracking out of the box",
+      "Link shipments to contacts and tickets for full context",
+      "Live status updates: pending, in transit, delivered",
+      "Delivery alerts keep your team and customer informed",
+    ],
+    shot: "/shots/tracking.png",
+    path: "/tracking",
+    Icon: TrackingIcon,
+  },
+  {
+    id: "sales",
+    kicker: "SALES",
+    title: "Sales — understand what converts",
+    desc: "Track every product view, add-to-cart, and purchase event from your storefront. See which contacts are high-intent buyers and trigger support or outreach at exactly the right moment.",
+    bullets: [
+      "Real-time product view, cart, and purchase event feed",
+      "Revenue and conversion summary per contact",
+      "High-intent signals surface automatically in the inbox",
+      "No third-party analytics tool required",
+    ],
+    shot: "/shots/sales.png",
+    path: "/sales",
+    Icon: SalesIcon,
+  },
+  {
+    id: "saas",
+    kicker: "SAAS BILLING",
+    title: "SaaS Billing — subscriptions and MRR at a glance",
+    desc: "Manage recurring subscriptions, track MRR and churn, and link every subscription to a contact. Your finance and support teams see the same data — no exporting to spreadsheets.",
+    bullets: [
+      "Create and manage monthly or annual subscriptions",
+      "MRR, churn, and lifetime value tracked automatically",
+      "Every subscription linked to a contact record",
+      "CSV export for your accountant in one click",
+    ],
+    shot: "/shots/saas.png",
+    path: "/saas",
+    Icon: SaasIcon,
+  },
 ];
 
 /** Minimal browser-chrome frame wrapping a screenshot (or placeholder). */
@@ -276,12 +339,12 @@ export default function ModulesPage() {
           The product
         </div>
         <h1 className={contentStyles.heroTitle}>
-          Twelve modules. One platform.
+          Fifteen modules. One platform.
         </h1>
         <p className={contentStyles.heroSub}>
           Inbox, tickets, contacts, calendar, pipeline, live chat, marketing,
-          departments, billing, templates, activity, and team — all working
-          together, all in one workspace.
+          departments, billing, templates, activity, team, tracking, sales, and
+          SaaS billing — all working together, all in one workspace.
         </p>
         <div className={contentStyles.heroActions}>
           <a href={DEMO_URL} className={contentStyles.btnPrimary}>

@@ -158,3 +158,25 @@ export const ArrowRightIcon = (p: IconProps) => (
     <path d="M5 12h14M13 6l6 6-6 6" />
   </Svg>
 );
+
+export const TrackingIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 7l9-4 9 4-9 4z" />
+    <path d="M3 7v8l9 4 9-4V7" />
+    <path d="M12 11v8M7.5 5.2l9 4" />
+  </Svg>
+);
+
+export const SalesIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 17l5-5 4 4 7-7" />
+    <path d="M15 9h5v5" />
+  </Svg>
+);
+
+export const SaasIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 18a4 4 0 0 1-.5-7.97A6 6 0 0 1 18 9.5a3.5 3.5 0 0 1-.5 8z" />
+    <path d="M9 14h6M12 11v6" />
+  </Svg>
+);

@@ -21,6 +21,7 @@ class TenantCreate(BaseModel):
     enabled_modules: list[str] = ["contacts", "tickets", "billing", "activity", "inbox", "chat", "saas"]
     primary_color: str = "#5BA4F5"
     logo_url: Optional[str] = None
+    plan: Optional[PlanTier] = None
     is_demo: bool = False
     inbound_email: Optional[str] = None
 

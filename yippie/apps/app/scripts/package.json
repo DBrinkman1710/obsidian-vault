@@ -1,0 +1,12 @@
+{
+  "name": "yippie-screenshot-scripts",
+  "private": true,
+  "type": "module",
+  "description": "Playwright screenshot tooling for the marketing site (not a workspace package).",
+  "scripts": {
+    "shots": "node take_screenshots.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.48.0"
+  }
+}
