@@ -14,7 +14,6 @@
 }
 
 .navInner {
-  position: relative;
   width: 100%;
   height: 100%;
   padding: 0 24px 0 var(--gutter);
@@ -43,12 +42,8 @@
   transform: translateX(-50%);
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 22px;
   list-style: none;
-  border: 1px solid var(--border);
-  border-radius: var(--r-pill);
-  padding: 4px 6px;
-  background: rgba(255, 255, 255, 0.6);
 }
 
 .navLinks a {
