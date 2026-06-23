@@ -146,6 +146,14 @@ async function main() {
       await hideFixed("Get started");
       await hideFixed("overdue tickets need attention");
       await hideFixed("Demo environment");
+      // Also hide the amber demo banner which is NOT fixed-positioned.
+      await page.evaluate(() => {
+        document.querySelectorAll("div").forEach((el) => {
+          if (el.textContent?.includes("Demo environment") && el.children.length < 6) {
+            el.style.display = "none";
+          }
+        });
+      }).catch(() => {});
       await sleep(200);
 
       // Marketing: open the first completed campaign so its detail panel shows.

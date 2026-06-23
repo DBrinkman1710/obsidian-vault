@@ -896,6 +896,11 @@ def main() -> int:
         update_shipment_statuses(api)
         seed_marketing_extra(api)
         seed_chat(api, tenant_id, superadmin_token)
+        # Remove the orange demo banner so screenshots look like a real workspace.
+        sa = Api(API)
+        sa.token = superadmin_token
+        sa.patch(f"/admin/tenants/{tenant_id}", json={"is_demo": False}, ok=(200,), label="set is_demo=False")
+        print("  ~ demo banner removed (is_demo=False)")
     else:
         companies = seed_companies(api)
         contacts = seed_contacts(api, companies)

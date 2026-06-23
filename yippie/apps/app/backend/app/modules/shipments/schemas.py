@@ -22,6 +22,7 @@ class ShipmentUpdate(BaseModel):
     contact_id: Optional[uuid.UUID] = None
     order_reference: Optional[str] = None
     carrier: Optional[Carrier] = None
+    status: Optional[ShipmentStatus] = None
 
 
 class ShipmentEventOut(BaseModel):
