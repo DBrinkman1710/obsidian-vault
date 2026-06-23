@@ -42,6 +42,7 @@ export default function VsZendeskPage() {
       <SiteNav />
 
       <section className={styles.hero}>
+        <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
           Yippie vs Zendesk

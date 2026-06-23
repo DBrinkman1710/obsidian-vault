@@ -4,6 +4,7 @@ import { useState } from "react";
 import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "./page.module.css";
+import contentStyles from "../components/content.module.css";
 import {
   TicketIcon, AiIcon, CalendarIcon, KanbanIcon, ChatIcon, LayersIcon,
   BillingIcon, MailTrackIcon, TeamIcon,
@@ -190,6 +191,7 @@ export default function PricingPage() {
       <SiteNav />
 
       <section className={styles.hero}>
+        <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={contentStyles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
           Transparent pricing, no games

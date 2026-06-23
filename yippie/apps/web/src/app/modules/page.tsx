@@ -334,6 +334,7 @@ export default function ModulesPage() {
 
       {/* Hero */}
       <section className={contentStyles.hero}>
+        <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={contentStyles.pageLogoMark} />
         <div className={contentStyles.heroTag}>
           <span className={contentStyles.heroTagDot} />
           The product
