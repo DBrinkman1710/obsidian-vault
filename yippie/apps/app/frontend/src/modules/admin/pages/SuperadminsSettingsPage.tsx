@@ -4,11 +4,11 @@ import { ShieldCheck, UserPlus, X, ToggleLeft, ToggleRight, Trash2, Puzzle } fro
 import { api } from '../../../api/client'
 import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
 
-const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'ai', 'departments', 'marketing', 'shipments'] as const
+const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'ai', 'departments', 'marketing', 'tracking'] as const
 type ModuleName = typeof ALL_MODULES[number]
 const MODULE_LABELS: Record<ModuleName, string> = {
   inbox: 'Inbox', contacts: 'Contacts', tickets: 'Tickets', calendar: 'Calendar',
-  pipeline: 'Pipeline', booking: 'Booking', activity: 'Activity', billing: 'Billing', chat: 'Chat', ai: 'AI', departments: 'Departments', marketing: 'Marketing', shipments: 'Shipments',
+  pipeline: 'Pipeline', booking: 'Booking', activity: 'Activity', billing: 'Billing', chat: 'Chat', ai: 'AI', departments: 'Departments', marketing: 'Marketing', tracking: 'Tracking',
 }
 
 interface TenantModules { id: string; enabled_modules: string[] }

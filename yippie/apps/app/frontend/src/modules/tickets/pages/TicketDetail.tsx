@@ -824,7 +824,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
     }, 600)
   }
 
-  const shipmentsEnabled = config?.enabled_modules?.includes('shipments') ?? false
+  const shipmentsEnabled = config?.enabled_modules?.includes('tracking') ?? false
 
   const { data: contact, isLoading: contactLoading } = useQuery({
     queryKey: ['contact', contactId],

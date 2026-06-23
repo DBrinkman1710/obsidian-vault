@@ -13,7 +13,7 @@ export const translations = {
     livechat:    'Live Chat',
     marketing:   'Marketing',
     departments: 'Departments',
-    shipments:   'Track & Trace',
+    tracking:    'Tracking',
     // Sidebar settings nav
     profile:  'Profile',
     team:     'Team',
@@ -49,7 +49,7 @@ export const translations = {
     livechat:    'Live chat',
     marketing:   'Marketing',
     departments: 'Afdelingen',
-    shipments:   'Track & Trace',
+    tracking:    'Tracking',
     // Sidebar settings nav
     profile:  'Profiel',
     team:     'Team',

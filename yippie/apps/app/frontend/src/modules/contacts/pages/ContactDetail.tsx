@@ -179,7 +179,7 @@ const SHIPMENT_STATUS_STYLES: Record<string, { bg: string; text: string; label: 
 
 function ShipmentsBlock({ contactId }: { contactId: string }) {
   const config = useTenantConfig()
-  const isEnabled = config?.enabled_modules?.includes('shipments') ?? false
+  const isEnabled = config?.enabled_modules?.includes('tracking') ?? false
 
   const { data } = useQuery({
     queryKey: ['contact-shipments', contactId],

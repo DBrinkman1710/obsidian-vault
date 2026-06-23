@@ -26,6 +26,6 @@ MODULES: dict[str, APIRouter] = {
     "booking": booking_router,
     "departments": departments_router,
     "marketing": marketing_router,
-    "shipments": shipments_router,
+    "tracking": shipments_router,
     "ai": ai_router,
 }

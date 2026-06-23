@@ -39,7 +39,7 @@ const MODULE_MAP: Record<string, { labelKey: TKey; Icon: LucideIcon; path: strin
   billing:  { labelKey: 'billing',  Icon: CreditCard,    path: '/billing' },
   chat:     { labelKey: 'livechat', Icon: MessageSquare, path: '/chat' },
   marketing: { labelKey: 'marketing', Icon: Megaphone,   path: '/marketing' },
-  shipments: { labelKey: 'shipments', Icon: Package,     path: '/tracking' },
+  tracking:  { labelKey: 'tracking',  Icon: Package,     path: '/tracking' },
 }
 
 const STORAGE_KEY = 'yippie:sidebarCollapsed'
