@@ -164,10 +164,9 @@ async def main():
     admin_password = os.getenv("ADMIN_PASSWORD", "changeme123")
 
     async with db_session() as db:
-        # Guard 1: tenant already exists — skip. Branding (primary_color/logo_url) is
-        # user-editable in Settings (PATCH /team/branding), so it must NOT be re-synced
-        # from env here — doing so clobbered the user's chosen colour on every deploy.
-        # The env branding only seeds a brand-new tenant (below).
+        # Guard 1: tenant already exists under the expected slug — nothing to do.
+        # Branding (primary_color/logo_url) is user-editable in Settings
+        # (PATCH /team/branding), so it must NOT be re-synced from env here.
         existing_tenant = await db.scalar(select(Tenant).where(Tenant.slug == tenant_id))
         if existing_tenant:
             print(f"Tenant '{tenant_id}' already exists — ensuring default RBAC roles...")
@@ -175,10 +174,19 @@ async def main():
             await db.commit()
             return
 
-        # Guard 2: user with this email already exists anywhere in the system
+        # Guard 2: admin user exists — they may be in a tenant whose slug no longer
+        # matches TENANT_ID (e.g. after changing the env var from "default" to "yippie").
+        # Sync the slug so the tenant is always findable by TENANT_ID.
         existing_user = await db.scalar(select(User).where(User.email == admin_email))
         if existing_user:
-            print(f"User '{admin_email}' already exists — preserving credentials, skipping.")
+            tenant = await db.get(Tenant, existing_user.tenant_id)
+            if tenant and tenant.slug != tenant_id:
+                old_slug = tenant.slug
+                tenant.slug = tenant_id
+                await db.commit()
+                print(f"Synced tenant slug '{old_slug}' → '{tenant_id}' to match TENANT_ID env var.")
+            else:
+                print(f"User '{admin_email}' already exists — preserving credentials, skipping.")
             return
 
         # Guard 3: any superadmin exists — never create a second one via automation
