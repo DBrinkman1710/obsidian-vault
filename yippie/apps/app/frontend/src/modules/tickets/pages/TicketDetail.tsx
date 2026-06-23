@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles, UserPlus, Mail, ExternalLink, ChevronRight, Pencil } from 'lucide-react'
+import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles, UserPlus, Mail, ExternalLink, ChevronRight, Paperclip } from 'lucide-react'
 import { SignaturePicker } from '../../inbox/components/SignaturePicker'
 import { TemplatePicker, htmlToText } from '../../inbox/components/TemplatePicker'
 import { useSignatures, pickDefaultSignature, swapSignature } from '../../../hooks/useSignatures'
@@ -59,9 +59,20 @@ export default function TicketDetail() {
   const canDelete = user?.role === 'admin' || user?.role === 'superadmin'
   const [comment, setComment] = useState('')
   const [activeTab, setActiveTab] = useState<'reply' | 'internal'>('reply')
-  const isInternal = activeTab === 'internal'
-  const [replyOpen, setReplyOpen] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
+
+  // Inline email compose state
+  const { data: signatures } = useSignatures()
+  const defaultSig = pickDefaultSignature(signatures)
+  const [replySubject, setReplySubject] = useState('')
+  const [replyBody, setReplyBody] = useState('')
+  const [replyAppliedSig, setReplyAppliedSig] = useState<string | null>(null)
+  const [replyTemplateHtml, setReplyTemplateHtml] = useState<string | null>(null)
+  const [replyFiles, setReplyFiles] = useState<File[]>([])
+  const [replySendError, setReplySendError] = useState('')
+  const replyFileInputRef = useRef<HTMLInputElement>(null)
+  const replySigPrefilledRef = useRef(false)
+
   const [deleteError, setDeleteError] = useState('')
   const [bookingOpen, setBookingOpen] = useState(false)
   const [mergeOpen, setMergeOpen] = useState(false)
@@ -87,6 +98,17 @@ export default function TicketDetail() {
     queryKey: ['ticket-comments', id],
     queryFn: () => api.get(`/tickets/${id}/comments`).then(r => r.data),
   })
+
+  useEffect(() => {
+    if (activeTab !== 'reply') return
+    if (!replySubject && ticket?.subject) setReplySubject(`Re: ${ticket.subject}`)
+    if (replySigPrefilledRef.current) return
+    if (defaultSig) {
+      setReplyBody(prev => prev || `\n\n${defaultSig.body}`)
+      setReplyAppliedSig(defaultSig.body)
+      replySigPrefilledRef.current = true
+    }
+  }, [activeTab, defaultSig, ticket?.subject])
 
   const statusMutation = useMutation({
     mutationFn: (status: string) => api.patch(`/tickets/${id}/status`, { status }),
@@ -138,21 +160,45 @@ export default function TicketDetail() {
   })
 
   const commentMutation = useMutation({
-    mutationFn: () => api.post(`/tickets/${id}/comments`, { body: comment, is_internal: isInternal }),
+    mutationFn: () => api.post(`/tickets/${id}/comments`, { body: comment, is_internal: true }),
     onMutate: async () => {
       await qc.cancelQueries({ queryKey: ['ticket-comments', id] })
       const prev = qc.getQueryData(['ticket-comments', id])
-      const optimistic = { id: 'temp-' + Date.now(), body: comment, is_internal: isInternal, created_at: new Date().toISOString(), author_name: user?.full_name ?? 'You' }
+      const optimistic = { id: 'temp-' + Date.now(), body: comment, is_internal: true, created_at: new Date().toISOString(), author_name: user?.full_name ?? 'You' }
       qc.setQueryData(['ticket-comments', id], (old: any[]) => [optimistic, ...(old ?? [])])
       return { prev }
     },
     onError: (_err, _vars, ctx) => {
       if (ctx?.prev !== undefined) qc.setQueryData(['ticket-comments', id], ctx.prev)
-      toast.error('Failed to post comment.')
+      toast.error('Failed to save note.')
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ticket-comments', id] })
       setComment('')
+    },
+  })
+
+  const replyMutation = useMutation({
+    mutationFn: () => {
+      const fd = new FormData()
+      fd.append('subject', replySubject.trim())
+      fd.append('body', replyBody.trim())
+      if (replyTemplateHtml) fd.append('html_body', replyTemplateHtml)
+      replyFiles.forEach(f => fd.append('attachments', f))
+      return api.post(`/tickets/${id}/send-reply`, fd, { headers: { 'Content-Type': undefined } }).then(r => r.data)
+    },
+    onSuccess: (data: any) => {
+      toast.success(`Email sent to ${data?.to ?? replyContact?.email}`)
+      qc.invalidateQueries({ queryKey: ['ticket-comments', id] })
+      setReplyBody('')
+      setReplyFiles([])
+      setReplySendError('')
+      replySigPrefilledRef.current = false
+      setReplySubject('')
+    },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail
+      setReplySendError(typeof detail === 'string' ? detail : 'Failed to send — check your email settings')
     },
   })
 
@@ -362,19 +408,104 @@ export default function TicketDetail() {
                 </p>
               </div>
             ) : (
-              <button
-                onClick={() => setReplyOpen(true)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/40 text-left transition-colors group"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <Mail size={15} className="text-slate-400 group-hover:text-blue-500 shrink-0 transition-colors" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">Compose email reply</p>
-                    <p className="text-xs text-slate-400 truncate">To: {replyContact.full_name} &lt;{replyContact.email}&gt;</p>
-                  </div>
+              <div className="flex flex-col gap-3">
+                {/* To (locked) */}
+                <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 rounded-lg border border-slate-200 text-xs text-slate-500">
+                  <Mail size={11} className="shrink-0 text-slate-400" />
+                  <span className="truncate">{replyContact.full_name} &lt;{replyContact.email}&gt;</span>
+                  <Lock size={10} className="shrink-0 text-slate-300 ml-auto" />
                 </div>
-                <Pencil size={13} className="text-slate-300 group-hover:text-blue-400 shrink-0 transition-colors" />
-              </button>
+                {/* Subject */}
+                <input
+                  type="text"
+                  value={replySubject}
+                  onChange={e => setReplySubject(e.target.value)}
+                  placeholder="Subject"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                {/* Toolbar */}
+                <div className="flex items-center gap-2">
+                  <SignaturePicker onPick={(sig: Signature) => {
+                    setReplyBody(prev => swapSignature(prev, replyAppliedSig, sig.body))
+                    setReplyAppliedSig(sig.body)
+                  }} />
+                  <TemplatePicker
+                    onSelect={(tmplBody, isHtml) => {
+                      const sig = replyAppliedSig ? `\n\n${replyAppliedSig}` : ''
+                      if (isHtml) {
+                        setReplyTemplateHtml(tmplBody)
+                        setReplyBody(htmlToText(tmplBody) + sig)
+                      } else {
+                        setReplyTemplateHtml(null)
+                        setReplyBody(tmplBody + sig)
+                      }
+                    }}
+                    direction="down"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => replyFileInputRef.current?.click()}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
+                    title="Attach file"
+                  >
+                    <Paperclip size={12} /> Attach
+                  </button>
+                  <input
+                    ref={replyFileInputRef}
+                    type="file"
+                    multiple
+                    className="hidden"
+                    onChange={e => {
+                      const files = Array.from(e.target.files ?? [])
+                      setReplyFiles(prev => [...prev, ...files])
+                      e.target.value = ''
+                    }}
+                  />
+                </div>
+                {/* Body */}
+                <textarea
+                  value={replyBody}
+                  onChange={e => setReplyBody(e.target.value)}
+                  placeholder="Write your reply…"
+                  rows={6}
+                  className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-400"
+                />
+                {/* Attached files */}
+                {replyFiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {replyFiles.map((f, i) => (
+                      <span key={i} className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-slate-100 rounded-lg text-xs text-slate-700 font-medium">
+                        <Paperclip size={11} className="text-slate-400" />
+                        {f.name}
+                        <button
+                          type="button"
+                          onClick={() => setReplyFiles(prev => prev.filter((_, j) => j !== i))}
+                          className="text-slate-400 hover:text-red-500 transition-colors ml-0.5"
+                        >
+                          <X size={11} />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                )}
+                {replySendError && <p className="text-xs text-red-500">{replySendError}</p>}
+                {/* Footer */}
+                <div className="flex items-center justify-between pt-2 border-t border-slate-100">
+                  <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
+                    <Mail size={11} />
+                    Sent to {replyContact.email}
+                  </span>
+                  <button
+                    onClick={() => replyMutation.mutate()}
+                    disabled={!replySubject.trim() || !replyBody.trim() || replyMutation.isPending}
+                    className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
+                  >
+                    <Send size={13} />
+                    Send email
+                    {replyMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
+                  </button>
+                </div>
+              </div>
             )}
           </MutationGate>
         ) : (
@@ -406,18 +537,6 @@ export default function TicketDetail() {
           </>
         )}
       </div>
-
-      {replyOpen && replyContact && (
-        <TicketReplyModal
-          ticket={ticket}
-          contact={replyContact}
-          onClose={() => setReplyOpen(false)}
-          onSent={() => {
-            setReplyOpen(false)
-            qc.invalidateQueries({ queryKey: ['ticket-comments', id] })
-          }}
-        />
-      )}
     </div>
     <CustomerPanel contactId={ticket.contact_id ?? null} ticket={ticket} aiAutoScan={config?.ai_auto_scan ?? false} />
     </div>
@@ -929,151 +1048,6 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
   )
 }
 
-function TicketReplyModal({
-  ticket,
-  contact,
-  onClose,
-  onSent,
-}: {
-  ticket: any
-  contact: any
-  onClose: () => void
-  onSent: () => void
-}) {
-  const { data: signatures } = useSignatures()
-  const defaultSig = pickDefaultSignature(signatures)
-  const [subject, setSubject] = useState(`Re: ${ticket.subject ?? ''}`)
-  const [body, setBody] = useState('')
-  const [appliedSig, setAppliedSig] = useState<string | null>(null)
-  const [templateHtml, setTemplateHtml] = useState<string | null>(null)
-  const [sendError, setSendError] = useState('')
-  const sigPrefilledRef = useRef(false)
-
-  useEffect(() => {
-    if (sigPrefilledRef.current) return
-    if (defaultSig) {
-      setBody(`\n\n${defaultSig.body}`)
-      setAppliedSig(defaultSig.body)
-      sigPrefilledRef.current = true
-    }
-  }, [defaultSig])
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', handler)
-    return () => document.removeEventListener('keydown', handler)
-  }, [onClose])
-
-  const sendMutation = useMutation({
-    mutationFn: () => api.post(`/tickets/${ticket.id}/send-reply`, {
-      subject: subject.trim(),
-      body: body.trim(),
-      ...(templateHtml ? { html_body: templateHtml } : {}),
-    }),
-    onSuccess: (res: any) => {
-      toast.success(`Email sent to ${res.data?.to ?? contact.email}`)
-      onSent()
-    },
-    onError: (err: any) => {
-      const detail = err?.response?.data?.detail
-      setSendError(typeof detail === 'string' ? detail : 'Failed to send email — check your email settings')
-    },
-  })
-
-  const canSend = !!subject.trim() && !!body.trim() && !sendMutation.isPending
-
-  return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col"
-        style={{ maxHeight: '92vh' }}
-      >
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <div className="flex items-center gap-2">
-            <Mail size={16} className="text-slate-400" />
-            <h2 className="text-lg font-bold text-slate-900">Reply to customer</h2>
-          </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
-          {/* To — locked */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">To</label>
-            <div className="flex items-center gap-2.5 px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-200">
-              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold shrink-0">
-                {initials(contact.full_name)}
-              </div>
-              <span className="text-sm text-slate-800 truncate">
-                {contact.full_name} &lt;{contact.email}&gt;
-              </span>
-              <Lock size={11} className="text-slate-300 shrink-0 ml-auto" />
-            </div>
-          </div>
-
-          {/* Subject */}
-          <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Subject</label>
-            <input
-              type="text"
-              value={subject}
-              onChange={e => setSubject(e.target.value)}
-              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
-
-          {/* Body */}
-          <div className="flex flex-col flex-1">
-            <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Message</label>
-              <div className="flex items-center gap-2">
-                <SignaturePicker onPick={(sig: Signature) => {
-                  setBody(prev => swapSignature(prev, appliedSig, sig.body))
-                  setAppliedSig(sig.body)
-                }} />
-                <TemplatePicker
-                  onSelect={(tmplBody, isHtml) => {
-                    const sig = appliedSig ? `\n\n${appliedSig}` : ''
-                    if (isHtml) {
-                      setTemplateHtml(tmplBody)
-                      setBody(htmlToText(tmplBody) + sig)
-                    } else {
-                      setTemplateHtml(null)
-                      setBody(tmplBody + sig)
-                    }
-                  }}
-                  direction="down"
-                />
-              </div>
-            </div>
-            <textarea
-              value={body}
-              onChange={e => setBody(e.target.value)}
-              placeholder="Write your reply…"
-              rows={10}
-              className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-400"
-            />
-          </div>
-
-          {sendError && <p className="text-sm text-red-500">{sendError}</p>}
-        </div>
-
-        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
-          <button onClick={onClose} className="text-sm text-slate-500 hover:text-slate-700 font-medium">Cancel</button>
-          <button
-            onClick={() => sendMutation.mutate()}
-            disabled={!canSend}
-            className="inline-flex items-center gap-2 px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
-          >
-            <Send size={13} />
-            Send email
-            {sendMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 function ContactSlidePanel({
   contactId,

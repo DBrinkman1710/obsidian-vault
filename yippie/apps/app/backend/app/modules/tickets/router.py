@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import base64
 import uuid
-from typing import Annotated, Optional
+from typing import Annotated, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import AdminUser, CurrentUser
@@ -23,7 +24,6 @@ from app.modules.tickets.schemas import (
     TicketList,
     TicketMergeRequest,
     TicketOut,
-    TicketReplyCreate,
     TicketStatusUpdate,
     TicketUpdate,
 )
@@ -228,7 +228,15 @@ async def add_comment(ticket_id: uuid.UUID, body: CommentCreate, current_user: C
 
 
 @router.post("/{ticket_id}/send-reply", status_code=status.HTTP_200_OK)
-async def send_ticket_reply(ticket_id: uuid.UUID, body: TicketReplyCreate, current_user: CurrentUser, db: DB):
+async def send_ticket_reply(
+    ticket_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DB,
+    subject: Optional[str] = Form(None),
+    body: str = Form(...),
+    html_body: Optional[str] = Form(None),
+    attachments: List[UploadFile] = File(default=[]),
+):
     """Send an email reply to the ticket's linked contact and save it as a comment."""
     from app.modules.contacts.models import Contact
     from app.core.mailer import send_email, ResendNotConfiguredError
@@ -248,19 +256,38 @@ async def send_ticket_reply(ticket_id: uuid.UUID, body: TicketReplyCreate, curre
 
     settings = get_settings()
     from_email = current_user.reply_from_email or settings.resend_from or None
-    subject = (body.subject or f"Re: {ticket.subject}").strip()
-    plain_body = body.body.strip()
+    final_subject = (subject or f"Re: {ticket.subject}").strip()
+    plain_body = body.strip()
 
-    html_body = render_email_html(body.html_body or plain_body)
+    # Encode attachments
+    encoded_attachments: list[dict] = []
+    total_bytes = 0
+    MAX_FILE = 10 * 1024 * 1024
+    MAX_TOTAL = 25 * 1024 * 1024
+    for f in attachments:
+        content = await f.read()
+        total_bytes += len(content)
+        if len(content) > MAX_FILE:
+            raise HTTPException(status_code=413, detail=f"Attachment '{f.filename}' exceeds 10 MB")
+        if total_bytes > MAX_TOTAL:
+            raise HTTPException(status_code=413, detail="Attachments exceed 25 MB total")
+        encoded_attachments.append({
+            "filename": f.filename or "attachment",
+            "content": base64.b64encode(content).decode(),
+            "content_type": f.content_type or "application/octet-stream",
+        })
+
+    rendered_html = render_email_html(html_body or plain_body)
 
     try:
         await send_email(
             to=contact.email,
-            subject=subject,
+            subject=final_subject,
             body=plain_body,
-            html=html_body,
+            html=rendered_html,
             from_email=from_email,
             reply_to=from_email,
+            attachments=encoded_attachments or None,
         )
     except ResendNotConfiguredError:
         raise HTTPException(status_code=503, detail="Email sending is not configured (RESEND_API_KEY missing)")
@@ -276,7 +303,7 @@ async def send_ticket_reply(ticket_id: uuid.UUID, body: TicketReplyCreate, curre
         db, current_user.tenant_id,
         module="tickets", event_type="ticket_replied", entity_type="ticket",
         entity_id=ticket.id, contact_id=ticket.contact_id, actor_id=current_user.id,
-        payload={"to": contact.email, "subject": subject},
+        payload={"to": contact.email, "subject": final_subject},
     )
     await db.commit()
 
