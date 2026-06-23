@@ -58,6 +58,21 @@ async def check_email(_: SuperAdminUser, db: DB, email: str = ""):
     return {"available": available, "reason": reason}
 
 
+@router.get("/check-slug")
+async def check_slug(_: SuperAdminUser, db: DB, slug: str = ""):
+    """Real-time slug availability check for the create-client form."""
+    import re as _re
+    slug = (slug or "").strip().lower()
+    if not slug:
+        return {"available": False, "reason": "Slug is required"}
+    if not _re.match(r'^[a-z0-9][a-z0-9-]*[a-z0-9]$', slug) or len(slug) < 2:
+        return {"available": False, "reason": "Only lowercase letters, numbers, and hyphens; min 2 chars"}
+    existing = await db.scalar(sa_select(Tenant.id).where(Tenant.slug == slug))
+    if existing:
+        return {"available": False, "reason": f"Slug '{slug}' is already taken"}
+    return {"available": True, "reason": None}
+
+
 @router.post("/tenants", response_model=schemas.TenantOut, status_code=status.HTTP_201_CREATED)
 async def create_tenant(_: SuperAdminUser, db: DB, data: schemas.TenantCreate):
     try:

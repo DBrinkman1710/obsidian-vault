@@ -152,6 +152,33 @@ function useEmailCheckError(email: string): string | null {
   return null
 }
 
+const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/
+
+function useSlugCheckError(slug: string): string | null {
+  const trimmed = slug.trim().toLowerCase()
+  const [debounced, setDebounced] = useState('')
+
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(trimmed), 400)
+    return () => clearTimeout(t)
+  }, [trimmed])
+
+  const settled = debounced === trimmed && trimmed.length > 0
+
+  const { data } = useQuery<{ available: boolean; reason: string | null }>({
+    queryKey: ['check-slug', debounced],
+    queryFn: () => api.get('/admin/check-slug', { params: { slug: debounced } }).then(r => r.data),
+    enabled: settled && trimmed.length >= 2,
+    staleTime: 30_000,
+  })
+
+  if (!settled) return null
+  if (trimmed.length < 2) return 'Minimum 2 characters'
+  if (!SLUG_RE.test(trimmed)) return 'Only lowercase letters, numbers, hyphens — no leading/trailing hyphens'
+  if (data && !data.available) return data.reason ?? 'Slug is not available'
+  return null
+}
+
 const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
@@ -212,9 +239,14 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM)
   const [extraEmail, setExtraEmail] = useState('')
   const [error, setError] = useState('')
-  const [created, setCreated] = useState<{ invites: string[] } | null>(null)
+  const [created, setCreated] = useState<{ invites: string[]; tenant: Tenant } | null>(null)
+  const [domainSetupTenant, setDomainSetupTenant] = useState<Tenant | null>(null)
+  const [dnsViewTenant, setDnsViewTenant] = useState<Tenant | null>(null)
+  const [copiedLoginUrl, setCopiedLoginUrl] = useState(false)
+
   const adminEmailError = useEmailCheckError(form.admin_email)
   const extraEmailError = useEmailCheckError(extraEmail)
+  const slugError = useSlugCheckError(form.slug)
 
   const set = (field: keyof CreateForm) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -229,9 +261,11 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
             next.inbound_email = newSlug ? `${newSlug}-support@getyippie.com` : ''
         }
         if (field === 'slug') {
+          const safe = slugify(val)
+          next.slug = safe
           const autoEmail = prev.slug ? `${prev.slug}-support@getyippie.com` : ''
           if (!prev.inbound_email || prev.inbound_email === autoEmail)
-            next.inbound_email = val ? `${val}-support@getyippie.com` : ''
+            next.inbound_email = safe ? `${safe}-support@getyippie.com` : ''
         }
         return { ...prev, ...next }
       })
@@ -256,10 +290,10 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
         logo_url: form.logo_url.trim() || null,
         inbound_email: form.inbound_email.trim() || null,
       }).then(r => r.data),
-    onSuccess: () => {
+    onSuccess: (tenant: Tenant) => {
       qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
       const invites = form.admin_password.trim() ? [] : [form.admin_email.trim()]
-      setCreated({ invites: [...invites, ...form.extra_admin_emails] })
+      setCreated({ invites: [...invites, ...form.extra_admin_emails], tenant })
     },
     onError: (err: any) => {
       const detail = err.response?.data?.detail
@@ -269,7 +303,9 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
 
   function stepError(): string {
     if (step === 0) {
-      if (!form.name.trim() || !form.slug.trim()) return 'Company name and slug are required'
+      if (!form.name.trim()) return 'Company name is required'
+      if (!form.slug.trim()) return 'Slug is required'
+      if (slugError) return slugError
       if (!EMAIL_RE.test(form.admin_email.trim())) return 'A valid admin email is required'
       if (adminEmailError) return adminEmailError
     }
@@ -298,24 +334,125 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
     setExtraEmail('')
   }
 
+  const loginUrl = window.location.origin
+
+  function copyLoginUrl() {
+    navigator.clipboard.writeText(loginUrl)
+    setCopiedLoginUrl(true)
+    setTimeout(() => setCopiedLoginUrl(false), 2000)
+  }
+
+  // Domain setup flow inside success screen
+  if (dnsViewTenant) {
+    return <DnsRecordsModal tenant={dnsViewTenant} onClose={() => setDnsViewTenant(null)} />
+  }
+
+  if (domainSetupTenant) {
+    return (
+      <ProvisionDomainModal
+        tenant={domainSetupTenant}
+        onClose={() => setDomainSetupTenant(null)}
+        onSuccess={(updated) => {
+          qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
+          setDomainSetupTenant(null)
+          setDnsViewTenant(updated)
+          if (created) setCreated({ ...created, tenant: updated })
+        }}
+      />
+    )
+  }
+
   if (created) {
+    const allInvited = created.invites
+    const hasDomain = !!created.tenant.resend_domain_id
+    const domainVerified = created.tenant.resend_domain_status === 'verified'
     return (
       <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 flex flex-col gap-4">
-          <div className="flex items-center gap-3">
+        <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
+          <div className="px-6 py-5 border-b border-slate-100 flex items-center gap-3">
             <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
               <Check size={16} className="text-emerald-600" />
             </div>
-            <h2 className="text-lg font-bold text-slate-900">{form.name} created</h2>
+            <div>
+              <h2 className="text-base font-bold text-slate-900">{form.name} is ready</h2>
+              <p className="text-xs text-slate-400">Here's what to do next before handing it over.</p>
+            </div>
           </div>
-          {created.invites.length > 0 ? (
-            <p className="text-sm text-slate-600">
-              Invite emails sent to <strong>{created.invites.join(', ')}</strong> — each admin sets their own password via the link.
-            </p>
-          ) : (
-            <p className="text-sm text-slate-600">The admin account is ready to log in.</p>
-          )}
-          <div className="flex justify-end">
+          <div className="p-6 flex flex-col gap-3">
+            {/* Invite status */}
+            <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <Check size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+              <div className="text-sm text-slate-700">
+                {allInvited.length > 0
+                  ? <>Invite email{allInvited.length > 1 ? 's' : ''} sent to <strong>{allInvited.join(', ')}</strong></>
+                  : <>Admin account ready — password was set.</>
+                }
+              </div>
+            </div>
+
+            {/* Login URL */}
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+              <Globe size={14} className="text-slate-400 flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-slate-500 mb-0.5">Login URL to share with client</p>
+                <p className="text-sm font-mono text-slate-700 truncate">{loginUrl}</p>
+              </div>
+              <button
+                onClick={copyLoginUrl}
+                className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                title="Copy URL"
+              >
+                {copiedLoginUrl ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
+              </button>
+            </div>
+
+            {/* Sending domain */}
+            <div className={`flex items-start gap-3 p-3 rounded-xl border ${hasDomain && domainVerified ? 'bg-emerald-50 border-emerald-200' : hasDomain ? 'bg-amber-50 border-amber-200' : 'bg-white border-slate-200'}`}>
+              {hasDomain && domainVerified
+                ? <ShieldCheck size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
+                : hasDomain
+                  ? <Globe size={14} className="text-amber-500 mt-0.5 flex-shrink-0" />
+                  : <Globe size={14} className="text-slate-300 mt-0.5 flex-shrink-0" />
+              }
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-900">
+                  {hasDomain && domainVerified
+                    ? `Sending domain verified (${created.tenant.resend_domain_name})`
+                    : hasDomain
+                      ? `DNS pending — add records for ${created.tenant.resend_domain_name}`
+                      : 'Sending domain not set up'
+                  }
+                </p>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {hasDomain && domainVerified
+                    ? 'Emails will come from their own domain.'
+                    : hasDomain
+                      ? 'Share DNS records with the client to complete setup.'
+                      : 'Without this, emails come from the shared Yippie domain.'}
+                </p>
+              </div>
+              {!domainVerified && (
+                <button
+                  onClick={() => hasDomain ? setDnsViewTenant(created.tenant) : setDomainSetupTenant(created.tenant)}
+                  className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
+                >
+                  {hasDomain ? 'View DNS' : 'Set up'}
+                </button>
+              )}
+            </div>
+
+            {/* Inbound email reminder */}
+            {form.inbound_email.trim() && (
+              <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
+                <Inbox size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-slate-500 mb-0.5">Inbound email (configure in Resend)</p>
+                  <p className="text-sm font-mono text-slate-700 truncate">{form.inbound_email.trim()}</p>
+                </div>
+              </div>
+            )}
+          </div>
+          <div className="px-6 pb-5 flex justify-end">
             <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">Done</button>
           </div>
         </div>
@@ -351,27 +488,53 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
           {step === 0 && (
             <>
               <div className="grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Company name *</label>
-                  <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme BV" autoFocus /></div>
-                <div><label className={labelCls}>Slug *</label>
-                  <input className={inputCls} value={form.slug} onChange={set('slug')} placeholder="acme-bv" /></div>
+                <div>
+                  <label className={labelCls}>Company name *</label>
+                  <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme BV" autoFocus />
+                </div>
+                <div>
+                  <label className={labelCls}>Slug *</label>
+                  <input
+                    className={`${inputCls} ${slugError ? 'border-red-400 focus:ring-red-400' : form.slug && !slugError ? 'border-emerald-400' : ''}`}
+                    value={form.slug}
+                    onChange={set('slug')}
+                    placeholder="acme-bv"
+                  />
+                  {slugError
+                    ? <p className="mt-1 text-xs text-red-500">{slugError}</p>
+                    : form.slug && <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1"><Check size={11} /> Available</p>
+                  }
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Inbound email</label>
                 <input className={inputCls} type="email" value={form.inbound_email} onChange={set('inbound_email')} placeholder="acme-bv-support@getyippie.com" />
-                <p className="mt-1 text-xs text-slate-400">Address to configure in Resend. Auto-suggested from slug.</p>
+                <p className="mt-1 text-xs text-slate-400">Auto-generated from slug. You'll configure this address in Resend after creation.</p>
               </div>
               <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
-                <div><label className={labelCls}>Admin name</label>
-                  <input className={inputCls} value={form.admin_full_name} onChange={set('admin_full_name')} placeholder="Jan de Vries" /></div>
-                <div><label className={labelCls}>Admin email *</label>
-                  <input className={inputCls} type="email" value={form.admin_email} onChange={set('admin_email')} placeholder="admin@acme.nl" />
-                  {adminEmailError && <p className="mt-1 text-xs text-red-500">{adminEmailError}</p>}</div>
+                <div>
+                  <label className={labelCls}>Admin name</label>
+                  <input className={inputCls} value={form.admin_full_name} onChange={set('admin_full_name')} placeholder="Jan de Vries" />
+                </div>
+                <div>
+                  <label className={labelCls}>Admin email *</label>
+                  <input
+                    className={`${inputCls} ${adminEmailError ? 'border-red-400 focus:ring-red-400' : ''}`}
+                    type="email"
+                    value={form.admin_email}
+                    onChange={set('admin_email')}
+                    placeholder="admin@acme.nl"
+                  />
+                  {adminEmailError && <p className="mt-1 text-xs text-red-500">{adminEmailError}</p>}
+                </div>
               </div>
               <div>
                 <label className={labelCls}>Admin password</label>
                 <input className={inputCls} type="password" value={form.admin_password} onChange={set('admin_password')} placeholder="••••••••" />
-                <p className="mt-1 text-xs text-slate-400">Leave empty to email an invite link — the admin sets their own password.</p>
+                {form.admin_password.trim()
+                  ? <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1"><Check size={11} /> Password set — admin can log in directly.</p>
+                  : <p className="mt-1 text-xs text-slate-400">Leave empty to send an invite link — the admin sets their own password.</p>
+                }
               </div>
             </>
           )}
@@ -384,6 +547,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                   <ModuleToggle key={mod} mod={mod} active={form.enabled_modules.includes(mod)} onClick={() => toggleModule(mod)} />
                 ))}
               </div>
+              <p className="mt-2 text-xs text-slate-400">{form.enabled_modules.length} of {ALL_MODULES.length} enabled — you can change this any time.</p>
             </div>
           )}
 
@@ -402,6 +566,9 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <div>
                 <label className={labelCls}>Logo URL</label>
                 <input className={inputCls} value={form.logo_url} onChange={set('logo_url')} placeholder="https://acme.nl/logo.png" />
+                {form.logo_url.trim() && (
+                  <img src={form.logo_url.trim()} alt="Logo preview" className="mt-2 h-10 object-contain rounded border border-slate-200 bg-slate-50 p-1" onError={e => (e.currentTarget.style.display = 'none')} />
+                )}
                 <p className="mt-1 text-xs text-slate-400">Optional — shown in the client's sidebar.</p>
               </div>
             </>
@@ -438,29 +605,60 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
 
           {step === 4 && (
             <>
+              {/* Demo vs live choice */}
               <div className="flex flex-col gap-2">
                 <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${form.is_demo ? 'border-amber-300 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                   <input type="radio" checked={form.is_demo} onChange={() => setForm(p => ({ ...p, is_demo: true }))} className="mt-0.5" />
                   <span>
                     <span className="block text-sm font-semibold text-slate-900">Start as demo</span>
-                    <span className="block text-xs text-slate-500">Outbound email is suppressed; the client sees an amber demo banner.</span>
+                    <span className="block text-xs text-slate-500">Outbound email suppressed; client sees an amber demo banner. Flip to active when ready.</span>
                   </span>
                 </label>
                 <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${!form.is_demo ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                   <input type="radio" checked={!form.is_demo} onChange={() => setForm(p => ({ ...p, is_demo: false }))} className="mt-0.5" />
                   <span>
                     <span className="block text-sm font-semibold text-slate-900">Go live immediately</span>
-                    <span className="block text-xs text-slate-500">Fully active from the start — emails are sent for real.</span>
+                    <span className="block text-xs text-slate-500">Fully active — real emails are sent from day one.</span>
                   </span>
                 </label>
               </div>
-              <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 text-sm text-slate-600 flex flex-col gap-1">
-                <span><strong className="text-slate-900">{form.name}</strong> ({form.slug})</span>
-                <span>Modules: {form.enabled_modules.map(moduleLabel).join(', ')}</span>
-                <span>
-                  Admin: {form.admin_email}{form.admin_password.trim() ? '' : ' (invite email)'}
-                  {form.extra_admin_emails.length > 0 && ` + ${form.extra_admin_emails.length} invited`}
-                </span>
+
+              {/* Full review */}
+              <div className="bg-slate-50 border border-slate-200 rounded-xl divide-y divide-slate-200 text-sm overflow-hidden">
+                <div className="px-4 py-3 flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: form.primary_color }} />
+                  <span className="font-semibold text-slate-900">{form.name || '—'}</span>
+                  <span className="text-slate-400 font-mono text-xs">/{form.slug}</span>
+                </div>
+                {form.inbound_email.trim() && (
+                  <div className="px-4 py-2 flex gap-2 text-xs">
+                    <span className="text-slate-400 w-28 flex-shrink-0">Inbound email</span>
+                    <span className="text-slate-700 font-mono truncate">{form.inbound_email.trim()}</span>
+                  </div>
+                )}
+                <div className="px-4 py-2 flex gap-2 text-xs">
+                  <span className="text-slate-400 w-28 flex-shrink-0">Modules</span>
+                  <span className="text-slate-700">{form.enabled_modules.map(moduleLabel).join(', ') || '—'}</span>
+                </div>
+                {form.logo_url.trim() && (
+                  <div className="px-4 py-2 flex gap-2 text-xs items-center">
+                    <span className="text-slate-400 w-28 flex-shrink-0">Logo</span>
+                    <img src={form.logo_url.trim()} alt="" className="h-5 object-contain" onError={e => (e.currentTarget.style.display = 'none')} />
+                  </div>
+                )}
+                <div className="px-4 py-2 flex gap-2 text-xs">
+                  <span className="text-slate-400 w-28 flex-shrink-0">Admin</span>
+                  <span className="text-slate-700">
+                    {form.admin_full_name.trim() || 'Admin'} &lt;{form.admin_email.trim()}&gt;
+                    {form.admin_password.trim() ? ' · password set' : ' · invite email'}
+                  </span>
+                </div>
+                {form.extra_admin_emails.length > 0 && (
+                  <div className="px-4 py-2 flex gap-2 text-xs">
+                    <span className="text-slate-400 w-28 flex-shrink-0">+ Admins</span>
+                    <span className="text-slate-700">{form.extra_admin_emails.join(', ')}</span>
+                  </div>
+                )}
               </div>
             </>
           )}
@@ -472,7 +670,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <button type="button" onClick={() => { setError(''); setStep(step - 1) }} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors mr-auto">Back</button>
             )}
             <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
-            <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed">
+            <button type="submit" disabled={mutation.isPending || (step === 0 && !!slugError)} className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed">
               {step < WIZARD_STEPS.length - 1 ? 'Next' : mutation.isPending ? 'Creating…' : 'Create client'}
             </button>
           </div>
