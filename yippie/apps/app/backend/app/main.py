@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, check_module_access, require_feature, require_module
@@ -96,7 +97,8 @@ def create_app() -> FastAPI:
     app.include_router(chat_webhook_router, prefix="/api/v1")
 
     @app.get("/api/v1/health", tags=["health"], include_in_schema=False)
-    async def health():
+    async def health(db: Annotated[AsyncSession, Depends(get_db)]):
+        await db.execute(text("SELECT 1"))
         return {"status": "ok"}
 
     # Tenant config — dynamic per logged-in user's tenant
