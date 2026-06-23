@@ -1082,17 +1082,8 @@ async def broadcast(
 async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
     """Receive inbound WhatsApp messages from Evolution API. No auth — called by Evolution.
     https://{env}.getyippie.com/api/v1/chat/webhooks/{slug}/whatsapp"""
-    body = await request.body()
-    settings = get_settings()
-    if settings.evolution_webhook_secret:
-        import hashlib
-        import hmac as _hmac
-        sig = request.headers.get("X-Evolution-Signature", "")
-        expected = _hmac.new(settings.evolution_webhook_secret.encode(), body, hashlib.sha256).hexdigest()
-        if not _hmac.compare_digest(sig, expected):
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid webhook signature")
     try:
-        payload = json.loads(body)
+        payload = await request.json()
     except Exception:
         return {"status": "ignored"}
 
