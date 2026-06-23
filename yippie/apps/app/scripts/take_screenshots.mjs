@@ -99,19 +99,35 @@ async function main() {
     /* not present */
   }
 
-  // Close the SLA "overdue tickets need attention" toast if present (it overlaps content).
-  try {
-    const toast = page.locator("text=overdue tickets need attention").first();
-    if (await toast.isVisible({ timeout: 2000 })) {
-      const toastParent = toast.locator("..");
-      const closeInToast = toastParent.locator("button").last();
-      if (await closeInToast.isVisible({ timeout: 1000 })) await closeInToast.click();
-      await sleep(400);
-      console.log("  ~ dismissed SLA overdue toast");
-    }
-  } catch {
-    /* no toast */
-  }
+  // Hide the persistent SLA overdue toast — it has no close button and overlaps content.
+  await page.addStyleTag({
+    content: `
+      /* Hide SLA overdue notification bar for clean screenshots */
+      [class*="sla"], [class*="overdue"], [class*="alert-bar"],
+      [class*="notification-bar"], [class*="attention"] { display: none !important; }
+    `,
+  }).catch(() => {});
+  // Also hide by text content via JS — covers any class name
+  await page.evaluate(() => {
+    document.querySelectorAll("*").forEach((el) => {
+      if (
+        el.children.length === 0 &&
+        el.textContent?.includes("overdue tickets need attention")
+      ) {
+        let node = el;
+        for (let i = 0; i < 5; i++) {
+          if (!node.parentElement) break;
+          node = node.parentElement;
+          const rect = node.getBoundingClientRect();
+          if (rect.height < 80 && rect.width > 200) {
+            node.style.display = "none";
+            break;
+          }
+        }
+      }
+    });
+  }).catch(() => {});
+  console.log("  ~ SLA toast hidden via CSS/JS");
 
   // --- Screenshot each module -------------------------------------------- //
   let ok = 0;

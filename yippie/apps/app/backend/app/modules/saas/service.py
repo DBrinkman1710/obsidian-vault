@@ -11,7 +11,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.saas.models import SaasEvent, SaasHealth
@@ -178,7 +178,7 @@ async def get_health_summary(
             SaasEvent.event_domain == "saas",
             SaasEvent.created_at >= cutoff_30d,
         )
-        .group_by(SaasEvent.properties["feature"].astext)
+        .group_by(text("1"))
         .order_by(func.count().desc())
         .limit(5)
     )
@@ -196,7 +196,7 @@ async def get_health_summary(
             SaasEvent.event_domain == "saas",
             SaasEvent.created_at >= cutoff_30d,
         )
-        .group_by(SaasEvent.properties["code"].astext)
+        .group_by(text("1"))
         .order_by(func.count().desc())
         .limit(5)
     )
