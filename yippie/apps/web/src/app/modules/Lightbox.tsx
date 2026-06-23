@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import Image from 'next/image'
 import styles from './modules.module.css'
 
@@ -14,14 +15,48 @@ export default function Lightbox({
   imageClassName?: string
 }) {
   const [open, setOpen] = useState(false)
+  // Avoid SSR mismatch — only portal once mounted on the client.
+  const [mounted, setMounted] = useState(false)
+  const closeRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => { setMounted(true) }, [])
 
   useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpen(false)
-    }
-    if (open) document.addEventListener('keydown', onKey)
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('keydown', onKey)
+    closeRef.current?.focus()
     return () => document.removeEventListener('keydown', onKey)
   }, [open])
+
+  const overlay = (
+    <div
+      className={styles.lightboxOverlay}
+      onClick={() => setOpen(false)}
+      role="dialog"
+      aria-modal="true"
+      aria-label={alt}
+    >
+      <div className={styles.lightboxInner} onClick={e => e.stopPropagation()}>
+        <button
+          ref={closeRef}
+          type="button"
+          onClick={() => setOpen(false)}
+          className={styles.lightboxClose}
+        >
+          Close ✕
+        </button>
+        <Image
+          src={src}
+          alt={alt}
+          width={1440}
+          height={900}
+          unoptimized
+          className={styles.lightboxImage}
+        />
+      </div>
+    </div>
+  )
 
   return (
     <>
@@ -29,7 +64,7 @@ export default function Lightbox({
         type="button"
         onClick={() => setOpen(true)}
         className={styles.lightboxTrigger}
-        aria-label={`View ${alt} fullscreen`}
+        aria-label={`Zoom in: ${alt}`}
       >
         <Image
           src={src}
@@ -41,27 +76,8 @@ export default function Lightbox({
         />
       </button>
 
-      {open && (
-        <div className={styles.lightboxOverlay} onClick={() => setOpen(false)}>
-          <div className={styles.lightboxInner} onClick={(e) => e.stopPropagation()}>
-            <button
-              type="button"
-              onClick={() => setOpen(false)}
-              className={styles.lightboxClose}
-            >
-              Close ✕
-            </button>
-            <Image
-              src={src}
-              alt={alt}
-              width={1440}
-              height={900}
-              unoptimized
-              className={styles.lightboxImage}
-            />
-          </div>
-        </div>
-      )}
+      {/* Portal to document.body — escapes any transform/stacking-context ancestor (e.g. Reveal) */}
+      {mounted && open && createPortal(overlay, document.body)}
     </>
   )
 }
