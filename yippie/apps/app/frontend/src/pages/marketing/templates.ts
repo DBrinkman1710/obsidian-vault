@@ -102,4 +102,62 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   </tr>
 </table>`,
   },
+  {
+    id: 'support-update',
+    name: 'Support update',
+    description: 'Ticket confirmation, status update, or resolution — ready to send.',
+    html: `<table align="center" width="100%" style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;border-spacing:0;">
+  <!-- Logo header -->
+  <tr>
+    <td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-radius:8px 8px 0 0;">
+      <img src="https://getyippie.com/logo-white-bg.svg" alt="Yippie" style="height:36px;border:0;display:inline-block;" />
+    </td>
+  </tr>
+  <!-- Accent bar -->
+  <tr><td style="height:4px;background:#5BA4F5;"></td></tr>
+  <!-- Body card -->
+  <tr>
+    <td style="background:#ffffff;padding:40px 40px 36px;border-radius:0 0 8px 8px;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
+      <!-- Status pill -->
+      <p style="margin:0 0 20px;">
+        <span style="display:inline-block;padding:4px 12px;background:#eff6ff;color:#2563eb;border-radius:999px;font-size:12px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;">Update</span>
+      </p>
+      <!-- Headline -->
+      <h1 style="font-size:22px;font-weight:700;color:#0f172a;margin:0 0 12px;line-height:1.3;">We have an update on your request</h1>
+      <!-- Divider -->
+      <div style="height:1px;background:#e2e8f0;margin:0 0 20px;"></div>
+      <!-- Body -->
+      <p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 14px;">
+        Hi [First name],
+      </p>
+      <p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 14px;">
+        Thank you for reaching out. We wanted to keep you in the loop — here's the latest on your request:
+      </p>
+      <!-- Highlighted note box -->
+      <table width="100%" style="margin:0 0 24px;border-spacing:0;">
+        <tr>
+          <td style="background:#f8fafc;border-left:3px solid #5BA4F5;border-radius:0 6px 6px 0;padding:14px 18px;">
+            <p style="font-size:14px;line-height:1.6;color:#475569;margin:0;">
+              [Describe the update, what action was taken, or what the current status is. Keep it concise and clear.]
+            </p>
+          </td>
+        </tr>
+      </table>
+      <p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 28px;">
+        If you have any follow-up questions, you can reply directly to this email — we're here to help.
+      </p>
+      <!-- CTA -->
+      <p style="margin:0;text-align:center;">
+        <a href="#" style="display:inline-block;padding:13px 32px;background:#5BA4F5;color:#ffffff;border-radius:8px;font-weight:600;text-decoration:none;font-size:15px;">View your ticket</a>
+      </p>
+    </td>
+  </tr>
+  <!-- Footer -->
+  <tr>
+    <td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">
+      Sent with Yippie &nbsp;·&nbsp; <a href="#" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a>
+    </td>
+  </tr>
+</table>`,
+  },
 ]

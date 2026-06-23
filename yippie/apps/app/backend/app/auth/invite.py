@@ -86,7 +86,7 @@ async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> Non
         to=to,
         subject="Your Yippie workspace is ready",
         body=plain_body,
-        html=render_email_html(prerendered_html=prerendered, tenant_name="Yippie"),
+        html=render_email_html(plain_body, prerendered_html=prerendered, tenant_name="Yippie"),
         from_email="Diederik from Yippie <diederik@getyippie.com>",
         reply_to="diederik@getyippie.com",
     )

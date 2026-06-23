@@ -700,18 +700,39 @@ async def get_marketing_stats(
 # Personalisation token replacement
 # --------------------------------------------------------------------------- #
 
-def _apply_personalization(html: str, contact: Contact) -> str:
-    """Replace {{first_name}}, {{company}}, {{email}} in the HTML."""
-    first_name = (contact.full_name or "").split()[0] if contact.full_name else ""
-    company_name = ""
-    if contact.company_rel is not None:
-        company_name = contact.company_rel.name or ""
-    elif contact.company:
-        company_name = contact.company or ""
-    email = contact.email or ""
-    html = html.replace("{{first_name}}", first_name)
-    html = html.replace("{{company}}", company_name)
-    html = html.replace("{{email}}", email)
+def _apply_personalization(
+    html: str,
+    contact: Contact,
+    *,
+    ticket_id: str | None = None,
+    ticket_subject: str | None = None,
+    agent_name: str | None = None,
+) -> str:
+    """Replace personalisation tokens in HTML with contact/ticket values.
+
+    Supported tokens: {{first_name}}, {{last_name}}, {{company}}, {{email}},
+    {{phone}}, {{ticket_id}}, {{ticket_subject}}, {{agent_name}}.
+    Unknown tokens are left as-is; missing optional context values become "".
+    """
+    name_parts = (contact.full_name or "").split()
+    first_name = name_parts[0] if name_parts else ""
+    last_name = " ".join(name_parts[1:]) if len(name_parts) > 1 else ""
+    company_name = (
+        (contact.company_rel.name or "") if contact.company_rel is not None
+        else (contact.company or "")
+    )
+    replacements = {
+        "{{first_name}}": first_name,
+        "{{last_name}}": last_name,
+        "{{company}}": company_name,
+        "{{email}}": contact.email or "",
+        "{{phone}}": contact.phone or "",
+        "{{ticket_id}}": ticket_id or "",
+        "{{ticket_subject}}": ticket_subject or "",
+        "{{agent_name}}": agent_name or "",
+    }
+    for token, value in replacements.items():
+        html = html.replace(token, value)
     return html
 
 

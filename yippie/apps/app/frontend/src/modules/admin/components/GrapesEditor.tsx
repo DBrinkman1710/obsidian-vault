@@ -21,6 +21,7 @@ export interface GrapesEditorHandle {
   loadDesign(json: string | null): void
   exportHtml(cb: (data: { html: string; design: object; campaignButtons: CampaignButton[] }) => void): void
   on(event: string, cb: () => void): void
+  insertToken(token: string): void
 }
 
 interface GrapesEditorProps {
@@ -273,6 +274,16 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
         return
       }
       editor.on(event, cb)
+    },
+    insertToken(token: string) {
+      const editor = editorRef.current
+      if (!editor) return
+      // Use execCommand on the canvas iframe document so the token is inserted
+      // at the cursor position inside the currently-active contenteditable block.
+      // mousedown preventDefault() on the caller's button keeps iframe focus alive.
+      const doc = editor.Canvas.getDocument() as Document | undefined
+      if (!doc) return
+      doc.execCommand('insertText', false, token)
     },
   }))
 

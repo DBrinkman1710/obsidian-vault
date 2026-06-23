@@ -1,12 +1,23 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import GrapesEditor, { GrapesEditorHandle, type PipelineStage, type CampaignButton } from '../components/GrapesEditor'
-import { Copy, FileText, Loader2, Palette, Pencil, Plus, Trash2, X } from 'lucide-react'
+import { Copy, FileText, Loader2, Palette, Pencil, Plus, Tag, Trash2, X } from 'lucide-react'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { api } from '../../../api/client'
 import { fetchLabels, type ContactLabel } from '../../contacts/components/LabelChip'
 import { htmlToText } from '../../inbox/components/TemplatePicker'
 import { STARTER_TEMPLATES } from '../../../pages/marketing/templates'
+
+const PERSONALIZATION_TOKENS = [
+  '{{first_name}}',
+  '{{last_name}}',
+  '{{company}}',
+  '{{email}}',
+  '{{phone}}',
+  '{{ticket_id}}',
+  '{{ticket_subject}}',
+  '{{agent_name}}',
+]
 
 interface Template {
   id: string
@@ -287,6 +298,22 @@ export default function TemplatesPage() {
           >
             <X size={16} />
           </button>
+        </div>
+
+        {/* Personalisation token bar */}
+        <div className="flex items-center gap-1.5 px-5 py-2 border-b border-slate-100 bg-slate-50/70 shrink-0 overflow-x-auto">
+          <Tag size={11} className="text-slate-400 shrink-0" />
+          <span className="text-[10px] font-bold uppercase tracking-wide text-slate-400 shrink-0 mr-1">Personalisation</span>
+          {PERSONALIZATION_TOKENS.map(token => (
+            <button
+              key={token}
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => editorRef.current?.insertToken(token)}
+              className="shrink-0 px-2 py-0.5 bg-white border border-slate-200 rounded text-[11px] font-mono text-blue-600 hover:border-blue-300 hover:bg-blue-50 transition-colors whitespace-nowrap"
+            >
+              {token}
+            </button>
+          ))}
         </div>
 
         <div className="relative flex-1 min-h-0 overflow-hidden">
