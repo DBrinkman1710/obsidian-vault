@@ -140,13 +140,20 @@ export default function App() {
 
   // Auto-embed internal platform tracking on every tenant environment
   useEffect(() => {
-    if (!config?.tracking_token || document.getElementById('yippie-platform-tag')) return
-    const s = document.createElement('script')
-    s.id = 'yippie-platform-tag'
-    s.src = 'https://getyippie.com/saas.js'
-    s.setAttribute('data-token', config.tracking_token)
-    s.async = true
-    document.head.appendChild(s)
+    if (!config?.tracking_token) return
+    const scripts = [
+      { id: 'yippie-platform-saas',  src: 'https://getyippie.com/saas.js'  },
+      { id: 'yippie-platform-sales', src: 'https://getyippie.com/sales.js' },
+    ]
+    for (const { id, src } of scripts) {
+      if (document.getElementById(id)) continue
+      const s = document.createElement('script')
+      s.id = id
+      s.src = src
+      s.setAttribute('data-token', config.tracking_token)
+      s.async = true
+      document.head.appendChild(s)
+    }
   }, [config?.tracking_token])
 
   if (!token) {
