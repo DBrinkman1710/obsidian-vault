@@ -588,6 +588,7 @@ async def get_superadmin_stats(
             "tickets_open": 0, "tickets_closed": 0, "tickets_overdue": 0,
             "inbox_pending": 0, "contacts_created": 0,
             "active_users_today": 0, "ai_usage_today": 0, "ai_usage_period": 0,
+            "saas_events_period": 0,
         }
         for t in tenants
     }
@@ -676,6 +677,22 @@ async def get_superadmin_stats(
         )
         for r in user_rows:
             acc[r.tenant_id]["active_users_today"] = r.active
+
+        # SaaS events in range (domain='saas', any tenant that has the module).
+        from app.modules.saas.models import SaasEvent
+
+        saas_rows = await db.execute(
+            select(SaasEvent.tenant_id, func.count(SaasEvent.id).label("events"))
+            .where(
+                SaasEvent.tenant_id.in_(tenant_ids),
+                SaasEvent.event_domain == "saas",
+                SaasEvent.created_at >= start,
+                SaasEvent.created_at <= end,
+            )
+            .group_by(SaasEvent.tenant_id)
+        )
+        for r in saas_rows:
+            acc[r.tenant_id]["saas_events_period"] = r.events
 
     rows = [
         TenantStatRow(

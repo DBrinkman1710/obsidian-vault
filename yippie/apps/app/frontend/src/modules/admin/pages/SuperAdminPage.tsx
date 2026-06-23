@@ -1650,6 +1650,7 @@ interface TenantStatRow {
   active_users_today: number
   ai_usage_today: number
   ai_usage_period: number
+  saas_events_period: number
 }
 
 interface SuperAdminStats {
@@ -1896,12 +1897,13 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
         <StatCard icon={<Building2 size={16} />} label="Total tenants" value={summary?.total_tenants ?? 0} />
         <StatCard icon={<Check size={16} />} label="Active tenants" value={summary?.active_tenants ?? 0} />
         <StatCard icon={<TicketIcon size={16} />} label="Open tickets" value={summary?.total_tickets_open ?? 0} />
         <StatCard icon={<AlertTriangle size={16} />} label="Overdue tickets" value={summary?.total_tickets_overdue ?? 0} tone={summary && summary.total_tickets_overdue > 0 ? 'red' : 'default'} />
         <StatCard icon={<Inbox size={16} />} label="Inbox pending" value={summary?.total_inbox_pending ?? 0} />
+        <StatCard icon={<Globe size={16} />} label={`SaaS events (${range})`} value={rows.reduce((s, r) => s + r.saas_events_period, 0)} />
       </div>
 
       {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
@@ -1925,6 +1927,7 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Pending inbox</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">AI uses today</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Contacts ({range === 'all' ? 'all' : range === '7d' ? '7d' : '30d'})</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">SaaS events ({range === 'all' ? 'all' : range})</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -1952,6 +1955,11 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-sm text-slate-700 tabular-nums">{r.contacts_created}</td>
+                    <td className="px-4 py-3 text-right text-sm tabular-nums">
+                      <span className={r.saas_events_period > 0 ? 'text-slate-700' : 'text-slate-300'}>
+                        {r.saas_events_period}
+                      </span>
+                    </td>
                   </tr>
                 )
               })}
