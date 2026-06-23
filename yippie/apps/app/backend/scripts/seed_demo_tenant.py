@@ -152,19 +152,22 @@ def create_tenant(api: Api) -> str | None:
     }
     resp = api.request("POST", "/admin/tenants", json=body)
     if resp.status_code == 409:
-        print(
-            f"\nTenant slug '{TENANT_SLUG}' already exists (409).\n"
-            f"Delete it from the superadmin UI (or via "
-            f"POST /api/v1/admin/tenants/{{id}}/delete) and re-run this script.\n"
-        )
-        return None
+        # Tenant exists — look it up so we can still impersonate and patch.
+        print(f"  Tenant slug '{TENANT_SLUG}' already exists — looking it up to patch…")
+        tenants = api.get("/admin/tenants", ok=(200,), label="list tenants") or []
+        for t in tenants:
+            if t.get("slug") == TENANT_SLUG:
+                print(f"  Found existing tenant ({t['id']})")
+                return t["id"], True  # (id, already_existed)
+        print(f"  ! Could not find existing tenant '{TENANT_SLUG}' — aborting.")
+        return None, False
     if resp.status_code not in (200, 201):
         print(f"  ! POST /admin/tenants -> {resp.status_code}: {resp.text[:500]}")
-        return None
+        return None, False
     tenant = resp.json()
     tid = tenant["id"]
     print(f"Created tenant {TENANT_NAME} ({tid})")
-    return tid
+    return tid, False
 
 
 def impersonate(api: Api, tenant_id: str) -> bool:
@@ -493,6 +496,154 @@ def seed_booking(api: Api) -> None:
 
 
 # --------------------------------------------------------------------------- #
+# Extra seed steps (tour, tracking events)
+# --------------------------------------------------------------------------- #
+
+def dismiss_tour(api: Api) -> None:
+    """Mark the welcome tour as completed so it doesn't overlay screenshots."""
+    res = api.patch("/auth/me", json={"tour_completed": True}, ok=(200, 201), label="dismiss tour")
+    if res:
+        print("  ~ welcome tour marked completed")
+
+
+def seed_tracking_events(api: Api, contacts: list[dict]) -> None:
+    """Inject saas + commerce events via the public /track endpoint so
+    the Sales and SaaS dashboards show real-looking data."""
+
+    # Get this tenant's tracking token
+    tok_data = api.get("/saas/token", ok=(200,), label="saas/token")
+    if not tok_data or "tracking_token" not in tok_data:
+        print("  ! Could not get tracking token — skipping event injection")
+        return
+    token = tok_data["tracking_token"]
+    print(f"\nSeeding tracking events (token {token[:8]}…)")
+
+    # Use the public ingest endpoint (no auth header needed)
+    public_api = Api(f"{BASE_URL}/api/v1/public")
+    public_api.token = None  # no auth
+
+    emails = [c.get("email") for c in contacts if c.get("email")]
+
+    # ------------------------------------------------------------------ #
+    # SaaS domain events — powers the SaaS Product Analytics dashboard
+    # ------------------------------------------------------------------ #
+    saas_batches = [
+        # Onboarding completions
+        *[{
+            "token": token,
+            "contact_email": emails[i % len(emails)],
+            "anonymous_id": f"anon-{i:04d}",
+            "event_domain": "saas",
+            "events": [
+                {"event_type": "onboarding_step", "properties": {"step": "connect_inbox",   "status": "completed"}},
+                {"event_type": "onboarding_step", "properties": {"step": "invite_teammate",  "status": "completed"}},
+                {"event_type": "onboarding_step", "properties": {"step": "create_ticket",    "status": "completed" if i % 3 != 0 else "skipped"}},
+                {"event_type": "onboarding_step", "properties": {"step": "setup_pipeline",   "status": "completed" if i % 4 != 0 else "skipped"}},
+            ],
+        } for i in range(8)],
+        # Feature usage
+        *[{
+            "token": token,
+            "contact_email": emails[i % len(emails)],
+            "anonymous_id": f"anon-feat-{i:04d}",
+            "event_domain": "saas",
+            "events": [
+                {"event_type": "feature_used", "properties": {"feature": feat}},
+            ],
+        } for i, feat in enumerate([
+            "inbox_ai_scan", "inbox_ai_scan", "inbox_ai_scan",
+            "ticket_bulk_action", "ticket_bulk_action",
+            "pipeline_drag_drop", "pipeline_drag_drop",
+            "contact_import", "calendar_booking", "marketing_campaign",
+            "billing_invoice", "live_chat", "shipment_tracking",
+        ])],
+        # Errors
+        *[{
+            "token": token,
+            "contact_email": emails[i % len(emails)],
+            "anonymous_id": f"anon-err-{i:04d}",
+            "event_domain": "saas",
+            "events": [
+                {"event_type": "error_encountered", "properties": {"code": code, "feature": feat}},
+            ],
+        } for i, (code, feat) in enumerate([
+            ("QUOTA_EXCEEDED",  "ai_scan"),
+            ("QUOTA_EXCEEDED",  "ai_scan"),
+            ("SMTP_AUTH_FAIL",  "email_send"),
+            ("WEBHOOK_TIMEOUT", "inbox_webhook"),
+            ("RATE_LIMITED",    "api"),
+        ])],
+    ]
+
+    ok = 0
+    for batch in saas_batches:
+        r = public_api.post("/track", json=batch, auth=False, ok=(200, 201), label="saas track")
+        if r:
+            ok += r.get("ingested", 0)
+    print(f"  + {ok} saas events ingested")
+
+    # ------------------------------------------------------------------ #
+    # Commerce domain events — powers the Sales Tracking dashboard
+    # ------------------------------------------------------------------ #
+    pages = [
+        "/products/support-plan-starter",
+        "/products/support-plan-growth",
+        "/products/support-plan-pro",
+        "/pricing",
+        "/pricing",
+        "/pricing",
+        "/checkout",
+        "/checkout",
+        "/blog/reduce-support-costs",
+        "/",
+    ]
+    commerce_batches = [
+        # Pageviews
+        *[{
+            "token": token,
+            "contact_email": emails[i % len(emails)],
+            "anonymous_id": f"shop-{i:04d}",
+            "event_domain": "commerce",
+            "events": [
+                {"event_type": "pageview", "properties": {"url": pages[i % len(pages)], "referrer": "https://google.com"}},
+            ],
+        } for i in range(24)],
+        # Add-to-cart
+        *[{
+            "token": token,
+            "contact_email": emails[i % len(emails)],
+            "anonymous_id": f"shop-{i:04d}",
+            "event_domain": "commerce",
+            "events": [
+                {"event_type": "add_to_cart", "properties": {"product": "Support Plan Growth", "price_cents": 3900}},
+            ],
+        } for i in range(6)],
+        # Purchases
+        *[{
+            "token": token,
+            "contact_email": emails[i % len(emails)],
+            "anonymous_id": f"shop-{i:04d}",
+            "event_domain": "commerce",
+            "events": [
+                {"event_type": "purchase", "properties": {"product": prod, "revenue_cents": rev, "order_id": f"ORD-{5000+i}"}},
+            ],
+        } for i, (prod, rev) in enumerate([
+            ("Support Plan Starter", 1900),
+            ("Support Plan Growth",  3900),
+            ("Support Plan Growth",  3900),
+            ("Support Plan Pro",     6900),
+        ])],
+    ]
+
+    ok2 = 0
+    for batch in commerce_batches:
+        r = public_api.post("/track", json=batch, auth=False, ok=(200, 201), label="commerce track")
+        if r:
+            ok2 += r.get("ingested", 0)
+    print(f"  + {ok2} commerce events ingested")
+
+
+# --------------------------------------------------------------------------- #
 # Main
 # --------------------------------------------------------------------------- #
 
@@ -503,27 +654,39 @@ def main() -> int:
     if not login_superadmin(api):
         return 1
 
-    tenant_id = create_tenant(api)
-    if not tenant_id:
+    result = create_tenant(api)
+    if result is None or result[0] is None:
         return 1
+    tenant_id, already_existed = result
 
     if not impersonate(api, tenant_id):
         return 1
 
-    companies = seed_companies(api)
-    contacts = seed_contacts(api, companies)
-    seed_departments(api)
-    seed_tickets(api, contacts)
-    seed_calendar(api, contacts)
-    seed_pipeline(api, contacts)
-    seed_invoices(api, contacts)
-    seed_subscriptions(api, contacts)
-    seed_marketing(api)
-    seed_shipments(api, contacts)
-    seed_booking(api)
+    if already_existed:
+        # Tenant exists — only run the new steps we hadn't done before.
+        print("\nTenant already seeded — patching with missing data only…")
+        dismiss_tour(api)
+        # Fetch existing contacts to use for tracking events
+        contacts_data = api.get("/contacts", ok=(200,), label="list contacts") or {}
+        contacts = contacts_data.get("items", []) if isinstance(contacts_data, dict) else contacts_data
+        seed_tracking_events(api, contacts)
+    else:
+        companies = seed_companies(api)
+        contacts = seed_contacts(api, companies)
+        seed_departments(api)
+        seed_tickets(api, contacts)
+        seed_calendar(api, contacts)
+        seed_pipeline(api, contacts)
+        seed_invoices(api, contacts)
+        seed_subscriptions(api, contacts)
+        seed_marketing(api)
+        seed_shipments(api, contacts)
+        seed_booking(api)
+        dismiss_tour(api)
+        seed_tracking_events(api, contacts)
 
     print("\n" + "=" * 27)
-    print("=== DEMO TENANT CREATED ===")
+    print("=== DEMO TENANT READY ===")
     print(f"URL: {BASE_URL}")
     print(f"Email: {DEMO_ADMIN_EMAIL}")
     print(f"Password: {DEMO_ADMIN_PASSWORD}")

@@ -66,7 +66,7 @@ async function main() {
 
   // Give the dashboard a moment to settle after auth.
   await page.waitForLoadState("networkidle").catch(() => {});
-  await sleep(1500);
+  await sleep(2000);
 
   if (page.url().includes("/login")) {
     console.error("ERROR: still on /login after submit — check credentials / base URL.");
@@ -75,6 +75,18 @@ async function main() {
   }
   console.log(`Logged in -> ${page.url()}`);
 
+  // Dismiss the welcome tour if it appears (aria-label="Skip tour" on the X button).
+  try {
+    const skipBtn = page.getByLabel("Skip tour");
+    if (await skipBtn.isVisible({ timeout: 3000 })) {
+      await skipBtn.click();
+      await sleep(600);
+      console.log("  ~ dismissed welcome tour");
+    }
+  } catch {
+    // Tour not present — fine.
+  }
+
   // --- Screenshot each module -------------------------------------------- //
   let ok = 0;
   let failed = 0;
@@ -82,8 +94,8 @@ async function main() {
     const outPath = resolve(OUT_DIR, file);
     try {
       await page.goto(`${BASE_URL}${path}`, { waitUntil: "domcontentloaded", timeout: 60000 });
-      await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
-      await sleep(1500);
+      await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
+      await sleep(2500);
       await page.screenshot({ path: outPath, fullPage: false });
       console.log(`  + ${file}  (${path})`);
       ok++;
