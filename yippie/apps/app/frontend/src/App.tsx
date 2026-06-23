@@ -138,6 +138,17 @@ export default function App() {
     return () => { cancelled = true }
   }, [token])
 
+  // Auto-embed internal platform tracking on every tenant environment
+  useEffect(() => {
+    if (!config?.tracking_token || document.getElementById('yippie-platform-tag')) return
+    const s = document.createElement('script')
+    s.id = 'yippie-platform-tag'
+    s.src = 'https://getyippie.com/saas.js'
+    s.setAttribute('data-token', config.tracking_token)
+    s.async = true
+    document.head.appendChild(s)
+  }, [config?.tracking_token])
+
   if (!token) {
     return (
       <Suspense fallback={null}>
@@ -267,7 +278,9 @@ export default function App() {
               <Route path="/sales" element={
                 <ModuleGate module="sales"><PagePad><SalesPage /></PagePad></ModuleGate>
               } />
-              <Route path="/saas" element={<PagePad><SaasPage /></PagePad>} />
+              <Route path="/saas" element={
+                <ModuleGate module="saas"><PagePad><SaasPage /></PagePad></ModuleGate>
+              } />
 
               <Route path="/settings" element={
                 <ModuleGate module="contacts"><PagePad><LabelsPage /></PagePad></ModuleGate>

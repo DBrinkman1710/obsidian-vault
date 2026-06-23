@@ -17,7 +17,7 @@ class TenantCreate(BaseModel):
     admin_password: Optional[str] = None
     admin_full_name: str = "Admin"
     extra_admin_emails: list[EmailStr] = []
-    enabled_modules: list[str] = ["contacts", "tickets", "billing", "activity", "inbox", "chat"]
+    enabled_modules: list[str] = ["contacts", "tickets", "billing", "activity", "inbox", "chat", "saas"]
     primary_color: str = "#5BA4F5"
     logo_url: Optional[str] = None
     is_demo: bool = False

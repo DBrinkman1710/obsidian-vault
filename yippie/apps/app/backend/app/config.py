@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings
 # Canonical list of all compiled-in modules. This is the single source of truth
 # for module names — it matches the keys of ``app.modules.MODULES`` and is used
 # as the default ``enabled_modules`` for new tenants (see app.core.models.Tenant).
-ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'departments', 'marketing', 'tracking', 'sales']
+ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas']
 
 
 class Settings(BaseSettings):

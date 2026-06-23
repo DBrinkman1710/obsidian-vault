@@ -28,6 +28,7 @@ export interface TenantConfig {
   stripe_subscription_status: string | null
   stripe_publishable_key: string
   ai_scans_used_this_period: number
+  tracking_token: string | null
 }
 
 export async function fetchTenantConfig(): Promise<TenantConfig> {
