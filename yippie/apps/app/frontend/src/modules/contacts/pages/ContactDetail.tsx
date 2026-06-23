@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Clock, Pencil, Kanban, CalendarClock } from 'lucide-react'
+import { Plus, Pencil, Kanban, CalendarClock, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelChip'
@@ -33,6 +33,19 @@ function payloadSummary(payload: any): string | null {
   if (payload.from_status && payload.to_status) return `${payload.from_status} → ${payload.to_status}`
   if (payload.status) return `Status: ${payload.status}`
   return null
+}
+
+function initials(name?: string): string {
+  if (!name) return '?'
+  const parts = name.trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+}
+
+function isLocalDutchFormat(phone: string | null | undefined): boolean {
+  if (!phone) return false
+  const digits = phone.replace(/\D/g, '')
+  return digits.length === 10 && digits.startsWith('0')
 }
 
 interface PipelineStage { id: string; name: string; color: string; contact_count?: number }
@@ -70,78 +83,86 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
       if (ctx?.prev !== undefined) qc.setQueryData(['contact-pipeline-stage', contactId], ctx.prev)
       toast.error('Failed to update stage.')
     },
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contact-pipeline-stage', contactId] }); qc.invalidateQueries({ queryKey: ['pipeline-board'] }); setEditing(false) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact-pipeline-stage', contactId] })
+      qc.invalidateQueries({ queryKey: ['pipeline-board'] })
+      setEditing(false)
+    },
   })
 
   const removeMut = useMutation({
     mutationFn: () => api.delete(`/pipeline/contacts/${contactId}/stage`),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['contact-pipeline-stage', contactId] }); qc.invalidateQueries({ queryKey: ['pipeline-board'] }) },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact-pipeline-stage', contactId] })
+      qc.invalidateQueries({ queryKey: ['pipeline-board'] })
+    },
   })
 
   if (!isPipelineEnabled) return null
 
   return (
-    <div className="mb-6">
-      <div className="flex items-center gap-2 mb-2">
+    <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
+      <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
         <Kanban size={12} className="text-slate-400" />
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Kanban</p>
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex-1">Kanban stage</h3>
         {stage && !editing && (
           <button
             onClick={() => { setSelectedId(stage.id); setEditing(true) }}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
           >
-            <Pencil size={10} />
+            <Pencil size={9} />
             Change
           </button>
         )}
       </div>
-
-      {editing ? (
-        <div className="space-y-2">
-          <select
-            autoFocus
-            value={selectedId}
-            onChange={e => setSelectedId(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-          >
-            <option value="">Select stage…</option>
-            {allStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </select>
-          <div className="flex gap-2">
-            <button
-              onClick={() => { if (selectedId) moveMut.mutate(selectedId) }}
-              disabled={!selectedId || moveMut.isPending}
-              className="flex-1 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity"
+      <div className="px-4 py-3">
+        {editing ? (
+          <div className="space-y-2">
+            <select
+              autoFocus
+              value={selectedId}
+              onChange={e => setSelectedId(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              Save
-            </button>
+              <option value="">Select stage…</option>
+              {allStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+            <div className="flex gap-2">
+              <button
+                onClick={() => { if (selectedId) moveMut.mutate(selectedId) }}
+                disabled={!selectedId || moveMut.isPending}
+                className="flex-1 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => setEditing(false)}
+                className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 rounded-lg transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : stage ? (
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
+            <span className="text-sm font-semibold text-slate-700">{stage.name}</span>
             <button
-              onClick={() => setEditing(false)}
-              className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 rounded-lg transition-colors"
+              onClick={() => { if (confirm('Remove from kanban?')) removeMut.mutate() }}
+              className="ml-auto text-xs text-slate-400 hover:text-red-500 transition-colors"
             >
-              Cancel
+              Remove
             </button>
           </div>
-        </div>
-      ) : stage ? (
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
-          <span className="text-sm font-semibold text-slate-700">{stage.name}</span>
+        ) : (
           <button
-            onClick={() => { if (confirm('Remove from kanban?')) removeMut.mutate() }}
-            className="ml-auto text-xs text-slate-400 hover:text-red-500 transition-colors"
+            onClick={() => { setSelectedId(''); setEditing(true) }}
+            className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
           >
-            Remove
+            + Add to kanban
           </button>
-        </div>
-      ) : (
-        <button
-          onClick={() => { setSelectedId(''); setEditing(true) }}
-          className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
-        >
-          + Add to kanban
-        </button>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -152,6 +173,7 @@ export default function ContactDetail() {
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? false
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [activityExpanded, setActivityExpanded] = useState(false)
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ['contact', id],
@@ -163,20 +185,18 @@ export default function ContactDetail() {
     queryFn: () => api.get(`/activity`, { params: { contact_id: id } }).then(r => r.data),
   })
 
-  const { data: recentMoments } = useQuery({
-    queryKey: ['contact-moments', id],
-    queryFn: () => api.get(`/activity`, { params: { contact_id: id, limit: 3 } }).then(r => r.data),
-  })
-
   if (isLoading) return <p className="text-sm text-slate-400">Loading…</p>
   if (!contact) return <p className="text-sm text-red-500">Contact not found</p>
 
   const newTicketUrl = `/tickets/new?contact_id=${id}&contact_name=${encodeURIComponent(contact.full_name)}`
+  const allActivity: any[] = activity ?? []
+  const visibleActivity = activityExpanded ? allActivity : allActivity.slice(0, 3)
+  const hiddenCount = allActivity.length - 3
 
   return (
-    <div className="flex flex-col md:flex-row gap-8 items-start">
-      <div className="flex-1 min-w-0 max-w-2xl">
-        <div className="flex items-start justify-between gap-2 mb-1">
+    <div className="flex gap-8 items-start">
+      <div className="flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-bold text-slate-900">{contact.full_name}</h1>
             {marketingEnabled && typeof contact.engagement_score === 'number' && (
@@ -198,9 +218,9 @@ export default function ContactDetail() {
             {bookingEnabled && (
               <button
                 onClick={() => setBookingOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
               >
-                <CalendarClock size={14} strokeWidth={2.5} />
+                <CalendarClock size={12} />
                 Send booking link
               </button>
             )}
@@ -221,75 +241,88 @@ export default function ContactDetail() {
             onClose={() => setBookingOpen(false)}
           />
         )}
-        {contact.company && <p className="text-sm text-slate-500 mb-6">{contact.company.name}</p>}
-
-        <div className="grid grid-cols-2 gap-4 mb-8">
-          <Field label="Email" value={contact.email} />
-          <PhoneField phone={contact.phone} />
-        </div>
-
-        <CompanyBlock contactId={id!} company={contact.company ?? null} />
-
-        <LabelsBlock contactId={id!} labels={contact.labels ?? []} />
 
         {contact.notes && (
-          <div className="mb-8">
+          <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Notes</h3>
-            <p className="text-sm text-slate-600 whitespace-pre-wrap bg-slate-50 rounded-lg p-4 border border-slate-200">{contact.notes}</p>
+            <p className="text-sm text-slate-600 whitespace-pre-wrap">{contact.notes}</p>
           </div>
         )}
 
         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Activity</h3>
         <div className="flex flex-col gap-2">
-          {activity?.map((ev: any) => (
-            <div key={ev.id} className="border-l-2 border-slate-200 pl-4 py-1">
-              <p className="text-xs text-slate-600">
-                <span className="font-semibold">{ev.event_type}</span>
-                <span className="text-slate-400 ml-2">· {new Date(ev.created_at).toLocaleString()}</span>
-              </p>
-            </div>
-          ))}
-          {(!activity || activity.length === 0) && (
-            <p className="text-sm text-slate-400">No activity yet.</p>
+          {visibleActivity.map((ev: any) => {
+            const summary = payloadSummary(ev.payload)
+            return (
+              <div key={ev.id} className="bg-white rounded-xl border border-slate-200 px-4 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-xs font-semibold text-slate-700">{formatEventType(ev.event_type)}</p>
+                  <span className="text-xs text-slate-400 whitespace-nowrap shrink-0">{timeAgo(ev.created_at)}</span>
+                </div>
+                {summary && <p className="text-xs text-slate-500 mt-1 italic">{summary}</p>}
+              </div>
+            )
+          })}
+          {allActivity.length === 0 && <p className="text-sm text-slate-400">No activity yet.</p>}
+          {hiddenCount > 0 && (
+            <button
+              onClick={() => setActivityExpanded(v => !v)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors py-1"
+            >
+              {activityExpanded ? (
+                <><ChevronUp size={13} />Show less</>
+              ) : (
+                <><ChevronDown size={13} />Show {hiddenCount} more</>
+              )}
+            </button>
           )}
         </div>
       </div>
 
-      <div className="w-64 flex-shrink-0">
-        <PipelineStageBlock contactId={id!} />
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Recent Moments</p>
-        {!recentMoments || recentMoments.length === 0 ? (
-          <p className="text-sm text-slate-400">No activity yet.</p>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {recentMoments.map((ev: any) => {
-              const summary = payloadSummary(ev.payload)
-              return (
-                <div key={ev.id} className="bg-white border border-slate-200 rounded-xl p-3 shadow-sm">
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <span className="text-xs font-semibold text-slate-900 leading-snug">{formatEventType(ev.event_type)}</span>
-                    <span className="text-xs text-slate-400 whitespace-nowrap flex-shrink-0 flex items-center gap-1">
-                      <Clock size={10} />
-                      {timeAgo(ev.created_at)}
-                    </span>
-                  </div>
-                  <span className="inline-block text-xs font-semibold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full uppercase tracking-wide">
-                    {ev.module}
-                  </span>
-                  {summary && (
-                    <p className="text-xs text-slate-500 mt-2 leading-snug italic">{summary}</p>
-                  )}
-                </div>
-              )
-            })}
+      <aside className="w-96 flex-shrink-0">
+        <div className="mb-6">
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">Details</h2>
+          <p className="text-sm text-slate-500">Contact info &amp; properties.</p>
+        </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="px-4 py-4 flex items-start gap-3">
+            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0">
+              {initials(contact.full_name)}
+            </div>
+            <div className="min-w-0 flex-1 pt-0.5">
+              <p className="text-sm font-bold text-slate-900 truncate">{contact.full_name}</p>
+              {contact.company && <p className="text-xs text-slate-500 truncate">{contact.company.name}</p>}
+            </div>
           </div>
-        )}
-      </div>
+          <div className="divide-y divide-slate-100">
+            <div className="px-4 py-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Email</p>
+              <p className="text-xs text-slate-700">{contact.email || '—'}</p>
+            </div>
+            <div className="px-4 py-3">
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Phone</p>
+              <div className="flex items-center gap-2 flex-wrap">
+                <p className="text-xs text-slate-700">{contact.phone || '—'}</p>
+                {isLocalDutchFormat(contact.phone) && (
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
+                    Local format
+                  </span>
+                )}
+              </div>
+            </div>
+            <CompanyRow contactId={id!} company={contact.company ?? null} />
+            <LabelsRow contactId={id!} labels={contact.labels ?? []} />
+          </div>
+        </div>
+
+        <PipelineStageBlock contactId={id!} />
+      </aside>
     </div>
   )
 }
 
-function CompanyBlock({ contactId, company }: { contactId: string; company: CompanyRef | null }) {
+function CompanyRow({ contactId, company }: { contactId: string; company: CompanyRef | null }) {
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -305,40 +338,37 @@ function CompanyBlock({ contactId, company }: { contactId: string; company: Comp
   })
 
   return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-2">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Company</h3>
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Company</p>
         {!editing && (
           <button
             type="button"
             onClick={() => { setSelectedId(company?.id ?? null); setEditing(true) }}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
           >
-            <Pencil size={10} />
+            <Pencil size={9} />
             Edit
           </button>
         )}
       </div>
       {editing ? (
-        <div className="flex flex-col gap-3 max-w-sm">
+        <div className="flex flex-col gap-2">
           <CompanyPicker value={selectedId} onChange={setSelectedId} />
-          {saveMutation.isError && (
-            <p className="text-sm text-red-500">Something went wrong — try again.</p>
-          )}
+          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong — try again.</p>}
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="inline-flex items-center px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
+              className="inline-flex items-center px-3 py-1 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
             >
               {saveMutation.isPending ? 'Saving…' : 'Save'}
-              {saveMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="px-3 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              className="px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
@@ -347,13 +377,13 @@ function CompanyBlock({ contactId, company }: { contactId: string; company: Comp
       ) : company ? (
         <CompanyBadge name={company.name} />
       ) : (
-        <p className="text-sm text-slate-400">No company.</p>
+        <p className="text-xs text-slate-400">No company.</p>
       )}
     </div>
   )
 }
 
-function LabelsBlock({ contactId, labels }: { contactId: string; labels: ContactLabel[] }) {
+function LabelsRow({ contactId, labels }: { contactId: string; labels: ContactLabel[] }) {
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -382,85 +412,49 @@ function LabelsBlock({ contactId, labels }: { contactId: string; labels: Contact
   })
 
   return (
-    <div className="mb-8">
-      <div className="flex items-center gap-2 mb-2">
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Labels</h3>
+    <div className="px-4 py-3">
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Labels</p>
         {!editing && (
           <button
             type="button"
             onClick={() => { setSelectedIds(labels.map(l => l.id)); setEditing(true) }}
-            className="inline-flex items-center gap-1 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors"
+            className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
           >
-            <Pencil size={10} />
+            <Pencil size={9} />
             Edit
           </button>
         )}
       </div>
       {editing ? (
-        <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
           <LabelPicker selectedIds={selectedIds} onChange={setSelectedIds} />
-          {saveMutation.isError && (
-            <p className="text-sm text-red-500">Something went wrong — try again.</p>
-          )}
+          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong — try again.</p>}
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => saveMutation.mutate()}
               disabled={saveMutation.isPending}
-              className="inline-flex items-center px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
+              className="inline-flex items-center px-3 py-1 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
             >
               {saveMutation.isPending ? 'Saving…' : 'Save'}
-              {saveMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
-              className="px-3 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              className="px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
               Cancel
             </button>
           </div>
         </div>
       ) : labels.length === 0 ? (
-        <p className="text-sm text-slate-400">No labels.</p>
+        <p className="text-xs text-slate-400">No labels.</p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {labels.map(label => <LabelChip key={label.id} label={label} />)}
         </div>
       )}
-    </div>
-  )
-}
-
-function Field({ label, value }: { label: string; value: string | null | undefined }) {
-  return (
-    <div>
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{label}</p>
-      <p className="text-sm text-slate-900">{value || '—'}</p>
-    </div>
-  )
-}
-
-/** Returns true when the phone is a Dutch local format (0XXXXXXXXX, 10 digits starting with 0). */
-function isLocalDutchFormat(phone: string | null | undefined): boolean {
-  if (!phone) return false
-  const digits = phone.replace(/\D/g, '')
-  return digits.length === 10 && digits.startsWith('0')
-}
-
-function PhoneField({ phone }: { phone: string | null | undefined }) {
-  const showWarning = isLocalDutchFormat(phone)
-  return (
-    <div>
-      <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Phone</p>
-      <div className="flex items-center gap-2 flex-wrap">
-        <p className="text-sm text-slate-900">{phone || '—'}</p>
-        {showWarning && (
-          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-amber-100 text-amber-700 border border-amber-200">
-            Local format — may not match WhatsApp
-          </span>
-        )}
-      </div>
     </div>
   )
 }
