@@ -148,7 +148,7 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
               <X size={16} />
             </button>
           </div>
-          <div className="flex-1 min-h-0 overflow-auto p-8">
+          <div className="flex-1 min-h-0 overflow-hidden p-8">
             <Suspense fallback={
               <div className="flex h-40 items-center justify-center">
                 <Loader2 size={20} className="animate-spin text-blue-400" />
