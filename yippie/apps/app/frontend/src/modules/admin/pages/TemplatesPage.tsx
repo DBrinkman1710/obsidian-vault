@@ -27,7 +27,7 @@ export default function TemplatesPage() {
   const [name, setName] = useState('')
   const [existingBody, setExistingBody] = useState('')
   const [editorReady, setEditorReady] = useState(false)
-  const [editorEverOpened, setEditorEverOpened] = useState(false)
+  const [editorEverOpened, setEditorEverOpened] = useState(true)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
@@ -264,7 +264,7 @@ export default function TemplatesPage() {
       </aside>
 
       {/* Right: editor panel — always in DOM once opened so GrapesJS stays mounted */}
-      <div className={`flex-1 min-w-0 flex flex-col bg-white border border-slate-200 rounded-xl overflow-hidden transition-opacity duration-150 ${hasSelection ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
+      <div className="flex-1 min-w-0 flex flex-col bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 shrink-0">
           <input
             className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -275,7 +275,7 @@ export default function TemplatesPage() {
           {saveError && <p className="text-xs text-red-500 shrink-0">{saveError}</p>}
           <button
             onClick={handleSave}
-            disabled={saving || !editorReady}
+            disabled={saving || !editorReady || !hasSelection}
             className="shrink-0 inline-flex items-center gap-2 px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
           >
             {saving ? <><Loader2 size={14} className="animate-spin" /> Saving…</> : 'Save'}
