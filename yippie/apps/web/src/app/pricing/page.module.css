@@ -152,14 +152,14 @@
 .plansSection { padding: 56px var(--gutter) 90px; }
 .plansGrid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
   align-items: start;
 }
 .planCard {
-  padding: 32px 26px;
+  padding: 28px 22px;
   border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: #fff;
@@ -396,14 +396,16 @@
 .btnPrimary:hover { transform: translateY(-2px); background: var(--brand); box-shadow: var(--shadow-brand); }
 
 /* ── Responsive ──────────────────────────────── */
+@media (max-width: 1024px) {
+  .plansGrid { grid-template-columns: 1fr 1fr; max-width: 720px; }
+}
 @media (max-width: 860px) {
-  .plansGrid { grid-template-columns: 1fr; max-width: 420px; }
   .quiz { grid-template-columns: 1fr; max-width: 560px; }
   .quizResult { position: static; }
   .addOnsGrid { grid-template-columns: repeat(2, 1fr); max-width: 560px; }
 }
-@media (min-width: 561px) and (max-width: 860px) {
-  .plansGrid { grid-template-columns: 1fr 1fr; max-width: 680px; }
+@media (max-width: 560px) {
+  .plansGrid { grid-template-columns: 1fr; max-width: 420px; }
 }
 @media (max-width: 560px) {
   .addOnsGrid { grid-template-columns: 1fr; max-width: 420px; }
