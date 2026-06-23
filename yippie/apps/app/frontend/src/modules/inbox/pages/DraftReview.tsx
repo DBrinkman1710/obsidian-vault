@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Paperclip, Sparkles, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
 import { toast } from 'sonner'
@@ -268,6 +268,8 @@ function RouteAndApproveModal({
 
 export default function DraftReview() {
   const { id } = useParams<{ id: string }>()
+  const [searchParams] = useSearchParams()
+  const mailbox = searchParams.get('mailbox') ?? 'shared'
   const navigate = useNavigate()
   const qc = useQueryClient()
   const config = useTenantConfig()
@@ -368,9 +370,9 @@ export default function DraftReview() {
     setSentTo(''); setSendError(''); setActionError('')
     setActionTab('ticket'); setSelectedPipelineStageId('')
     setUndoUntil(null); setUndoProgress(0); setUndoCancelled(false)
-    setFromEmail(null)
+    setFromEmail(mailbox === 'personal' ? (user?.reply_from_email ?? null) : null)
     if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
-  }, [id, defaultSig?.body])
+  }, [id, defaultSig?.body, mailbox, user?.reply_from_email])
 
   const showContactModal = !isLoading && !!ctx && !ctx.contact && !modalDismissed && !isProcessed
 
@@ -1337,7 +1339,7 @@ export default function DraftReview() {
           </div>
 
           {/* ── BOTTOM-RIGHT: Draft reply ── */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col">
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Draft Reply</span>

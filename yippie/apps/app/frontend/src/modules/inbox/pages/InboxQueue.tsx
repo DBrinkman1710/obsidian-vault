@@ -1100,7 +1100,7 @@ export default function InboxQueue() {
       if (e.key === 'j') setFocusedIdx(i => Math.min(i + 1, pageDrafts.length - 1))
       if (e.key === 'k') setFocusedIdx(i => Math.max(i - 1, 0))
       if (e.key === 'r' && focusedIdx >= 0 && pageDrafts[focusedIdx]) {
-        navigate(`/inbox/drafts/${pageDrafts[focusedIdx].id}`)
+        navigate(`/inbox/drafts/${pageDrafts[focusedIdx].id}?mailbox=${mailbox}`)
       }
     }
     window.addEventListener('keydown', handler)
@@ -1647,7 +1647,7 @@ export default function InboxQueue() {
 
                     {/* Card content — full click area links to draft */}
                     <Link
-                      to={`/inbox/drafts/${d.id}`}
+                      to={`/inbox/drafts/${d.id}?mailbox=${mailbox}`}
                       className="flex-1 min-w-0 flex items-start gap-3 group"
                     >
                       <div className="flex-1 min-w-0">
