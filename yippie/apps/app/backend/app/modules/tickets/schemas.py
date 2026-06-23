@@ -73,6 +73,12 @@ class CommentCreate(BaseModel):
     is_internal: bool = False
 
 
+class TicketReplyCreate(BaseModel):
+    subject: Optional[str] = None
+    body: str
+    html_body: Optional[str] = None
+
+
 class CommentOut(BaseModel):
     id: uuid.UUID
     ticket_id: uuid.UUID

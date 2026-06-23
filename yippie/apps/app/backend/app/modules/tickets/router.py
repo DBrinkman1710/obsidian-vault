@@ -23,6 +23,7 @@ from app.modules.tickets.schemas import (
     TicketList,
     TicketMergeRequest,
     TicketOut,
+    TicketReplyCreate,
     TicketStatusUpdate,
     TicketUpdate,
 )
@@ -224,3 +225,59 @@ async def add_comment(ticket_id: uuid.UUID, body: CommentCreate, current_user: C
     )
     await db.commit()
     return comment
+
+
+@router.post("/{ticket_id}/send-reply", status_code=status.HTTP_200_OK)
+async def send_ticket_reply(ticket_id: uuid.UUID, body: TicketReplyCreate, current_user: CurrentUser, db: DB):
+    """Send an email reply to the ticket's linked contact and save it as a comment."""
+    from app.modules.contacts.models import Contact
+    from app.core.mailer import send_email, ResendNotConfiguredError
+    from app.core.email_html import render_email_html
+    from app.config import get_settings
+    from app.modules.tickets.models import MessageSource
+
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    if not ticket.contact_id:
+        raise HTTPException(status_code=400, detail="Ticket has no linked contact")
+
+    contact = await db.get(Contact, ticket.contact_id)
+    if not contact or not contact.email:
+        raise HTTPException(status_code=400, detail="Contact has no email address")
+
+    settings = get_settings()
+    from_email = current_user.reply_from_email or settings.resend_from or None
+    subject = (body.subject or f"Re: {ticket.subject}").strip()
+    plain_body = body.body.strip()
+
+    html_body = render_email_html(body.html_body or plain_body)
+
+    try:
+        await send_email(
+            to=contact.email,
+            subject=subject,
+            body=plain_body,
+            html=html_body,
+            from_email=from_email,
+            reply_to=from_email,
+        )
+    except ResendNotConfiguredError:
+        raise HTTPException(status_code=503, detail="Email sending is not configured (RESEND_API_KEY missing)")
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"Email provider error: {exc}")
+
+    comment_data = CommentCreate(body=plain_body, is_internal=False)
+    comment = await service.add_comment(
+        db, current_user.tenant_id, ticket, current_user.id, comment_data,
+        source=MessageSource.email,
+    )
+    await activity_service.log_event(
+        db, current_user.tenant_id,
+        module="tickets", event_type="ticket_replied", entity_type="ticket",
+        entity_id=ticket.id, contact_id=ticket.contact_id, actor_id=current_user.id,
+        payload={"to": contact.email, "subject": subject},
+    )
+    await db.commit()
+
+    return {"sent": True, "to": contact.email, "comment_id": str(comment.id)}

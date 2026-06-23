@@ -2,7 +2,11 @@ import { useState, useRef, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles, UserPlus } from 'lucide-react'
+import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles, UserPlus, Mail, ExternalLink, ChevronRight, Pencil } from 'lucide-react'
+import { SignaturePicker } from '../../inbox/components/SignaturePicker'
+import { TemplatePicker, htmlToText } from '../../inbox/components/TemplatePicker'
+import { useSignatures, pickDefaultSignature, swapSignature } from '../../../hooks/useSignatures'
+import type { Signature } from '../../../hooks/useSignatures'
 import { MutationGate } from '../../../shell/MutationGate'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
@@ -56,6 +60,7 @@ export default function TicketDetail() {
   const [comment, setComment] = useState('')
   const [activeTab, setActiveTab] = useState<'reply' | 'internal'>('reply')
   const isInternal = activeTab === 'internal'
+  const [replyOpen, setReplyOpen] = useState(false)
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleteError, setDeleteError] = useState('')
   const [bookingOpen, setBookingOpen] = useState(false)
@@ -70,6 +75,13 @@ export default function TicketDetail() {
     queryKey: ['ticket-contact-booking', ticket?.contact_id],
     queryFn: () => api.get(`/contacts/${ticket.contact_id}`).then(r => r.data),
     enabled: !!ticket?.contact_id && bookingEnabled,
+  })
+
+  const { data: replyContact } = useQuery({
+    queryKey: ['contact', ticket?.contact_id],
+    queryFn: () => api.get(`/contacts/${ticket.contact_id}`).then(r => r.data),
+    enabled: !!ticket?.contact_id,
+    staleTime: 30_000,
   })
   const { data: comments } = useQuery({
     queryKey: ['ticket-comments', id],
@@ -323,12 +335,13 @@ export default function TicketDetail() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-        <div className="flex items-center gap-1 mb-2">
+        <div className="flex items-center gap-1 mb-3">
           <button
             onClick={() => setActiveTab('reply')}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-t-lg border border-b-0 transition-colors ${activeTab === 'reply' ? 'bg-white text-slate-900 border-slate-200' : 'bg-slate-50 text-slate-500 border-transparent hover:text-slate-700'}`}
+            className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg border border-b-0 transition-colors ${activeTab === 'reply' ? 'bg-white text-slate-900 border-slate-200' : 'bg-slate-50 text-slate-500 border-transparent hover:text-slate-700'}`}
           >
-            Reply
+            <Mail size={11} />
+            Email customer
           </button>
           <button
             onClick={() => setActiveTab('internal')}
@@ -338,27 +351,73 @@ export default function TicketDetail() {
             Internal Note
           </button>
         </div>
-        <textarea
-          value={comment}
-          onChange={e => setComment(e.target.value)}
-          placeholder={isInternal ? 'Write an internal note…' : 'Write a reply…'}
-          rows={4}
-          className={`w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 rounded-lg p-2 ${isInternal ? 'bg-amber-50' : 'bg-white'}`}
-        />
-        <MutationGate>
-          <div className="flex items-center justify-end mt-3 pt-3 border-t border-slate-100">
-            <button
-              onClick={() => commentMutation.mutate()}
-              disabled={!comment.trim() || commentMutation.isPending}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
-            >
-              <Send size={13} />
-              Send
-              {commentMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
-            </button>
-          </div>
-        </MutationGate>
+
+        {activeTab === 'reply' ? (
+          <MutationGate>
+            {!ticket?.contact_id || !replyContact?.email ? (
+              <div className="flex flex-col items-center gap-2 py-4 text-center">
+                <Mail size={20} className="text-slate-300" />
+                <p className="text-sm text-slate-400">
+                  {!ticket?.contact_id ? 'Link a contact to this ticket to send an email reply.' : 'The linked contact has no email address.'}
+                </p>
+              </div>
+            ) : (
+              <button
+                onClick={() => setReplyOpen(true)}
+                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-xl border border-dashed border-slate-300 hover:border-blue-400 hover:bg-blue-50/40 text-left transition-colors group"
+              >
+                <div className="flex items-center gap-3 min-w-0">
+                  <Mail size={15} className="text-slate-400 group-hover:text-blue-500 shrink-0 transition-colors" />
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-700 group-hover:text-blue-700 transition-colors">Compose email reply</p>
+                    <p className="text-xs text-slate-400 truncate">To: {replyContact.full_name} &lt;{replyContact.email}&gt;</p>
+                  </div>
+                </div>
+                <Pencil size={13} className="text-slate-300 group-hover:text-blue-400 shrink-0 transition-colors" />
+              </button>
+            )}
+          </MutationGate>
+        ) : (
+          <>
+            <textarea
+              value={comment}
+              onChange={e => setComment(e.target.value)}
+              placeholder="Write an internal note…"
+              rows={4}
+              className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 rounded-lg p-2 bg-amber-50"
+            />
+            <MutationGate>
+              <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
+                <span className="inline-flex items-center gap-1.5 text-xs text-amber-500">
+                  <Lock size={11} />
+                  Only visible to your team
+                </span>
+                <button
+                  onClick={() => commentMutation.mutate()}
+                  disabled={!comment.trim() || commentMutation.isPending}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
+                >
+                  <Send size={13} />
+                  Save note
+                  {commentMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
+                </button>
+              </div>
+            </MutationGate>
+          </>
+        )}
       </div>
+
+      {replyOpen && replyContact && (
+        <TicketReplyModal
+          ticket={ticket}
+          contact={replyContact}
+          onClose={() => setReplyOpen(false)}
+          onSent={() => {
+            setReplyOpen(false)
+            qc.invalidateQueries({ queryKey: ['ticket-comments', id] })
+          }}
+        />
+      )}
     </div>
     <CustomerPanel contactId={ticket.contact_id ?? null} ticket={ticket} aiAutoScan={config?.ai_auto_scan ?? false} />
     </div>
@@ -600,6 +659,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
   const qc = useQueryClient()
   const [openDraft, setOpenDraft] = useState<any | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
+  const [contactPanelOpen, setContactPanelOpen] = useState(false)
   // The context-scan briefing no longer auto-runs on open. The agent clicks
   // Generate briefing on demand — unless the tenant opted into ai_auto_scan,
   // in which case the old auto behaviour is restored.
@@ -717,10 +777,11 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                     Change
                   </button>
                   <button
-                    onClick={() => navigate(`/contacts/${contactId}`)}
-                    className="text-xs font-semibold text-blue-600 hover:text-blue-700"
+                    onClick={() => setContactPanelOpen(true)}
+                    className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
                   >
-                    View contact →
+                    View contact
+                    <ChevronRight size={11} />
                   </button>
                 </div>
               </div>
@@ -856,6 +917,344 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
           onClose={() => setLinkOpen(false)}
         />
       )}
+
+      {contactPanelOpen && contactId && (
+        <ContactSlidePanel
+          contactId={contactId}
+          onClose={() => setContactPanelOpen(false)}
+          onNavigate={() => { setContactPanelOpen(false); navigate(`/contacts/${contactId}`) }}
+        />
+      )}
     </aside>
+  )
+}
+
+function TicketReplyModal({
+  ticket,
+  contact,
+  onClose,
+  onSent,
+}: {
+  ticket: any
+  contact: any
+  onClose: () => void
+  onSent: () => void
+}) {
+  const { data: signatures } = useSignatures()
+  const defaultSig = pickDefaultSignature(signatures)
+  const [subject, setSubject] = useState(`Re: ${ticket.subject ?? ''}`)
+  const [body, setBody] = useState('')
+  const [appliedSig, setAppliedSig] = useState<string | null>(null)
+  const [templateHtml, setTemplateHtml] = useState<string | null>(null)
+  const [sendError, setSendError] = useState('')
+  const sigPrefilledRef = useRef(false)
+
+  useEffect(() => {
+    if (sigPrefilledRef.current) return
+    if (defaultSig) {
+      setBody(`\n\n${defaultSig.body}`)
+      setAppliedSig(defaultSig.body)
+      sigPrefilledRef.current = true
+    }
+  }, [defaultSig])
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', handler)
+    return () => document.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  const sendMutation = useMutation({
+    mutationFn: () => api.post(`/tickets/${ticket.id}/send-reply`, {
+      subject: subject.trim(),
+      body: body.trim(),
+      ...(templateHtml ? { html_body: templateHtml } : {}),
+    }),
+    onSuccess: (res: any) => {
+      toast.success(`Email sent to ${res.data?.to ?? contact.email}`)
+      onSent()
+    },
+    onError: (err: any) => {
+      const detail = err?.response?.data?.detail
+      setSendError(typeof detail === 'string' ? detail : 'Failed to send email — check your email settings')
+    },
+  })
+
+  const canSend = !!subject.trim() && !!body.trim() && !sendMutation.isPending
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+      <div
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col"
+        style={{ maxHeight: '92vh' }}
+      >
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <div className="flex items-center gap-2">
+            <Mail size={16} className="text-slate-400" />
+            <h2 className="text-lg font-bold text-slate-900">Reply to customer</h2>
+          </div>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
+          {/* To — locked */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">To</label>
+            <div className="flex items-center gap-2.5 px-3 py-2.5 bg-slate-50 rounded-lg border border-slate-200">
+              <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-[10px] font-bold shrink-0">
+                {initials(contact.full_name)}
+              </div>
+              <span className="text-sm text-slate-800 truncate">
+                {contact.full_name} &lt;{contact.email}&gt;
+              </span>
+              <Lock size={11} className="text-slate-300 shrink-0 ml-auto" />
+            </div>
+          </div>
+
+          {/* Subject */}
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Subject</label>
+            <input
+              type="text"
+              value={subject}
+              onChange={e => setSubject(e.target.value)}
+              className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+
+          {/* Body */}
+          <div className="flex flex-col flex-1">
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Message</label>
+              <div className="flex items-center gap-2">
+                <SignaturePicker onPick={(sig: Signature) => {
+                  setBody(prev => swapSignature(prev, appliedSig, sig.body))
+                  setAppliedSig(sig.body)
+                }} />
+                <TemplatePicker
+                  onSelect={(tmplBody, isHtml) => {
+                    const sig = appliedSig ? `\n\n${appliedSig}` : ''
+                    if (isHtml) {
+                      setTemplateHtml(tmplBody)
+                      setBody(htmlToText(tmplBody) + sig)
+                    } else {
+                      setTemplateHtml(null)
+                      setBody(tmplBody + sig)
+                    }
+                  }}
+                  direction="down"
+                />
+              </div>
+            </div>
+            <textarea
+              value={body}
+              onChange={e => setBody(e.target.value)}
+              placeholder="Write your reply…"
+              rows={10}
+              className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+
+          {sendError && <p className="text-sm text-red-500">{sendError}</p>}
+        </div>
+
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
+          <button onClick={onClose} className="text-sm text-slate-500 hover:text-slate-700 font-medium">Cancel</button>
+          <button
+            onClick={() => sendMutation.mutate()}
+            disabled={!canSend}
+            className="inline-flex items-center gap-2 px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
+          >
+            <Send size={13} />
+            Send email
+            {sendMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ContactSlidePanel({
+  contactId,
+  onClose,
+  onNavigate,
+}: {
+  contactId: string
+  onClose: () => void
+  onNavigate: () => void
+}) {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState(false)
+  const [form, setForm] = useState({ full_name: '', email: '', phone: '' })
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
+
+  const { data: contact, isLoading } = useQuery({
+    queryKey: ['contact', contactId],
+    queryFn: () => api.get(`/contacts/${contactId}`).then(r => r.data),
+  })
+
+  useEffect(() => {
+    if (contact && !editing) {
+      setForm({ full_name: contact.full_name ?? '', email: contact.email ?? '', phone: contact.phone ?? '' })
+    }
+  }, [contact, editing])
+
+  const saveMutation = useMutation({
+    mutationFn: () => api.patch(`/contacts/${contactId}`, form),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['contact', contactId] })
+      setEditing(false)
+      toast.success('Contact updated.')
+    },
+    onError: () => toast.error('Failed to update contact.'),
+  })
+
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40 bg-black/20"
+        onClick={onClose}
+      />
+      <div className="fixed right-0 top-0 h-full w-96 max-w-full z-50 flex flex-col bg-white shadow-2xl border-l border-slate-200 animate-slide-in-right">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <h2 className="text-sm font-semibold text-slate-900">Contact profile</h2>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onNavigate}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+            >
+              Full profile
+              <ExternalLink size={11} />
+            </button>
+            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 ml-1">
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
+          {isLoading ? (
+            <div className="flex flex-col gap-3 animate-pulse">
+              <div className="w-14 h-14 rounded-full bg-slate-200 mx-auto" />
+              <div className="h-3 bg-slate-200 rounded w-2/3 mx-auto" />
+              <div className="h-2.5 bg-slate-100 rounded w-1/2 mx-auto" />
+            </div>
+          ) : (
+            <>
+              <div className="flex flex-col items-center gap-2 pt-2">
+                <div className="w-14 h-14 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-lg font-bold">
+                  {initials(contact?.full_name)}
+                </div>
+                {!editing && (
+                  <div className="text-center">
+                    <p className="text-base font-bold text-slate-900">{contact?.full_name}</p>
+                    {contact?.company?.name && <p className="text-xs text-slate-500 mt-0.5">{contact.company.name}</p>}
+                  </div>
+                )}
+              </div>
+
+              {editing ? (
+                <div className="flex flex-col gap-3">
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 mb-1 block">Name</label>
+                    <input
+                      autoFocus
+                      type="text"
+                      value={form.full_name}
+                      onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 mb-1 block">Email</label>
+                    <input
+                      type="email"
+                      value={form.email}
+                      onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs font-semibold text-slate-500 mb-1 block">Phone</label>
+                    <input
+                      type="tel"
+                      value={form.phone}
+                      onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => { setEditing(false); setForm({ full_name: contact?.full_name ?? '', email: contact?.email ?? '', phone: contact?.phone ?? '' }) }}
+                      className="flex-1 border border-slate-200 text-slate-700 text-sm font-semibold py-2 rounded-lg hover:bg-slate-50 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => saveMutation.mutate()}
+                      disabled={saveMutation.isPending || !form.full_name.trim()}
+                      className="flex-1 bg-yippie text-white text-sm font-semibold py-2 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
+                    >
+                      {saveMutation.isPending ? 'Saving…' : 'Save'}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col gap-1">
+                  <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Email</p>
+                      <p className="text-sm text-slate-800 truncate">{contact?.email ?? '—'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                    <div className="min-w-0">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Phone</p>
+                      <p className="text-sm text-slate-800 truncate">{contact?.phone ?? '—'}</p>
+                    </div>
+                  </div>
+                  {contact?.company?.name && (
+                    <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                      <div className="min-w-0">
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Company</p>
+                        <p className="text-sm text-slate-800 truncate">{contact.company.name}</p>
+                      </div>
+                    </div>
+                  )}
+                  {contact?.labels && contact.labels.length > 0 && (
+                    <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Labels</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {contact.labels.map((l: any) => (
+                          <span
+                            key={l.id}
+                            className="text-[10px] font-semibold px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: `${l.color}20`, color: l.color }}
+                          >
+                            {l.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="mt-2 w-full border border-slate-200 text-slate-600 text-sm font-semibold py-2 rounded-lg hover:bg-slate-50 transition-colors"
+                  >
+                    Edit contact
+                  </button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </>
   )
 }

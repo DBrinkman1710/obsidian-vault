@@ -34,11 +34,16 @@ export default {
       },
       animation: {
         'msg-enter': 'msg-enter 0.15s ease-out',
+        'slide-in-right': 'slide-in-right 0.22s cubic-bezier(0.22,1,0.36,1)',
       },
       keyframes: {
         'msg-enter': {
           '0%': { opacity: '0', transform: 'translateY(6px) scale(0.98)' },
           '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        'slide-in-right': {
+          '0%': { transform: 'translateX(100%)' },
+          '100%': { transform: 'translateX(0)' },
         },
       },
       boxShadow: {
