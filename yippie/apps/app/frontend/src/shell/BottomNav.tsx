@@ -2,25 +2,39 @@ import { NavLink } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
-  MessageSquare, Settings, Kanban,
+  MessageSquare, Settings, Kanban, Package, Megaphone, TrendingUp, BarChart3,
   type LucideIcon,
 } from 'lucide-react'
 import { useTenantConfig } from '../App'
+import { useAuth } from '../auth/useAuth'
 import { api } from '../api/client'
 
 const MODULE_MAP: Record<string, { label: string; Icon: LucideIcon; path: string }> = {
-  inbox:    { label: 'Inbox',    Icon: Inbox,         path: '/inbox' },
-  contacts: { label: 'Contacts', Icon: Users,         path: '/contacts' },
-  tickets:  { label: 'Tickets',  Icon: ClipboardList, path: '/tickets' },
-  calendar: { label: 'Calendar', Icon: Calendar,      path: '/calendar' },
-  pipeline: { label: 'Kanban',   Icon: Kanban,        path: '/pipeline' },
-  activity: { label: 'Activity', Icon: Activity,      path: '/activity' },
-  billing:  { label: 'Billing',  Icon: CreditCard,    path: '/billing' },
-  chat:     { label: 'Chat',     Icon: MessageSquare, path: '/chat' },
+  inbox:     { label: 'Inbox',     Icon: Inbox,         path: '/inbox' },
+  contacts:  { label: 'Contacts',  Icon: Users,         path: '/contacts' },
+  tickets:   { label: 'Tickets',   Icon: ClipboardList, path: '/tickets' },
+  calendar:  { label: 'Calendar',  Icon: Calendar,      path: '/calendar' },
+  pipeline:  { label: 'Kanban',    Icon: Kanban,        path: '/pipeline' },
+  activity:  { label: 'Activity',  Icon: Activity,      path: '/activity' },
+  billing:   { label: 'Billing',   Icon: CreditCard,    path: '/billing' },
+  chat:      { label: 'Chat',      Icon: MessageSquare, path: '/chat' },
+  marketing: { label: 'Marketing', Icon: Megaphone,     path: '/marketing' },
+  tracking:  { label: 'Tracking',  Icon: Package,       path: '/tracking' },
+  sales:     { label: 'Sales',     Icon: TrendingUp,    path: '/sales' },
+  saas:      { label: 'Analytics', Icon: BarChart3,     path: '/saas' },
+}
+
+function resolveOrder(savedOrder: string[] | null | undefined, enabledMods: string[]): string[] {
+  const enabled = enabledMods.filter(m => MODULE_MAP[m])
+  if (!savedOrder || savedOrder.length === 0) return enabled
+  const saved = savedOrder.filter(m => MODULE_MAP[m] && enabled.includes(m))
+  const newMods = enabled.filter(m => !saved.includes(m))
+  return [...saved, ...newMods]
 }
 
 export function BottomNav() {
   const config = useTenantConfig()
+  const { user } = useAuth()
 
   const { data: draftCount } = useQuery({
     queryKey: ['drafts', 'count'],
@@ -45,9 +59,8 @@ export function BottomNav() {
 
   const primaryColor = config.branding.primary_color
 
-  const modules = config.enabled_modules
-    .filter(mod => MODULE_MAP[mod])
-    .slice(0, 4)
+  const orderedMods = resolveOrder(user?.sidebar_order, config.enabled_modules)
+  const modules = orderedMods.slice(0, 4)
 
   return (
     <nav

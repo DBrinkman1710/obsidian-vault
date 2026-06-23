@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, CalendarClock, GripVertical, Loader2, Plus, Settings2, Trash2, User, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { useMobile } from '../../shell/useMobile'
 import { api } from '../../api/client'
 import { useContextMenu, ContextMenu } from '../../components/ContextMenu'
 import ContactPeekModal from '../../components/ContactPeekModal'
@@ -343,6 +344,7 @@ export default function PipelinePage() {
   const qc = useQueryClient()
   const { user } = useAuth()
   const config = useTenantConfig()
+  const isMobile = useMobile()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const ctx = useContextMenu()
@@ -534,8 +536,45 @@ export default function PipelinePage() {
             </button>
           )}
         </div>
+      ) : isMobile ? (
+        /* Mobile — vertical list grouped by stage */
+        <div className="flex flex-col gap-4">
+          {board.map(col => (
+            <div key={col.stage.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: col.stage.color }} />
+                <p className="flex-1 text-sm font-bold text-slate-700">{col.stage.name}</p>
+                <span className="text-xs font-semibold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded-full">
+                  {col.contacts.length}
+                </span>
+              </div>
+              {col.contacts.length === 0 ? (
+                <p className="px-4 py-4 text-sm text-slate-400">No contacts in this stage</p>
+              ) : (
+                <div className="divide-y divide-slate-50">
+                  {col.contacts.map(c => (
+                    <Link
+                      key={c.contact_id}
+                      to={`/contacts/${c.contact_id}`}
+                      className="flex items-center gap-3 px-4 py-3 hover:bg-slate-50 transition-colors"
+                    >
+                      <div className="w-8 h-8 bg-slate-100 rounded-full flex items-center justify-center shrink-0">
+                        <User size={14} className="text-slate-400" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-900 truncate">{c.full_name}</p>
+                        {c.company_name && <p className="text-xs text-slate-400 truncate">{c.company_name}</p>}
+                      </div>
+                      <ArrowRight size={14} className="text-slate-300 shrink-0" />
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       ) : (
-        /* Kanban board — horizontally scrollable */
+        /* Desktop — horizontally scrollable kanban board */
         <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-13rem)] items-start">
           {board.map(col => (
             <div

@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Pencil, Kanban, CalendarClock, ChevronDown, ChevronUp, Package } from 'lucide-react'
+import { useMobile } from '../../../shell/useMobile'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelChip'
@@ -232,6 +233,10 @@ export default function ContactDetail() {
   const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? false
   const [bookingOpen, setBookingOpen] = useState(false)
   const [activityExpanded, setActivityExpanded] = useState(false)
+  const isMobile = useMobile()
+  const [detailsOpen, setDetailsOpen] = useState(true)
+  const [pipelineOpen, setPipelineOpen] = useState(false)
+  const [shipmentsOpen, setShipmentsOpen] = useState(false)
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ['contact', id],
@@ -252,7 +257,7 @@ export default function ContactDetail() {
   const hiddenCount = allActivity.length - 3
 
   return (
-    <div className="flex gap-8 items-start">
+    <div className="flex flex-col md:flex-row gap-8 items-start">
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
@@ -337,32 +342,100 @@ export default function ContactDetail() {
         </div>
       </div>
 
-      <aside className="w-96 flex-shrink-0">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-slate-900 mb-1">Details</h2>
-          <p className="text-sm text-slate-500">Contact info &amp; properties.</p>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="px-4 py-4 flex items-start gap-3">
-            <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0">
-              {initials(contact.full_name)}
+      <aside className="w-full md:w-96 md:flex-shrink-0">
+        {isMobile ? (
+          <div className="flex flex-col gap-3">
+            {/* Details accordion */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <button
+                onClick={() => setDetailsOpen(o => !o)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-slate-900"
+              >
+                Details
+                {detailsOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+              </button>
+              {detailsOpen && (
+                <>
+                  <div className="px-4 pb-3 flex items-start gap-3 border-t border-slate-100 pt-3">
+                    <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0">
+                      {initials(contact.full_name)}
+                    </div>
+                    <div className="min-w-0 flex-1 pt-0.5">
+                      <p className="text-sm font-bold text-slate-900 truncate">{contact.full_name}</p>
+                      {contact.company && <p className="text-xs text-slate-500 truncate">{contact.company.name}</p>}
+                    </div>
+                  </div>
+                  <div className="divide-y divide-slate-100">
+                    <EmailRow contactId={id!} email={contact.email ?? null} />
+                    <PhoneRow contactId={id!} phone={contact.phone ?? null} />
+                    <CompanyRow contactId={id!} company={contact.company ?? null} />
+                    <LabelsRow contactId={id!} labels={contact.labels ?? []} />
+                  </div>
+                </>
+              )}
             </div>
-            <div className="min-w-0 flex-1 pt-0.5">
-              <p className="text-sm font-bold text-slate-900 truncate">{contact.full_name}</p>
-              {contact.company && <p className="text-xs text-slate-500 truncate">{contact.company.name}</p>}
+
+            {/* Pipeline accordion */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <button
+                onClick={() => setPipelineOpen(o => !o)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-slate-900"
+              >
+                Pipeline stage
+                {pipelineOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+              </button>
+              {pipelineOpen && (
+                <div className="border-t border-slate-100">
+                  <PipelineStageBlock contactId={id!} />
+                </div>
+              )}
+            </div>
+
+            {/* Shipments accordion */}
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <button
+                onClick={() => setShipmentsOpen(o => !o)}
+                className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-slate-900"
+              >
+                Shipments
+                {shipmentsOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+              </button>
+              {shipmentsOpen && (
+                <div className="border-t border-slate-100">
+                  <ShipmentsBlock contactId={id!} />
+                </div>
+              )}
             </div>
           </div>
-          <div className="divide-y divide-slate-100">
-            <EmailRow contactId={id!} email={contact.email ?? null} />
-            <PhoneRow contactId={id!} phone={contact.phone ?? null} />
-            <CompanyRow contactId={id!} company={contact.company ?? null} />
-            <LabelsRow contactId={id!} labels={contact.labels ?? []} />
-          </div>
-        </div>
+        ) : (
+          <>
+            <div className="mb-6">
+              <h2 className="text-2xl font-bold text-slate-900 mb-1">Details</h2>
+              <p className="text-sm text-slate-500">Contact info &amp; properties.</p>
+            </div>
 
-        <PipelineStageBlock contactId={id!} />
-        <ShipmentsBlock contactId={id!} />
+            <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
+              <div className="px-4 py-4 flex items-start gap-3">
+                <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center text-sm font-bold shrink-0">
+                  {initials(contact.full_name)}
+                </div>
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <p className="text-sm font-bold text-slate-900 truncate">{contact.full_name}</p>
+                  {contact.company && <p className="text-xs text-slate-500 truncate">{contact.company.name}</p>}
+                </div>
+              </div>
+              <div className="divide-y divide-slate-100">
+                <EmailRow contactId={id!} email={contact.email ?? null} />
+                <PhoneRow contactId={id!} phone={contact.phone ?? null} />
+                <CompanyRow contactId={id!} company={contact.company ?? null} />
+                <LabelsRow contactId={id!} labels={contact.labels ?? []} />
+              </div>
+            </div>
+
+            <PipelineStageBlock contactId={id!} />
+            <ShipmentsBlock contactId={id!} />
+          </>
+        )}
       </aside>
     </div>
   )

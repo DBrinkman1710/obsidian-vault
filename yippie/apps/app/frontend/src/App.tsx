@@ -9,6 +9,7 @@ import { ModuleGate } from './shell/ModuleGate'
 import { PlanGate } from './shell/PlanGate'
 import { Sidebar } from './shell/Sidebar'
 import { BottomNav } from './shell/BottomNav'
+import { DesktopOnly } from './shell/DesktopOnly'
 
 const ContactDetail = lazy(() => import('./modules/contacts/pages/ContactDetail'))
 const ContactNew    = lazy(() => import('./modules/contacts/pages/ContactNew'))
@@ -272,21 +273,21 @@ export default function App() {
 
               {/* MarketingPage manages its own two-panel layout — no PagePad wrapper */}
               <Route path="/marketing" element={
-                <ModuleGate module="marketing"><MarketingPage /></ModuleGate>
+                <ModuleGate module="marketing"><DesktopOnly><MarketingPage /></DesktopOnly></ModuleGate>
               } />
 
               <Route path="/tracking" element={
-                <ModuleGate module="tracking"><PagePad><ShipmentList /></PagePad></ModuleGate>
+                <ModuleGate module="tracking"><PagePad><DesktopOnly><ShipmentList /></DesktopOnly></PagePad></ModuleGate>
               } />
               <Route path="/tracking/:id" element={
-                <ModuleGate module="tracking"><PagePad><ShipmentDetail /></PagePad></ModuleGate>
+                <ModuleGate module="tracking"><PagePad><DesktopOnly><ShipmentDetail /></DesktopOnly></PagePad></ModuleGate>
               } />
 
               <Route path="/sales" element={
-                <ModuleGate module="sales"><PagePad><SalesPage /></PagePad></ModuleGate>
+                <ModuleGate module="sales"><PagePad><DesktopOnly><SalesPage /></DesktopOnly></PagePad></ModuleGate>
               } />
               <Route path="/saas" element={
-                <ModuleGate module="saas"><PagePad><SaasPage /></PagePad></ModuleGate>
+                <ModuleGate module="saas"><PagePad><DesktopOnly><SaasPage /></DesktopOnly></PagePad></ModuleGate>
               } />
 
               <Route path="/settings" element={

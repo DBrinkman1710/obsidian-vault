@@ -1206,9 +1206,9 @@ export default function InboxQueue() {
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Fixed header */}
-      <div className="shrink-0 px-8 pt-8 pb-0 bg-slate-50">
+      <div className="shrink-0 px-4 pt-4 pb-0 md:px-8 md:pt-8 bg-slate-50">
         <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4 flex-wrap">
             <h1 className="text-2xl font-bold text-slate-900">Inbox</h1>
             {/* Mailbox switch: shared (whole team) vs personal (mail to your own address) */}
             <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
@@ -1244,7 +1244,7 @@ export default function InboxQueue() {
             </div>
             {/* Per-department shared inboxes — one tab per department the user belongs to. */}
             {(myDepts ?? []).length > 0 && (
-              <div className="flex items-center gap-1.5">
+              <div className="hidden md:flex items-center gap-1.5">
                 <button
                   onClick={() => { navigate('/inbox'); setSelected(new Set()); setPage(0) }}
                   className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
@@ -1448,7 +1448,7 @@ export default function InboxQueue() {
       </div>
 
       {/* Scrollable list */}
-      <div className="flex-1 overflow-y-auto px-8 pb-8">
+      <div className="flex-1 overflow-y-auto px-4 pb-4 md:px-8 md:pb-8">
         {/* Sent tab content */}
         {activeTab === 'sent' && (
           <>
@@ -1539,8 +1539,8 @@ export default function InboxQueue() {
 
         {activeTab !== 'sent' && allDrafts.length > 0 && (
           <>
-            {/* Sticky select-all row */}
-            <div className="sticky top-0 z-10 flex items-center justify-between py-2 bg-slate-50">
+            {/* Sticky select-all row — desktop only */}
+            <div className="sticky top-0 z-10 hidden md:flex items-center justify-between py-2 bg-slate-50">
               <div className="flex items-center gap-3">
                 <button
                   onClick={toggleSelectAll}
@@ -1636,8 +1636,8 @@ export default function InboxQueue() {
                       { label: 'Reject', icon: <XCircle size={14} />, danger: true, onClick: () => reviewMutation.mutate({ id: d.id, action: 'reject' }) },
                     ])}
                   >
-                    {/* Checkbox */}
-                    <span className="shrink-0 mt-0.5">
+                    {/* Checkbox — desktop only */}
+                    <span className="hidden md:block shrink-0 mt-0.5">
                       <Checkbox
                         checked={isSelected}
                         onChange={e => { e.preventDefault(); toggleSelect(d.id) }}

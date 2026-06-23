@@ -8,6 +8,7 @@ import { useState } from 'react'
 import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { useT } from '../../../hooks/useT'
+import { DesktopOnly } from '../../../shell/DesktopOnly'
 
 const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   open:        { bg: 'var(--status-info-bg)',    color: 'var(--status-info)' },
@@ -133,6 +134,7 @@ export default function TicketList() {
   }
 
   return (
+    <DesktopOnly>
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="font-display font-bold text-[26px] tracking-tight" style={{ color: 'var(--ink)' }}>
@@ -353,5 +355,6 @@ export default function TicketList() {
         </div>
       )}
     </div>
+    </DesktopOnly>
   )
 }
