@@ -150,3 +150,22 @@ Use any short label (`b`, `c`, `ui`, `api`, …). Labels only need to be unique 
 pnpm dev:web    # marketing site only
 pnpm build:web  # build marketing site
 ```
+
+## Taking the Sandbox offline (cost reduction)
+
+Use the Railway CLI to remove sandbox compute deployments without deleting service config or data.
+
+```bash
+# Bring sandbox compute down (run from ~/yippie/yippie/)
+railway down --service "evolution-api" --environment Sandbox --yes
+railway down --service "Production" --environment Sandbox --yes
+```
+
+- Leaves **Postgres** and **Redis** running (cheap; preserves sandbox data and schema)
+- Leaves **Production** and **Commercial** environments completely untouched
+- To bring sandbox back: `git push origin sandbox` — Railway redeploys from existing config
+
+Check current sandbox status:
+```bash
+railway status
+```
