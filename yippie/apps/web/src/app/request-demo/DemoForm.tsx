@@ -3,88 +3,18 @@
 import { useMemo, useState } from "react";
 import styles from "./request-demo.module.css";
 import { CheckIcon } from "../components/icons";
+import {
+  TEAM_SIZES,
+  INDUSTRIES,
+  TOOLS,
+  PAIN_POINTS,
+  MAX_PAIN_POINTS,
+  MODULE_INFO,
+  TOP_MODULES,
+  computeRecommendations,
+} from "../../lib/recommendations";
 
 type State = "idle" | "submitting" | "success" | "error";
-
-const TEAM_SIZES = ["1–5", "6–20", "21–50", "50+"];
-const INDUSTRIES = [
-  "E-commerce",
-  "SaaS / Tech",
-  "Services",
-  "Healthcare",
-  "Retail",
-  "Other",
-];
-const TOOLS = [
-  "Email only",
-  "Zendesk / Freshdesk",
-  "HubSpot / CRM",
-  "Intercom / Drift",
-  "None / Spreadsheets",
-];
-const PAIN_POINTS = [
-  "Ticket volume",
-  "Manual sorting",
-  "Slow responses",
-  "No reporting",
-  "Missing automation",
-  "Customer follow-up",
-];
-const MAX_PAIN_POINTS = 3;
-
-const MODULE_INFO: Record<string, { icon: string; desc: string }> = {
-  "AI Inbox": { icon: "✦", desc: "AI auto-sorts and drafts replies to every inbound email" },
-  Tickets: { icon: "🎫", desc: "Track every issue from first contact to resolution" },
-  "Live Chat": { icon: "💬", desc: "Real-time WhatsApp & web chat with session management" },
-  "Calendar & Booking": { icon: "📅", desc: "Smart booking links, availability grids, auto-confirmations" },
-  "Kanban Pipeline": { icon: "📌", desc: "Visual pipeline for leads, deals, and client stages" },
-  "Email Tracking": { icon: "📬", desc: "See when emails are opened, clicked, and bounced" },
-  Marketing: { icon: "📣", desc: "Email campaigns, A/B testing, drip sequences, analytics" },
-};
-
-const TOP_MODULES = ["AI Inbox", "Tickets", "Live Chat", "Kanban Pipeline"];
-
-function computeRecommendations(
-  industry: string,
-  currentTools: string[],
-  painPoints: string[],
-): string[] {
-  // Always recommend these (core value props):
-  const recommendations = ["AI Inbox", "Tickets"];
-
-  // Industry signals
-  if (industry === "E-commerce" || industry === "Retail") {
-    recommendations.push("Email Tracking", "Marketing");
-  }
-  if (industry === "Services" || industry === "Healthcare") {
-    recommendations.push("Calendar & Booking");
-  }
-  if (industry === "SaaS / Tech") {
-    recommendations.push("Live Chat");
-  }
-
-  // Pain point signals
-  if (painPoints.includes("Missing automation") || painPoints.includes("Manual sorting")) {
-    if (!recommendations.includes("AI Inbox")) recommendations.push("AI Inbox");
-  }
-  if (painPoints.includes("Customer follow-up")) {
-    recommendations.push("Kanban Pipeline");
-  }
-  if (painPoints.includes("No reporting")) {
-    recommendations.push("Email Tracking");
-  }
-  if (painPoints.includes("Ticket volume") || painPoints.includes("Slow responses")) {
-    recommendations.push("Live Chat");
-  }
-
-  // Tools signals
-  if (currentTools.includes("Email only") || currentTools.includes("None / Spreadsheets")) {
-    recommendations.push("Kanban Pipeline");
-  }
-
-  // Deduplicate + cap at 4
-  return [...new Set(recommendations)].slice(0, 4);
-}
 
 export default function DemoForm() {
   const [step, setStep] = useState<1 | 2>(1);

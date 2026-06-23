@@ -20,16 +20,26 @@ from app.modules.pipeline.schemas import (
 
 
 DEFAULT_STAGES = [
-    {"name": "Demo", "color": "#5BA4F5"},
-    {"name": "Lead", "color": "#64748b"},
-    {"name": "Qualified", "color": "#3b82f6"},
-    {"name": "Proposal", "color": "#f59e0b"},
-    {"name": "Won", "color": "#22c55e"},
+    {"name": "Questionnaire Lead", "color": "#94a3b8"},
+    {"name": "Lead",               "color": "#64748b"},
+    {"name": "Demo",               "color": "#5BA4F5"},
+    {"name": "Call Planned",       "color": "#f59e0b"},
+    {"name": "Live",               "color": "#22c55e"},
 ]
 
 # Kanban cards in a stage whose name contains "demo" (case-insensitive) for this
 # many days get a follow-up alert in the UI.
 DEMO_STAGE_SLA_DAYS = 3
+
+
+async def find_stage_by_name(db: AsyncSession, tenant_id: uuid.UUID, name: str) -> Optional[PipelineStage]:
+    """Return the first stage whose name matches (case-insensitive), or None."""
+    return await db.scalar(
+        select(PipelineStage).where(
+            PipelineStage.tenant_id == tenant_id,
+            func.lower(PipelineStage.name) == name.lower(),
+        )
+    )
 
 
 async def provision_default_stages(db: AsyncSession, tenant_id: uuid.UUID) -> None:

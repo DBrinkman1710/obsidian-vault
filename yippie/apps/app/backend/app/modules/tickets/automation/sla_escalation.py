@@ -63,6 +63,127 @@ async def auto_close_stale_tickets():
             await db.commit()
 
 
+def _demo_cta_urls(company_name: str, questionnaire_json: str) -> tuple[str, str]:
+    """Build Book-a-Call and Sign-Up URLs for demo outreach emails."""
+    import json
+    from app.auth.tokens import create_signed_token
+    from app.config import get_settings
+    settings = get_settings()
+    owner_slug = settings.owner_slug or "yippie"
+    app_base = settings.client_base_url or settings.effective_base_url
+    site_base = settings.site_base_url or "https://getyippie.com"
+    book_url = f"{app_base}/meet/{owner_slug}"
+    token = create_signed_token(
+        "demo_outreach",
+        timedelta(days=30),
+        company_name=company_name,
+        questionnaire=questionnaire_json,
+    )
+    signup_url = f"{site_base}/signup?token={token}"
+    return book_url, signup_url
+
+
+async def _get_demo_tenant_admin_email(db, tenant_id) -> str | None:
+    from app.core.models import User, UserRole
+    row = await db.scalar(
+        select(User).where(
+            User.tenant_id == tenant_id,
+            User.role == UserRole.admin,
+            User.is_active.is_(True),
+        ).order_by(User.created_at).limit(1)
+    )
+    return row.email if row else None
+
+
+async def _send_demo_prospect_email(
+    prospect_email: str,
+    prospect_name: str,
+    company_name: str,
+    subject: str,
+    intro_html: str,
+    book_url: str,
+    signup_url: str,
+) -> None:
+    import html as _html
+    from app.core.email_html import render_email_html
+    from app.core.mailer import send_email
+    safe_name = _html.escape(prospect_name.split()[0] if prospect_name else company_name)
+    safe_book = _html.escape(book_url)
+    safe_signup = _html.escape(signup_url)
+    plain = (
+        f"Hi {safe_name},\n\n{intro_html}\n\n"
+        f"Book a call: {book_url}\nStart your account: {signup_url}\n\n"
+        f"Best,\nDiederik\nFounder, Yippie"
+    )
+    prerendered = (
+        f'<p style="margin:0 0 16px;">Hi {safe_name},</p>'
+        f'{intro_html}'
+        f'<div style="text-align:center;margin:32px 0;">'
+        f'<a href="{safe_book}" style="display:inline-block;background:#5BA4F5;color:#fff;'
+        f'text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:600;font-size:15px;margin-right:12px;">'
+        f'Book a call</a>'
+        f'<a href="{safe_signup}" style="display:inline-block;background:#22c55e;color:#fff;'
+        f'text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:600;font-size:15px;">'
+        f'Start your account</a>'
+        f'</div>'
+        f'<p style="margin:16px 0 0;">Best,<br><strong>Diederik</strong><br>'
+        f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
+    )
+    await send_email(
+        to=prospect_email,
+        subject=subject,
+        body=plain,
+        html=render_email_html(plain, prerendered_html=prerendered, tenant_name="Yippie"),
+        from_email="Diederik from Yippie <diederik@getyippie.com>",
+        reply_to="diederik@getyippie.com",
+    )
+
+
+@scheduler.scheduled_job("interval", hours=1, id="demo_nudge_check", max_instances=1, coalesce=True)
+async def demo_nudge_check():
+    """Day-3 check-in email to prospects who haven't converted yet."""
+    from app.core.models import Tenant
+    now = datetime.now(timezone.utc)
+    nudge_cutoff = now - timedelta(days=3)
+    async with db_session() as db:
+        result = await db.execute(
+            select(Tenant).where(
+                Tenant.is_demo.is_(True),
+                Tenant.is_active.is_(True),
+                Tenant.demo_nudge_sent_at.is_(None),
+                Tenant.created_at < nudge_cutoff,
+            )
+        )
+        tenants = result.scalars().all()
+        for tenant in tenants:
+            prospect_email = await _get_demo_tenant_admin_email(db, tenant.id)
+            if not prospect_email:
+                tenant.demo_nudge_sent_at = now
+                continue
+            book_url, signup_url = _demo_cta_urls(tenant.name, "{}")
+            intro = (
+                '<p style="margin:0 0 16px;">Just checking in — have you had a chance to look around '
+                'your Yippie workspace yet?</p>'
+                '<p style="margin:0 0 16px;">If you have any questions or would like a quick walkthrough, '
+                "I'm happy to jump on a call. Or if you're ready to get started, you can sign up directly below.</p>"
+            )
+            try:
+                await _send_demo_prospect_email(
+                    prospect_email=prospect_email,
+                    prospect_name=prospect_email.split("@")[0],
+                    company_name=tenant.name,
+                    subject=f"Have you had time to explore Yippie, {tenant.name}?",
+                    intro_html=intro,
+                    book_url=book_url,
+                    signup_url=signup_url,
+                )
+            except Exception:
+                log.exception("Failed to send day-3 nudge to %s", prospect_email)
+            tenant.demo_nudge_sent_at = now
+        if tenants:
+            await db.commit()
+
+
 @scheduler.scheduled_job("interval", hours=1, id="demo_expiry_check", max_instances=1, coalesce=True)
 async def demo_expiry_check():
     """Deactivate demo tenants past demo_expires_at and notify the platform owner."""
@@ -89,6 +210,7 @@ async def demo_expiry_check():
         for tenant in tenants:
             tenant.is_active = False
             log.info("Expired demo tenant %s (%s)", tenant.name, tenant.slug)
+            # Notify admin
             try:
                 await send_email(
                     to=admin_email,
@@ -99,7 +221,29 @@ async def demo_expiry_check():
                     ),
                 )
             except Exception:
-                log.exception("Failed to send demo-expiry email for %s", tenant.slug)
+                log.exception("Failed to send demo-expiry admin email for %s", tenant.slug)
+            # Email the prospect with Book a Call + Sign Up
+            prospect_email = await _get_demo_tenant_admin_email(db, tenant.id)
+            if prospect_email:
+                book_url, signup_url = _demo_cta_urls(tenant.name, "{}")
+                intro = (
+                    '<p style="margin:0 0 16px;">Your Yippie trial has ended — I hope you got a good feel for the product.</p>'
+                    '<p style="margin:0 0 16px;">I\'d love to hear what you thought: what worked, what didn\'t, '
+                    'and whether there\'s anything I can improve. Feel free to reply directly to this email.</p>'
+                    '<p style="margin:0 0 16px;">If you\'re ready to continue, you can book a call or start your account below.</p>'
+                )
+                try:
+                    await _send_demo_prospect_email(
+                        prospect_email=prospect_email,
+                        prospect_name=prospect_email.split("@")[0],
+                        company_name=tenant.name,
+                        subject=f"How was your Yippie trial, {tenant.name}?",
+                        intro_html=intro,
+                        book_url=book_url,
+                        signup_url=signup_url,
+                    )
+                except Exception:
+                    log.exception("Failed to send demo-expiry prospect email to %s", prospect_email)
         if tenants:
             await db.commit()
 

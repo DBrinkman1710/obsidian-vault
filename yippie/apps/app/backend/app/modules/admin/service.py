@@ -75,6 +75,7 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
         primary_color=data.primary_color,
         logo_url=data.logo_url,
         is_demo=data.is_demo,
+        plan=data.plan.value if data.plan else "starter",
         demo_expires_at=(
             datetime.now(timezone.utc) + timedelta(days=DEFAULT_DEMO_DAYS)
             if data.is_demo

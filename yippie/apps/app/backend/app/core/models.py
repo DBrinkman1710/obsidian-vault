@@ -52,6 +52,7 @@ class Tenant(Base):
     # When set, the hourly demo_expiry_check job deactivates the tenant after this time.
     # Superadmins can extend it from the client detail modal.
     demo_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    demo_nudge_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     go_live_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     inbound_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Dutch legal registration numbers — shown on invoices/exports.

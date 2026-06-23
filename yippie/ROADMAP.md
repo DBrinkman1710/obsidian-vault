@@ -60,9 +60,9 @@ Everything below must be done **before** going live. Items not listed here are d
 - [x] [CO-CLICK] Companies clickable → contact list ✅ session 60
 - [x] [36b-6] XLSX import fix ✅ session 60
 - [x] [V4] Profile: narrow email/signature box ✅ session 60
-- [ ] [PRIV1] Railway private DB URL (env var, no code)
-- [ ] [Phase 13] Set invite-link base URL env vars
-- [ ] Set `INBOUND_EMAIL` + `diederik@getyippie.com` in live Railway envs
+- [x] [PRIV1] Railway private DB URL ✅ session 89 — switched to private networking URL
+- [x] [Phase 13] Set invite-link base URL env vars ✅ session 89
+- [x] Set `INBOUND_EMAIL` + `diederik@getyippie.com` in live Railway envs ✅ session 89
 
 **Tier 2 (features):**
 - [x] [BILLING2] Billing page upgrade ✅ session 60
@@ -550,7 +550,7 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 - ~~**[BILLING2] Billing page upgrade**~~ ✅ **DONE (session 60)** — Add Invoice modal (contact typeahead, line items, status, due date); debounced search; row checkboxes + bulk Delete/Export; KvK/Btw on Tenant model + Organisation Settings + SuperAdmin edit modal; GET /billing/invoices/export (CSV/XLSX with KvK/Btw header rows); DELETE /billing/invoices/bulk; new InvoiceStatus values (pending/received/not_sent); migration a0b1c2d3e4f5; commit 2d0146c.
 
 ### i18n
-- **[LANG1] Language switch (EN / NL)** — `Sonnet` — *not built.* User setting in Profile for UI language; English default. Dutch translation for sidebar labels, status labels, common UI strings. Use `i18next` + `react-i18next` with JSON resource files.
+- ~~**[LANG1] Language switch (EN / NL)**~~ ✅ **DONE (session 89)**
 
 ### Departments module
 - ~~**[DEPT-MOD] Make Departments a proper module**~~ ✅ **DONE (session 63, verified session 76)** — `'departments'` confirmed in `ALL_MODULES` in `config.py`; departments router gated by `require_module`; sidebar link hidden when disabled.
@@ -587,7 +587,7 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 - ~~**[SA-CLIENTS] Clients page: plan column + API token donut + clickable users column**~~ ✅ DONE (session 78) — plan badge + token donut + users modal in SuperAdminPage.tsx; new GET /admin/tenants/{id}/users endpoint; `last_login_at` added to `TenantUserOut` schema; per-plan `PLAN_BADGE` colors; donut thresholds 75%/100%, size 40px; dedicated `TenantUsersModal` (name/email/role/last active/status) opened from the Users count button without touching the full edit modal.
 
 ### Branding & marketing
-- **[WEB-CONS1] Commercial site consistency pass** — `Sonnet` — *not built.* Audit all pages on getyippie.com (`apps/web/`) for visual inconsistencies: layout, spacing, typography, colours, card/section styles, shared nav+footer alignment. Primary focus: newer SEO pages (`/features`, `/for-smbs`, `/for-agencies`, `/blog`, `/vs-zendesk`) against the existing hero/pricing baseline. Fix deviations without redesigning; output should feel like one coherent site, not pages built at different times.
+- ~~**[WEB-CONS1] Commercial site consistency pass**~~ ✅ **DONE (session 89)**
 - ~~**[SEO1] SEO foundation + content pages**~~ ✅ **DONE (session 58)** — Site-wide Open Graph, Twitter Card, `Organization` JSON-LD in `layout.tsx`; `sitemap.ts` + `robots.txt` updated. New pages: `/features` (12-feature 3-col grid), `/for-smbs`, `/for-agencies` (pain/solution rows), `/blog` + 2 posts with `Article` JSON-LD, `/vs-zendesk` comparison table. Shared `SiteNav.tsx` + `SiteFooter.tsx`. All pages have page-level `metadata` exports. Build + `tsc --noEmit` clean. Commit `81bab34`. **Open**: `/vs-freshdesk` still to build.
 - **Branding wiring into the app shell** — ✅ **DONE (session 27).** Sidebar background now reads `primary_color` from tenant config via inline style; the Yippie SVG mark always shows, client `logo_url` appears below it when set. Seed.py now syncs `primary_color` + `logo_url` from config on every deploy; all defaults updated to `#5BA4F5`.
 - **[Phase 11 C — Tier 1] On-page ROI calculator** — ✅ **DONE (session 26)** — see Tier 1 entry above.
@@ -615,17 +615,17 @@ Standard feature builds — well-scoped, mostly with existing patterns/endpoints
 
 ### Module & pricing corrections (2026-06-22)
 - ~~**[LIVECHAT-1PC] WhatsApp livechat: one session per contact**~~ ✅ **DONE (session 81)** — `normalize_phone()` + `find_open_session_for_phone()` extracted in `whatsapp_service.py`; both inbound webhook and outbound create-path use it. Verified in code.
-- **[BK8] Booking: per-send post-booking pipeline stage override** — `Sonnet` — *not built.* Add an optional "Move to stage" dropdown to `SendBookingModal`; pass `stage_id_override` on `POST /booking/send`; backend uses override over global `post_booking_stage` setting. Files: `SendBookingModal.tsx`, `booking/router.py`, `booking/service.py`.
-- **[UI2] UI consistency audit round 2** — `Sonnet` — *not built.* New ticket creation modal is visually inconsistent with the rest of the app. Audit all primary create/edit modals (new ticket, new contact, new company, new booking, new calendar event, new department, new campaign) against the `max-w-lg w-full` + button hierarchy standard from [UI1] (session 56). Fix all deviations.
-- **[MODULE-INC] Correct included vs paid module split** — `Sonnet` — *not built.* Only **Inbox** and **Contacts** are included in the base plan; all other modules (Tickets, AI, Calendar, Kanban, Live Chat, Marketing, Departments, Billing) are paid add-ons. Fix `plans.py` `PLAN_FEATURES`/`PLAN_LIMITS` and update the getyippie.com pricing page and module add-on cards accordingly.
-- **[MODULE-RENAME] Rename emailtracking → Marketing; remove Templates as standalone** — `Sonnet` — *not built.* (1) Consolidate `emailtracking` module into `marketing` under one "Marketing" sidebar entry (no duplicates); (2) Remove "Templates" as a standalone sidebar module — accessible from within Inbox and Marketing instead. Update `ALL_MODULES`, `MODULE_MAP`, sidebar, and route registrations. No migration needed.
-- **[MODULE-CONSIST] Commercial site: pricing page covers all modules** — `Sonnet` — *not built.* Cross-check products/modules page against pricing page; every sold module needs a card (Tickets, AI, Calendar, Kanban, Live Chat, Marketing, Departments, Billing; future: Cloud LLM €20/mo, Webpage Tracking €9/mo). Reference GitHub products workflow for canonical list.
+- ~~**[BK8] Booking: per-send post-booking pipeline stage override**~~ ✅ **DONE (session 85)**
+- ~~**[UI2] UI consistency audit round 2**~~ ✅ **DONE (session 89)**
+- ~~**[MODULE-INC] Correct included vs paid module split**~~ ✅ **DONE (session b-20260622)**
+- ~~**[MODULE-RENAME] Rename emailtracking → Marketing; remove Templates as standalone**~~ ✅ **DONE (session b-20260622)**
+- ~~**[MODULE-CONSIST] Commercial site: pricing page covers all modules**~~ ✅ **DONE (session b-20260622)**
 - ~~**[MKTG-PAGE] Marketing module in-app page upgrade**~~ ✅ **DONE (session 85 — user confirmed)**
 
 ### Templates & LiveChat fixes (2026-06-22 additional)
 - ~~**[TPL-CONSISTENT] Template editor: consistent layout + marketing templates + module gating**~~ ✅ DONE (session b-20260622) — see Tier 2 entry above.
 - **[BK-MULTISLOT] Booking: multiple distinct time slots per day in weekly schedule** — ✅ DONE — backend already iterates all entries per day; `WeeklyGrid` already renders all slots with `+ Add` / `×` remove. Verified correct, no changes needed.
-- **[LIVECHAT-ROOT] LiveChat: find root cause + targeted clean fix** — `Sonnet` — *not built.* LiveChat still not working after multiple attempts. Trace: Evolution API connection → webhook registration → `receive_message()` → WS broadcast → `ChatPage.tsx`. Fix only the first failing step. Do not rewrite working code. Files: `chat/router.py`, `chat/whatsapp_service.py`, `ChatPage.tsx`.
+- ~~**[LIVECHAT-ROOT] LiveChat: find root cause + targeted clean fix**~~ ✅ **DONE (session 89)**
 
 ---
 

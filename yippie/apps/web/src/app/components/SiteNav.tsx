@@ -57,8 +57,9 @@ export default function SiteNav() {
 
         <div className={styles.navRight}>
           <a href={APP_URL} className={styles.navLogin}>Log in</a>
-          <a href={DEMO_URL} className={styles.navCta}>
-            Request demo
+          <a href={DEMO_URL} className={styles.navLogin}>Request demo</a>
+          <a href="/signup" className={styles.navCta}>
+            Sign up
             <span aria-hidden="true">→</span>
           </a>
         </div>

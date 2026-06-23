@@ -400,6 +400,17 @@ async def request_demo(
     stage = await _ensure_demo_pipeline_stage(db, root_tenant_id)
     await _assign_stage(db, root_tenant_id, contact.id, stage.id)
 
+    # Store questionnaire as structured data on the contact for later reuse
+    # (pre-filling signup page, demo nudge emails, etc.)
+    if body.questionnaire:
+        contact.custom_fields = {
+            "team_size": body.questionnaire.team_size,
+            "industry": body.questionnaire.industry,
+            "current_tools": body.questionnaire.current_tools,
+            "pain_points": body.questionnaire.pain_points,
+            "recommended_modules": body.questionnaire.recommended_modules,
+        }
+
     q = body.questionnaire
     q_lines = []
     if q:
@@ -1072,4 +1083,243 @@ async def track_events(
 
     await db.commit()
     return {"ok": True, "ingested": len(body.events)}
+
+
+# ── Rate limiter shared by signup + questionnaire-lead ────────────────────────
+_signup_requests: dict[str, list[float]] = defaultdict(list)
+SIGNUP_RATE_LIMIT = 5
+SIGNUP_RATE_WINDOW = 3600
+
+
+def _check_signup_rate_limit(ip: str) -> None:
+    now = time.monotonic()
+    hits = [t for t in _signup_requests[ip] if now - t < SIGNUP_RATE_WINDOW]
+    if len(hits) >= SIGNUP_RATE_LIMIT:
+        _signup_requests[ip] = hits
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please try again later.",
+        )
+    hits.append(now)
+    _signup_requests[ip] = hits
+
+
+# ── Questionnaire Lead capture ────────────────────────────────────────────────
+
+class QuestionnaireLead(BaseModel):
+    name: str = Field(min_length=1)
+    email: EmailStr
+    company: str = Field(min_length=1)
+    questionnaire: Optional[Questionnaire] = None
+
+
+@router.post("/questionnaire-lead", status_code=201)
+async def questionnaire_lead(
+    body: QuestionnaireLead,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Capture a questionnaire lead from getyippie.com into the root tenant Kanban.
+
+    Called after step 1 of the site questionnaire (before they commit to requesting
+    a demo). Creates or updates the contact at 'Questionnaire Lead' stage.
+    """
+    from app.database import set_tenant_context
+    from app.modules.contacts.models import Contact
+    from app.modules.pipeline.service import find_stage_by_name, _assign_stage
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_signup_rate_limit(ip)
+
+    root_tenant_id = await _resolve_root_tenant_id(db)
+    await set_tenant_context(db, str(root_tenant_id))
+
+    email = body.email.lower().strip()
+    contact = await db.scalar(
+        select(Contact).where(
+            Contact.tenant_id == root_tenant_id,
+            Contact.email == email,
+            Contact.deleted_at.is_(None),
+        )
+    )
+    if contact is None:
+        contact = Contact(
+            tenant_id=root_tenant_id,
+            full_name=body.name.strip(),
+            email=email,
+            company=body.company.strip(),
+        )
+        db.add(contact)
+        await db.flush()
+
+    if body.questionnaire:
+        contact.custom_fields = {
+            "team_size": body.questionnaire.team_size,
+            "industry": body.questionnaire.industry,
+            "current_tools": body.questionnaire.current_tools,
+            "pain_points": body.questionnaire.pain_points,
+            "recommended_modules": body.questionnaire.recommended_modules,
+        }
+
+    stage = await find_stage_by_name(db, root_tenant_id, "Questionnaire Lead")
+    if stage:
+        await _assign_stage(db, root_tenant_id, contact.id, stage.id)
+
+    await db.commit()
+    return {"ok": True}
+
+
+# ── Self-serve signup ─────────────────────────────────────────────────────────
+
+class SignupRequest(BaseModel):
+    name: str = Field(min_length=1)
+    company_name: str = Field(min_length=1)
+    email: EmailStr
+    password: str = Field(min_length=8)
+    plan: str = "starter"
+    enabled_modules: list[str] = []
+    questionnaire: Optional[Questionnaire] = None
+    from_demo_token: Optional[str] = None
+
+
+@router.post("/signup", status_code=201)
+async def signup(
+    body: SignupRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Self-serve account creation — no auth required.
+
+    Creates a real (non-demo) tenant immediately, auto-provisions an invoice
+    in root-tenant billing, and moves the contact to the 'Live' Kanban stage.
+    Stripe-ready: swap payment_service.handle_signup_payment when keys are set.
+    """
+    import secrets as _secrets
+
+    from app.auth.tokens import verify_signed_token
+    from app.core.mailer import ResendNotConfiguredError
+    from app.core.models import Tenant, User
+    from app.database import set_tenant_context
+    from app.modules.admin.schemas import TenantCreate
+    from app.modules.admin.service import create_tenant
+    from app.modules.contacts.models import Contact
+    from app.modules.pipeline.service import find_stage_by_name, _assign_stage
+    from app.public.payment_service import handle_signup_payment
+    from app.config import ALL_MODULES
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_signup_rate_limit(ip)
+
+    email = body.email.lower().strip()
+
+    # Block if already a live account
+    existing = await db.scalar(
+        select(User).where(func.lower(User.email) == email)
+    )
+    if existing:
+        existing_tenant = await db.get(Tenant, existing.tenant_id)
+        if existing_tenant and not existing_tenant.is_demo:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This email is already registered with a Yippie account.",
+            )
+
+    # Decode from_demo_token questionnaire if present
+    questionnaire = body.questionnaire
+    if body.from_demo_token:
+        claims = verify_signed_token(body.from_demo_token, "demo_outreach")
+        if claims and not questionnaire:
+            import json as _json
+            try:
+                q_data = _json.loads(claims.get("questionnaire", "{}"))
+                questionnaire = Questionnaire(**q_data) if q_data else None
+            except Exception:
+                pass
+
+    enabled_modules = body.enabled_modules or ALL_MODULES
+    base_slug = _slugify(body.company_name)
+    slug = await _unique_slug(db, base_slug)
+
+    try:
+        from app.auth.router import pwd_context
+        tenant_result = await create_tenant(
+            db,
+            TenantCreate(
+                name=body.company_name.strip(),
+                slug=slug,
+                admin_email=email,
+                admin_full_name=body.name.strip(),
+                is_demo=False,
+                admin_password=body.password,
+                enabled_modules=enabled_modules,
+                plan=body.plan,
+            ),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except ResendNotConfiguredError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Account creation email is not configured.",
+        )
+
+    tenant_id = uuid.UUID(str(tenant_result["id"]))
+
+    root_tenant_id = await _resolve_root_tenant_id(db)
+    await set_tenant_context(db, str(root_tenant_id))
+
+    # Find or create contact in root tenant
+    contact = await db.scalar(
+        select(Contact).where(
+            Contact.tenant_id == root_tenant_id,
+            Contact.email == email,
+            Contact.deleted_at.is_(None),
+        )
+    )
+    if contact is None:
+        contact = Contact(
+            tenant_id=root_tenant_id,
+            full_name=body.name.strip(),
+            email=email,
+            company=body.company_name.strip(),
+        )
+        db.add(contact)
+        await db.flush()
+    else:
+        contact.full_name = body.name.strip()
+        contact.company = body.company_name.strip()
+
+    if questionnaire:
+        contact.custom_fields = {
+            "team_size": questionnaire.team_size,
+            "industry": questionnaire.industry,
+            "current_tools": questionnaire.current_tools,
+            "pain_points": questionnaire.pain_points,
+            "recommended_modules": questionnaire.recommended_modules,
+            "signed_up_plan": body.plan,
+            "signed_up_modules": enabled_modules,
+        }
+
+    stage = await find_stage_by_name(db, root_tenant_id, "Live")
+    if stage:
+        await _assign_stage(db, root_tenant_id, contact.id, stage.id)
+
+    await db.flush()
+
+    # Create invoice (or Stripe checkout when ready)
+    payment_result = await handle_signup_payment(
+        db=db,
+        root_tenant_id=root_tenant_id,
+        contact_id=contact.id,
+        plan=body.plan,
+        modules=enabled_modules,
+        company_name=body.company_name.strip(),
+    )
+
+    base = _demo_client_base_url()
+    return {
+        "tenant_slug": slug,
+        "login_url": f"{base}/login",
+        "payment": payment_result,
+    }
     return {"ok": True}

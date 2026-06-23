@@ -81,6 +81,12 @@ class Settings(BaseSettings):
     stripe_secret_key: str = ""
     stripe_publishable_key: str = ""
     stripe_webhook_secret_platform: str = ""
+    # Slug of the root/owner tenant — used for public /meet/{slug} links in
+    # demo outreach emails. Defaults to TENANT_ID if not set separately.
+    owner_slug: str = ""
+    # Public URL of the marketing site (getyippie.com) — used for signup links
+    # in demo outreach emails.
+    site_base_url: str = "https://getyippie.com"
 
     @property
     def cors_origins_list(self) -> List[str]:
