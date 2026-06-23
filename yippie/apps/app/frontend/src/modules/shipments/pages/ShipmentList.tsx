@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { Package, Plus, RefreshCw } from 'lucide-react'
+import { Package, Plus, RefreshCw, Settings } from 'lucide-react'
 import { api } from '../../../api/client'
 import { ShipmentStatusBadge, type ShipmentStatus } from '../components/ShipmentStatusBadge'
 import { CarrierBadge, type Carrier } from '../components/CarrierBadge'
 import { CreateShipmentModal } from '../components/CreateShipmentModal'
+import { ShipmentSettingsModal } from '../components/ShipmentSettingsModal'
 import { useIsViewOnly } from '../../../shell/ModuleGate'
+import { useAuth } from '../../../auth/useAuth'
 
 interface Shipment {
   id: string
@@ -51,7 +53,10 @@ function formatDate(iso: string | null) {
 export default function ShipmentList() {
   const navigate = useNavigate()
   const isViewOnly = useIsViewOnly()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [showCreate, setShowCreate] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [filterStatus, setFilterStatus] = useState('')
   const [filterCarrier, setFilterCarrier] = useState('')
 
@@ -84,6 +89,15 @@ export default function ShipmentList() {
           >
             <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
           </button>
+          {isAdmin && (
+            <button
+              onClick={() => setShowSettings(true)}
+              className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+              title="Settings"
+            >
+              <Settings size={16} />
+            </button>
+          )}
           {!isViewOnly && (
             <button
               onClick={() => setShowCreate(true)}
@@ -181,6 +195,9 @@ export default function ShipmentList() {
           onClose={() => setShowCreate(false)}
           onCreated={id => navigate(`/tracking/${id}`)}
         />
+      )}
+      {showSettings && (
+        <ShipmentSettingsModal onClose={() => setShowSettings(false)} />
       )}
     </div>
   )
