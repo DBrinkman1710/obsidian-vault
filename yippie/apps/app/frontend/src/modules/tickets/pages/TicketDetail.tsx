@@ -12,26 +12,12 @@ import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
+import { useT } from '../../../hooks/useT'
 import SendBookingModal from '../../booking/SendBookingModal'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'resolved', 'closed']
 
-const STATUS_LABELS: Record<string, string> = {
-  open:        'Open',
-  in_progress: 'In progress',
-  waiting:     'Waiting for customer',
-  resolved:    'Resolved',
-  closed:      'Closed',
-}
-
 const PRIORITY_OPTIONS = ['low', 'medium', 'high', 'urgent']
-
-const PRIORITY_LABELS: Record<string, string> = {
-  low:    'Low',
-  medium: 'Medium',
-  high:   'High',
-  urgent: 'Urgent',
-}
 
 const PRIORITY_TEXT: Record<string, string> = {
   low:    'text-slate-600',
@@ -54,6 +40,20 @@ export default function TicketDetail() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const tl = useT()
+  const STATUS_LABELS: Record<string, string> = {
+    open:        tl('status_open'),
+    in_progress: tl('status_in_progress'),
+    waiting:     tl('status_waiting'),
+    resolved:    tl('status_resolved'),
+    closed:      tl('status_closed'),
+  }
+  const PRIORITY_LABELS: Record<string, string> = {
+    low:    tl('priority_low'),
+    medium: tl('priority_medium'),
+    high:   tl('priority_high'),
+    urgent: tl('priority_urgent'),
+  }
   const config = useTenantConfig()
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const canDelete = user?.role === 'admin' || user?.role === 'superadmin'
@@ -553,6 +553,14 @@ function MergeModal({
   onClose: () => void
 }) {
   const qc = useQueryClient()
+  const tl = useT()
+  const STATUS_LABELS: Record<string, string> = {
+    open:        tl('status_open'),
+    in_progress: tl('status_in_progress'),
+    waiting:     tl('status_waiting'),
+    resolved:    tl('status_resolved'),
+    closed:      tl('status_closed'),
+  }
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<MergeCandidate | null>(null)
 

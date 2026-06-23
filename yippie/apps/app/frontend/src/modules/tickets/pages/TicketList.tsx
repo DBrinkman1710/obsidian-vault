@@ -7,6 +7,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { useState } from 'react'
 import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
+import { useT } from '../../../hooks/useT'
 
 const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   open:        { bg: 'var(--status-info-bg)',    color: 'var(--status-info)' },
@@ -16,13 +17,6 @@ const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   closed:      { bg: 'var(--slate-100)',          color: 'var(--slate-500)' },
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  open:        'Open',
-  in_progress: 'In progress',
-  waiting:     'Waiting',
-  resolved:    'Resolved',
-  closed:      'Closed',
-}
 
 const PRIORITY_STYLES: Record<string, { bg: string; color: string }> = {
   urgent: { bg: 'var(--status-urgent-bg)', color: 'var(--status-urgent)' },
@@ -60,6 +54,14 @@ interface MergeDialog {
 export default function TicketList() {
   const qc = useQueryClient()
   const { user } = useAuth()
+  const t = useT()
+  const STATUS_LABELS: Record<string, string> = {
+    open:        t('status_open'),
+    in_progress: t('status_in_progress'),
+    waiting:     t('status_waiting'),
+    resolved:    t('status_resolved'),
+    closed:      t('status_closed'),
+  }
   const [statusFilter, setStatusFilter] = useState('')
   const [assignedToMe, setAssignedToMe] = useState(false)
   const [mergeDialog, setMergeDialog] = useState<MergeDialog | null>(null)

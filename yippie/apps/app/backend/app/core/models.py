@@ -126,6 +126,7 @@ class User(Base):
     tour_completed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     # True once the user has dismissed the post-tour setup checklist widget.
     setup_checklist_dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    ui_language: Mapped[str] = mapped_column(String(10), nullable=False, server_default="en")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

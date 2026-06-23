@@ -26,17 +26,19 @@ import { CSS } from '@dnd-kit/utilities'
 import { useTenantConfig } from '../App'
 import { useAuth } from '../auth/useAuth'
 import { api } from '../api/client'
+import { useT } from '../hooks/useT'
+import type { TKey } from '../i18n/translations'
 
-const MODULE_MAP: Record<string, { label: string; Icon: LucideIcon; path: string }> = {
-  inbox:    { label: 'Inbox',     Icon: Inbox,         path: '/inbox' },
-  contacts: { label: 'Contacts',  Icon: Users,         path: '/contacts' },
-  tickets:  { label: 'Tickets',   Icon: ClipboardList, path: '/tickets' },
-  calendar: { label: 'Calendar',  Icon: Calendar,      path: '/calendar' },
-  pipeline: { label: 'Kanban',    Icon: Kanban,        path: '/pipeline' },
-  activity: { label: 'Activity',  Icon: Activity,      path: '/activity' },
-  billing:  { label: 'Billing',   Icon: CreditCard,    path: '/billing' },
-  chat:     { label: 'Live Chat', Icon: MessageSquare, path: '/chat' },
-  marketing: { label: 'Marketing', Icon: Megaphone,    path: '/marketing' },
+const MODULE_MAP: Record<string, { labelKey: TKey; Icon: LucideIcon; path: string }> = {
+  inbox:    { labelKey: 'inbox',    Icon: Inbox,         path: '/inbox' },
+  contacts: { labelKey: 'contacts', Icon: Users,         path: '/contacts' },
+  tickets:  { labelKey: 'tickets',  Icon: ClipboardList, path: '/tickets' },
+  calendar: { labelKey: 'calendar', Icon: Calendar,      path: '/calendar' },
+  pipeline: { labelKey: 'kanban',   Icon: Kanban,        path: '/pipeline' },
+  activity: { labelKey: 'activity', Icon: Activity,      path: '/activity' },
+  billing:  { labelKey: 'billing',  Icon: CreditCard,    path: '/billing' },
+  chat:     { labelKey: 'livechat', Icon: MessageSquare, path: '/chat' },
+  marketing: { labelKey: 'marketing', Icon: Megaphone,   path: '/marketing' },
 }
 
 const STORAGE_KEY = 'yippie:sidebarCollapsed'
@@ -76,6 +78,7 @@ export function Sidebar() {
   const config = useTenantConfig()
   const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
+  const t = useT()
 
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(STORAGE_KEY) === 'true' } catch { return false }
@@ -201,7 +204,8 @@ export function Sidebar() {
   const orderedMods = reordering ? localOrder : resolveOrder(user?.sidebar_order, config.enabled_modules)
 
   function renderModNavItem(mod: string) {
-    const { label, Icon, path } = MODULE_MAP[mod]
+    const { labelKey, Icon, path } = MODULE_MAP[mod]
+    const label = t(labelKey)
     return (
       <div key={mod}>
         <NavLink
@@ -357,22 +361,22 @@ export function Sidebar() {
 
           <NavLink
             to="/settings/profile"
-            title={collapsed ? 'Profile' : undefined}
+            title={collapsed ? t('profile') : undefined}
             className={({ isActive }) => navCls(isActive)}
           >
             <UserCircle size={16} strokeWidth={2} />
-            {!collapsed && <span>Profile</span>}
+            {!collapsed && <span>{t('profile')}</span>}
           </NavLink>
 
           {(user?.role === 'admin' || user?.role === 'superadmin') && (
             <>
               <NavLink
                 to="/settings/team"
-                title={collapsed ? 'Team' : undefined}
+                title={collapsed ? t('team') : undefined}
                 className={({ isActive }) => navCls(isActive)}
               >
                 <Users size={16} strokeWidth={2} />
-                {!collapsed && <span>Team</span>}
+                {!collapsed && <span>{t('team')}</span>}
               </NavLink>
               {config.environment === 'sandbox' && (
                 <NavLink
@@ -386,11 +390,11 @@ export function Sidebar() {
               )}
               <NavLink
                 to="/settings"
-                title={collapsed ? 'Settings' : undefined}
+                title={collapsed ? t('settings') : undefined}
                 className={() => navCls(settingsActive)}
               >
                 <Settings size={16} strokeWidth={2} />
-                {!collapsed && <span>Settings</span>}
+                {!collapsed && <span>{t('settings')}</span>}
               </NavLink>
             </>
           )}
@@ -417,7 +421,7 @@ export function Sidebar() {
                 className="flex items-center gap-2 w-full text-white/70 hover:text-white text-sm font-medium transition-colors cursor-pointer"
               >
                 <LogOut size={14} strokeWidth={2} />
-                Sign out
+                {t('sign_out')}
               </button>
             </div>
           )}

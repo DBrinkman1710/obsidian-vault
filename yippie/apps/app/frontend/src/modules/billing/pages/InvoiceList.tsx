@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
+import { useT } from '../../../hooks/useT'
 
 // UI status labels mapped onto the backend InvoiceStatus enum values.
 const STATUS_OPTIONS = [
@@ -121,6 +122,7 @@ const EMPTY_ITEM: LineItemForm = { description: '', quantity: '1', unit_price: '
 
 function AddInvoiceModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
+  const t = useT()
   const [contactId, setContactId] = useState('')
   const [contactName, setContactName] = useState('')
   const [description, setDescription] = useState('')
@@ -229,7 +231,7 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
             <div>
               <label className={labelCls}>Status</label>
               <select className={inputCls} value={status} onChange={e => setStatus(e.target.value)}>
-                {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{t(('invoice_' + o.value) as any) ?? o.label}</option>)}
               </select>
             </div>
           </div>
@@ -406,6 +408,7 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 // ---- Page ------------------------------------------------------------------
 
 export default function InvoiceList() {
+  const t = useT()
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -536,7 +539,7 @@ export default function InvoiceList() {
                   <td className="px-4 py-3 text-sm text-slate-600">{inv.contact_name ?? '—'}</td>
                   <td className="px-4 py-3">
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold ${STATUS_STYLES[inv.status] ?? STATUS_STYLES.draft}`}>
-                      {statusLabel(inv.status)}
+                      {t(('invoice_' + inv.status) as any) ?? statusLabel(inv.status)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">{(inv.total_cents / 100).toFixed(2)} {inv.currency}</td>

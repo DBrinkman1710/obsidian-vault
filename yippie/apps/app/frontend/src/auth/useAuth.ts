@@ -22,6 +22,7 @@ interface User {
   send_from_aliases?: string[] | null
   tour_completed?: boolean
   setup_checklist_dismissed?: boolean
+  ui_language?: string
 }
 
 export interface ContactColumnPref {

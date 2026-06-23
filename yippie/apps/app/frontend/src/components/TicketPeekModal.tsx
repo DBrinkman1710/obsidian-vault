@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { X, UserCircle, ExternalLink, Clock } from 'lucide-react'
 import { api } from '../api/client'
+import { useT } from '../hooks/useT'
 
 const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   open:        { bg: 'var(--status-info-bg)',    color: 'var(--status-info)' },
@@ -10,13 +11,6 @@ const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
   closed:      { bg: 'var(--slate-100)',          color: 'var(--slate-500)' },
 }
 
-const STATUS_LABELS: Record<string, string> = {
-  open:        'Open',
-  in_progress: 'In progress',
-  waiting:     'Waiting',
-  resolved:    'Resolved',
-  closed:      'Closed',
-}
 
 const PRIORITY_STYLES: Record<string, { bg: string; color: string }> = {
   urgent: { bg: 'var(--status-urgent-bg)', color: 'var(--status-urgent)' },
@@ -42,6 +36,14 @@ function Badge({ bg, color, children }: { bg: string; color: string; children: R
 }
 
 export default function TicketPeekModal({ ticketId, onClose }: TicketPeekModalProps) {
+  const t = useT()
+  const STATUS_LABELS: Record<string, string> = {
+    open:        t('status_open'),
+    in_progress: t('status_in_progress'),
+    waiting:     t('status_waiting'),
+    resolved:    t('status_resolved'),
+    closed:      t('status_closed'),
+  }
   const { data: ticket, isLoading } = useQuery({
     queryKey: ['ticket', String(ticketId)],
     queryFn: () => api.get(`/tickets/${ticketId}`).then(r => r.data),

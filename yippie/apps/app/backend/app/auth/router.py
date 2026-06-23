@@ -215,6 +215,7 @@ class UserSelfUpdate(BaseModel):
     send_from_aliases: Optional[list[str]] = None
     tour_completed: Optional[bool] = None
     setup_checklist_dismissed: Optional[bool] = None
+    ui_language: Optional[str] = None
 
 
 @router.patch("/me", response_model=UserOut)
@@ -266,6 +267,8 @@ async def update_me(
         current_user.tour_completed = body.tour_completed
     if body.setup_checklist_dismissed is True:
         current_user.setup_checklist_dismissed = True
+    if body.ui_language is not None and body.ui_language in ("en", "nl"):
+        current_user.ui_language = body.ui_language
     await db.commit()
     await db.refresh(current_user)
     return UserOut.model_validate(current_user)
