@@ -66,6 +66,8 @@ interface Tenant {
   whatsapp_access_token: string | null
   whatsapp_verify_token: string | null
   ai_auto_scan: boolean
+  lead_widget_save_contact: boolean
+  lead_widget_stage_id: string | null
   resend_domain_id: string | null
   resend_domain_name: string | null
   resend_domain_status: string | null
@@ -680,7 +682,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   )
 }
 
-type EditTab = 'info' | 'modules' | 'branding' | 'whatsapp' | 'users' | 'actions'
+type EditTab = 'info' | 'modules' | 'branding' | 'whatsapp' | 'users' | 'actions' | 'developer_tools'
 
 function EditClientModal({
   tenant,
@@ -725,9 +727,12 @@ function EditClientModal({
     whatsapp_verify_token: tenant.whatsapp_verify_token ?? '',
     ai_auto_scan: tenant.ai_auto_scan ?? false,
     demo_days_remaining: demoDaysRemaining(tenant.demo_expires_at),
+    lead_widget_save_contact: tenant.lead_widget_save_contact ?? true,
+    lead_widget_stage_id: tenant.lead_widget_stage_id ?? null,
   })
   const [error, setError] = useState('')
   const [showAddAdmin, setShowAddAdmin] = useState(false)
+  const [embedCopied, setEmbedCopied] = useState(false)
 
   const mutation = useMutation({
     mutationFn: (patch: Record<string, unknown>) =>
@@ -740,6 +745,12 @@ function EditClientModal({
     queryKey: ['tenant-users', tenant.id],
     queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then(r => r.data),
     enabled: tab === 'users',
+  })
+
+  const { data: pipelineStages } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['tenant-pipeline-stages', tenant.id],
+    queryFn: () => api.get(`/admin/tenants/${tenant.id}/pipeline-stages`).then(r => r.data),
+    enabled: tab === 'developer_tools',
   })
 
   const toggleUserMutation = useMutation({
@@ -771,6 +782,8 @@ function EditClientModal({
     const waVerify = form.whatsapp_verify_token.trim() || null
     if (waVerify !== tenant.whatsapp_verify_token) patch.whatsapp_verify_token = waVerify
     if (form.ai_auto_scan !== tenant.ai_auto_scan) patch.ai_auto_scan = form.ai_auto_scan
+    if (form.lead_widget_save_contact !== (tenant.lead_widget_save_contact ?? true)) patch.lead_widget_save_contact = form.lead_widget_save_contact
+    if (form.lead_widget_stage_id !== (tenant.lead_widget_stage_id ?? null)) patch.lead_widget_stage_id = form.lead_widget_stage_id
     if (tenant.is_demo && form.demo_days_remaining !== demoDaysRemaining(tenant.demo_expires_at)) {
       const days = Math.max(1, Math.min(365, form.demo_days_remaining))
       const expires = new Date()
@@ -789,6 +802,7 @@ function EditClientModal({
     { key: 'whatsapp', label: 'WhatsApp' },
     { key: 'users', label: 'Users' },
     { key: 'actions', label: 'Actions' },
+    { key: 'developer_tools', label: 'Developer tools' },
   ]
 
   return (
@@ -1139,6 +1153,62 @@ function EditClientModal({
                   )}
                 </>
               )}
+            </div>
+          )}
+
+          {tab === 'developer_tools' && (
+            <div className="flex flex-col gap-5">
+              <label className="flex items-start gap-3 p-3 rounded-xl border border-slate-200 cursor-pointer hover:bg-slate-50 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={form.lead_widget_save_contact}
+                  onChange={e => setForm(p => ({ ...p, lead_widget_save_contact: e.target.checked }))}
+                  className="mt-0.5"
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-slate-800">Save submitted contacts</span>
+                  <span className="block text-xs text-slate-400 mt-0.5">
+                    When on, visitors who submit the lead form are saved as contacts in this client's account.
+                  </span>
+                </span>
+              </label>
+
+              {form.lead_widget_save_contact && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Pipeline stage</label>
+                  <select
+                    className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
+                    value={form.lead_widget_stage_id ?? ''}
+                    onChange={e => setForm(p => ({ ...p, lead_widget_stage_id: e.target.value || null }))}
+                  >
+                    <option value="">None — don't add to pipeline</option>
+                    {(pipelineStages ?? []).map(s => (
+                      <option key={s.id} value={s.id}>{s.name}</option>
+                    ))}
+                  </select>
+                  <p className="mt-1 text-xs text-slate-400">Submitted contacts will be placed in this stage automatically.</p>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Lead capture widget</label>
+                <p className="text-xs text-slate-400 mb-2">Paste this snippet anywhere on the client's website to add a "Get in touch" button.</p>
+                <div className="flex items-start gap-2">
+                  <pre className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all font-mono text-slate-700">{`<script src="https://app.getyippie.com/public/lead-widget.js" data-tenant="${tenant.slug}"></script>`}</pre>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(`<script src="https://app.getyippie.com/public/lead-widget.js" data-tenant="${tenant.slug}"></script>`)
+                      setEmbedCopied(true)
+                      setTimeout(() => setEmbedCopied(false), 2000)
+                    }}
+                    className="shrink-0 px-3 py-2 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                    title="Copy embed code"
+                  >
+                    {embedCopied ? <Check size={13} className="text-emerald-500" /> : <Clipboard size={13} />}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
 

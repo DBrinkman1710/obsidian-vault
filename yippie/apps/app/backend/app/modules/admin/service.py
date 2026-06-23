@@ -34,6 +34,7 @@ TENANT_SAFE_FIELDS = {
     "kvk_nummer", "btw_nummer",
     "whatsapp_phone_number_id", "whatsapp_access_token", "whatsapp_verify_token",
     "ai_auto_scan",
+    "lead_widget_save_contact", "lead_widget_stage_id",
 }
 
 # The platform owner's account — same default as promote_superadmin.py / seed.py.

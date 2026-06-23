@@ -41,6 +41,8 @@ class TenantUpdate(BaseModel):
     whatsapp_access_token: Optional[str] = None
     whatsapp_verify_token: Optional[str] = None
     ai_auto_scan: Optional[bool] = None
+    lead_widget_save_contact: Optional[bool] = None
+    lead_widget_stage_id: Optional[uuid.UUID] = None
 
 
 class TenantOut(BaseModel):
@@ -62,6 +64,8 @@ class TenantOut(BaseModel):
     whatsapp_access_token: Optional[str]
     whatsapp_verify_token: Optional[str]
     ai_auto_scan: bool = False
+    lead_widget_save_contact: bool = True
+    lead_widget_stage_id: Optional[uuid.UUID] = None
     resend_domain_id: Optional[str] = None
     resend_domain_name: Optional[str] = None
     resend_domain_status: Optional[str] = None

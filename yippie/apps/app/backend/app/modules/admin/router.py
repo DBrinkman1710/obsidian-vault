@@ -100,6 +100,18 @@ async def delete_tenant(current_user: SuperAdminUser, db: DB, tenant_id: uuid.UU
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.get("/tenants/{tenant_id}/pipeline-stages")
+async def get_tenant_pipeline_stages(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID) -> list[dict]:
+    from app.modules.pipeline.models import PipelineStage
+    result = await db.execute(
+        sa_select(PipelineStage)
+        .where(PipelineStage.tenant_id == tenant_id)
+        .order_by(PipelineStage.display_order)
+    )
+    stages = result.scalars().all()
+    return [{"id": str(s.id), "name": s.name} for s in stages]
+
+
 @router.get("/tenants/{tenant_id}/users", response_model=list[schemas.TenantUserOut])
 async def get_tenant_users(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
     return await service.get_tenant_users(db, tenant_id)

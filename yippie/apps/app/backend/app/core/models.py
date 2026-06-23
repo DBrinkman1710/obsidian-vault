@@ -99,6 +99,10 @@ class Tenant(Base):
     # Generic ERP order webhook — ERPs push order/tracking updates to /webhooks/orders/{slug}.
     # If set, the X-Api-Key header must match; if unset, all requests are accepted (easy onboarding).
     orders_webhook_secret: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Lead capture widget config — controls whether the public embed widget saves contacts
+    # and which pipeline stage they land in.
+    lead_widget_save_contact: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    lead_widget_stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     users: Mapped[list[User]] = relationship("User", back_populates="tenant")

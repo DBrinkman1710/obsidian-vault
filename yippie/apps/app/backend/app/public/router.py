@@ -749,6 +749,7 @@ async def public_reschedule(
 
 
 @router.post("/booking/manage/{manage_token}/cancel", status_code=200)
+
 async def public_cancel(
     manage_token: uuid.UUID,
     request: Request,
@@ -886,3 +887,70 @@ async def public_confirm_booking(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     return {"event_id": str(event.id), "start_at": event.start_at, "end_at": event.end_at}
+
+
+class LeadSubmit(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    email: EmailStr
+    phone: str | None = Field(default=None, max_length=50)
+    message: str | None = Field(default=None, max_length=2000)
+
+
+@router.post("/lead/{slug}", status_code=201)
+async def submit_lead(
+    slug: str,
+    body: LeadSubmit,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Public lead capture endpoint — called by the embeddable lead widget."""
+    from app.core.models import Tenant
+    from app.modules.contacts.models import Contact
+    from app.modules.pipeline.models import PipelineStage
+    from app.modules.pipeline.service import _assign_stage
+
+    ip = (request.client.host if request.client else None) or "unknown"
+    _check_rate_limit(ip)
+
+    tenant = await db.scalar(
+        select(Tenant).where(Tenant.slug == slug, Tenant.is_active == True)  # noqa: E712
+    )
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+
+    if not tenant.lead_widget_save_contact:
+        return {"ok": True}
+
+    await set_tenant_context(db, str(tenant.id))
+
+    email = body.email.lower().strip()
+    contact = await db.scalar(
+        select(Contact).where(
+            Contact.tenant_id == tenant.id,
+            func.lower(Contact.email) == email,
+            Contact.deleted_at == None,  # noqa: E711
+        )
+    )
+    if contact is None:
+        contact = Contact(
+            tenant_id=tenant.id,
+            full_name=body.name.strip(),
+            email=email,
+            phone=body.phone.strip() if body.phone else None,
+            notes=body.message.strip() if body.message else None,
+        )
+        db.add(contact)
+        await db.flush()
+
+    if tenant.lead_widget_stage_id is not None:
+        stage = await db.scalar(
+            select(PipelineStage).where(
+                PipelineStage.id == tenant.lead_widget_stage_id,
+                PipelineStage.tenant_id == tenant.id,
+            )
+        )
+        if stage is not None:
+            await _assign_stage(db, tenant.id, contact.id, stage.id)
+
+    await db.commit()
+    return {"ok": True}
