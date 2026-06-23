@@ -99,35 +99,29 @@ async function main() {
     /* not present */
   }
 
-  // Hide the persistent SLA overdue toast — it has no close button and overlaps content.
-  await page.addStyleTag({
-    content: `
-      /* Hide SLA overdue notification bar for clean screenshots */
-      [class*="sla"], [class*="overdue"], [class*="alert-bar"],
-      [class*="notification-bar"], [class*="attention"] { display: none !important; }
-    `,
-  }).catch(() => {});
-  // Also hide by text content via JS — covers any class name
-  await page.evaluate(() => {
-    document.querySelectorAll("*").forEach((el) => {
-      if (
-        el.children.length === 0 &&
-        el.textContent?.includes("overdue tickets need attention")
-      ) {
-        let node = el;
-        for (let i = 0; i < 5; i++) {
-          if (!node.parentElement) break;
-          node = node.parentElement;
-          const rect = node.getBoundingClientRect();
-          if (rect.height < 80 && rect.width > 200) {
-            node.style.display = "none";
-            break;
+
+  // Helper: find fixed-positioned elements containing a text snippet and hide them.
+  const hideFixed = async (textSnippet) => {
+    await page.evaluate((snippet) => {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      const toHide = new Set();
+      let node;
+      while ((node = walker.nextNode())) {
+        if (node.textContent.includes(snippet)) {
+          let el = node.parentElement;
+          for (let i = 0; i < 8; i++) {
+            if (!el || el === document.body) break;
+            if (window.getComputedStyle(el).position === "fixed") {
+              toHide.add(el);
+              break;
+            }
+            el = el.parentElement;
           }
         }
       }
-    });
-  }).catch(() => {});
-  console.log("  ~ SLA toast hidden via CSS/JS");
+      toHide.forEach((el) => (el.style.display = "none"));
+    }, textSnippet).catch(() => {});
+  };
 
   // --- Screenshot each module -------------------------------------------- //
   let ok = 0;
@@ -138,6 +132,9 @@ async function main() {
       await page.goto(`${BASE_URL}${path}`, { waitUntil: "domcontentloaded", timeout: 60000 });
       await page.waitForLoadState("networkidle", { timeout: 20000 }).catch(() => {});
       await sleep(2500);
+      // Hide SLA overdue toast on every page (fixed element, no close button).
+      await hideFixed("overdue tickets need attention");
+      await sleep(200);
       await page.screenshot({ path: outPath, fullPage: false });
       console.log(`  + ${file}  (${path})`);
       ok++;
