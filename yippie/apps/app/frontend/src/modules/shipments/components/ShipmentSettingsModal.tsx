@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Check, Copy, Package, RefreshCw, Truck, Webhook, X, Zap } from 'lucide-react'
 import { toast } from 'sonner'
@@ -281,6 +281,14 @@ function SendcloudTab() {
 
 export function ShipmentSettingsModal({ onClose }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    document.addEventListener('keydown', onKey)
+    ref.current?.focus()
+    return () => document.removeEventListener('keydown', onKey)
+  }, [onClose])
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'overview', label: 'How it works', icon: <Zap size={13} /> },
@@ -289,8 +297,8 @@ export function ShipmentSettingsModal({ onClose }: Props) {
   ]
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
+      <div ref={ref} tabIndex={-1} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-900">Track &amp; Trace — Settings</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
