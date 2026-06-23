@@ -180,7 +180,7 @@ export function Sidebar() {
   const chatBadge = chatOpenCount === 0 ? null : chatOpenCount > 9 ? '9+' : String(chatOpenCount)
 
   const location = useLocation()
-  const SETTINGS_OWN = ['/settings/profile', '/settings/team', '/settings/superadmins']
+  const SETTINGS_OWN = ['/settings/profile', '/settings/team', '/settings/superadmins', '/settings/subscription', '/settings/templates']
   const settingsActive =
     location.pathname === '/settings' ||
     (location.pathname.startsWith('/settings') &&
@@ -373,6 +373,14 @@ export function Sidebar() {
               >
                 <Users size={16} strokeWidth={2} />
                 {!collapsed && <span>Team</span>}
+              </NavLink>
+              <NavLink
+                to="/settings/subscription"
+                title={collapsed ? 'Subscription' : undefined}
+                className={({ isActive }) => navCls(isActive)}
+              >
+                <CreditCard size={16} strokeWidth={2} />
+                {!collapsed && <span>Subscription</span>}
               </NavLink>
               <NavLink
                 to="/settings"

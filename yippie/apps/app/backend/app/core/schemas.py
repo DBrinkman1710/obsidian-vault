@@ -77,3 +77,7 @@ class TenantConfigOut(BaseModel):
     # When False (default) the inbox AI never runs automatically — agents click
     # Generate per draft. True restores auto-scan-on-arrival.
     ai_auto_scan: bool = False
+    # Stripe — surfaced so the frontend can show subscription status + usage bar.
+    stripe_subscription_status: str | None = None
+    stripe_publishable_key: str = ""
+    ai_scans_used_this_period: int = 0

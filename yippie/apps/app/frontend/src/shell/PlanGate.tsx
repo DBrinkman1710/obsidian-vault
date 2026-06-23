@@ -1,4 +1,5 @@
 import { Lock } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import { useTenantConfig } from '../App'
 
 /** The advanced features that are plan-gated. Mirrors ADVANCED_FEATURES on the
@@ -45,9 +46,14 @@ function UpgradeGate({ feature }: { feature: string }) {
         </div>
         <h2 className="text-lg font-bold text-slate-900">{label} is a premium feature</h2>
         <p className="mt-2 text-sm text-slate-500">
-          {label} isn’t included in your current plan. Contact your account
-          manager to upgrade and unlock it.
+          {label} isn’t included in your current plan.
         </p>
+        <Link
+          to="/settings/subscription"
+          className="mt-4 inline-block rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:bg-yippie/90"
+        >
+          Upgrade plan
+        </Link>
       </div>
     </div>
   )

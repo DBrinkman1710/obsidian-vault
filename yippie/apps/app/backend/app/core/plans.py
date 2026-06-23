@@ -83,14 +83,14 @@ PLAN_LIMITS: dict[PlanTier, dict[str, "int | float | None"]] = {
 # in ``app.modules.MODULES``. Core modules (inbox/contacts/activity) are always
 # included; everything else is a paid add-on.
 MODULE_PRICES: dict[str, int] = {
-    "tickets": 15,
-    "ai": 19,
-    "calendar": 12,
-    "kanban": 12,
-    "chat": 15,
-    "marketing": 15,
-    "departments": 9,
-    "billing": 9,
+    "tickets": 9,
+    "ai": 9,
+    "calendar": 7,
+    "kanban": 7,
+    "chat": 9,
+    "marketing": 9,
+    "departments": 7,
+    "billing": 7,
 }
 
 

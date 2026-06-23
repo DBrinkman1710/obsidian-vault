@@ -286,9 +286,17 @@ async def enrich_draft(
 ) -> None:
     """Run AI scan + customer briefing for one draft and store the results.
     Does not commit — callers own the transaction."""
+    from sqlalchemy import update as _update
     contact = await _match_contact(db, tenant_id, msg.sender)
     contact_dict, recent_tickets, billing = await _context_inputs(db, tenant_id, contact)
     await _enrich_ai(draft, msg, contact_dict, recent_tickets, billing)
+    if draft.ai_status == "done":
+        from app.core.models import Tenant
+        await db.execute(
+            _update(Tenant)
+            .where(Tenant.id == tenant_id)
+            .values(ai_scans_used_this_period=Tenant.ai_scans_used_this_period + 1)
+        )
 
 
 async def enrich_scan_only(
@@ -296,6 +304,7 @@ async def enrich_scan_only(
 ) -> None:
     """Run only the subject/priority/description scan — leave briefing untouched."""
     import asyncio
+    from sqlalchemy import update as _update
     try:
         scan = await asyncio.wait_for(
             scan_message(msg.sender, msg.raw_body, msg.source.value),
@@ -307,6 +316,12 @@ async def enrich_scan_only(
         draft.ai_suggested_category = scan.category
         draft.detected_language = scan.language
         draft.ai_status = "done"
+        from app.core.models import Tenant
+        await db.execute(
+            _update(Tenant)
+            .where(Tenant.id == tenant_id)
+            .values(ai_scans_used_this_period=Tenant.ai_scans_used_this_period + 1)
+        )
     except Exception:
         log.exception("AI scan failed for draft %s", draft.id)
         draft.ai_status = "failed"

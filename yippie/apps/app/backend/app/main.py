@@ -28,6 +28,8 @@ from app.modules.marketing.public_router import router as marketing_tracking_rou
 from app.modules.inbox.email_poller import start_scheduler as start_email_poller
 from app.modules.tickets.automation.sla_escalation import start_scheduler as start_sla_scheduler
 from app.modules.marketing.scheduler import start_scheduler as start_marketing_scheduler
+from app.modules.stripe_platform.router import router as stripe_router
+from app.modules.stripe_platform.webhooks import webhook_router as stripe_webhook_router
 
 
 @asynccontextmanager
@@ -74,6 +76,8 @@ def create_app() -> FastAPI:
     app.include_router(marketing_tracking_router, prefix="/api/v1")
     # Public Resend webhook — no auth, Resend posts delivery events here
     app.include_router(emailtracking_webhook_router, prefix="/api/v1")
+    # Public Stripe webhook — no auth, Stripe posts billing events here
+    app.include_router(stripe_webhook_router, prefix="/api/v1")
     # Legacy emailtracking outbound endpoint (MODULE-RENAME) — folded into the
     # marketing module as GET /marketing/outbound. Kept mounted (auth-gated, no
     # module gate) for backwards compatibility while the frontend transitions to
@@ -118,7 +122,13 @@ def create_app() -> FastAPI:
             plan_limits=limits_for_plan(tenant.plan),
             module_prices=module_prices_for_plan(tenant.plan),
             ai_auto_scan=tenant.ai_auto_scan,
+            stripe_subscription_status=tenant.stripe_subscription_status,
+            stripe_publishable_key=settings.stripe_publishable_key,
+            ai_scans_used_this_period=tenant.ai_scans_used_this_period,
         )
+
+    # Stripe auth-protected endpoints — no module gate (always accessible)
+    app.include_router(stripe_router, prefix="/api/v1")
 
     # Module routes — all mounted, each gated per-request by tenant's enabled_modules
     # and by the user's RBAC access level for that module.

@@ -12,9 +12,22 @@ export interface TenantConfig {
   // only when it is in BOTH enabled_modules AND allowed_features.
   plan: string
   allowed_features: string[]
+  plan_limits: {
+    users: number | null
+    contacts: number | null
+    ai_scans: number | null
+    price_monthly: number | null
+    price_annual: number | null
+    module_discount: number
+  }
+  module_prices: Record<string, number>
   // When false (default) the inbox AI never runs automatically — agents click
   // Generate per draft. True restores auto-scan-on-arrival.
   ai_auto_scan: boolean
+  // Stripe SaaS billing
+  stripe_subscription_status: string | null
+  stripe_publishable_key: string
+  ai_scans_used_this_period: number
 }
 
 export async function fetchTenantConfig(): Promise<TenantConfig> {

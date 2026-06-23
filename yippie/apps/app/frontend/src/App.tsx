@@ -33,6 +33,7 @@ const SuperAdminPage           = lazy(() => import('./modules/admin/pages/SuperA
 const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/SuperadminsSettingsPage'))
 const ProfileSettingsPage      = lazy(() => import('./modules/admin/pages/ProfileSettingsPage'))
 const TemplatesPage            = lazy(() => import('./modules/admin/pages/TemplatesPage'))
+const SubscriptionPage         = lazy(() => import('./modules/admin/pages/SubscriptionPage'))
 
 const TrackConfirmPage = lazy(() => import('./pages/TrackConfirmPage'))
 const RequestDemoPage = lazy(() => import('./pages/RequestDemoPage'))
@@ -259,6 +260,7 @@ export default function App() {
               <Route path="/settings/profile" element={<PagePad><ProfileSettingsPage /></PagePad>} />
               <Route path="/settings/team" element={<PagePad><TeamSettingsPage /></PagePad>} />
               <Route path="/settings/templates" element={<PagePad><TemplatesPage /></PagePad>} />
+              <Route path="/settings/subscription" element={<PagePad><SubscriptionPage /></PagePad>} />
               <Route path="/superadmin/clients" element={<PagePad><SuperAdminPage /></PagePad>} />
               <Route path="/track/confirm" element={<TrackConfirmPage />} />
             </Routes>
