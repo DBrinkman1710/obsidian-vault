@@ -138,12 +138,9 @@ export default function TicketList() {
         </h1>
         <Link
           to="/tickets/new"
-          className="inline-flex items-center gap-2 px-4 py-2 text-white text-sm font-semibold transition-all"
-          style={{ background: 'var(--ink)', borderRadius: 'var(--radius-sm)' }}
-          onMouseEnter={e => { e.currentTarget.style.background = 'var(--brand)'; e.currentTarget.style.boxShadow = 'var(--shadow-brand)' }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'var(--ink)'; e.currentTarget.style.boxShadow = 'none' }}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
         >
-          <Plus size={15} strokeWidth={2.5} />
+          <Plus size={14} strokeWidth={2.5} />
           New Ticket
         </Link>
       </div>
