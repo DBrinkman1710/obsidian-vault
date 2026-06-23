@@ -54,7 +54,8 @@ async function main() {
 
   // --- Login -------------------------------------------------------------- //
   console.log(`Logging in at ${BASE_URL}/login as ${EMAIL}`);
-  await page.goto(`${BASE_URL}/login`, { waitUntil: "networkidle" });
+  await page.goto(`${BASE_URL}/login`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.waitForLoadState("networkidle", { timeout: 60000 }).catch(() => {});
 
   await page.fill('input[type=email]', EMAIL);
   await page.fill('input[type=password]', PASSWORD);
@@ -80,7 +81,8 @@ async function main() {
   for (const { file, path } of TARGETS) {
     const outPath = resolve(OUT_DIR, file);
     try {
-      await page.goto(`${BASE_URL}${path}`, { waitUntil: "networkidle", timeout: 30000 });
+      await page.goto(`${BASE_URL}${path}`, { waitUntil: "domcontentloaded", timeout: 60000 });
+      await page.waitForLoadState("networkidle", { timeout: 15000 }).catch(() => {});
       await sleep(1500);
       await page.screenshot({ path: outPath, fullPage: false });
       console.log(`  + ${file}  (${path})`);
