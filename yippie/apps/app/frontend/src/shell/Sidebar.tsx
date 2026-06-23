@@ -374,14 +374,16 @@ export function Sidebar() {
                 <Users size={16} strokeWidth={2} />
                 {!collapsed && <span>Team</span>}
               </NavLink>
-              <NavLink
-                to="/settings/subscription"
-                title={collapsed ? 'Subscription' : undefined}
-                className={({ isActive }) => navCls(isActive)}
-              >
-                <CreditCard size={16} strokeWidth={2} />
-                {!collapsed && <span>Subscription</span>}
-              </NavLink>
+              {config.environment === 'sandbox' && (
+                <NavLink
+                  to="/settings/subscription"
+                  title={collapsed ? 'Subscription' : undefined}
+                  className={({ isActive }) => navCls(isActive)}
+                >
+                  <CreditCard size={16} strokeWidth={2} />
+                  {!collapsed && <span>Subscription</span>}
+                </NavLink>
+              )}
               <NavLink
                 to="/settings"
                 title={collapsed ? 'Settings' : undefined}
