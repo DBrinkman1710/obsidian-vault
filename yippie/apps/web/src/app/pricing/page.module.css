@@ -156,7 +156,7 @@
   gap: 16px;
   max-width: 1200px;
   margin: 0 auto;
-  align-items: start;
+  align-items: stretch;
 }
 .planCard {
   padding: 28px 22px;
@@ -165,6 +165,8 @@
   background: #fff;
   position: relative;
   transition: box-shadow 0.2s, transform 0.2s;
+  display: flex;
+  flex-direction: column;
 }
 .planCard:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
 .planCard.featured {
@@ -204,7 +206,7 @@
 .planPrice sub { font-size: 18px; font-weight: 500; color: var(--muted); vertical-align: baseline; }
 .planDiscount { font-size: 12px; font-weight: 600; color: #16a34a; margin: 2px 0 0; }
 .planBilling { font-size: 12px; color: var(--muted); margin-bottom: 24px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
-.planFeatures { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 28px; }
+.planFeatures { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 28px; flex: 1; }
 .planFeatures li { font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 10px; }
 .planCheck {
   width: 16px; height: 16px;
@@ -219,6 +221,7 @@
 .planBtn {
   display: block;
   text-align: center;
+  margin-top: auto;
   padding: 12px 20px;
   border-radius: var(--r-sm);
   font-weight: 600;

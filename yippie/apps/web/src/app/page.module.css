@@ -414,20 +414,22 @@
 
 /* ── Pricing teaser ──────────────────────────── */
 .pricingGrid {
-  max-width: 900px;
+  max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 16px;
-  align-items: start;
+  align-items: stretch;
 }
 .priceCard {
   position: relative;
-  padding: 30px 26px;
+  padding: 28px 22px;
   border-radius: var(--r-lg);
   border: 1px solid var(--border);
   background: #fff;
   transition: box-shadow 0.2s, transform 0.2s;
+  display: flex;
+  flex-direction: column;
 }
 .priceCard:hover { box-shadow: var(--shadow-md); transform: translateY(-3px); }
 .priceFeatured {
@@ -457,11 +459,12 @@
 .priceAmount { font-family: var(--font-display); font-size: 40px; font-weight: 700; color: var(--ink); letter-spacing: -0.03em; line-height: 1; margin-bottom: 6px; }
 .priceAmount sub { font-size: 16px; font-weight: 500; color: var(--muted); vertical-align: baseline; }
 .priceDesc { font-size: 13.5px; color: var(--muted); margin-bottom: 22px; padding-bottom: 20px; border-bottom: 1px solid var(--border); }
-.priceFeatures { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; }
+.priceFeatures { list-style: none; display: flex; flex-direction: column; gap: 10px; margin-bottom: 26px; flex: 1; }
 .priceFeatures li { display: flex; align-items: center; gap: 9px; font-size: 13.5px; color: var(--text); }
 .priceCheck { color: var(--brand-700); flex-shrink: 0; }
 .priceBtn {
   display: block;
+  margin-top: auto;
   text-align: center;
   padding: 11px;
   border-radius: var(--r-sm);
@@ -499,12 +502,12 @@
   .app { height: 340px; }
   .featureRows { grid-template-columns: 1fr; gap: 4px; }
   .statsBar, .steps { grid-template-columns: 1fr; }
-  .pricingGrid { grid-template-columns: 1fr; max-width: 420px; }
+  .pricingGrid { grid-template-columns: 1fr 1fr; max-width: 720px; }
   .steps::before { display: none; }
 }
 
-@media (min-width: 561px) and (max-width: 960px) {
-  .pricingGrid { grid-template-columns: 1fr 1fr; max-width: 680px; }
+@media (max-width: 560px) {
+  .pricingGrid { grid-template-columns: 1fr; max-width: 420px; }
 }
 
 @media (max-width: 520px) {
