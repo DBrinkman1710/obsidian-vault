@@ -123,9 +123,12 @@ export default function WelcomeTour() {
   })
 
   // Navigate to the current step's route whenever the step changes.
+  // Guard on config so we never navigate with the fallback steps — wait until
+  // the real module list is known before touching the router.
   useEffect(() => {
+    if (!config) return
     if (steps[step]) navigate(steps[step].route)
-  }, [step]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [step, config]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function dismiss() { completeMutation.mutate() }
 
