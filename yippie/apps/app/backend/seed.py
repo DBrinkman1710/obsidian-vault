@@ -181,10 +181,13 @@ async def main():
         if existing_user:
             tenant = await db.get(Tenant, existing_user.tenant_id)
             if tenant and tenant.slug != tenant_id:
-                old_slug = tenant.slug
-                tenant.slug = tenant_id
-                await db.commit()
-                print(f"Synced tenant slug '{old_slug}' → '{tenant_id}' to match TENANT_ID env var.")
+                print(
+                    f"WARNING: TENANT_ID env var is '{tenant_id}' but existing tenant slug is '{tenant.slug}'. "
+                    f"The slug was NOT changed automatically because renaming breaks webhook URLs "
+                    f"registered with Mailgun, Evolution API, and other external services. "
+                    f"To rename: update the slug via the superadmin API (PATCH /admin/tenant/{tenant.id}) "
+                    f"and re-register all external webhooks with the new URL."
+                )
             else:
                 print(f"User '{admin_email}' already exists — preserving credentials, skipping.")
             return
