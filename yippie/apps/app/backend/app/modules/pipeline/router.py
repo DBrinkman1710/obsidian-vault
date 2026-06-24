@@ -10,6 +10,7 @@ from app.auth.dependencies import AdminUser, CurrentUser
 from app.database import get_db
 from app.modules.pipeline import service
 from app.modules.pipeline.schemas import (
+    BulkMoveToStage,
     MoveToStage,
     PipelineBoardColumn,
     PipelineReorder,
@@ -57,6 +58,16 @@ async def delete_stage(stage_id: uuid.UUID, current_user: AdminUser, db: DB):
 @router.get("/board", response_model=list[PipelineBoardColumn])
 async def get_board(current_user: CurrentUser, db: DB):
     return await service.get_board(db, current_user.tenant_id)
+
+
+@router.put("/contacts/bulk-stage", status_code=status.HTTP_204_NO_CONTENT)
+async def bulk_move_to_stage(body: BulkMoveToStage, current_user: CurrentUser, db: DB):
+    try:
+        await service.bulk_move_contacts_to_stage(
+            db, current_user.tenant_id, body.contact_ids, body.stage_id, actor_id=current_user.id
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.put("/contacts/{contact_id}/stage", status_code=status.HTTP_204_NO_CONTENT)

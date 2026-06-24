@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail, ExternalLink } from 'lucide-react'
+import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail, ExternalLink, Kanban } from 'lucide-react'
 import { toast } from 'sonner'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { BulkBar } from '../../../components/Selection'
@@ -9,7 +9,6 @@ import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { TableSkeleton, CardListSkeleton } from '../../../shell/Skeleton'
 import { MutationGate } from '../../../shell/MutationGate'
-import { LabelChip, fetchLabels, type ContactLabel } from '../components/LabelChip'
 import { fetchCompanies, type Company } from '../components/CompanyBadge'
 import { ColumnPicker, resolveColumns } from '../components/ColumnPicker'
 import type { ContactColumnPref } from '../../../auth/useAuth'
@@ -39,11 +38,16 @@ interface Contact {
   email: string | null
   company: { id: string; name: string } | null
   phone: string | null
-  labels: ContactLabel[]
   notes: string | null
   created_at: string
   updated_at: string
   deleted_at: string | null
+}
+
+interface PipelineStage {
+  id: string
+  name: string
+  color: string
 }
 
 interface FormState { name: string; domain: string; notes: string }
@@ -343,9 +347,9 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   const { user, refreshUser } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [search, setSearch] = useState('')
-  const [labelFilter, setLabelFilter] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
+  const [showMoveStage, setShowMoveStage] = useState(false)
 
   const columns = resolveColumns(user?.contact_column_prefs)
   const visibleColumns = columns.filter(c => c.visible)
@@ -356,14 +360,16 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
     onSuccess: () => { refreshUser() },
   })
 
-  const { data: labels } = useQuery({ queryKey: ['contact-labels'], queryFn: fetchLabels })
   const { data: companies } = useQuery<Company[]>({ queryKey: ['companies'], queryFn: fetchCompanies })
+  const { data: stages } = useQuery<PipelineStage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get<PipelineStage[]>('/pipeline/stages').then(r => r.data),
+  })
   const { data, isLoading } = useQuery({
-    queryKey: ['contacts', search, labelFilter, companyFilter],
+    queryKey: ['contacts', search, companyFilter],
     queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', {
       params: {
         search: search || undefined,
-        label_id: labelFilter || undefined,
         company_id: companyFilter || undefined,
       },
     }).then(r => r.data),
@@ -405,6 +411,18 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
     onError: () => toast.error('Failed to permanently delete contact'),
   })
 
+  const bulkMoveStageMutation = useMutation({
+    mutationFn: ({ contactIds, stageId }: { contactIds: string[]; stageId: string }) =>
+      api.put('/pipeline/contacts/bulk-stage', { contact_ids: contactIds, stage_id: stageId }),
+    onSuccess: () => {
+      setShowMoveStage(false)
+      clearSelection()
+      qc.invalidateQueries({ queryKey: ['pipeline-stages'] })
+      toast.success('Contacts moved to stage')
+    },
+    onError: () => toast.error('Failed to move contacts'),
+  })
+
   const selectedIds = [...selected]
 
   return (
@@ -422,19 +440,6 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
           <ColumnPicker value={columns} onChange={prefs => prefsMutation.mutate(prefs)} saving={prefsMutation.isPending} />
         </div>
       </div>
-
-      {labels && labels.length > 0 && (
-        <div className="flex flex-wrap items-center gap-1.5 mb-4">
-          <button onClick={() => setLabelFilter(null)}
-            className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${labelFilter === null ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'}`}>
-            All
-          </button>
-          {labels.map(label => (
-            <LabelChip key={label.id} label={label} selected={labelFilter === label.id}
-              onClick={() => setLabelFilter(labelFilter === label.id ? null : label.id)} />
-          ))}
-        </div>
-      )}
 
       {companyFilter && companies && (
         <div className="flex items-center gap-1.5 mb-4">
@@ -454,9 +459,9 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         onClear={clearSelection}
         actions={[
           {
-            label: 'Compose',
-            icon: <Mail size={14} strokeWidth={2.5} />,
-            onClick: () => alert('Compose from contacts — coming soon'),
+            label: 'Move to stage',
+            icon: <Kanban size={14} strokeWidth={2.5} />,
+            onClick: () => setShowMoveStage(true),
           },
           {
             label: 'Export selected',
@@ -471,6 +476,33 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
           },
         ]}
       />
+
+      {showMoveStage && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowMoveStage(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900">Move {selected.size} contact{selected.size !== 1 ? 's' : ''} to stage</h2>
+              <button onClick={() => setShowMoveStage(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+            <div className="p-4 flex flex-col gap-1.5">
+              {stages?.map(stage => (
+                <button
+                  key={stage.id}
+                  disabled={bulkMoveStageMutation.isPending}
+                  onClick={() => bulkMoveStageMutation.mutate({ contactIds: selectedIds, stageId: stage.id })}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors text-left disabled:opacity-50"
+                >
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: stage.color }} />
+                  <span className="text-sm font-medium text-slate-700">{stage.name}</span>
+                </button>
+              ))}
+              {!stages?.length && (
+                <p className="text-sm text-slate-400 text-center py-4">No stages configured yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -542,16 +574,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                           ) : <span className="text-sm text-slate-400">—</span>}
                         </td>
                       )
-                      if (col.key === 'labels') return (
-                        <td key={col.key} className={`${responsive} px-4 py-3`}>
-                          {c.labels.length === 0 ? <span className="text-sm text-slate-400">—</span> : (
-                            <div className="flex flex-wrap gap-1">
-                              {c.labels.slice(0, 3).map(label => <LabelChip key={label.id} label={label} />)}
-                              {c.labels.length > 3 && <span className="text-xs text-slate-400 self-center">+{c.labels.length - 3}</span>}
-                            </div>
-                          )}
-                        </td>
-                      )
+                      if (col.key === 'labels') return null
                       if (col.key === 'phone') return (
                         <td key={col.key} className={`${responsive} px-4 py-3 text-sm text-slate-500`}>{c.phone ?? '—'}</td>
                       )

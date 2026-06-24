@@ -50,3 +50,8 @@ class PipelineBoardColumn(BaseModel):
 
 class MoveToStage(BaseModel):
     stage_id: uuid.UUID
+
+
+class BulkMoveToStage(BaseModel):
+    contact_ids: list[uuid.UUID] = Field(min_length=1)
+    stage_id: uuid.UUID

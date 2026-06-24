@@ -253,6 +253,30 @@ async def move_contact_to_stage(
     await db.commit()
 
 
+async def bulk_move_contacts_to_stage(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    contact_ids: list[uuid.UUID],
+    stage_id: uuid.UUID,
+    actor_id: Optional[uuid.UUID] = None,
+) -> None:
+    stage = await db.scalar(
+        select(PipelineStage).where(PipelineStage.tenant_id == tenant_id, PipelineStage.id == stage_id)
+    )
+    if stage is None:
+        raise ValueError("Stage not found")
+
+    for contact_id in contact_ids:
+        exists = await db.scalar(
+            select(Contact.id).where(Contact.tenant_id == tenant_id, Contact.id == contact_id)
+        )
+        if exists is None:
+            continue
+        await _assign_stage(db, tenant_id, contact_id, stage_id, actor_id=actor_id)
+
+    await db.commit()
+
+
 async def remove_contact_from_pipeline(
     db: AsyncSession, tenant_id: uuid.UUID, contact_id: uuid.UUID
 ) -> None:
