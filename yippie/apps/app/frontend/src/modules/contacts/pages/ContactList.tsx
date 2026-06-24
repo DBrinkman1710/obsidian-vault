@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
+import { useCompose } from '../../../hooks/useCompose'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Search, Plus, User, ChevronLeft, Upload, Download, Trash2, X, Mail } from 'lucide-react'
 import { api } from '../../../api/client'
@@ -42,6 +43,7 @@ function downloadBlob(data: BlobPart, filename: string, type: string) {
 
 export default function ContactList() {
   const navigate = useNavigate()
+  const { openCompose } = useCompose()
   const { companyId } = useParams<{ companyId?: string }>()
   const queryClient = useQueryClient()
   const { user } = useAuth()
@@ -278,7 +280,7 @@ export default function ContactList() {
                   onContextMenu={e => ctx.open(e, [
                     { header: c.full_name },
                     { label: 'View contact', icon: <User size={14} />, onClick: () => navigate(`/contacts/${c.id}`) },
-                    ...(c.email ? [{ label: 'Send email', icon: <Mail size={14} />, onClick: () => { sessionStorage.setItem('compose-prefill', JSON.stringify([{ email: c.email!, label: c.full_name || c.email! }])); navigate('/inbox?compose=1') } }] : []),
+                    ...(c.email ? [{ label: 'Send email', icon: <Mail size={14} />, onClick: () => openCompose({ recipients: [{ email: c.email!, label: c.full_name || c.email! }], subject: '', body: '', fromEmail: null }) }] : []),
                     { separator: true },
                     { label: 'Export', icon: <Download size={14} />, onClick: () => exportContacts([c.id]) },
                     {

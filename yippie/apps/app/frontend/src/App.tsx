@@ -1,6 +1,7 @@
 import WelcomeTour from './components/WelcomeTour'
 import SetupChecklist from './components/SetupChecklist'
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
+import { ComposeProvider } from './hooks/useCompose'
 import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { fetchTenantConfig, TenantConfig } from './api/tenant'
@@ -194,6 +195,7 @@ export default function App() {
 
   return (
     <TenantConfigContext.Provider value={config}>
+      <ComposeProvider>
       {user && !user.tour_completed && <WelcomeTour />}
       <SetupChecklist />
       <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
@@ -309,6 +311,7 @@ export default function App() {
         <BottomNav />
         <Toaster position="bottom-right" richColors />
       </div>
+      </ComposeProvider>
     </TenantConfigContext.Provider>
   )
 }

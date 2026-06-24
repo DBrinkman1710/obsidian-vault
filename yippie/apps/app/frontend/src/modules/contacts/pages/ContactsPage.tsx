@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { useCompose } from '../../../hooks/useCompose'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail, ExternalLink, Kanban, Send } from 'lucide-react'
 import { toast } from 'sonner'
@@ -459,6 +460,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   setCompanyFilter: (id: string | null) => void
 }) {
   const navigate = useNavigate()
+  const { openCompose } = useCompose()
   const qc = useQueryClient()
   const { user, refreshUser } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
@@ -674,7 +676,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                       { label: 'Open full page', icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
                       { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${c.id}`, '_blank') },
                       { separator: true },
-                      { label: 'Send email', icon: <Mail size={13} />, onClick: () => { sessionStorage.setItem('compose-prefill', JSON.stringify([{ email: c.email!, label: c.full_name || c.email! }])); navigate('/inbox?compose=1') } },
+                      { label: 'Send email', icon: <Mail size={13} />, onClick: () => openCompose({ recipients: [{ email: c.email!, label: c.full_name || c.email! }], subject: '', body: '', fromEmail: null }) },
                       { separator: true },
                       { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${c.full_name}"?`)) deleteMutation.mutate([c.id]) } },
                     ])}>
