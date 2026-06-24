@@ -403,6 +403,38 @@ export default function PipelinePage() {
     onSettled: () => qc.invalidateQueries({ queryKey: ['pipeline-board'] }),
   })
 
+  const bulkMoveMut = useMutation({
+    mutationFn: ({ contactIds, stageId }: { contactIds: string[]; stageId: string }) =>
+      api.put('/pipeline/contacts/bulk-stage', { contact_ids: contactIds, stage_id: stageId }),
+    onMutate: async ({ contactIds, stageId }) => {
+      await qc.cancelQueries({ queryKey: ['pipeline-board'] })
+      const prev = qc.getQueryData<BoardColumn[]>(['pipeline-board'])
+      const idSet = new Set(contactIds)
+      qc.setQueryData<BoardColumn[]>(['pipeline-board'], old => {
+        if (!old) return old
+        const moved: BoardContact[] = []
+        const without = old.map(col => ({
+          ...col,
+          contacts: col.contacts.filter(c => {
+            if (idSet.has(c.contact_id)) { moved.push(c); return false }
+            return true
+          }),
+        }))
+        return without.map(col =>
+          col.stage.id === stageId
+            ? { ...col, contacts: [...col.contacts, ...moved.map(c => ({ ...c, entered_at: new Date().toISOString(), days_in_stage: 0, stale_alert: false }))] }
+            : col
+        )
+      })
+      return { prev }
+    },
+    onError: (_err, _vars, ctx) => {
+      if (ctx?.prev) qc.setQueryData(['pipeline-board'], ctx.prev)
+    },
+    onSuccess: () => clearSelection(),
+    onSettled: () => qc.invalidateQueries({ queryKey: ['pipeline-board'] }),
+  })
+
   const removeMut = useMutation({
     mutationFn: (contactId: string) => api.delete(`/pipeline/contacts/${contactId}/stage`),
     onMutate: async (contactId) => {
@@ -425,7 +457,11 @@ export default function PipelinePage() {
     setDragOverStageId(null)
     const drag = dragContactRef.current
     if (!drag || drag.fromStageId === toStageId) return
-    moveMut.mutate({ contactId: drag.contactId, stageId: toStageId })
+    if (selectedContacts.has(drag.contactId) && selectedContacts.size > 1) {
+      bulkMoveMut.mutate({ contactIds: [...selectedContacts], stageId: toStageId })
+    } else {
+      moveMut.mutate({ contactId: drag.contactId, stageId: toStageId })
+    }
     dragContactRef.current = null
   }
 
@@ -469,24 +505,30 @@ export default function PipelinePage() {
           onClose={() => setSingleBooking(null)}
         />
       )}
-      {bookingEnabled && selectedContacts.size > 0 && (
-        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-white border border-slate-200 rounded-xl shadow-lg">
-          <span className="text-sm font-semibold text-slate-700">
+      {selectedContacts.size > 0 && (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl shadow-lg whitespace-nowrap">
+          <span className="text-sm font-semibold text-blue-900">
             {selectedContacts.size} selected
           </span>
-          <div className="h-4 w-px bg-slate-200" />
-          <button
-            onClick={() => setBookingOpen(true)}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
-          >
-            <CalendarClock size={14} strokeWidth={2.5} />
-            Send booking link to {selectedContacts.size} contact{selectedContacts.size !== 1 ? 's' : ''}
-          </button>
+          <div className="h-4 w-px bg-blue-200" />
+          <span className="text-xs text-blue-600">Drag any selected card to move all</span>
+          {bookingEnabled && (
+            <>
+              <div className="h-4 w-px bg-blue-200" />
+              <button
+                onClick={() => setBookingOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
+              >
+                <CalendarClock size={14} strokeWidth={2.5} />
+                Send booking link
+              </button>
+            </>
+          )}
           <button
             onClick={clearSelection}
-            className="text-sm font-medium text-slate-400 hover:text-slate-700"
+            className="text-slate-400 hover:text-slate-600 ml-1"
           >
-            Clear selection
+            <X size={16} />
           </button>
         </div>
       )}
@@ -607,7 +649,7 @@ export default function PipelinePage() {
                     key={contact.contact_id}
                     contact={contact}
                     stageName={col.stage.name}
-                    selectable={bookingEnabled}
+                    selectable
                     selected={selectedContacts.has(contact.contact_id)}
                     onToggleSelect={() => toggleContact(contact.contact_id)}
                     onDragStart={() => {
@@ -617,23 +659,28 @@ export default function PipelinePage() {
                       }
                     }}
                     onRemove={() => removeMut.mutate(contact.contact_id)}
-                    onContextMenu={e => ctx.open(e, [
-                      { header: contact.full_name },
-                      { label: 'View contact', icon: <User size={13} />, onClick: () => setPeekContactId(contact.contact_id) },
-                      { separator: true },
-                      { header: 'Move to stage' },
-                      ...board
-                        .filter(c => c.stage.id !== col.stage.id)
-                        .map(c => ({
-                          label: c.stage.name,
-                          icon: <ArrowRight size={13} />,
-                          onClick: () => moveMut.mutate({ contactId: contact.contact_id, stageId: c.stage.id }),
-                        })),
-                      ...(bookingEnabled ? [
-                        { separator: true },
-                        { label: 'Send booking link', icon: <CalendarClock size={13} />, onClick: () => setSingleBooking({ id: contact.contact_id, full_name: contact.full_name }) },
-                      ] : []),
-                    ])}
+                    onContextMenu={e => {
+                      const isSelected = selectedContacts.has(contact.contact_id)
+                      const bulkIds = isSelected && selectedContacts.size > 1 ? [...selectedContacts] : null
+                      ctx.open(e, [
+                        { header: bulkIds ? `${bulkIds.length} contacts` : contact.full_name },
+                        ...(!bulkIds ? [{ label: 'View contact', icon: <User size={13} />, onClick: () => setPeekContactId(contact.contact_id) }, { separator: true }] : [{ separator: true }]),
+                        { header: 'Move to stage' },
+                        ...board
+                          .filter(c => c.stage.id !== col.stage.id)
+                          .map(c => ({
+                            label: c.stage.name,
+                            icon: <ArrowRight size={13} />,
+                            onClick: () => bulkIds
+                              ? bulkMoveMut.mutate({ contactIds: bulkIds, stageId: c.stage.id })
+                              : moveMut.mutate({ contactId: contact.contact_id, stageId: c.stage.id }),
+                          })),
+                        ...(bookingEnabled && !bulkIds ? [
+                          { separator: true },
+                          { label: 'Send booking link', icon: <CalendarClock size={13} />, onClick: () => setSingleBooking({ id: contact.contact_id, full_name: contact.full_name }) },
+                        ] : []),
+                      ])
+                    }}
                   />
                 ))}
               </div>
