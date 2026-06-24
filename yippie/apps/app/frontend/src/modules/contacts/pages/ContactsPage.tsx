@@ -674,7 +674,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                       { label: 'Open full page', icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
                       { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${c.id}`, '_blank') },
                       { separator: true },
-                      { label: 'Send email', icon: <Mail size={13} />, onClick: () => window.location.href = `mailto:${c.email}` },
+                      { label: 'Send email', icon: <Mail size={13} />, onClick: () => { sessionStorage.setItem('compose-prefill', JSON.stringify([{ email: c.email!, label: c.full_name || c.email! }])); navigate('/inbox?compose=1') } },
                       { separator: true },
                       { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${c.full_name}"?`)) deleteMutation.mutate([c.id]) } },
                     ])}>

@@ -278,7 +278,7 @@ export default function ContactList() {
                   onContextMenu={e => ctx.open(e, [
                     { header: c.full_name },
                     { label: 'View contact', icon: <User size={14} />, onClick: () => navigate(`/contacts/${c.id}`) },
-                    ...(c.email ? [{ label: 'Send email', icon: <Mail size={14} />, onClick: () => window.open(`mailto:${c.email}`) }] : []),
+                    ...(c.email ? [{ label: 'Send email', icon: <Mail size={14} />, onClick: () => { sessionStorage.setItem('compose-prefill', JSON.stringify([{ email: c.email!, label: c.full_name || c.email! }])); navigate('/inbox?compose=1') } }] : []),
                     { separator: true },
                     { label: 'Export', icon: <Download size={14} />, onClick: () => exportContacts([c.id]) },
                     {
