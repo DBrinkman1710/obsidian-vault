@@ -19,6 +19,16 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
   const [showTemplates, setShowTemplates] = useState(true)
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorEverOpened, setEditorEverOpened] = useState(false)
+  const [subject, setSubject] = useState(campaign.subject)
+
+  const saveSubject = useMutation({
+    mutationFn: (val: string) => marketingApi.updateCampaign(campaign.id, { subject: val }),
+    onSuccess: () => {
+      toast.success('Subject saved')
+      qc.invalidateQueries({ queryKey: ['marketing', 'campaigns', campaign.id] })
+    },
+    onError: () => toast.error('Could not save subject'),
+  })
 
   const templatesRef = useRef<typeof templates>([])
   const activeVariantRef = useRef(activeVariant)
@@ -153,6 +163,17 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
         <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-white px-6 py-3">
           <div className="flex items-center gap-3">
             <span className="max-w-[200px] truncate text-sm font-semibold text-slate-800">{campaign.name}</span>
+            <div className="flex items-center gap-1">
+              <span className="text-xs text-slate-400">Subject:</span>
+              <input
+                value={subject}
+                onChange={(e) => setSubject(e.target.value)}
+                onBlur={() => subject.trim() && subject !== campaign.subject && saveSubject.mutate(subject.trim())}
+                onKeyDown={(e) => e.key === 'Enter' && subject.trim() && saveSubject.mutate(subject.trim())}
+                className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 focus:border-blue-400 focus:outline-none w-48"
+                placeholder="Email subject line"
+              />
+            </div>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
               <input type="checkbox" checked={abEnabled} onChange={toggleAb} className="h-4 w-4 rounded border-slate-300" />
               A/B testing

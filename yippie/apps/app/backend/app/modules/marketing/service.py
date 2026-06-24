@@ -10,6 +10,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import random
+import re
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
@@ -725,7 +726,9 @@ def _apply_personalization(
     )
     replacements = {
         "{{first_name}}": first_name,
+        "{{first name}}": first_name,
         "{{last_name}}": last_name,
+        "{{last name}}": last_name,
         "{{company}}": company_name,
         "{{email}}": contact.email or "",
         "{{phone}}": contact.phone or "",
@@ -974,10 +977,11 @@ async def _dispatch_email(
 
     for _contact, html, to_email in payloads:
         try:
+            plain = re.sub(r"<[^>]+>", " ", html).strip() or campaign.subject
             await send_email(
                 to=to_email,
-                subject=campaign.subject,
-                body=campaign.subject,
+                subject=campaign.subject or campaign.name,
+                body=plain,
                 html=html,
                 from_email=sender_email,
             )
