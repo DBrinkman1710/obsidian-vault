@@ -30,16 +30,8 @@ async def handle_signup_payment(
     No Stripe: creates a not_sent invoice in root tenant billing.
     With Stripe (future): create checkout session and return redirect URL.
     """
-    from app.config import get_settings
-    settings = get_settings()
-
-    if settings.stripe_secret_key:
-        # ── Stripe path (wire here when KvK + account ready) ──────────────────
-        # import stripe
-        # stripe.api_key = settings.stripe_secret_key
-        # session = stripe.checkout.Session.create(...)
-        # return {"type": "stripe", "checkout_url": session.url}
-        raise NotImplementedError("Wire Stripe checkout here when ready.")
+    # TODO: When STRIPE_SECRET_KEY is configured and checkout is wired,
+    # create a Stripe checkout session here and return {"type": "stripe", "checkout_url": ...}
 
     # ── Invoice path ───────────────────────────────────────────────────────────
     from app.modules.billing import service as billing_service
@@ -74,5 +66,5 @@ async def handle_signup_payment(
             description=f"Initial subscription — {company_name}",
         ),
     )
-    await db.commit()
+    # Caller owns the commit — do not commit here as it resets SET LOCAL tenant context.
     return {"type": "invoice", "invoice_id": str(invoice.id)}
