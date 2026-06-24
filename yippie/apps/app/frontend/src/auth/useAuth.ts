@@ -52,12 +52,12 @@ interface AuthState {
 const storedUser = localStorage.getItem('auth_user')
 const storedImpersonation = sessionStorage.getItem('impersonation')
 
-export const useAuth = create<AuthState>((set, get) => ({
+export const useAuth = create<AuthState>((set: any, get: any) => ({
   user: storedUser ? JSON.parse(storedUser) : null,
   token: localStorage.getItem('access_token'),
   impersonating: storedImpersonation ? JSON.parse(storedImpersonation) : null,
 
-  login: async (email, password) => {
+  login: async (email: any, password: any) => {
     const { data } = await api.post('/auth/login', { email, password })
     localStorage.setItem('access_token', data.access_token)
     localStorage.setItem('auth_user', JSON.stringify(data.user))
@@ -65,7 +65,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     set({ token: data.access_token, user: data.user })
   },
 
-  setSession: (token, user) => {
+  setSession: (token: any, user: any) => {
     localStorage.setItem('access_token', token)
     localStorage.setItem('auth_user', JSON.stringify(user))
     set({ token, user })
@@ -90,7 +90,7 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
   },
 
-  startImpersonation: async (token, tenantName, userEmail) => {
+  startImpersonation: async (token: any, tenantName: any, userEmail: any) => {
     const current = localStorage.getItem('access_token')
     if (current) sessionStorage.setItem('superadmin_token', current)
     const imp = { tenantName, userEmail }

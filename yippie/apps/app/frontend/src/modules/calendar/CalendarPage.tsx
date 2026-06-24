@@ -136,10 +136,10 @@ function ContactPicker({ selected, onSelect }: {
   const { data, isFetching } = useQuery({
     queryKey: ['calendar-contact-search', q],
     queryFn: () => api.get<{ items: { id: string; full_name: string; email: string | null }[] }>(
-      '/contacts', { params: { search: q, limit: 10 } }).then(r => r.data.items),
+      '/contacts', { params: { search: q, limit: 10 } }).then((r: any) => r.data.items),
     enabled: q.trim().length > 0,
   })
-  const options = (data ?? []).map(c => ({ id: c.id, label: c.email ? `${c.full_name} — ${c.email}` : c.full_name }))
+  const options = (data ?? []).map((c: any) => ({ id: c.id, label: c.email ? `${c.full_name} — ${c.email}` : c.full_name }))
   return <Picker label="Contact (optional)" placeholder="Search contacts…"
     selected={selected} onSelect={onSelect} options={options} loading={isFetching} onQueryChange={setQ} />
 }
@@ -152,13 +152,13 @@ function TicketPicker({ selected, onSelect }: {
   const { data, isFetching } = useQuery({
     queryKey: ['calendar-ticket-options'],
     queryFn: () => api.get<{ items: { id: string; subject: string }[] }>(
-      '/tickets', { params: { limit: 100 } }).then(r => r.data.items),
+      '/tickets', { params: { limit: 100 } }).then((r: any) => r.data.items),
   })
   const term = q.trim().toLowerCase()
   const options = (data ?? [])
-    .filter(t => t.subject.toLowerCase().includes(term))
+    .filter((t: any) => t.subject.toLowerCase().includes(term))
     .slice(0, 10)
-    .map(t => ({ id: t.id, label: t.subject }))
+    .map((t: any) => ({ id: t.id, label: t.subject }))
   return <Picker label="Ticket (optional)" placeholder="Search tickets…"
     selected={selected} onSelect={onSelect} options={options} loading={isFetching} onQueryChange={setQ} />
 }
@@ -195,13 +195,13 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
     mutationFn: (payload: EventPayload) =>
       event ? api.patch(`/calendar/events/${event.id}`, payload) : api.post('/calendar/events', payload),
     onSuccess: () => { onSaved(); onClose() },
-    onError: (e) => setError(errDetail(e)),
+    onError: (e: any) => setError(errDetail(e)),
   })
 
   const deleteMutation = useMutation({
     mutationFn: () => api.delete(`/calendar/events/${event!.id}`),
     onSuccess: () => { onSaved(); onClose() },
-    onError: (e) => setError(errDetail(e)),
+    onError: (e: any) => setError(errDetail(e)),
   })
 
   function submit(ev: React.FormEvent) {
@@ -372,7 +372,7 @@ function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () 
 
   const { data: tokens = [] } = useQuery<BookingToken[]>({
     queryKey: ['booking-tokens'],
-    queryFn: () => api.get('/booking/tokens').then(r => r.data),
+    queryFn: () => api.get('/booking/tokens').then((r: any) => r.data),
   })
 
   const revokeMut = useMutation({
@@ -387,12 +387,12 @@ function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () 
   })
 
   // Show counter_proposed tab only when there are items (otherwise don't clutter the tab bar)
-  const counterCount = tokens.filter(x => x.status === 'counter_proposed').length
+  const counterCount = tokens.filter((x: any) => x.status === 'counter_proposed').length
   const tabs: BookingTab[] = counterCount > 0
     ? ['pending', 'counter_proposed', 'booked', 'expired']
     : ['pending', 'booked', 'expired']
 
-  const filtered = tokens.filter(t => t.status === tab)
+  const filtered = tokens.filter((t: any) => t.status === tab)
 
   const tabLabel = (t: BookingTab) => {
     if (t === 'counter_proposed') return 'Waiting'
@@ -432,7 +432,7 @@ function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () 
                   ? t === 'counter_proposed' ? 'bg-amber-500 text-white' : 'bg-blue-600 text-white'
                   : 'text-slate-500 hover:bg-slate-100'}`}
             >
-              {tabLabel(t)} ({tokens.filter(x => x.status === t).length})
+              {tabLabel(t)} ({tokens.filter((x: any) => x.status === t).length})
             </button>
           ))}
         </div>
@@ -441,7 +441,7 @@ function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () 
           {filtered.length === 0 && (
             <p className="px-5 py-8 text-sm text-slate-400 text-center">No {tabLabel(tab).toLowerCase()} booking links.</p>
           )}
-          {filtered.map(t => (
+          {filtered.map((t: any) => (
             <div key={t.id} className="px-5 py-3">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
@@ -478,7 +478,7 @@ function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () 
               {t.status === 'counter_proposed' && t.customer_proposed_slots && t.customer_proposed_slots.length > 0 && (
                 <div className="mt-2 flex flex-col gap-1.5">
                   <p className="text-[10px] font-semibold text-amber-700 uppercase tracking-wide">Customer proposed:</p>
-                  {t.customer_proposed_slots.map((slot, idx) => (
+                  {t.customer_proposed_slots.map((slot: any, idx: any) => (
                     <button
                       key={idx}
                       disabled={acceptMut.isPending}
@@ -628,11 +628,11 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
 
   const { data: settings } = useQuery<CalendarSettings>({
     queryKey: ['booking-settings'],
-    queryFn: () => api.get('/booking/settings').then(r => r.data),
+    queryFn: () => api.get('/booking/settings').then((r: any) => r.data),
   })
   const { data: stages = [] } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
   })
 
   const [form, setForm] = useState<CalendarSettings | null>(null)
@@ -750,7 +750,7 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
               <select className={inputCls} value={current.post_booking_stage_id ?? ''}
                 onChange={e => update({ post_booking_stage_id: e.target.value || null })}>
                 <option value="">— None —</option>
-                {stages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                {stages.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
             </div>
             <div>
@@ -856,10 +856,10 @@ export default function CalendarPage() {
 
   const { data: bookingTokens } = useQuery<BookingToken[]>({
     queryKey: ['booking-tokens'],
-    queryFn: () => api.get('/booking/tokens').then(r => r.data),
+    queryFn: () => api.get('/booking/tokens').then((r: any) => r.data),
     enabled: bookingEnabled,
   })
-  const pendingCount = (bookingTokens ?? []).filter(t => t.status === 'pending' || t.status === 'counter_proposed').length
+  const pendingCount = (bookingTokens ?? []).filter((t: any) => t.status === 'pending' || t.status === 'counter_proposed').length
 
   const days = useMemo(() => monthGrid(year, month), [year, month])
   const rangeStart = days[0]
@@ -873,7 +873,7 @@ export default function CalendarPage() {
         end: rangeEnd.toISOString(),
         ...(calendarTypeFilter !== 'all' ? { calendar_type: calendarTypeFilter } : {}),
       },
-    }).then(r => r.data.items),
+    }).then((r: any) => r.data.items),
   })
 
   const itemsByDay = useMemo(() => {

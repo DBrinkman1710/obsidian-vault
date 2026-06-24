@@ -35,7 +35,7 @@ export function CreateShipmentModal({ onClose, onCreated }: Props) {
         order_reference: orderReference.trim() || null,
         notes: notes.trim() || null,
       }),
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
       toast.success('Shipment added')
       qc.invalidateQueries({ queryKey: ['shipments'] })
       onCreated?.(res.data.id)

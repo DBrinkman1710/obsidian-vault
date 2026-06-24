@@ -55,34 +55,34 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
 
   const { data: responseTemplates = [] } = useQuery<Template[]>({
     queryKey: ['templates'],
-    queryFn: () => api.get('/tickets/templates').then(r => r.data),
+    queryFn: () => api.get('/tickets/templates').then((r: any) => r.data),
     enabled: open,
   })
 
   // Fetch marketing campaigns when picker is open and marketing module is enabled.
   const { data: campaigns = [] } = useQuery<Campaign[]>({
     queryKey: ['marketing-campaigns-picker'],
-    queryFn: () => api.get('/marketing/campaigns').then(r => r.data),
+    queryFn: () => api.get('/marketing/campaigns').then((r: any) => r.data),
     enabled: open && marketingEnabled,
   })
 
   // Fetch templates for each campaign in parallel.
   const campaignTemplateQueries = useQueries({
-    queries: campaigns.map(c => ({
+    queries: campaigns.map((c: any) => ({
       queryKey: ['marketing-campaign-templates-picker', c.id],
       queryFn: () =>
-        api.get<CampaignTemplateRaw[]>(`/marketing/campaigns/${c.id}/templates`).then(r => r.data),
+        api.get<CampaignTemplateRaw[]>(`/marketing/campaigns/${c.id}/templates`).then((r: any) => r.data),
       enabled: open && marketingEnabled && campaigns.length > 0,
     })),
   })
 
   // Flatten campaign template query results into usable Template objects.
-  const campaignTemplates: Template[] = campaigns.flatMap((c, i) => {
+  const campaignTemplates: Template[] = campaigns.flatMap((c: any, i: any) => {
     const result = campaignTemplateQueries[i]
     if (!result?.data) return []
     return result.data
-      .filter(ct => ct.raw_html)
-      .map(ct => ({
+      .filter((ct: any) => ct.raw_html)
+      .map((ct: any) => ({
         id: `campaign-${ct.id}`,
         name: c.name,
         body: htmlToText(ct.raw_html!),
@@ -94,12 +94,12 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
   })
 
   // All response templates tagged with source.
-  const taggedResponseTemplates: Template[] = responseTemplates.map(t => ({ ...t, source: 'response' as const }))
+  const taggedResponseTemplates: Template[] = responseTemplates.map((t: any) => ({ ...t, source: 'response' as const }))
 
   const allTemplates: Template[] = [...taggedResponseTemplates, ...campaignTemplates]
 
   const suggestMutation = useMutation({
-    mutationFn: () => api.post('/tickets/templates/ai-suggest', { context: context ?? '' }).then(r => r.data),
+    mutationFn: () => api.post('/tickets/templates/ai-suggest', { context: context ?? '' }).then((r: any) => r.data),
   })
 
   const displayed: Template[] = suggestMutation.data

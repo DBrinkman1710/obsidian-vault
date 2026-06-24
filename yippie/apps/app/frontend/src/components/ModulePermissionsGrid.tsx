@@ -43,7 +43,7 @@ export function ModulePermissionsGrid({ subjectType, subjectId, enabledModules }
 
   const { data: allPerms = [] } = useQuery<Permission[]>({
     queryKey: ['rbac-permissions-all'],
-    queryFn: () => api.get('/rbac/permissions').then(r => r.data),
+    queryFn: () => api.get('/rbac/permissions').then((r: any) => r.data),
   })
 
   const permMap: Record<string, Permission | undefined> = {}
@@ -55,7 +55,7 @@ export function ModulePermissionsGrid({ subjectType, subjectId, enabledModules }
 
   const upsertMutation = useMutation({
     mutationFn: (body: { subject_type: SubjectType; subject_id: string; module: string; access_level: AccessLevel }) =>
-      api.put('/rbac/permissions', body).then(r => r.data),
+      api.put('/rbac/permissions', body).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['rbac-permissions-all'] })
       qc.invalidateQueries({ queryKey: ['rbac-permissions'] })

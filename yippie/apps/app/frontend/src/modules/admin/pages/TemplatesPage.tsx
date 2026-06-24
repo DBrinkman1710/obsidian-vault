@@ -44,12 +44,12 @@ export default function TemplatesPage() {
 
   const { data: templates, isLoading } = useQuery<Template[]>({
     queryKey: ['templates'],
-    queryFn: () => api.get('/tickets/templates').then(r => r.data),
+    queryFn: () => api.get('/tickets/templates').then((r: any) => r.data),
   })
 
   const { data: stages = [] } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
   })
 
   const { data: labels = [] } = useQuery<ContactLabel[]>({
@@ -114,8 +114,8 @@ export default function TemplatesPage() {
   }
 
   const createMutation = useMutation({
-    mutationFn: (payload: object) => api.post('/tickets/templates', payload).then(r => r.data as Template),
-    onSuccess: (created) => {
+    mutationFn: (payload: object) => api.post('/tickets/templates', payload).then((r: any) => r.data as Template),
+    onSuccess: (created: any) => {
       qc.invalidateQueries({ queryKey: ['templates'] })
       setIsNew(false)
       setSelectedId(created.id)
@@ -126,7 +126,7 @@ export default function TemplatesPage() {
 
   const updateMutation = useMutation({
     mutationFn: ({ id, payload }: { id: string; payload: object }) =>
-      api.patch(`/tickets/templates/${id}`, payload).then(r => r.data),
+      api.patch(`/tickets/templates/${id}`, payload).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['templates'] })
       setSaving(false)
@@ -138,7 +138,7 @@ export default function TemplatesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/tickets/templates/${id}`),
-    onSuccess: (_data, id) => {
+    onSuccess: (_data: any, id: any) => {
       qc.invalidateQueries({ queryKey: ['templates'] })
       if (id === selectedId) clearSelection()
     },
@@ -151,8 +151,8 @@ export default function TemplatesPage() {
       design_json: t.design_json ?? null,
       html_body: t.html_body ?? null,
       campaign_buttons: t.campaign_buttons ?? null,
-    }).then(r => r.data as Template),
-    onSuccess: (created) => {
+    }).then((r: any) => r.data as Template),
+    onSuccess: (created: any) => {
       qc.invalidateQueries({ queryKey: ['templates'] })
       openTemplate(created)
     },
@@ -232,7 +232,7 @@ export default function TemplatesPage() {
             </div>
           )}
 
-          {templates?.map(t => (
+          {templates?.map((t: any) => (
             <div
               key={t.id}
               className={`group flex items-center gap-2 px-4 py-3 border-l-2 cursor-pointer transition-colors ${

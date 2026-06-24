@@ -34,7 +34,7 @@ export function CompanyPicker({ value, onChange }: {
       className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
     >
       <option value="">No company</option>
-      {companies.map(c => (
+      {companies.map((c: any) => (
         <option key={c.id} value={c.id}>{c.name}</option>
       ))}
     </select>

@@ -22,14 +22,14 @@ export default function SetupChecklist() {
 
   const teamQuery = useQuery({
     queryKey: ['setup-team-count'],
-    queryFn: () => api.get('/team/users').then(r => r.data as { id: string }[]),
+    queryFn: () => api.get('/team/users').then((r: any) => r.data as { id: string }[]),
     enabled: isAdmin,
     staleTime: 5 * 60 * 1000,
   })
 
   const ticketQuery = useQuery({
     queryKey: ['setup-closed-ticket'],
-    queryFn: () => api.get('/tickets', { params: { status: 'closed', limit: 1 } }).then(r => r.data as { items: { id: string }[]; total: number }),
+    queryFn: () => api.get('/tickets', { params: { status: 'closed', limit: 1 } }).then((r: any) => r.data as { items: { id: string }[]; total: number }),
     staleTime: 5 * 60 * 1000,
     enabled: !!user && !!user.tour_completed && !user.setup_checklist_dismissed,
   })
@@ -62,7 +62,7 @@ export default function SetupChecklist() {
   const allDone = completedCount === gates.length
 
   const dismissMutation = useMutation({
-    mutationFn: () => api.patch('/auth/me', { setup_checklist_dismissed: true }).then(r => r.data),
+    mutationFn: () => api.patch('/auth/me', { setup_checklist_dismissed: true }).then((r: any) => r.data),
     onSuccess: () => refreshUser(),
   })
 

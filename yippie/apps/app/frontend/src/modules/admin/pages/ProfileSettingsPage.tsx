@@ -26,7 +26,7 @@ export default function ProfileSettingsPage() {
       shared_inbox_disabled: personalWorkMode,
       ui_language: uiLanguage,
       send_from_aliases: aliases.length > 0 ? aliases : [],
-    }).then(r => r.data),
+    }).then((r: any) => r.data),
     onSuccess: async () => {
       await refreshUser()
       window.location.reload()
@@ -207,7 +207,7 @@ function ChangePasswordCard() {
   const [error, setError] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => api.patch('/auth/me/password', { current_password: current, new_password: next }).then(r => r.data),
+    mutationFn: () => api.patch('/auth/me/password', { current_password: current, new_password: next }).then((r: any) => r.data),
     onSuccess: () => {
       setSaved(true)
       setError('')
@@ -275,26 +275,26 @@ function SignaturesSection() {
 
   const createMutation = useMutation({
     mutationFn: (payload: { name: string; body: string }) =>
-      api.post('/auth/me/signatures', payload).then(r => r.data),
+      api.post('/auth/me/signatures', payload).then((r: any) => r.data),
     onSuccess: () => { invalidate(); setAdding(false); setError('') },
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Could not save signature.'),
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...payload }: { id: string; name?: string; body?: string }) =>
-      api.patch(`/auth/me/signatures/${id}`, payload).then(r => r.data),
+      api.patch(`/auth/me/signatures/${id}`, payload).then((r: any) => r.data),
     onSuccess: () => { invalidate(); setEditingId(null); setError('') },
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Could not save signature.'),
   })
 
   const setDefaultMutation = useMutation({
-    mutationFn: (id: string) => api.patch(`/auth/me/signatures/${id}`, { is_default: true }).then(r => r.data),
+    mutationFn: (id: string) => api.patch(`/auth/me/signatures/${id}`, { is_default: true }).then((r: any) => r.data),
     onSuccess: invalidate,
   })
 
   const reorderMutation = useMutation({
     mutationFn: ({ id, display_order }: { id: string; display_order: number }) =>
-      api.patch(`/auth/me/signatures/${id}`, { display_order }).then(r => r.data),
+      api.patch(`/auth/me/signatures/${id}`, { display_order }).then((r: any) => r.data),
     onSuccess: invalidate,
   })
 
@@ -340,7 +340,7 @@ function SignaturesSection() {
             <p className="text-xs text-slate-400 italic">No signatures yet — add one to get started.</p>
           )}
 
-          {signatures.map((sig, i) => (
+          {signatures.map((sig: any, i: any) => (
             editingId === sig.id ? (
               <SignatureEditor
                 key={sig.id}

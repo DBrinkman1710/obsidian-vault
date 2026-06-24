@@ -38,14 +38,14 @@ export function BottomNav() {
 
   const { data: draftCount } = useQuery({
     queryKey: ['drafts', 'count'],
-    queryFn: () => api.get('/inbox/drafts/count').then(r => r.data),
+    queryFn: () => api.get('/inbox/drafts/count').then((r: any) => r.data),
     refetchInterval: 60_000,
     enabled: !!config,
   })
 
   const { data: deadlineData } = useQuery({
     queryKey: ['tickets', 'deadline-count'],
-    queryFn: () => api.get('/tickets/deadline-count').then(r => r.data),
+    queryFn: () => api.get('/tickets/deadline-count').then((r: any) => r.data),
     refetchInterval: 60_000,
     enabled: !!config,
   })
@@ -73,12 +73,12 @@ export function BottomNav() {
           <NavLink
             key={mod}
             to={path}
-            className={({ isActive }) =>
+            className={({ isActive }: any) =>
               `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-semibold transition-colors ${
                 isActive ? 'text-yippie' : 'text-slate-400'
               }`
             }
-            style={({ isActive }) =>
+            style={({ isActive }: any) =>
               isActive && primaryColor ? { color: primaryColor } : undefined
             }
           >
@@ -103,7 +103,7 @@ export function BottomNav() {
       {/* Settings tab always last */}
       <NavLink
         to="/settings/profile"
-        className={({ isActive }) =>
+        className={({ isActive }: any) =>
           `flex-1 flex flex-col items-center justify-center py-2 gap-0.5 text-[10px] font-semibold transition-colors ${
             isActive ? 'text-yippie' : 'text-slate-400'
           }`

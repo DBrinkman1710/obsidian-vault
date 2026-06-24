@@ -48,7 +48,7 @@ export default function ContactNew() {
         notes: form.notes.trim() || null,
         label_ids: labelIds.length ? labelIds : null,
       }),
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ['contacts'] })
       navigate(`/contacts/${res.data.id}`)
     },

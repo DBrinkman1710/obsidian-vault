@@ -71,7 +71,7 @@ export default function MeetPage() {
 
   const { data, isLoading, isError } = useQuery<MeetInfo>({
     queryKey: ['public-meet', slug],
-    queryFn: () => api.get(`/public/meet/${slug}`).then(r => r.data),
+    queryFn: () => api.get(`/public/meet/${slug}`).then((r: any) => r.data),
     retry: false,
     enabled: !!slug,
   })

@@ -118,7 +118,7 @@ export default function WelcomeTour() {
     : STEP_DEFS.slice(0, 3) // safe fallback while config loads
 
   const completeMutation = useMutation({
-    mutationFn: () => api.patch('/auth/me', { tour_completed: true }).then(r => r.data),
+    mutationFn: () => api.patch('/auth/me', { tour_completed: true }).then((r: any) => r.data),
     onSuccess: () => refreshUser(),
   })
 

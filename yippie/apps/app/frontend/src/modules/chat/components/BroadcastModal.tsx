@@ -18,13 +18,13 @@ export default function BroadcastModal({ open, onClose }: Props) {
 
   const { data: contacts = [] } = useQuery({
     queryKey: ['contacts-all'],
-    queryFn: () => api.get('/contacts', { params: { limit: 200 } }).then(r => r.data.items ?? r.data),
+    queryFn: () => api.get('/contacts', { params: { limit: 200 } }).then((r: any) => r.data.items ?? r.data),
     enabled: open,
   })
 
   const { data: labels = [] } = useQuery({
     queryKey: ['contact-labels'],
-    queryFn: () => api.get('/contacts/labels').then(r => r.data),
+    queryFn: () => api.get('/contacts/labels').then((r: any) => r.data),
     enabled: open,
   })
 

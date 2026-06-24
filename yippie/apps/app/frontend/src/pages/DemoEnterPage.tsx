@@ -6,7 +6,7 @@ import { useAuth } from '../auth/useAuth'
 export default function DemoEnterPage() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
-  const setSession = useAuth(s => s.setSession)
+  const setSession = useAuth((s: any) => s.setSession)
 
   useEffect(() => {
     const token = params.get('token')

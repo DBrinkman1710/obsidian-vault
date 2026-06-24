@@ -199,7 +199,7 @@ export default function BookingPage() {
 
   const { data, isLoading, isError } = useQuery<PublicBooking>({
     queryKey: ['public-booking', token],
-    queryFn: () => api.get(`/public/booking/${token}`).then(r => r.data),
+    queryFn: () => api.get(`/public/booking/${token}`).then((r: any) => r.data),
     retry: false,
     enabled: !!token,
   })
@@ -318,7 +318,7 @@ export default function BookingPage() {
 
       {showProposals && (
         <div className="flex flex-col gap-3">
-          {data.proposed_slots!.map(slot => (
+          {data.proposed_slots!.map((slot: any) => (
             <button
               key={slot.start}
               disabled={confirming}

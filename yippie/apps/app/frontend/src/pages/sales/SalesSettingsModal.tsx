@@ -106,7 +106,7 @@ function SnippetTab() {
 
   const { data } = useQuery({
     queryKey: ['sales-token'],
-    queryFn: () => api.get('/sales/token').then(r => r.data),
+    queryFn: () => api.get('/sales/token').then((r: any) => r.data),
   })
 
   const rotate = useMutation({

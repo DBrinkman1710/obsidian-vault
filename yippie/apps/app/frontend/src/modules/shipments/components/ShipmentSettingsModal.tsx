@@ -86,7 +86,7 @@ function ErpTab() {
 
   const { data } = useQuery({
     queryKey: ['shipments-webhook-settings'],
-    queryFn: () => api.get('/shipments/settings/webhook').then(r => r.data),
+    queryFn: () => api.get('/shipments/settings/webhook').then((r: any) => r.data),
   })
 
   const rotate = useMutation({
@@ -191,7 +191,7 @@ function SendcloudTab() {
 
   const { data } = useQuery({
     queryKey: ['shipments-sendcloud-settings'],
-    queryFn: () => api.get('/shipments/settings/sendcloud').then(r => r.data),
+    queryFn: () => api.get('/shipments/settings/sendcloud').then((r: any) => r.data),
   })
 
   useEffect(() => {

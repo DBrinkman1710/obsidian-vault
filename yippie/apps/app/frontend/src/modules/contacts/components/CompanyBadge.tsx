@@ -15,7 +15,7 @@ export interface CompanyRef {
 }
 
 export function fetchCompanies() {
-  return api.get<Company[]>('/contacts/companies').then(r => r.data)
+  return api.get<Company[]>('/contacts/companies').then((r: any) => r.data)
 }
 
 export function CompanyBadge({ name, selected, onClick }: {

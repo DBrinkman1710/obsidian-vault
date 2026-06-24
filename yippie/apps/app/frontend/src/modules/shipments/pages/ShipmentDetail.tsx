@@ -60,7 +60,7 @@ export default function ShipmentDetail() {
 
   const { data: shipment, isLoading } = useQuery({
     queryKey: ['shipments', id],
-    queryFn: () => api.get(`/shipments/${id}`).then(r => r.data as ShipmentDetail),
+    queryFn: () => api.get(`/shipments/${id}`).then((r: any) => r.data as ShipmentDetail),
     enabled: !!id,
   })
 

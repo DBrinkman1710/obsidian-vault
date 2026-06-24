@@ -74,7 +74,7 @@ export default function BookingManagePage() {
 
   const { data, isLoading, isError } = useQuery<ManageBookingOut>({
     queryKey: ['manage-booking', manageToken],
-    queryFn: (): Promise<ManageBookingOut> => api.get(`/public/booking/manage/${manageToken}`).then(r => r.data as ManageBookingOut),
+    queryFn: (): Promise<ManageBookingOut> => api.get(`/public/booking/manage/${manageToken}`).then((r: any) => r.data as ManageBookingOut),
     retry: false,
     enabled: !!manageToken,
   })

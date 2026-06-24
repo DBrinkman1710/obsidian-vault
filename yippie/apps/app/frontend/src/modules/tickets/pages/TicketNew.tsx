@@ -28,7 +28,7 @@ function ContactPicker({ value, onChange }: {
 
   const { data } = useQuery({
     queryKey: ['contacts-picker', search],
-    queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { search: search || undefined, limit: 8 } }).then(r => r.data.items),
+    queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { search: search || undefined, limit: 8 } }).then((r: any) => r.data.items),
     enabled: open,
   })
 
@@ -67,7 +67,7 @@ function ContactPicker({ value, onChange }: {
               {search ? 'No contacts found' : 'Start typing to search…'}
             </div>
           )}
-          {data?.map(c => (
+          {data?.map((c: any) => (
             <button
               key={c.id} type="button"
               onMouseDown={() => {
@@ -102,7 +102,7 @@ export default function TicketNew() {
 
   const { data: departments } = useQuery({
     queryKey: ['departments'],
-    queryFn: () => api.get('/departments').then(r => r.data),
+    queryFn: () => api.get('/departments').then((r: any) => r.data),
   })
 
   useEffect(() => {
@@ -129,7 +129,7 @@ export default function TicketNew() {
         department_id: departmentId || null,
         source: 'manual',
       }),
-    onSuccess: (res) => {
+    onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ['tickets'] })
       navigate(`/tickets/${res.data.id}`)
     },

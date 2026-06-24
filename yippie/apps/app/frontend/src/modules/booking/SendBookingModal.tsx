@@ -43,7 +43,7 @@ function fmtSlot(start: Date, end: Date): string {
 
 export default function SendBookingModal({ contacts = [], bulk = false, open, onClose }: Props) {
   const today = new Date()
-  const user = useAuth(s => s.user)
+  const user = useAuth((s: any) => s.user)
   const [mode, setMode] = useState<'open' | 'propose'>('open')
   const [message, setMessage] = useState('')
   const [stageIdOverride, setStageIdOverride] = useState<string>('')
@@ -67,20 +67,20 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
 
   const { data: settings } = useQuery<CalendarSettings>({
     queryKey: ['booking-settings'],
-    queryFn: () => api.get('/booking/settings').then(r => r.data),
+    queryFn: () => api.get('/booking/settings').then((r: any) => r.data),
     enabled: open,
   })
 
   const { data: stages = [] } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
     enabled: open,
   })
 
   const { data: contactResults, isFetching: searchingContacts } = useQuery<ContactOption[]>({
     queryKey: ['booking-contact-search', contactQuery],
     queryFn: () => api.get('/contacts', { params: { search: contactQuery, limit: 10 } })
-      .then(r => r.data.items.map((c: any) => ({ id: c.id, full_name: c.full_name, email: c.email }))),
+      .then((r: any) => r.data.items.map((c: any) => ({ id: c.id, full_name: c.full_name, email: c.email }))),
     enabled: needsPicker && contactQuery.trim().length > 0,
   })
 
@@ -207,7 +207,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                     <p className="px-3 py-2 text-sm text-slate-400">Searching…</p>
                   ) : (contactResults ?? []).length === 0 ? (
                     <p className="px-3 py-2 text-sm text-slate-400">No matches</p>
-                  ) : (contactResults ?? []).map(c => (
+                  ) : (contactResults ?? []).map((c: any) => (
                     <button key={c.id} type="button"
                       onMouseDown={() => {
                         window.clearTimeout(blurTimer.current)
@@ -355,7 +355,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               >
                 <option value="">— Use default —</option>
-                {stages.map(s => (
+                {stages.map((s: any) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
               </select>

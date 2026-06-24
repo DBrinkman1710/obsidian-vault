@@ -67,7 +67,7 @@ export default function ShipmentList() {
   const { data, isFetching, refetch } = useQuery({
     queryKey: ['shipments', filterStatus, filterCarrier],
     queryFn: () =>
-      api.get(`/shipments?${params.toString()}`).then(r => r.data as { items: Shipment[]; total: number }),
+      api.get(`/shipments?${params.toString()}`).then((r: any) => r.data as { items: Shipment[]; total: number }),
   })
 
   const shipments = data?.items ?? []
@@ -154,7 +154,7 @@ export default function ShipmentList() {
               </tr>
             </thead>
             <tbody>
-              {shipments.map(s => (
+              {shipments.map((s: any) => (
                 <tr
                   key={s.id}
                   onClick={() => navigate(`/tracking/${s.id}`)}

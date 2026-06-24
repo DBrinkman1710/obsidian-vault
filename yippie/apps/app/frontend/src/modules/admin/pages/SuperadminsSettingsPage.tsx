@@ -19,18 +19,18 @@ function GlobalModulesPanel() {
 
   const { data: tenants = [] } = useQuery<TenantModules[]>({
     queryKey: ['tenants-modules'],
-    queryFn: () => api.get('/admin/tenants').then(r => r.data),
+    queryFn: () => api.get('/admin/tenants').then((r: any) => r.data),
   })
 
   const mutation = useMutation({
     mutationFn: ({ module, enabled }: { module: string; enabled: boolean }) =>
-      api.patch('/admin/modules', { module, enabled }).then(r => r.data),
+      api.patch('/admin/modules', { module, enabled }).then((r: any) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['tenants-modules'] }); setPending(null); window.location.reload() },
     onError: () => setPending(null),
   })
 
   const isEnabled = (mod: string) =>
-    tenants.length > 0 && tenants.every(t => t.enabled_modules.includes(mod))
+    tenants.length > 0 && tenants.every((t: any) => t.enabled_modules.includes(mod))
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden w-56 flex-shrink-0">
@@ -95,7 +95,7 @@ function ToggleConfirmModal({
       api.patch(`/admin/superadmins/${target.id}`, {
         is_active: !target.is_active,
         current_password: password,
-      }).then(r => r.data),
+      }).then((r: any) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmins'] }); onClose() },
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed'),
   })
@@ -162,8 +162,8 @@ function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
         email: form.email.trim(),
         full_name: form.full_name.trim() || 'Superadmin',
         current_password: form.current_password,
-      }).then(r => r.data),
-    onSuccess: (data) => setSent(data.email),
+      }).then((r: any) => r.data),
+    onSuccess: (data: any) => setSent(data.email),
     onError: (err: any) => {
       const detail = err.response?.data?.detail
       setError(typeof detail === 'string' ? detail : 'Failed to send invite')
@@ -232,7 +232,7 @@ function DeleteSuperadminModal({ target, onClose }: { target: Superadmin; onClos
 
   const mutation = useMutation({
     mutationFn: () =>
-      api.post(`/admin/superadmins/${target.id}/delete`, { current_password: password }).then(r => r.data),
+      api.post(`/admin/superadmins/${target.id}/delete`, { current_password: password }).then((r: any) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmins'] }); onClose() },
     onError: (err: any) => {
       const detail = err.response?.data?.detail
@@ -286,7 +286,7 @@ export default function SuperadminsSettingsPage() {
 
   const { data, isLoading } = useQuery<Superadmin[]>({
     queryKey: ['superadmins'],
-    queryFn: () => api.get('/admin/superadmins').then(r => r.data),
+    queryFn: () => api.get('/admin/superadmins').then((r: any) => r.data),
   })
 
   return (
@@ -333,7 +333,7 @@ export default function SuperadminsSettingsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {data.map(sa => {
+                {data.map((sa: any) => {
                   const isOwnAccount = sa.email === user?.email
                   return (
                     <tr key={sa.id} className={`hover:bg-slate-50 transition-colors ${!sa.is_active ? 'opacity-60' : ''}`}>

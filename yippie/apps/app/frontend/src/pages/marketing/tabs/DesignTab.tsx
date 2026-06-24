@@ -32,15 +32,15 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
 
   const { data: stages = [] } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then((r) => r.data),
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
   })
   const { data: labels = [] } = useQuery<ContactLabel[]>({
     queryKey: ['contact-labels'],
-    queryFn: () => api.get('/contacts/labels').then((r) => r.data),
+    queryFn: () => api.get('/contacts/labels').then((r: any) => r.data),
   })
 
   useEffect(() => {
-    const hasB = templates.some((t) => t.variant === 'b')
+    const hasB = templates.some((t: any) => t.variant === 'b')
     if (hasB) {
       setAbEnabled(true)
       setActiveVariant((v) => (v === 'single' ? 'a' : v))
@@ -50,7 +50,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
   // Reload canvas when variant switches or templates refresh
   useEffect(() => {
     const wantVariant: Variant | null = activeVariant === 'single' ? null : activeVariant
-    const tpl = templates.find((t) => t.variant === wantVariant)
+    const tpl = templates.find((t: any) => t.variant === wantVariant)
     if (editorRef.current) {
       editorRef.current.loadDesign(tpl?.design_json ?? null)
     }
@@ -59,7 +59,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
 
   function handleEditorReady() {
     const wantVariant: Variant | null = activeVariantRef.current === 'single' ? null : activeVariantRef.current
-    const tpl = templatesRef.current.find((t) => t.variant === wantVariant)
+    const tpl = templatesRef.current.find((t: any) => t.variant === wantVariant)
     editorRef.current?.loadDesign(tpl?.design_json ?? null)
   }
 
@@ -105,7 +105,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
     setEditorOpen(true)
   }
 
-  const hasDesign = templates.some((t) => t.raw_html || t.design_json)
+  const hasDesign = templates.some((t: any) => t.raw_html || t.design_json)
 
   return (
     <>

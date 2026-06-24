@@ -24,7 +24,7 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
 
   const testSend = useMutation({
     mutationFn: () => marketingApi.testSend(campaign.id),
-    onSuccess: (r) => toast.success(`Test sent to ${r.to}`),
+    onSuccess: (r: any) => toast.success(`Test sent to ${r.to}`),
     onError: () => toast.error('Test send failed'),
   })
 

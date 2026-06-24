@@ -113,13 +113,13 @@ export default function ActivityFeed() {
 
   const { data: kpis, isLoading, isError } = useQuery<Kpis>({
     queryKey: ['activity-kpis'],
-    queryFn: () => api.get('/activity/kpis').then(r => r.data),
+    queryFn: () => api.get('/activity/kpis').then((r: any) => r.data),
     refetchInterval: 60_000,
   })
 
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
   })
 
   const { data: events } = useQuery<ActivityEvent[]>({
@@ -129,7 +129,7 @@ export default function ActivityFeed() {
         .get('/activity', {
           params: { pipeline_stage_id: selectedStageId || undefined, limit: 500 },
         })
-        .then(r => r.data),
+        .then((r: any) => r.data),
   })
 
   const allEvents = events ?? []
@@ -158,7 +158,7 @@ export default function ActivityFeed() {
               <div className={`${CARD} text-sm text-slate-400`}>No pipeline stages yet</div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {kpis.pipeline.map(stage => (
+                {kpis.pipeline.map((stage: any) => (
                   <div key={stage.stage_id} className={CARD}>
                     <div className="flex items-center gap-2 mb-3">
                       <span
@@ -234,7 +234,7 @@ export default function ActivityFeed() {
                 >
                   All
                 </button>
-                {stages.map(stage => (
+                {stages.map((stage: any) => (
                   <button
                     key={stage.id}
                     onClick={() => { setSelectedStageId(selectedStageId === stage.id ? null : stage.id); setEventsPage(0) }}
@@ -253,7 +253,7 @@ export default function ActivityFeed() {
               ) : (
                 <>
                   <ul className="divide-y divide-slate-100">
-                    {pageEvents.map(event => (
+                    {pageEvents.map((event: any) => (
                       <li key={event.id} className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
                         <span className="text-sm text-slate-700 truncate">
                           <span className="font-semibold text-slate-900">{event.actor_name ?? 'System'}</span>

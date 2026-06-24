@@ -126,7 +126,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
   const { data: companies, isLoading } = useQuery<Company[]>({ queryKey: ['companies'], queryFn: fetchCompanies })
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get<PipelineStage[]>('/pipeline/stages').then(r => r.data),
+    queryFn: () => api.get<PipelineStage[]>('/pipeline/stages').then((r: any) => r.data),
   })
 
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['companies'] }); qc.invalidateQueries({ queryKey: ['contacts'] }) }
@@ -152,26 +152,26 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
   })
 
   const displayed = search
-    ? (companies ?? []).filter(c => c.name.toLowerCase().includes(search.toLowerCase()))
+    ? (companies ?? []).filter((c: any) => c.name.toLowerCase().includes(search.toLowerCase()))
     : (companies ?? [])
 
-  const allSelected = displayed.length > 0 && displayed.every(c => selected.has(c.id))
-  function toggleAll() { setSelected(allSelected ? new Set() : new Set(displayed.map(c => c.id))) }
+  const allSelected = displayed.length > 0 && displayed.every((c: any) => selected.has(c.id))
+  function toggleAll() { setSelected(allSelected ? new Set() : new Set(displayed.map((c: any) => c.id))) }
   function toggle(id: string) {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
 
   function exportSelectedCsv() {
-    const rows = (companies ?? []).filter(c => selected.has(c.id))
+    const rows = (companies ?? []).filter((c: any) => selected.has(c.id))
     const header = 'name,domain,contact_count,notes'
-    const lines = rows.map(c => [c.name, c.domain ?? '', String(c.contact_count), ''].map(v => `"${v.replace(/"/g, '""')}"`).join(','))
+    const lines = rows.map((c: any) => [c.name, c.domain ?? '', String(c.contact_count), ''].map(v => `"${v.replace(/"/g, '""')}"`).join(','))
     downloadBlob([header, ...lines].join('\n'), 'companies.csv', 'text/csv')
   }
 
   async function fetchContactsForSelected(): Promise<{ id: string; email: string | null; full_name: string }[]> {
     const results = await Promise.all(
       [...selected].map(cid =>
-        api.get<{ id: string; email: string | null; full_name: string }[]>(`/contacts/companies/${cid}/contacts`).then(r => r.data)
+        api.get<{ id: string; email: string | null; full_name: string }[]>(`/contacts/companies/${cid}/contacts`).then((r: any) => r.data)
       )
     )
     return results.flat()
@@ -255,7 +255,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
               <button onClick={() => setShowMoveStage(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
             </div>
             <div className="p-4 flex flex-col gap-1.5">
-              {stages?.map(stage => (
+              {stages?.map((stage: any) => (
                 <button
                   key={stage.id}
                   disabled={bulkMoveStageForCompaniesMutation.isPending}
@@ -295,7 +295,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {displayed.map(company => (
+              {displayed.map((company: any) => (
                 editingId === company.id ? (
                   <tr key={company.id}>
                     <td colSpan={isAdmin ? 5 : 4} className="px-4 py-3">
@@ -473,14 +473,14 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
 
   const prefsMutation = useMutation({
     mutationFn: (prefs: ContactColumnPref[]) =>
-      api.patch('/auth/me', { contact_column_prefs: prefs }).then(r => r.data),
+      api.patch('/auth/me', { contact_column_prefs: prefs }).then((r: any) => r.data),
     onSuccess: () => { refreshUser() },
   })
 
   const { data: companies } = useQuery<Company[]>({ queryKey: ['companies'], queryFn: fetchCompanies })
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get<PipelineStage[]>('/pipeline/stages').then(r => r.data),
+    queryFn: () => api.get<PipelineStage[]>('/pipeline/stages').then((r: any) => r.data),
   })
   const { data, isLoading } = useQuery({
     queryKey: ['contacts', search, companyFilter],
@@ -489,17 +489,17 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         search: search || undefined,
         company_id: companyFilter || undefined,
       },
-    }).then(r => r.data),
+    }).then((r: any) => r.data),
   })
 
   const items = data?.items ?? []
-  const activeItems = items.filter(c => !c.deleted_at)
-  const allSelected = activeItems.length > 0 && activeItems.every(c => selected.has(c.id))
+  const activeItems = items.filter((c: any) => !c.deleted_at)
+  const allSelected = activeItems.length > 0 && activeItems.every((c: any) => selected.has(c.id))
 
   function toggle(id: string) {
     setSelected(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
   }
-  function toggleAll() { setSelected(allSelected ? new Set() : new Set(activeItems.map(c => c.id))) }
+  function toggleAll() { setSelected(allSelected ? new Set() : new Set(activeItems.map((c: any) => c.id))) }
   function clearSelection() { setSelected(new Set()) }
 
   async function exportSelected(ids?: string[]) {
@@ -545,8 +545,8 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   function composeForSelectedContacts() {
     const seen = new Set<string>()
     const recipients = activeItems
-      .filter(c => selected.has(c.id) && c.email && !seen.has(c.email) && seen.add(c.email!))
-      .map(c => ({ email: c.email!, label: c.full_name || c.email! }))
+      .filter((c: any) => selected.has(c.id) && c.email && !seen.has(c.email) && seen.add(c.email!))
+      .map((c: any) => ({ email: c.email!, label: c.full_name || c.email! }))
     if (recipients.length === 0) { toast.error('No selected contacts have an email address'); return }
     sessionStorage.setItem('compose-prefill', JSON.stringify(recipients))
     navigate('/inbox?compose=1')
@@ -575,7 +575,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
             onClick={() => setCompanyFilter(null)}
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
             <Building2 size={10} />
-            {companies.find(co => co.id === companyFilter)?.name ?? 'Company'}
+            {companies.find((co: any) => co.id === companyFilter)?.name ?? 'Company'}
             <X size={10} className="ml-0.5" />
           </button>
         </div>
@@ -617,7 +617,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
               <button onClick={() => setShowMoveStage(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
             </div>
             <div className="p-4 flex flex-col gap-1.5">
-              {stages?.map(stage => (
+              {stages?.map((stage: any) => (
                 <button
                   key={stage.id}
                   disabled={bulkMoveStageMutation.isPending}
@@ -658,7 +658,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
             <TableSkeleton cols={visibleColumns.length + 2} />
           ) : (
             <tbody className="divide-y divide-slate-100">
-              {items.map(c => {
+              {items.map((c: any) => {
                 const isDeleted = !!c.deleted_at
                 return (
                   <tr key={c.id}
@@ -826,9 +826,9 @@ export default function ContactsPage() {
     mutationFn: (file: File) => {
       const form = new FormData()
       form.append('file', file)
-      return api.post<ImportPreview>('/contacts/import/preview', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+      return api.post<ImportPreview>('/contacts/import/preview', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r: any) => r.data)
     },
-    onSuccess: (data) => { setPreview(data); setMapping(autoMap(data.headers)); setImportError(null) },
+    onSuccess: (data: any) => { setPreview(data); setMapping(autoMap(data.headers)); setImportError(null) },
     onError: (err: any) => { setImportError(err?.response?.data?.detail ?? 'Could not read file') },
   })
 
@@ -837,9 +837,9 @@ export default function ContactsPage() {
       const form = new FormData()
       form.append('file', file)
       form.append('column_mapping', JSON.stringify(map))
-      return api.post<ImportResult>('/contacts/import', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then(r => r.data)
+      return api.post<ImportResult>('/contacts/import', form, { headers: { 'Content-Type': 'multipart/form-data' } }).then((r: any) => r.data)
     },
-    onSuccess: (result) => { setImportResult(result); setImportError(null); qc.invalidateQueries({ queryKey: ['contacts'] }) },
+    onSuccess: (result: any) => { setImportResult(result); setImportError(null); qc.invalidateQueries({ queryKey: ['contacts'] }) },
     onError: (err: any) => { setImportResult(null); setImportError(err?.response?.data?.detail ?? 'Import failed') },
   })
 

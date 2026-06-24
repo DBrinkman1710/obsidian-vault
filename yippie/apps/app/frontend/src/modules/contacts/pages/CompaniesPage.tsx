@@ -76,7 +76,7 @@ export default function CompaniesPage() {
   const updateMutation = useMutation({ mutationFn: ({ id, f }: { id: string; f: FormState }) => api.patch(`/contacts/companies/${id}`, toPayload(f)), onSuccess: () => { invalidate(); setEditingId(null) } })
   const deleteMutation = useMutation({ mutationFn: (id: string) => api.delete(`/contacts/companies/${id}`), onSuccess: invalidate })
 
-  const totalContacts = companies?.reduce((s, c) => s + c.contact_count, 0) ?? 0
+  const totalContacts = companies?.reduce((s: any, c: any) => s + c.contact_count, 0) ?? 0
 
   return (
     <div className="max-w-3xl">
@@ -124,7 +124,7 @@ export default function CompaniesPage() {
           <span className="text-xs text-slate-400">{totalContacts} contact{totalContacts !== 1 ? 's' : ''}</span>
         </div>
 
-        {companies?.map(company => (
+        {companies?.map((company: any) => (
           <div key={company.id}>
             {editingId === company.id ? (
               <div>

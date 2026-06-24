@@ -13,7 +13,7 @@ export interface ContactLabel {
 }
 
 export function fetchLabels() {
-  return api.get<ContactLabel[]>('/contacts/labels').then(r => r.data)
+  return api.get<ContactLabel[]>('/contacts/labels').then((r: any) => r.data)
 }
 
 export function LabelChip({ label, selected, onClick }: {
@@ -53,8 +53,8 @@ export function LabelPicker({ selectedIds, onChange }: {
 
   const createMutation = useMutation({
     mutationFn: (payload: { name: string; color: string }) =>
-      api.post<ContactLabel>('/contacts/labels', payload).then(r => r.data),
-    onSuccess: (label) => {
+      api.post<ContactLabel>('/contacts/labels', payload).then((r: any) => r.data),
+    onSuccess: (label: any) => {
       qc.invalidateQueries({ queryKey: ['contact-labels'] })
       onChange([...selectedIds, label.id])
       setCreating(false)
@@ -84,7 +84,7 @@ export function LabelPicker({ selectedIds, onChange }: {
 
       {labels && labels.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {labels.map(label => (
+          {labels.map((label: any) => (
             <LabelChip
               key={label.id}
               label={label}

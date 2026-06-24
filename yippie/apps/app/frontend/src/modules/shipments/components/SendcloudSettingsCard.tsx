@@ -11,7 +11,7 @@ export function SendcloudSettingsCard() {
 
   const { data } = useQuery({
     queryKey: ['shipments-sendcloud-settings'],
-    queryFn: () => api.get('/shipments/settings/sendcloud').then(r => r.data),
+    queryFn: () => api.get('/shipments/settings/sendcloud').then((r: any) => r.data),
   })
 
   useEffect(() => {

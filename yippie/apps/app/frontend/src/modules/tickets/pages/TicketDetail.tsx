@@ -79,24 +79,24 @@ export default function TicketDetail() {
 
   const { data: ticket } = useQuery({
     queryKey: ['ticket', id],
-    queryFn: () => api.get(`/tickets/${id}`).then(r => r.data),
+    queryFn: () => api.get(`/tickets/${id}`).then((r: any) => r.data),
   })
 
   const { data: ticketContact } = useQuery({
     queryKey: ['ticket-contact-booking', ticket?.contact_id],
-    queryFn: () => api.get(`/contacts/${ticket.contact_id}`).then(r => r.data),
+    queryFn: () => api.get(`/contacts/${ticket.contact_id}`).then((r: any) => r.data),
     enabled: !!ticket?.contact_id && bookingEnabled,
   })
 
   const { data: replyContact } = useQuery({
     queryKey: ['contact', ticket?.contact_id],
-    queryFn: () => api.get(`/contacts/${ticket.contact_id}`).then(r => r.data),
+    queryFn: () => api.get(`/contacts/${ticket.contact_id}`).then((r: any) => r.data),
     enabled: !!ticket?.contact_id,
     staleTime: 30_000,
   })
   const { data: comments } = useQuery({
     queryKey: ['ticket-comments', id],
-    queryFn: () => api.get(`/tickets/${id}/comments`).then(r => r.data),
+    queryFn: () => api.get(`/tickets/${id}/comments`).then((r: any) => r.data),
   })
 
   useEffect(() => {
@@ -112,13 +112,13 @@ export default function TicketDetail() {
 
   const statusMutation = useMutation({
     mutationFn: (status: string) => api.patch(`/tickets/${id}/status`, { status }),
-    onMutate: async (status) => {
+    onMutate: async (status: any) => {
       await qc.cancelQueries({ queryKey: ['ticket', id] })
       const prev = qc.getQueryData(['ticket', id])
       qc.setQueryData(['ticket', id], (old: any) => old ? { ...old, status } : old)
       return { prev }
     },
-    onError: (_err, _status, ctx) => {
+    onError: (_err: any, _status: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
       toast.error('Failed to update status.')
     },
@@ -130,13 +130,13 @@ export default function TicketDetail() {
 
   const priorityMutation = useMutation({
     mutationFn: (priority: string) => api.patch(`/tickets/${id}`, { priority }),
-    onMutate: async (priority) => {
+    onMutate: async (priority: any) => {
       await qc.cancelQueries({ queryKey: ['ticket', id] })
       const prev = qc.getQueryData(['ticket', id])
       qc.setQueryData(['ticket', id], (old: any) => old ? { ...old, priority } : old)
       return { prev }
     },
-    onError: (_err, _priority, ctx) => {
+    onError: (_err: any, _priority: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
       toast.error('Failed to update priority.')
     },
@@ -152,7 +152,7 @@ export default function TicketDetail() {
         old ? { ...old, sla_due_at: new Date(Date.now() + 86400000).toISOString() } : old)
       return { prev }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
       toast.error('Failed to snooze ticket.')
     },
@@ -168,7 +168,7 @@ export default function TicketDetail() {
       qc.setQueryData(['ticket-comments', id], (old: any[]) => [optimistic, ...(old ?? [])])
       return { prev }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(['ticket-comments', id], ctx.prev)
       toast.error('Failed to save note.')
     },
@@ -185,7 +185,7 @@ export default function TicketDetail() {
       fd.append('body', replyBody.trim())
       if (replyTemplateHtml) fd.append('html_body', replyTemplateHtml)
       replyFiles.forEach(f => fd.append('attachments', f))
-      return api.post(`/tickets/${id}/send-reply`, fd, { headers: { 'Content-Type': undefined } }).then(r => r.data)
+      return api.post(`/tickets/${id}/send-reply`, fd, { headers: { 'Content-Type': undefined } }).then((r: any) => r.data)
     },
     onSuccess: (data: any) => {
       toast.success(`Email sent to ${data?.to ?? replyContact?.email}`)
@@ -203,7 +203,7 @@ export default function TicketDetail() {
   })
 
   const deleteMutation = useMutation({
-    mutationFn: () => api.post(`/tickets/${id}/delete`).then(r => r.data),
+    mutationFn: () => api.post(`/tickets/${id}/delete`).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['tickets'] })
       navigate('/tickets')
@@ -569,7 +569,7 @@ function MergeModal({
   const { data, isLoading } = useQuery({
     queryKey: ['merge-candidates', contactId],
     queryFn: () =>
-      api.get('/tickets', { params: { contact_id: contactId } }).then(r => r.data),
+      api.get('/tickets', { params: { contact_id: contactId } }).then((r: any) => r.data),
     enabled: !!contactId,
   })
 
@@ -717,7 +717,7 @@ function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; o
 
   const { data: results, isFetching } = useQuery({
     queryKey: ['contact-search', search],
-    queryFn: () => api.get('/contacts', { params: { search, limit: 8 } }).then(r => r.data.items ?? r.data),
+    queryFn: () => api.get('/contacts', { params: { search, limit: 8 } }).then((r: any) => r.data.items ?? r.data),
     enabled: search.length >= 1,
     staleTime: 10_000,
   })
@@ -830,39 +830,39 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
 
   const { data: contact, isLoading: contactLoading } = useQuery({
     queryKey: ['contact', contactId],
-    queryFn: () => api.get(`/contacts/${contactId}`).then(r => r.data),
+    queryFn: () => api.get(`/contacts/${contactId}`).then((r: any) => r.data),
     enabled: !!contactId,
     retry: 1,
   })
   const { data: drafts } = useQuery({
     queryKey: ['contact-correspondence', contactId],
     queryFn: () =>
-      api.get(`/inbox/drafts`, { params: { contact_id: contactId, status: 'processed' } }).then(r => r.data),
+      api.get(`/inbox/drafts`, { params: { contact_id: contactId, status: 'processed' } }).then((r: any) => r.data),
     enabled: !!contactId,
   })
   const { data: ticketsData } = useQuery({
     queryKey: ['contact-tickets', contactId],
-    queryFn: () => api.get(`/tickets`, { params: { contact_id: contactId } }).then(r => r.data),
+    queryFn: () => api.get(`/tickets`, { params: { contact_id: contactId } }).then((r: any) => r.data),
     enabled: !!contactId,
   })
   const { data: shipmentsData } = useQuery({
     queryKey: ['contact-shipments', contactId],
-    queryFn: () => api.get('/shipments', { params: { contact_id: contactId, limit: 3 } }).then(r => r.data),
+    queryFn: () => api.get('/shipments', { params: { contact_id: contactId, limit: 3 } }).then((r: any) => r.data),
     enabled: !!contactId && shipmentsEnabled,
   })
   const { data: commerceEvents } = useQuery({
     queryKey: ['contact-commerce-events', contactId],
-    queryFn: () => api.get(`/sales/contacts/${contactId}/events`, { params: { limit: 5 } }).then(r => r.data),
+    queryFn: () => api.get(`/sales/contacts/${contactId}/events`, { params: { limit: 5 } }).then((r: any) => r.data),
     enabled: !!contactId && salesEnabled,
   })
   const { data: saasHealth } = useQuery({
     queryKey: ['contact-saas-health', contactId],
-    queryFn: () => api.get(`/saas/contacts/${contactId}/health`).then(r => r.data).catch(() => null),
+    queryFn: () => api.get(`/saas/contacts/${contactId}/health`).then((r: any) => r.data).catch(() => null),
     enabled: !!contactId && saasEnabled,
   })
   const { data: saasEvents } = useQuery({
     queryKey: ['contact-saas-events', contactId],
-    queryFn: () => api.get(`/saas/contacts/${contactId}/events`, { params: { limit: 5 } }).then(r => r.data),
+    queryFn: () => api.get(`/saas/contacts/${contactId}/events`, { params: { limit: 5 } }).then((r: any) => r.data),
     enabled: !!contactId && saasEnabled,
   })
 
@@ -1226,7 +1226,7 @@ function ContactSlidePanel({
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ['contact', contactId],
-    queryFn: () => api.get(`/contacts/${contactId}`).then(r => r.data),
+    queryFn: () => api.get(`/contacts/${contactId}`).then((r: any) => r.data),
   })
 
   useEffect(() => {

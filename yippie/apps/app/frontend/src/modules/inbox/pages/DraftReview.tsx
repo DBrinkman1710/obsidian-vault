@@ -285,10 +285,10 @@ export default function DraftReview() {
 
   const { data: ctx, isLoading, isError } = useQuery({
     queryKey: ['draft', id],
-    queryFn: () => api.get(`/inbox/drafts/${id}`).then(r => r.data),
+    queryFn: () => api.get(`/inbox/drafts/${id}`).then((r: any) => r.data),
     // While the background AI enrichment is running, poll so the suggestions
     // and briefing fill in on their own.
-    refetchInterval: (query) =>
+    refetchInterval: (query: any) =>
       (query.state.data as any)?.draft?.ai_status === 'queued' ? 3_000 : false,
     retry: 1,
   })
@@ -308,7 +308,7 @@ export default function DraftReview() {
   const ticketId = draft?.approved_ticket_id
   const { data: linkedTicket } = useQuery({
     queryKey: ['ticket', ticketId],
-    queryFn: () => api.get(`/tickets/${ticketId}`).then(r => r.data),
+    queryFn: () => api.get(`/tickets/${ticketId}`).then((r: any) => r.data),
     enabled: !!ticketId,
   })
 
@@ -319,13 +319,13 @@ export default function DraftReview() {
 
   const { data: departments } = useQuery({
     queryKey: ['departments'],
-    queryFn: () => api.get('/departments').then(r => r.data),
+    queryFn: () => api.get('/departments').then((r: any) => r.data),
     enabled: !isProcessed,
   })
 
   const { data: stages = [] } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
     enabled: isPipelineEnabled && !isProcessed,
   })
 
@@ -381,7 +381,7 @@ export default function DraftReview() {
   const showContactModal = !isLoading && !!ctx && !ctx.contact && !modalDismissed && !isProcessed
 
   const generateScanMutation = useMutation({
-    mutationFn: () => api.post(`/inbox/drafts/${id}/generate?mode=scan`).then(r => r.data),
+    mutationFn: () => api.post(`/inbox/drafts/${id}/generate?mode=scan`).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['draft', id] })
       qc.invalidateQueries({ queryKey: ['drafts'] })
@@ -391,7 +391,7 @@ export default function DraftReview() {
   })
 
   const generateBriefingMutation = useMutation({
-    mutationFn: () => api.post(`/inbox/drafts/${id}/generate?mode=briefing`).then(r => r.data),
+    mutationFn: () => api.post(`/inbox/drafts/${id}/generate?mode=briefing`).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['draft', id] })
       qc.invalidateQueries({ queryKey: ['drafts'] })
@@ -410,7 +410,7 @@ export default function DraftReview() {
         follow_up_days: modalFollowUpDays ?? (followUpDays ? parseInt(followUpDays) : undefined),
         department_id: departmentId || selectedDeptId || undefined,
       }),
-    onMutate: async ({ action }) => {
+    onMutate: async ({ action }: any) => {
       await qc.cancelQueries({ queryKey: ['draft', id] })
       const prev = qc.getQueryData(['draft', id])
       // Optimistically flip the single draft's status so the processed view shows immediately
@@ -418,7 +418,7 @@ export default function DraftReview() {
         old?.draft ? { ...old, draft: { ...old.draft, status: action === 'approve' ? 'approved' : 'rejected' } } : old)
       return { prev }
     },
-    onError: (_err, _body, ctx) => {
+    onError: (_err: any, _body: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['draft', id], ctx.prev)
       toast.error('Action failed. Please try again.')
     },
@@ -435,7 +435,7 @@ export default function DraftReview() {
   })
 
   const undoReviewMutation = useMutation({
-    mutationFn: () => api.post(`/inbox/drafts/${id}/undo-review`).then(r => r.data),
+    mutationFn: () => api.post(`/inbox/drafts/${id}/undo-review`).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drafts'] })
       qc.invalidateQueries({ queryKey: ['draft', id] })
@@ -895,7 +895,7 @@ export default function DraftReview() {
                       <p className="text-xs text-slate-400">No pipeline stages configured yet.</p>
                     ) : (
                       <div className="space-y-2">
-                        {stages.map(s => (
+                        {stages.map((s: any) => (
                           <button
                             key={s.id}
                             onClick={() => setSelectedPipelineStageId(s.id)}
@@ -1312,7 +1312,7 @@ export default function DraftReview() {
                         <p className="text-xs text-slate-400">No pipeline stages configured yet.</p>
                       ) : (
                         <div className="space-y-2">
-                          {stages.map(s => (
+                          {stages.map((s: any) => (
                             <button
                               key={s.id}
                               onClick={() => setSelectedPipelineStageId(s.id)}
@@ -1511,7 +1511,7 @@ export default function DraftReview() {
                         {user.reply_from_email}
                       </button>
                     )}
-                    {(user?.send_from_aliases ?? []).map(alias => (
+                    {(user?.send_from_aliases ?? []).map((alias: any) => (
                       <button
                         key={alias}
                         type="button"

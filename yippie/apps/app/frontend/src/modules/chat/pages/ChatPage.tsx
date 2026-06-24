@@ -230,23 +230,23 @@ export default function ChatPage() {
 
   const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ['chat-sessions', filter],
-    queryFn: () => api.get('/chat/sessions', { params: { filter } }).then(r => r.data),
+    queryFn: () => api.get('/chat/sessions', { params: { filter } }).then((r: any) => r.data),
     refetchInterval: 10_000,
   })
 
   const { data: agents = [] } = useQuery({
     queryKey: ['chat-agents'],
-    queryFn: () => api.get('/chat/agents').then(r => r.data),
+    queryFn: () => api.get('/chat/agents').then((r: any) => r.data),
   })
 
   const { data: templates = [] } = useQuery({
     queryKey: ['ticket-templates'],
-    queryFn: () => api.get('/tickets/templates').then(r => r.data),
+    queryFn: () => api.get('/tickets/templates').then((r: any) => r.data),
   })
 
   const { data: whatsappStatus } = useQuery({
     queryKey: ['whatsapp-status'],
-    queryFn: () => api.get('/chat/whatsapp/status').then(r => r.data),
+    queryFn: () => api.get('/chat/whatsapp/status').then((r: any) => r.data),
     refetchInterval: 5_000,
   })
 
@@ -254,20 +254,20 @@ export default function ChatPage() {
 
   const { data: qrData, isLoading: qrLoading, isError: qrError } = useQuery({
     queryKey: ['whatsapp-qr'],
-    queryFn: () => api.get('/chat/whatsapp/qr').then(r => r.data),
+    queryFn: () => api.get('/chat/whatsapp/qr').then((r: any) => r.data),
     enabled: !isConnected,
     refetchInterval: isConnected ? false : 15_000,
   })
 
   const { data: contactResults = [], isLoading: contactsLoading } = useQuery({
     queryKey: ['contact-search', debouncedQuery],
-    queryFn: () => api.get('/contacts', { params: { search: debouncedQuery, limit: 20 } }).then(r => r.data.items ?? r.data),
+    queryFn: () => api.get('/contacts', { params: { search: debouncedQuery, limit: 20 } }).then((r: any) => r.data.items ?? r.data),
     enabled: sidebarMode === 'search' && debouncedQuery.length > 0,
   })
 
   const createSessionMutation = useMutation({
-    mutationFn: (contact: any) => api.post('/chat/sessions', { phone: contact.phone, contact_id: contact.id }).then(r => r.data),
-    onSuccess: (session) => {
+    mutationFn: (contact: any) => api.post('/chat/sessions', { phone: contact.phone, contact_id: contact.id }).then((r: any) => r.data),
+    onSuccess: (session: any) => {
       setSelectedId(session.id)
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
       setSidebarMode('sessions')
@@ -278,13 +278,13 @@ export default function ChatPage() {
 
   const { data: messages = [], isLoading: msgsLoading } = useQuery({
     queryKey: ['chat-messages', selectedId],
-    queryFn: () => api.get(`/chat/sessions/${selectedId}/messages`).then(r => r.data),
+    queryFn: () => api.get(`/chat/sessions/${selectedId}/messages`).then((r: any) => r.data),
     enabled: !!selectedId,
     refetchInterval: 5_000,
   })
 
   const replyMutation = useMutation({
-    mutationFn: (body: string) => api.post(`/chat/sessions/${selectedId}/reply`, { body }).then(r => r.data),
+    mutationFn: (body: string) => api.post(`/chat/sessions/${selectedId}/reply`, { body }).then((r: any) => r.data),
     onMutate: async (body: string) => {
       setReplyError(null)
       await qc.cancelQueries({ queryKey: ['chat-messages', selectedId] })
@@ -297,12 +297,12 @@ export default function ChatPage() {
       setReplyText('')
       return { previous, tempId, sessionId: selectedId }
     },
-    onSuccess: (data, _body, ctx) => {
+    onSuccess: (data: any, _body: any, ctx: any) => {
       qc.setQueryData(['chat-messages', ctx?.sessionId], (old: any) =>
         (old ?? []).map((m: any) => m.id === ctx?.tempId ? { ...m, ...data } : m)
       )
     },
-    onError: (err: any, body, ctx) => {
+    onError: (err: any, body: any, ctx: any) => {
       if (ctx?.previous !== undefined) {
         qc.setQueryData(['chat-messages', ctx?.sessionId], ctx.previous)
       }
@@ -385,13 +385,13 @@ export default function ChatPage() {
   })
 
   const claimMutation = useMutation({
-    mutationFn: (sessionId: string) => api.post(`/chat/sessions/${sessionId}/claim`).then(r => r.data),
+    mutationFn: (sessionId: string) => api.post(`/chat/sessions/${sessionId}/claim`).then((r: any) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['chat-sessions'] }),
   })
 
   const assignMutation = useMutation({
     mutationFn: ({ sessionId, assignedTo }: { sessionId: string; assignedTo: string | null }) =>
-      api.post(`/chat/sessions/${sessionId}/assign`, { assigned_to: assignedTo }).then(r => r.data),
+      api.post(`/chat/sessions/${sessionId}/assign`, { assigned_to: assignedTo }).then((r: any) => r.data),
     onSuccess: () => {
       setShowReassign(false)
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
@@ -400,13 +400,13 @@ export default function ChatPage() {
 
   const statusMutation = useMutation({
     mutationFn: ({ sessionId, status }: { sessionId: string; status: string }) =>
-      api.post(`/chat/sessions/${sessionId}/status`, { status }).then(r => r.data),
+      api.post(`/chat/sessions/${sessionId}/status`, { status }).then((r: any) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['chat-sessions'] }),
   })
 
   const bulkMutation = useMutation({
     mutationFn: ({ action, session_ids }: { action: string; session_ids: string[] }) =>
-      api.post('/chat/sessions/bulk', { action, session_ids }).then(r => r.data),
+      api.post('/chat/sessions/bulk', { action, session_ids }).then((r: any) => r.data),
     onSuccess: () => {
       setSelectedSessions(new Set())
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
@@ -414,7 +414,7 @@ export default function ChatPage() {
   })
 
   const clearAllMutation = useMutation({
-    mutationFn: () => api.delete('/chat/sessions/all').then(r => r.data),
+    mutationFn: () => api.delete('/chat/sessions/all').then((r: any) => r.data),
     onSuccess: () => {
       setSelectedId(null)
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
@@ -422,7 +422,7 @@ export default function ChatPage() {
   })
 
   const resetMutation = useMutation({
-    mutationFn: () => api.post('/chat/reset').then(r => r.data),
+    mutationFn: () => api.post('/chat/reset').then((r: any) => r.data),
     onSuccess: () => {
       setSelectedId(null)
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
@@ -1188,7 +1188,7 @@ export default function ChatPage() {
 function HistoryPanel({ contactId, currentId, onView }: { contactId: string; currentId: string; onView: (id: string) => void }) {
   const { data: past = [] } = useQuery({
     queryKey: ['chat-history', contactId],
-    queryFn: () => api.get('/chat/sessions', { params: { contact_id: contactId, status_filter: 'solved' } }).then(r => r.data),
+    queryFn: () => api.get('/chat/sessions', { params: { contact_id: contactId, status_filter: 'solved' } }).then((r: any) => r.data),
   })
   const items = (past as any[]).filter(s => s.id !== currentId)
   if (items.length === 0) {
@@ -1213,7 +1213,7 @@ function HistoryPanel({ contactId, currentId, onView }: { contactId: string; cur
 function HistoryViewModal({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['chat-messages', sessionId],
-    queryFn: () => api.get(`/chat/sessions/${sessionId}/messages`).then(r => r.data),
+    queryFn: () => api.get(`/chat/sessions/${sessionId}/messages`).then((r: any) => r.data),
   })
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
@@ -1245,7 +1245,7 @@ function ContactModal({ contactId, onClose, navigate }: { contactId: string; onC
   const qc = useQueryClient()
   const { data: contact } = useQuery({
     queryKey: ['contact', contactId],
-    queryFn: () => api.get(`/contacts/${contactId}`).then(r => r.data),
+    queryFn: () => api.get(`/contacts/${contactId}`).then((r: any) => r.data),
   })
   const [fullName, setFullName] = useState('')
   const [email, setEmail] = useState('')
@@ -1313,8 +1313,8 @@ function CreateContactModal({ phone, name, onClose, onCreated }: { phone: string
   const [email, setEmail] = useState('')
   const [phoneVal, setPhoneVal] = useState(phone ?? '')
   const create = useMutation({
-    mutationFn: () => api.post('/contacts', { full_name: fullName, email: email || null, phone: phoneVal || null }).then(r => r.data),
-    onSuccess: (c) => onCreated(c),
+    mutationFn: () => api.post('/contacts', { full_name: fullName, email: email || null, phone: phoneVal || null }).then((r: any) => r.data),
+    onSuccess: (c: any) => onCreated(c),
   })
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>

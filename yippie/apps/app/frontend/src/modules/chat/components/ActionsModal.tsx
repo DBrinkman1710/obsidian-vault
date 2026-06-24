@@ -49,7 +49,7 @@ function ContactPicker({ value, onChange }: {
   const { data } = useQuery({
     queryKey: ['contacts-picker', search],
     queryFn: () => api.get<{ items: ContactRow[] }>('/contacts', { params: { search: search || undefined, limit: 8 } })
-      .then(r => r.data.items),
+      .then((r: any) => r.data.items),
     enabled: open,
   })
 
@@ -78,7 +78,7 @@ function ContactPicker({ value, onChange }: {
         <div className="absolute top-full left-0 right-0 z-20 bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
           {!data?.length ? (
             <div className="px-4 py-3 text-sm text-slate-400">{search ? 'No contacts found' : 'Start typing to search…'}</div>
-          ) : data.map(c => (
+          ) : data.map((c: any) => (
             <button key={c.id} type="button"
               onMouseDown={() => {
                 onChange({ id: c.id, label: c.company ? `${c.full_name} (${c.company.name})` : c.full_name })
@@ -132,7 +132,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
 
   const { data: departments } = useQuery({
     queryKey: ['departments'],
-    queryFn: () => api.get('/departments').then(r => r.data),
+    queryFn: () => api.get('/departments').then((r: any) => r.data),
   })
 
   const ticketMutation = useMutation({
@@ -144,7 +144,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
         contact_id: contact?.id ?? null,
         department_id: departmentId || null,
         source: 'chat',
-      }).then(r => r.data)
+      }).then((r: any) => r.data)
       await api.patch(`/chat/sessions/${session.id}`, { ticket_id: ticket.id })
       return ticket
     },
@@ -190,14 +190,14 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
     work_start_hour: number; work_end_hour: number; slot_minutes: number
   }>({
     queryKey: ['booking-settings'],
-    queryFn: () => api.get('/booking/settings').then(r => r.data),
+    queryFn: () => api.get('/booking/settings').then((r: any) => r.data),
     enabled: pane === 'booking',
   })
 
   const { data: bookingResults } = useQuery<{ id: string; full_name: string; email?: string | null }[]>({
     queryKey: ['booking-contact-search', bookingQuery],
     queryFn: () => api.get('/contacts', { params: { search: bookingQuery, limit: 10 } })
-      .then(r => r.data.items.map((c: any) => ({ id: c.id, full_name: c.full_name, email: c.email }))),
+      .then((r: any) => r.data.items.map((c: any) => ({ id: c.id, full_name: c.full_name, email: c.email }))),
     enabled: pane === 'booking' && !bookingContact && bookingQuery.trim().length > 0,
   })
 
@@ -388,7 +388,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                       <div className="absolute z-20 mt-1 w-full max-h-44 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
                         {(bookingResults ?? []).length === 0 ? (
                           <p className="px-3 py-2 text-sm text-slate-400">No matches</p>
-                        ) : (bookingResults ?? []).map(c => (
+                        ) : (bookingResults ?? []).map((c: any) => (
                           <button key={c.id} type="button"
                             onMouseDown={() => {
                               window.clearTimeout(blurTimer.current)

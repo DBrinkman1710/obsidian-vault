@@ -25,15 +25,15 @@ export function AudienceTab({ campaign }: { campaign: Campaign }) {
 
   const { data: labels = [] } = useQuery<Named[]>({
     queryKey: ['contact-labels'],
-    queryFn: () => api.get('/contacts/labels').then((r) => r.data),
+    queryFn: () => api.get('/contacts/labels').then((r: any) => r.data),
   })
   const { data: companies = [] } = useQuery<Named[]>({
     queryKey: ['companies'],
-    queryFn: () => api.get('/contacts/companies').then((r) => r.data),
+    queryFn: () => api.get('/contacts/companies').then((r: any) => r.data),
   })
   const { data: stages = [] } = useQuery<Named[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then((r) => r.data),
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
   })
 
   const options: Named[] = useMemo(() => {
@@ -144,7 +144,7 @@ export function AudienceTab({ campaign }: { campaign: Campaign }) {
           </div>
           {preview && preview.names.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-1.5">
-              {preview.names.map((n, i) => (
+              {preview.names.map((n: any, i: any) => (
                 <span key={i} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs text-slate-600">
                   {n}
                 </span>
@@ -168,7 +168,7 @@ export function AudienceTab({ campaign }: { campaign: Campaign }) {
             className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
           >
             <option value="">None</option>
-            {stages.map((s) => (
+            {stages.map((s: any) => (
               <option key={s.id} value={s.id}>{s.name}</option>
             ))}
           </select>

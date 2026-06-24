@@ -71,12 +71,12 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
   // Members tab data
   const { data: members = [], isLoading: membersLoading } = useQuery<DeptMember[]>({
     queryKey: ['dept-members', dept?.id],
-    queryFn: () => api.get(`/departments/${dept!.id}/members`).then(r => r.data),
+    queryFn: () => api.get(`/departments/${dept!.id}/members`).then((r: any) => r.data),
     enabled: !!dept && tab === 'members',
   })
   const { data: allUsers = [] } = useQuery<TeamUser[]>({
     queryKey: ['team-users'],
-    queryFn: () => api.get('/team/members').then(r => r.data),
+    queryFn: () => api.get('/team/members').then((r: any) => r.data),
     enabled: !!dept && tab === 'members',
   })
 
@@ -89,8 +89,8 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
     onSuccess: () => qc.invalidateQueries({ queryKey: ['dept-members', dept?.id] }),
   })
 
-  const memberIds = new Set(members.map(m => m.user_id))
-  const addableUsers = allUsers.filter(u => !memberIds.has(u.id) && u.is_active)
+  const memberIds = new Set(members.map((m: any) => m.user_id))
+  const addableUsers = allUsers.filter((u: any) => !memberIds.has(u.id) && u.is_active)
 
   const tabs = dept
     ? [{ key: 'settings', label: 'Settings' }, { key: 'members', label: 'Members' }, { key: 'permissions', label: 'Permissions' }] as const
@@ -173,7 +173,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
                 <p className="text-xs text-slate-400">No members yet.</p>
               )}
               <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
-                {members.map(m => (
+                {members.map((m: any) => (
                   <div key={m.user_id} className="flex items-center justify-between px-4 py-2.5">
                     <div>
                       <p className="text-sm font-medium text-slate-900">{m.full_name}</p>
@@ -197,7 +197,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
               <div>
                 <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Add member</p>
                 <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
-                  {addableUsers.map(u => (
+                  {addableUsers.map((u: any) => (
                     <div key={u.id} className="flex items-center justify-between px-4 py-2.5">
                       <div>
                         <p className="text-sm font-medium text-slate-900">{u.full_name}</p>
@@ -241,7 +241,7 @@ function DepartmentsPanel() {
 
   const { data: departments, isLoading } = useQuery<Dept[]>({
     queryKey: ['departments'],
-    queryFn: () => api.get('/departments').then(r => r.data),
+    queryFn: () => api.get('/departments').then((r: any) => r.data),
   })
 
   const deleteMutation = useMutation({
@@ -279,7 +279,7 @@ function DepartmentsPanel() {
 
         {departments && departments.length > 0 && (
           <div className="divide-y divide-slate-100">
-            {departments.map(dept => (
+            {departments.map((dept: any) => (
               <div
                 key={dept.id}
                 onClick={() => setSelected(dept)}
@@ -321,11 +321,11 @@ function InviteModal({ onClose }: { onClose: () => void }) {
 
   const { data: availableRoles = [] } = useQuery<RbacRole[]>({
     queryKey: ['rbac-roles'],
-    queryFn: () => api.get('/rbac/roles').then(r => r.data),
+    queryFn: () => api.get('/rbac/roles').then((r: any) => r.data),
   })
 
   const mutation = useMutation({
-    mutationFn: () => api.post('/team/invite', { ...form, rbac_role_ids: selectedRbacRoles }).then(r => r.data),
+    mutationFn: () => api.post('/team/invite', { ...form, rbac_role_ids: selectedRbacRoles }).then((r: any) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['team-users'] }); onClose() },
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to send invite'),
   })
@@ -372,7 +372,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
             <div>
               <label className={labelCls}>Access roles <span className="font-normal text-slate-400">(optional)</span></label>
               <div className="flex flex-wrap gap-2">
-                {availableRoles.map(r => {
+                {availableRoles.map((r: any) => {
                   const selected = selectedRbacRoles.includes(r.id)
                   return (
                     <button
@@ -419,19 +419,19 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
   // All departments for this tenant
   const { data: allDepts = [] } = useQuery<Dept[]>({
     queryKey: ['departments'],
-    queryFn: () => api.get('/departments').then(r => r.data),
+    queryFn: () => api.get('/departments').then((r: any) => r.data),
   })
 
   // Current departments for this user
   const { data: userDepts = [] } = useQuery<UserDepartmentOut[]>({
     queryKey: ['user-departments', user.id],
-    queryFn: () => api.get(`/team/users/${user.id}/departments`).then(r => r.data),
+    queryFn: () => api.get(`/team/users/${user.id}/departments`).then((r: any) => r.data),
   })
 
   // Seed selectedDeptIds once the user's departments are loaded
   React.useEffect(() => {
     if (!deptIdsLoaded && userDepts.length >= 0) {
-      setSelectedDeptIds(new Set(userDepts.map(d => d.id)))
+      setSelectedDeptIds(new Set(userDepts.map((d: any) => d.id)))
       setDeptIdsLoaded(true)
     }
   }, [userDepts, deptIdsLoaded])
@@ -458,12 +458,12 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
 
   const { data: assignedRoles = [] } = useQuery<UserRbacRole[]>({
     queryKey: ['user-rbac-roles', user.id],
-    queryFn: () => api.get(`/rbac/users/${user.id}/roles`).then(r => r.data),
+    queryFn: () => api.get(`/rbac/users/${user.id}/roles`).then((r: any) => r.data),
     enabled: modalTab === 'roles',
   })
   const { data: allRoles = [] } = useQuery<RbacRole[]>({
     queryKey: ['rbac-roles'],
-    queryFn: () => api.get('/rbac/roles').then(r => r.data),
+    queryFn: () => api.get('/rbac/roles').then((r: any) => r.data),
     enabled: modalTab === 'roles',
   })
   const assignMutation = useMutation({
@@ -474,8 +474,8 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
     mutationFn: (roleId: string) => api.delete(`/rbac/users/${user.id}/roles/${roleId}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['user-rbac-roles', user.id] }),
   })
-  const assignedRoleIds = new Set(assignedRoles.map(r => r.role_id))
-  const unassignedRoles = allRoles.filter(r => !assignedRoleIds.has(r.id))
+  const assignedRoleIds = new Set(assignedRoles.map((r: any) => r.role_id))
+  const unassignedRoles = allRoles.filter((r: any) => !assignedRoleIds.has(r.id))
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -542,7 +542,7 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
               <div>
                 <label className={labelCls}>Departments</label>
                 <div className="flex flex-col gap-1.5">
-                  {allDepts.map(dept => {
+                  {allDepts.map((dept: any) => {
                     const checked = selectedDeptIds.has(dept.id)
                     return (
                       <label
@@ -583,7 +583,7 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
             <div>
               <p className="text-xs font-semibold text-slate-500 mb-2">Assigned access roles</p>
               <div className="flex flex-wrap gap-2">
-                {assignedRoles.map(r => (
+                {assignedRoles.map((r: any) => (
                   <span key={r.id} className="inline-flex items-center gap-1 px-2.5 py-1 bg-blue-50 text-blue-700 text-xs font-semibold rounded-full border border-blue-200">
                     {r.role_name}
                     <button
@@ -604,7 +604,7 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
                     className="text-xs border border-dashed border-slate-300 rounded-full px-2.5 py-1 text-slate-400 hover:border-blue-400 hover:text-blue-600 transition-colors cursor-pointer"
                   >
                     <option value="" disabled>+ Add role</option>
-                    {unassignedRoles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+                    {unassignedRoles.map((r: any) => <option key={r.id} value={r.id}>{r.name}</option>)}
                   </select>
                 )}
                 {assignedRoles.length === 0 && unassignedRoles.length === 0 && (
@@ -669,7 +669,7 @@ function RolesTab({ enabledModules }: { enabledModules: string[] }) {
 
   const { data: roles = [], isLoading } = useQuery<RbacRole[]>({
     queryKey: ['rbac-roles'],
-    queryFn: () => api.get('/rbac/roles').then(r => r.data),
+    queryFn: () => api.get('/rbac/roles').then((r: any) => r.data),
   })
 
   const createMutation = useMutation({
@@ -729,7 +729,7 @@ function RolesTab({ enabledModules }: { enabledModules: string[] }) {
 
       {roles.length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
-          {roles.map(role => (
+          {roles.map((role: any) => (
             <div key={role.id}>
               <div className="flex items-center justify-between px-4 py-3">
                 <button
@@ -785,12 +785,12 @@ export default function TeamSettingsPage() {
 
   const { data: users, isLoading } = useQuery<TeamUser[]>({
     queryKey: ['team-users'],
-    queryFn: () => api.get('/team/users').then(r => r.data),
+    queryFn: () => api.get('/team/users').then((r: any) => r.data),
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...patch }: { id: string; is_active?: boolean; role?: string }) =>
-      api.patch(`/team/users/${id}`, patch).then(r => r.data),
+      api.patch(`/team/users/${id}`, patch).then((r: any) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['team-users'] }); setError('') },
     onError: (err: any) => setError(err.response?.data?.detail ?? 'Update failed'),
   })
@@ -842,7 +842,7 @@ export default function TeamSettingsPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.map(u => {
+                    {users.map((u: any) => {
                       const isSelf = u.id === me?.id
                       const isSuperadmin = u.role === 'superadmin'
                       const locked = isSelf || isSuperadmin

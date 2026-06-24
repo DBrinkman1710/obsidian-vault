@@ -29,7 +29,7 @@ function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreat
 
   const create = useMutation({
     mutationFn: () => marketingApi.createCampaign({ name: name.trim(), subject: subject.trim(), dispatch_channel: channel }),
-    onSuccess: (c) => {
+    onSuccess: (c: any) => {
       toast.success('Campaign created')
       onCreated(c)
     },
@@ -123,7 +123,7 @@ function UnsubscribesPanel() {
                 </tr>
               </thead>
               <tbody>
-                {list.map((u) => (
+                {list.map((u: any) => (
                   <tr key={u.contact_id} className="border-b border-slate-50 last:border-0">
                     <td className="px-4 py-2.5 font-medium text-slate-700">{u.contact_name ?? '—'}</td>
                     <td className="px-4 py-2.5 font-mono text-xs text-slate-500">{u.contact_email ?? '—'}</td>
@@ -168,7 +168,7 @@ export default function MarketingPage() {
 
   const duplicate = useMutation({
     mutationFn: (id: string) => marketingApi.duplicateCampaign(id),
-    onSuccess: (c) => {
+    onSuccess: (c: any) => {
       toast.success('Campaign duplicated')
       qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
       setSelectedId(c.id)
@@ -177,7 +177,7 @@ export default function MarketingPage() {
   })
 
   const selected = useMemo(
-    () => campaigns.find((c) => c.id === selectedId) ?? null,
+    () => campaigns.find((c: any) => c.id === selectedId) ?? null,
     [campaigns, selectedId],
   )
 
@@ -230,7 +230,7 @@ export default function MarketingPage() {
             </div>
           ) : (
             <ul className="space-y-1">
-              {campaigns.map((c) => (
+              {campaigns.map((c: any) => (
                 <li key={c.id}>
                   <button
                     onClick={() => { setView('campaigns'); setSelectedId(c.id) }}

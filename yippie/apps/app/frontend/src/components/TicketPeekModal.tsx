@@ -46,7 +46,7 @@ export default function TicketPeekModal({ ticketId, onClose }: TicketPeekModalPr
   }
   const { data: ticket, isLoading } = useQuery({
     queryKey: ['ticket', String(ticketId)],
-    queryFn: () => api.get(`/tickets/${ticketId}`).then(r => r.data),
+    queryFn: () => api.get(`/tickets/${ticketId}`).then((r: any) => r.data),
     enabled: ticketId !== null,
   })
 

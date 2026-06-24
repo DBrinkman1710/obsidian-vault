@@ -143,7 +143,7 @@ function useEmailCheckError(email: string): string | null {
 
   const { data } = useQuery<{ available: boolean; reason: string | null }>({
     queryKey: ['check-email', debounced],
-    queryFn: () => api.get('/admin/check-email', { params: { email: debounced } }).then(r => r.data),
+    queryFn: () => api.get('/admin/check-email', { params: { email: debounced } }).then((r: any) => r.data),
     enabled: settled && validFormat,
     staleTime: 30_000,
   })
@@ -169,7 +169,7 @@ function useSlugCheckError(slug: string): string | null {
 
   const { data } = useQuery<{ available: boolean; reason: string | null }>({
     queryKey: ['check-slug', debounced],
-    queryFn: () => api.get('/admin/check-slug', { params: { slug: debounced } }).then(r => r.data),
+    queryFn: () => api.get('/admin/check-slug', { params: { slug: debounced } }).then((r: any) => r.data),
     enabled: settled && trimmed.length >= 2,
     staleTime: 30_000,
   })
@@ -291,7 +291,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
         admin_password: form.admin_password.trim() || null,
         logo_url: form.logo_url.trim() || null,
         inbound_email: form.inbound_email.trim() || null,
-      }).then(r => r.data),
+      }).then((r: any) => r.data),
     onSuccess: (tenant: Tenant) => {
       qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
       const invites = form.admin_password.trim() ? [] : [form.admin_email.trim()]
@@ -736,26 +736,26 @@ function EditClientModal({
 
   const mutation = useMutation({
     mutationFn: (patch: Record<string, unknown>) =>
-      api.patch(`/admin/tenants/${tenant.id}`, patch).then(r => r.data),
+      api.patch(`/admin/tenants/${tenant.id}`, patch).then((r: any) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
     onError: () => setError('Failed to save changes'),
   })
 
   const { data: usersData, isLoading: usersLoading } = useQuery<TenantUser[]>({
     queryKey: ['tenant-users', tenant.id],
-    queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then(r => r.data),
+    queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then((r: any) => r.data),
     enabled: tab === 'users',
   })
 
   const { data: pipelineStages } = useQuery<{ id: string; name: string }[]>({
     queryKey: ['tenant-pipeline-stages', tenant.id],
-    queryFn: () => api.get(`/admin/tenants/${tenant.id}/pipeline-stages`).then(r => r.data),
+    queryFn: () => api.get(`/admin/tenants/${tenant.id}/pipeline-stages`).then((r: any) => r.data),
     enabled: tab === 'developer_tools',
   })
 
   const toggleUserMutation = useMutation({
     mutationFn: ({ userId, is_active }: { userId: string; is_active: boolean }) =>
-      api.patch(`/admin/tenants/${tenant.id}/users/${userId}`, { is_active }).then(r => r.data),
+      api.patch(`/admin/tenants/${tenant.id}/users/${userId}`, { is_active }).then((r: any) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['tenant-users', tenant.id] }),
   })
 
@@ -1070,7 +1070,7 @@ function EditClientModal({
               {usersData && usersData.length === 0 && <p className="text-sm text-slate-400">No users yet.</p>}
               {usersData && usersData.length > 0 && (
                 <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
-                  {usersData.map(u => (
+                  {usersData.map((u: any) => (
                     <div key={u.id} className={`flex items-center gap-3 px-4 py-3 ${!u.is_active ? 'opacity-50' : ''}`}>
                       <div className="flex-1 min-w-0">
                         <div className="text-sm font-medium text-slate-900 truncate">{u.full_name}</div>
@@ -1182,7 +1182,7 @@ function EditClientModal({
                     onChange={e => setForm(p => ({ ...p, lead_widget_stage_id: e.target.value || null }))}
                   >
                     <option value="">None — don't add to pipeline</option>
-                    {(pipelineStages ?? []).map(s => (
+                    {(pipelineStages ?? []).map((s: any) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
@@ -1245,7 +1245,7 @@ function DeleteClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () =>
   const [error, setError] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => api.post(`/admin/tenants/${tenant.id}/delete`, { current_password: password }).then(r => r.data),
+    mutationFn: () => api.post(`/admin/tenants/${tenant.id}/delete`, { current_password: password }).then((r: any) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
     onError: (err: any) => {
       const detail = err.response?.data?.detail
@@ -1306,8 +1306,8 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
         ...form,
         email: form.email.trim(),
         password: form.password.trim() || null,
-      }).then(r => r.data),
-    onSuccess: (data) => {
+      }).then((r: any) => r.data),
+    onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ['superadmin-tenants'] })
       qc.invalidateQueries({ queryKey: ['tenant-users', tenant.id] })
       if (data?.invited) setInvited(data.email)
@@ -1435,7 +1435,7 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
 function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
   const { data, isLoading } = useQuery<TenantUser[]>({
     queryKey: ['tenant-users', tenant.id],
-    queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then(r => r.data),
+    queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then((r: any) => r.data),
   })
 
   function fmtLastActive(val: string | null): string {
@@ -1477,7 +1477,7 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
                 <span>Last active</span>
                 <span>Status</span>
               </div>
-              {data.map(u => (
+              {data.map((u: any) => (
                 <div key={u.id} className={`grid grid-cols-[1fr_auto_auto_auto] gap-x-4 items-center px-4 py-3 ${!u.is_active ? 'opacity-50' : ''}`}>
                   <div className="min-w-0">
                     <div className="text-sm font-medium text-slate-900 truncate">{u.full_name}</div>
@@ -1510,8 +1510,8 @@ function EvolutionDiagnosticPanel() {
   const [testNumber, setTestNumber] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () => api.get('/admin/evolution-check').then(r => r.data),
-    onSuccess: (data) => setResult(data),
+    mutationFn: () => api.get('/admin/evolution-check').then((r: any) => r.data),
+    onSuccess: (data: any) => setResult(data),
   })
 
   const sendMutation = useMutation({
@@ -1519,8 +1519,8 @@ function EvolutionDiagnosticPanel() {
       number: testNumber.trim(),
       message: 'Yippie diagnostics test',
       instance: 'default',
-    }).then(r => r.data),
-    onSuccess: (data) => setSendResult(data),
+    }).then((r: any) => r.data),
+    onSuccess: (data: any) => setSendResult(data),
   })
 
   function copyAll() {
@@ -1595,8 +1595,8 @@ function ResendDiagnosticPanel() {
   const [copied, setCopied] = useState(false)
 
   const mutation = useMutation({
-    mutationFn: () => api.get('/admin/resend-check').then(r => r.data),
-    onSuccess: (data) => setResult(data),
+    mutationFn: () => api.get('/admin/resend-check').then((r: any) => r.data),
+    onSuccess: (data: any) => setResult(data),
   })
 
   function copyAll() {
@@ -1768,8 +1768,8 @@ function ProvisionDomainModal({ tenant, onClose, onSuccess }: {
   const [error, setError] = useState<string | null>(null)
 
   const mutation = useMutation({
-    mutationFn: () => api.post(`/admin/tenants/${tenant.id}/resend-domain`, { domain }).then(r => r.data),
-    onSuccess: (data) => onSuccess(data),
+    mutationFn: () => api.post(`/admin/tenants/${tenant.id}/resend-domain`, { domain }).then((r: any) => r.data),
+    onSuccess: (data: any) => onSuccess(data),
     onError: (e: any) => setError(e?.response?.data?.detail ?? 'Failed to provision domain'),
   })
 
@@ -1854,7 +1854,7 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
 
   const { data, isLoading } = useQuery<SuperAdminStats>({
     queryKey: ['superadmin-stats', range, tenantFilter],
-    queryFn: () => api.get('/admin/stats', { params }).then(r => r.data),
+    queryFn: () => api.get('/admin/stats', { params }).then((r: any) => r.data),
     refetchInterval: 60_000,
   })
 
@@ -1903,7 +1903,7 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
         <StatCard icon={<TicketIcon size={16} />} label="Open tickets" value={summary?.total_tickets_open ?? 0} />
         <StatCard icon={<AlertTriangle size={16} />} label="Overdue tickets" value={summary?.total_tickets_overdue ?? 0} tone={summary && summary.total_tickets_overdue > 0 ? 'red' : 'default'} />
         <StatCard icon={<Inbox size={16} />} label="Inbox pending" value={summary?.total_inbox_pending ?? 0} />
-        <StatCard icon={<Globe size={16} />} label={`SaaS events (${range})`} value={rows.reduce((s, r) => s + r.saas_events_period, 0)} />
+        <StatCard icon={<Globe size={16} />} label={`SaaS events (${range})`} value={rows.reduce((s: any, r: any) => s + r.saas_events_period, 0)} />
       </div>
 
       {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
@@ -1931,7 +1931,7 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {rows.map(r => {
+              {rows.map((r: any) => {
                 const overdue = r.tickets_overdue > 0
                 const atRisk = r.ai_usage_today === 0 && r.tickets_overdue > 2
                 const rowCls = overdue ? 'bg-red-50/60 hover:bg-red-50' : atRisk ? 'bg-amber-50/60 hover:bg-amber-50' : 'hover:bg-slate-50'
@@ -1993,7 +1993,7 @@ export default function SuperAdminPage() {
 
   const { data: allTenants, isLoading } = useQuery<Tenant[]>({
     queryKey: ['superadmin-tenants'],
-    queryFn: () => api.get('/admin/tenants').then(r => r.data),
+    queryFn: () => api.get('/admin/tenants').then((r: any) => r.data),
   })
 
   const monthStart = useMemo(() => {
@@ -2004,7 +2004,7 @@ export default function SuperAdminPage() {
 
   const { data: monthlyStats } = useQuery<SuperAdminStats>({
     queryKey: ['superadmin-stats-month', monthStart],
-    queryFn: () => api.get('/admin/stats', { params: { start: monthStart } }).then(r => r.data),
+    queryFn: () => api.get('/admin/stats', { params: { start: monthStart } }).then((r: any) => r.data),
     staleTime: 300_000,
   })
 
@@ -2022,34 +2022,34 @@ export default function SuperAdminPage() {
 
   const counts = {
     all: tenants.length,
-    active: tenants.filter(t => statusOf(t) === 'active').length,
-    demo: tenants.filter(t => statusOf(t) === 'demo').length,
-    inactive: tenants.filter(t => statusOf(t) === 'inactive').length,
+    active: tenants.filter((t: any) => statusOf(t) === 'active').length,
+    demo: tenants.filter((t: any) => statusOf(t) === 'demo').length,
+    inactive: tenants.filter((t: any) => statusOf(t) === 'inactive').length,
   }
 
-  const visible = filter === 'all' ? tenants : tenants.filter(t => statusOf(t) === filter)
+  const visible = filter === 'all' ? tenants : tenants.filter((t: any) => statusOf(t) === filter)
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
-      api.patch(`/admin/tenants/${id}`, { is_active }).then(r => r.data),
+      api.patch(`/admin/tenants/${id}`, { is_active }).then((r: any) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
   })
 
   const goLiveMutation = useMutation({
     mutationFn: (id: string) =>
-      api.patch(`/admin/tenants/${id}`, { is_demo: false, go_live_at: new Date().toISOString() }).then(r => r.data),
+      api.patch(`/admin/tenants/${id}`, { is_demo: false, go_live_at: new Date().toISOString() }).then((r: any) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
   })
 
   const verifyDomainMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/admin/tenants/${id}/resend-domain/verify`).then(r => r.data),
+    mutationFn: (id: string) => api.post(`/admin/tenants/${id}/resend-domain/verify`).then((r: any) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); setVerifyingId(null) },
     onError: () => setVerifyingId(null),
   })
 
   const impersonateMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/admin/tenants/${id}/impersonate`).then(r => r.data),
-    onSuccess: async (data) => {
+    mutationFn: (id: string) => api.post(`/admin/tenants/${id}/impersonate`).then((r: any) => r.data),
+    onSuccess: async (data: any) => {
       await startImpersonation(data.access_token, data.impersonated_tenant_name, data.impersonated_user_email)
       navigate('/')
     },
@@ -2071,7 +2071,7 @@ export default function SuperAdminPage() {
         status === 'active' ? { is_active: true, is_demo: false } :
         status === 'demo'   ? { is_active: true,  is_demo: true  } :
                               { is_active: false }
-      return api.patch(`/admin/tenants/${id}`, patch).then(r => r.data)
+      return api.patch(`/admin/tenants/${id}`, patch).then((r: any) => r.data)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }),
   })
@@ -2084,13 +2084,13 @@ export default function SuperAdminPage() {
     })
   }
 
-  const selectableVisible = visible.filter(t => !isOwnTenant(t))
+  const selectableVisible = visible.filter((t: any) => !isOwnTenant(t))
 
   function toggleAll() {
     if (selectedIds.size === selectableVisible.length && selectableVisible.length > 0) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(selectableVisible.map(t => t.id)))
+      setSelectedIds(new Set(selectableVisible.map((t: any) => t.id)))
     }
   }
 
@@ -2217,7 +2217,7 @@ export default function SuperAdminPage() {
                 </button>
                 {isRootOwner && (
                   <button
-                    onClick={() => setBulkDeletingTenants(visible.filter(t => selectedIds.has(t.id)))}
+                    onClick={() => setBulkDeletingTenants(visible.filter((t: any) => selectedIds.has(t.id)))}
                     disabled={bulkMutation.isPending}
                     className="px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
                   >
@@ -2251,7 +2251,7 @@ export default function SuperAdminPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {visible.map(t => {
+              {visible.map((t: any) => {
                 const status = statusOf(t)
                 const isSelected = selectedIds.has(t.id)
                 const own = isOwnTenant(t)

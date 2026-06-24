@@ -114,17 +114,17 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
 
   const { data: companies = [] } = useQuery({
     queryKey: ['companies'],
-    queryFn: () => api.get<CompanyRow[]>('/contacts/companies').then(r => r.data),
+    queryFn: () => api.get<CompanyRow[]>('/contacts/companies').then((r: any) => r.data),
   })
 
   const { data: contactData } = useQuery({
     queryKey: ['contacts-all-picker'],
-    queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { limit: 200 } }).then(r => r.data),
+    queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { limit: 200 } }).then((r: any) => r.data),
   })
-  const allContacts = (contactData?.items ?? []).filter(c => c.email)
+  const allContacts = (contactData?.items ?? []).filter((c: any) => c.email)
 
-  const allCompaniesSelected = companies.length > 0 && companies.every(c => selectedCompanyIds.has(c.id))
-  const allContactsSelected = allContacts.length > 0 && allContacts.every(c => selectedContactIds.has(c.id))
+  const allCompaniesSelected = companies.length > 0 && companies.every((c: any) => selectedCompanyIds.has(c.id))
+  const allContactsSelected = allContacts.length > 0 && allContacts.every((c: any) => selectedContactIds.has(c.id))
 
   function toggleCompany(id: string) {
     setSelectedCompanyIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
@@ -133,10 +133,10 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
     setSelectedContactIds(prev => { const s = new Set(prev); s.has(id) ? s.delete(id) : s.add(id); return s })
   }
   function toggleAllCompanies() {
-    setSelectedCompanyIds(allCompaniesSelected ? new Set() : new Set(companies.map(c => c.id)))
+    setSelectedCompanyIds(allCompaniesSelected ? new Set() : new Set(companies.map((c: any) => c.id)))
   }
   function toggleAllContacts() {
-    setSelectedContactIds(allContactsSelected ? new Set() : new Set(allContacts.map(c => c.id)))
+    setSelectedContactIds(allContactsSelected ? new Set() : new Set(allContacts.map((c: any) => c.id)))
   }
 
   const selectedCount = selectedCompanyIds.size + selectedContactIds.size
@@ -147,10 +147,10 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
       for (const companyId of selectedCompanyIds) {
         const contacts = await api
           .get<{ id: string; full_name: string; email: string | null }[]>(`/contacts/companies/${companyId}/contacts`)
-          .then(r => r.data)
-        contacts.filter(c => c.email).forEach(c => onAdd(c.email!, c.full_name))
+          .then((r: any) => r.data)
+        contacts.filter((c: any) => c.email).forEach((c: any) => onAdd(c.email!, c.full_name))
       }
-      for (const contact of allContacts.filter(c => selectedContactIds.has(c.id))) {
+      for (const contact of allContacts.filter((c: any) => selectedContactIds.has(c.id))) {
         onAdd(contact.email!, contact.full_name)
       }
       onClose()
@@ -194,7 +194,7 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
                 {allCompaniesSelected ? <CheckSquare size={15} className="text-blue-600 shrink-0" /> : <Square size={15} className="text-slate-400 shrink-0" />}
                 <span className="text-sm font-semibold text-slate-700">Select all companies</span>
               </button>
-              {companies.map(c => (
+              {companies.map((c: any) => (
                 <button
                   key={c.id} type="button"
                   onClick={() => toggleCompany(c.id)}
@@ -219,7 +219,7 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
                 {allContactsSelected ? <CheckSquare size={15} className="text-blue-600 shrink-0" /> : <Square size={15} className="text-slate-400 shrink-0" />}
                 <span className="text-sm font-semibold text-slate-700">Select all contacts</span>
               </button>
-              {allContacts.map(c => (
+              {allContacts.map((c: any) => (
                 <button
                   key={c.id} type="button"
                   onClick={() => toggleContact(c.id)}
@@ -268,7 +268,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
 
   const { data: contacts } = useQuery({
     queryKey: ['contacts-compose', search],
-    queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { search: search || undefined, limit: 8 } }).then(r => r.data.items),
+    queryFn: () => api.get<{ items: Contact[] }>('/contacts', { params: { search: search || undefined, limit: 8 } }).then((r: any) => r.data.items),
     enabled: open && search.length > 0,
   })
 
@@ -327,7 +327,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
               </button>
             </div>
           </div>
-          {contacts?.map(c => (
+          {contacts?.map((c: any) => (
             c.email ? (
               <button
                 key={c.id} type="button"
@@ -340,7 +340,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
               </button>
             ) : null
           ))}
-          {search && (!contacts || contacts.filter(c => c.email).length === 0) && (
+          {search && (!contacts || contacts.filter((c: any) => c.email).length === 0) && (
             <div className="px-3 py-3 text-xs text-slate-400 text-center">No contacts with email found</div>
           )}
         </div>
@@ -433,8 +433,8 @@ function ComposeModal({
   const removeRecipient = (email: string) => setRecipients(prev => prev.filter(r => r.email !== email))
 
   const suggestMutation = useMutation({
-    mutationFn: () => api.post('/inbox/compose/suggest', { prompt: aiPrompt }).then(r => r.data),
-    onSuccess: (data) => {
+    mutationFn: () => api.post('/inbox/compose/suggest', { prompt: aiPrompt }).then((r: any) => r.data),
+    onSuccess: (data: any) => {
       if (data.subject) setSubject(data.subject)
       if (data.body) {
         setBody(appliedSig ? `${data.body}\n\n${appliedSig}` : data.body)
@@ -458,13 +458,13 @@ function ComposeModal({
       if (fromEmail) {
         fd.append('from_email', fromEmail)
       }
-      return api.post('/inbox/compose', fd, { headers: { 'Content-Type': undefined } }).then(r => r.data)
+      return api.post('/inbox/compose', fd, { headers: { 'Content-Type': undefined } }).then((r: any) => r.data)
     },
     onError: (err: any) => {
       const detail = err?.response?.data?.detail
       setSendError(typeof detail === 'string' ? detail : 'Send failed — please try again')
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       setSendError('')
       if (data.demo) { setDemoResult({ demo: true }); return }
       // Close the modal immediately; hand the undo bar off to the parent.
@@ -692,7 +692,7 @@ function ComposeModal({
                     {user.reply_from_email}
                   </button>
                 )}
-                {(user?.send_from_aliases ?? []).map(alias => (
+                {(user?.send_from_aliases ?? []).map((alias: any) => (
                   <button key={alias} type="button" onClick={() => setFromEmail(alias)}
                     className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === alias ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
                     {alias}
@@ -754,12 +754,12 @@ function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => v
 
   const { data: assignees = [] } = useQuery({
     queryKey: ['inbox-assignees'],
-    queryFn: () => api.get<Assignee[]>('/inbox/drafts/assignees').then(r => r.data),
+    queryFn: () => api.get<Assignee[]>('/inbox/drafts/assignees').then((r: any) => r.data),
   })
 
   const { data: depts = [] } = useQuery({
     queryKey: ['departments', 'my'],
-    queryFn: () => api.get<Array<{ id: string; name: string }>>('/departments/my').then(r => r.data),
+    queryFn: () => api.get<Array<{ id: string; name: string }>>('/departments/my').then((r: any) => r.data),
   })
 
   async function assignToUser(userId: string) {
@@ -820,7 +820,7 @@ function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => v
         <div className="overflow-y-auto flex-1">
           {tab === 'users' && (
             <>
-              {assignees.map(assignee => (
+              {assignees.map((assignee: any) => (
                 <button
                   key={assignee.id}
                   type="button"
@@ -841,7 +841,7 @@ function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => v
 
           {tab === 'departments' && (
             <>
-              {depts.map(dept => (
+              {depts.map((dept: any) => (
                 <button
                   key={dept.id}
                   type="button"
@@ -958,7 +958,7 @@ export default function InboxQueue() {
   // Trending topics — derived from recent draft subjects, refreshed every 15 min.
   const { data: trending } = useQuery({
     queryKey: ['inbox-trending'],
-    queryFn: () => api.get<{ topics: string[] }>('/inbox/trending').then(r => r.data.topics),
+    queryFn: () => api.get<{ topics: string[] }>('/inbox/trending').then((r: any) => r.data.topics),
     staleTime: 15 * 60_000,
     refetchInterval: 15 * 60_000,
     refetchIntervalInBackground: false,
@@ -969,7 +969,7 @@ export default function InboxQueue() {
     queryKey: ['inbox-counts', deptId],
     queryFn: () => api.get<{ pending: number; personal: number; unread: number; unread_personal: number }>('/inbox/drafts/count', {
       params: deptId ? { department_id: deptId } : {},
-    }).then(r => r.data),
+    }).then((r: any) => r.data),
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
   })
@@ -1025,7 +1025,7 @@ export default function InboxQueue() {
 
   const { data: myDepts } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['departments', 'my'],
-    queryFn: () => api.get('/departments/my').then(r => r.data),
+    queryFn: () => api.get('/departments/my').then((r: any) => r.data),
     staleTime: 60_000,
   })
 
@@ -1037,7 +1037,7 @@ export default function InboxQueue() {
   // for all tenants regardless of whether the marketing module is enabled.
   const { data: outboundEmails, isLoading: outboundLoading } = useQuery({
     queryKey: ['outbound-emails', searchParam],
-    queryFn: () => api.get('/emailtracking/outbound', { params: { limit: 200, q: searchParam } }).then(r => r.data as any[]),
+    queryFn: () => api.get('/emailtracking/outbound', { params: { limit: 200, q: searchParam } }).then((r: any) => r.data as any[]),
     enabled: activeTab === 'sent',
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
@@ -1053,7 +1053,7 @@ export default function InboxQueue() {
 
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
     queryKey: draftKey('pending'),
-    queryFn: () => api.get('/inbox/drafts', { params: draftParams('pending') }).then(r => r.data),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('pending') }).then((r: any) => r.data),
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
     enabled: activeTab === 'pending',
@@ -1061,31 +1061,31 @@ export default function InboxQueue() {
 
   const { data: approvedDrafts } = useQuery({
     queryKey: draftKey('approved'),
-    queryFn: () => api.get('/inbox/drafts', { params: draftParams('approved') }).then(r => r.data),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('approved') }).then((r: any) => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: rejectedDrafts } = useQuery({
     queryKey: draftKey('rejected'),
-    queryFn: () => api.get('/inbox/drafts', { params: draftParams('rejected') }).then(r => r.data),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('rejected') }).then((r: any) => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: forwardedDrafts } = useQuery({
     queryKey: draftKey('forwarded'),
-    queryFn: () => api.get('/inbox/drafts', { params: draftParams('forwarded') }).then(r => r.data),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('forwarded') }).then((r: any) => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: spamDrafts } = useQuery({
     queryKey: draftKey('spam'),
-    queryFn: () => api.get('/inbox/drafts', { params: draftParams('spam') }).then(r => r.data),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('spam') }).then((r: any) => r.data),
     enabled: activeTab === 'processed',
   })
 
   const { data: binDrafts } = useQuery({
     queryKey: draftKey('bin'),
-    queryFn: () => api.get('/inbox/drafts', { params: draftParams('bin') }).then(r => r.data),
+    queryFn: () => api.get('/inbox/drafts', { params: draftParams('bin') }).then((r: any) => r.data),
     enabled: activeTab === 'processed',
   })
 
@@ -1134,7 +1134,7 @@ export default function InboxQueue() {
 
   const bulkAssignMutation = useMutation({
     mutationFn: ({ ids, assigned_to_user_id }: { ids: string[]; assigned_to_user_id: string | null }) =>
-      api.post('/inbox/drafts/bulk-assign', { ids, assigned_to_user_id }).then(r => r.data),
+      api.post('/inbox/drafts/bulk-assign', { ids, assigned_to_user_id }).then((r: any) => r.data),
     onSuccess: () => {
       setSelected(new Set())
       qc.invalidateQueries({ queryKey: ['drafts'] })
@@ -1143,15 +1143,15 @@ export default function InboxQueue() {
 
   const bulkMutation = useMutation({
     mutationFn: ({ ids, action }: { ids: string[]; action: 'bin' | 'spam' }) =>
-      api.post('/inbox/drafts/bulk-action', { ids, action }).then(r => r.data),
-    onMutate: async ({ ids }) => {
+      api.post('/inbox/drafts/bulk-action', { ids, action }).then((r: any) => r.data),
+    onMutate: async ({ ids }: any) => {
       const key = draftKey('pending')
       await qc.cancelQueries({ queryKey: key })
       const prev = qc.getQueryData(key)
       qc.setQueryData(key, (old: any) => (old ?? []).filter((d: any) => !ids.includes(d.id)))
       return { prev, key }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(ctx.key, ctx.prev)
     },
     onSuccess: () => {
@@ -1162,15 +1162,15 @@ export default function InboxQueue() {
 
   const reviewMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' }) =>
-      api.post(`/inbox/drafts/${id}/review`, { action }).then(r => r.data),
-    onMutate: async ({ id }) => {
+      api.post(`/inbox/drafts/${id}/review`, { action }).then((r: any) => r.data),
+    onMutate: async ({ id }: any) => {
       const key = draftKey('pending')
       await qc.cancelQueries({ queryKey: key })
       const prev = qc.getQueryData(key)
       qc.setQueryData(key, (old: any) => (old ?? []).filter((d: any) => d.id !== id))
       return { prev, key }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(ctx.key, ctx.prev)
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['drafts'] }),
@@ -1178,27 +1178,27 @@ export default function InboxQueue() {
 
   const { data: inboxTeamMembers = [] } = useQuery({
     queryKey: ['team-members', 'inbox'],
-    queryFn: () => api.get('/team/members', { params: { module: 'inbox' } }).then(r => r.data as { id: string; full_name: string; email: string }[]),
+    queryFn: () => api.get('/team/members', { params: { module: 'inbox' } }).then((r: any) => r.data as { id: string; full_name: string; email: string }[]),
     staleTime: 60_000,
   })
 
   const assignDraftMutation = useMutation({
     mutationFn: ({ id, userId }: { id: string; userId: string }) =>
-      api.patch(`/inbox/drafts/${id}/assign`, { assigned_to: userId }).then(r => r.data),
+      api.patch(`/inbox/drafts/${id}/assign`, { assigned_to: userId }).then((r: any) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['drafts'] }),
   })
 
   const { data: allDepartments = [] } = useQuery({
     queryKey: ['departments-all'],
-    queryFn: () => api.get('/departments/all').then(r => r.data as { id: string; name: string }[]),
+    queryFn: () => api.get('/departments/all').then((r: any) => r.data as { id: string; name: string }[]),
     staleTime: 60_000,
   })
 
-  const deptNameMap = Object.fromEntries(allDepartments.map(d => [d.id, d.name]))
+  const deptNameMap = Object.fromEntries(allDepartments.map((d: any) => [d.id, d.name]))
 
   const routeDraftMutation = useMutation({
     mutationFn: ({ id, departmentId }: { id: string; departmentId: string }) =>
-      api.patch(`/inbox/drafts/${id}/route`, { department_id: departmentId }).then(r => r.data),
+      api.patch(`/inbox/drafts/${id}/route`, { department_id: departmentId }).then((r: any) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['drafts'] }),
   })
 
@@ -1279,7 +1279,7 @@ export default function InboxQueue() {
                   <Users size={13} />
                   All
                 </button>
-                {(myDepts ?? []).map(d => (
+                {(myDepts ?? []).map((d: any) => (
                   <button
                     key={d.id}
                     onClick={() => { navigate(`/inbox?dept=${d.id}`); setSelected(new Set()); setPage(0) }}
@@ -1377,7 +1377,7 @@ export default function InboxQueue() {
         {!search && trending && trending.length > 0 && (
           <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-2">
             <span className="text-xs text-slate-300">Trending:</span>
-            {trending.map(topic => (
+            {trending.map((topic: any) => (
               <button
                 key={topic}
                 onClick={() => setSearch(topic)}
@@ -1642,7 +1642,7 @@ export default function InboxQueue() {
                       {
                         label: 'Assign to…',
                         icon: <User size={14} />,
-                        submenu: inboxTeamMembers.map(m => ({
+                        submenu: inboxTeamMembers.map((m: any) => ({
                           label: m.full_name,
                           onClick: () => assignDraftMutation.mutate({ id: d.id, userId: m.id }),
                         })),
@@ -1650,7 +1650,7 @@ export default function InboxQueue() {
                       {
                         label: 'Assign to department…',
                         icon: <Building2 size={14} />,
-                        submenu: allDepartments.map(dept => ({
+                        submenu: allDepartments.map((dept: any) => ({
                           label: dept.name,
                           onClick: () => routeDraftMutation.mutate({ id: d.id, departmentId: dept.id }),
                         })),

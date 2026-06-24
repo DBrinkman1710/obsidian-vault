@@ -34,7 +34,7 @@ export function SignaturePicker({ onPick }: { onPick: (sig: Signature) => void }
       </button>
       {open && (
         <div className="absolute right-0 z-20 mt-1 w-56 bg-white border border-slate-200 rounded-xl shadow-lg py-1 max-h-64 overflow-y-auto">
-          {signatures.map(sig => (
+          {signatures.map((sig: any) => (
             <button
               key={sig.id}
               type="button"

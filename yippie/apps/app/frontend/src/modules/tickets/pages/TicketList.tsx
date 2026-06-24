@@ -74,7 +74,7 @@ export default function TicketList() {
         status: statusFilter || undefined,
         assigned_to: assignedToMe && user?.id ? user.id : undefined,
       },
-    }).then(r => r.data),
+    }).then((r: any) => r.data),
   })
 
   const items: any[] = data?.items ?? []
@@ -98,7 +98,7 @@ export default function TicketList() {
 
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members', 'tickets'],
-    queryFn: () => api.get('/team/members', { params: { module: 'tickets' } }).then(r => r.data as { id: string; full_name: string; email: string }[]),
+    queryFn: () => api.get('/team/members', { params: { module: 'tickets' } }).then((r: any) => r.data as { id: string; full_name: string; email: string }[]),
     staleTime: 60_000,
   })
 
@@ -242,7 +242,7 @@ export default function TicketList() {
                 {
                   label: 'Assign to…',
                   icon: <User size={14} />,
-                  submenu: teamMembers.map(m => ({
+                  submenu: teamMembers.map((m: any) => ({
                     label: m.full_name,
                     onClick: () => assignMutation.mutate({ id: t.id, userId: m.id }),
                   })),

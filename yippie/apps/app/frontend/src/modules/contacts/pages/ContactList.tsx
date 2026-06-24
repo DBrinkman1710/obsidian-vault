@@ -57,7 +57,7 @@ export default function ContactList() {
 
   const { data: labels } = useQuery({ queryKey: ['contact-labels'], queryFn: fetchLabels })
   const { data: companies } = useQuery({ queryKey: ['companies'], queryFn: fetchCompanies })
-  const scopedCompany = companyId ? companies?.find(c => c.id === companyId) : null
+  const scopedCompany = companyId ? companies?.find((c: any) => c.id === companyId) : null
 
   const { data, isLoading } = useQuery({
     queryKey: ['contacts', search, labelFilter, companyFilter],
@@ -67,11 +67,11 @@ export default function ContactList() {
         label_id: labelFilter || undefined,
         company_id: companyFilter || undefined,
       },
-    }).then(r => r.data),
+    }).then((r: any) => r.data),
   })
 
   const items = data?.items ?? []
-  const ids = items.map(c => c.id)
+  const ids = items.map((c: any) => c.id)
   const selection = useSelection(ids)
   const ctx = useContextMenu()
 
@@ -83,9 +83,9 @@ export default function ContactList() {
       form.append('file', file)
       return api.post<ImportResult>('/contacts/import', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
-      }).then(r => r.data)
+      }).then((r: any) => r.data)
     },
-    onSuccess: (result) => {
+    onSuccess: (result: any) => {
       setImportResult(result)
       setImportError(null)
       queryClient.invalidateQueries({ queryKey: ['contacts'] })
@@ -191,7 +191,7 @@ export default function ContactList() {
           >
             All
           </button>
-          {labels.map(label => (
+          {labels.map((label: any) => (
             <LabelChip
               key={label.id}
               label={label}
@@ -215,7 +215,7 @@ export default function ContactList() {
           >
             All companies
           </button>
-          {companies.map(company => (
+          {companies.map((company: any) => (
             <CompanyBadge
               key={company.id}
               name={company.name}
@@ -270,7 +270,7 @@ export default function ContactList() {
             <TableSkeleton cols={5} />
           ) : (
             <tbody className="divide-y divide-slate-100">
-              {items.map(c => (
+              {items.map((c: any) => (
                 <tr
                   key={c.id}
                   className="transition-colors"
@@ -329,7 +329,7 @@ export default function ContactList() {
                       <span className="text-sm text-slate-600">—</span>
                     ) : (
                       <div className="flex flex-wrap gap-1">
-                        {c.labels.slice(0, 3).map(label => <LabelChip key={label.id} label={label} />)}
+                        {c.labels.slice(0, 3).map((label: any) => <LabelChip key={label.id} label={label} />)}
                         {c.labels.length > 3 && (
                           <span className="text-xs text-slate-400 self-center">+{c.labels.length - 3}</span>
                         )}

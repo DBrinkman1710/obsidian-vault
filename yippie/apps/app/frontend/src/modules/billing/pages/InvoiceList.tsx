@@ -81,7 +81,7 @@ function ContactPicker({
 
   const { data } = useQuery({
     queryKey: ['contact-search', debounced],
-    queryFn: () => api.get('/contacts', { params: { search: debounced, limit: 20 } }).then(r => r.data),
+    queryFn: () => api.get('/contacts', { params: { search: debounced, limit: 20 } }).then((r: any) => r.data),
     enabled: open,
   })
   const results: ContactLite[] = data?.items ?? []
@@ -307,7 +307,7 @@ function ImportModal({ onClose }: { onClose: () => void }) {
       })
       return res.data as ImportResult
     },
-    onSuccess: (data) => {
+    onSuccess: (data: any) => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
       setResult(data)
       if (data.imported > 0) toast.success(`${data.imported} invoice${data.imported === 1 ? '' : 's'} imported`)
@@ -317,7 +317,7 @@ function ImportModal({ onClose }: { onClose: () => void }) {
   })
 
   function downloadTemplate() {
-    api.get('/billing/invoices/import-template', { responseType: 'blob' }).then(res => {
+    api.get('/billing/invoices/import-template', { responseType: 'blob' }).then((res: any) => {
       downloadBlob(res.data, 'invoice_import_template.csv', 'text/csv')
     })
   }
@@ -417,19 +417,19 @@ export default function InvoiceList() {
 
   const { data: invoices, isLoading } = useQuery<Invoice[]>({
     queryKey: ['invoices'],
-    queryFn: () => api.get('/billing/invoices').then(r => r.data),
+    queryFn: () => api.get('/billing/invoices').then((r: any) => r.data),
   })
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase()
     if (!term) return invoices ?? []
-    return (invoices ?? []).filter(inv =>
+    return (invoices ?? []).filter((inv: any) =>
       inv.invoice_number.toLowerCase().includes(term) ||
       (inv.contact_name ?? '').toLowerCase().includes(term)
     )
   }, [invoices, search])
 
-  const filteredIds = filtered.map(inv => inv.id)
+  const filteredIds = filtered.map((inv: any) => inv.id)
   const selection = useSelection(filteredIds)
   const ctx = useContextMenu()
 
@@ -518,7 +518,7 @@ export default function InvoiceList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filtered.map(inv => (
+              {filtered.map((inv: any) => (
                 <tr
                   key={inv.id}
                   className="transition-colors"

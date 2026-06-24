@@ -39,7 +39,7 @@ export function signatureImageTag(dataUri: string): string {
 export function useSignatures() {
   return useQuery({
     queryKey: ['signatures'],
-    queryFn: () => api.get<Signature[]>('/auth/me/signatures').then(r => r.data),
+    queryFn: () => api.get<Signature[]>('/auth/me/signatures').then((r: any) => r.data),
   })
 }
 

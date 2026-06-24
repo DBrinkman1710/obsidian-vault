@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { AnalyticsRecipient, ButtonAnalytic, Campaign, marketingApi, VariantStats } from '../api'
+import { ButtonAnalytic, Campaign, marketingApi, VariantStats } from '../api'
 
-const STATUS_TONE: Record<AnalyticsRecipient['status'], string> = {
+const STATUS_TONE: Record<string, string> = {
   sent: 'bg-slate-100 text-slate-600',
   opened: 'bg-blue-50 text-blue-700',
   clicked: 'bg-indigo-50 text-indigo-700',
@@ -53,7 +53,7 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
     return <div className="p-6 text-sm text-slate-400">Loading analytics…</div>
   }
 
-  const maxOpened = Math.max(1, ...data.variants.map((v) => v.opened))
+  const maxOpened = Math.max(1, ...data.variants.map((v: any) => v.opened))
 
   return (
     <div className="h-full overflow-y-auto p-6">
@@ -78,7 +78,7 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
               )}
             </div>
             <div className="space-y-3">
-              {data.variants.map((v) => (
+              {data.variants.map((v: any) => (
                 <VariantBar key={v.variant} v={v} max={maxOpened} isWinner={data.ab_winner === v.variant} />
               ))}
             </div>
@@ -100,7 +100,7 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
                 </tr>
               </thead>
               <tbody>
-                {buttonData.map((b) => (
+                {buttonData.map((b: any) => (
                   <tr key={b.button_id} className="border-b border-slate-50 last:border-0">
                     <td className="px-4 py-2.5 text-sm font-medium text-slate-700">{b.label}</td>
                     <td className="px-4 py-2.5 text-sm font-bold text-slate-900">{b.click_count}</td>
@@ -124,7 +124,7 @@ export function AnalyticsTab({ campaign }: { campaign: Campaign }) {
               </tr>
             </thead>
             <tbody>
-              {data.recipients.map((r) => (
+              {data.recipients.map((r: any) => (
                 <tr key={r.id} className="border-b border-slate-50 last:border-0">
                   <td className="px-4 py-2.5 font-mono text-xs text-slate-700">{r.recipient_email}</td>
                   <td className="px-4 py-2.5">

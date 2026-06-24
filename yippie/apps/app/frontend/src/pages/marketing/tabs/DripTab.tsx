@@ -110,7 +110,7 @@ export function DripTab({ campaign }: { campaign: Campaign }) {
               No follow-up steps yet.
             </p>
           )}
-          {steps.map((s, i) => (
+          {steps.map((s: any, i: any) => (
             <div key={s.id} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white p-4">
               <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-100 font-mono text-xs font-bold text-slate-600">
                 {i + 1}

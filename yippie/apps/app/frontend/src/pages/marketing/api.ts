@@ -105,54 +105,54 @@ export interface Unsubscribe {
 }
 
 export const marketingApi = {
-  listCampaigns: () => api.get<Campaign[]>('/marketing/campaigns').then(r => r.data),
-  getCampaign: (id: string) => api.get<Campaign>(`/marketing/campaigns/${id}`).then(r => r.data),
+  listCampaigns: () => api.get<Campaign[]>('/marketing/campaigns').then((r: any) => r.data),
+  getCampaign: (id: string) => api.get<Campaign>(`/marketing/campaigns/${id}`).then((r: any) => r.data),
   createCampaign: (body: { name: string; subject: string; dispatch_channel: Channel }) =>
-    api.post<Campaign>('/marketing/campaigns', body).then(r => r.data),
+    api.post<Campaign>('/marketing/campaigns', body).then((r: any) => r.data),
   updateCampaign: (id: string, body: Partial<Campaign> & { segment_filter?: SegmentFilter }) =>
-    api.patch<Campaign>(`/marketing/campaigns/${id}`, body).then(r => r.data),
-  deleteCampaign: (id: string) => api.delete(`/marketing/campaigns/${id}`).then(r => r.data),
+    api.patch<Campaign>(`/marketing/campaigns/${id}`, body).then((r: any) => r.data),
+  deleteCampaign: (id: string) => api.delete(`/marketing/campaigns/${id}`).then((r: any) => r.data),
 
   getTemplates: (id: string) =>
-    api.get<CampaignTemplate[]>(`/marketing/campaigns/${id}/templates`).then(r => r.data),
+    api.get<CampaignTemplate[]>(`/marketing/campaigns/${id}/templates`).then((r: any) => r.data),
   setTemplates: (
     id: string,
-    templates: { variant: Variant | null; raw_html: string; raw_css: string }[],
+    templates: { variant: Variant | null; raw_html: string; raw_css: string; design_json?: string; campaign_buttons?: unknown[] }[],
   ) =>
-    api.post<CampaignTemplate[]>(`/marketing/campaigns/${id}/templates`, { templates }).then(r => r.data),
+    api.post<CampaignTemplate[]>(`/marketing/campaigns/${id}/templates`, { templates }).then((r: any) => r.data),
 
   launch: (id: string, body?: { enable_ab?: boolean; segment_filter?: SegmentFilter }) =>
-    api.post(`/marketing/campaigns/${id}/launch`, body ?? {}).then(r => r.data),
+    api.post(`/marketing/campaigns/${id}/launch`, body ?? {}).then((r: any) => r.data),
   schedule: (id: string, scheduled_at: string, segment_filter?: SegmentFilter) =>
-    api.post<Campaign>(`/marketing/campaigns/${id}/schedule`, { scheduled_at, segment_filter }).then(r => r.data),
+    api.post<Campaign>(`/marketing/campaigns/${id}/schedule`, { scheduled_at, segment_filter }).then((r: any) => r.data),
 
   getAnalytics: (id: string) =>
-    api.get<AnalyticsSummary>(`/marketing/campaigns/${id}/analytics`).then(r => r.data),
+    api.get<AnalyticsSummary>(`/marketing/campaigns/${id}/analytics`).then((r: any) => r.data),
 
   listSequences: (id: string) =>
-    api.get<SequenceStep[]>(`/marketing/campaigns/${id}/sequences`).then(r => r.data),
+    api.get<SequenceStep[]>(`/marketing/campaigns/${id}/sequences`).then((r: any) => r.data),
   addSequence: (id: string, body: { delay_days: number; subject: string; html_body: string }) =>
-    api.post<SequenceStep>(`/marketing/campaigns/${id}/sequences`, body).then(r => r.data),
+    api.post<SequenceStep>(`/marketing/campaigns/${id}/sequences`, body).then((r: any) => r.data),
   deleteSequence: (id: string, seqId: string) =>
-    api.delete(`/marketing/campaigns/${id}/sequences/${seqId}`).then(r => r.data),
+    api.delete(`/marketing/campaigns/${id}/sequences/${seqId}`).then((r: any) => r.data),
 
   previewSegment: (filter_by: FilterBy, filter_id?: string | null) =>
     api
       .get<SegmentPreview>('/marketing/segments/preview', {
         params: { filter_by, ...(filter_id ? { filter_id } : {}) },
       })
-      .then(r => r.data),
+      .then((r: any) => r.data),
 
-  listUnsubscribes: () => api.get<Unsubscribe[]>('/marketing/unsubscribes').then(r => r.data),
+  listUnsubscribes: () => api.get<Unsubscribe[]>('/marketing/unsubscribes').then((r: any) => r.data),
   removeUnsubscribe: (contactId: string) =>
-    api.delete(`/marketing/unsubscribes/${contactId}`).then(r => r.data),
+    api.delete(`/marketing/unsubscribes/${contactId}`).then((r: any) => r.data),
 
   duplicateCampaign: (id: string) =>
-    api.post<Campaign>(`/marketing/campaigns/${id}/duplicate`).then(r => r.data),
+    api.post<Campaign>(`/marketing/campaigns/${id}/duplicate`).then((r: any) => r.data),
   testSend: (id: string) =>
-    api.post<{ to: string; campaign_id: string }>(`/marketing/campaigns/${id}/test-send`).then(r => r.data),
+    api.post<{ to: string; campaign_id: string }>(`/marketing/campaigns/${id}/test-send`).then((r: any) => r.data),
   getButtonAnalytics: (id: string) =>
-    api.get<ButtonAnalytic[]>(`/marketing/campaigns/${id}/button-analytics`).then(r => r.data),
+    api.get<ButtonAnalytic[]>(`/marketing/campaigns/${id}/button-analytics`).then((r: any) => r.data),
   getStats: (days = 30) =>
-    api.get<MarketingStats>('/marketing/stats', { params: { days } }).then(r => r.data),
+    api.get<MarketingStats>('/marketing/stats', { params: { days } }).then((r: any) => r.data),
 }

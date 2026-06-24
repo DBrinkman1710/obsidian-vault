@@ -44,7 +44,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
 
   const { data: stages = [] } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
   })
 
   const createMut = useMutation({
@@ -84,7 +84,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
   function onDrop(i: number) {
     const from = dragIdx.current
     if (from === null || from === i) return
-    const ids = [...stages.map(s => s.id)]
+    const ids = [...stages.map((s: any) => s.id)]
     const [moved] = ids.splice(from, 1)
     ids.splice(i, 0, moved)
     reorderMut.mutate(ids)
@@ -105,7 +105,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
           {stages.length === 0 && (
             <p className="px-6 py-8 text-sm text-slate-400 text-center">No stages yet. Add one below.</p>
           )}
-          {stages.map((s, i) => (
+          {stages.map((s: any, i: any) => (
             <div
               key={s.id}
               draggable
@@ -202,7 +202,7 @@ function AddContactModal({
 
   const { data: contacts = [] } = useQuery<{ id: string; full_name: string; email: string | null }[]>({
     queryKey: ['contacts-search', search],
-    queryFn: () => api.get('/contacts', { params: { search, limit: 50 } }).then(r => r.data.items ?? r.data),
+    queryFn: () => api.get('/contacts', { params: { search, limit: 50 } }).then((r: any) => r.data.items ?? r.data),
   })
 
   const moveMut = useMutation({
@@ -210,7 +210,7 @@ function AddContactModal({
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['pipeline-board'] }); onClose() },
   })
 
-  const available = contacts.filter(c => !existingContactIds.has(c.id))
+  const available = contacts.filter((c: any) => !existingContactIds.has(c.id))
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -233,7 +233,7 @@ function AddContactModal({
               {contacts.length === 0 ? 'No contacts found' : 'All matching contacts are already in the kanban'}
             </p>
           )}
-          {available.map(c => (
+          {available.map((c: any) => (
             <button
               key={c.id}
               onClick={() => moveMut.mutate(c.id)}
@@ -366,27 +366,27 @@ export default function PipelinePage() {
 
   const { data: board = [], isLoading } = useQuery<BoardColumn[]>({
     queryKey: ['pipeline-board'],
-    queryFn: () => api.get('/pipeline/board').then(r => r.data),
+    queryFn: () => api.get('/pipeline/board').then((r: any) => r.data),
   })
 
   const moveMut = useMutation({
     mutationFn: ({ contactId, stageId }: { contactId: string; stageId: string }) =>
       api.put(`/pipeline/contacts/${contactId}/stage`, { stage_id: stageId }),
-    onMutate: async ({ contactId, stageId }) => {
+    onMutate: async ({ contactId, stageId }: any) => {
       await qc.cancelQueries({ queryKey: ['pipeline-board'] })
       const prev = qc.getQueryData<BoardColumn[]>(['pipeline-board'])
-      qc.setQueryData<BoardColumn[]>(['pipeline-board'], old => {
+      qc.setQueryData<BoardColumn[]>(['pipeline-board'], (old: any) => {
         if (!old) return old
         let moved: BoardContact | undefined
-        const without = old.map(col => ({
+        const without = old.map((col: any) => ({
           ...col,
-          contacts: col.contacts.filter(c => {
+          contacts: col.contacts.filter((c: any) => {
             if (c.contact_id === contactId) { moved = c; return false }
             return true
           }),
         }))
         if (!moved) return old
-        return without.map(col =>
+        return without.map((col: any) =>
           col.stage.id === stageId
             ? { ...col, contacts: [...col.contacts, { ...moved!, entered_at: new Date().toISOString(), days_in_stage: 0, stale_alert: false }] }
             : col
@@ -394,7 +394,7 @@ export default function PipelinePage() {
       })
       return { prev }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['pipeline-board'], ctx.prev)
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['pipeline-board'] }),
@@ -403,21 +403,21 @@ export default function PipelinePage() {
   const bulkMoveMut = useMutation({
     mutationFn: ({ contactIds, stageId }: { contactIds: string[]; stageId: string }) =>
       api.put('/pipeline/contacts/bulk-stage', { contact_ids: contactIds, stage_id: stageId }),
-    onMutate: async ({ contactIds, stageId }) => {
+    onMutate: async ({ contactIds, stageId }: any) => {
       await qc.cancelQueries({ queryKey: ['pipeline-board'] })
       const prev = qc.getQueryData<BoardColumn[]>(['pipeline-board'])
       const idSet = new Set(contactIds)
-      qc.setQueryData<BoardColumn[]>(['pipeline-board'], old => {
+      qc.setQueryData<BoardColumn[]>(['pipeline-board'], (old: any) => {
         if (!old) return old
         const moved: BoardContact[] = []
-        const without = old.map(col => ({
+        const without = old.map((col: any) => ({
           ...col,
-          contacts: col.contacts.filter(c => {
+          contacts: col.contacts.filter((c: any) => {
             if (idSet.has(c.contact_id)) { moved.push(c); return false }
             return true
           }),
         }))
-        return without.map(col =>
+        return without.map((col: any) =>
           col.stage.id === stageId
             ? { ...col, contacts: [...col.contacts, ...moved.map(c => ({ ...c, entered_at: new Date().toISOString(), days_in_stage: 0, stale_alert: false }))] }
             : col
@@ -425,7 +425,7 @@ export default function PipelinePage() {
       })
       return { prev }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['pipeline-board'], ctx.prev)
     },
     onSuccess: () => clearSelection(),
@@ -434,21 +434,21 @@ export default function PipelinePage() {
 
   const removeMut = useMutation({
     mutationFn: (contactId: string) => api.delete(`/pipeline/contacts/${contactId}/stage`),
-    onMutate: async (contactId) => {
+    onMutate: async (contactId: any) => {
       await qc.cancelQueries({ queryKey: ['pipeline-board'] })
       const prev = qc.getQueryData<BoardColumn[]>(['pipeline-board'])
-      qc.setQueryData<BoardColumn[]>(['pipeline-board'], old =>
-        old?.map(col => ({ ...col, contacts: col.contacts.filter(c => c.contact_id !== contactId) }))
+      qc.setQueryData<BoardColumn[]>(['pipeline-board'], (old: any) =>
+        old?.map((col: any) => ({ ...col, contacts: col.contacts.filter((c: any) => c.contact_id !== contactId) }))
       )
       return { prev }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['pipeline-board'], ctx.prev)
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['pipeline-board'] }),
   })
 
-  const allContactIds = new Set(board.flatMap(col => col.contacts.map(c => c.contact_id)))
+  const allContactIds = new Set(board.flatMap((col: any) => col.contacts.map((c: any) => c.contact_id)))
 
   function handleDrop(toStageId: string) {
     setDragOverStageId(null)
@@ -471,7 +471,7 @@ export default function PipelinePage() {
   }
 
   const addStageContacts = addToStage
-    ? new Set(board.find(c => c.stage.id === addToStage)?.contacts.map(c => c.contact_id) ?? [])
+    ? new Set<string>(board.find((c: any) => c.stage.id === addToStage)?.contacts.map((c: any) => c.contact_id) ?? [])
     : new Set<string>()
 
   // Flatten board → {id, full_name} for the booking modal (dedupe across columns).
@@ -578,7 +578,7 @@ export default function PipelinePage() {
       ) : isMobile ? (
         /* Mobile — vertical list grouped by stage */
         <div className="flex flex-col gap-4">
-          {board.map(col => (
+          {board.map((col: any) => (
             <div key={col.stage.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
               <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100">
                 <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: col.stage.color }} />
@@ -591,7 +591,7 @@ export default function PipelinePage() {
                 <p className="px-4 py-4 text-sm text-slate-400">No contacts in this stage</p>
               ) : (
                 <div className="divide-y divide-slate-50">
-                  {col.contacts.map(c => (
+                  {col.contacts.map((c: any) => (
                     <Link
                       key={c.contact_id}
                       to={`/contacts/${c.contact_id}`}
@@ -615,7 +615,7 @@ export default function PipelinePage() {
       ) : (
         /* Desktop — horizontally scrollable kanban board */
         <div className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-13rem)] items-start">
-          {board.map(col => (
+          {board.map((col: any) => (
             <div
               key={col.stage.id}
               className={`shrink-0 w-64 flex flex-col rounded-xl overflow-hidden transition-colors ${
@@ -641,7 +641,7 @@ export default function PipelinePage() {
 
               {/* Cards */}
               <div className="flex-1 overflow-y-auto px-2 py-2 space-y-2 min-h-[4rem]">
-                {col.contacts.map(contact => (
+                {col.contacts.map((contact: any) => (
                   <ContactCard
                     key={contact.contact_id}
                     contact={contact}
@@ -665,8 +665,8 @@ export default function PipelinePage() {
                         ...(!bulkIds ? [{ label: 'View contact', icon: <User size={13} />, onClick: () => setPeekContactId(contact.contact_id) }, { separator: true }] : [{ separator: true }]),
                         { header: 'Move to stage' },
                         ...board
-                          .filter(c => c.stage.id !== col.stage.id)
-                          .map(c => ({
+                          .filter((c: any) => c.stage.id !== col.stage.id)
+                          .map((c: any) => ({
                             label: c.stage.name,
                             icon: <ArrowRight size={13} />,
                             onClick: () => bulkIds

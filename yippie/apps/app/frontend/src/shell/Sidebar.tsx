@@ -139,28 +139,28 @@ export function Sidebar() {
 
   const { data: draftCount, isFetching: inboxFetching } = useQuery({
     queryKey: ['drafts', 'count'],
-    queryFn: () => api.get('/inbox/drafts/count').then(r => r.data),
+    queryFn: () => api.get('/inbox/drafts/count').then((r: any) => r.data),
     refetchInterval: 60_000,
     enabled: !!config,
   })
 
   const { data: deadlineData } = useQuery({
     queryKey: ['tickets', 'deadline-count'],
-    queryFn: () => api.get('/tickets/deadline-count').then(r => r.data),
+    queryFn: () => api.get('/tickets/deadline-count').then((r: any) => r.data),
     refetchInterval: 60_000,
     enabled: !!config,
   })
 
   const { data: chatCountData } = useQuery({
     queryKey: ['chat-open-count'],
-    queryFn: () => api.get('/chat/sessions/count').then(r => r.data),
+    queryFn: () => api.get('/chat/sessions/count').then((r: any) => r.data),
     refetchInterval: 60_000,
     enabled: !!config && (config.enabled_modules ?? []).includes('chat'),
   })
 
   const { data: myDepts } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['departments', 'my'],
-    queryFn: () => api.get('/departments/my').then(r => r.data),
+    queryFn: () => api.get('/departments/my').then((r: any) => r.data),
     enabled: !!config && (config.enabled_modules ?? []).includes('departments'),
     staleTime: 60_000,
   })
@@ -211,7 +211,7 @@ export function Sidebar() {
         <NavLink
           to={path}
           title={collapsed ? label : undefined}
-          className={({ isActive }) => navCls(isActive)}
+          className={({ isActive }: any) => navCls(isActive)}
           style={reordering ? { paddingRight: '2rem' } : undefined}
         >
           <Icon size={16} strokeWidth={2} className="shrink-0" />
@@ -254,7 +254,7 @@ export function Sidebar() {
 
         {mod === 'inbox' && !collapsed && myDepts && myDepts.length > 0 && (
           <div className="pl-5 mt-0.5 space-y-0.5">
-            {myDepts.map(dept => {
+            {myDepts.map((dept: any) => {
               const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
               const isThisDept = params.get('dept') === dept.id
               return (
@@ -352,7 +352,7 @@ export function Sidebar() {
             <NavLink
               to="/superadmin/clients"
               title={collapsed ? 'Clients' : undefined}
-              className={({ isActive }) => navCls(isActive)}
+              className={({ isActive }: any) => navCls(isActive)}
             >
               <Building2 size={16} strokeWidth={2} />
               {!collapsed && <span>Clients</span>}
@@ -362,7 +362,7 @@ export function Sidebar() {
           <NavLink
             to="/settings/profile"
             title={collapsed ? t('profile') : undefined}
-            className={({ isActive }) => navCls(isActive)}
+            className={({ isActive }: any) => navCls(isActive)}
           >
             <UserCircle size={16} strokeWidth={2} />
             {!collapsed && <span>{t('profile')}</span>}
@@ -373,7 +373,7 @@ export function Sidebar() {
               <NavLink
                 to="/settings/team"
                 title={collapsed ? t('team') : undefined}
-                className={({ isActive }) => navCls(isActive)}
+                className={({ isActive }: any) => navCls(isActive)}
               >
                 <Users size={16} strokeWidth={2} />
                 {!collapsed && <span>{t('team')}</span>}
@@ -382,7 +382,7 @@ export function Sidebar() {
                 <NavLink
                   to="/settings/subscription"
                   title={collapsed ? 'Subscription' : undefined}
-                  className={({ isActive }) => navCls(isActive)}
+                  className={({ isActive }: any) => navCls(isActive)}
                 >
                   <CreditCard size={16} strokeWidth={2} />
                   {!collapsed && <span>Subscription</span>}
@@ -403,7 +403,7 @@ export function Sidebar() {
             <NavLink
               to="/settings/superadmins"
               title={collapsed ? 'Superadmins' : undefined}
-              className={({ isActive }) => navCls(isActive)}
+              className={({ isActive }: any) => navCls(isActive)}
             >
               <ShieldCheck size={16} strokeWidth={2} />
               {!collapsed && <span>Superadmins</span>}

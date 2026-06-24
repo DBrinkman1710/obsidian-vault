@@ -173,7 +173,7 @@ export default function CompaniesPage() {
       )}
 
       <div className="flex flex-col gap-3">
-        {companies?.map(company => (
+        {companies?.map((company: any) => (
           <div key={company.id}>
             {editingId === company.id ? (
               <div>

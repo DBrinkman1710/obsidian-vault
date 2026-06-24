@@ -23,7 +23,7 @@ function OrgDetailsCard() {
 
   const { data } = useQuery({
     queryKey: ['org-settings'],
-    queryFn: () => api.get('/team/org-settings').then(r => r.data),
+    queryFn: () => api.get('/team/org-settings').then((r: any) => r.data),
   })
   useEffect(() => {
     if (data) { setKvk(data.kvk_nummer ?? ''); setBtw(data.btw_nummer ?? '') }
@@ -82,7 +82,7 @@ function LiveChatSettingsCard() {
 
   const { data } = useQuery({
     queryKey: ['chat-settings'],
-    queryFn: () => api.get('/chat/settings').then(r => r.data),
+    queryFn: () => api.get('/chat/settings').then((r: any) => r.data),
   })
   useEffect(() => {
     if (data) setHours(String(data.hide_solved_chats_hours ?? 72))
@@ -138,7 +138,7 @@ function KanbanStagesPanel() {
 
   const { data: stages = [] } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
   })
 
   const invalidate = () => {
@@ -178,7 +178,7 @@ function KanbanStagesPanel() {
   function onDrop(i: number) {
     const from = dragIdx.current
     if (from === null || from === i) return
-    const ids = [...stages.map(s => s.id)]
+    const ids = [...stages.map((s: any) => s.id)]
     const [moved] = ids.splice(from, 1)
     ids.splice(i, 0, moved)
     reorderMut.mutate(ids)
@@ -198,7 +198,7 @@ function KanbanStagesPanel() {
         {stages.length === 0 && (
           <p className="px-6 py-8 text-sm text-slate-400 text-center">No stages yet. Add one below.</p>
         )}
-        {stages.map((s, i) => (
+        {stages.map((s: any, i: any) => (
           <div
             key={s.id}
             draggable
@@ -291,7 +291,7 @@ function ContactLabelsCard() {
 
   const { data: labels = [] } = useQuery<ContactLabel[]>({
     queryKey: ['contact-labels'],
-    queryFn: () => api.get('/contacts/labels').then(r => r.data),
+    queryFn: () => api.get('/contacts/labels').then((r: any) => r.data),
   })
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ['contact-labels'] })
@@ -332,7 +332,7 @@ function ContactLabelsCard() {
         {labels.length === 0 && (
           <p className="px-6 py-8 text-sm text-slate-400 text-center">No labels yet. Add one below.</p>
         )}
-        {labels.map(l => (
+        {labels.map((l: any) => (
           <div key={l.id} className="flex items-center gap-3 px-6 py-3 hover:bg-slate-50">
             <span className="w-3 h-3 rounded-full shrink-0" style={{ background: l.color }} />
             <div className="flex-1 min-w-0">

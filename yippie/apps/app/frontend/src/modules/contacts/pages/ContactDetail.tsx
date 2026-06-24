@@ -61,26 +61,26 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
 
   const { data: stage } = useQuery<PipelineStage | null>({
     queryKey: ['contact-pipeline-stage', contactId],
-    queryFn: () => api.get(`/pipeline/contacts/${contactId}/stage`).then(r => r.data),
+    queryFn: () => api.get(`/pipeline/contacts/${contactId}/stage`).then((r: any) => r.data),
     enabled: isPipelineEnabled,
   })
 
   const { data: allStages = [] } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then(r => r.data),
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
     enabled: isPipelineEnabled && editing,
   })
 
   const moveMut = useMutation({
     mutationFn: (stageId: string) => api.put(`/pipeline/contacts/${contactId}/stage`, { stage_id: stageId }),
-    onMutate: async (stageId) => {
+    onMutate: async (stageId: any) => {
       await qc.cancelQueries({ queryKey: ['contact-pipeline-stage', contactId] })
       const prev = qc.getQueryData(['contact-pipeline-stage', contactId])
-      const target = allStages.find(s => s.id === stageId)
+      const target = allStages.find((s: any) => s.id === stageId)
       if (target) qc.setQueryData(['contact-pipeline-stage', contactId], target)
       return { prev }
     },
-    onError: (_err, _stageId, ctx) => {
+    onError: (_err: any, _stageId: any, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(['contact-pipeline-stage', contactId], ctx.prev)
       toast.error('Failed to update stage.')
     },
@@ -126,7 +126,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               <option value="">Select stage…</option>
-              {allStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              {allStages.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <div className="flex gap-2">
               <button
@@ -184,7 +184,7 @@ function ShipmentsBlock({ contactId }: { contactId: string }) {
 
   const { data } = useQuery({
     queryKey: ['contact-shipments', contactId],
-    queryFn: () => api.get('/shipments', { params: { contact_id: contactId, limit: 5 } }).then(r => r.data),
+    queryFn: () => api.get('/shipments', { params: { contact_id: contactId, limit: 5 } }).then((r: any) => r.data),
     enabled: isEnabled,
   })
 
@@ -240,12 +240,12 @@ export default function ContactDetail() {
 
   const { data: contact, isLoading } = useQuery({
     queryKey: ['contact', id],
-    queryFn: () => api.get(`/contacts/${id}`).then(r => r.data),
+    queryFn: () => api.get(`/contacts/${id}`).then((r: any) => r.data),
   })
 
   const { data: activity } = useQuery({
     queryKey: ['contact-activity', id],
-    queryFn: () => api.get(`/activity`, { params: { contact_id: id } }).then(r => r.data),
+    queryFn: () => api.get(`/activity`, { params: { contact_id: id } }).then((r: any) => r.data),
   })
 
   if (isLoading) return <p className="text-sm text-slate-400">Loading…</p>
@@ -653,12 +653,12 @@ function LabelsRow({ contactId, labels }: { contactId: string; labels: ContactLa
       const prev = qc.getQueryData(['contact', contactId])
       const allLabels = qc.getQueryData<ContactLabel[]>(['contact-labels']) ?? []
       const nextLabels = selectedIds
-        .map(lid => allLabels.find(l => l.id === lid))
+        .map(lid => allLabels.find((l: any) => l.id === lid))
         .filter((l): l is ContactLabel => !!l)
       qc.setQueryData(['contact', contactId], (old: any) => old ? { ...old, labels: nextLabels } : old)
       return { prev }
     },
-    onError: (_err, _vars, ctx) => {
+    onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(['contact', contactId], ctx.prev)
       toast.error('Failed to update label.')
     },

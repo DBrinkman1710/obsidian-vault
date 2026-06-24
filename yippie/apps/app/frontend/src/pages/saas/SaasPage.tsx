@@ -29,7 +29,7 @@ export default function SaasPage() {
 
   const { data: summary } = useQuery<HealthSummary>({
     queryKey: ['saas-health-summary'],
-    queryFn: () => api.get('/saas/health/summary').then(r => r.data),
+    queryFn: () => api.get('/saas/health/summary').then((r: any) => r.data),
     refetchInterval: 60_000,
   })
 
@@ -79,7 +79,7 @@ export default function SaasPage() {
         <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Top features this month</h2>
           <div className="space-y-2">
-            {summary.top_features.map((f, i) => {
+            {summary.top_features.map((f: any, i: any) => {
               const max = summary.top_features[0]?.count || 1
               return (
                 <div key={f.feature} className="flex items-center gap-3">
@@ -110,7 +110,7 @@ export default function SaasPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {summary.common_errors.map(e => (
+              {summary.common_errors.map((e: any) => (
                 <tr key={e.error_code} className="hover:bg-slate-50">
                   <td className="px-5 py-2.5 text-slate-700 font-mono text-xs">{e.error_code}</td>
                   <td className="px-5 py-2.5 text-right text-slate-600">{e.count}</td>

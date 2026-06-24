@@ -31,7 +31,7 @@ export default function SalesPage() {
 
   const { data: stats } = useQuery<SalesStats>({
     queryKey: ['sales-summary'],
-    queryFn: () => api.get('/sales/summary').then(r => r.data),
+    queryFn: () => api.get('/sales/summary').then((r: any) => r.data),
     refetchInterval: 30_000,
   })
 
@@ -96,7 +96,7 @@ export default function SalesPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {stats.top_pages.map(p => (
+              {stats.top_pages.map((p: any) => (
                 <tr key={p.url} className="hover:bg-slate-50">
                   <td className="px-5 py-2.5 text-slate-700 font-mono text-xs truncate max-w-xs">{p.url}</td>
                   <td className="px-5 py-2.5 text-right text-slate-600">{p.count}</td>

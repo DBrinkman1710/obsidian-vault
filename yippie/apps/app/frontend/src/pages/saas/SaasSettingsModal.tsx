@@ -107,7 +107,7 @@ function OverviewTab() {
 function SnippetTab() {
   const { data } = useQuery({
     queryKey: ['saas-token'],
-    queryFn: () => api.get('/saas/token').then(r => r.data),
+    queryFn: () => api.get('/saas/token').then((r: any) => r.data),
   })
 
   const token = data?.tracking_token ?? ''

@@ -152,8 +152,8 @@ export default function LoginPage() {
             to="/forgot-password"
             className="text-sm text-center transition-colors"
             style={{ color: 'var(--text-muted)' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-subtle)' }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-muted)' }}
+            onMouseEnter={(e: any) => { e.currentTarget.style.color = 'var(--text-subtle)' }}
+            onMouseLeave={(e: any) => { e.currentTarget.style.color = 'var(--text-muted)' }}
           >
             Forgot password?
           </Link>

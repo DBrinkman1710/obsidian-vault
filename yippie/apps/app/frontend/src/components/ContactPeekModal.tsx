@@ -23,7 +23,7 @@ export default function ContactPeekModal({
 }) {
   const { data: contact, isLoading } = useQuery<ContactPeekData>({
     queryKey: ['contact', contactId],
-    queryFn: () => api.get(`/contacts/${contactId}`).then(r => r.data),
+    queryFn: () => api.get(`/contacts/${contactId}`).then((r: any) => r.data),
     enabled: contactId !== null,
   })
 
@@ -67,7 +67,7 @@ export default function ContactPeekModal({
                 <div className="flex items-center gap-2 flex-wrap">
                   <div className="w-10 h-10 rounded-full bg-yippie/15 flex items-center justify-center shrink-0">
                     <span className="text-sm font-bold text-yippie">
-                      {contact.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                      {contact.full_name.split(' ').map((n: any) => n[0]).join('').slice(0, 2).toUpperCase()}
                     </span>
                   </div>
                   <div>
@@ -113,7 +113,7 @@ export default function ContactPeekModal({
 
               {contact.labels && contact.labels.length > 0 && (
                 <div className="flex flex-wrap gap-1.5">
-                  {contact.labels.map(label => (
+                  {contact.labels.map((label: any) => (
                     <LabelChip key={label.id} label={label} />
                   ))}
                 </div>
