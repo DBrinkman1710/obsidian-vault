@@ -5,6 +5,7 @@ import { Plus, Pencil, Trash2, Building2, Users } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { fetchCompanies, type Company } from '../components/CompanyBadge'
+import CompanyPeekModal, { type CompanyPeekData } from '../../../components/CompanyPeekModal'
 
 interface FormState { name: string; domain: string; notes: string }
 const EMPTY: FormState = { name: '', domain: '', notes: '' }
@@ -65,6 +66,7 @@ export default function CompaniesPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
 
+  const [peekCompany, setPeekCompany] = useState<CompanyPeekData | null>(null)
   const { data: companies, isLoading } = useQuery<Company[]>({ queryKey: ['companies'], queryFn: fetchCompanies })
 
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['companies'] }); qc.invalidateQueries({ queryKey: ['contacts'] }) }
@@ -137,7 +139,7 @@ export default function CompaniesPage() {
               </div>
             ) : (
               <div
-                onClick={() => { if (editingId) return; navigate(`/contacts/companies/${company.id}`) }}
+                onClick={() => { if (editingId) return; setPeekCompany(company) }}
                 className="bg-white border border-slate-200 rounded-xl p-4 flex items-center gap-3 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors"
               >
                 <div className="w-8 h-8 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
@@ -175,6 +177,12 @@ export default function CompaniesPage() {
           </div>
         )}
       </div>
+
+      <CompanyPeekModal
+        company={peekCompany}
+        onClose={() => setPeekCompany(null)}
+        onViewContacts={id => navigate(`/contacts/list/${id}`)}
+      />
     </div>
   )
 }
