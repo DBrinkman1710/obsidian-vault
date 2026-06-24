@@ -14,7 +14,8 @@ import sys
 import uuid
 import urllib.request
 
-BASE = "https://sandbox.getyippie.com/api/v1"
+ENV = os.environ.get("YIPPIE_ENV", "production")  # "production" or "sandbox"
+BASE = f"https://{'app' if ENV == 'production' else 'sandbox'}.getyippie.com/api/v1"
 TOKEN = os.environ.get("AUTH_TOKEN", "")
 
 if not TOKEN:
@@ -223,9 +224,10 @@ if campaign_sent_id:
     print("  Post-send stage: Campaign Sent ✓")
 
 print()
+host = "app" if ENV == "production" else "sandbox"
 print("=" * 60)
 print("Campaign ready!")
-print(f"  → https://sandbox.getyippie.com/marketing/{campaign_id}")
+print(f"  → https://{host}.getyippie.com/marketing/{campaign_id}")
 print()
 print("Next steps:")
 print("  1. Open the link above")
