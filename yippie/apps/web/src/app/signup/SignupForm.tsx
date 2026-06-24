@@ -51,11 +51,21 @@ export default function SignupForm() {
   const [currentTools, setCurrentTools] = useState<string[]>([]);
   const [painPoints, setPainPoints] = useState<string[]>([]);
 
+  // Pre-populate questionnaire from demo token (runs once on mount)
+  useEffect(() => {
+    if (!tokenData?.questionnaire) return;
+    const q = tokenData.questionnaire as Record<string, unknown>;
+    if (typeof q.team_size === "string") setTeamSize(q.team_size);
+    if (typeof q.industry === "string") setIndustry(q.industry);
+    if (Array.isArray(q.current_tools)) setCurrentTools(q.current_tools as string[]);
+    if (Array.isArray(q.pain_points)) setPainPoints(q.pain_points as string[]);
+  }, []); // run once on mount
+
   // Step 2 — Plan + modules
   const [plan, setPlan] = useState("growth");
 
   // Step 3 — Account details
-  const [name, setName] = useState(tokenData?.company_name ? "" : "");
+  const [name, setName] = useState("");
   const [company, setCompany] = useState((tokenData?.company_name as string) ?? "");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
