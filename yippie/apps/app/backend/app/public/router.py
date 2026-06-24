@@ -244,6 +244,43 @@ async def _ensure_demo_pipeline_stage(db: AsyncSession, tenant_id: uuid.UUID):
     return stage
 
 
+async def _ensure_stage_by_name(
+    db: AsyncSession, tenant_id: uuid.UUID, name: str, color: str
+):
+    """Find or create a pipeline stage by name for the given tenant.
+
+    Unlike ``find_stage_by_name``, this never returns None — it creates the
+    stage if it is missing.  Use for public-flow stages that must exist even
+    when the tenant was seeded before the DEFAULT_STAGES list was introduced.
+    """
+    from app.modules.pipeline.models import PipelineStage
+
+    stage = await db.scalar(
+        select(PipelineStage).where(
+            PipelineStage.tenant_id == tenant_id,
+            func.lower(PipelineStage.name) == name.lower(),
+        )
+    )
+    if stage is not None:
+        return stage
+
+    # Determine a sensible display_order (append after current last stage).
+    last_order = await db.scalar(
+        select(func.max(PipelineStage.display_order)).where(
+            PipelineStage.tenant_id == tenant_id
+        )
+    )
+    stage = PipelineStage(
+        tenant_id=tenant_id,
+        name=name,
+        color=color,
+        display_order=(last_order or 0) + 1,
+    )
+    db.add(stage)
+    await db.flush()
+    return stage
+
+
 # Simple in-memory rate limiter — 5 demo requests per IP per hour. This is not a
 # high-traffic endpoint, so a process-local dict is sufficient.
 def _check_rate_limit(ip: str) -> None:
@@ -256,7 +293,10 @@ def _check_rate_limit(ip: str) -> None:
             detail="Too many demo requests. Please try again later.",
         )
     hits.append(now)
-    _demo_requests[ip] = hits
+    if hits:
+        _demo_requests[ip] = hits
+    else:
+        _demo_requests.pop(ip, None)
 
 
 async def _ensure_demo_label(db: AsyncSession, tenant_id: uuid.UUID):
@@ -1085,25 +1125,6 @@ async def track_events(
     return {"ok": True, "ingested": len(body.events)}
 
 
-# ── Rate limiter shared by signup + questionnaire-lead ────────────────────────
-_signup_requests: dict[str, list[float]] = defaultdict(list)
-SIGNUP_RATE_LIMIT = 5
-SIGNUP_RATE_WINDOW = 3600
-
-
-def _check_signup_rate_limit(ip: str) -> None:
-    now = time.monotonic()
-    hits = [t for t in _signup_requests[ip] if now - t < SIGNUP_RATE_WINDOW]
-    if len(hits) >= SIGNUP_RATE_LIMIT:
-        _signup_requests[ip] = hits
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many requests. Please try again later.",
-        )
-    hits.append(now)
-    _signup_requests[ip] = hits
-
-
 # ── Questionnaire Lead capture ────────────────────────────────────────────────
 
 class QuestionnaireLead(BaseModel):
@@ -1126,10 +1147,10 @@ async def questionnaire_lead(
     """
     from app.database import set_tenant_context
     from app.modules.contacts.models import Contact
-    from app.modules.pipeline.service import find_stage_by_name, _assign_stage
+    from app.modules.pipeline.service import _assign_stage
 
     ip = (request.client.host if request.client else None) or "unknown"
-    _check_signup_rate_limit(ip)
+    _check_rate_limit(ip)
 
     root_tenant_id = await _resolve_root_tenant_id(db)
     await set_tenant_context(db, str(root_tenant_id))
@@ -1161,9 +1182,8 @@ async def questionnaire_lead(
             "recommended_modules": body.questionnaire.recommended_modules,
         }
 
-    stage = await find_stage_by_name(db, root_tenant_id, "Questionnaire Lead")
-    if stage:
-        await _assign_stage(db, root_tenant_id, contact.id, stage.id)
+    stage = await _ensure_stage_by_name(db, root_tenant_id, "Questionnaire Lead", "#94a3b8")
+    await _assign_stage(db, root_tenant_id, contact.id, stage.id)
 
     await db.commit()
     return {"ok": True}
@@ -1203,16 +1223,17 @@ async def signup(
     from app.modules.admin.schemas import TenantCreate
     from app.modules.admin.service import create_tenant
     from app.modules.contacts.models import Contact
-    from app.modules.pipeline.service import find_stage_by_name, _assign_stage
+    from app.modules.pipeline.service import _assign_stage
     from app.public.payment_service import handle_signup_payment
     from app.config import ALL_MODULES
 
     ip = (request.client.host if request.client else None) or "unknown"
-    _check_signup_rate_limit(ip)
+    _check_rate_limit(ip)
 
     email = body.email.lower().strip()
 
-    # Block if already a live account
+    # Block if already a live account; clean up demo accounts so the user can
+    # re-register for a real account without hitting an IntegrityError.
     existing = await db.scalar(
         select(User).where(func.lower(User.email) == email)
     )
@@ -1223,6 +1244,8 @@ async def signup(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="This email is already registered with a Yippie account.",
             )
+        # Existing account is a demo — purge it so create_tenant won't collide.
+        await _purge_stale_demo_for_email(db, email)
 
     # Decode from_demo_token questionnaire if present
     questionnaire = body.questionnaire
@@ -1300,21 +1323,26 @@ async def signup(
             "signed_up_modules": enabled_modules,
         }
 
-    stage = await find_stage_by_name(db, root_tenant_id, "Live")
-    if stage:
-        await _assign_stage(db, root_tenant_id, contact.id, stage.id)
+    stage = await _ensure_stage_by_name(db, root_tenant_id, "Live", "#22c55e")
+    await _assign_stage(db, root_tenant_id, contact.id, stage.id)
 
     await db.flush()
 
     # Create invoice (or Stripe checkout when ready)
-    payment_result = await handle_signup_payment(
-        db=db,
-        root_tenant_id=root_tenant_id,
-        contact_id=contact.id,
-        plan=body.plan,
-        modules=enabled_modules,
-        company_name=body.company_name.strip(),
-    )
+    try:
+        payment_result = await handle_signup_payment(
+            db=db,
+            root_tenant_id=root_tenant_id,
+            contact_id=contact.id,
+            plan=body.plan,
+            modules=enabled_modules,
+            company_name=body.company_name.strip(),
+        )
+    except NotImplementedError:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Payment processing is not configured. Contact support.",
+        )
 
     base = _demo_client_base_url()
     return {
@@ -1322,4 +1350,3 @@ async def signup(
         "login_url": f"{base}/login",
         "payment": payment_result,
     }
-    return {"ok": True}
