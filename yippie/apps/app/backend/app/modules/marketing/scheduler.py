@@ -157,7 +157,7 @@ async def send_drip_steps():
                     )
                     contact = contact_q.scalar_one_or_none()
                     if contact and await service.is_unsubscribed(
-                        db, contact.id, campaign.tenant_id
+                        db, campaign.tenant_id, contact.id
                     ):
                         continue
 
