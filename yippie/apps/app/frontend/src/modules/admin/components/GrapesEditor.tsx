@@ -15,6 +15,7 @@ export interface CampaignButton {
   stage_id: string | null
   label_id: string | null
   action_value: string | null
+  redirect_url: string | null
 }
 
 export interface GrapesEditorHandle {
@@ -60,6 +61,13 @@ function secondaryName(actionType: string) {
   if (actionType === 'pipeline_stage') return 'data-stage-id'
   if (actionType === 'apply_label') return 'data-label-id'
   return 'data-action-value'
+}
+
+const REDIRECT_URL_TRAIT = {
+  type: 'text',
+  name: 'data-redirect-url',
+  label: 'Redirect URL (optional)',
+  placeholder: 'https://',
 }
 
 function buildSecondaryTrait(actionType: string, stages: PipelineStage[], labels: ContactLabel[]) {
@@ -108,6 +116,7 @@ function extractButtons(data: object): CampaignButton[] {
             stage_id: attrs['data-stage-id'] ? String(attrs['data-stage-id']) : null,
             label_id: attrs['data-label-id'] ? String(attrs['data-label-id']) : null,
             action_value: attrs['data-action-value'] ? String(attrs['data-action-value']) : null,
+            redirect_url: attrs['data-redirect-url'] ? String(attrs['data-redirect-url']) : null,
           })
         }
       }
@@ -161,6 +170,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
           traits: [
             ACTION_TYPE_TRAIT,
             buildSecondaryTrait('pipeline_stage', [], []),
+            REDIRECT_URL_TRAIT,
             ALIGN_TRAIT,
           ],
         },
@@ -194,9 +204,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
       const traitsModels = component.get('traits')?.models
       const currentSecondary: string | undefined = traitsModels?.[1]?.get?.('name')
       if (currentSecondary === secondaryName(actionType)) return
+      const extraTraits = actionType === 'pipeline_stage' ? [REDIRECT_URL_TRAIT] : []
       component.set('traits', [
         ACTION_TYPE_TRAIT,
         buildSecondaryTrait(actionType, stagesRef.current, labelsRef.current),
+        ...extraTraits,
         ALIGN_TRAIT,
       ])
     })

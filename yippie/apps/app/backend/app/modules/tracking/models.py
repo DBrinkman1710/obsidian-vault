@@ -33,5 +33,6 @@ class LabelClickToken(Base):
         UUID(as_uuid=True), ForeignKey("pipeline_stages.id", ondelete="CASCADE"), nullable=True
     )
     button_id: Mapped[str] = mapped_column(String(36), nullable=False)
+    redirect_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

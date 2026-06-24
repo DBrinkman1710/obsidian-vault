@@ -52,4 +52,5 @@ async def track_click(token: uuid.UUID, db: DB):
         )
 
     await db.commit()
-    return RedirectResponse("/track/confirm", status_code=302)
+    dest = row.redirect_url or "/track/confirm"
+    return RedirectResponse(dest, status_code=302)

@@ -17,8 +17,10 @@ from typing import Optional
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import json as _json
+
 from app.config import get_settings
-from app.core.email_html import render_email_html
+from app.core.email_html import inject_button_tracking, render_email_html
 from app.modules.contacts.models import Company, Contact, ContactLabel
 from app.modules.marketing.models import (
     Campaign,
@@ -876,7 +878,12 @@ async def launch_campaign(
         variant: Optional[str] = None
         if has_ab:
             variant = "a" if idx % 2 == 0 else "b"
-        body_html = _select_variant_html(templates, variant)
+
+        # Resolve the template object (needed for campaign_buttons).
+        tpl = templates.get(variant) or templates.get(None)
+        if tpl is None and templates:
+            tpl = next(iter(templates.values()))
+        body_html = (tpl.raw_html if tpl and tpl.raw_html else "") or ""
 
         # Apply personalisation tokens.
         body_html = _apply_personalization(body_html, contact)
@@ -885,6 +892,42 @@ async def launch_campaign(
             body_text=campaign.subject,
             prerendered_html=body_html or f"<p>{campaign.subject}</p>",
         )
+
+        # Mint per-recipient tracking tokens for CRM-action buttons and inject hrefs.
+        if tpl and tpl.campaign_buttons:
+            from app.modules.tracking.models import LabelClickToken as _LCT
+            raw_btns = tpl.campaign_buttons
+            buttons = _json.loads(raw_btns) if isinstance(raw_btns, str) else (raw_btns or [])
+            token_map: dict[str, str] = {}
+            for btn in buttons:
+                action = btn.get("action_type", "")
+                if action not in ("pipeline_stage", "apply_label"):
+                    continue
+                btn_token = uuid.uuid4()
+                raw_stage = btn.get("stage_id")
+                raw_label = btn.get("label_id")
+                db.add(_LCT(
+                    token=btn_token,
+                    tenant_id=tenant_id,
+                    contact_id=contact.id,
+                    action_type=action,
+                    stage_id=uuid.UUID(raw_stage) if raw_stage else None,
+                    label_id=uuid.UUID(raw_label) if raw_label else None,
+                    button_id=str(btn.get("id", "")),
+                    redirect_url=btn.get("redirect_url") or None,
+                ))
+                token_map[str(btn.get("id", ""))] = f"{base_url}/api/v1/track/click/{btn_token}"
+            if token_map:
+                full_html = inject_button_tracking(full_html, buttons, token_map)
+
+        # Move contact to the post-send stage immediately at dispatch time.
+        if campaign.post_send_stage_id is not None:
+            from app.modules.pipeline.service import _assign_stage
+            try:
+                await _assign_stage(db, tenant_id, contact.id, campaign.post_send_stage_id)
+            except Exception:
+                log.exception("Campaign %s: failed to assign post-send stage for contact %s", campaign.id, contact.id)
+
         full_html += _open_pixel(base_url, token)
         full_html += _unsubscribe_footer(base_url, token)
 

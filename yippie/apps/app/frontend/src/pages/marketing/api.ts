@@ -20,6 +20,7 @@ export interface Campaign {
   dispatch_channel: Channel
   ab_winner: Variant | null
   segment_filter: SegmentFilter | null
+  post_send_stage_id: string | null
   dispatched_at: string | null
   created_at: string
   updated_at: string

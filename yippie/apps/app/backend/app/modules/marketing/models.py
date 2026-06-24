@@ -34,6 +34,10 @@ class Campaign(Base):
     ab_winner: Mapped[str | None] = mapped_column(String(1), nullable=True)
     # Saved audience filter (SegmentFilter) — {"filter_by": ..., "filter_id": ...}
     segment_filter: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Move every dispatched contact to this stage at send time.
+    post_send_stage_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pipeline_stages.id", ondelete="SET NULL"), nullable=True
+    )
     # When the campaign actually started dispatching — anchors drip-step timing.
     dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
