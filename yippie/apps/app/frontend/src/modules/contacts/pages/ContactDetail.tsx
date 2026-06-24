@@ -658,7 +658,7 @@ function LabelsRow({ contactId, labels }: { contactId: string; labels: ContactLa
       qc.setQueryData(['contact', contactId], (old: any) => old ? { ...old, labels: nextLabels } : old)
       return { prev }
     },
-    onError: (_err: any, _vars: any, ctx: any) => {
+    onError: (_err: any, _vars: void, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(['contact', contactId], ctx.prev)
       toast.error('Failed to update label.')
     },

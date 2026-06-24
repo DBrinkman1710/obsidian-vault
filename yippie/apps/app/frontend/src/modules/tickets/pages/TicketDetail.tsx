@@ -152,7 +152,7 @@ export default function TicketDetail() {
         old ? { ...old, sla_due_at: new Date(Date.now() + 86400000).toISOString() } : old)
       return { prev }
     },
-    onError: (_err: any, _vars: any, ctx: any) => {
+    onError: (_err: any, _vars: void, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
       toast.error('Failed to snooze ticket.')
     },
@@ -168,7 +168,7 @@ export default function TicketDetail() {
       qc.setQueryData(['ticket-comments', id], (old: any[]) => [optimistic, ...(old ?? [])])
       return { prev }
     },
-    onError: (_err: any, _vars: any, ctx: any) => {
+    onError: (_err: any, _vars: void, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(['ticket-comments', id], ctx.prev)
       toast.error('Failed to save note.')
     },
