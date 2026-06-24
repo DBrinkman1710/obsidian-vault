@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
-  MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
+  MessageSquare, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
   ChevronLeft, ChevronRight, Network, Megaphone, GripVertical, Package,
   TrendingUp, BarChart3, Tag,
   type LucideIcon,
