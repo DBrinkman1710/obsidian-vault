@@ -20,6 +20,7 @@ export const translations = {
     profile:  'Profile',
     team:     'Team',
     settings: 'Settings',
+    labels:   'Labels',
     sign_out: 'Sign out',
     // Ticket status
     status_open:        'Open',
@@ -58,6 +59,7 @@ export const translations = {
     profile:  'Profiel',
     team:     'Team',
     settings: 'Instellingen',
+    labels:   'Labels',
     sign_out: 'Uitloggen',
     // Ticket status
     status_open:        'Open',

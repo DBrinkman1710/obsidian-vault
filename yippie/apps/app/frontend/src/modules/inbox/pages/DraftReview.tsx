@@ -1388,6 +1388,14 @@ export default function DraftReview() {
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col p-3 gap-2 min-h-0">
+              {aiEnabled && replyText.replace(/\s+/g, '') === (appliedSig ?? '').replace(/\s+/g, '') && (
+                <div className="shrink-0 flex items-center gap-2 px-3 py-2 bg-blue-50 border border-blue-100 rounded-lg">
+                  <Sparkles size={13} className="text-blue-400 shrink-0" />
+                  <p className="text-xs text-blue-700">
+                    Click <strong>Generate</strong> above to draft an AI reply, or write below.
+                  </p>
+                </div>
+              )}
               {showCcBcc && (
                 <div className="flex flex-col gap-1.5 shrink-0">
                   <div className="flex items-center gap-2">

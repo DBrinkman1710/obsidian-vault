@@ -542,6 +542,16 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
 
   const selectedIds = [...selected]
 
+  function composeForSelectedContacts() {
+    const seen = new Set<string>()
+    const recipients = activeItems
+      .filter(c => selected.has(c.id) && c.email && !seen.has(c.email) && seen.add(c.email!))
+      .map(c => ({ email: c.email!, label: c.full_name || c.email! }))
+    if (recipients.length === 0) { toast.error('No selected contacts have an email address'); return }
+    sessionStorage.setItem('compose-prefill', JSON.stringify(recipients))
+    navigate('/inbox?compose=1')
+  }
+
   return (
     <div>
       <div className="flex items-center gap-2 mb-5">
@@ -575,6 +585,11 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         count={selected.size}
         onClear={clearSelection}
         actions={[
+          {
+            label: 'Compose',
+            icon: <Send size={14} strokeWidth={2.5} />,
+            onClick: composeForSelectedContacts,
+          },
           {
             label: 'Move to stage',
             icon: <Kanban size={14} strokeWidth={2.5} />,

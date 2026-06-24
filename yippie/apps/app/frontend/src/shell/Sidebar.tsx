@@ -7,7 +7,7 @@ import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, Settings, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
   ChevronLeft, ChevronRight, Network, Megaphone, GripVertical, Package,
-  TrendingUp, BarChart3,
+  TrendingUp, BarChart3, Tag,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -187,11 +187,7 @@ export function Sidebar() {
   const chatBadge = chatOpenCount === 0 ? null : chatOpenCount > 9 ? '9+' : String(chatOpenCount)
 
   const location = useLocation()
-  const SETTINGS_OWN = ['/settings/profile', '/settings/team', '/settings/superadmins', '/settings/subscription', '/settings/templates']
-  const settingsActive =
-    location.pathname === '/settings' ||
-    (location.pathname.startsWith('/settings') &&
-      !SETTINGS_OWN.some(p => location.pathname.startsWith(p)))
+  const labelsActive = location.pathname === '/settings'
 
   if (!config) return null
 
@@ -394,11 +390,11 @@ export function Sidebar() {
               )}
               <NavLink
                 to="/settings"
-                title={collapsed ? t('settings') : undefined}
-                className={() => navCls(settingsActive)}
+                title={collapsed ? t('labels') : undefined}
+                className={() => navCls(labelsActive)}
               >
-                <Settings size={16} strokeWidth={2} />
-                {!collapsed && <span>{t('settings')}</span>}
+                <Tag size={16} strokeWidth={2} />
+                {!collapsed && <span>{t('labels')}</span>}
               </NavLink>
             </>
           )}

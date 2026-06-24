@@ -35,6 +35,11 @@ const INBOX_FACTS = [
   "You've earned this moment of calm. Enjoy it.",
   "The next great support interaction starts with an empty inbox.",
   "Consistent response time builds brand loyalty. You're building it.",
+  "Keyboard tip: press 'j' / 'k' to move between messages, 'r' to open, 'c' to compose.",
+  "Power move: hit 'g' then 'i' from anywhere in the app to jump straight to Inbox.",
+  "Cmd+Enter (or Ctrl+Enter) sends a reply instantly — no mouse needed.",
+  "Did you know? Right-click the sidebar to drag and reorder your modules.",
+  "Tip: use the search bar to find messages by subject or sender in any tab.",
 ]
 
 function AllCaughtUp() {
@@ -1028,9 +1033,11 @@ export default function InboxQueue() {
 
   // Sent tab — single source of truth: the consolidated marketing outbound feed.
   // No module check, no activity-log fallback; one endpoint, one set of columns.
+  // Use the module-gate-free emailtracking endpoint so reply emails appear
+  // for all tenants regardless of whether the marketing module is enabled.
   const { data: outboundEmails, isLoading: outboundLoading } = useQuery({
     queryKey: ['outbound-emails', searchParam],
-    queryFn: () => api.get('/marketing/outbound', { params: { limit: 200, q: searchParam } }).then(r => r.data as any[]),
+    queryFn: () => api.get('/emailtracking/outbound', { params: { limit: 200, q: searchParam } }).then(r => r.data as any[]),
     enabled: activeTab === 'sent',
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
