@@ -5,6 +5,7 @@ Start it alongside uvicorn by importing and calling `start_scheduler()` from mai
 from __future__ import annotations
 
 import logging
+import re
 from datetime import datetime, timedelta, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -107,11 +108,14 @@ async def _send_demo_prospect_email(
     import html as _html
     from app.core.email_html import render_email_html
     from app.core.mailer import send_email
-    safe_name = _html.escape(prospect_name.split()[0] if prospect_name else company_name)
+    plain_name = prospect_name.split()[0] if prospect_name else company_name
+    safe_name = _html.escape(plain_name)
     safe_book = _html.escape(book_url)
     safe_signup = _html.escape(signup_url)
+    intro_plain = re.sub(r"<[^>]+>", "", intro_html)
+    intro_plain = re.sub(r"[ \t]+", " ", intro_plain).strip()
     plain = (
-        f"Hi {safe_name},\n\n{intro_html}\n\n"
+        f"Hi {plain_name},\n\n{intro_plain}\n\n"
         f"Book a call: {book_url}\nStart your account: {signup_url}\n\n"
         f"Best,\nDiederik\nFounder, Yippie"
     )
@@ -139,6 +143,30 @@ async def _send_demo_prospect_email(
     )
 
 
+
+async def _get_prospect_questionnaire(db, prospect_email: str) -> str:
+    """Return the contact's custom_fields JSON from the root tenant, or '{}' if not found."""
+    import json
+    from app.config import get_settings
+    from app.modules.contacts.models import Contact
+    settings = get_settings()
+    owner_slug = settings.owner_slug or "yippie"
+    root_tenant = await db.scalar(
+        select(Tenant).where(Tenant.slug == owner_slug)
+    )
+    if root_tenant is None:
+        return "{}"
+    contact = await db.scalar(
+        select(Contact).where(
+            Contact.tenant_id == root_tenant.id,
+            Contact.email == prospect_email,
+        ).limit(1)
+    )
+    if contact is None or not contact.custom_fields:
+        return "{}"
+    return json.dumps(contact.custom_fields)
+
+
 @scheduler.scheduled_job("interval", hours=1, id="demo_nudge_check", max_instances=1, coalesce=True)
 async def demo_nudge_check():
     """Day-3 check-in email to prospects who haven't converted yet."""
@@ -158,9 +186,10 @@ async def demo_nudge_check():
         for tenant in tenants:
             prospect_email = await _get_demo_tenant_admin_email(db, tenant.id)
             if not prospect_email:
-                tenant.demo_nudge_sent_at = now
+                log.warning("No admin email found for demo tenant %s — skipping nudge", tenant.id)
                 continue
-            book_url, signup_url = _demo_cta_urls(tenant.name, "{}")
+            questionnaire_json = await _get_prospect_questionnaire(db, prospect_email)
+            book_url, signup_url = _demo_cta_urls(tenant.name, questionnaire_json)
             intro = (
                 '<p style="margin:0 0 16px;">Just checking in — have you had a chance to look around '
                 'your Yippie workspace yet?</p>'
@@ -177,9 +206,9 @@ async def demo_nudge_check():
                     book_url=book_url,
                     signup_url=signup_url,
                 )
+                tenant.demo_nudge_sent_at = now  # only mark sent if email succeeded
             except Exception:
                 log.exception("Failed to send day-3 nudge to %s", prospect_email)
-            tenant.demo_nudge_sent_at = now
         if tenants:
             await db.commit()
 
@@ -225,7 +254,8 @@ async def demo_expiry_check():
             # Email the prospect with Book a Call + Sign Up
             prospect_email = await _get_demo_tenant_admin_email(db, tenant.id)
             if prospect_email:
-                book_url, signup_url = _demo_cta_urls(tenant.name, "{}")
+                questionnaire_json = await _get_prospect_questionnaire(db, prospect_email)
+                book_url, signup_url = _demo_cta_urls(tenant.name, questionnaire_json)
                 intro = (
                     '<p style="margin:0 0 16px;">Your Yippie trial has ended — I hope you got a good feel for the product.</p>'
                     '<p style="margin:0 0 16px;">I\'d love to hear what you thought: what worked, what didn\'t, '

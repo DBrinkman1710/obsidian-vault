@@ -10,15 +10,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  try {
-    await fetch(`${APP_URL}/api/v1/public/questionnaire-lead`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    });
-  } catch {
-    // Fire-and-forget — never fail the caller
-  }
+  fetch(`${APP_URL}/api/v1/public/questionnaire-lead`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  }).catch((err) => console.error("[questionnaire-lead] upstream failed:", err));
 
   return NextResponse.json({ ok: true }, { status: 201 });
 }
