@@ -2,8 +2,11 @@ import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { LayoutTemplate, Save, X, Pencil } from 'lucide-react'
+import { api } from '../../../api/client'
 import { Campaign, marketingApi, Variant } from '../api'
 import { GrapesEditor, GrapesEditorHandle } from '../GrapesEditor'
+import type { PipelineStage } from '../GrapesEditor'
+import type { ContactLabel } from '../../../modules/contacts/components/LabelChip'
 import { STARTER_TEMPLATES } from '../templates'
 
 type VariantKey = 'single' | 'a' | 'b'
@@ -17,7 +20,6 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
   const [editorOpen, setEditorOpen] = useState(false)
   const [editorEverOpened, setEditorEverOpened] = useState(false)
 
-  // Refs so onReady callback always sees current values without stale closures
   const templatesRef = useRef<typeof templates>([])
   const activeVariantRef = useRef(activeVariant)
   activeVariantRef.current = activeVariant
@@ -28,6 +30,15 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
   })
   templatesRef.current = templates
 
+  const { data: stages = [] } = useQuery<PipelineStage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then((r) => r.data),
+  })
+  const { data: labels = [] } = useQuery<ContactLabel[]>({
+    queryKey: ['contact-labels'],
+    queryFn: () => api.get('/contacts/labels').then((r) => r.data),
+  })
+
   useEffect(() => {
     const hasB = templates.some((t) => t.variant === 'b')
     if (hasB) {
@@ -36,30 +47,40 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
     }
   }, [templates])
 
-  // Reload canvas when variant switches or templates refresh (editor already mounted)
+  // Reload canvas when variant switches or templates refresh
   useEffect(() => {
     const wantVariant: Variant | null = activeVariant === 'single' ? null : activeVariant
     const tpl = templates.find((t) => t.variant === wantVariant)
     if (editorRef.current) {
-      editorRef.current.setContent(tpl?.raw_html || '', tpl?.raw_css || '')
+      editorRef.current.loadDesign(tpl?.design_json ?? null)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeVariant, templates.length])
 
-  // Called by GrapesEditor once GrapesJS is initialised — loads design saved for current variant
   function handleEditorReady() {
     const wantVariant: Variant | null = activeVariantRef.current === 'single' ? null : activeVariantRef.current
     const tpl = templatesRef.current.find((t) => t.variant === wantVariant)
-    editorRef.current?.setContent(tpl?.raw_html || '', tpl?.raw_css || '')
+    editorRef.current?.loadDesign(tpl?.design_json ?? null)
   }
 
   const save = useMutation({
-    mutationFn: () => {
-      const html = editorRef.current?.getHtml() ?? ''
-      const css = editorRef.current?.getCss() ?? ''
-      const variant: Variant | null = activeVariant === 'single' ? null : activeVariant
-      return marketingApi.setTemplates(campaign.id, [{ variant, raw_html: html, raw_css: css }])
-    },
+    mutationFn: () =>
+      new Promise<void>((resolve, reject) => {
+        if (!editorRef.current) { reject(new Error('editor not ready')); return }
+        editorRef.current.exportHtml(({ html, design, campaignButtons }) => {
+          const variant: Variant | null = activeVariant === 'single' ? null : activeVariant
+          marketingApi
+            .setTemplates(campaign.id, [{
+              variant,
+              raw_html: html,
+              raw_css: '',
+              design_json: JSON.stringify(design),
+              campaign_buttons: campaignButtons,
+            }])
+            .then(() => resolve())
+            .catch(reject)
+        })
+      }),
     onSuccess: () => {
       toast.success('Design saved')
       qc.invalidateQueries({ queryKey: ['marketing', 'templates', campaign.id] })
@@ -74,7 +95,8 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
   }
 
   function loadStarter(html: string) {
-    editorRef.current?.setContent(html, '')
+    // Load starter HTML as a GrapesJS project so components are editable
+    editorRef.current?.loadDesign(JSON.stringify({ pages: [{ id: 'main', component: html }] }))
     toast.message('Template loaded — edit and save when ready.')
   }
 
@@ -83,11 +105,11 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
     setEditorOpen(true)
   }
 
-  const hasDesign = templates.some((t) => t.raw_html)
+  const hasDesign = templates.some((t) => t.raw_html || t.design_json)
 
   return (
     <>
-      {/* Collapsed view shown inside the campaign Design tab */}
+      {/* Collapsed view */}
       <div className="flex h-full flex-col items-center justify-center gap-4 bg-slate-50">
         <div className="text-center">
           <p className="text-sm font-semibold text-slate-700 mb-1">
@@ -106,22 +128,20 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
         </button>
       </div>
 
-      {/* Full-screen editor overlay — stays mounted after first open to preserve GrapesJS state */}
+      {/* Full-screen editor overlay */}
       <div
         className={`fixed inset-0 z-50 flex flex-col bg-white transition-opacity duration-200 ${
           editorOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       >
-        {/* Personalization chips */}
+        {/* Personalisation chips */}
         <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 bg-slate-50 px-6 py-2">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Personalisation</span>
           {(['{{first_name}}', '{{company}}', '{{email}}'] as const).map((token) => (
             <button
               key={token}
-              onClick={() => {
-                const html = editorRef.current?.getHtml() ?? ''
-                editorRef.current?.setContent(html + token, editorRef.current?.getCss() ?? '')
-              }}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => editorRef.current?.insertToken(token)}
               className="rounded border border-slate-200 bg-white px-2 py-0.5 font-mono text-[11px] text-slate-600 hover:border-blue-300 hover:text-blue-700 transition-colors"
             >
               {token}
@@ -197,7 +217,14 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
             </div>
           )}
           <div className="min-w-0 flex-1 bg-white">
-            {editorEverOpened && <GrapesEditor ref={editorRef} onReady={handleEditorReady} />}
+            {editorEverOpened && (
+              <GrapesEditor
+                ref={editorRef}
+                stages={stages}
+                labels={labels}
+                onReady={handleEditorReady}
+              />
+            )}
           </div>
         </div>
       </div>
