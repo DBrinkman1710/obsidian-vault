@@ -1,7 +1,7 @@
 """add post_send_stage_id to campaigns for automatic stage move at dispatch time
 
 Revision ID: b2c3d4e5f6a8
-Revises: a1b2c3d4e5f6
+Revises: e6460a87b052
 Create Date: 2026-06-24
 
 """
@@ -12,7 +12,7 @@ from alembic import op
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 
 revision: str = 'b2c3d4e5f6a8'
-down_revision: Union[str, Sequence[str], None] = 'a1b2c3d4e5f6'
+down_revision: Union[str, Sequence[str], None] = 'e6460a87b052'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 

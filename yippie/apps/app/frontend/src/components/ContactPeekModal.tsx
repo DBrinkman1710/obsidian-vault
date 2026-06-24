@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Building2, ExternalLink, Mail, Phone, X } from 'lucide-react'
+import { useEffect } from 'react'
 import { api } from '../api/client'
 import { LabelChip } from '../modules/contacts/components/LabelChip'
 import type { ContactLabel } from '../modules/contacts/components/LabelChip'
@@ -26,85 +27,105 @@ export default function ContactPeekModal({
     enabled: contactId !== null,
   })
 
+  useEffect(() => {
+    if (!contactId) return
+    function onKey(e: KeyboardEvent) { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [contactId, onClose])
+
   if (contactId === null) return null
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50"
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-md relative"
+        className="absolute right-0 top-0 bottom-0 w-80 bg-white shadow-2xl border-l border-slate-200 flex flex-col"
+        style={{ animation: 'slideInRight 0.18s ease' }}
         onClick={e => e.stopPropagation()}
       >
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-        >
-          <X size={16} />
-        </button>
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+          <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Contact</span>
+          <button
+            onClick={onClose}
+            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+          >
+            <X size={15} />
+          </button>
+        </div>
 
         {isLoading || !contact ? (
-          <div className="flex items-center justify-center py-8">
-            <span className="inline-block w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <div className="flex items-center justify-center flex-1">
+            <span className="inline-block w-5 h-5 border-2 border-yippie border-t-transparent rounded-full animate-spin" />
           </div>
         ) : (
           <>
-            <div className="pr-8 mb-4">
-              <div className="flex items-center gap-2 flex-wrap">
-                <h2 className="text-lg font-bold text-slate-900">{contact.full_name}</h2>
-                {typeof contact.engagement_score === 'number' && (
-                  <span
-                    title="Engagement score"
-                    className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
-                      contact.engagement_score >= 60
-                        ? 'bg-emerald-50 text-emerald-700'
-                        : contact.engagement_score >= 30
-                        ? 'bg-amber-50 text-amber-700'
-                        : 'bg-slate-100 text-slate-500'
-                    }`}
-                  >
-                    {contact.engagement_score}
-                  </span>
+            <div className="flex-1 overflow-y-auto p-5 space-y-4">
+              <div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <div className="w-10 h-10 rounded-full bg-yippie/15 flex items-center justify-center shrink-0">
+                    <span className="text-sm font-bold text-yippie">
+                      {contact.full_name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()}
+                    </span>
+                  </div>
+                  <div>
+                    <h2 className="text-base font-bold text-slate-900">{contact.full_name}</h2>
+                    {typeof contact.engagement_score === 'number' && (
+                      <span
+                        title="Engagement score"
+                        className={`inline-block text-[11px] font-bold ${
+                          contact.engagement_score >= 60
+                            ? 'text-emerald-600'
+                            : contact.engagement_score >= 30
+                            ? 'text-amber-600'
+                            : 'text-slate-400'
+                        }`}
+                      >
+                        Score: {contact.engagement_score}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {contact.email && (
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Mail size={13} className="shrink-0 text-slate-400" />
+                    <span className="truncate">{contact.email}</span>
+                  </div>
+                )}
+                {contact.phone && (
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Phone size={13} className="shrink-0 text-slate-400" />
+                    <span>{contact.phone}</span>
+                  </div>
+                )}
+                {contact.company && (
+                  <div className="flex items-center gap-2 text-sm text-slate-600">
+                    <Building2 size={13} className="shrink-0 text-slate-400" />
+                    <span>{contact.company.name}</span>
+                  </div>
                 )}
               </div>
-            </div>
 
-            <div className="space-y-2 mb-4">
-              {contact.email && (
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <Mail size={13} className="shrink-0 text-slate-400" />
-                  <span className="truncate">{contact.email}</span>
-                </div>
-              )}
-              {contact.phone && (
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <Phone size={13} className="shrink-0 text-slate-400" />
-                  <span>{contact.phone}</span>
-                </div>
-              )}
-              {contact.company && (
-                <div className="flex items-center gap-2 text-sm text-slate-600">
-                  <Building2 size={13} className="shrink-0 text-slate-400" />
-                  <span>{contact.company.name}</span>
+              {contact.labels && contact.labels.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {contact.labels.map(label => (
+                    <LabelChip key={label.id} label={label} />
+                  ))}
                 </div>
               )}
             </div>
 
-            {contact.labels && contact.labels.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mb-4">
-                {contact.labels.map(label => (
-                  <LabelChip key={label.id} label={label} />
-                ))}
-              </div>
-            )}
-
-            <div className="border-t border-slate-100 pt-4 flex justify-end">
+            <div className="border-t border-slate-100 px-5 py-4">
               <button
                 onClick={() => window.open(`/contacts/${contactId}`, '_blank')}
-                className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-600 hover:text-blue-700 transition-colors"
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-white bg-yippie hover:opacity-90 rounded-xl transition-opacity"
               >
-                Open full page
+                Open full contact
                 <ExternalLink size={13} />
               </button>
             </div>

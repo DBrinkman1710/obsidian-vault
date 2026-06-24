@@ -84,3 +84,8 @@
   background: var(--brand-soft-2);
   color: var(--ink);
 }
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
+}

@@ -34,6 +34,8 @@ async def send_email(
     from_email: Optional[str] = None,
     html: Optional[str] = None,
     headers: Optional[dict[str, str]] = None,
+    cc: Optional[list[str]] = None,
+    bcc: Optional[list[str]] = None,
 ) -> str | None:
     """Send an email via Resend.
 
@@ -42,6 +44,8 @@ async def send_email(
     html: optional HTML part — sent alongside the plain-text body (which stays
           the fallback for clients that prefer text)
     headers: optional dict of custom email headers (e.g. List-Unsubscribe)
+    cc: list of CC email addresses (visible to all recipients)
+    bcc: list of BCC email addresses (hidden from other recipients)
     """
     settings = get_settings()
 
@@ -67,6 +71,10 @@ async def send_email(
         payload["attachments"] = [{"filename": a["filename"], "content": a["content"]} for a in attachments]
     if headers:
         payload["headers"] = headers
+    if cc:
+        payload["cc"] = [c for c in cc if is_valid_email(c)]
+    if bcc:
+        payload["bcc"] = [b for b in bcc if is_valid_email(b)]
 
     async with httpx.AsyncClient() as client:
         response = await client.post(

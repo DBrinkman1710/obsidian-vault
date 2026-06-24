@@ -264,6 +264,7 @@ function ContactCard({
   onDragStart,
   onRemove,
   onContextMenu,
+  onClick,
   selectable,
   selected,
   onToggleSelect,
@@ -273,6 +274,7 @@ function ContactCard({
   onDragStart: () => void
   onRemove: () => void
   onContextMenu: (e: React.MouseEvent) => void
+  onClick: () => void
   selectable: boolean
   selected: boolean
   onToggleSelect: () => void
@@ -289,7 +291,8 @@ function ContactCard({
       draggable
       onDragStart={onDragStart}
       onContextMenu={onContextMenu}
-      className={`bg-white rounded-xl border px-3 py-2.5 shadow-sm cursor-grab active:cursor-grabbing hover:bg-slate-50 transition-colors group ${
+      onClick={onClick}
+      className={`bg-white rounded-xl border px-3 py-2.5 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors group ${
         selected ? 'border-blue-400 ring-1 ring-blue-200' : showStaleAlert ? 'border-amber-400 ring-1 ring-amber-200' : 'border-slate-200'}`}
     >
       <div className="flex items-start justify-between gap-1">
@@ -305,13 +308,7 @@ function ContactCard({
           />
         )}
         <div className="min-w-0 flex-1">
-          <Link
-            to={`/contacts/${contact.contact_id}`}
-            className="text-sm font-semibold text-slate-800 hover:text-blue-600 truncate block"
-            draggable={false}
-          >
-            {contact.full_name}
-          </Link>
+          <p className="text-sm font-semibold text-slate-800 truncate">{contact.full_name}</p>
           {contact.email && (
             <p className="text-[11px] text-slate-400 truncate">{contact.email}</p>
           )}
@@ -320,7 +317,7 @@ function ContactCard({
           )}
         </div>
         <button
-          onClick={onRemove}
+          onClick={e => { e.stopPropagation(); onRemove() }}
           className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-300 hover:text-red-400 rounded transition-all shrink-0"
           title="Remove from kanban"
           draggable={false}
@@ -652,6 +649,7 @@ export default function PipelinePage() {
                     selectable
                     selected={selectedContacts.has(contact.contact_id)}
                     onToggleSelect={() => toggleContact(contact.contact_id)}
+                    onClick={() => setPeekContactId(contact.contact_id)}
                     onDragStart={() => {
                       dragContactRef.current = {
                         contactId: contact.contact_id,

@@ -346,6 +346,9 @@ export default function DraftReview() {
   const [sending, setSending] = useState(false)
   const [sentTo, setSentTo] = useState('')
   const [sendError, setSendError] = useState('')
+  const [showCcBcc, setShowCcBcc] = useState(false)
+  const [ccInput, setCcInput] = useState('')
+  const [bccInput, setBccInput] = useState('')
   const [undoUntil, setUndoUntil] = useState<Date | null>(null)
   const [undoProgress, setUndoProgress] = useState(0)
   const [undoCancelled, setUndoCancelled] = useState(false)
@@ -368,6 +371,7 @@ export default function DraftReview() {
     setAppliedSig(defaultSig?.body ?? null)
     setSuggestions([]); setReplyFiles([])
     setSentTo(''); setSendError(''); setActionError('')
+    setShowCcBcc(false); setCcInput(''); setBccInput('')
     setActionTab('ticket'); setSelectedPipelineStageId('')
     setUndoUntil(null); setUndoProgress(0); setUndoCancelled(false)
     setFromEmail(mailbox === 'personal' ? (user?.reply_from_email ?? null) : null)
@@ -546,6 +550,8 @@ export default function DraftReview() {
       if (fromEmail) {
         form.append('from_email', fromEmail)
       }
+      if (ccInput.trim()) form.append('cc', ccInput.trim())
+      if (bccInput.trim()) form.append('bcc', bccInput.trim())
       const res = await api.post(`/inbox/drafts/${id}/send-reply`, form, {
         headers: { 'Content-Type': undefined },
       })
@@ -1382,6 +1388,26 @@ export default function DraftReview() {
             </div>
 
             <div className="flex-1 overflow-hidden flex flex-col p-3 gap-2 min-h-0">
+              {showCcBcc && (
+                <div className="flex flex-col gap-1.5 shrink-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-400 w-8 shrink-0">CC</span>
+                    <input
+                      className="flex-1 px-2 py-1 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-yippie/30 focus:border-yippie"
+                      value={ccInput} onChange={e => setCcInput(e.target.value)}
+                      placeholder="cc@example.com, another@example.com"
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-400 w-8 shrink-0">BCC</span>
+                    <input
+                      className="flex-1 px-2 py-1 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-1 focus:ring-yippie/30 focus:border-yippie"
+                      value={bccInput} onChange={e => setBccInput(e.target.value)}
+                      placeholder="bcc@example.com"
+                    />
+                  </div>
+                </div>
+              )}
               <textarea
                 ref={replyTextareaRef}
                 value={replyText}
@@ -1431,6 +1457,14 @@ export default function DraftReview() {
 
             <div className="px-3 py-2.5 border-t border-slate-100 shrink-0 flex items-center justify-between gap-2">
               <div className="flex items-center gap-2 flex-wrap">
+                {/* CC/BCC toggle */}
+                <button
+                  type="button"
+                  onClick={() => setShowCcBcc(v => !v)}
+                  className={`text-xs font-medium transition-colors ${showCcBcc ? 'text-yippie' : 'text-slate-400 hover:text-slate-600'}`}
+                >
+                  CC / BCC
+                </button>
                 {/* Attach files */}
                 <label className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 cursor-pointer transition-colors">
                   <Paperclip size={13} />

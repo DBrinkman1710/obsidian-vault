@@ -114,6 +114,9 @@ class PendingSend(Base):
     # pre-rendered HTML body, snapshotted at queue time.
     campaign_buttons_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     prerendered_html: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Optional CC/BCC addresses — JSON arrays stored as text e.g. '["a@b.com"]'
+    cc_emails: Mapped[str | None] = mapped_column(Text, nullable=True)
+    bcc_emails: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

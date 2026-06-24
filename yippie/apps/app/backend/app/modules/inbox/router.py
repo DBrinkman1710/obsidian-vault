@@ -352,6 +352,8 @@ async def send_reply(
     reply_text: str = Form(...),
     attachments: List[UploadFile] = File(default=[]),
     from_email: Optional[str] = Form(None),
+    cc: Optional[str] = Form(None),
+    bcc: Optional[str] = Form(None),
 ):
     """Queue a reply for sending after a 5s undo window. Attachments are optional."""
     ctx = await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
@@ -377,6 +379,9 @@ async def send_reply(
     # margin absorbs network latency and browser/server clock skew so Undo
     # clicked during the bar always lands before the flush.
     send_at = datetime.now(timezone.utc) + timedelta(seconds=8)
+    import json as _json
+    cc_json = _json.dumps([e.strip() for e in cc.split(",") if e.strip()]) if cc and cc.strip() else None
+    bcc_json = _json.dumps([e.strip() for e in bcc.split(",") if e.strip()]) if bcc and bcc.strip() else None
     await service.queue_send(
         db=db,
         draft_id=draft.id,
@@ -389,6 +394,8 @@ async def send_reply(
         contact_id=contact.id if contact else None,
         attachments_json=attachments_json,
         from_email=from_email or None,
+        cc_emails=cc_json,
+        bcc_emails=bcc_json,
     )
     # Kick off a one-shot flush ~0.5s after the undo window closes so the email
     # goes out promptly instead of waiting up to 5s for the scheduler tick.

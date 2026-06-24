@@ -836,6 +836,8 @@ async def queue_send(
     kind: str = "reply",
     campaign_buttons_json: Optional[str] = None,
     prerendered_html: Optional[str] = None,
+    cc_emails: Optional[str] = None,
+    bcc_emails: Optional[str] = None,
     commit: bool = True,
 ) -> PendingSend:
     # Snapshot the effective from-address NOW. devsandbox and sandbox share one DB
@@ -862,6 +864,8 @@ async def queue_send(
         kind=kind,
         campaign_buttons_json=campaign_buttons_json,
         prerendered_html=prerendered_html,
+        cc_emails=cc_emails,
+        bcc_emails=bcc_emails,
     )
     db.add(pending)
     if commit:
@@ -925,6 +929,8 @@ async def flush_pending_sends(db: AsyncSession) -> None:
             "kind": p.kind,
             "campaign_buttons_json": p.campaign_buttons_json,
             "prerendered_html": p.prerendered_html,
+            "cc_emails": p.cc_emails,
+            "bcc_emails": p.bcc_emails,
         }
         for p in pending_list
     ]
@@ -1013,7 +1019,10 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                         logo_url=tenant.logo_url if tenant else None,
                         campaign_buttons_html=campaign_buttons_html,
                     )
-                resend_id = await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body)
+                import json as _json
+                _cc = _json.loads(c["cc_emails"]) if c.get("cc_emails") else None
+                _bcc = _json.loads(c["bcc_emails"]) if c.get("bcc_emails") else None
+                resend_id = await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body, cc=_cc, bcc=_bcc)
                 # Record outbound email for tracking
                 from app.modules.emailtracking.service import create_outbound_email
                 await create_outbound_email(

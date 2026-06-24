@@ -1,6 +1,6 @@
 """add redirect_url to label_click_tokens for campaign button post-click redirect
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: e6460a87b052
 Revises: 1217c5fedede
 Create Date: 2026-06-24
 
@@ -10,7 +10,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = 'a1b2c3d4e5f6'
+revision: str = 'e6460a87b052'
 down_revision: Union[str, Sequence[str], None] = '1217c5fedede'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

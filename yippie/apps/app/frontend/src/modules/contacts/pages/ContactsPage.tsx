@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail, ExternalLink, Kanban } from 'lucide-react'
+import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail, ExternalLink, Kanban, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { BulkBar } from '../../../components/Selection'
@@ -12,6 +12,8 @@ import { MutationGate } from '../../../shell/MutationGate'
 import { fetchCompanies, type Company } from '../components/CompanyBadge'
 import { ColumnPicker, resolveColumns } from '../components/ColumnPicker'
 import type { ContactColumnPref } from '../../../auth/useAuth'
+import ContactPeekModal from '../../../components/ContactPeekModal'
+import CompanyPeekModal from '../../../components/CompanyPeekModal'
 
 interface ImportResult {
   imported: number
@@ -106,6 +108,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
   onCreateHandled: () => void
   onCompanyClick: (companyId: string) => void
 }) {
+  const navigate = useNavigate()
   const { user } = useAuth()
   const qc = useQueryClient()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
@@ -113,10 +116,18 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [peekCompany, setPeekCompany] = useState<Company | null>(null)
+  const [showMoveStage, setShowMoveStage] = useState(false)
+  const [fetchingForAction, setFetchingForAction] = useState(false)
+  const ctx = useContextMenu()
 
   useEffect(() => { if (triggerCreate) { setShowCreate(true); onCreateHandled() } }, [triggerCreate])
 
   const { data: companies, isLoading } = useQuery<Company[]>({ queryKey: ['companies'], queryFn: fetchCompanies })
+  const { data: stages } = useQuery<PipelineStage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get<PipelineStage[]>('/pipeline/stages').then(r => r.data),
+  })
 
   const invalidate = () => { qc.invalidateQueries({ queryKey: ['companies'] }); qc.invalidateQueries({ queryKey: ['contacts'] }) }
   const toPayload = (f: FormState) => ({ name: f.name.trim(), domain: f.domain.trim() || null, notes: f.notes.trim() || null })
@@ -126,6 +137,18 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
   const deleteMutation = useMutation({
     mutationFn: (ids: string[]) => Promise.all(ids.map(id => api.delete(`/contacts/companies/${id}`))),
     onSuccess: () => { invalidate(); setSelected(new Set()) },
+  })
+
+  const bulkMoveStageForCompaniesMutation = useMutation({
+    mutationFn: ({ contactIds, stageId }: { contactIds: string[]; stageId: string }) =>
+      api.put('/pipeline/contacts/bulk-stage', { contact_ids: contactIds, stage_id: stageId }),
+    onSuccess: () => {
+      setShowMoveStage(false)
+      setSelected(new Set())
+      qc.invalidateQueries({ queryKey: ['pipeline-board'] })
+      toast.success('Contacts moved to stage')
+    },
+    onError: () => toast.error('Failed to move contacts'),
   })
 
   const displayed = search
@@ -143,6 +166,37 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
     const header = 'name,domain,contact_count,notes'
     const lines = rows.map(c => [c.name, c.domain ?? '', String(c.contact_count), ''].map(v => `"${v.replace(/"/g, '""')}"`).join(','))
     downloadBlob([header, ...lines].join('\n'), 'companies.csv', 'text/csv')
+  }
+
+  async function fetchContactsForSelected(): Promise<{ id: string; email: string | null; full_name: string }[]> {
+    const results = await Promise.all(
+      [...selected].map(cid =>
+        api.get<{ id: string; email: string | null; full_name: string }[]>(`/contacts/companies/${cid}/contacts`).then(r => r.data)
+      )
+    )
+    return results.flat()
+  }
+
+  async function composeForSelected() {
+    setFetchingForAction(true)
+    try {
+      const contacts = await fetchContactsForSelected()
+      const seen = new Set<string>()
+      const recipients = contacts
+        .filter(c => c.email && !seen.has(c.email) && seen.add(c.email!))
+        .map(c => ({ email: c.email!, label: c.full_name || c.email! }))
+      if (recipients.length === 0) { toast.error('No contacts with email in selected companies'); return }
+      sessionStorage.setItem('compose-prefill', JSON.stringify(recipients))
+      navigate('/inbox?compose=1')
+    } catch {
+      toast.error('Failed to fetch contacts')
+    } finally {
+      setFetchingForAction(false)
+    }
+  }
+
+  async function openMoveStageForSelected() {
+    setShowMoveStage(true)
   }
 
   if (isLoading) return <CardListSkeleton rows={5} />
@@ -170,6 +224,16 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
         onClear={() => setSelected(new Set())}
         actions={[
           {
+            label: fetchingForAction ? 'Loading…' : 'Compose',
+            icon: <Send size={14} strokeWidth={2.5} />,
+            onClick: composeForSelected,
+          },
+          {
+            label: 'Move to stage',
+            icon: <Kanban size={14} strokeWidth={2.5} />,
+            onClick: openMoveStageForSelected,
+          },
+          {
             label: 'Export CSV',
             icon: <Download size={14} strokeWidth={2.5} />,
             onClick: exportSelectedCsv,
@@ -182,6 +246,38 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
           },
         ]}
       />
+
+      {showMoveStage && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowMoveStage(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <h2 className="text-lg font-bold text-slate-900">Move contacts to stage</h2>
+              <button onClick={() => setShowMoveStage(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            </div>
+            <div className="p-4 flex flex-col gap-1.5">
+              {stages?.map(stage => (
+                <button
+                  key={stage.id}
+                  disabled={bulkMoveStageForCompaniesMutation.isPending}
+                  onClick={async () => {
+                    const contacts = await fetchContactsForSelected()
+                    const contactIds = contacts.map(c => c.id)
+                    if (!contactIds.length) { toast.error('No contacts in selected companies'); setShowMoveStage(false); return }
+                    bulkMoveStageForCompaniesMutation.mutate({ contactIds, stageId: stage.id })
+                  }}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors text-left disabled:opacity-50"
+                >
+                  <span className="w-3 h-3 rounded-full shrink-0" style={{ background: stage.color }} />
+                  <span className="text-sm font-medium text-slate-700">{stage.name}</span>
+                </button>
+              ))}
+              {!stages?.length && (
+                <p className="text-sm text-slate-400 text-center py-4">No stages configured yet.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
@@ -213,17 +309,30 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
                     </td>
                   </tr>
                 ) : (
-                  <tr key={company.id} className="hover:bg-slate-50 transition-colors">
+                  <tr key={company.id} className="hover:bg-slate-50 transition-colors cursor-pointer"
+                    onClick={() => setPeekCompany(company)}
+                    onContextMenu={e => ctx.open(e, [
+                      { header: company.name },
+                      { label: 'View contacts', icon: <Building2 size={13} />, onClick: () => onCompanyClick(company.id) },
+                      { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts?company=${company.id}`, '_blank') },
+                      { separator: true },
+                      ...(isAdmin ? [
+                        { label: 'Edit', icon: <Pencil size={13} />, onClick: () => { setEditingId(company.id); setShowCreate(false) } },
+                        { separator: true },
+                        { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${company.name}"? Contacts will remain without a company.`)) deleteMutation.mutate([company.id]) } },
+                      ] : []),
+                    ])}
+                  >
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       <input type="checkbox" checked={selected.has(company.id)} onChange={() => toggle(company.id)}
                         className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-yippie/30 cursor-pointer" />
                     </td>
-                    <td className="px-4 py-3 cursor-pointer" onClick={() => onCompanyClick(company.id)}>
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-7 h-7 rounded-full bg-blue-50 flex items-center justify-center shrink-0">
                           <Building2 size={13} className="text-blue-500" />
                         </div>
-                        <span className="text-sm font-medium text-blue-600 hover:underline transition-colors">{company.name}</span>
+                        <span className="text-sm font-medium text-blue-600">{company.name}</span>
                       </div>
                     </td>
                     <td className="hidden md:table-cell px-4 py-3 text-sm text-slate-600">{company.domain ?? '—'}</td>
@@ -258,6 +367,13 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
           </div>
         )}
       </div>
+
+      <CompanyPeekModal
+        company={peekCompany}
+        onClose={() => setPeekCompany(null)}
+        onViewContacts={onCompanyClick}
+      />
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
     </div>
   )
 }
@@ -350,6 +466,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [showMoveStage, setShowMoveStage] = useState(false)
+  const [peekContactId, setPeekContactId] = useState<string | null>(null)
 
   const columns = resolveColumns(user?.contact_column_prefs)
   const visibleColumns = columns.filter(c => c.visible)
@@ -530,14 +647,16 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                 const isDeleted = !!c.deleted_at
                 return (
                   <tr key={c.id}
-                    className={`transition-colors ${isDeleted ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50'}`}
+                    className={`transition-colors cursor-pointer ${isDeleted ? 'opacity-50 bg-slate-50' : 'hover:bg-slate-50'}`}
+                    onClick={() => !isDeleted && setPeekContactId(c.id)}
                     onContextMenu={e => ctx.open(e, isDeleted ? [
                       { header: c.full_name },
                       { label: 'Restore', icon: <User size={13} />, onClick: () => restoreMutation.mutate(c.id) },
                       ...(isAdmin ? [{ label: 'Delete permanently', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) permanentDeleteMutation.mutate(c.id) } }] : []),
                     ] : [
                       { header: c.full_name },
-                      { label: 'View contact', icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
+                      { label: 'View contact', icon: <ExternalLink size={13} />, onClick: () => setPeekContactId(c.id) },
+                      { label: 'Open full page', icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
                       { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${c.id}`, '_blank') },
                       { separator: true },
                       { label: 'Send email', icon: <Mail size={13} />, onClick: () => window.location.href = `mailto:${c.email}` },
@@ -553,7 +672,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                     {visibleColumns.map(col => {
                       const responsive = col.key === 'name' || col.key === 'email' ? '' : 'hidden md:table-cell'
                       if (col.key === 'name') return (
-                        <td key={col.key} className="px-4 py-3 cursor-pointer" onClick={() => !isDeleted && navigate(`/contacts/${c.id}`)}>
+                        <td key={col.key} className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${isDeleted ? 'bg-slate-100' : 'bg-blue-100'}`}>
                               <User size={13} className={isDeleted ? 'text-slate-400' : 'text-blue-600'} />
@@ -563,7 +682,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                         </td>
                       )
                       if (col.key === 'email') return (
-                        <td key={col.key} className="px-4 py-3 text-sm text-slate-500 cursor-pointer" onClick={() => !isDeleted && navigate(`/contacts/${c.id}`)}>{c.email ?? '—'}</td>
+                        <td key={col.key} className="px-4 py-3 text-sm text-slate-500">{c.email ?? '—'}</td>
                       )
                       if (col.key === 'company') return (
                         <td key={col.key} className={`${responsive} px-4 py-3`}>
@@ -612,7 +731,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                           )}
                         </div>
                       ) : (
-                        <button onClick={() => setEditingContact(c)}
+                        <button onClick={e => { e.stopPropagation(); setEditingContact(c) }}
                           className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Edit">
                           <Pencil size={13} />
                         </button>
@@ -639,6 +758,10 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
           onClose={() => setEditingContact(null)}
         />
       )}
+      <ContactPeekModal
+        contactId={peekContactId}
+        onClose={() => setPeekContactId(null)}
+      />
       <ContextMenu state={ctx.state} onClose={ctx.close} />
     </div>
   )

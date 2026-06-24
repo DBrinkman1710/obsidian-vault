@@ -910,6 +910,24 @@ export default function InboxQueue() {
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
+  // Auto-open compose with pre-filled recipients from contacts/companies page
+  useEffect(() => {
+    const raw = sessionStorage.getItem('compose-prefill')
+    const autoCompose = new URLSearchParams(window.location.search).get('compose')
+    if (raw && autoCompose === '1') {
+      try {
+        const recipients = JSON.parse(raw)
+        setComposeInitial({ recipients, subject: '', body: defaultSigBody ? `\n\n${defaultSigBody}` : '', fromEmail: null })
+        setShowCompose(true)
+      } catch { /* ignore */ }
+      sessionStorage.removeItem('compose-prefill')
+      // Remove ?compose=1 from URL without reload
+      const url = new URL(window.location.href)
+      url.searchParams.delete('compose')
+      window.history.replaceState({}, '', url.toString())
+    }
+  }, [defaultSigBody])
+
   useEffect(() => { setFocusedIdx(-1) }, [activeTab, mailbox])
 
   // Debounce the search box so each keystroke doesn't fire a backend query.
