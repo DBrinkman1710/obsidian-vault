@@ -5,4 +5,4 @@ export {
   type GrapesEditorHandle,
   type CampaignButton,
   type PipelineStage,
-} from '../../modules/admin/components/GrapesEditor'
+} from '../../admin/components/GrapesEditor'

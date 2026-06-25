@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { BarChart3, Check, Code, Copy, Layers, UserCheck, X, Zap } from 'lucide-react'
-import { api } from '../../api/client'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { Check, Code, Copy, Globe, MousePointerClick, RefreshCw, TrendingUp, X, Zap } from 'lucide-react'
+import { toast } from 'sonner'
+import { api } from '../../../api/client'
 
 interface Props {
   onClose: () => void
@@ -31,9 +32,9 @@ function OverviewTab() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
-        The Product Analytics snippet tracks how customers use your SaaS product — feature adoption,
-        onboarding completion, and errors. Every ticket from a tracked customer arrives with a silent
-        briefing: what they've done, what they've skipped, where they got stuck.
+        The Sales tracking snippet collects visitor behaviour on your clients' websites and surfaces it
+        inside Yippie — so when a customer contacts support, agents already know what they browsed,
+        clicked, or purchased.
       </p>
 
       <div className="space-y-3">
@@ -42,60 +43,56 @@ function OverviewTab() {
             <Code size={16} className="text-yippie" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">1. Add the snippet</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">1. Copy your snippet</p>
             <p className="text-sm text-slate-500">
-              Copy the one-line{' '}
-              <code className="text-xs bg-slate-200 px-1 rounded">&lt;script&gt;</code> tag from the{' '}
-              <strong>Install snippet</strong> tab and paste it into your SaaS product's HTML — just
-              before the closing <code className="text-xs bg-slate-200 px-1 rounded">&lt;/body&gt;</code>{' '}
-              or inside <code className="text-xs bg-slate-200 px-1 rounded">&lt;head&gt;</code>.
+              Go to the <strong>Install snippet</strong> tab, copy the one-line{' '}
+              <code className="text-xs bg-slate-200 px-1 rounded">&lt;script&gt;</code> tag, and paste it
+              inside the <code className="text-xs bg-slate-200 px-1 rounded">&lt;head&gt;</code> of your
+              client's website. Each tenant has a unique token — no code changes needed after installation.
             </p>
           </div>
         </div>
 
         <div className="flex gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
           <div className="flex-shrink-0 w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-            <UserCheck size={16} className="text-blue-500" />
+            <Globe size={16} className="text-blue-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">2. Identify users after login</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">2. It tracks automatically</p>
             <p className="text-sm text-slate-500">
-              Call{' '}
-              <code className="text-xs bg-slate-200 px-1 rounded">
-                yippie.identify('user-id', {'{'} email: '…', name: '…', plan: '…' {'}'})
-              </code>{' '}
-              right after a user logs in. Yippie links the browser session to a Yippie contact by email —
-              so all events are attributed to the right person.
+              Once the tag is live, every page view is recorded automatically — no extra code needed.
+              To track purchases or button clicks, call{' '}
+              <code className="text-xs bg-slate-200 px-1 rounded">yippie.track('purchase', {'{'} ... {'}'})</code>{' '}
+              anywhere on the page.
             </p>
           </div>
         </div>
 
         <div className="flex gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
           <div className="flex-shrink-0 w-8 h-8 bg-green-50 rounded-lg flex items-center justify-center">
-            <Layers size={16} className="text-green-600" />
+            <MousePointerClick size={16} className="text-green-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">3. Track what matters</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">3. Link visitors to contacts</p>
             <p className="text-sm text-slate-500">
-              Call <code className="text-xs bg-slate-200 px-1 rounded">yippie.track(eventType, props)</code>{' '}
-              for the moments that matter: feature usage, onboarding steps completed or skipped, errors
-              encountered, and upgrade intent (when a user visits your pricing page). The full event
-              taxonomy is shown in the Install snippet tab.
+              When a visitor logs in or places an order, call{' '}
+              <code className="text-xs bg-slate-200 px-1 rounded">yippie.identify('email@example.com')</code>.
+              Yippie matches the anonymous session to an existing Yippie contact — from that moment,
+              the "Website activity" card appears on their ticket detail page.
             </p>
           </div>
         </div>
 
         <div className="flex gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
           <div className="flex-shrink-0 w-8 h-8 bg-orange-50 rounded-lg flex items-center justify-center">
-            <BarChart3 size={16} className="text-orange-500" />
+            <TrendingUp size={16} className="text-orange-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">4. Health scores + agent context</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">4. Agents see it on every ticket</p>
             <p className="text-sm text-slate-500">
-              Yippie computes a health score (0–100) for each tracked customer every hour — based on
-              how recently they were active, how many features they use, and how many errors they hit.
-              The score and last 4 events appear in the <strong>Product usage</strong> card on every
-              ticket, so agents walk into every conversation already informed.
+              The last 5 website events appear in the <strong>Website activity</strong> card on the right
+              side of every ticket from that contact. Agents know what the customer browsed before they
+              even read the first line.
             </p>
           </div>
         </div>
@@ -105,56 +102,48 @@ function OverviewTab() {
 }
 
 function SnippetTab() {
+  const qc = useQueryClient()
+
   const { data } = useQuery({
-    queryKey: ['saas-token'],
-    queryFn: () => api.get('/saas/token').then((r: any) => r.data),
+    queryKey: ['sales-token'],
+    queryFn: () => api.get('/sales/token').then((r: any) => r.data),
+  })
+
+  const rotate = useMutation({
+    mutationFn: () => api.post('/sales/token/rotate'),
+    onSuccess: () => {
+      toast.success('Tracking token rotated — update your snippet')
+      qc.invalidateQueries({ queryKey: ['sales-token'] })
+    },
+    onError: () => toast.error('Failed to rotate token'),
   })
 
   const token = data?.tracking_token ?? ''
   const scriptTag = token
-    ? `<script src="https://getyippie.com/saas.js" data-token="${token}" async></script>`
+    ? `<script src="https://getyippie.com/sales.js" data-token="${token}" async></script>`
     : ''
 
   const usageExample =
-    `<!-- Paste inside <head> or before </body> in your product -->
+    `<!-- Paste inside <head> on every page -->
 ${scriptTag}
 
 <script>
-  // After the user logs in — links events to a Yippie contact:
-  yippie.identify('user-123', {
-    email: 'jan@acme.nl',
-    name: 'Jan',
-    plan: 'starter',
-  })
+  // After a customer logs in or places an order:
+  yippie.identify('customer@example.com')
 
-  // When a feature is used:
-  yippie.track('feature_used', { feature: 'csv_export' })
+  // Track a purchase:
+  yippie.track('purchase', { order_id: 'ORD-123', value: 49.99, currency: 'EUR' })
 
-  // When an onboarding step completes or is skipped:
-  yippie.track('onboarding_step', { step: 'connect_inbox', status: 'completed' })
-  yippie.track('onboarding_step', { step: 'invite_team',   status: 'skipped' })
-
-  // When an error occurs:
-  yippie.track('error_encountered', { code: 'QUOTA_EXCEEDED', feature: 'ai_scan' })
-
-  // When a user visits your pricing/upgrade page:
-  yippie.track('upgrade_intent', { page: '/pricing' })
+  // Track a button click:
+  yippie.track('button_click', { label: 'Add to cart', product: 'Widget Pro' })
 </script>`
-
-  const eventTypes = [
-    { name: 'feature_used',      props: 'feature (string)' },
-    { name: 'onboarding_step',   props: 'step (string), status: "completed" | "skipped" | "abandoned"' },
-    { name: 'error_encountered', props: 'code (string), feature (string)' },
-    { name: 'upgrade_intent',    props: 'page (string)' },
-    { name: 'feature_abandoned', props: 'feature (string), steps_completed (number)' },
-  ]
 
   return (
     <div className="space-y-5">
       <p className="text-sm text-slate-500">
-        Copy the script tag and paste it into your SaaS product. Then call{' '}
-        <code className="text-xs bg-slate-200 px-1 rounded">yippie.identify()</code> after login
-        and <code className="text-xs bg-slate-200 px-1 rounded">yippie.track()</code> at key moments.
+        Copy the script tag and paste it inside the{' '}
+        <code className="text-xs bg-slate-200 px-1 rounded">&lt;head&gt;</code> of your client's website.
+        Page views are tracked automatically the moment it loads.
       </p>
 
       <div>
@@ -169,7 +158,7 @@ ${scriptTag}
 
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <p className="text-xs font-semibold text-slate-500">Full example</p>
+          <p className="text-xs font-semibold text-slate-500">Full example with event tracking</p>
           {usageExample && <CopyButton text={usageExample} />}
         </div>
         <pre className="text-xs font-mono bg-slate-900 text-slate-200 rounded-xl p-4 overflow-x-auto leading-relaxed">
@@ -177,27 +166,29 @@ ${scriptTag}
         </pre>
       </div>
 
-      <div>
-        <p className="text-xs font-semibold text-slate-500 mb-2">Supported event types</p>
-        <div className="space-y-1.5">
-          {eventTypes.map(e => (
-            <div key={e.name} className="flex items-start gap-3 text-xs">
-              <code className="shrink-0 bg-slate-100 px-2 py-0.5 rounded font-mono text-slate-700 w-44">
-                {e.name}
-              </code>
-              <span className="text-slate-500 pt-0.5">{e.props}</span>
-            </div>
-          ))}
+      <div className="pt-1 border-t border-slate-100">
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-xs font-semibold text-slate-500">Tracking token</p>
+          <span className="text-xs font-mono text-slate-400">{token || '—'}</span>
         </div>
-        <p className="text-xs text-slate-400 mt-3">
-          Your token: <code className="font-mono">{token || '—'}</code>
+        <p className="text-xs text-slate-400 mb-3">
+          Your token authenticates events from your client's website. Rotate it if it is ever leaked —
+          you'll need to update the snippet on the website immediately after.
         </p>
+        <button
+          onClick={() => rotate.mutate()}
+          disabled={rotate.isPending || !token}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 rounded-xl transition-colors disabled:opacity-50"
+        >
+          <RefreshCw size={12} className={rotate.isPending ? 'animate-spin' : ''} />
+          Rotate token
+        </button>
       </div>
     </div>
   )
 }
 
-export function SaasSettingsModal({ onClose }: Props) {
+export function SalesSettingsModal({ onClose }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
   const ref = useRef<HTMLDivElement>(null)
 
@@ -209,7 +200,7 @@ export function SaasSettingsModal({ onClose }: Props) {
   }, [onClose])
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'How it works',   icon: <Zap size={13} /> },
+    { id: 'overview', label: 'How it works', icon: <Zap size={13} /> },
     { id: 'snippet',  label: 'Install snippet', icon: <Code size={13} /> },
   ]
 
@@ -220,7 +211,7 @@ export function SaasSettingsModal({ onClose }: Props) {
     >
       <div ref={ref} tabIndex={-1} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-900">Product Analytics — Settings</h2>
+          <h2 className="text-base font-semibold text-slate-900">Sales Tracking — Settings</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={18} />
           </button>
