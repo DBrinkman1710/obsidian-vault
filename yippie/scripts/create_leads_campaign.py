@@ -12,7 +12,7 @@ import json
 import os
 import sys
 import uuid
-import urllib.request
+import requests as _requests
 
 ENV = os.environ.get("YIPPIE_ENV", "production")  # "production" or "sandbox"
 BASE = f"https://{'app' if ENV == 'production' else 'sandbox'}.getyippie.com/api/v1"
@@ -24,31 +24,34 @@ if not TOKEN:
 
 
 def call(method: str, path: str, body=None):
-    url = BASE + path
-    data = json.dumps(body).encode() if body is not None else None
-    req = urllib.request.Request(
-        url,
-        data=data,
-        method=method,
-        headers={
-            "Authorization": f"Bearer {TOKEN}",
-            "Content-Type": "application/json",
-        },
+    resp = _requests.request(
+        method,
+        BASE + path,
+        json=body,
+        headers={"Authorization": f"Bearer {TOKEN}"},
+        timeout=15,
     )
-    with urllib.request.urlopen(req) as resp:
-        return json.loads(resp.read())
+    if not resp.ok:
+        print(f"  ERROR {resp.status_code}: {resp.text}", file=sys.stderr)
+    resp.raise_for_status()
+    return resp.json()
 
 
 # 1. Fetch pipeline stages
 print("Fetching pipeline stages…")
 stages = call("GET", "/pipeline/stages")
 stage_map = {s["name"]: s["id"] for s in stages}
+stage_map_lower = {s["name"].lower(): s["id"] for s in stages}
 print("  Stages found:", list(stage_map.keys()))
 
-call_planned_id = stage_map.get("Call Planned")
-demo_id = stage_map.get("Demo")
-campaign_sent_id = stage_map.get("Campaign Sent")
-lead_stage_id = stage_map.get("Lead") or stage_map.get("Questionnaire Lead")
+call_planned_id = stage_map_lower.get("call planned") or stage_map_lower.get("call planned")
+demo_id = stage_map_lower.get("demo")
+campaign_sent_id = stage_map_lower.get("campaign sent")
+lead_stage_id = (
+    stage_map_lower.get("leads")
+    or stage_map_lower.get("lead")
+    or stage_map_lower.get("questionnaire lead")
+)
 
 if not call_planned_id:
     print("WARNING: 'Call Planned' stage not found — Book a Call button won't move stage.")
@@ -121,13 +124,13 @@ email_html = f"""
           <td style="padding:44px 48px 36px;">
             <p style="margin:0 0 24px;font-family:Georgia,serif;font-size:17px;line-height:1.7;color:#1e293b;">Hi {{{{first_name}}}},</p>
             <p style="margin:0 0 18px;font-family:Georgia,serif;font-size:16px;line-height:1.8;color:#334155;">
-              Thanks for filling out the questionnaire — I appreciated the time you took. We built Yippie for teams exactly like yours: an <strong style="color:#1e293b;">AI-assisted inbox</strong> that drafts replies, triages urgency, and keeps your full customer pipeline in one clean view.
+              My name is Diederik — I'm the founder of Yippie, a simple customer service tool built for small businesses. I came across your business and wanted to reach out directly.
             </p>
             <p style="margin:0 0 18px;font-family:Georgia,serif;font-size:16px;line-height:1.8;color:#334155;">
-              Most teams are up and running in under five minutes — no migrations, no bloat, no six-figure contracts.
+              Most small teams I speak to are managing customer contact through a mix of WhatsApp, email, and sticky notes — and losing track in the process. Yippie brings it all into one place: an <strong style="color:#1e293b;">AI-assisted inbox</strong>, a booking calendar, and a simple pipeline — without the price tag or complexity of enterprise software.
             </p>
             <p style="margin:0 0 36px;font-family:Georgia,serif;font-size:16px;line-height:1.8;color:#334155;">
-              I'd love to show you how Yippie can help — whether that's a quick call or a hands-on walkthrough at your own pace.
+              You can be up and running in under five minutes. I'd love to show you — happy to do a quick call or let you explore at your own pace.
             </p>
             <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin-bottom:32px;">
               <tr><td style="height:1px;background:#e2e8f0;font-size:0;line-height:0;">&nbsp;</td></tr>
@@ -207,21 +210,22 @@ call("POST", f"/marketing/campaigns/{campaign_id}/templates", {
 print("  Template saved.")
 
 # 7. Set audience + post-send stage
-audience_payload = {
-    "segment_filter": {
-        "filter_by": "pipeline_stage" if lead_stage_id else "all",
-        "filter_id": lead_stage_id,
-        "min_engagement_score": None,
-    },
-}
+segment_filter = {"filter_by": "pipeline_stage" if lead_stage_id else "all"}
+if lead_stage_id:
+    segment_filter["filter_id"] = lead_stage_id
+audience_payload = {"segment_filter": segment_filter}
 if campaign_sent_id:
     audience_payload["post_send_stage_id"] = campaign_sent_id
 
 print("Setting audience…")
-call("PATCH", f"/marketing/campaigns/{campaign_id}", audience_payload)
-print(f"  Segment: {'pipeline_stage → ' + (stage_map.get('Lead') and 'Lead' or 'Questionnaire Lead') if lead_stage_id else 'all contacts'}")
-if campaign_sent_id:
-    print("  Post-send stage: Campaign Sent ✓")
+lead_name = next((n for n in stage_map if stage_map[n] == lead_stage_id), "unknown") if lead_stage_id else None
+try:
+    call("PATCH", f"/marketing/campaigns/{campaign_id}", audience_payload)
+    print(f"  Segment: {'pipeline_stage → ' + lead_name if lead_stage_id else 'all contacts'}")
+    if campaign_sent_id:
+        print("  Post-send stage: Campaign Sent ✓")
+except Exception:
+    print(f"  WARNING: audience PATCH failed — open the campaign and set Audience → '{lead_name or 'Leads'}' stage manually.")
 
 print()
 host = "app" if ENV == "production" else "sandbox"
