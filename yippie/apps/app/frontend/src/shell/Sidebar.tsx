@@ -1,13 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { useContextMenu, ContextMenu } from '../components/ContextMenu'
-import { NavLink, useLocation, useNavigate } from 'react-router-dom'
+import { NavLink, useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
   ChevronLeft, ChevronRight, Network, Megaphone, GripVertical, Package,
-  TrendingUp, BarChart3, Tag,
+  TrendingUp, BarChart3, Settings,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -185,9 +185,6 @@ export function Sidebar() {
   }, [redCount, navigate])
   const chatOpenCount: number = chatCountData?.open ?? 0
   const chatBadge = chatOpenCount === 0 ? null : chatOpenCount > 9 ? '9+' : String(chatOpenCount)
-
-  const location = useLocation()
-  const labelsActive = location.pathname === '/settings'
 
   if (!config) return null
 
@@ -370,14 +367,6 @@ export function Sidebar() {
 
           {(user?.role === 'admin' || user?.role === 'superadmin') && (
             <>
-              <NavLink
-                to="/settings/team"
-                title={collapsed ? t('team') : undefined}
-                className={({ isActive }: any) => navCls(isActive)}
-              >
-                <Users size={16} strokeWidth={2} />
-                {!collapsed && <span>{t('team')}</span>}
-              </NavLink>
               {config.environment === 'sandbox' && (
                 <NavLink
                   to="/settings/subscription"
@@ -389,12 +378,12 @@ export function Sidebar() {
                 </NavLink>
               )}
               <NavLink
-                to="/settings"
-                title={collapsed ? t('labels') : undefined}
-                className={() => navCls(labelsActive)}
+                to="/settings/team"
+                title={collapsed ? t('settings') : undefined}
+                className={({ isActive }: any) => navCls(isActive)}
               >
-                <Tag size={16} strokeWidth={2} />
-                {!collapsed && <span>{t('labels')}</span>}
+                <Settings size={16} strokeWidth={2} />
+                {!collapsed && <span>{t('settings')}</span>}
               </NavLink>
             </>
           )}
