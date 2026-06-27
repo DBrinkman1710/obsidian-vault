@@ -901,25 +901,28 @@ async def launch_campaign(
             from app.modules.tracking.models import LabelClickToken as _LCT
             raw_btns = tpl.campaign_buttons
             buttons = _json.loads(raw_btns) if isinstance(raw_btns, str) else (raw_btns or [])
+            btn_stage_override: dict = campaign.button_stage_config or {}
             token_map: dict[str, str] = {}
             for btn in buttons:
                 action = btn.get("action_type", "")
                 if action not in ("pipeline_stage", "apply_label"):
                     continue
                 btn_token = uuid.uuid4()
-                raw_stage = btn.get("stage_id")
+                btn_id = str(btn.get("id", ""))
+                # Actions tab is authoritative — override design-level stage_id if present.
+                raw_stage = btn_stage_override.get(btn_id) or btn.get("stage_id")
                 raw_label = btn.get("label_id")
                 db.add(_LCT(
                     token=btn_token,
                     tenant_id=tenant_id,
                     contact_id=contact.id,
                     action_type=action,
-                    stage_id=uuid.UUID(raw_stage) if raw_stage else None,
+                    stage_id=uuid.UUID(str(raw_stage)) if raw_stage else None,
                     label_id=uuid.UUID(raw_label) if raw_label else None,
-                    button_id=str(btn.get("id", "")),
+                    button_id=btn_id,
                     redirect_url=btn.get("redirect_url") or None,
                 ))
-                token_map[str(btn.get("id", ""))] = f"{base_url}/api/v1/track/click/{btn_token}"
+                token_map[btn_id] = f"{base_url}/api/v1/track/click/{btn_token}"
             if token_map:
                 full_html = inject_button_tracking(full_html, buttons, token_map)
 

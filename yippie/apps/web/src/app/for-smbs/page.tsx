@@ -34,6 +34,10 @@ const painSolutions = [
     solve: "Send a booking link and the customer picks a time, or you propose slots. Confirmation emails go out automatically. Done in one message.",
   },
   {
+    pain: "Following up with leads is manual and inconsistent — contacts fall through the cracks and sales opportunities go cold.",
+    solve: "Send a campaign to your entire 'Leads' stage in one click. Contacts who click 'Interested' move themselves to the next stage automatically. No CRM admin required.",
+  },
+  {
     pain: "Other platforms cap your contacts and charge you more as you grow — penalising your own success.",
     solve: "Yippie has no contact limits on any plan. Your list grows as fast as your business, with no forced upgrade and no surprise fees.",
   },

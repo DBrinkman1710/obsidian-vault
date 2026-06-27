@@ -35,6 +35,9 @@ class CampaignUpdate(BaseModel):
     dispatch_channel: Optional[Channel] = None
     segment_filter: Optional[SegmentFilter] = None
     post_send_stage_id: Optional[uuid.UUID] = None
+    reply_received_stage_id: Optional[uuid.UUID] = None
+    button_stage_config: Optional[dict] = None
+    linked_stage_id: Optional[uuid.UUID] = None
 
 
 class CampaignOut(BaseModel):
@@ -49,6 +52,9 @@ class CampaignOut(BaseModel):
     ab_winner: Optional[Variant] = None
     segment_filter: Optional[SegmentFilter] = None
     post_send_stage_id: Optional[uuid.UUID] = None
+    reply_received_stage_id: Optional[uuid.UUID] = None
+    button_stage_config: Optional[dict] = None
+    linked_stage_id: Optional[uuid.UUID] = None
     dispatched_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime

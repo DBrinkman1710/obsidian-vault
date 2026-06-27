@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, CalendarClock, GripVertical, Loader2, Plus, Settings2, Trash2, User, X } from 'lucide-react'
+import { ArrowRight, CalendarClock, GripVertical, Loader2, Megaphone, Plus, Settings2, Trash2, User, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { toast } from 'sonner'
 import { useMobile } from '../../../shell/useMobile'
 import { api } from '../../../api/client'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
@@ -9,6 +10,7 @@ import ContactPeekModal from '../../../components/ContactPeekModal'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 import SendBookingModal from '../../booking/components/SendBookingModal'
+import { Campaign, marketingApi } from '../../marketing/api'
 
 interface PipelineStage {
   id: string
@@ -32,6 +34,104 @@ interface BoardColumn {
 }
 
 // ──────────────────────────────────────────────────────────────
+// Send campaign confirmation popup
+// ──────────────────────────────────────────────────────────────
+function SendCampaignPopup({
+  stage,
+  campaign,
+  contactCount,
+  isLaunching,
+  onConfirm,
+  onClose,
+}: {
+  stage: PipelineStage
+  campaign: Campaign
+  contactCount: number
+  isLaunching: boolean
+  onConfirm: () => void
+  onClose: () => void
+}) {
+  const { data: templates = [] } = useQuery({
+    queryKey: ['marketing', 'templates', campaign.id],
+    queryFn: () => marketingApi.getTemplates(campaign.id),
+  })
+
+  const rawHtml = (() => {
+    const tpl = (templates as any[]).find(t => t.variant === 'a') ?? (templates as any[])[0]
+    return tpl?.raw_html ?? null
+  })()
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+            <Megaphone size={16} className="text-blue-500" />
+            Send campaign
+          </h2>
+          <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1">
+          <div className="px-6 py-4 border-b border-slate-100 space-y-2">
+            <div className="flex items-baseline gap-3">
+              <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">Campaign</span>
+              <span className="text-sm font-semibold text-slate-800">{campaign.name}</span>
+            </div>
+            <div className="flex items-baseline gap-3">
+              <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">Subject</span>
+              <span className="text-sm text-slate-700">{campaign.subject}</span>
+            </div>
+            <div className="flex items-baseline gap-3">
+              <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">Recipients</span>
+              <span className="text-sm text-slate-700">
+                All contacts in <span className="font-semibold">{stage.name}</span> — {contactCount} contact{contactCount !== 1 ? 's' : ''}
+              </span>
+            </div>
+          </div>
+
+          {rawHtml ? (
+            <iframe
+              srcDoc={rawHtml}
+              sandbox="allow-same-origin"
+              title="Campaign preview"
+              className="w-full border-0"
+              style={{ height: '400px' }}
+            />
+          ) : (
+            <div className="flex items-center justify-center py-16">
+              <p className="text-sm text-slate-400">No email design saved yet.</p>
+            </div>
+          )}
+        </div>
+
+        <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 shrink-0 bg-slate-50">
+          <p className="text-xs text-slate-400">This dispatches immediately to all contacts in <span className="font-semibold">{stage.name}</span>.</p>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-sm font-semibold text-slate-600 rounded-lg transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={onConfirm}
+              disabled={isLaunching}
+              className="flex items-center gap-1.5 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
+            >
+              {isLaunching ? <Loader2 size={14} className="animate-spin" /> : <Megaphone size={14} />}
+              {isLaunching ? 'Sending…' : 'Send campaign'}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ──────────────────────────────────────────────────────────────
 // Stage management modal
 // ──────────────────────────────────────────────────────────────
 function StageModal({ onClose }: { onClose: () => void }) {
@@ -45,6 +145,27 @@ function StageModal({ onClose }: { onClose: () => void }) {
   const { data: stages = [] } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
     queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
+  })
+
+  const { data: campaigns = [] } = useQuery<Campaign[]>({
+    queryKey: ['marketing', 'campaigns'],
+    queryFn: marketingApi.listCampaigns,
+  })
+
+  const linkCampaignMut = useMutation({
+    mutationFn: ({ campaignId, stageId }: { campaignId: string | null; stageId: string }) => {
+      const prev = campaigns.find((c: Campaign) => c.linked_stage_id === stageId)
+      const calls: Promise<any>[] = []
+      if (prev && prev.id !== campaignId) {
+        calls.push(marketingApi.updateCampaign(prev.id, { linked_stage_id: undefined } as any))
+      }
+      if (campaignId) {
+        calls.push(marketingApi.updateCampaign(campaignId, { linked_stage_id: stageId } as any))
+      }
+      return Promise.all(calls)
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] }),
+    onError: () => toast.error('Could not update linked campaign'),
   })
 
   const createMut = useMutation({
@@ -161,6 +282,21 @@ function StageModal({ onClose }: { onClose: () => void }) {
               title="Stage colour"
             />
           </div>
+          {editId && campaigns.length > 0 && (
+            <div>
+              <label className="mb-1 block text-xs font-semibold text-slate-400 uppercase tracking-wide">Linked campaign</label>
+              <select
+                value={campaigns.find((c: Campaign) => c.linked_stage_id === editId)?.id ?? ''}
+                onChange={e => linkCampaignMut.mutate({ campaignId: e.target.value || null, stageId: editId })}
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              >
+                <option value="">— None —</option>
+                {campaigns.map((c: Campaign) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-2">
             <button
@@ -344,6 +480,7 @@ export default function PipelinePage() {
   const isMobile = useMobile()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
+  const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? false
   const ctx = useContextMenu()
 
   const [showManage, setShowManage] = useState(false)
@@ -353,7 +490,31 @@ export default function PipelinePage() {
   const [singleBooking, setSingleBooking] = useState<{ id: string; full_name: string } | null>(null)
   const [peekContactId, setPeekContactId] = useState<string | null>(null)
   const [dragOverStageId, setDragOverStageId] = useState<string | null>(null)
+  const [sendCampaignPopup, setSendCampaignPopup] = useState<{
+    stage: PipelineStage
+    campaign: Campaign
+    contactCount: number
+  } | null>(null)
   const dragContactRef = useRef<{ contactId: string; fromStageId: string } | null>(null)
+
+  const { data: campaigns = [] } = useQuery<Campaign[]>({
+    queryKey: ['marketing', 'campaigns'],
+    queryFn: marketingApi.listCampaigns,
+    enabled: marketingEnabled,
+  })
+
+  const launchCampaignMut = useMutation({
+    mutationFn: ({ campaignId, stageId }: { campaignId: string; stageId: string }) =>
+      marketingApi.launch(campaignId, {
+        segment_filter: { filter_by: 'pipeline_stage', filter_id: stageId },
+      }),
+    onSuccess: () => {
+      toast.success('Campaign launched')
+      setSendCampaignPopup(null)
+      qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
+    },
+    onError: () => toast.error('Could not launch campaign'),
+  })
 
   function toggleContact(id: string) {
     setSelectedContacts(prev => {
@@ -486,6 +647,16 @@ export default function PipelinePage() {
   return (
     <>
       {showManage && <StageModal onClose={() => setShowManage(false)} />}
+      {sendCampaignPopup && (
+        <SendCampaignPopup
+          stage={sendCampaignPopup.stage}
+          campaign={sendCampaignPopup.campaign}
+          contactCount={sendCampaignPopup.contactCount}
+          isLaunching={launchCampaignMut.isPending}
+          onConfirm={() => launchCampaignMut.mutate({ campaignId: sendCampaignPopup.campaign.id, stageId: sendCampaignPopup.stage.id })}
+          onClose={() => setSendCampaignPopup(null)}
+        />
+      )}
       {bookingEnabled && (
         <SendBookingModal
           contacts={selectedContactList}
@@ -677,6 +848,19 @@ export default function PipelinePage() {
                           { separator: true },
                           { label: 'Send booking link', icon: <CalendarClock size={13} />, onClick: () => setSingleBooking({ id: contact.contact_id, full_name: contact.full_name }) },
                         ] : []),
+                        ...(() => {
+                          const linked = marketingEnabled && !bulkIds
+                            ? campaigns.find((c: Campaign) => c.linked_stage_id === col.stage.id)
+                            : undefined
+                          return linked ? [
+                            { separator: true },
+                            {
+                              label: 'Send campaign',
+                              icon: <Megaphone size={13} />,
+                              onClick: () => setSendCampaignPopup({ stage: col.stage, campaign: linked, contactCount: col.contacts.length }),
+                            },
+                          ] : []
+                        })(),
                       ])
                     }}
                   />

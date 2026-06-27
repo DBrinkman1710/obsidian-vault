@@ -31,7 +31,7 @@ const painSolutions = [
   },
   {
     pain: "Keeping clients updated is a chore — manual status emails eat your week and still feel impersonal.",
-    solve: "Campaign emails with rich templates and tracking let you send polished, on-brand updates at scale. Email tracking shows opens and clicks so you know what landed.",
+    solve: "Campaign emails with rich templates and tracking let you send polished, on-brand updates at scale. For your own sales pipeline, contacts auto-advance through Kanban stages when they click an action button — so your pipeline stays current without lifting a finger.",
   },
   {
     pain: "Other platforms charge more per client contact — making growth an expensive problem rather than a win.",
