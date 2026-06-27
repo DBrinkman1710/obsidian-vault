@@ -13,6 +13,7 @@ import {
   UsersIcon,
   ActivityIcon,
   BillingIcon,
+  MegaphoneIcon,
   ArrowRightIcon,
   CheckIcon,
 } from "./components/icons";
@@ -50,6 +51,11 @@ const features = [
     Icon: BillingIcon,
     title: "Billing",
     desc: "Send and track invoices without leaving the platform. Support and financials, in sync.",
+  },
+  {
+    Icon: MegaphoneIcon,
+    title: "Email Campaigns",
+    desc: "Send stage-targeted campaigns, track every open and click, and let contacts advance themselves through your pipeline with one click.",
   },
 ];
 

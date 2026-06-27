@@ -38,6 +38,16 @@ class Campaign(Base):
     post_send_stage_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("pipeline_stages.id", ondelete="SET NULL"), nullable=True
     )
+    # Move replying contacts to this stage (set in Actions tab).
+    reply_received_stage_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pipeline_stages.id", ondelete="SET NULL"), nullable=True
+    )
+    # Maps {button_id: stage_id} — authoritative source for button→stage assignments.
+    button_stage_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Which Kanban stage "owns" this campaign (for right-click Send campaign).
+    linked_stage_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("pipeline_stages.id", ondelete="SET NULL"), nullable=True
+    )
     # When the campaign actually started dispatching — anchors drip-step timing.
     dispatched_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -6,14 +6,16 @@ import { Campaign, marketingApi } from './api'
 import { StatusBadge } from './MarketingPage'
 import { DesignTab } from './tabs/DesignTab'
 import { AudienceTab } from './tabs/AudienceTab'
+import { ActionsTab } from './tabs/ActionsTab'
 import { ScheduleTab } from './tabs/ScheduleTab'
 import { AnalyticsTab } from './tabs/AnalyticsTab'
 import { DripTab } from './tabs/DripTab'
 
-type TabKey = 'design' | 'audience' | 'schedule' | 'analytics' | 'drip'
+type TabKey = 'design' | 'actions' | 'audience' | 'schedule' | 'analytics' | 'drip'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'design', label: 'Design' },
+  { key: 'actions', label: 'Actions' },
   { key: 'audience', label: 'Audience' },
   { key: 'schedule', label: 'Schedule' },
   { key: 'analytics', label: 'Analytics' },
@@ -88,6 +90,7 @@ export function CampaignDetail({ campaign, onDeleted }: { campaign: Campaign; on
       {/* Tab body */}
       <div className="min-h-0 flex-1 overflow-hidden">
         {tab === 'design' && <DesignTab campaign={campaign} />}
+        {tab === 'actions' && <ActionsTab campaign={campaign} />}
         {tab === 'audience' && <AudienceTab campaign={campaign} />}
         {tab === 'schedule' && <ScheduleTab campaign={campaign} />}
         {tab === 'analytics' && analyticsReady && <AnalyticsTab campaign={campaign} />}

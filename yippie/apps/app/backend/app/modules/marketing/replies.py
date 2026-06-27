@@ -62,6 +62,10 @@ async def handle_inbound_reply(
     if row is None:
         return False
 
+    # Look up the campaign to check for reply_received_stage_id.
+    from app.modules.marketing.models import Campaign
+    campaign = await db.get(Campaign, row.campaign_id)
+
     if classification == "Opt-out":
         from app.modules.contacts.models import Contact
 
@@ -75,4 +79,21 @@ async def handle_inbound_reply(
         contact = result.scalar_one_or_none()
         if contact is not None:
             await service.create_unsubscribe(db, contact.id, tenant_id)
+    elif campaign is not None and campaign.reply_received_stage_id is not None:
+        from app.modules.contacts.models import Contact
+        from app.modules.pipeline.service import _assign_stage
+
+        result = await db.execute(
+            select(Contact).where(
+                Contact.tenant_id == tenant_id,
+                Contact.email == sender_email,
+                Contact.deleted_at.is_(None),
+            )
+        )
+        contact = result.scalar_one_or_none()
+        if contact is not None:
+            try:
+                await _assign_stage(db, tenant_id, contact.id, campaign.reply_received_stage_id)
+            except Exception:
+                log.exception("Reply handler: failed to assign stage for contact %s", contact.id)
     return True

@@ -21,8 +21,6 @@ export function AudienceTab({ campaign }: { campaign: Campaign }) {
   const [minEngagement, setMinEngagement] = useState<number | null>(
     campaign.segment_filter?.min_engagement_score ?? null,
   )
-  const [postSendStageId, setPostSendStageId] = useState<string | null>(campaign.post_send_stage_id ?? null)
-
   const { data: labels = [] } = useQuery<Named[]>({
     queryKey: ['contact-labels'],
     queryFn: () => api.get('/contacts/labels').then((r: any) => r.data),
@@ -62,7 +60,6 @@ export function AudienceTab({ campaign }: { campaign: Campaign }) {
           filter_id: filterBy === 'all' ? null : filterId,
           min_engagement_score: minEngagement,
         },
-        post_send_stage_id: postSendStageId ?? undefined,
       } as any),
     onSuccess: () => {
       toast.success('Audience saved')
@@ -156,22 +153,6 @@ export function AudienceTab({ campaign }: { campaign: Campaign }) {
               )}
             </div>
           )}
-        </div>
-
-        {/* Post-send stage */}
-        <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm font-semibold text-slate-900">Move to stage after send</p>
-          <p className="mt-0.5 text-xs text-slate-400">Every contact who receives this campaign is moved to the selected stage immediately at dispatch time.</p>
-          <select
-            value={postSendStageId ?? ''}
-            onChange={(e) => setPostSendStageId(e.target.value || null)}
-            className="mt-3 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
-          >
-            <option value="">None</option>
-            {stages.map((s: any) => (
-              <option key={s.id} value={s.id}>{s.name}</option>
-            ))}
-          </select>
         </div>
 
         <button
