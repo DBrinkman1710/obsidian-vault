@@ -1020,14 +1020,16 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
   }
 
   function handleBriefingChip(action: string, value: string) {
-    setBriefingChipsDone(prev => new Set([...prev, `${action}:${value}`]))
-    if (action === 'set_status') panelStatusMutation.mutate(value)
-    else if (action === 'assign_department') {
+    const key = `${action}:${value}`
+    if (action === 'set_status') {
+      setBriefingChipsDone(prev => new Set([...prev, key]))
+      panelStatusMutation.mutate(value)
+    } else if (action === 'assign_department') {
       const dept = (panelDepts ?? []).find((d: any) => d.name === value)
-      if (dept) panelDeptMutation.mutate(dept.id)
+      if (dept) { setBriefingChipsDone(prev => new Set([...prev, key])); panelDeptMutation.mutate(dept.id) }
     } else if (action === 'move_pipeline_stage') {
       const stage = (panelStages ?? []).find((s: any) => s.name === value)
-      if (stage) panelStageMutation.mutate(stage.id)
+      if (stage) { setBriefingChipsDone(prev => new Set([...prev, key])); panelStageMutation.mutate(stage.id) }
     }
   }
 
