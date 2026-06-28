@@ -190,29 +190,42 @@ A contact record holds the full history of a customer: every email exchange, tic
 
 The main list view shows all contacts with:
 
-- **Search**: full-text search across name and email
+- **Search**: full-text search across name, email, and company
 - **Filter by label**: show only contacts with a specific label
 - **Filter by company**: show only contacts belonging to a company
-- **CSV import**: upload a CSV file to bulk-create contacts (name, email, phone, company columns supported)
+- **Import**: upload a CSV, JSON, or XLSX file to bulk-create contacts (name, email, phone, company columns supported)
 - **CSV export**: download all contacts (or filtered results) as a CSV
+- **Context menu** (right-click a row): Send email (opens compose modal directly to this contact)
 
 ### Contact Detail
 
 Click any contact to open their detail page, which contains:
 
-- **Profile fields**: full name, email address, phone, company, KvK number, BTW/VAT number
-- **Labels**: colored tags applied to this contact
+- **Profile fields**: full name, email address, phone, company (all inline-editable)
+- **Labels**: colored tags applied to this contact (inline-editable)
+- **Engagement score**: colored badge (0–100) based on email open/click history — visible when the Marketing module is enabled
 - **Pipeline stage**: which Kanban stage this contact is currently in (editable inline)
-- **Activity timeline**: chronological list of every email sent/received, ticket created, booking confirmed, pipeline move, and note added
-- **Linked tickets**: all support tickets associated with this contact
-- **Notes**: free-text notes visible only to agents (not sent to the customer)
+- **Activity timeline**: chronological log of all platform events for this contact (ticket created/updated, pipeline moves, notes, bookings, etc.)
+- **New Ticket button**: opens the New Ticket form pre-filled with this contact's details
 - **Send booking link**: open the booking flow directly from the contact record
 - **Send email**: compose a new message to this contact
 
+Note: KvK and BTW/VAT numbers are workspace-level fields in **Settings → Organisation**, not per-contact fields.
+
 ### Creating and Editing Contacts
 
-- **Create**: click **New contact**, fill in name and email (minimum), and save
-- **Edit**: click the edit icon on any field in the contact detail view
+Click **New contact** to open the creation form with these fields:
+
+- **Full name** (required)
+- **Email** (optional; validated if provided)
+- **Phone** (optional)
+- **Company** (optional; picked from existing companies)
+- **Labels** (optional; assign one or more labels at creation time)
+- **Notes** (optional; internal agent notes)
+
+Saving navigates directly to the new contact's detail page.
+
+- **Edit**: click any field in the contact detail view to edit it inline
 - **Soft delete**: mark a contact as deleted — they disappear from the list but data is retained
 - **Restore**: undelete a soft-deleted contact
 - **Permanent delete**: irreversibly remove the contact and all associated data
@@ -249,38 +262,59 @@ A ticket tracks a customer issue from creation to resolution, with assignee, pri
 
 The list view shows all tickets with:
 
-- **Filter by status**: Open, In Progress, Waiting, Resolved, Closed
-- **Filter by assignee**: show tickets assigned to a specific agent or department
-- **Filter by priority**: Urgent, High, Medium, Low
+- **Filter by status**: Open, In Progress, Waiting for customer, Resolved, Closed
+- **Toggle — Assigned to me**: show only tickets assigned to the current agent
 - **SLA badges**: colored deadline indicator — red when overdue, orange when due within 2 days
-- **Search**: find tickets by subject or contact name
+- **Context menu** (right-click a row): Assign to me, Assign to agent/department, Mark resolved, Close ticket
 
 ### Ticket Detail
 
-Clicking a ticket opens the detail page with:
+Clicking a ticket opens a two-column detail page.
+
+**Left column — conversation and reply:**
 
 - **Subject and description**: the AI-generated or manually written summary
-- **Status selector**: change the ticket status at any time
-- **Priority selector**: change urgency level
-- **Assignee**: assign to an agent or department
-- **SLA deadline**: set or adjust the due date
-- **Contact link**: the customer this ticket belongs to
-- **Conversation thread**: full history of all emails exchanged on this ticket
-- **Reply**: compose and send an email reply to the customer from within the ticket
-  - Template picker (select a canned response)
+- **Comments list**: unified chronological thread of all email replies and internal notes. Email replies are white; internal notes are amber-tinted and labeled "Internal note."
+- **Reply tab**: compose and send an email reply to the customer
+  - Template picker (select a canned response and insert it into the reply body)
   - Signature picker (choose your email signature)
   - Attach files
-- **Internal note**: add a private note visible only to agents — not sent to the customer
-- **Snooze**: hide the ticket until a specified date/time, then it resurfaces in the list
+  - **Generate reply** button (AI — requires `ai` module): drafts a full reply based on ticket and contact context
+  - **Improve reply** button (AI — requires `ai` module): rewrites your current draft with labelled variant suggestions to pick from
+- **Internal note tab**: add a private note visible only to agents — not sent to the customer
+
+**Right column — customer panel:**
+
+- **Contact card**: linked customer's name, email, phone, company, labels, and ticket count. Agents can change the linked contact mid-ticket ("Change" button) or open a slide-over panel to edit contact details inline ("View contact")
+- **Status / Priority / Assignee / SLA deadline**: edit these fields directly in the right panel
+- **AI Briefing card** (requires `ai` module): auto-fetches a customer summary the first time the reply tab is focused. Shows a text briefing plus 2–3 suggested action chips (e.g. "Mark as resolved", "Route to Finance", "Move to Awaiting Payment"). Clicking a chip executes the action immediately.
+- **Recent contact history**: last few touchpoints with this customer across all tickets — prior email replies, internal notes, outbound emails, and resolved chat sessions. Each item is expandable inline; email entries link to their originating ticket.
+- **Orders**: linked shipment records for this contact
+- **Website activity**: Sales module events (page views, add-to-cart, purchases) for this contact
+- **Product usage**: SaaS module health score and recent usage events for this contact
+
+**Other actions:**
+
+- **Snooze**: extends the SLA deadline by 24 hours. Only available when the ticket is approaching or past its SLA deadline.
 - **Merge**: combine this ticket with another ticket from the same contact
+
+### Creating a Ticket Manually
+
+Click **New ticket** in the ticket list (or navigate to `/tickets/new`) to open the creation form:
+
+- **Subject** (required)
+- **Contact** (required; search by name, email, or company)
+- **Priority**: Low / Medium / High / Urgent (defaults to Medium)
+- **Department** (optional)
+- **Description** (optional)
+
+Saving navigates directly to the new ticket's detail page.
 
 ### Bulk Actions
 
 Select multiple tickets in the list:
 
-- **Change status**: set all selected to Open, Resolved, etc.
-- **Assign**: route all selected to an agent or department
-- **Merge**: combine selected tickets (same contact required)
+- **Merge**: combine exactly 2 selected tickets (same contact required)
 - **Delete**: permanently remove selected tickets
 
 ### SLA Escalation (Automatic)
@@ -290,15 +324,6 @@ The platform runs an automated SLA checker every 5 minutes:
 - Tickets past their SLA deadline are flagged **Overdue** and their badges turn red
 - Tickets in **Waiting** status that have not been updated for a configured number of days are automatically closed
 - The overdue count is reflected in the **Tickets** sidebar badge in real time
-
-### Response Templates
-
-When replying to a ticket, click **Templates** to open the picker:
-
-- Browse the shared template library
-- Click a template to insert it into the reply body
-- Edit inline before sending
-- **AI-suggest**: ask the AI to suggest a reply based on the ticket content
 
 ---
 
@@ -707,7 +732,7 @@ Add this to your storefront's `<head>`:
 
 ```html
 <script
-  src="https://app.getyippie.com/saas.js"
+  src="https://getyippie.com/sales.js"
   data-token="YOUR_SALES_TOKEN"
   async>
 </script>
@@ -759,7 +784,7 @@ Add to your SaaS app:
 
 ```html
 <script
-  src="https://app.getyippie.com/sales.js"
+  src="https://getyippie.com/saas.js"
   data-token="YOUR_SAAS_TOKEN"
   async>
 </script>

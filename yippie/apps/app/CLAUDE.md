@@ -30,7 +30,7 @@ All modules (see `ALL_MODULES` in `backend/app/config.py` / the `MODULES` regist
 Every DB table has `tenant_id UUID NOT NULL`. Every query filters by it. The `get_current_user` dependency in `backend/app/auth/dependencies.py` resolves the user from the JWT and calls `set_tenant_context(db, user.tenant_id)` which runs `SET LOCAL app.current_tenant_id = :id` — enabling PostgreSQL RLS policies.
 
 ### Inbox flow (the headcount-reduction core)
-Email (Mailgun webhook) or WhatsApp (Twilio webhook) → stored as `inbound_message` → Claude Haiku scans it and suggests subject/priority/description → stored as `draft_ticket` → agent reviews in the Inbox UI → approves or edits → becomes a real ticket. Agents never manually write up tickets from raw emails.
+Email (Resend webhook) or WhatsApp (Evolution API webhook) → stored as `inbound_message` → Claude Haiku scans it and suggests subject/priority/description → stored as `draft_ticket` → agent reviews in the Inbox UI → approves or edits → becomes a real ticket. Agents never manually write up tickets from raw emails.
 
 ## Key files
 
@@ -108,9 +108,7 @@ docker compose exec backend pytest
 ## What's not built yet (next steps)
 
 - Auto-routing rules (assign tickets based on keywords/contact tags)
-- Canned response picker in the TicketDetail UI (templates API exists, UI dropdown missing)
 - Customer self-service portal (`/portal/{tenant_slug}` — public ticket submission)
-- Outbound email/WhatsApp replies when agent responds to inbox-sourced tickets
 - Analytics dashboard (`GET /api/v1/analytics/summary`)
 - PostgreSQL RLS policies (migrations scaffolded, policies not yet added)
 
