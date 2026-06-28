@@ -141,3 +141,28 @@ class TemplateOut(BaseModel):
 
 class TemplateSuggestRequest(BaseModel):
     context: str
+
+
+class ImproveReplyRequest(BaseModel):
+    current_text: str
+
+
+class SuggestedAction(BaseModel):
+    action: str  # "set_status" | "assign_department" | "move_pipeline_stage"
+    value: str   # e.g. "resolved", "Finance", "Awaiting Payment"
+    label: str   # human-readable chip text
+
+
+class BriefingOut(BaseModel):
+    summary: str
+    suggested_actions: list[SuggestedAction]
+
+
+class ContactHistoryItem(BaseModel):
+    kind: str  # "email" | "internal_note" | "outbound_email" | "chat"
+    id: uuid.UUID
+    subject: Optional[str]
+    preview: str
+    created_at: datetime
+    ticket_id: Optional[uuid.UUID]
+    session_id: Optional[uuid.UUID]

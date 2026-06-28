@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles, UserPlus, Mail, ExternalLink, ChevronRight, Paperclip } from 'lucide-react'
+import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles, UserPlus, Mail, ExternalLink, ChevronRight, Paperclip, MessageSquare, Check } from 'lucide-react'
 import { SignaturePicker } from '../../inbox/components/SignaturePicker'
 import { TemplatePicker, htmlToText } from '../../inbox/components/TemplatePicker'
 import { useSignatures, pickDefaultSignature, swapSignature } from '../../../hooks/useSignatures'
@@ -77,6 +77,16 @@ export default function TicketDetail() {
   const [bookingOpen, setBookingOpen] = useState(false)
   const [mergeOpen, setMergeOpen] = useState(false)
 
+  const aiEnabled = config?.enabled_modules?.includes('ai') ?? false
+  const [replyBriefing, setReplyBriefing] = useState<{ summary: string; suggested_actions: Array<{ action: string; value: string; label: string }> } | null>(null)
+  const [replyBriefingLoading, setReplyBriefingLoading] = useState(false)
+  const [replyBriefingDismissed, setReplyBriefingDismissed] = useState(false)
+  const replyBriefingFetchedRef = useRef(false)
+  const [generateLoading, setGenerateLoading] = useState(false)
+  const [improveLoading, setImproveLoading] = useState(false)
+  const [improveSuggestions, setImproveSuggestions] = useState<Array<{ label: string; revised_text: string }>>([])
+  const [chipsDone, setChipsDone] = useState<Set<string>>(new Set())
+
   const { data: ticket } = useQuery({
     queryKey: ['ticket', id],
     queryFn: () => api.get(`/tickets/${id}`).then((r: any) => r.data),
@@ -97,6 +107,19 @@ export default function TicketDetail() {
   const { data: comments } = useQuery({
     queryKey: ['ticket-comments', id],
     queryFn: () => api.get(`/tickets/${id}/comments`).then((r: any) => r.data),
+  })
+
+  const { data: departments } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => api.get('/departments').then((r: any) => r.data),
+    enabled: aiEnabled,
+    staleTime: 60_000,
+  })
+  const { data: pipelineStages } = useQuery({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
+    enabled: aiEnabled,
+    staleTime: 60_000,
   })
 
   useEffect(() => {
@@ -213,6 +236,43 @@ export default function TicketDetail() {
       setDeleteError(typeof detail === 'string' ? detail : 'Failed to delete ticket')
     },
   })
+
+  const assignDeptMutation = useMutation({
+    mutationFn: (department_id: string) => api.patch(`/tickets/${id}`, { department_id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
+    onError: () => toast.error('Failed to assign department.'),
+  })
+
+  const pipelineStageMutation = useMutation({
+    mutationFn: (stage_id: string) =>
+      ticket?.contact_id
+        ? api.put(`/pipeline/contacts/${ticket.contact_id}/stage`, { stage_id })
+        : Promise.reject('No contact'),
+    onError: () => toast.error('Failed to update pipeline stage.'),
+  })
+
+  function handleReplyFocus() {
+    if (replyBriefingFetchedRef.current || !id || !aiEnabled) return
+    replyBriefingFetchedRef.current = true
+    setReplyBriefingLoading(true)
+    api.post(`/tickets/${id}/briefing`)
+      .then((r: any) => setReplyBriefing(r.data))
+      .catch(() => {})
+      .finally(() => setReplyBriefingLoading(false))
+  }
+
+  function handleChipAction(action: string, value: string) {
+    setChipsDone(prev => new Set([...prev, `${action}:${value}`]))
+    if (action === 'set_status') {
+      statusMutation.mutate(value)
+    } else if (action === 'assign_department') {
+      const dept = (departments ?? []).find((d: any) => d.name === value)
+      if (dept) assignDeptMutation.mutate(dept.id)
+    } else if (action === 'move_pipeline_stage') {
+      const stage = (pipelineStages ?? []).find((s: any) => s.name === value)
+      if (stage) pipelineStageMutation.mutate(stage.id)
+    }
+  }
 
   if (!ticket) return <p className="text-sm text-slate-400">Loading…</p>
 
@@ -461,15 +521,113 @@ export default function TicketDetail() {
                       e.target.value = ''
                     }}
                   />
+                  {aiEnabled && (
+                    <>
+                      <button
+                        type="button"
+                        disabled={generateLoading}
+                        onClick={async () => {
+                          setGenerateLoading(true)
+                          try {
+                            const r: any = await api.post(`/tickets/${id}/suggest-reply`)
+                            setReplyBody(r.data.suggestion)
+                            setImproveSuggestions([])
+                            toast.success('Reply generated.')
+                          } catch { toast.error('Failed to generate reply.') }
+                          finally { setGenerateLoading(false) }
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-violet-600 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors disabled:opacity-50"
+                        title="Generate AI reply"
+                      >
+                        {generateLoading
+                          ? <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          : <Sparkles size={12} />}
+                        Generate
+                      </button>
+                      <button
+                        type="button"
+                        disabled={improveLoading || !replyBody.trim()}
+                        onClick={async () => {
+                          setImproveLoading(true)
+                          try {
+                            const r: any = await api.post(`/tickets/${id}/improve-reply`, { current_text: replyBody.trim() })
+                            setImproveSuggestions(r.data.suggestions ?? [])
+                          } catch { toast.error('Failed to get suggestions.') }
+                          finally { setImproveLoading(false) }
+                        }}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
+                        title="Improve reply with AI"
+                      >
+                        {improveLoading
+                          ? <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          : <Sparkles size={12} />}
+                        Improve
+                      </button>
+                    </>
+                  )}
                 </div>
+                {/* AI briefing card */}
+                {aiEnabled && (replyBriefingLoading || (replyBriefing && !replyBriefingDismissed)) && (
+                  <div className="bg-violet-50 border border-violet-200 rounded-xl p-3 flex flex-col gap-2">
+                    <div className="flex items-start gap-2">
+                      <Sparkles size={13} className="text-violet-500 mt-0.5 shrink-0" />
+                      <div className="flex-1 min-w-0">
+                        {replyBriefingLoading
+                          ? <p className="text-xs text-violet-500 animate-pulse">Loading briefing…</p>
+                          : <p className="text-xs text-violet-800">{replyBriefing?.summary}</p>
+                        }
+                      </div>
+                      <button onClick={() => setReplyBriefingDismissed(true)} className="text-violet-400 hover:text-violet-600 shrink-0"><X size={12} /></button>
+                    </div>
+                    {!replyBriefingLoading && (replyBriefing?.suggested_actions ?? []).length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {(replyBriefing?.suggested_actions ?? []).map((a: any) => {
+                          const key = `${a.action}:${a.value}`
+                          const done = chipsDone.has(key)
+                          if (a.action === 'assign_department' && !(departments ?? []).find((d: any) => d.name === a.value)) return null
+                          if (a.action === 'move_pipeline_stage' && !(pipelineStages ?? []).find((s: any) => s.name === a.value)) return null
+                          return (
+                            <button
+                              key={key}
+                              onClick={() => !done && handleChipAction(a.action, a.value)}
+                              disabled={done}
+                              className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors ${done ? 'bg-green-100 text-green-700' : 'bg-violet-100 text-violet-700 hover:bg-violet-200'}`}
+                            >
+                              {done && <Check size={9} />}
+                              {a.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
                 {/* Body */}
                 <textarea
                   value={replyBody}
                   onChange={e => setReplyBody(e.target.value)}
+                  onFocus={handleReplyFocus}
                   placeholder="Write your reply…"
                   rows={6}
                   className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-400"
                 />
+                {/* Improve suggestions */}
+                {improveSuggestions.length > 0 && (
+                  <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-2">
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">AI suggestions — click to apply</p>
+                    <div className="flex flex-col gap-1.5">
+                      {improveSuggestions.map((s, i) => (
+                        <button
+                          key={i}
+                          onClick={() => { setReplyBody(s.revised_text); setImproveSuggestions([]) }}
+                          className="text-xs text-left text-blue-600 hover:text-blue-700 font-medium bg-blue-50 hover:bg-blue-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                        >
+                          {s.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {/* Attached files */}
                 {replyFiles.length > 0 && (
                   <div className="flex flex-wrap gap-2">
@@ -807,22 +965,84 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
   const [openDraft, setOpenDraft] = useState<any | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [contactPanelOpen, setContactPanelOpen] = useState(false)
-  // The context-scan briefing no longer auto-runs on open. The agent clicks
-  // Generate briefing on demand — unless the tenant opted into ai_auto_scan,
-  // in which case the old auto behaviour is restored.
-  const [briefingReady, setBriefingReady] = useState(aiAutoScan)
+  const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set())
+
+  const aiEnabled = config?.enabled_modules?.includes('ai') ?? false
+  const [briefingData, setBriefingData] = useState<{ summary: string; suggested_actions: Array<{ action: string; value: string; label: string }> } | null>(null)
+  const [briefingReady, setBriefingReady] = useState(false)
   const [briefingLoading, setBriefingLoading] = useState(false)
+  const [briefingChipsDone, setBriefingChipsDone] = useState<Set<string>>(new Set())
+  const autoScanFiredRef = useRef(false)
+
+  const { data: panelDepts } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => api.get('/departments').then((r: any) => r.data),
+    enabled: aiEnabled,
+    staleTime: 60_000,
+  })
+  const { data: panelStages } = useQuery({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
+    enabled: aiEnabled,
+    staleTime: 60_000,
+  })
+
+  const panelStatusMutation = useMutation({
+    mutationFn: (st: string) => api.patch(`/tickets/${ticket.id}/status`, { status: st }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', ticket.id] }),
+    onError: () => toast.error('Failed to update status.'),
+  })
+  const panelDeptMutation = useMutation({
+    mutationFn: (dept_id: string) => api.patch(`/tickets/${ticket.id}`, { department_id: dept_id }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', ticket.id] }),
+    onError: () => toast.error('Failed to assign department.'),
+  })
+  const panelStageMutation = useMutation({
+    mutationFn: (stage_id: string) =>
+      ticket.contact_id
+        ? api.put(`/pipeline/contacts/${ticket.contact_id}/stage`, { stage_id })
+        : Promise.reject('No contact'),
+    onError: () => toast.error('Failed to update pipeline stage.'),
+  })
 
   function generateBriefing() {
+    if (!aiEnabled) return
     setBriefingLoading(true)
-    // The scan is computed client-side from already-loaded ticket data; the
-    // short delay surfaces the spinner so the action reads as a real scan.
-    window.setTimeout(() => {
-      setBriefingLoading(false)
-      setBriefingReady(true)
-      toast.success('Customer briefing generated.')
-    }, 600)
+    api.post(`/tickets/${ticket.id}/briefing`)
+      .then((r: any) => {
+        setBriefingData(r.data)
+        setBriefingReady(true)
+        toast.success('Customer briefing generated.')
+      })
+      .catch(() => toast.error('Failed to generate briefing.'))
+      .finally(() => setBriefingLoading(false))
   }
+
+  function handleBriefingChip(action: string, value: string) {
+    setBriefingChipsDone(prev => new Set([...prev, `${action}:${value}`]))
+    if (action === 'set_status') panelStatusMutation.mutate(value)
+    else if (action === 'assign_department') {
+      const dept = (panelDepts ?? []).find((d: any) => d.name === value)
+      if (dept) panelDeptMutation.mutate(dept.id)
+    } else if (action === 'move_pipeline_stage') {
+      const stage = (panelStages ?? []).find((s: any) => s.name === value)
+      if (stage) panelStageMutation.mutate(stage.id)
+    }
+  }
+
+  useEffect(() => {
+    if (aiAutoScan && aiEnabled && ticket?.id && !autoScanFiredRef.current) {
+      autoScanFiredRef.current = true
+      generateBriefing()
+    }
+  }, [aiAutoScan, aiEnabled, ticket?.id])
+
+  const { data: contactHistory } = useQuery({
+    queryKey: ['contact-history', ticket.id],
+    queryFn: () => api.get(`/tickets/${ticket.id}/contact-history`).then((r: any) => r.data),
+    enabled: !!contactId && !!ticket.id,
+    staleTime: 30_000,
+  })
 
   const shipmentsEnabled = config?.enabled_modules?.includes('tracking') ?? false
   const salesEnabled = config?.enabled_modules?.includes('sales') ?? false
@@ -987,66 +1207,136 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       )}
 
       {/* Context scan */}
-      <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
-        <div className="px-4 py-3 border-b border-slate-100">
-          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Context scan</h3>
+      {aiEnabled && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
+          <div className="px-4 py-3 border-b border-slate-100">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Context scan</h3>
+          </div>
+          {!briefingReady ? (
+            <div className="px-4 py-4 flex flex-col items-center gap-2 text-center">
+              <p className="text-xs text-slate-400">Generate a quick-scan briefing for this ticket.</p>
+              <button
+                onClick={generateBriefing}
+                disabled={briefingLoading}
+                className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-100 border border-violet-200 rounded-lg px-3 py-1.5 hover:bg-violet-200 transition-colors disabled:opacity-50 cursor-pointer"
+              >
+                {briefingLoading
+                  ? <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                  : <Sparkles size={11} />}
+                {briefingLoading ? 'Generating…' : 'Generate briefing'}
+              </button>
+            </div>
+          ) : (
+            <div className="divide-y divide-slate-100">
+              {briefingData?.summary && (
+                <div className="px-4 py-3">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">AI summary</p>
+                  <p className="text-xs text-slate-700 leading-relaxed">{briefingData.summary}</p>
+                </div>
+              )}
+              {(briefingData?.suggested_actions ?? []).length > 0 && (
+                <div className="px-4 py-3">
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Suggested actions</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {(briefingData?.suggested_actions ?? []).map((a: any) => {
+                      const key = `${a.action}:${a.value}`
+                      const done = briefingChipsDone.has(key)
+                      if (a.action === 'assign_department' && !(panelDepts ?? []).find((d: any) => d.name === a.value)) return null
+                      if (a.action === 'move_pipeline_stage' && !(panelStages ?? []).find((s: any) => s.name === a.value)) return null
+                      return (
+                        <button
+                          key={key}
+                          onClick={() => !done && handleBriefingChip(a.action, a.value)}
+                          disabled={done}
+                          className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full transition-colors ${done ? 'bg-green-100 text-green-700' : 'bg-violet-100 text-violet-700 hover:bg-violet-200'}`}
+                        >
+                          {done && <Check size={9} />}
+                          {a.label}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+              <div className="px-4 py-3">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Invoice #</p>
+                {invoiceMatches.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {invoiceMatches.map(m => (
+                      <span key={m} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{m}</span>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-400">None found</p>
+                )}
+              </div>
+              <div className="px-4 py-3">
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Previous tickets</p>
+                <p className="text-xs text-slate-700 mb-1.5">{priorCount} prior ticket{priorCount === 1 ? '' : 's'}</p>
+                {priorSubjects.length > 0 && (
+                  <div className="flex flex-col gap-1">
+                    {priorSubjects.map((t: any) => (
+                      <button key={t.id} onClick={() => navigate(`/tickets/${t.id}`)} className="text-left text-xs text-blue-600 hover:text-blue-700 truncate">
+                        {t.subject}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-        {!briefingReady ? (
-          <div className="px-4 py-4 flex flex-col items-center gap-2 text-center">
-            <p className="text-xs text-slate-400">Generate a quick-scan briefing for this ticket.</p>
-            <button
-              onClick={generateBriefing}
-              disabled={briefingLoading}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-violet-600 bg-violet-100 border border-violet-200 rounded-lg px-3 py-1.5 hover:bg-violet-200 transition-colors disabled:opacity-50 cursor-pointer"
-            >
-              {briefingLoading ? (
-                <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <Sparkles size={11} />
-              )}
-              {briefingLoading ? 'Generating…' : 'Generate briefing'}
-            </button>
+      )}
+
+      {/* Contact history */}
+      {contactId && (contactHistory ?? []).length > 0 && (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
+          <div className="px-4 py-3 border-b border-slate-100">
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recent contact</h3>
           </div>
-        ) : (
           <div className="divide-y divide-slate-100">
-            <div className="px-4 py-3">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Subject</p>
-              <p className="text-xs text-slate-700">{ticket?.subject ?? '—'}</p>
-            </div>
-            <div className="px-4 py-3">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Invoice #</p>
-              {invoiceMatches.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {invoiceMatches.map(m => (
-                    <span key={m} className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                      {m}
-                    </span>
-                  ))}
+            {(contactHistory ?? []).map((item: any) => {
+              const isExpanded = expandedHistory.has(item.id)
+              const isInternal = item.kind === 'internal_note'
+              const isChat = item.kind === 'chat'
+              const Icon = isChat ? MessageSquare : isInternal ? Lock : Mail
+              return (
+                <div
+                  key={item.id}
+                  className={`px-4 py-3 cursor-pointer ${isInternal ? 'bg-slate-50' : 'hover:bg-slate-50'}`}
+                  onClick={() => setExpandedHistory(prev => {
+                    const next = new Set(prev)
+                    next.has(item.id) ? next.delete(item.id) : next.add(item.id)
+                    return next
+                  })}
+                >
+                  <div className="flex items-start gap-2">
+                    <Icon size={11} className={`mt-0.5 shrink-0 ${isInternal ? 'text-slate-400' : isChat ? 'text-blue-400' : 'text-slate-400'}`} />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        {item.subject && <p className="text-xs font-medium text-slate-700 truncate flex-1">{item.subject}</p>}
+                        {isInternal && <span className="text-[10px] font-semibold text-slate-400 bg-slate-200 rounded px-1 py-0.5 shrink-0">Internal</span>}
+                        <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(item.created_at)}</span>
+                      </div>
+                      <p className={`text-[11px] text-slate-500 ${isExpanded ? 'whitespace-pre-wrap' : 'truncate'}`}>{item.preview}</p>
+                    </div>
+                  </div>
+                  {isExpanded && item.ticket_id && item.ticket_id !== ticket.id && (
+                    <div className="mt-2 ml-5">
+                      <button
+                        onClick={e => { e.stopPropagation(); navigate(`/tickets/${item.ticket_id}`) }}
+                        className="text-[10px] font-semibold text-blue-600 hover:text-blue-700"
+                      >
+                        View ticket →
+                      </button>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <p className="text-xs text-slate-400">None found</p>
-              )}
-            </div>
-            <div className="px-4 py-3">
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Previous tickets</p>
-              <p className="text-xs text-slate-700 mb-1.5">{priorCount} prior ticket{priorCount === 1 ? '' : 's'}</p>
-              {priorSubjects.length > 0 && (
-                <div className="flex flex-col gap-1">
-                  {priorSubjects.map((t: any) => (
-                    <button
-                      key={t.id}
-                      onClick={() => navigate(`/tickets/${t.id}`)}
-                      className="text-left text-xs text-blue-600 hover:text-blue-700 truncate"
-                    >
-                      {t.subject}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+              )
+            })}
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Orders card — visible when shipments module is enabled and contact is linked */}
       {contactId && shipmentsEnabled && (
