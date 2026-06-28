@@ -93,13 +93,28 @@ Everything below must be done **before** going live. Items not listed here are d
 | 4 | [TRACK1] Track & trace | Medium | High value for commerce clients; depends on clients connecting their shop/Sendcloud |
 | 5 | [AI-MOD1] Cloud LLM | High | Biggest long-term moat — but only compounds with volume. At 5 tenants it's a cheaper Anthropic replacement. At 50+ tenants with real conversation history it becomes defensible. Build last, after data exists to train on. |
 | 6 | [CLUSTER1] Issue cluster generator | Medium | Depends on [AI-MOD1]. Groups open tickets by theme to surface recurring problems — turns raw volume into actionable insight for agents and content teams. |
-| 7 | [JARVIS1] Quick-capture assistant | High | Sticky daily-use differentiator — reduces context switching for agents; personal reminders + contact/ticket notes from one hotkey; AI routing uses Anthropic API early, upgrades when [AI-MOD1] ships |
+| 7 | [JARVIS1] Quick-capture assistant | High | Sticky daily-use differentiator — reduces context switching for agents; personal reminders + contact/ticket notes from one hotkey; AI routing uses Mistral API (EU, GDPR-safe) early, upgrades to self-hosted vLLM when [AI-MOD1] ships |
 
 **The differentiation:** No SMB competitor combines behavioral tracking ([SALES-MOD1]) with a learning, tenant-aware AI ([AI-MOD1]). Intercom has AI but it's stateless and expensive at scale. Zendesk has tracking but it's disconnected from the AI. The combination is the moat — build [SALES-MOD1] first so the data is already accumulating when [AI-MOD1] is ready to consume it.
 
 **[AI-CTRL] Cloud LLM control panel** — `Sonnet` — *post-launch. Superuser only.* A dedicated page in the superadmin UI (`/superadmin/cloud-llm`) listing every Cloud LLM feature. Each tool has: an on/off toggle (globally or per-tenant), a description of what it does, and a "Test" button that runs the feature against a selected tenant with sample data and shows raw output. Accessible only to superusers (same guard as `SuperAdminPage`). Ships new features dark — toggle them on per-tenant as they're validated. Depends on [AI-MOD1].
 
-**[AI-MOD1] Self-hosted AI module** — `Opus` — *post-launch.* Replace the Anthropic API key with a self-hosted open-source LLM (Llama 3 70B or Qwen 2.5 72B) running on Digital Ocean. Unlike the stateless Anthropic API, the self-hosted model accumulates context: fine-tuned over time on real tenant conversations, fed full customer + tenant memory without per-token cost pressure, and queryable against the existing RLS-isolated Postgres on Railway. Two context scopes: (1) tenant context — what the client's business does, their product, tone, config; (2) customer context — who this end-user is, full conversation history, behavioral data. Serving stack: Ollama (dev) → vLLM (production); memory layer: pgvector on existing Railway Postgres; LiteLLM proxy to make model swapping transparent. Data collected from day one (conversation transcripts, outcomes, behavioral events) must be in a clean, labeled format ready for fine-tuning. This is the core product moat: more tenants → more training data → smarter model → better product.
+**[AI-MOD1] Self-hosted AI module** — `Opus` — *post-launch. Trigger: >100K AI calls/month.* Replace the Mistral API with a self-hosted open-source LLM on Hetzner (Germany/Finland — EU data residency, GDPR-native). Unlike any external API, the self-hosted model accumulates context: fine-tuned over time on real tenant conversations, fed full customer + tenant memory without per-token cost pressure, and queryable against the existing RLS-isolated Postgres on Railway. Two context scopes: (1) tenant context — what the client's business does, their product, tone, config; (2) customer context — who this end-user is, full conversation history, behavioral data.
+
+**Infrastructure target:**
+- **Model:** `Qwen 2.5 7B` for classification/routing (best structured-output benchmarks at this size); `Qwen 2.5 72B` or `Llama 3.1 70B` for reply drafting once volume justifies it
+- **Serving:** vLLM (793 TPS, multi-GPU, Prometheus metrics, OpenAI-compatible endpoint) — not Ollama (41 TPS, single-user queue, no multi-GPU)
+- **Hardware:** Hetzner AX102 (RTX 4000 Ada 20GB, €184/mo) for 7B models; Hetzner GEX130 (RTX 6000 Ada 48GB, €838/mo) for 70B @ INT4
+- **Proxy:** LiteLLM in front of vLLM — `ai_completion()` in the codebase stays unchanged; swap is one env var (`AI_PROVIDER=self-hosted`, `AI_BASE_URL=http://hetzner-ip:8000/v1`, `AI_MODEL=Qwen/Qwen2.5-7B-Instruct`)
+- **Memory layer:** pgvector on existing Railway Postgres for embeddings/retrieval
+- **Break-even vs Mistral API:** ~100K–500K calls/month depending on model size
+
+**AI provider progression (all transparent via LiteLLM):**
+1. **Now:** Mistral API (EU, €0.10/1M tokens at ministral-8b, zero infra)
+2. **Scale:** Self-hosted vLLM on Hetzner (zero marginal cost, full data control)
+3. **Moat:** Fine-tuned on tenant conversation history (more tenants → smarter model → better product)
+
+Data collected from day one (conversation transcripts, routing outcomes, reply quality signals) must be in a clean, labeled format ready for fine-tuning. This is the core product moat: more tenants → more training data → smarter model → better product.
 
 **[CLUSTER1] Issue cluster generator** — `Sonnet` — *post-launch, depends on [AI-MOD1].* Uses the cloud LLM (or Anthropic API as an interim fallback) to automatically group open tickets and livechat sessions by theme (e.g. "billing questions", "delivery issues", "password reset"). Surfaces as a "Top issues this week" card on the Activity page or a dedicated Insights tab: cluster name, ticket count, and example subjects per group. Agents see recurring problems at a glance — useful for proactive FAQ/docs, campaign targeting, and detecting incidents early. Implementation: periodic batch job reads open ticket subjects/descriptions, embeds them (pgvector), runs k-means or LLM-summarised clustering, writes cluster summaries to a `ticket_clusters` table (tenant-scoped, RLS-isolated). Frontend: widget on ActivityFeed + optional `/insights` route. Depends on [AI-MOD1] for cost-effective embeddings at scale; Anthropic API works as a fallback for early tenants.
 
@@ -125,7 +140,7 @@ Everything below must be done **before** going live. Items not listed here are d
 
 **Frontend:** `QuickCapturePopup.tsx` — compact floating card (≈ ticket notification width), bottom-right, shadow, rounded, context chip, type-ahead suggestions (recent contacts, open tickets), Enter to submit, Escape to close, gear icon for preferences. `useQuickCapture()` hook in `App.tsx`. Right-click menus on `ContactsPage.tsx` + `TicketList.tsx` + detail pages.
 
-**Backend:** `POST /quick-capture {body, context_type, context_id}` → Claude Haiku classifies intent, extracts entities, executes action, returns `{action_taken, summary, inline_data?}` where `inline_data` carries editable fields for the context-query path. Anthropic API now; swap to [AI-MOD1] when available. Gated via `[AI-CTRL]`; counts against AI usage.
+**Backend:** `POST /quick-capture {body, context_type, context_id}` → Mistral Small classifies intent, extracts entities, executes action, returns `{action_taken, summary, inline_data?}` where `inline_data` carries editable fields for the context-query path. Mistral API now (EU, GDPR-safe); swap to [AI-MOD1] self-hosted when volume justifies. Gated via `[AI-CTRL]`; counts against AI usage.
 
 **The vision:** this is the Jarvis layer — one always-available input that understands where you are, who you're looking at, and what your business does. Phase 1: notes, reminders, customer context. Phase 2: natural-language queries ("how many open tickets does Acme have?"), task delegation ("create a follow-up ticket for Jan in 3 days"). Phase 3: multi-step workflows and proactive nudges. All from the same small popup.
 
