@@ -618,6 +618,7 @@ async def get_contact_history(
     # 3. Resolved chat sessions
     q_sessions = (
         select(ChatSession)
+        .where(ChatSession.tenant_id == current_user.tenant_id)
         .where(ChatSession.contact_id == contact_id)
         .where(ChatSession.status != "open")
         .order_by(ChatSession.started_at.desc())

@@ -107,7 +107,7 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
       ;(el as HTMLElement).style.outline = ''
     })
     if (!buttonId) return
-    const el = doc.getElementById(buttonId) as HTMLElement | null
+    const el = doc.querySelector(`[data-yippie-button][id="${buttonId}"], [data-yippie-button="${buttonId}"]`) as HTMLElement | null
     if (el) el.style.outline = '3px solid #5BA4F5'
   }
 
@@ -132,10 +132,10 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
   const save = useMutation({
     mutationFn: () =>
       marketingApi.updateCampaign(campaign.id, {
-        post_send_stage_id: postSendStageId ?? undefined,
-        reply_received_stage_id: replyStageId ?? undefined,
+        post_send_stage_id: postSendStageId,
+        reply_received_stage_id: replyStageId,
         button_stage_config: buttonConfig,
-        linked_stage_id: linkedStageId ?? undefined,
+        linked_stage_id: linkedStageId,
       } as any),
     onSuccess: () => {
       toast.success('Actions saved')

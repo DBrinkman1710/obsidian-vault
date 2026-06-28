@@ -262,15 +262,16 @@ export default function TicketDetail() {
   }
 
   function handleChipAction(action: string, value: string) {
-    setChipsDone(prev => new Set([...prev, `${action}:${value}`]))
+    const key = `${action}:${value}`
     if (action === 'set_status') {
+      setChipsDone(prev => new Set([...prev, key]))
       statusMutation.mutate(value)
     } else if (action === 'assign_department') {
       const dept = (departments ?? []).find((d: any) => d.name === value)
-      if (dept) assignDeptMutation.mutate(dept.id)
+      if (dept) { setChipsDone(prev => new Set([...prev, key])); assignDeptMutation.mutate(dept.id) }
     } else if (action === 'move_pipeline_stage') {
       const stage = (pipelineStages ?? []).find((s: any) => s.name === value)
-      if (stage) pipelineStageMutation.mutate(stage.id)
+      if (stage) { setChipsDone(prev => new Set([...prev, key])); pipelineStageMutation.mutate(stage.id) }
     }
   }
 
