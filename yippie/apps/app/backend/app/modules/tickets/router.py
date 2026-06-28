@@ -7,15 +7,18 @@ from typing import Annotated, List, Optional
 from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import AdminUser, CurrentUser
+from app.auth.dependencies import AdminUser, CurrentUser, require_module
 from app.database import get_db
 from app.modules.activity import service as activity_service
 from app.modules.tickets import service
 from app.modules.tickets.models import TicketStatus
 from app.modules.tickets.schemas import (
+    BriefingOut,
     BulkDeleteTicketsRequest,
     CommentCreate,
     CommentOut,
+    ContactHistoryItem,
+    ImproveReplyRequest,
     TemplateCreate,
     TemplateUpdate,
     TemplateOut,
@@ -308,3 +311,340 @@ async def send_ticket_reply(
     await db.commit()
 
     return {"sent": True, "to": contact.email, "comment_id": str(comment.id)}
+
+
+@router.post("/{ticket_id}/briefing", response_model=BriefingOut, dependencies=[Depends(require_module("ai"))])
+async def get_ticket_briefing(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    """AI customer briefing card: summary + 2-3 suggested actions."""
+    import json
+    from sqlalchemy import select
+    from app.modules.contacts.models import Contact
+    from app.modules.tickets.models import Ticket, TicketComment
+    from app.modules.departments.models import Department
+    from app.modules.pipeline.models import PipelineStage
+    from app.modules.inbox.ai_scanner import generate_context_summary, _parse_json
+    from app.modules.ai.client import ai_completion
+
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    contact = await db.get(Contact, ticket.contact_id) if ticket.contact_id else None
+    contact_dict: Optional[dict] = None
+    if contact:
+        contact_dict = {
+            "full_name": contact.full_name,
+            "company": getattr(contact, "company", None),
+            "email": getattr(contact, "email", None),
+            "phone": getattr(contact, "phone", None),
+            "tags": getattr(contact, "tags", []) or [],
+            "notes": getattr(contact, "notes", None),
+        }
+
+    # Last 5 tickets for this contact (excluding current)
+    recent_tickets: list[dict] = []
+    if ticket.contact_id:
+        q = (
+            select(Ticket)
+            .where(Ticket.tenant_id == current_user.tenant_id)
+            .where(Ticket.contact_id == ticket.contact_id)
+            .where(Ticket.id != ticket.id)
+            .where(Ticket.deleted_at.is_(None))
+            .order_by(Ticket.created_at.desc())
+            .limit(5)
+        )
+        result = await db.execute(q)
+        for t in result.scalars().all():
+            recent_tickets.append({
+                "status": t.status.value if hasattr(t.status, "value") else t.status,
+                "subject": t.subject,
+                "priority": t.priority.value if hasattr(t.priority, "value") else t.priority,
+            })
+
+    # Build raw body from description + most recent non-internal email comment
+    raw_body = ticket.description or ""
+    q_comment = (
+        select(TicketComment)
+        .where(TicketComment.ticket_id == ticket.id)
+        .where(TicketComment.is_internal.is_(False))
+        .order_by(TicketComment.created_at.desc())
+        .limit(1)
+    )
+    result_comment = await db.execute(q_comment)
+    last_comment = result_comment.scalars().first()
+    if last_comment:
+        raw_body = last_comment.body
+
+    sender = contact.email if contact and getattr(contact, "email", None) else (contact.full_name if contact else "Unknown")
+    summary = await generate_context_summary(sender, raw_body, contact_dict, recent_tickets, None)
+
+    # Load departments and pipeline stages for suggested action validation
+    dept_result = await db.execute(
+        select(Department).where(Department.tenant_id == current_user.tenant_id)
+    )
+    departments = dept_result.scalars().all()
+    dept_names = [d.name for d in departments]
+
+    stage_result = await db.execute(
+        select(PipelineStage).where(PipelineStage.tenant_id == current_user.tenant_id)
+    )
+    pipeline_stages = stage_result.scalars().all()
+    stage_names = [s.name for s in pipeline_stages]
+
+    current_status = ticket.status.value if hasattr(ticket.status, "value") else ticket.status
+    status_options = [s.value for s in TicketStatus]
+
+    action_prompt = f"""You are a customer service workflow assistant. Based on the ticket context below, suggest 2-3 concrete next actions an agent should take. Choose ONLY from the allowed action types and values.
+
+Ticket subject: {ticket.subject}
+Current status: {current_status}
+Customer summary: {summary}
+
+Allowed action types and values:
+- set_status: one of {status_options}
+- assign_department: one of {dept_names or ['(none available)']}
+- move_pipeline_stage: one of {stage_names or ['(none available)']}
+
+Return ONLY a JSON array of 2-3 objects (no text before or after):
+[{{"action": "set_status"|"assign_department"|"move_pipeline_stage", "value": "<exact value from the allowed list>", "label": "<short human-readable chip label, e.g. Mark as resolved>"}}]
+
+Only suggest actions that make sense given the current state. Skip set_status if already resolved. Only include assign_department or move_pipeline_stage if there are available options."""
+
+    action_text = await ai_completion([{"role": "user", "content": action_prompt}], max_tokens=400)
+    actions_raw = _parse_json(action_text, fallback=[])
+    suggested_actions = []
+    if isinstance(actions_raw, list):
+        for a in actions_raw[:3]:
+            if isinstance(a, dict) and a.get("action") and a.get("value") and a.get("label"):
+                suggested_actions.append({"action": a["action"], "value": a["value"], "label": a["label"]})
+
+    return BriefingOut(summary=summary, suggested_actions=suggested_actions)
+
+
+@router.post("/{ticket_id}/suggest-reply", dependencies=[Depends(require_module("ai"))])
+async def suggest_ticket_reply(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    """AI-generate a full reply draft for this ticket."""
+    from sqlalchemy import select
+    from app.modules.contacts.models import Contact
+    from app.modules.tickets.models import TicketComment, MessageSource
+    from app.modules.inbox.ai_scanner import generate_context_summary, generate_reply_draft
+
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    contact = await db.get(Contact, ticket.contact_id) if ticket.contact_id else None
+    contact_name = contact.full_name if contact else None
+
+    # Detect language from most recent email comment
+    q = (
+        select(TicketComment)
+        .where(TicketComment.ticket_id == ticket.id)
+        .where(TicketComment.is_internal.is_(False))
+        .where(TicketComment.source == MessageSource.email)
+        .order_by(TicketComment.created_at.desc())
+        .limit(1)
+    )
+    result = await db.execute(q)
+    last_email = result.scalars().first()
+
+    # Build context summary inline
+    contact_dict = None
+    if contact:
+        contact_dict = {
+            "full_name": contact.full_name,
+            "company": getattr(contact, "company", None),
+            "email": getattr(contact, "email", None),
+            "phone": getattr(contact, "phone", None),
+            "tags": getattr(contact, "tags", []) or [],
+            "notes": getattr(contact, "notes", None),
+        }
+    raw_body = (last_email.body if last_email else None) or ticket.description or ""
+    sender = getattr(contact, "email", None) or (contact.full_name if contact else "Unknown") if contact else "Unknown"
+    context_summary = await generate_context_summary(sender, raw_body, contact_dict, [], None)
+
+    # Use heuristic language detection — check for non-ASCII characters as a simple signal,
+    # or fall back to generating in English. A future improvement could use a langdetect lib.
+    language = "en"
+    if last_email:
+        # Detect language from the comment body using a lightweight AI check
+        from app.modules.ai.client import ai_completion
+        lang_text = await ai_completion(
+            [{"role": "user", "content": f"Detect the language of this text and return ONLY its ISO 639-1 code (e.g. en, nl, fr):\n\n{last_email.body[:300]}"}],
+            max_tokens=5,
+        )
+        detected = lang_text.strip().lower()[:2]
+        if detected.isalpha() and len(detected) == 2:
+            language = detected
+
+    suggestion = await generate_reply_draft(
+        subject=ticket.subject,
+        description=ticket.description or "",
+        context_summary=context_summary,
+        contact_name=contact_name,
+        language=language,
+    )
+    return {"suggestion": suggestion}
+
+
+@router.post("/{ticket_id}/improve-reply", dependencies=[Depends(require_module("ai"))])
+async def improve_ticket_reply(ticket_id: uuid.UUID, body: ImproveReplyRequest, current_user: CurrentUser, db: DB):
+    """AI-rewrite the agent's current reply with labelled variants."""
+    from sqlalchemy import select
+    from app.modules.contacts.models import Contact
+    from app.modules.tickets.models import TicketComment, MessageSource
+    from app.modules.inbox.ai_scanner import generate_context_summary, generate_reply_improvements
+
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    contact = await db.get(Contact, ticket.contact_id) if ticket.contact_id else None
+
+    q = (
+        select(TicketComment)
+        .where(TicketComment.ticket_id == ticket.id)
+        .where(TicketComment.is_internal.is_(False))
+        .where(TicketComment.source == MessageSource.email)
+        .order_by(TicketComment.created_at.desc())
+        .limit(1)
+    )
+    result = await db.execute(q)
+    last_email = result.scalars().first()
+
+    contact_dict = None
+    if contact:
+        contact_dict = {
+            "full_name": contact.full_name,
+            "company": getattr(contact, "company", None),
+            "email": getattr(contact, "email", None),
+            "phone": getattr(contact, "phone", None),
+            "tags": getattr(contact, "tags", []) or [],
+            "notes": getattr(contact, "notes", None),
+        }
+    raw_body = (last_email.body if last_email else None) or ticket.description or ""
+    sender = getattr(contact, "email", None) or (contact.full_name if contact else "Unknown") if contact else "Unknown"
+    context_summary = await generate_context_summary(sender, raw_body, contact_dict, [], None)
+
+    language = "en"
+    if last_email:
+        from app.modules.ai.client import ai_completion
+        lang_text = await ai_completion(
+            [{"role": "user", "content": f"Detect the language of this text and return ONLY its ISO 639-1 code (e.g. en, nl, fr):\n\n{last_email.body[:300]}"}],
+            max_tokens=5,
+        )
+        detected = lang_text.strip().lower()[:2]
+        if detected.isalpha() and len(detected) == 2:
+            language = detected
+
+    suggestions = await generate_reply_improvements(
+        current_text=body.current_text,
+        context_summary=context_summary,
+        subject=ticket.subject,
+        language=language,
+    )
+    return {"suggestions": suggestions}
+
+
+@router.get("/{ticket_id}/contact-history", response_model=list[ContactHistoryItem])
+async def get_contact_history(
+    ticket_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: DB,
+    limit: int = Query(5, ge=1, le=20),
+):
+    """Last N touchpoints with this ticket's contact across all history."""
+    from sqlalchemy import select, union_all, literal, String, cast
+    from app.modules.tickets.models import Ticket, TicketComment
+    from app.modules.emailtracking.models import OutboundEmail
+    from app.modules.chat.models import ChatSession, ChatMessage
+
+    ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    if not ticket.contact_id:
+        return []
+
+    contact_id = ticket.contact_id
+    items: list[dict] = []
+
+    # 1. Comments on other tickets for this contact
+    q_comments = (
+        select(TicketComment, Ticket.subject.label("ticket_subject"))
+        .join(Ticket, Ticket.id == TicketComment.ticket_id)
+        .where(Ticket.tenant_id == current_user.tenant_id)
+        .where(Ticket.contact_id == contact_id)
+        .where(TicketComment.ticket_id != ticket.id)
+        .where(Ticket.deleted_at.is_(None))
+        .order_by(TicketComment.created_at.desc())
+        .limit(limit * 2)
+    )
+    res = await db.execute(q_comments)
+    for row in res.all():
+        comment = row[0]
+        ticket_subject = row[1]
+        kind = "internal_note" if comment.is_internal else "email"
+        items.append({
+            "kind": kind,
+            "id": comment.id,
+            "subject": ticket_subject,
+            "preview": comment.body[:300],
+            "created_at": comment.created_at,
+            "ticket_id": comment.ticket_id,
+            "session_id": None,
+        })
+
+    # 2. Outbound emails to this contact
+    q_outbound = (
+        select(OutboundEmail)
+        .where(OutboundEmail.tenant_id == current_user.tenant_id)
+        .where(OutboundEmail.contact_id == contact_id)
+        .order_by(OutboundEmail.created_at.desc())
+        .limit(limit)
+    )
+    res = await db.execute(q_outbound)
+    for email in res.scalars().all():
+        items.append({
+            "kind": "outbound_email",
+            "id": email.id,
+            "subject": email.subject,
+            "preview": (email.body or "")[:300],
+            "created_at": email.created_at,
+            "ticket_id": None,
+            "session_id": None,
+        })
+
+    # 3. Resolved chat sessions
+    q_sessions = (
+        select(ChatSession)
+        .where(ChatSession.contact_id == contact_id)
+        .where(ChatSession.status != "open")
+        .order_by(ChatSession.started_at.desc())
+        .limit(limit)
+    )
+    res = await db.execute(q_sessions)
+    sessions = res.scalars().all()
+    for sess in sessions:
+        # Get last message as preview
+        q_msg = (
+            select(ChatMessage)
+            .where(ChatMessage.session_id == sess.id)
+            .order_by(ChatMessage.created_at.desc())
+            .limit(1)
+        )
+        msg_res = await db.execute(q_msg)
+        last_msg = msg_res.scalars().first()
+        items.append({
+            "kind": "chat",
+            "id": sess.id,
+            "subject": None,
+            "preview": last_msg.body[:300] if last_msg else "",
+            "created_at": sess.started_at,
+            "ticket_id": None,
+            "session_id": sess.id,
+        })
+
+    # Sort merged list by created_at desc, return top N
+    items.sort(key=lambda x: x["created_at"], reverse=True)
+    return [ContactHistoryItem(**item) for item in items[:limit]]
