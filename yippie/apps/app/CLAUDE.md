@@ -112,8 +112,6 @@ docker compose exec backend pytest
 - Customer self-service portal (`/portal/{tenant_slug}` — public ticket submission)
 - Outbound email/WhatsApp replies when agent responds to inbox-sourced tickets
 - Analytics dashboard (`GET /api/v1/analytics/summary`)
-- New contact form (`/contacts/new` route linked in ContactList but page not created)
-- New ticket form (`/tickets/new` route linked in TicketList but page not created)
 - PostgreSQL RLS policies (migrations scaffolded, policies not yet added)
 
 ## Per-client deployment checklist
