@@ -13,7 +13,7 @@ import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 import { useT } from '../../../hooks/useT'
-import SendBookingModal from '../../booking/SendBookingModal'
+import SendBookingModal from '../../booking/components/SendBookingModal'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'resolved', 'closed']
 
