@@ -9,7 +9,7 @@ import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelCh
 import { CompanyBadge, type CompanyRef } from '../components/CompanyBadge'
 import { CompanyPicker } from '../components/CompanyPicker'
 import { useTenantConfig } from '../../../App'
-import SendBookingModal from '../../booking/SendBookingModal'
+import SendBookingModal from '../../booking/components/SendBookingModal'
 
 function formatEventType(s: string): string {
   return s.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
