@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Copy, Megaphone, Plus, UserMinus, X, Mail, MessageCircle } from 'lucide-react'
-import { Campaign, CampaignStatus, Channel, marketingApi, Unsubscribe } from './api'
+import { Campaign, CampaignStatus, Channel, marketingApi, Unsubscribe } from '../api'
 import { CampaignDetail } from './CampaignDetail'
 
 const STATUS_STYLES: Record<CampaignStatus, string> = {
