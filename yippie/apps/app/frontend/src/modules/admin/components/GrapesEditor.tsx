@@ -70,7 +70,7 @@ const REDIRECT_URL_TRAIT = {
   placeholder: 'https://',
 }
 
-function buildSecondaryTrait(actionType: string, stages: PipelineStage[], labels: ContactLabel[]) {
+function buildSecondaryTrait(actionType: string, _stages: PipelineStage[], labels: ContactLabel[]) {
   if (actionType === 'pipeline_stage') {
     return {
       type: 'text',
