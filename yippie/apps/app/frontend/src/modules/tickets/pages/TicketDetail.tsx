@@ -1060,7 +1060,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
   const { data: drafts } = useQuery({
     queryKey: ['contact-correspondence', contactId],
     queryFn: () =>
-      api.get(`/inbox/drafts`, { params: { contact_id: contactId, status: 'processed' } }).then((r: any) => r.data),
+      api.get(`/inbox/drafts`, { params: { contact_id: contactId } }).then((r: any) => r.data),
     enabled: !!contactId,
   })
   const { data: ticketsData } = useQuery({
