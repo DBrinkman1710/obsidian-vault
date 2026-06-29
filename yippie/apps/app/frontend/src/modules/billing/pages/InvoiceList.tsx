@@ -564,20 +564,39 @@ export default function InvoiceList() {
     }
   }
 
+  const [showExportMenu, setShowExportMenu] = useState(false)
+
   return (
     <div>
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-6">
         <h1 className="text-2xl font-bold text-slate-900">Invoices</h1>
         <div className="flex items-center gap-2">
-          <button onClick={() => exportData('csv')}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-            <Download size={15} strokeWidth={2.5} /> Export CSV
-          </button>
-          <button onClick={bulkDownloadPdf}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-            <FileDown size={15} strokeWidth={2.5} /> Export PDF
-          </button>
+          {/* Export dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowExportMenu(v => !v)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+              <Download size={15} strokeWidth={2.5} /> Export <ChevronDown size={13} className="opacity-60" />
+            </button>
+            {showExportMenu && (
+              <>
+                <div className="fixed inset-0 z-10" onClick={() => setShowExportMenu(false)} />
+                <div className="absolute right-0 mt-1 w-36 bg-white rounded-xl border border-slate-200 shadow-lg z-20 py-1 overflow-hidden">
+                  <button
+                    onClick={() => { exportData('csv'); setShowExportMenu(false) }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <Download size={14} className="text-slate-400" /> CSV
+                  </button>
+                  <button
+                    onClick={() => { bulkDownloadPdf(); setShowExportMenu(false) }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <FileDown size={14} className="text-slate-400" /> PDF
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
           <button onClick={() => setShowImport(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
             <Upload size={15} strokeWidth={2.5} /> Import
