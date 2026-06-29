@@ -237,7 +237,7 @@
 }
 
 .footerBrand { max-width: 320px; }
-.footerLogo { height: 52px; width: auto; margin-bottom: 18px; border-radius: 8px; }
+.footerLogo { height: 192px; width: auto; margin-bottom: 18px; border-radius: 8px; }
 .footerTagline {
   font-size: 14px;
   line-height: 1.7;
