@@ -139,13 +139,13 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
         {previewHtml ? (
           <>
             <div
-              className="relative min-h-0 flex-1 w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 shadow-md cursor-pointer hover:shadow-lg transition-shadow bg-white"
+              className="relative min-h-0 flex-1 w-full max-w-2xl overflow-y-auto rounded-xl border border-slate-200 shadow-md cursor-pointer hover:shadow-lg transition-shadow bg-white"
               onClick={openEditor}
             >
               <iframe
                 srcDoc={previewHtml}
-                className="pointer-events-none w-full h-full"
-                style={{ minHeight: 400, border: 'none' }}
+                className="pointer-events-none w-full"
+                style={{ height: 1200, border: 'none', display: 'block' }}
                 sandbox="allow-same-origin"
                 title="Email preview"
               />
