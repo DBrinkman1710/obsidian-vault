@@ -3,7 +3,6 @@ import SiteNav from "./components/SiteNav";
 import SiteFooter from "./components/SiteFooter";
 import Reveal from "./components/Reveal";
 import ROICalculator from "./components/ROICalculator";
-import InboxDemo from "./components/InboxDemo";
 import { PLAN_LIMITS } from "@/lib/config";
 import HourCounter from "./components/HourCounter";
 import {
@@ -334,9 +333,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* AI inbox demo */}
-      <InboxDemo demoUrl={DEMO_URL} />
-
       {/* ROI calculator */}
       <ROICalculator appUrl={DEMO_URL} />
 
@@ -359,7 +355,8 @@ export default function HomePage() {
       <section className={styles.sectionLight}>
         <Reveal className={styles.sectionHead}>
           <p className={styles.eyebrow}>// Growth Partner</p>
-          <h2 className={styles.sectionTitle}>We grow when you grow.</h2>
+          <h2 className={styles.sectionTitle}>When you grow, we grow with you.</h2>
+          <p className={styles.sectionSub}>Choose what your company needs, no more, no less.</p>
         </Reveal>
         <div className={styles.featureRows}>
           <Reveal className={styles.featureRow}>
