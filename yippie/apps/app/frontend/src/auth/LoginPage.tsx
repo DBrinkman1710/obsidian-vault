@@ -35,7 +35,7 @@ export default function LoginPage() {
       <img
         src="/logo-lockup-onLight.svg"
         alt="Yippie"
-        className="mb-8 object-contain w-56 mx-auto"
+        className="mb-8 object-contain w-80 mx-auto"
       />
 
       {/* Card */}
