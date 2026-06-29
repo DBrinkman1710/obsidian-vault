@@ -1,13 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  ArrowLeft, Download, Mail, Bell, CreditCard, X, ChevronDown,
-} from 'lucide-react'
+import { Download, Mail, Bell, CreditCard, X, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { useT } from '../../../hooks/useT'
 
-// ── Types ────────────────────────────────────────────────────────────────────
+// ── Types ─────────────────────────────────────────────────────────────────────
 
 interface VatBreakdown { rate_pct: number; subtotal_cents: number; vat_cents: number }
 interface LineItem { description: string; quantity: number; unit_price_cents: number; tax_rate_pct: number }
@@ -32,7 +31,7 @@ interface Invoice {
   vat_breakdown: VatBreakdown[]
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+// ── Helpers ───────────────────────────────────────────────────────────────────
 
 const STATUS_STYLES: Record<string, string> = {
   draft:    'bg-slate-100 text-slate-600',
@@ -45,27 +44,40 @@ const STATUS_STYLES: Record<string, string> = {
   not_sent: 'bg-slate-100 text-slate-500',
 }
 
-const STATUS_OPTIONS = ['draft', 'pending', 'sent', 'received', 'paid', 'overdue', 'void', 'not_sent']
+const ALL_STATUS_OPTIONS = [
+  { value: 'draft',    label: 'Draft' },
+  { value: 'pending',  label: 'Pending' },
+  { value: 'sent',     label: 'Sent' },
+  { value: 'received', label: 'Received' },
+  { value: 'paid',     label: 'Paid' },
+  { value: 'overdue',  label: 'Overdue' },
+  { value: 'void',     label: 'Void' },
+  { value: 'not_sent', label: 'Not Sent' },
+]
 
 function fmtCents(cents: number, currency = 'EUR') {
-  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency }).format(cents / 100)
+  return new Intl.NumberFormat('en-EU', { style: 'currency', currency }).format(cents / 100)
 }
 
 function fmtDate(d: string | null) {
   if (!d) return '—'
-  return new Date(d).toLocaleDateString('nl-NL')
+  return new Date(d).toLocaleDateString('en-GB')
 }
 
-function statusLabel(s: string) {
-  const map: Record<string, string> = {
-    draft: 'Draft', sent: 'Verstuurd', paid: 'Betaald', overdue: 'Verlopen',
-    void: 'Vervallen', pending: 'In behandeling', received: 'Ontvangen', not_sent: 'Niet verstuurd',
-  }
-  return map[s] ?? s
+function statusLabel(s: string, t: (k: any) => string | undefined) {
+  return t((`invoice_${s}`) as any) ?? (ALL_STATUS_OPTIONS.find(o => o.value === s)?.label ?? s)
 }
 
 const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
+
+function downloadBlob(data: BlobPart, filename: string, type: string) {
+  const url = URL.createObjectURL(new Blob([data], { type }))
+  const a = document.createElement('a')
+  a.href = url; a.download = filename
+  document.body.appendChild(a); a.click(); a.remove()
+  URL.revokeObjectURL(url)
+}
 
 // ── Record Payment Modal ──────────────────────────────────────────────────────
 
@@ -85,55 +97,54 @@ function RecordPaymentModal({ invoiceId, onClose }: { invoiceId: string; onClose
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoice', invoiceId] })
       qc.invalidateQueries({ queryKey: ['invoice-payments', invoiceId] })
-      toast.success('Betaling geregistreerd')
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      toast.success('Payment recorded')
       onClose()
     },
-    onError: (e: any) => setError(e.response?.data?.detail ?? 'Mislukt'),
+    onError: (e: any) => setError(e.response?.data?.detail ?? 'Failed'),
   })
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[70] p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-900">Betaling registreren</h2>
+          <h2 className="text-base font-bold text-slate-900">Record Payment</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
         </div>
         <div className="p-6 flex flex-col gap-4">
           <div>
-            <label className={labelCls}>Bedrag (€)</label>
+            <label className={labelCls}>Amount (€)</label>
             <input className={inputCls} type="number" step="0.01" value={amount}
-              onChange={e => setAmount(e.target.value)} placeholder="0,00" autoFocus />
+              onChange={e => setAmount(e.target.value)} placeholder="0.00" autoFocus />
           </div>
           <div>
-            <label className={labelCls}>Methode</label>
+            <label className={labelCls}>Method</label>
             <select className={inputCls} value={method} onChange={e => setMethod(e.target.value)}>
-              <option value="bank_transfer">Bankoverschrijving</option>
-              <option value="cash">Contant</option>
-              <option value="card">Kaart</option>
+              <option value="bank_transfer">Bank transfer</option>
+              <option value="cash">Cash</option>
+              <option value="card">Card</option>
               <option value="ideal">iDEAL</option>
-              <option value="other">Overig</option>
+              <option value="other">Other</option>
             </select>
           </div>
           <div>
-            <label className={labelCls}>Referentie (optioneel)</label>
+            <label className={labelCls}>Reference (optional)</label>
             <input className={inputCls} value={ref} onChange={e => setRef(e.target.value)}
-              placeholder="Transactie-ID, cheque nr…" />
+              placeholder="Transaction ID, cheque no…" />
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button
               onClick={() => {
-                if (!amount || parseFloat(amount) <= 0) { setError('Voer een bedrag in'); return }
-                setError('')
-                mutation.mutate()
+                if (!amount || parseFloat(amount) <= 0) { setError('Enter an amount'); return }
+                setError(''); mutation.mutate()
               }}
               disabled={mutation.isPending}
-              className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50"
-            >
-              {mutation.isPending ? 'Opslaan…' : 'Registreren'}
+              className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50">
+              {mutation.isPending ? 'Saving…' : 'Save'}
             </button>
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
-              Annuleren
+              Cancel
             </button>
           </div>
         </div>
@@ -142,11 +153,10 @@ function RecordPaymentModal({ invoiceId, onClose }: { invoiceId: string; onClose
   )
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// ── InvoicePeek — exported slide-over used by InvoiceList ─────────────────────
 
-export default function InvoiceDetail() {
-  const { invoiceId } = useParams<{ invoiceId: string }>()
-  const navigate = useNavigate()
+export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const [showPayModal, setShowPayModal] = useState(false)
   const [editNotes, setEditNotes] = useState(false)
@@ -166,251 +176,254 @@ export default function InvoiceDetail() {
 
   const patchMutation = useMutation({
     mutationFn: (body: object) => api.patch(`/billing/invoices/${invoiceId}`, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['invoice', invoiceId] }),
-    onError: () => toast.error('Update mislukt'),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoice', invoiceId] })
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+    },
+    onError: () => toast.error('Update failed'),
   })
 
   const sendMutation = useMutation({
     mutationFn: () => api.post(`/billing/invoices/${invoiceId}/send`),
     onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ['invoice', invoiceId] })
-      toast.success(`Factuur verstuurd naar ${r.data.email}`)
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      toast.success(`Invoice sent to ${r.data.email}`)
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Versturen mislukt'),
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Send failed'),
   })
 
   const remindMutation = useMutation({
     mutationFn: () => api.post(`/billing/invoices/${invoiceId}/remind`),
-    onSuccess: (r: any) => toast.success(`Herinnering verstuurd naar ${r.data.email}`),
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Versturen mislukt'),
+    onSuccess: (r: any) => toast.success(`Reminder sent to ${r.data.email}`),
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Send failed'),
   })
 
   async function downloadPdf() {
     try {
       const res = await api.get(`/billing/invoices/${invoiceId}/pdf`, { responseType: 'blob' })
-      const url = URL.createObjectURL(new Blob([res.data], { type: 'application/pdf' }))
-      const a = document.createElement('a')
-      a.href = url
-      a.download = `factuur-${invoice?.invoice_number ?? invoiceId}.pdf`
-      document.body.appendChild(a)
-      a.click()
-      a.remove()
-      URL.revokeObjectURL(url)
+      downloadBlob(res.data, `invoice-${invoice?.invoice_number ?? invoiceId}.pdf`, 'application/pdf')
     } catch {
-      toast.error('PDF downloaden mislukt')
+      toast.error('PDF download failed')
     }
   }
 
-  if (isLoading) return <div className="p-8 text-sm text-slate-400">Laden…</div>
-  if (!invoice) return <div className="p-8 text-sm text-slate-500">Factuur niet gevonden.</div>
-
-  const currency = invoice.currency || 'EUR'
+  const currency = invoice?.currency || 'EUR'
   const totalPaid = (payments ?? []).reduce((s: number, p: Payment) => s + p.amount_cents, 0)
-  const outstanding = invoice.total_cents - totalPaid
+  const outstanding = (invoice?.total_cents ?? 0) - totalPaid
 
   return (
-    <div className="max-w-4xl mx-auto">
-      {/* ── Header bar ── */}
-      <div className="flex items-center justify-between mb-6">
-        <button
-          onClick={() => navigate('/billing')}
-          className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition-colors"
-        >
-          <ArrowLeft size={16} /> Terug
-        </button>
-        <div className="flex items-center gap-2">
-          <button onClick={downloadPdf}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg transition-colors">
-            <Download size={14} /> PDF
-          </button>
-          <button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending}
-            className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 rounded-lg transition-colors disabled:opacity-50">
-            <Mail size={14} /> {sendMutation.isPending ? 'Versturen…' : 'Verstuur'}
-          </button>
-          {invoice.status === 'overdue' && (
-            <button onClick={() => remindMutation.mutate()} disabled={remindMutation.isPending}
-              className="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium bg-amber-50 border border-amber-300 hover:bg-amber-100 text-amber-700 rounded-lg transition-colors disabled:opacity-50">
-              <Bell size={14} /> {remindMutation.isPending ? 'Versturen…' : 'Herinnering'}
-            </button>
-          )}
-          <button onClick={() => setShowPayModal(true)}
-            className="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold bg-yippie hover:opacity-90 text-white rounded-xl transition-opacity">
-            <CreditCard size={14} /> Betaling
-          </button>
-        </div>
-      </div>
+    <>
+      {/* Overlay */}
+      <div className="fixed inset-0 bg-black/30 z-40" onClick={onClose} />
 
-      {/* ── Invoice card ── */}
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-
-        {/* Invoice meta header */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-start justify-between gap-4">
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Factuur</p>
-            <h1 className="text-2xl font-bold text-slate-900 font-mono">{invoice.invoice_number}</h1>
-            <p className="text-sm text-slate-500 mt-1">{invoice.contact_name ?? '—'}</p>
+      {/* Slide-over panel */}
+      <div className="fixed top-0 right-0 h-full w-full max-w-2xl bg-white z-50 shadow-2xl flex flex-col overflow-hidden">
+        {/* ── Panel header ── */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
+          <div className="flex items-center gap-3">
+            {isLoading
+              ? <span className="text-sm text-slate-400">Loading…</span>
+              : <>
+                  <span className="text-lg font-bold text-slate-900 font-mono">{invoice?.invoice_number}</span>
+                  {invoice && (
+                    <div className="relative">
+                      <select
+                        value={invoice.status}
+                        onChange={e => patchMutation.mutate({ status: e.target.value })}
+                        className={`text-xs font-semibold pl-2 pr-5 py-0.5 rounded-full border-0 cursor-pointer appearance-none focus:outline-none ${STATUS_STYLES[invoice.status] ?? STATUS_STYLES.draft}`}
+                      >
+                        {ALL_STATUS_OPTIONS.map(o => (
+                          <option key={o.value} value={o.value}>{statusLabel(o.value, t)}</option>
+                        ))}
+                      </select>
+                      <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
+                    </div>
+                  )}
+                </>
+            }
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold ${STATUS_STYLES[invoice.status] ?? STATUS_STYLES.draft}`}>
-              {statusLabel(invoice.status)}
-            </span>
-            {/* Status picker */}
-            <div className="relative">
-              <select
-                value={invoice.status}
-                onChange={e => patchMutation.mutate({ status: e.target.value })}
-                className="text-xs text-slate-500 border border-slate-200 rounded-lg px-2 py-1 appearance-none pr-6 focus:outline-none focus:ring-1 focus:ring-yippie/30 cursor-pointer"
-              >
-                {STATUS_OPTIONS.map(s => <option key={s} value={s}>{statusLabel(s)}</option>)}
-              </select>
-              <ChevronDown size={11} className="absolute right-1.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            </div>
-          </div>
-        </div>
-
-        {/* Dates row */}
-        <div className="px-6 py-4 border-b border-slate-100 grid grid-cols-3 gap-4 text-sm">
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Factuurdatum</p>
-            <p className="text-slate-800">{fmtDate(invoice.invoice_date ?? invoice.created_at)}</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Vervaldatum</p>
-            <p className="text-slate-800">{fmtDate(invoice.due_date)}</p>
-          </div>
-          <div>
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Aangemaakt</p>
-            <p className="text-slate-800">{fmtDate(invoice.created_at)}</p>
-          </div>
-        </div>
-
-        {/* Line items table */}
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-slate-50 border-b border-slate-100">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Omschrijving</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Aantal</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Prijs excl.</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">BTW %</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Bedrag excl.</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {(invoice.line_items ?? []).map((item: LineItem, i: number) => (
-                <tr key={i} className={i % 2 === 1 ? 'bg-slate-50/50' : ''}>
-                  <td className="px-6 py-3 text-sm text-slate-800">{item.description}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">{item.quantity}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">{fmtCents(item.unit_price_cents, currency)}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 text-right">{item.tax_rate_pct ?? 21}%</td>
-                  <td className="px-4 py-3 text-sm text-slate-800 font-medium text-right">
-                    {fmtCents(item.quantity * item.unit_price_cents, currency)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Totals */}
-        <div className="px-6 py-5 border-t border-slate-100 flex justify-end">
-          <div className="w-72 flex flex-col gap-1.5">
-            <div className="flex justify-between text-sm text-slate-600">
-              <span>Subtotaal excl. BTW</span>
-              <span>{fmtCents(invoice.subtotal_cents, currency)}</span>
-            </div>
-            {(invoice.vat_breakdown ?? []).map((vb: VatBreakdown) => (
-              <div key={vb.rate_pct} className="flex justify-between text-sm text-slate-600">
-                <span>{vb.rate_pct > 0 ? `BTW ${vb.rate_pct}%` : 'BTW vrijgesteld (0%)'}</span>
-                <span>{fmtCents(vb.vat_cents, currency)}</span>
-              </div>
-            ))}
-            <div className="flex justify-between text-base font-bold text-slate-900 pt-2 border-t border-slate-200 mt-1">
-              <span>Totaal incl. BTW</span>
-              <span>{fmtCents(invoice.total_cents, currency)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div className="px-6 py-4 border-t border-slate-100">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Betalingsinformatie / Notities</p>
-            {!editNotes && (
-              <button onClick={() => { setNotesVal(invoice.notes ?? ''); setEditNotes(true) }}
-                className="text-xs text-yippie hover:opacity-80 font-semibold">
-                Bewerken
-              </button>
+          <div className="flex items-center gap-1.5">
+            {invoice && (
+              <>
+                <button onClick={downloadPdf}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
+                  <Download size={13} /> PDF
+                </button>
+                <button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50">
+                  <Mail size={13} /> {sendMutation.isPending ? 'Sending…' : 'Send'}
+                </button>
+                {invoice.status === 'overdue' && (
+                  <button onClick={() => remindMutation.mutate()} disabled={remindMutation.isPending}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors disabled:opacity-50">
+                    <Bell size={13} /> {remindMutation.isPending ? 'Sending…' : 'Remind'}
+                  </button>
+                )}
+                <button onClick={() => setShowPayModal(true)}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-yippie hover:opacity-90 text-white rounded-lg transition-opacity">
+                  <CreditCard size={13} /> Payment
+                </button>
+              </>
             )}
+            <button onClick={onClose} className="ml-1 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors">
+              <X size={16} />
+            </button>
           </div>
-          {editNotes ? (
-            <div className="flex flex-col gap-2">
-              <textarea
-                className={`${inputCls} min-h-[80px] resize-y`}
-                value={notesVal}
-                onChange={e => setNotesVal(e.target.value)}
-                placeholder="Betalingstermijn, IBAN, opmerkingen…"
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <button
-                  onClick={() => { patchMutation.mutate({ notes: notesVal }); setEditNotes(false) }}
-                  className="px-3 py-1.5 text-xs font-semibold bg-yippie text-white rounded-lg hover:opacity-90">
-                  Opslaan
-                </button>
-                <button onClick={() => setEditNotes(false)}
-                  className="px-3 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
-                  Annuleren
-                </button>
+        </div>
+
+        {/* ── Scrollable body ── */}
+        <div className="flex-1 overflow-y-auto">
+          {isLoading && <p className="text-sm text-slate-400 p-6">Loading…</p>}
+          {!isLoading && !invoice && <p className="text-sm text-slate-500 p-6">Invoice not found.</p>}
+
+          {invoice && (
+            <>
+              {/* Contact + dates */}
+              <div className="px-6 py-4 border-b border-slate-100 grid grid-cols-4 gap-4 text-sm">
+                <div className="col-span-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Bill to</p>
+                  <p className="font-semibold text-slate-900">{invoice.contact_name ?? '—'}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Invoice date</p>
+                  <p className="text-slate-700">{fmtDate(invoice.invoice_date ?? invoice.created_at)}</p>
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Due date</p>
+                  <p className={`font-medium ${invoice.status === 'overdue' ? 'text-red-600' : 'text-slate-700'}`}>
+                    {fmtDate(invoice.due_date)}
+                  </p>
+                </div>
               </div>
-            </div>
-          ) : (
-            <p className="text-sm text-slate-600 whitespace-pre-wrap">
-              {invoice.notes || <span className="text-slate-400 italic">Geen notities</span>}
-            </p>
+
+              {/* Line items */}
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-50 border-b border-slate-100">
+                    <tr>
+                      <th className="px-6 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Description</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide w-14">Qty</th>
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide w-28">Price excl.</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide w-16">VAT %</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide w-28">Total excl.</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-50">
+                    {(invoice.line_items ?? []).map((item: LineItem, i: number) => (
+                      <tr key={i} className={i % 2 === 1 ? 'bg-slate-50/40' : ''}>
+                        <td className="px-6 py-3 text-slate-800">{item.description}</td>
+                        <td className="px-3 py-3 text-slate-600 text-center">{item.quantity}</td>
+                        <td className="px-3 py-3 text-slate-600 text-right">{fmtCents(item.unit_price_cents, currency)}</td>
+                        <td className="px-3 py-3 text-slate-500 text-center">{item.tax_rate_pct ?? 21}%</td>
+                        <td className="px-4 py-3 font-medium text-slate-800 text-right">
+                          {fmtCents(item.quantity * item.unit_price_cents, currency)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Totals */}
+              <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
+                <div className="w-64 flex flex-col gap-1.5">
+                  <div className="flex justify-between text-sm text-slate-600">
+                    <span>Subtotal excl. VAT</span>
+                    <span>{fmtCents(invoice.subtotal_cents, currency)}</span>
+                  </div>
+                  {(invoice.vat_breakdown ?? []).map((vb: VatBreakdown) => (
+                    <div key={vb.rate_pct} className="flex justify-between text-sm text-slate-600">
+                      <span>{vb.rate_pct > 0 ? `VAT ${vb.rate_pct}%` : 'VAT exempt (0%)'}</span>
+                      <span>{fmtCents(vb.vat_cents, currency)}</span>
+                    </div>
+                  ))}
+                  <div className="flex justify-between font-bold text-slate-900 pt-2 border-t border-slate-200 mt-0.5">
+                    <span>Total incl. VAT</span>
+                    <span>{fmtCents(invoice.total_cents, currency)}</span>
+                  </div>
+                  {outstanding > 0 && invoice.status !== 'paid' && totalPaid > 0 && (
+                    <div className="flex justify-between text-sm font-semibold text-amber-700 pt-1">
+                      <span>Outstanding</span>
+                      <span>{fmtCents(outstanding, currency)}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Notes */}
+              <div className="px-6 py-4 border-t border-slate-100">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Payment info / Notes</p>
+                  {!editNotes && (
+                    <button onClick={() => { setNotesVal(invoice.notes ?? ''); setEditNotes(true) }}
+                      className="text-xs text-yippie hover:opacity-80 font-semibold">Edit</button>
+                  )}
+                </div>
+                {editNotes ? (
+                  <div className="flex flex-col gap-2">
+                    <textarea
+                      className={`${inputCls} min-h-[72px] resize-y`}
+                      value={notesVal}
+                      onChange={e => setNotesVal(e.target.value)}
+                      placeholder="Payment terms, IBAN, remarks…"
+                      autoFocus
+                    />
+                    <div className="flex gap-2">
+                      <button onClick={() => { patchMutation.mutate({ notes: notesVal }); setEditNotes(false) }}
+                        className="px-3 py-1.5 text-xs font-semibold bg-yippie text-white rounded-lg hover:opacity-90">Save</button>
+                      <button onClick={() => setEditNotes(false)}
+                        className="px-3 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-sm text-slate-600 whitespace-pre-wrap">
+                    {invoice.notes ?? <span className="text-slate-400 italic">No notes</span>}
+                  </p>
+                )}
+              </div>
+
+              {/* Payment history */}
+              {(payments ?? []).length > 0 && (
+                <div className="px-6 py-4 border-t border-slate-100">
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Payments</p>
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-xs text-slate-400 uppercase tracking-wide">
+                        <th className="text-left pb-2">Date</th>
+                        <th className="text-left pb-2">Method</th>
+                        <th className="text-left pb-2">Reference</th>
+                        <th className="text-right pb-2">Amount</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {(payments ?? []).map((p: Payment) => (
+                        <tr key={p.id}>
+                          <td className="py-2 text-slate-700">{fmtDate(p.paid_at)}</td>
+                          <td className="py-2 text-slate-600 capitalize">{p.method.replace('_', ' ')}</td>
+                          <td className="py-2 text-slate-500">{p.reference ?? '—'}</td>
+                          <td className="py-2 font-semibold text-green-700 text-right">{fmtCents(p.amount_cents, currency)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>
 
-      {/* ── Payment history ── */}
-      {(payments ?? []).length > 0 && (
-        <div className="mt-6 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="px-6 py-4 border-b border-slate-100">
-            <h2 className="text-sm font-bold text-slate-900">Betalingen</h2>
-          </div>
-          <table className="w-full">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Datum</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Methode</th>
-                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Referentie</th>
-                <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Bedrag</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {(payments ?? []).map((p: Payment) => (
-                <tr key={p.id}>
-                  <td className="px-6 py-3 text-sm text-slate-700">{fmtDate(p.paid_at)}</td>
-                  <td className="px-4 py-3 text-sm text-slate-600 capitalize">{p.method.replace('_', ' ')}</td>
-                  <td className="px-4 py-3 text-sm text-slate-500">{p.reference ?? '—'}</td>
-                  <td className="px-4 py-3 text-sm font-semibold text-green-700 text-right">{fmtCents(p.amount_cents, currency)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-          {outstanding > 0 && invoice.status !== 'paid' && (
-            <div className="px-6 py-3 border-t border-slate-100 flex justify-end">
-              <span className="text-sm font-semibold text-amber-700">
-                Openstaand: {fmtCents(outstanding, currency)}
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-
-      {showPayModal && invoiceId && (
-        <RecordPaymentModal invoiceId={invoiceId} onClose={() => setShowPayModal(false)} />
-      )}
-    </div>
+      {showPayModal && <RecordPaymentModal invoiceId={invoiceId} onClose={() => setShowPayModal(false)} />}
+    </>
   )
+}
+
+// ── Page wrapper for direct-URL access (/billing/invoices/:id) ────────────────
+
+export default function InvoiceDetail() {
+  const { invoiceId } = useParams<{ invoiceId: string }>()
+  const navigate = useNavigate()
+  if (!invoiceId) return null
+  return <InvoicePeek invoiceId={invoiceId} onClose={() => navigate('/billing')} />
 }
