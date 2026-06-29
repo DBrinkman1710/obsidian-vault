@@ -135,19 +135,17 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
   return (
     <>
       {/* Collapsed view */}
-      <div className="flex h-full flex-col items-center justify-center gap-5 bg-slate-50 p-6">
+      <div className="flex h-full flex-col items-center gap-5 bg-slate-50 p-6">
         {previewHtml ? (
           <>
             <div
-              className="relative overflow-hidden rounded-xl border border-slate-200 shadow-md cursor-pointer hover:shadow-lg transition-shadow bg-white"
-              style={{ width: 300, height: 220 }}
+              className="relative min-h-0 flex-1 w-full max-w-2xl overflow-hidden rounded-xl border border-slate-200 shadow-md cursor-pointer hover:shadow-lg transition-shadow bg-white"
               onClick={openEditor}
-              title="Click to edit"
             >
               <iframe
                 srcDoc={previewHtml}
-                className="pointer-events-none"
-                style={{ width: 600, height: 440, transform: 'scale(0.5)', transformOrigin: 'top left', border: 'none' }}
+                className="pointer-events-none w-full h-full"
+                style={{ minHeight: 400, border: 'none' }}
                 sandbox="allow-same-origin"
                 title="Email preview"
               />
@@ -155,7 +153,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
             </div>
             <button
               onClick={openEditor}
-              className="flex items-center gap-2 rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+              className="shrink-0 flex items-center gap-2 rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
             >
               <Pencil size={14} /> Edit design
             </button>
