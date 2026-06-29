@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Receipt, Plus, Search, Trash2, Download, Upload, X } from 'lucide-react'
 import { toast } from 'sonner'
@@ -117,47 +118,70 @@ function ContactPicker({
 
 // ---- Add Invoice modal -----------------------------------------------------
 
-type LineItemForm = { description: string; quantity: string; unit_price: string }
-const EMPTY_ITEM: LineItemForm = { description: '', quantity: '1', unit_price: '0' }
+const VAT_RATES = [21, 9, 0]
+
+type LineItemForm = { description: string; quantity: string; unit_price: string; tax_rate_pct: number }
+const EMPTY_ITEM: LineItemForm = { description: '', quantity: '1', unit_price: '0', tax_rate_pct: 21 }
+
+function calcTotals(items: LineItemForm[]) {
+  let subtotal = 0
+  const vatByRate: Record<number, number> = {}
+  for (const it of items) {
+    if (!it.description.trim()) continue
+    const excl = (parseInt(it.quantity) || 1) * Math.round((parseFloat(it.unit_price) || 0) * 100)
+    const vat = Math.round(excl * it.tax_rate_pct / 100)
+    subtotal += excl
+    vatByRate[it.tax_rate_pct] = (vatByRate[it.tax_rate_pct] ?? 0) + vat
+  }
+  const totalVat = Object.values(vatByRate).reduce((a, b) => a + b, 0)
+  return { subtotal, vatByRate, totalVat, total: subtotal + totalVat }
+}
+
+function fmtEur(cents: number) {
+  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency: 'EUR' }).format(cents / 100)
+}
 
 function AddInvoiceModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const t = useT()
   const [contactId, setContactId] = useState('')
   const [contactName, setContactName] = useState('')
-  const [description, setDescription] = useState('')
   const [items, setItems] = useState<LineItemForm[]>([{ ...EMPTY_ITEM }])
-  const [tax, setTax] = useState('0')
   const [currency, setCurrency] = useState('EUR')
+  const [invoiceDate, setInvoiceDate] = useState('')
   const [dueDate, setDueDate] = useState('')
+  const [notes, setNotes] = useState('')
   const [status, setStatus] = useState('pending')
   const [error, setError] = useState('')
+
+  const totals = calcTotals(items)
 
   const mutation = useMutation({
     mutationFn: () => {
       const payload = {
         contact_id: contactId,
-        description: description.trim() || null,
         line_items: items
           .filter(i => i.description.trim())
           .map(i => ({
             description: i.description.trim(),
             quantity: parseInt(i.quantity) || 1,
             unit_price_cents: Math.round((parseFloat(i.unit_price) || 0) * 100),
+            tax_rate_pct: i.tax_rate_pct,
           })),
-        tax_cents: Math.round((parseFloat(tax) || 0) * 100),
         currency,
+        invoice_date: invoiceDate || null,
         due_date: dueDate || null,
+        notes: notes.trim() || null,
         status,
       }
       return api.post('/billing/invoices', payload)
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
-      toast.success('Invoice created')
+      toast.success('Factuur aangemaakt')
       onClose()
     },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to create invoice'),
+    onError: (err: any) => setError(err.response?.data?.detail ?? 'Aanmaken mislukt'),
   })
 
   function setItem(idx: number, patch: Partial<LineItemForm>) {
@@ -166,43 +190,52 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!contactId) { setError('Select a contact'); return }
-    if (!items.some(i => i.description.trim())) { setError('Add at least one line item'); return }
+    if (!contactId) { setError('Selecteer een contact'); return }
+    if (!items.some(i => i.description.trim())) { setError('Voeg minimaal één regel toe'); return }
     setError('')
     mutation.mutate()
   }
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">New Invoice</h2>
+          <h2 className="text-lg font-bold text-slate-900">Nieuwe factuur</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
+        <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
           <div>
-            <label className={labelCls}>Contact / Company *</label>
+            <label className={labelCls}>Contact / Bedrijf *</label>
             <ContactPicker
               value={contactId}
               displayName={contactName}
               onSelect={(id, name) => { setContactId(id); setContactName(name) }}
             />
           </div>
+
           <div>
-            <label className={labelCls}>Description</label>
-            <input className={inputCls} value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional summary" />
-          </div>
-          <div>
-            <label className={labelCls}>Line items</label>
-            <div className="flex flex-col gap-2">
+            <label className={labelCls}>Regelitems</label>
+            {/* Header row */}
+            <div className="flex gap-2 mb-1 px-1">
+              <span className="flex-1 text-xs text-slate-400">Omschrijving</span>
+              <span className="w-14 text-xs text-slate-400 text-center">Aantal</span>
+              <span className="w-24 text-xs text-slate-400 text-right">Prijs excl.</span>
+              <span className="w-20 text-xs text-slate-400 text-center">BTW %</span>
+              <span className="w-4" />
+            </div>
+            <div className="flex flex-col gap-1.5">
               {items.map((it, idx) => (
                 <div key={idx} className="flex gap-2 items-center">
-                  <input className={`${inputCls} flex-1`} value={it.description} placeholder="Description"
+                  <input className={`${inputCls} flex-1`} value={it.description} placeholder="Omschrijving dienst/product"
                     onChange={e => setItem(idx, { description: e.target.value })} />
-                  <input className={`${inputCls} w-16`} type="number" min={1} value={it.quantity} placeholder="Qty"
+                  <input className={`${inputCls} w-14`} type="number" min={1} value={it.quantity}
                     onChange={e => setItem(idx, { quantity: e.target.value })} />
-                  <input className={`${inputCls} w-24`} type="number" step="0.01" value={it.unit_price} placeholder="Price"
+                  <input className={`${inputCls} w-24`} type="number" step="0.01" value={it.unit_price} placeholder="0,00"
                     onChange={e => setItem(idx, { unit_price: e.target.value })} />
+                  <select className={`${inputCls} w-20`} value={it.tax_rate_pct}
+                    onChange={e => setItem(idx, { tax_rate_pct: parseInt(e.target.value) })}>
+                    {VAT_RATES.map(r => <option key={r} value={r}>{r}%</option>)}
+                  </select>
                   {items.length > 1 && (
                     <button type="button" onClick={() => setItems(prev => prev.filter((_, i) => i !== idx))}
                       className="p-1.5 text-slate-400 hover:text-red-500 rounded shrink-0"><X size={14} /></button>
@@ -212,21 +245,39 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
             </div>
             <button type="button" onClick={() => setItems(prev => [...prev, { ...EMPTY_ITEM }])}
               className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-yippie hover:opacity-80">
-              <Plus size={13} /> Add line item
+              <Plus size={13} /> Regel toevoegen
             </button>
+
+            {/* Live totals */}
+            {totals.subtotal > 0 && (
+              <div className="mt-3 rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm flex flex-col gap-1">
+                <div className="flex justify-between text-slate-500">
+                  <span>Subtotaal excl. BTW</span><span>{fmtEur(totals.subtotal)}</span>
+                </div>
+                {Object.entries(totals.vatByRate).filter(([, v]) => v > 0).map(([rate, vat]) => (
+                  <div key={rate} className="flex justify-between text-slate-500">
+                    <span>BTW {rate}%</span><span>{fmtEur(vat)}</span>
+                  </div>
+                ))}
+                <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-200 mt-0.5">
+                  <span>Totaal incl. BTW</span><span>{fmtEur(totals.total)}</span>
+                </div>
+              </div>
+            )}
           </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Tax</label>
-              <input className={inputCls} type="number" step="0.01" value={tax} onChange={e => setTax(e.target.value)} />
+              <label className={labelCls}>Factuurdatum</label>
+              <input className={inputCls} type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
             </div>
             <div>
-              <label className={labelCls}>Currency</label>
-              <input className={inputCls} value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
-            </div>
-            <div>
-              <label className={labelCls}>Due date</label>
+              <label className={labelCls}>Vervaldatum</label>
               <input className={inputCls} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
+            </div>
+            <div>
+              <label className={labelCls}>Valuta</label>
+              <input className={inputCls} value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
             </div>
             <div>
               <label className={labelCls}>Status</label>
@@ -235,13 +286,21 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
               </select>
             </div>
           </div>
+
+          <div>
+            <label className={labelCls}>Betalingsinformatie / Notities</label>
+            <textarea className={`${inputCls} min-h-[72px] resize-y`} value={notes}
+              onChange={e => setNotes(e.target.value)}
+              placeholder="Bijv. IBAN NL12 BANK 0123 4567 89 t.n.v. Bedrijfsnaam. Betaling binnen 30 dagen." />
+          </div>
+
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={mutation.isPending}
               className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity">
-              {mutation.isPending ? 'Saving…' : 'Create invoice'}
+              {mutation.isPending ? 'Opslaan…' : 'Factuur aanmaken'}
             </button>
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Annuleren</button>
           </div>
         </form>
       </div>
@@ -409,6 +468,7 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 
 export default function InvoiceList() {
   const t = useT()
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
   const [showImport, setShowImport] = useState(false)
@@ -521,8 +581,13 @@ export default function InvoiceList() {
               {filtered.map((inv: any) => (
                 <tr
                   key={inv.id}
-                  className="transition-colors"
+                  className="transition-colors cursor-pointer hover:bg-slate-50/80"
                   style={{ background: selection.has(inv.id) ? 'rgba(91,164,245,0.08)' : undefined }}
+                  onClick={(e) => {
+                    // Don't navigate when clicking on the checkbox cell
+                    if ((e.target as HTMLElement).closest('td:first-child')) return
+                    navigate(`/billing/invoices/${inv.id}`)
+                  }}
                   onContextMenu={e => ctx.open(e, [
                     { header: inv.invoice_number },
                     { label: 'Delete', icon: <Trash2 size={14} />, danger: true, onClick: () => { setRightClickId(inv.id); setConfirmDelete(true) } },

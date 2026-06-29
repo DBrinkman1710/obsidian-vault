@@ -2,7 +2,7 @@ import WelcomeTour from './components/WelcomeTour'
 import SetupChecklist from './components/SetupChecklist'
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
 import { ComposeProvider } from './hooks/useCompose'
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom'
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { fetchTenantConfig, TenantConfig } from './api/tenant'
 import { useAuth } from './auth/useAuth'
@@ -23,6 +23,7 @@ const ChatPage      = lazy(() => import('./modules/chat/pages/ChatPage'))
 const CalendarPage  = lazy(() => import('./modules/calendar/pages/CalendarPage'))
 const PipelinePage  = lazy(() => import('./modules/pipeline/pages/PipelinePage'))
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
+const InvoiceDetail = lazy(() => import('./modules/billing/pages/InvoiceDetail'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
 const LoginPage          = lazy(() => import('./auth/LoginPage'))
 const RegisterPage       = lazy(() => import('./auth/RegisterPage'))
@@ -52,6 +53,20 @@ const SaasPage      = lazy(() => import('./modules/saas/pages/SaasPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
+
+// Platform token: all tenant sessions fire into this account so the product
+// owner can see cross-tenant feature adoption in their own Product Analytics page.
+const PLATFORM_TOKEN = import.meta.env.VITE_YIPPIE_PLATFORM_TOKEN
+
+function whenYippie(fn: (y: any) => void) {
+  const w = window as any
+  if (w.yippie) { fn(w.yippie); return }
+  let tries = 0
+  const t = setInterval(() => {
+    if (w.yippie) { clearInterval(t); fn(w.yippie) }
+    else if (++tries > 20) clearInterval(t)
+  }, 200)
+}
 
 function PagePad({ children }: { children: React.ReactNode }) {
   return <div className="flex-1 min-h-0 overflow-auto p-4 md:p-8">{children}</div>
@@ -139,23 +154,39 @@ export default function App() {
     return () => { cancelled = true }
   }, [token])
 
-  // Auto-embed internal platform tracking on every tenant environment
+  // Inject saas.js once with the platform token so all tenant sessions post
+  // feature-usage events into the product owner's analytics account.
   useEffect(() => {
-    if (!config?.tracking_token) return
-    const scripts = [
-      { id: 'yippie-platform-saas',  src: 'https://getyippie.com/saas.js'  },
-      { id: 'yippie-platform-sales', src: 'https://getyippie.com/sales.js' },
-    ]
-    for (const { id, src } of scripts) {
-      if (document.getElementById(id)) continue
-      const s = document.createElement('script')
-      s.id = id
-      s.src = src
-      s.setAttribute('data-token', config.tracking_token)
-      s.async = true
-      document.head.appendChild(s)
-    }
-  }, [config?.tracking_token])
+    if (!PLATFORM_TOKEN || document.getElementById('yippie-platform-saas')) return
+    const s = document.createElement('script')
+    s.id = 'yippie-platform-saas'
+    s.src = 'https://getyippie.com/saas.js'
+    s.setAttribute('data-token', PLATFORM_TOKEN)
+    s.async = true
+    document.head.appendChild(s)
+  }, [])
+
+  // Identify the logged-in user once we have both user and config loaded.
+  useEffect(() => {
+    if (!user || !config || !PLATFORM_TOKEN) return
+    whenYippie((y) => y.identify(user.id, {
+      email:       user.email,
+      name:        user.full_name,
+      role:        user.role,
+      tenant_id:   config.tenant_id,
+      tenant_name: config.tenant_name,
+      plan:        config.plan,
+    }))
+  }, [user?.id, config?.tenant_id])
+
+  // Track module navigation so feature adoption is visible per tenant.
+  const location = useLocation()
+  useEffect(() => {
+    if (!user || !PLATFORM_TOKEN) return
+    const module = location.pathname.split('/')[1]
+    if (!module) return
+    whenYippie((y) => y.track('module_visited', { module, path: location.pathname }))
+  }, [location.pathname, user?.id])
 
   if (!token) {
     return (
@@ -266,6 +297,10 @@ export default function App() {
 
               <Route path="/billing" element={
                 <ModuleGate module="billing"><PagePad><InvoiceList /></PagePad></ModuleGate>
+              } />
+
+              <Route path="/billing/invoices/:invoiceId" element={
+                <ModuleGate module="billing"><PagePad><InvoiceDetail /></PagePad></ModuleGate>
               } />
 
               <Route path="/activity" element={

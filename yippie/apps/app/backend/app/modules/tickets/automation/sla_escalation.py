@@ -409,6 +409,27 @@ async def onboarding_drip():
         await db.commit()
 
 
+@scheduler.scheduled_job("interval", hours=24, id="invoice_overdue_check", max_instances=1, coalesce=True)
+async def mark_overdue_invoices():
+    """Flip sent invoices to overdue once their due_date has passed."""
+    from app.modules.billing.models import Invoice, InvoiceStatus
+
+    today = datetime.now(timezone.utc).date()
+    async with db_session() as db:
+        result = await db.execute(
+            select(Invoice).where(
+                Invoice.status == InvoiceStatus.sent,
+                Invoice.due_date < today,
+            )
+        )
+        invoices = result.scalars().all()
+        for inv in invoices:
+            inv.status = InvoiceStatus.overdue
+            log.info("Marked invoice %s (%s) as overdue", inv.invoice_number, inv.id)
+        if invoices:
+            await db.commit()
+
+
 def start_scheduler():
     if not scheduler.running:
         scheduler.start()

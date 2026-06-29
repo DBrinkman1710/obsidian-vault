@@ -32,6 +32,7 @@ TENANT_SAFE_FIELDS = {
     "name", "enabled_modules", "plan", "primary_color", "logo_url",
     "is_active", "is_demo", "demo_expires_at", "go_live_at", "inbound_email",
     "kvk_nummer", "btw_nummer",
+    "street_address", "postal_code", "city", "country", "iban", "phone",
     "whatsapp_phone_number_id", "whatsapp_access_token", "whatsapp_verify_token",
     "ai_auto_scan",
     "lead_widget_save_contact", "lead_widget_stage_id",
