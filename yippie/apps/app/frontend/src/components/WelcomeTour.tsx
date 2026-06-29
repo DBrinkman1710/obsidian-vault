@@ -10,6 +10,7 @@ import { api } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { useTenantConfig } from '../App'
 
+// Order must match sidebar MODULE_MAP top-to-bottom: inbox→contacts→tickets→calendar→pipeline→activity→billing→chat→marketing→tracking→sales→saas
 const STEP_DEFS: {
   module: string
   title: string
@@ -39,20 +40,6 @@ const STEP_DEFS: {
     icon: <ClipboardList size={22} className="text-emerald-500" />,
   },
   {
-    module: 'pipeline',
-    title: 'Pipeline',
-    body: 'Visualise your workflow with drag-and-drop Kanban stages. Move contacts forward and track deals in real time.',
-    route: '/pipeline',
-    icon: <Kanban size={22} className="text-pink-500" />,
-  },
-  {
-    module: 'chat',
-    title: 'Live Chat',
-    body: 'Handle WhatsApp conversations in real time. Assign sessions to agents, use canned responses, and convert chats to tickets.',
-    route: '/chat',
-    icon: <MessageSquare size={22} className="text-green-500" />,
-  },
-  {
     module: 'calendar',
     title: 'Calendar',
     body: 'Schedule follow-ups, meetings, and deadlines. Events sync with your tickets and contacts automatically.',
@@ -60,11 +47,18 @@ const STEP_DEFS: {
     icon: <Calendar size={22} className="text-orange-500" />,
   },
   {
-    module: 'marketing',
-    title: 'Marketing',
-    body: 'Send campaigns, track opens and clicks, and build email templates with a drag-and-drop editor.',
-    route: '/marketing',
-    icon: <Megaphone size={22} className="text-purple-500" />,
+    module: 'pipeline',
+    title: 'Pipeline',
+    body: 'Visualise your workflow with drag-and-drop Kanban stages. Move contacts forward and track deals in real time.',
+    route: '/pipeline',
+    icon: <Kanban size={22} className="text-pink-500" />,
+  },
+  {
+    module: 'activity',
+    title: 'Activity Log',
+    body: 'A full audit trail of everything your team has done — replies, ticket updates, pipeline moves, and more.',
+    route: '/activity',
+    icon: <Activity size={22} className="text-teal-500" />,
   },
   {
     module: 'billing',
@@ -74,18 +68,25 @@ const STEP_DEFS: {
     icon: <CreditCard size={22} className="text-slate-500" />,
   },
   {
+    module: 'chat',
+    title: 'Live Chat',
+    body: 'Handle WhatsApp conversations in real time. Assign sessions to agents, use canned responses, and convert chats to tickets.',
+    route: '/chat',
+    icon: <MessageSquare size={22} className="text-green-500" />,
+  },
+  {
+    module: 'marketing',
+    title: 'Marketing',
+    body: 'Send campaigns, track opens and clicks, and build email templates with a drag-and-drop editor.',
+    route: '/marketing',
+    icon: <Megaphone size={22} className="text-purple-500" />,
+  },
+  {
     module: 'tracking',
     title: 'Track & Trace',
     body: 'Connect Sendcloud to monitor shipments and share tracking links with customers automatically.',
     route: '/tracking',
     icon: <Package size={22} className="text-amber-500" />,
-  },
-  {
-    module: 'activity',
-    title: 'Activity Log',
-    body: 'A full audit trail of everything your team has done — replies, ticket updates, pipeline moves, and more.',
-    route: '/activity',
-    icon: <Activity size={22} className="text-teal-500" />,
   },
   {
     module: 'sales',
