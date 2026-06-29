@@ -78,7 +78,7 @@ async def handle_inbound_reply(
         )
         contact = result.scalar_one_or_none()
         if contact is not None:
-            await service.create_unsubscribe(db, contact.id, tenant_id)
+            await service.create_unsubscribe(db, tenant_id, contact.id)
     elif campaign is not None and campaign.reply_received_stage_id is not None:
         from app.modules.contacts.models import Contact
         from app.modules.pipeline.service import _assign_stage

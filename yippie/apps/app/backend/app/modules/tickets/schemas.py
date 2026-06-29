@@ -166,3 +166,11 @@ class ContactHistoryItem(BaseModel):
     created_at: datetime
     ticket_id: Optional[uuid.UUID]
     session_id: Optional[uuid.UUID]
+
+
+class SuggestReplyOut(BaseModel):
+    suggestion: str
+
+
+class ImproveReplyOut(BaseModel):
+    suggestions: list[str]

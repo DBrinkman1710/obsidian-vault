@@ -18,7 +18,9 @@ from app.modules.tickets.schemas import (
     CommentCreate,
     CommentOut,
     ContactHistoryItem,
+    ImproveReplyOut,
     ImproveReplyRequest,
+    SuggestReplyOut,
     TemplateCreate,
     TemplateUpdate,
     TemplateOut,
@@ -33,6 +35,17 @@ from app.modules.tickets.schemas import (
 
 router = APIRouter(prefix="/tickets", tags=["tickets"])
 DB = Annotated[AsyncSession, Depends(get_db)]
+
+
+async def _detect_language(text: str) -> str:
+    """Return ISO 639-1 code for text, defaulting to 'en'."""
+    from app.modules.ai.client import ai_completion
+    result = await ai_completion(
+        [{"role": "user", "content": f"Detect the language of this text and return ONLY its ISO 639-1 code (e.g. en, nl, fr):\n\n{text[:300]}"}],
+        max_tokens=5,
+    )
+    detected = result.strip().lower()[:2]
+    return detected if (detected.isalpha() and len(detected) == 2) else "en"
 
 
 @router.get("", response_model=TicketList)
@@ -283,7 +296,7 @@ async def send_ticket_reply(
     rendered_html = render_email_html(html_body or plain_body)
 
     try:
-        await send_email(
+        resend_id = await send_email(
             to=contact.email,
             subject=final_subject,
             body=plain_body,
@@ -296,6 +309,19 @@ async def send_ticket_reply(
         raise HTTPException(status_code=503, detail="Email sending is not configured (RESEND_API_KEY missing)")
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Email provider error: {exc}")
+
+    from app.modules.emailtracking.service import create_outbound_email
+    await create_outbound_email(
+        db,
+        tenant_id=current_user.tenant_id,
+        resend_email_id=resend_id,
+        to_email=contact.email,
+        subject=final_subject,
+        body=plain_body,
+        actor_id=current_user.id,
+        contact_id=ticket.contact_id,
+        kind="ticket_reply",
+    )
 
     comment_data = CommentCreate(body=plain_body, is_internal=False)
     comment = await service.add_comment(
@@ -316,7 +342,6 @@ async def send_ticket_reply(
 @router.post("/{ticket_id}/briefing", response_model=BriefingOut, dependencies=[Depends(require_module("ai"))])
 async def get_ticket_briefing(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
     """AI customer briefing card: summary + 2-3 suggested actions."""
-    import json
     from sqlalchemy import select
     from app.modules.contacts.models import Contact
     from app.modules.tickets.models import Ticket, TicketComment
@@ -421,7 +446,7 @@ Only suggest actions that make sense given the current state. Skip set_status if
     return BriefingOut(summary=summary, suggested_actions=suggested_actions)
 
 
-@router.post("/{ticket_id}/suggest-reply", dependencies=[Depends(require_module("ai"))])
+@router.post("/{ticket_id}/suggest-reply", response_model=SuggestReplyOut, dependencies=[Depends(require_module("ai"))])
 async def suggest_ticket_reply(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
     """AI-generate a full reply draft for this ticket."""
     from sqlalchemy import select
@@ -463,19 +488,7 @@ async def suggest_ticket_reply(ticket_id: uuid.UUID, current_user: CurrentUser, 
     sender = getattr(contact, "email", None) or (contact.full_name if contact else "Unknown") if contact else "Unknown"
     context_summary = await generate_context_summary(sender, raw_body, contact_dict, [], None)
 
-    # Use heuristic language detection — check for non-ASCII characters as a simple signal,
-    # or fall back to generating in English. A future improvement could use a langdetect lib.
-    language = "en"
-    if last_email:
-        # Detect language from the comment body using a lightweight AI check
-        from app.modules.ai.client import ai_completion
-        lang_text = await ai_completion(
-            [{"role": "user", "content": f"Detect the language of this text and return ONLY its ISO 639-1 code (e.g. en, nl, fr):\n\n{last_email.body[:300]}"}],
-            max_tokens=5,
-        )
-        detected = lang_text.strip().lower()[:2]
-        if detected.isalpha() and len(detected) == 2:
-            language = detected
+    language = await _detect_language(last_email.body) if last_email else "en"
 
     suggestion = await generate_reply_draft(
         subject=ticket.subject,
@@ -487,7 +500,7 @@ async def suggest_ticket_reply(ticket_id: uuid.UUID, current_user: CurrentUser, 
     return {"suggestion": suggestion}
 
 
-@router.post("/{ticket_id}/improve-reply", dependencies=[Depends(require_module("ai"))])
+@router.post("/{ticket_id}/improve-reply", response_model=ImproveReplyOut, dependencies=[Depends(require_module("ai"))])
 async def improve_ticket_reply(ticket_id: uuid.UUID, body: ImproveReplyRequest, current_user: CurrentUser, db: DB):
     """AI-rewrite the agent's current reply with labelled variants."""
     from sqlalchemy import select
@@ -526,16 +539,7 @@ async def improve_ticket_reply(ticket_id: uuid.UUID, body: ImproveReplyRequest, 
     sender = getattr(contact, "email", None) or (contact.full_name if contact else "Unknown") if contact else "Unknown"
     context_summary = await generate_context_summary(sender, raw_body, contact_dict, [], None)
 
-    language = "en"
-    if last_email:
-        from app.modules.ai.client import ai_completion
-        lang_text = await ai_completion(
-            [{"role": "user", "content": f"Detect the language of this text and return ONLY its ISO 639-1 code (e.g. en, nl, fr):\n\n{last_email.body[:300]}"}],
-            max_tokens=5,
-        )
-        detected = lang_text.strip().lower()[:2]
-        if detected.isalpha() and len(detected) == 2:
-            language = detected
+    language = await _detect_language(last_email.body) if last_email else "en"
 
     suggestions = await generate_reply_improvements(
         current_text=body.current_text,
@@ -626,16 +630,36 @@ async def get_contact_history(
     )
     res = await db.execute(q_sessions)
     sessions = res.scalars().all()
-    for sess in sessions:
-        # Get last message as preview
-        q_msg = (
-            select(ChatMessage)
-            .where(ChatMessage.session_id == sess.id)
-            .order_by(ChatMessage.created_at.desc())
-            .limit(1)
+
+    # Batch-fetch last message per session (fixes N+1)
+    session_ids = [sess.id for sess in sessions]
+    if session_ids:
+        from sqlalchemy import func
+        latest_msg_subq = (
+            select(
+                ChatMessage.session_id,
+                func.max(ChatMessage.created_at).label("max_ts"),
+            )
+            .where(ChatMessage.session_id.in_(session_ids))
+            .where(ChatMessage.tenant_id == current_user.tenant_id)
+            .group_by(ChatMessage.session_id)
+            .subquery()
         )
-        msg_res = await db.execute(q_msg)
-        last_msg = msg_res.scalars().first()
+        last_msgs_q = (
+            select(ChatMessage)
+            .join(
+                latest_msg_subq,
+                (ChatMessage.session_id == latest_msg_subq.c.session_id)
+                & (ChatMessage.created_at == latest_msg_subq.c.max_ts),
+            )
+        )
+        last_msgs_res = await db.execute(last_msgs_q)
+        last_msg_by_session: dict = {m.session_id: m for m in last_msgs_res.scalars().all()}
+    else:
+        last_msg_by_session = {}
+
+    for sess in sessions:
+        last_msg = last_msg_by_session.get(sess.id)
         items.append({
             "kind": "chat",
             "id": sess.id,

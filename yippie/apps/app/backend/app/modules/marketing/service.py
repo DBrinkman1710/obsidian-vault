@@ -910,7 +910,7 @@ async def launch_campaign(
                 btn_token = uuid.uuid4()
                 btn_id = str(btn.get("id", ""))
                 # Actions tab is authoritative — override design-level stage_id if present.
-                raw_stage = btn_stage_override.get(btn_id) or btn.get("stage_id")
+                raw_stage = btn_stage_override[btn_id] if btn_id in btn_stage_override else btn.get("stage_id")
                 raw_label = btn.get("label_id")
                 db.add(_LCT(
                     token=btn_token,

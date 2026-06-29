@@ -1,7 +1,7 @@
+// Vendored from packages/config/pricing.ts — keep both in sync when prices change.
 // Single source of truth for plan pricing — mirrors apps/app/backend/app/core/plans.py
 // Update both files together when prices change.
 // All plans have unlimited contacts. Plans differ by users and AI scans/month.
-// App frontend: apps/app/frontend/src/lib/pricing.ts — keep both in sync when prices change.
 
 export const PLAN_LIMITS = {
   founder:    { users: 10,   contacts: null, aiScans: 500,    priceMonthly: 9,    priceAnnual: 97   },

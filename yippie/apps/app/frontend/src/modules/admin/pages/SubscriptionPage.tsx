@@ -4,6 +4,7 @@ import { useTenantConfig } from '../../../App'
 import { api } from '../../../api/client'
 import { toast } from 'sonner'
 import { CreditCard, Zap, Users, Cpu } from 'lucide-react'
+import { PLAN_LIMITS, PlanTier } from '../../../lib/pricing'
 
 const PLAN_LABELS: Record<string, string> = {
   founder: 'Founder',
@@ -13,32 +14,13 @@ const PLAN_LABELS: Record<string, string> = {
   enterprise: 'Enterprise',
 }
 
-const PLAN_CARDS = [
-  {
-    id: 'starter',
-    label: 'Starter',
-    price: 19,
-    users: 3,
-    ai_scans: '2,000',
-    description: 'Perfect for solo support agents or small teams.',
-  },
-  {
-    id: 'growth',
-    label: 'Growth',
-    price: 49,
-    users: 10,
-    ai_scans: '10,000',
-    description: 'For growing teams who want full AI automation.',
-  },
-  {
-    id: 'enterprise',
-    label: 'Enterprise',
-    price: null,
-    users: null,
-    ai_scans: 'Unlimited',
-    description: 'Unlimited seats, custom SLA, and priority support.',
-  },
-]
+const PLAN_DESCRIPTIONS: Record<PlanTier, string> = {
+  founder:    'Early-adopter plan with generous seat count.',
+  starter:    'Perfect for solo agents or small teams.',
+  growth:     'For growing teams who want more AI capacity.',
+  pro:        'Power users — 10 seats, full AI throughput.',
+  enterprise: 'Unlimited seats, custom SLA, and priority support.',
+}
 
 const MODULE_LABELS: Record<string, string> = {
   tickets: 'Tickets',
@@ -96,6 +78,10 @@ export default function SubscriptionPage() {
       setLoading(null)
     }
   }
+
+  const planCards = (Object.entries(PLAN_LIMITS) as [PlanTier, typeof PLAN_LIMITS[PlanTier]][])
+    .filter(([id]) => id !== 'founder')
+    .map(([id, limits]) => ({ id, limits }))
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
@@ -203,24 +189,24 @@ export default function SubscriptionPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {PLAN_CARDS.map(card => {
-            const isCurrent = plan === card.id
-            const annualPrice = card.price ? Math.round(card.price * 12 * 0.9) : null
-            const displayPrice = interval === 'annual' ? annualPrice : card.price
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+          {planCards.map(({ id, limits }) => {
+            const isCurrent = plan === id
+            const displayPrice = interval === 'annual' ? limits.priceAnnual : limits.priceMonthly
+            const aiScansDisplay = limits.aiScans != null ? limits.aiScans.toLocaleString() : 'Unlimited'
             return (
               <div
-                key={card.id}
+                key={id}
                 className={`rounded-2xl border p-5 flex flex-col gap-4 ${isCurrent ? 'border-yippie bg-yippie/5' : 'border-slate-200 bg-white'}`}
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <p className="font-bold text-slate-900">{card.label}</p>
+                    <p className="font-bold text-slate-900">{PLAN_LABELS[id]}</p>
                     {isCurrent && (
                       <span className="text-xs font-semibold text-yippie bg-yippie/10 px-2 py-0.5 rounded-full">Current</span>
                     )}
                   </div>
-                  <p className="text-sm text-slate-500 mt-1">{card.description}</p>
+                  <p className="text-sm text-slate-500 mt-1">{PLAN_DESCRIPTIONS[id]}</p>
                 </div>
                 <div>
                   {displayPrice != null ? (
@@ -235,23 +221,23 @@ export default function SubscriptionPage() {
                 <ul className="text-xs text-slate-600 space-y-1.5 flex-1">
                   <li className="flex items-center gap-1.5">
                     <Users size={11} className="text-slate-400 shrink-0" />
-                    {card.users == null ? 'Unlimited seats' : `${card.users} seats`}
+                    {limits.users == null ? 'Unlimited seats' : `${limits.users} seats`}
                   </li>
                   <li className="flex items-center gap-1.5">
                     <Cpu size={11} className="text-slate-400 shrink-0" />
-                    {card.ai_scans} AI scans/mo
+                    {aiScansDisplay} AI scans/mo
                   </li>
                 </ul>
                 <button
-                  onClick={() => handleCheckout(card.id)}
-                  disabled={isCurrent || loading === card.id}
+                  onClick={() => handleCheckout(id)}
+                  disabled={isCurrent || loading === id}
                   className={`w-full text-sm font-semibold rounded-xl py-2.5 transition-all disabled:opacity-50 ${
                     isCurrent
                       ? 'bg-yippie/10 text-yippie cursor-default'
                       : 'bg-yippie text-white hover:bg-yippie/90'
                   }`}
                 >
-                  {loading === card.id ? 'Opening…' : isCurrent ? 'Current plan' : card.price == null ? 'Contact us' : 'Upgrade'}
+                  {loading === id ? 'Opening…' : isCurrent ? 'Current plan' : displayPrice == null ? 'Contact us' : 'Upgrade'}
                 </button>
               </div>
             )
