@@ -310,6 +310,7 @@ export default function DraftReview() {
   const [appliedSig, setAppliedSig] = useState<string | null>(null)
   const isMobile = useMobile()
   const { pct: emailPct, containerRef: splitRef, startDrag: startSplitDrag } = useSplitPane('inbox_email_split', 50)
+  const { pct: customerPct, containerRef: leftSplitRef, startDrag: startLeftSplitDrag } = useSplitPane('inbox_left_split', 50)
   const [emailExpanded, setEmailExpanded] = useState(false)
 
   const { data: ctx, isLoading, isError } = useQuery({
@@ -1006,10 +1007,10 @@ export default function DraftReview() {
         <div className="grid grid-cols-1 md:grid-cols-[320px_1fr] gap-3 flex-1 min-h-0">
 
           {/* ── LEFT COLUMN ── */}
-          <div className="flex flex-col gap-3 min-h-0">
+          <div ref={leftSplitRef} className="flex flex-col min-h-0">
 
           {/* ── TOP-LEFT: Customer info ── */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden flex-1 min-h-0">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden min-h-0" style={{ flex: customerPct }}>
             <div className="px-4 py-3 border-b border-slate-100 shrink-0 flex items-center justify-between">
               <span className="text-[10px] font-bold tracking-widest text-slate-400 uppercase">Customer</span>
               {aiEnabled && generateBriefingMutation.isPending && <span className="text-[10px] text-blue-400 animate-pulse">Generating…</span>}
@@ -1098,8 +1099,17 @@ export default function DraftReview() {
             </div>
           </div>
 
+          {/* ── LEFT SPLIT HANDLE ── */}
+          <div
+            onMouseDown={startLeftSplitDrag}
+            className="h-2 shrink-0 flex items-center justify-center cursor-row-resize group my-0.5"
+            title="Drag to resize"
+          >
+            <div className="w-10 h-1 rounded-full bg-slate-200 group-hover:bg-yippie/50 transition-colors" />
+          </div>
+
           {/* ── BOTTOM-LEFT: Ticket form (pending) or Status/linked ticket (processed) ── */}
-          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden flex-1 min-h-0">
+          <div className="bg-white rounded-2xl border border-slate-100 shadow-sm flex flex-col overflow-hidden min-h-0" style={{ flex: 100 - customerPct }}>
             {isProcessed ? (
               <>
                 <div className="px-4 py-3 border-b border-slate-100 shrink-0">
