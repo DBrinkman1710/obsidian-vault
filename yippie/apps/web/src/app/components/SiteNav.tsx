@@ -17,6 +17,7 @@ const links = [
 const useCaseLinks = [
   { href: "/for-smbs", label: "For SMBs" },
   { href: "/for-agencies", label: "For agencies" },
+  { href: "/vs-zendesk", label: "Yippie vs Zendesk" },
 ];
 
 export default function SiteNav() {
