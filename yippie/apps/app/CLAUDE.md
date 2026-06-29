@@ -18,7 +18,7 @@ docker compose exec -e ADMIN_EMAIL=you@example.com -e ADMIN_PASSWORD=pass backen
 
 - **Backend**: FastAPI + SQLAlchemy 2 (async) + PostgreSQL 16 + Alembic
 - **Frontend**: React 18 + TypeScript + Vite + React Query + Zustand
-- **AI**: Claude Haiku via Anthropic SDK (inbox scanning)
+- **AI**: Mistral Small via litellm (inbox scanning, Jarvis). EU-hosted, GDPR-safe. Fallback: Anthropic Claude Haiku (set AI_PROVIDER=anthropic)
 - **Deploy**: Docker Compose per client
 
 ## Architecture — the key ideas
@@ -30,7 +30,7 @@ All modules (see `ALL_MODULES` in `backend/app/config.py` / the `MODULES` regist
 Every DB table has `tenant_id UUID NOT NULL`. Every query filters by it. The `get_current_user` dependency in `backend/app/auth/dependencies.py` resolves the user from the JWT and calls `set_tenant_context(db, user.tenant_id)` which runs `SET LOCAL app.current_tenant_id = :id` — enabling PostgreSQL RLS policies.
 
 ### Inbox flow (the headcount-reduction core)
-Email (Mailgun webhook) or WhatsApp (Twilio webhook) → stored as `inbound_message` → Claude Haiku scans it and suggests subject/priority/description → stored as `draft_ticket` → agent reviews in the Inbox UI → approves or edits → becomes a real ticket. Agents never manually write up tickets from raw emails.
+Email (Resend webhook) or WhatsApp (Evolution API webhook) → stored as `inbound_message` → Claude Haiku scans it and suggests subject/priority/description → stored as `draft_ticket` → agent reviews in the Inbox UI → approves or edits → becomes a real ticket. Agents never manually write up tickets from raw emails.
 
 ## Key files
 
@@ -42,7 +42,7 @@ Email (Mailgun webhook) or WhatsApp (Twilio webhook) → stored as `inbound_mess
 | `backend/app/database.py` | Async SQLAlchemy session + `set_tenant_context()` |
 | `backend/app/core/tenant.py` | `resolve_tenant_uuid(db)` — maps config slug to DB UUID, cached |
 | `backend/app/modules/tickets/automation/sla_escalation.py` | APScheduler: escalates overdue tickets every 5 min, auto-closes stale ones hourly |
-| `backend/app/modules/inbox/ai_scanner.py` | Claude Haiku call — takes raw message body, returns structured draft fields |
+| `backend/app/modules/inbox/ai_scanner.py` | AI call (Mistral Small by default) — takes raw message body, returns structured draft fields |
 | `backend/app/modules/inbox/service.py` | Ingestion pipeline: inbound → scan → draft |
 | `backend/app/modules/chat/manager.py` | WebSocket connection manager (tenant → session → set of sockets) |
 | `backend/seed.py` | Creates tenant + first admin user. Run once after migrations. |
@@ -67,7 +67,10 @@ modules/{name}/
 # smb-platform/.env
 DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/smb_platform
 SECRET_KEY=change-me-in-production
-ANTHROPIC_API_KEY=sk-ant-...      # required for inbox AI scanning
+MISTRAL_API_KEY=...               # required — get from console.mistral.ai (EU-hosted, GDPR-safe)
+AI_PROVIDER=mistral               # default; options: mistral | anthropic | deepseek-api | self-hosted
+AI_MODEL=mistral-small-latest     # default; use mistral-large-latest for better quality
+ANTHROPIC_API_KEY=sk-ant-...      # optional fallback (set AI_PROVIDER=anthropic to activate)
 ENVIRONMENT=development
 ```
 
@@ -108,12 +111,8 @@ docker compose exec backend pytest
 ## What's not built yet (next steps)
 
 - Auto-routing rules (assign tickets based on keywords/contact tags)
-- Canned response picker in the TicketDetail UI (templates API exists, UI dropdown missing)
 - Customer self-service portal (`/portal/{tenant_slug}` — public ticket submission)
-- Outbound email/WhatsApp replies when agent responds to inbox-sourced tickets
 - Analytics dashboard (`GET /api/v1/analytics/summary`)
-- New contact form (`/contacts/new` route linked in ContactList but page not created)
-- New ticket form (`/tickets/new` route linked in TicketList but page not created)
 - PostgreSQL RLS policies (migrations scaffolded, policies not yet added)
 
 ## Per-client deployment checklist

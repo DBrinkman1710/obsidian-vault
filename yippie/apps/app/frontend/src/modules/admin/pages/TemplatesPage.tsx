@@ -6,7 +6,7 @@ import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { api } from '../../../api/client'
 import { fetchLabels, type ContactLabel } from '../../contacts/components/LabelChip'
 import { htmlToText } from '../../inbox/components/TemplatePicker'
-import { STARTER_TEMPLATES } from '../../../pages/marketing/templates'
+import { STARTER_TEMPLATES } from '../../marketing/templates'
 
 const PERSONALIZATION_TOKENS = [
   '{{first_name}}',

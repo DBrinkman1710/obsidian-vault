@@ -2,8 +2,8 @@ import { useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { api } from '../../api/client'
-import { useAuth } from '../../auth/useAuth'
+import { api } from '../../../api/client'
+import { useAuth } from '../../../auth/useAuth'
 
 interface CalendarSettings {
   work_start_hour: number

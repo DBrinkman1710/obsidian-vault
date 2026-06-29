@@ -1,28 +1,47 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Trash2 } from 'lucide-react'
-import { Campaign, marketingApi } from './api'
+import { Campaign, marketingApi } from '../api'
 import { StatusBadge } from './MarketingPage'
-import { DesignTab } from './tabs/DesignTab'
-import { AudienceTab } from './tabs/AudienceTab'
-import { ScheduleTab } from './tabs/ScheduleTab'
-import { AnalyticsTab } from './tabs/AnalyticsTab'
-import { DripTab } from './tabs/DripTab'
+import { DesignTab } from '../tabs/DesignTab'
+import { AudienceTab } from '../tabs/AudienceTab'
+import { ActionsTab } from '../tabs/ActionsTab'
+import { ScheduleTab } from '../tabs/ScheduleTab'
+import { AnalyticsTab } from '../tabs/AnalyticsTab'
+import { DripTab } from '../tabs/DripTab'
 
-type TabKey = 'design' | 'audience' | 'schedule' | 'analytics' | 'drip'
+export type TabKey = 'design' | 'actions' | 'audience' | 'schedule' | 'analytics' | 'drip'
 
 const TABS: { key: TabKey; label: string }[] = [
   { key: 'design', label: 'Design' },
+  { key: 'actions', label: 'Actions' },
   { key: 'audience', label: 'Audience' },
   { key: 'schedule', label: 'Schedule' },
   { key: 'analytics', label: 'Analytics' },
   { key: 'drip', label: 'Drip sequences' },
 ]
 
-export function CampaignDetail({ campaign, onDeleted }: { campaign: Campaign; onDeleted: () => void }) {
+export function CampaignDetail({
+  campaign,
+  onDeleted,
+  activeTab,
+  onTabChange,
+}: {
+  campaign: Campaign
+  onDeleted: () => void
+  activeTab?: TabKey
+  onTabChange?: (t: TabKey) => void
+}) {
   const qc = useQueryClient()
-  const [tab, setTab] = useState<TabKey>('design')
+  const [tab, setTab] = useState<TabKey>(activeTab ?? 'design')
+
+  useEffect(() => { if (activeTab) setTab(activeTab) }, [activeTab])
+
+  function handleTabChange(t: TabKey) {
+    setTab(t)
+    onTabChange?.(t)
+  }
 
   const del = useMutation({
     mutationFn: () => marketingApi.deleteCampaign(campaign.id),
@@ -68,7 +87,7 @@ export function CampaignDetail({ campaign, onDeleted }: { campaign: Campaign; on
               <button
                 key={t.key}
                 disabled={disabled}
-                onClick={() => setTab(t.key)}
+                onClick={() => handleTabChange(t.key)}
                 className={`relative px-3 pb-2.5 text-sm font-medium transition-colors ${
                   disabled
                     ? 'cursor-not-allowed text-slate-300'
@@ -88,6 +107,7 @@ export function CampaignDetail({ campaign, onDeleted }: { campaign: Campaign; on
       {/* Tab body */}
       <div className="min-h-0 flex-1 overflow-hidden">
         {tab === 'design' && <DesignTab campaign={campaign} />}
+        {tab === 'actions' && <ActionsTab campaign={campaign} />}
         {tab === 'audience' && <AudienceTab campaign={campaign} />}
         {tab === 'schedule' && <ScheduleTab campaign={campaign} />}
         {tab === 'analytics' && analyticsReady && <AnalyticsTab campaign={campaign} />}

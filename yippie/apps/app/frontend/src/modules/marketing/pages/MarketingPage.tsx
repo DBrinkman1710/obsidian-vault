@@ -1,9 +1,9 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Copy, Megaphone, Plus, UserMinus, X, Mail, MessageCircle } from 'lucide-react'
-import { Campaign, CampaignStatus, Channel, marketingApi, Unsubscribe } from './api'
-import { CampaignDetail } from './CampaignDetail'
+import { BarChart2, Calendar, Copy, GitBranch, Megaphone, Pencil, Plus, Trash2, UserMinus, Users, X, Mail, MessageCircle, Zap } from 'lucide-react'
+import { Campaign, CampaignStatus, Channel, marketingApi, Unsubscribe } from '../api'
+import { CampaignDetail, TabKey } from './CampaignDetail'
 
 const STATUS_STYLES: Record<CampaignStatus, string> = {
   draft: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -150,11 +150,25 @@ function UnsubscribesPanel() {
   )
 }
 
+type ContextMenu = { x: number; y: number; campaign: Campaign }
+
+const CONTEXT_ITEMS: { tab: TabKey; label: string; icon: React.ReactNode }[] = [
+  { tab: 'design',    label: 'Edit design',     icon: <Pencil size={13} /> },
+  { tab: 'actions',   label: 'Actions',          icon: <Zap size={13} /> },
+  { tab: 'audience',  label: 'Audience',         icon: <Users size={13} /> },
+  { tab: 'schedule',  label: 'Schedule',         icon: <Calendar size={13} /> },
+  { tab: 'analytics', label: 'Analytics',        icon: <BarChart2 size={13} /> },
+  { tab: 'drip',      label: 'Drip sequences',   icon: <GitBranch size={13} /> },
+]
+
 export default function MarketingPage() {
   const qc = useQueryClient()
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [selectedTab, setSelectedTab] = useState<TabKey>('design')
   const [showNew, setShowNew] = useState(false)
   const [view, setView] = useState<'campaigns' | 'unsubscribes'>('campaigns')
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
+  const menuRef = useRef<HTMLDivElement>(null)
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['marketing', 'campaigns'],
@@ -176,6 +190,26 @@ export default function MarketingPage() {
     onError: () => toast.error('Could not duplicate'),
   })
 
+  const deleteCampaign = useMutation({
+    mutationFn: (id: string) => marketingApi.deleteCampaign(id),
+    onSuccess: () => {
+      toast.success('Campaign deleted')
+      qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
+      if (selectedId === contextMenu?.campaign.id) setSelectedId(null)
+    },
+    onError: () => toast.error('Only draft campaigns can be deleted.'),
+  })
+
+  useEffect(() => {
+    function close(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setContextMenu(null)
+      }
+    }
+    if (contextMenu) document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [contextMenu])
+
   const selected = useMemo(
     () => campaigns.find((c: any) => c.id === selectedId) ?? null,
     [campaigns, selectedId],
@@ -185,6 +219,19 @@ export default function MarketingPage() {
     qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
     setSelectedId(c.id)
     setShowNew(false)
+  }
+
+  function openContextMenu(e: React.MouseEvent, campaign: Campaign) {
+    e.preventDefault()
+    e.stopPropagation()
+    setContextMenu({ x: e.clientX, y: e.clientY, campaign })
+  }
+
+  function selectTab(campaign: Campaign, tab: TabKey) {
+    setView('campaigns')
+    setSelectedId(campaign.id)
+    setSelectedTab(tab)
+    setContextMenu(null)
   }
 
   return (
@@ -231,7 +278,7 @@ export default function MarketingPage() {
           ) : (
             <ul className="space-y-1">
               {campaigns.map((c: any) => (
-                <li key={c.id}>
+                <li key={c.id} onContextMenu={(e) => openContextMenu(e, c)}>
                   <button
                     onClick={() => { setView('campaigns'); setSelectedId(c.id) }}
                     className={`group w-full rounded-xl border px-3 py-2.5 text-left transition-colors ${
@@ -293,7 +340,12 @@ export default function MarketingPage() {
             )}
             <div className="h-[calc(100%-56px)] overflow-hidden">
               {selected ? (
-                <CampaignDetail campaign={selected} onDeleted={() => setSelectedId(null)} />
+                <CampaignDetail
+                  campaign={selected}
+                  onDeleted={() => setSelectedId(null)}
+                  activeTab={selectedTab}
+                  onTabChange={setSelectedTab}
+                />
               ) : (
                 <div className="flex h-full flex-col items-center justify-center text-center">
                   <Megaphone size={36} className="text-slate-300" />
@@ -307,6 +359,45 @@ export default function MarketingPage() {
       </main>
 
       {showNew && <NewCampaignModal onClose={() => setShowNew(false)} onCreated={handleCreated} />}
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          ref={menuRef}
+          className="fixed z-50 min-w-[180px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl"
+          style={{ top: contextMenu.y, left: contextMenu.x }}
+        >
+          {CONTEXT_ITEMS.map(({ tab, label, icon }) => (
+            <button
+              key={tab}
+              onClick={() => selectTab(contextMenu.campaign, tab)}
+              disabled={tab === 'analytics' && contextMenu.campaign.status !== 'sending' && contextMenu.campaign.status !== 'completed'}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:text-slate-300"
+            >
+              <span className="text-slate-400">{icon}</span>
+              {label}
+            </button>
+          ))}
+          <div className="my-1 border-t border-slate-100" />
+          <button
+            onClick={() => {
+              if (contextMenu.campaign.status !== 'draft') {
+                toast.error('Only draft campaigns can be deleted.')
+                setContextMenu(null)
+                return
+              }
+              if (confirm(`Delete "${contextMenu.campaign.name}"?`)) {
+                deleteCampaign.mutate(contextMenu.campaign.id)
+                setContextMenu(null)
+              }
+            }}
+            className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
+          >
+            <span><Trash2 size={13} /></span>
+            Delete campaign
+          </button>
+        </div>
+      )}
     </div>
   )
 }

@@ -21,6 +21,9 @@ export interface Campaign {
   ab_winner: Variant | null
   segment_filter: SegmentFilter | null
   post_send_stage_id: string | null
+  reply_received_stage_id: string | null
+  button_stage_config: Record<string, string> | null
+  linked_stage_id: string | null
   dispatched_at: string | null
   created_at: string
   updated_at: string

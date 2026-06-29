@@ -2,6 +2,20 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## One canonical working directory — READ THIS FIRST
+
+**There is exactly one local clone of this repo.** Always work from here:
+
+```
+~/obsidian-vault/yippie/        ← working directory for all Yippie work
+~/obsidian-vault/               ← git repo root (branch: sandbox, remote: HTTPS)
+```
+
+- `~/yippie/` is a stale second clone — **never use it, ignore it**
+- Deploy everything: `git push origin sandbox` (from `~/obsidian-vault/yippie/`)
+- There are no other active branches besides `sandbox` and `production`
+- Parallel Claude sessions use `./scripts/new-session.sh b "desc"` to create `~/yippie-b/` — clean up with `land-session.sh b` when done
+
 ## Stack
 
 - **Monorepo**: Turborepo + pnpm workspaces

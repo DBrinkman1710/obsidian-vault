@@ -70,13 +70,14 @@ const REDIRECT_URL_TRAIT = {
   placeholder: 'https://',
 }
 
-function buildSecondaryTrait(actionType: string, stages: PipelineStage[], labels: ContactLabel[]) {
+function buildSecondaryTrait(actionType: string, _stages: PipelineStage[], labels: ContactLabel[]) {
   if (actionType === 'pipeline_stage') {
     return {
-      type: 'select',
+      type: 'text',
       name: 'data-stage-id',
-      label: 'Stage',
-      options: [{ id: '', label: '— pick a stage' }, ...stages.map(s => ({ id: s.id, label: s.name }))],
+      label: 'Stage → set in Actions tab',
+      placeholder: 'Assigned in Actions tab',
+      attributes: { readonly: 'true', style: 'color:#94a3b8;background:#f8fafc;cursor:not-allowed' },
     }
   }
   if (actionType === 'apply_label') {
@@ -166,7 +167,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
           tagName: 'a',
           draggable: true,
           droppable: false,
-          attributes: { 'data-yippie-button': '1', 'data-action-type': 'pipeline_stage', 'data-align': 'center', href: '#' },
+          attributes: { 'data-yippie-button': '1', 'data-action-type': 'pipeline_stage', 'data-align': 'center', href: '#', id: crypto.randomUUID() },
           traits: [
             ACTION_TYPE_TRAIT,
             buildSecondaryTrait('pipeline_stage', [], []),
@@ -175,6 +176,15 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
           ],
         },
       },
+    })
+
+    // Ensure every yippie-button has a stable, unique id for iframe highlighting.
+    editor.on('component:add', (component: any) => {
+      if (component.get('type') !== 'yippie-button') return
+      const attrs = component.getAttributes()
+      if (!attrs['id']) {
+        component.addAttributes({ id: crypto.randomUUID() })
+      }
     })
 
     // Auto-switch to traits panel when a yippie-button is selected

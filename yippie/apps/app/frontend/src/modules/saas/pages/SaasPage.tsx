@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { api } from '../../api/client'
+import { api } from '../../../api/client'
 import { AlertTriangle, BarChart3, Settings, Users, Zap } from 'lucide-react'
-import { useAuth } from '../../auth/useAuth'
+import { useAuth } from '../../../auth/useAuth'
 import { SaasSettingsModal } from './SaasSettingsModal'
 
 interface HealthSummary {

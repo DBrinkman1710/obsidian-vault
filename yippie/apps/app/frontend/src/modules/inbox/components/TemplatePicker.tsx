@@ -52,6 +52,7 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
   const ref = useRef<HTMLDivElement>(null)
   const config = useTenantConfig()
   const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? false
+  const aiEnabled = config?.enabled_modules?.includes('ai') ?? false
 
   const { data: responseTemplates = [] } = useQuery<Template[]>({
     queryKey: ['templates'],
@@ -172,7 +173,7 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
               placeholder="Search templates…"
               className="flex-1 text-sm px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
-            {context !== undefined && (
+            {context !== undefined && aiEnabled && (
               <button
                 type="button"
                 onClick={() => { setSearch(''); suggestMutation.mutate() }}

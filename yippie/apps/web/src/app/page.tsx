@@ -13,6 +13,14 @@ import {
   UsersIcon,
   ActivityIcon,
   BillingIcon,
+  CalendarIcon,
+  KanbanIcon,
+  MailTrackIcon,
+  TemplateIcon,
+  TeamIcon,
+  TrackingIcon,
+  SalesIcon,
+  SaasIcon,
   ArrowRightIcon,
   CheckIcon,
 } from "./components/icons";
@@ -24,32 +32,77 @@ const features = [
   {
     Icon: InboxIcon,
     title: "Smart Inbox",
-    desc: "Emails and WhatsApp auto-scan into draft tickets. Review and approve in one click — no manual write-up.",
+    desc: "AI reads every message and drafts the ticket subject, priority, and description. Review, approve, done.",
   },
   {
     Icon: TicketIcon,
-    title: "Ticket Management",
+    title: "Tickets",
     desc: "Track, assign, and close requests in one place. SLA alerts fire before anything slips through.",
+  },
+  {
+    Icon: UsersIcon,
+    title: "Contacts",
+    desc: "Full customer history — emails, tickets, pipeline stage, and company — in one view. No inbox digging.",
+  },
+  {
+    Icon: CalendarIcon,
+    title: "Calendar",
+    desc: "Monthly calendar with events, deadlines, and bookings. Send booking links so customers pick their own slot.",
+  },
+  {
+    Icon: KanbanIcon,
+    title: "Pipeline",
+    desc: "Drag-and-drop Kanban to track contacts through custom stages. Campaign buttons auto-advance contacts on click.",
   },
   {
     Icon: ChatIcon,
     title: "Live Chat",
-    desc: "Embed a chat widget with one line of code. Every conversation lands in a single dashboard.",
+    desc: "Embed a chat widget with one line of code. Every conversation lands in the shared inbox alongside email.",
   },
   {
-    Icon: UsersIcon,
-    title: "Contact Management",
-    desc: "Full customer history — emails, tickets, invoices — visible at a glance. No inbox digging.",
+    Icon: MailTrackIcon,
+    title: "Marketing",
+    desc: "Stage-targeted email campaigns with A/B testing, real-time tracking, and pipeline auto-advance on click.",
   },
   {
-    Icon: ActivityIcon,
-    title: "Activity Feed",
-    desc: "Real-time log of everything in your business. Always know who did what and when.",
+    Icon: TeamIcon,
+    title: "Departments",
+    desc: "Create departments, add agents, and let inbound email route automatically to the right team.",
   },
   {
     Icon: BillingIcon,
     title: "Billing",
-    desc: "Send and track invoices without leaving the platform. Support and financials, in sync.",
+    desc: "Create and send invoices from your workspace. Track payment status without a separate billing tool.",
+  },
+  {
+    Icon: ActivityIcon,
+    title: "Activity",
+    desc: "Real-time log of everything across your workspace. Always know who did what and when.",
+  },
+  {
+    Icon: TeamIcon,
+    title: "Team",
+    desc: "Invite agents, set roles, and organise into departments. Tickets route to the right person automatically.",
+  },
+  {
+    Icon: TemplateIcon,
+    title: "Templates",
+    desc: "Build a shared library of canned responses. Pick and personalise before sending — fast and on-brand.",
+  },
+  {
+    Icon: TrackingIcon,
+    title: "Tracking",
+    desc: "Add shipment tracking to contacts and tickets. Live carrier updates for DHL, UPS, PostNL, and FedEx.",
+  },
+  {
+    Icon: SalesIcon,
+    title: "Sales",
+    desc: "Track product views, add-to-cart, and purchase events. See which contacts are high-intent buyers.",
+  },
+  {
+    Icon: SaasIcon,
+    title: "SaaS Billing",
+    desc: "Manage recurring subscriptions, track MRR and churn, and link every subscription to a contact.",
   },
 ];
 
@@ -225,7 +278,7 @@ export default function HomePage() {
         {[
           { value: "10h+", label: "saved per week on average" },
           { value: "< 2 min", label: "average ticket response time" },
-          { value: "6", label: "modules, one platform" },
+          { value: "15", label: "modules, one platform" },
         ].map((s, i) => (
           <Reveal key={s.label} className={styles.stat} delay={i * 80}>
             <div className={styles.statValue}>{s.value}</div>
@@ -242,8 +295,8 @@ export default function HomePage() {
           <p className={styles.eyebrow}>// Features</p>
           <h2 className={styles.sectionTitle}>Everything your support team needs</h2>
           <p className={styles.sectionSub}>
-            One platform for inbox, tickets, live chat, contacts, billing, and activity.
-            Stop juggling tools.
+            Fifteen modules — inbox, tickets, contacts, pipeline, marketing, live chat, and more.
+            One platform, stop juggling tools.
           </p>
         </Reveal>
         <div className={styles.featureRows}>

@@ -9,7 +9,7 @@ from pydantic_settings import BaseSettings
 # Canonical list of all compiled-in modules. This is the single source of truth
 # for module names — it matches the keys of ``app.modules.MODULES`` and is used
 # as the default ``enabled_modules`` for new tenants (see app.core.models.Tenant).
-ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas']
+ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai']
 
 
 class Settings(BaseSettings):
@@ -18,12 +18,22 @@ class Settings(BaseSettings):
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 60 * 8
     anthropic_api_key: str = ""
-    ai_model: str = "claude-haiku-4-5-20251001"
-    # AI provider routing: "anthropic" (default) | "deepseek-api" | "self-hosted"
-    ai_provider: str = "anthropic"
+    # Mistral API key — used when ai_provider="mistral" (recommended: EU data residency, GDPR-safe)
+    mistral_api_key: str = ""
+    # Preferred model per provider:
+    #   mistral   → mistral-small-latest (fast, cheap) or mistral-large-latest (quality)
+    #   anthropic → claude-haiku-4-5-20251001
+    #   deepseek-api → deepseek-chat
+    #   self-hosted  → name of your vLLM model (e.g. Qwen/Qwen2.5-7B-Instruct)
+    ai_model: str = "mistral-small-latest"
+    # AI provider routing: "mistral" (default, EU) | "anthropic" | "deepseek-api" | "self-hosted"
+    # Mistral is the default: French company, EU datacenters, no training on API data, GDPR-safe.
+    # Self-hosted target: vLLM on Hetzner (DE/FI) with Qwen 2.5 7B — switch when volume > 100K calls/month.
+    ai_provider: str = "mistral"
     # DeepSeek API key — used when ai_provider="deepseek-api"; set AI_MODEL=deepseek-chat
     deepseek_api_key: str = ""
     # Self-hosted OpenAI-compatible endpoint — used when ai_provider="self-hosted"
+    # Target: vLLM serving Qwen2.5-7B-Instruct on Hetzner EU (AX102 or GEX130)
     ai_base_url: str = ""
     environment: str = "development"
     resend_api_key: str = ""

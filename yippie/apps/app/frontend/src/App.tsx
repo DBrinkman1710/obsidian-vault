@@ -20,8 +20,8 @@ const TicketNew     = lazy(() => import('./modules/tickets/pages/TicketNew'))
 const InboxQueue    = lazy(() => import('./modules/inbox/pages/InboxQueue'))
 const DraftReview   = lazy(() => import('./modules/inbox/pages/DraftReview'))
 const ChatPage      = lazy(() => import('./modules/chat/pages/ChatPage'))
-const CalendarPage  = lazy(() => import('./modules/calendar/CalendarPage'))
-const PipelinePage  = lazy(() => import('./modules/pipeline/PipelinePage'))
+const CalendarPage  = lazy(() => import('./modules/calendar/pages/CalendarPage'))
+const PipelinePage  = lazy(() => import('./modules/pipeline/pages/PipelinePage'))
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
 const LoginPage          = lazy(() => import('./auth/LoginPage'))
@@ -29,7 +29,6 @@ const RegisterPage       = lazy(() => import('./auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('./auth/ForgotPasswordPage'))
 const ResetPasswordPage  = lazy(() => import('./auth/ResetPasswordPage'))
 const TeamSettingsPage   = lazy(() => import('./modules/admin/pages/TeamSettingsPage'))
-const LabelsPage               = lazy(() => import('./modules/admin/pages/LabelsPage'))
 const ContactsPage             = lazy(() => import('./modules/contacts/pages/ContactsPage'))
 const SuperAdminPage           = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
 const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/SuperadminsSettingsPage'))
@@ -47,9 +46,9 @@ const BookingPage = lazy(() => import('./pages/BookingPage'))
 const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
 const MeetPage = lazy(() => import('./pages/MeetPage'))
 const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage'))
-const MarketingPage = lazy(() => import('./pages/marketing/MarketingPage'))
-const SalesPage     = lazy(() => import('./pages/sales/SalesPage'))
-const SaasPage      = lazy(() => import('./pages/saas/SaasPage'))
+const MarketingPage = lazy(() => import('./modules/marketing/pages/MarketingPage'))
+const SalesPage     = lazy(() => import('./modules/sales/pages/SalesPage'))
+const SaasPage      = lazy(() => import('./modules/saas/pages/SaasPage'))
 
 const TenantConfigContext = createContext<TenantConfig | null>(null)
 export const useTenantConfig = () => useContext(TenantConfigContext)
@@ -292,9 +291,7 @@ export default function App() {
                 <ModuleGate module="saas"><PagePad><DesktopOnly><SaasPage /></DesktopOnly></PagePad></ModuleGate>
               } />
 
-              <Route path="/settings" element={
-                <ModuleGate module="contacts"><PagePad><LabelsPage /></PagePad></ModuleGate>
-              } />
+              <Route path="/settings" element={<Navigate to="/settings/team" replace />} />
 
               <Route path="/settings/superadmins" element={<PagePad><SuperadminsSettingsPage /></PagePad>} />
               <Route path="/settings/profile" element={<PagePad><ProfileSettingsPage /></PagePad>} />

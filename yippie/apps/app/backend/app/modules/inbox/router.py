@@ -123,7 +123,7 @@ def _enrich_drafts(rows: list[tuple]) -> list[DraftTicketOut]:
 async def list_drafts(
     current_user: CurrentUser,
     db: DB,
-    status: Optional[DraftStatus] = DraftStatus.pending,
+    status: Optional[DraftStatus] = None,
     mailbox: str = "shared",
     q: Optional[str] = None,
     contact_id: Optional[uuid.UUID] = Query(None),

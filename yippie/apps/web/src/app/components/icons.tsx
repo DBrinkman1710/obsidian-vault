@@ -180,3 +180,11 @@ export const SaasIcon = (p: IconProps) => (
     <path d="M9 14h6M12 11v6" />
   </Svg>
 );
+
+export const MegaphoneIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 11v2a6 6 0 0 0 6 6h1" />
+    <path d="M21 5L5 11l16 6V5z" />
+    <path d="M10 19l1 3" />
+  </Svg>
+);
