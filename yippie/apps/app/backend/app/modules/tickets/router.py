@@ -95,7 +95,7 @@ async def delete_template(template_id: uuid.UUID, current_user: AdminUser, db: D
         raise HTTPException(status_code=404, detail="Template not found")
 
 
-@router.post("/templates/ai-suggest", response_model=list[TemplateOut])
+@router.post("/templates/ai-suggest", response_model=list[TemplateOut], dependencies=[Depends(require_module("ai"))])
 async def ai_suggest_templates(body: TemplateSuggestRequest, current_user: CurrentUser, db: DB):
     return await service.suggest_templates(db, current_user.tenant_id, body.context)
 
