@@ -21,13 +21,14 @@ def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
 
 
 def _fmt_cents(cents: int, currency: str = "EUR") -> str:
-    symbol = "€" if currency == "EUR" else currency + " "
+    # Use "EUR " instead of "€" — Helvetica only covers Latin-1 (no euro sign)
+    symbol = "EUR " if currency == "EUR" else currency + " "
     return f"{symbol}{cents / 100:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
 def _fmt_date(d: date | None) -> str:
     if d is None:
-        return "—"
+        return "-"  # em dash not in Latin-1; use plain hyphen
     return d.strftime("%d-%m-%Y")
 
 

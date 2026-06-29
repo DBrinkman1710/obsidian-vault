@@ -1,6 +1,6 @@
 """Invoice overhaul: tenant address/IBAN + invoice date/notes columns
 
-Revision ID: inv1_invoice_overhaul_tenant_address
+Revision ID: inv1_invoice_overhaul
 Revises: ai1_enable_module
 Create Date: 2026-06-29
 
@@ -10,7 +10,7 @@ from typing import Sequence, Union
 import sqlalchemy as sa
 from alembic import op
 
-revision: str = 'inv1_invoice_overhaul_tenant_address'
+revision: str = 'inv1_invoice_overhaul'
 down_revision: Union[str, None] = 'ai1_enable_module'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

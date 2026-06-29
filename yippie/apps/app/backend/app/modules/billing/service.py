@@ -263,17 +263,23 @@ async def send_invoice(
         logo_url=tenant.logo_url,
     )
 
-    await send_email(
-        to=contact.email,
-        subject=f"Factuur {invoice.invoice_number} — {tenant.name or ''}",
-        body=body,
-        html=html,
-        attachments=[{
-            "filename": f"factuur-{invoice.invoice_number}.pdf",
-            "content": pdf_b64,
-            "content_type": "application/pdf",
-        }],
-    )
+    try:
+        await send_email(
+            to=contact.email,
+            subject=f"Factuur {invoice.invoice_number} — {tenant.name or ''}",
+            body=body,
+            html=html,
+            attachments=[{
+                "filename": f"factuur-{invoice.invoice_number}.pdf",
+                "content": pdf_b64,
+                "content_type": "application/pdf",
+            }],
+        )
+    except Exception as exc:
+        from app.core.mailer import ResendNotConfiguredError
+        if isinstance(exc, ResendNotConfiguredError):
+            raise InvoiceSendError(str(exc)) from exc
+        raise
 
     invoice.status = InvoiceStatus.sent
     await db.commit()
@@ -319,17 +325,23 @@ async def send_payment_reminder(
         logo_url=tenant.logo_url,
     )
 
-    await send_email(
-        to=contact.email,
-        subject=f"Betalingsherinnering: {invoice.invoice_number} — {tenant.name or ''}",
-        body=body,
-        html=html,
-        attachments=[{
-            "filename": f"factuur-{invoice.invoice_number}.pdf",
-            "content": pdf_b64,
-            "content_type": "application/pdf",
-        }],
-    )
+    try:
+        await send_email(
+            to=contact.email,
+            subject=f"Betalingsherinnering: {invoice.invoice_number} — {tenant.name or ''}",
+            body=body,
+            html=html,
+            attachments=[{
+                "filename": f"factuur-{invoice.invoice_number}.pdf",
+                "content": pdf_b64,
+                "content_type": "application/pdf",
+            }],
+        )
+    except Exception as exc:
+        from app.core.mailer import ResendNotConfiguredError
+        if isinstance(exc, ResendNotConfiguredError):
+            raise InvoiceSendError(str(exc)) from exc
+        raise
     return contact.email
 
 
