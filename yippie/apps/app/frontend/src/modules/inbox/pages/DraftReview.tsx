@@ -61,7 +61,8 @@ function useSplitPane(storageKey: string, defaultPct = 50) {
     const onMove = (ev: MouseEvent) => {
       if (!containerRef.current) return
       const rect = containerRef.current.getBoundingClientRect()
-      const clamped = Math.min(Math.max(((ev.clientY - rect.top) / rect.height) * 100, 20), 80)
+      const raw = Math.min(Math.max(((ev.clientY - rect.top) / rect.height) * 100, 20), 80)
+      const clamped = Math.abs(raw - 50) < 5 ? 50 : raw
       pctRef.current = clamped
       setPct(clamped)
     }
