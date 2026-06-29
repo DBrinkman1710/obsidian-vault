@@ -62,6 +62,12 @@ interface Tenant {
   inbound_email: string | null
   kvk_nummer: string | null
   btw_nummer: string | null
+  street_address: string | null
+  postal_code: string | null
+  city: string | null
+  country: string | null
+  iban: string | null
+  phone: string | null
   whatsapp_phone_number_id: string | null
   whatsapp_access_token: string | null
   whatsapp_verify_token: string | null
@@ -718,6 +724,12 @@ function EditClientModal({
     inbound_email: tenant.inbound_email ?? '',
     kvk_nummer: tenant.kvk_nummer ?? '',
     btw_nummer: tenant.btw_nummer ?? '',
+    street_address: tenant.street_address ?? '',
+    postal_code: tenant.postal_code ?? '',
+    city: tenant.city ?? '',
+    country: tenant.country ?? 'Nederland',
+    iban: tenant.iban ?? '',
+    phone: tenant.phone ?? '',
     enabled_modules: ALL_MODULES.filter(m => tenant.enabled_modules.includes(m)),
     plan: tenant.plan,
     primary_color: tenant.primary_color,
@@ -768,6 +780,18 @@ function EditClientModal({
     if (kvk !== tenant.kvk_nummer) patch.kvk_nummer = kvk
     const btw = form.btw_nummer.trim() || null
     if (btw !== tenant.btw_nummer) patch.btw_nummer = btw
+    const street = form.street_address.trim() || null
+    if (street !== tenant.street_address) patch.street_address = street
+    const postal = form.postal_code.trim() || null
+    if (postal !== tenant.postal_code) patch.postal_code = postal
+    const city = form.city.trim() || null
+    if (city !== tenant.city) patch.city = city
+    const country = form.country.trim() || null
+    if (country !== tenant.country) patch.country = country
+    const iban = form.iban.trim() || null
+    if (iban !== tenant.iban) patch.iban = iban
+    const phone = form.phone.trim() || null
+    if (phone !== tenant.phone) patch.phone = phone
     const newMods = JSON.stringify([...form.enabled_modules].sort())
     const oldMods = JSON.stringify([...tenant.enabled_modules].sort())
     if (newMods !== oldMods) patch.enabled_modules = form.enabled_modules
@@ -901,6 +925,48 @@ function EditClientModal({
                     placeholder="NL123456789B01"
                   />
                 </div>
+              </div>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mt-1">Factuuradres (verschijnt op PDF)</p>
+              <div>
+                <label className={labelCls}>Straat + huisnummer</label>
+                <input className={inputCls} value={form.street_address}
+                  onChange={e => setForm(p => ({ ...p, street_address: e.target.value }))}
+                  placeholder="Keizersgracht 123" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Postcode</label>
+                  <input className={inputCls} value={form.postal_code}
+                    onChange={e => setForm(p => ({ ...p, postal_code: e.target.value }))}
+                    placeholder="1234 AB" />
+                </div>
+                <div>
+                  <label className={labelCls}>Stad</label>
+                  <input className={inputCls} value={form.city}
+                    onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
+                    placeholder="Amsterdam" />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={labelCls}>Land</label>
+                  <input className={inputCls} value={form.country}
+                    onChange={e => setForm(p => ({ ...p, country: e.target.value }))}
+                    placeholder="Nederland" />
+                </div>
+                <div>
+                  <label className={labelCls}>Telefoonnummer</label>
+                  <input className={inputCls} value={form.phone}
+                    onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
+                    placeholder="+31 20 123 4567" />
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>IBAN</label>
+                <input className={inputCls} value={form.iban}
+                  onChange={e => setForm(p => ({ ...p, iban: e.target.value }))}
+                  placeholder="NL12 BANK 0123 4567 89" />
+                <p className="mt-1 text-xs text-slate-400">Wordt afgedrukt op factuur-PDF's als betaalinstructie.</p>
               </div>
               {tenant.is_demo && (
                 <div>

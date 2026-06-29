@@ -15,6 +15,7 @@ from app.modules.billing.schemas import (
     InvoiceCreate,
     InvoiceImportResult,
     InvoiceOut,
+    InvoiceUpdate,
     PaymentCreate,
     PaymentOut,
     SubscriptionCreate,
@@ -49,8 +50,9 @@ async def create_invoice(body: InvoiceCreate, current_user: CurrentUser, db: DB)
     return await service.create_invoice(db, current_user.tenant_id, body)
 
 
-# NOTE: these static-path routes are declared before "/invoices/{invoice_id}"
-# so FastAPI does not try to parse "export" / "bulk" as an invoice UUID.
+# NOTE: static-path routes declared before "/invoices/{invoice_id}" so FastAPI
+# does not interpret "export" / "bulk" / "import" as a UUID.
+
 @router.get("/invoices/export")
 async def export_invoices(
     current_user: CurrentUser,
@@ -76,7 +78,6 @@ async def export_invoices(
 
 @router.get("/invoices/import-template")
 async def invoice_import_template(current_user: CurrentUser):
-    """Return a CSV template for bulk invoice import."""
     import csv as _csv
     import io as _io
     buf = _io.StringIO()
@@ -96,11 +97,6 @@ async def import_invoices(
     db: DB,
     file: UploadFile = File(...),
 ):
-    allowed = {
-        "text/csv", "application/csv", "text/plain",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        "application/octet-stream",
-    }
     fname = (file.filename or "").lower()
     if not (fname.endswith(".csv") or fname.endswith(".xlsx")):
         raise HTTPException(status_code=400, detail="Only .csv and .xlsx files are supported")
@@ -122,6 +118,49 @@ async def get_invoice(invoice_id: uuid.UUID, current_user: CurrentUser, db: DB):
     return invoice
 
 
+@router.patch("/invoices/{invoice_id}", response_model=InvoiceOut)
+async def update_invoice(invoice_id: uuid.UUID, body: InvoiceUpdate, current_user: CurrentUser, db: DB):
+    invoice = await service.update_invoice(db, current_user.tenant_id, invoice_id, body)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return invoice
+
+
+@router.get("/invoices/{invoice_id}/pdf")
+async def download_invoice_pdf(invoice_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    invoice = await service.get_invoice(db, current_user.tenant_id, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    try:
+        pdf_bytes = await service.generate_pdf_bytes(db, current_user.tenant_id, invoice)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"PDF generation failed: {e}")
+    filename = f"factuur-{invoice.invoice_number}.pdf"
+    return StreamingResponse(
+        iter([pdf_bytes]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/invoices/{invoice_id}/send")
+async def send_invoice(invoice_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    try:
+        email = await service.send_invoice(db, current_user.tenant_id, invoice_id)
+    except service.InvoiceSendError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"sent": True, "email": email}
+
+
+@router.post("/invoices/{invoice_id}/remind")
+async def send_payment_reminder(invoice_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    try:
+        email = await service.send_payment_reminder(db, current_user.tenant_id, invoice_id)
+    except service.InvoiceSendError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"sent": True, "email": email}
+
+
 @router.post("/invoices/{invoice_id}/payments", response_model=PaymentOut, status_code=status.HTTP_201_CREATED)
 async def record_payment(invoice_id: uuid.UUID, body: PaymentCreate, current_user: CurrentUser, db: DB):
     invoice = await service.get_invoice(db, current_user.tenant_id, invoice_id)
@@ -131,3 +170,11 @@ async def record_payment(invoice_id: uuid.UUID, body: PaymentCreate, current_use
         return await service.record_payment(db, current_user.tenant_id, invoice, body)
     except service.PaymentError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/invoices/{invoice_id}/payments", response_model=list[PaymentOut])
+async def list_payments(invoice_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    invoice = await service.get_invoice(db, current_user.tenant_id, invoice_id)
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return await service.list_payments(db, current_user.tenant_id, invoice_id)

@@ -59,6 +59,13 @@ class Tenant(Base):
     # KvK = Chamber of Commerce number; Btw = VAT number.
     kvk_nummer: Mapped[str | None] = mapped_column(String(100), nullable=True)
     btw_nummer: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # Invoice sender address — printed on PDF invoices.
+    street_address: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(100), nullable=True, server_default="Nederland")
+    iban: Mapped[str | None] = mapped_column(String(34), nullable=True)
+    phone: Mapped[str | None] = mapped_column(String(50), nullable=True)
     # Ticket deadline indicator thresholds (Sidebar dot on the Tickets nav).
     # Red = overdue or due within deadline_red_days; orange = due within deadline_orange_days.
     deadline_red_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")

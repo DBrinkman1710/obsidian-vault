@@ -35,6 +35,7 @@ class LineItem(BaseModel):
     description: str
     quantity: int
     unit_price_cents: int
+    tax_rate_pct: int = 21  # Dutch VAT rates: 0, 9, 21
 
 
 class InvoiceCreate(BaseModel):
@@ -42,10 +43,25 @@ class InvoiceCreate(BaseModel):
     subscription_id: Optional[uuid.UUID] = None
     description: Optional[str] = None
     line_items: list[LineItem]
-    tax_cents: int = 0
+    # tax_cents removed — computed automatically from per-line tax_rate_pct
     currency: str = "EUR"
+    invoice_date: Optional[date] = None
     due_date: Optional[date] = None
+    notes: Optional[str] = None
     status: InvoiceStatus = InvoiceStatus.pending
+
+
+class InvoiceUpdate(BaseModel):
+    status: Optional[InvoiceStatus] = None
+    notes: Optional[str] = None
+    due_date: Optional[date] = None
+    invoice_date: Optional[date] = None
+
+
+class VatBreakdownLine(BaseModel):
+    rate_pct: int
+    subtotal_cents: int
+    vat_cents: int
 
 
 class BulkDeleteRequest(BaseModel):
@@ -63,9 +79,12 @@ class InvoiceOut(BaseModel):
     tax_cents: int
     total_cents: int
     currency: str
+    invoice_date: Optional[date] = None
     due_date: Optional[date]
+    notes: Optional[str] = None
     paid_at: Optional[datetime]
     created_at: datetime
+    vat_breakdown: list[VatBreakdownLine] = []
 
     model_config = {"from_attributes": True}
 
