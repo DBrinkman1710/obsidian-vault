@@ -19,7 +19,7 @@ export function AuthShell({ subtitle, children }: { subtitle: string; children: 
       <div className="w-full max-w-sm relative z-10">
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-3">
-            <img src="/logo.svg" alt="Yippie" className="h-24 w-auto" />
+            <img src="/logo.svg" alt="Yippie" className="h-48 w-auto" />
           </div>
           <p className="text-sm text-slate-500">{subtitle}</p>
         </div>
