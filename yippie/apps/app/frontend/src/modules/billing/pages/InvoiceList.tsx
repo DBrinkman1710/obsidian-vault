@@ -509,9 +509,10 @@ export default function InvoiceList() {
 
   // ── Export CSV/XLSX ───────────────────────────────────────────────────────
 
-  async function exportData(format: 'csv' | 'xlsx' = 'csv') {
+  async function exportData(format: 'csv' | 'xlsx' = 'csv', ids?: string[]) {
     const params: Record<string, string> = { format }
-    if (selection.count) params.ids = [...selection.sel].join(',')
+    const exportIds = ids ?? (selection.count ? [...selection.sel] : undefined)
+    if (exportIds) params.ids = exportIds.join(',')
     try {
       const res = await api.get('/billing/invoices/export', { params, responseType: 'blob' })
       const type = format === 'xlsx'
@@ -660,8 +661,12 @@ export default function InvoiceList() {
                   onContextMenu={e => ctx.open(e, [
                     { header: inv.invoice_number },
                     {
-                      label: 'Download PDF', icon: <FileDown size={14} />,
+                      label: 'Export PDF', icon: <FileDown size={14} />,
                       onClick: () => downloadPdf(inv.id, inv.invoice_number),
+                    },
+                    {
+                      label: 'Export CSV', icon: <Download size={14} />,
+                      onClick: () => exportData('csv', [inv.id]),
                     },
                     {
                       label: 'Send by email', icon: <Mail size={14} />,
