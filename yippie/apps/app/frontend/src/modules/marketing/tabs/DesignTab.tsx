@@ -62,7 +62,13 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
     const wantVariant: Variant | null = activeVariant === 'single' ? null : activeVariant
     const tpl = templates.find((t: any) => t.variant === wantVariant)
     if (editorRef.current) {
-      editorRef.current.loadDesign(tpl?.design_json ?? null)
+      if (tpl?.design_json) {
+        editorRef.current.loadDesign(tpl.design_json)
+      } else if (tpl?.raw_html) {
+        editorRef.current.loadDesign(JSON.stringify({ pages: [{ id: 'main', component: tpl.raw_html }] }))
+      } else {
+        editorRef.current.loadDesign(null)
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeVariant, templates.length])
@@ -70,7 +76,13 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
   function handleEditorReady() {
     const wantVariant: Variant | null = activeVariantRef.current === 'single' ? null : activeVariantRef.current
     const tpl = templatesRef.current.find((t: any) => t.variant === wantVariant)
-    editorRef.current?.loadDesign(tpl?.design_json ?? null)
+    if (tpl?.design_json) {
+      editorRef.current?.loadDesign(tpl.design_json)
+    } else if (tpl?.raw_html) {
+      editorRef.current?.loadDesign(JSON.stringify({ pages: [{ id: 'main', component: tpl.raw_html }] }))
+    } else {
+      editorRef.current?.loadDesign(null)
+    }
   }
 
   const save = useMutation({
@@ -115,27 +127,53 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
     setEditorOpen(true)
   }
 
-  const hasDesign = templates.some((t: any) => t.raw_html || t.design_json)
+  const activeTemplate = templates.find(
+    (t: any) => t.variant === (activeVariant === 'single' ? null : activeVariant)
+  )
+  const previewHtml = activeTemplate?.raw_html ?? null
 
   return (
     <>
       {/* Collapsed view */}
-      <div className="flex h-full flex-col items-center justify-center gap-4 bg-slate-50">
-        <div className="text-center">
-          <p className="text-sm font-semibold text-slate-700 mb-1">
-            {hasDesign ? 'Email design saved' : 'No design yet'}
-          </p>
-          <p className="text-xs text-slate-400">
-            {hasDesign ? 'Click below to edit your email' : 'Start designing your campaign email'}
-          </p>
-        </div>
-        <button
-          onClick={openEditor}
-          className="flex items-center gap-2 rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
-        >
-          <Pencil size={14} />
-          {hasDesign ? 'Edit design' : 'Open editor'}
-        </button>
+      <div className="flex h-full flex-col items-center justify-center gap-5 bg-slate-50 p-6">
+        {previewHtml ? (
+          <>
+            <div
+              className="relative overflow-hidden rounded-xl border border-slate-200 shadow-md cursor-pointer hover:shadow-lg transition-shadow bg-white"
+              style={{ width: 300, height: 220 }}
+              onClick={openEditor}
+              title="Click to edit"
+            >
+              <iframe
+                srcDoc={previewHtml}
+                className="pointer-events-none"
+                style={{ width: 600, height: 440, transform: 'scale(0.5)', transformOrigin: 'top left', border: 'none' }}
+                sandbox="allow-same-origin"
+                title="Email preview"
+              />
+              <div className="absolute inset-0" />
+            </div>
+            <button
+              onClick={openEditor}
+              className="flex items-center gap-2 rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            >
+              <Pencil size={14} /> Edit design
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="text-center">
+              <p className="text-sm font-semibold text-slate-700 mb-1">No design yet</p>
+              <p className="text-xs text-slate-400">Start designing your campaign email</p>
+            </div>
+            <button
+              onClick={openEditor}
+              className="flex items-center gap-2 rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+            >
+              <Pencil size={14} /> Open editor
+            </button>
+          </>
+        )}
       </div>
 
       {/* Full-screen editor overlay */}
