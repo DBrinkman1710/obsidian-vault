@@ -23,6 +23,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
         contact_label_links,
     )
     from app.modules.departments.models import Department
+    from app.modules.chat.models import ChatMessage, ChatSession
     from app.modules.inbox.models import (
         DraftStatus,
         DraftTicket,
@@ -236,6 +237,8 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             ))
 
             # ── Inbox draft messages (pending AI review) ─────────────────────
+            # inbound_to=None so these appear in the shared inbox regardless of
+            # what INBOUND_EMAIL is configured to in the Railway env.
             msg1 = InboundMessage(
                 tenant_id=tenant_id, source=InboxSource.email,
                 sender="hanneke@groothandel.nl", sender_name="Hanneke Groot",
@@ -246,7 +249,6 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
                     "Wanneer kan ik levering verwachten?\n\n"
                     "Met vriendelijke groet,\nHanneke Groot"
                 ),
-                inbound_to="support@demo.yippie.io",
             )
             msg2 = InboundMessage(
                 tenant_id=tenant_id, source=InboxSource.email,
@@ -258,7 +260,6 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
                     "En is er een sandbox omgeving beschikbaar voor testing?\n\n"
                     "Groeten,\nPieter Laan\nTechBedrijf B.V."
                 ),
-                inbound_to="support@demo.yippie.io",
             )
             db.add_all([msg1, msg2])
             await db.flush()
@@ -276,6 +277,83 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
                 ai_suggested_subject="API rate limits en sandbox omgeving — Enterprise plan",
                 ai_suggested_description="Potentiële enterprise klant vraagt naar API rate limits en beschikbaarheid van een sandbox testomgeving voor integratie.",
                 ai_suggested_priority="high", ai_suggested_category="sales",
+            ))
+
+            # ── Live chat sessions ───────────────────────────────────────────
+            chat1 = ChatSession(
+                tenant_id=tenant_id,
+                source="websocket",
+                visitor_id="demo-visitor-1",
+                visitor_name="Lisa de Graaf",
+                visitor_email="lisa@example.nl",
+                contact_id=c3.id,
+                status="open",
+                is_open=True,
+                unread_count=1,
+                started_at=now - timedelta(minutes=12),
+            )
+            chat2 = ChatSession(
+                tenant_id=tenant_id,
+                source="websocket",
+                visitor_id="demo-visitor-2",
+                visitor_name="Arjan Koopmans",
+                visitor_email="arjan@example.nl",
+                contact_id=c8.id,
+                status="open",
+                is_open=True,
+                unread_count=2,
+                started_at=now - timedelta(minutes=45),
+            )
+            chat3 = ChatSession(
+                tenant_id=tenant_id,
+                source="websocket",
+                visitor_id="demo-visitor-3",
+                visitor_name="Marieke Blom",
+                status="solved",
+                is_open=False,
+                unread_count=0,
+                started_at=now - timedelta(hours=3),
+                ended_at=now - timedelta(hours=2, minutes=30),
+                solved_at=now - timedelta(hours=2, minutes=30),
+            )
+            db.add_all([chat1, chat2, chat3])
+            await db.flush()
+
+            db.add(ChatMessage(
+                tenant_id=tenant_id, session_id=chat1.id,
+                sender_type="visitor", sender_id="demo-visitor-1",
+                body="Hallo, ik had een vraag over mijn bestelling. Kan iemand mij helpen?",
+                created_at=now - timedelta(minutes=12),
+            ))
+            db.add(ChatMessage(
+                tenant_id=tenant_id, session_id=chat2.id,
+                sender_type="visitor", sender_id="demo-visitor-2",
+                body="Goedemiddag! Ik wil graag meer weten over jullie Enterprise pakket.",
+                created_at=now - timedelta(minutes=45),
+            ))
+            db.add(ChatMessage(
+                tenant_id=tenant_id, session_id=chat2.id,
+                sender_type="visitor", sender_id="demo-visitor-2",
+                body="Zijn er kortingen beschikbaar voor jaarlijkse abonnementen?",
+                created_at=now - timedelta(minutes=44),
+            ))
+            db.add(ChatMessage(
+                tenant_id=tenant_id, session_id=chat3.id,
+                sender_type="visitor", sender_id="demo-visitor-3",
+                body="Hoe kan ik mijn factuur downloaden?",
+                created_at=now - timedelta(hours=3),
+            ))
+            db.add(ChatMessage(
+                tenant_id=tenant_id, session_id=chat3.id,
+                sender_type="agent", sender_id=str(admin_user_id),
+                body="Hallo Marieke! U kunt uw factuur downloaden via Instellingen → Facturatie. Kan ik u verder helpen?",
+                created_at=now - timedelta(hours=2, minutes=55),
+            ))
+            db.add(ChatMessage(
+                tenant_id=tenant_id, session_id=chat3.id,
+                sender_type="visitor", sender_id="demo-visitor-3",
+                body="Dank je wel, dat werkt! Fijne dag.",
+                created_at=now - timedelta(hours=2, minutes=50),
             ))
 
             await db.commit()
