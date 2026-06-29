@@ -56,13 +56,13 @@ function useSplitPane(storageKey: string, defaultPct = 50) {
   const containerRef = useRef<HTMLDivElement>(null)
   const pctRef = useRef(pct)
 
-  const startDrag = useCallback((e: React.MouseEvent) => {
+  const startDrag = useCallback((e: React.MouseEvent, snapTo?: number) => {
     e.preventDefault()
     const onMove = (ev: MouseEvent) => {
       if (!containerRef.current) return
       const rect = containerRef.current.getBoundingClientRect()
       const raw = Math.min(Math.max(((ev.clientY - rect.top) / rect.height) * 100, 20), 80)
-      const clamped = Math.abs(raw - 50) < 5 ? 50 : raw
+      const clamped = snapTo !== undefined && Math.abs(raw - snapTo) < 2 ? snapTo : raw
       pctRef.current = clamped
       setPct(clamped)
     }
@@ -1102,7 +1102,7 @@ export default function DraftReview() {
 
           {/* ── LEFT SPLIT HANDLE ── */}
           <div
-            onMouseDown={startLeftSplitDrag}
+            onMouseDown={e => startLeftSplitDrag(e, emailPct)}
             className="h-2 shrink-0 flex items-center justify-center cursor-row-resize group my-0.5"
             title="Drag to resize"
           >
@@ -1393,7 +1393,7 @@ export default function DraftReview() {
 
           {/* ── SPLIT HANDLE ── */}
           <div
-            onMouseDown={startSplitDrag}
+            onMouseDown={e => startSplitDrag(e, customerPct)}
             className="h-2 shrink-0 flex items-center justify-center cursor-row-resize group my-0.5"
             title="Drag to resize"
           >
