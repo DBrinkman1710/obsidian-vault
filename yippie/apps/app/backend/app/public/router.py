@@ -8,7 +8,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -320,6 +320,7 @@ async def _ensure_demo_label(db: AsyncSession, tenant_id: uuid.UUID):
 async def request_demo(
     body: RequestDemo,
     request: Request,
+    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     """Self-serve demo provisioning — no auth.
@@ -484,6 +485,9 @@ async def request_demo(
         sla_due_at=now + timedelta(days=3),
     ))
     await db.commit()
+
+    from app.core.demo_seeder import seed_demo_data
+    background_tasks.add_task(seed_demo_data, uuid.UUID(str(tenant_id)), user.id)
 
     return {"tenant_id": str(tenant_id), "slug": slug, "invited": True}
 
