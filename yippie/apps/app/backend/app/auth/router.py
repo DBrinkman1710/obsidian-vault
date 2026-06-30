@@ -29,7 +29,7 @@ from app.auth.dependencies import CurrentUser
 from app.auth.tokens import create_signed_token, verify_signed_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=10)
 
 # In-memory rate limiters — process-local, sufficient for single-instance Railway deploy.
 # Limits: 10 failed logins / IP / 15 min; 5 reset requests / IP / 5 min.

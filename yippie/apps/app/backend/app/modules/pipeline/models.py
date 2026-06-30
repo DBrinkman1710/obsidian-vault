@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String
+from sqlalchemy import DateTime, ForeignKey, Index, Integer, String
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -24,6 +24,9 @@ class PipelineStage(Base):
 
 class ContactPipelineEntry(Base):
     __tablename__ = "contact_pipeline_entries"
+    __table_args__ = (
+        Index("ix_pipeline_entries_tenant_entered", "tenant_id", "entered_at"),
+    )
 
     contact_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="CASCADE"), primary_key=True
