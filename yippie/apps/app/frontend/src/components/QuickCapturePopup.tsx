@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowRight, Loader2, Settings, User, Ticket, X, Check } from 'lucide-react'
+import { ArrowRight, Loader2, Settings, User, Ticket, X, Check, BotMessageSquare } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuth, type JarvisPrefs, type User as AuthUser } from '../auth/useAuth'
 import { useQuickCapture } from '../hooks/useQuickCapture'
@@ -135,7 +135,10 @@ export default function QuickCapturePopup() {
             <Ticket size={12} /> Ticket <X size={11} className="opacity-60" />
           </button>
         ) : (
-          <span className="text-xs font-semibold text-slate-400">Yip</span>
+          <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400">
+            <BotMessageSquare size={14} className="text-yippie" />
+            Yip
+          </span>
         )}
         <div className="flex items-center gap-1">
           <button onClick={() => setShowPrefs(s => !s)} title="Preferences"
