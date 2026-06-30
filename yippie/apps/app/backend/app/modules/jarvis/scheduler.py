@@ -8,7 +8,7 @@ import logging
 from datetime import datetime, timezone
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import select
+from sqlalchemy import select, text
 
 from app.core.models import UserReminder
 from app.database import db_session
@@ -26,6 +26,10 @@ _fired: set[str] = set()
 async def jarvis_reminder_job():
     now = datetime.now(timezone.utc)
     async with db_session() as db:
+        # Disable row-level security for this system-level cross-tenant query.
+        # The scheduler runs as the DB owner (postgres) which has BYPASSRLS;
+        # this SET LOCAL makes it explicit and survives even if the role changes.
+        await db.execute(text("SET LOCAL row_security = off"))
         result = await db.execute(
             select(UserReminder).where(
                 UserReminder.remind_at <= now,
@@ -33,6 +37,7 @@ async def jarvis_reminder_job():
             )
         )
         reminders = result.scalars().all()
+    log.info("jarvis_reminder_job: %d due reminder(s) found", len(reminders))
 
     for reminder in reminders:
         key = str(reminder.id)
