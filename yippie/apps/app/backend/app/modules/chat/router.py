@@ -744,7 +744,7 @@ async def bulk_session_action(body: BulkSessionBody, current_user: CurrentUser, 
 
 
 @router.delete("/sessions/all", status_code=status.HTTP_200_OK)
-async def clear_all_sessions(current_user: CurrentUser, db: DB):
+async def clear_all_sessions(current_user: AdminUser, db: DB):
     """Delete all chat sessions and messages for this tenant. Dev/sandbox only."""
     settings = get_settings()
     if settings.environment not in ("development", "devsandbox", "sandbox", "dev"):
@@ -797,7 +797,7 @@ async def get_chat_settings(current_user: CurrentUser, db: DB):
 
 
 @router.patch("/settings", status_code=status.HTTP_200_OK)
-async def update_chat_settings(body: ChatSettingsBody, current_user: CurrentUser, db: DB):
+async def update_chat_settings(body: ChatSettingsBody, current_user: AdminUser, db: DB):
     tenant = await db.get(Tenant, current_user.tenant_id)
     if not tenant:
         raise HTTPException(status_code=404, detail="Tenant not found")
