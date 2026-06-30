@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, MessageSquare, ArrowRight, X, Trash2, AlertOctagon, CheckSquare, ChevronLeft, ChevronRight, Building2, Users, Pencil, Send, Sparkles, Search, ChevronDown, Check, XCircle, UserPlus, User } from 'lucide-react'
 import { api } from '../../../api/client'
@@ -257,8 +257,9 @@ export default function InboxQueue() {
   const [mailbox, setMailbox] = useState<Mailbox>('shared')
   const [focusedIdx, setFocusedIdx] = useState<number>(-1)
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
-  const deptId = searchParams.get('dept') ?? undefined
+  const [activeDeptId, setActiveDeptId] = useState<string | undefined>(undefined)
+  const [showDeptDropdown, setShowDeptDropdown] = useState(false)
+  const deptDropdownRef = useRef<HTMLDivElement>(null)
   const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all')
   const [showCompose, setShowCompose] = useState(false)
   const [composeInitial, setComposeInitial] = useState<ComposeInitialState | null>(null)
@@ -318,7 +319,7 @@ export default function InboxQueue() {
   // Reset to the first page whenever the search term changes.
   useEffect(() => { setPage(0) }, [debouncedSearch])
 
-  // Close the Processed filter dropdown on outside click.
+  // Close the Processed / assigned / dept filter dropdowns on outside click.
   useEffect(() => {
     function handler(e: MouseEvent) {
       if (processedFilterRef.current && !processedFilterRef.current.contains(e.target as Node)) {
@@ -326,6 +327,9 @@ export default function InboxQueue() {
       }
       if (assignedFilterRef.current && !assignedFilterRef.current.contains(e.target as Node)) {
         setShowAssignedFilter(false)
+      }
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(e.target as Node)) {
+        setShowDeptDropdown(false)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -343,9 +347,9 @@ export default function InboxQueue() {
 
   // Unread counts for mailbox tabs
   const { data: inboxCounts } = useQuery({
-    queryKey: ['inbox-counts', deptId],
+    queryKey: ['inbox-counts', activeDeptId],
     queryFn: () => api.get<{ pending: number; personal: number; unread: number; unread_personal: number }>('/inbox/drafts/count', {
-      params: deptId ? { department_id: deptId } : {},
+      params: activeDeptId ? { department_id: activeDeptId } : {},
     }).then((r: any) => r.data),
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
@@ -406,6 +410,14 @@ export default function InboxQueue() {
     staleTime: 60_000,
   })
 
+  // Scope the shared inbox to the user's first department by default.
+  // Users with no departments see the full tenant shared inbox.
+  useEffect(() => {
+    if (myDepts && myDepts.length > 0 && activeDeptId === undefined) {
+      setActiveDeptId(myDepts[0].id)
+    }
+  }, [myDepts, activeDeptId])
+
   const searchParam = debouncedSearch || undefined
 
   // Sent tab — single source of truth: the consolidated marketing outbound feed.
@@ -424,9 +436,9 @@ export default function InboxQueue() {
     status,
     mailbox,
     q: searchParam,
-    ...(deptId ? { department_id: deptId } : {}),
+    ...(activeDeptId ? { department_id: activeDeptId } : {}),
   })
-  const draftKey = (status: string) => ['drafts', mailbox, status, searchParam, deptId] as const
+  const draftKey = (status: string) => ['drafts', mailbox, status, searchParam, activeDeptId] as const
 
   const { data: pendingDrafts, isLoading: pendingLoading } = useQuery({
     queryKey: draftKey('pending'),
@@ -648,31 +660,33 @@ export default function InboxQueue() {
                 )
               })}
             </div>
-            {/* Per-department shared inboxes — one tab per department the user belongs to. */}
-            {(myDepts ?? []).length > 0 && (
-              <div className="hidden md:flex items-center gap-1.5">
+            {/* Department switcher — only shown when user belongs to multiple departments */}
+            {(myDepts ?? []).length > 1 && (
+              <div className="relative" ref={deptDropdownRef}>
                 <button
-                  onClick={() => { navigate('/inbox'); setSelected(new Set()); setPage(0) }}
-                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                    !deptId ? 'bg-violet-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                  }`}
+                  onClick={() => setShowDeptDropdown(v => !v)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
                 >
-                  <Users size={13} />
-                  All
+                  <Building2 size={13} />
+                  {(myDepts ?? []).find((d: any) => d.id === activeDeptId)?.name ?? 'Select department'}
+                  <ChevronDown size={12} />
                 </button>
-                {(myDepts ?? []).map((d: any) => (
-                  <button
-                    key={d.id}
-                    onClick={() => { navigate(`/inbox?dept=${d.id}`); setSelected(new Set()); setPage(0) }}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
-                      deptId === d.id ? 'bg-violet-600 text-white' : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
-                    }`}
-                    title={`Shared ${d.name} Inbox`}
-                  >
-                    <Building2 size={13} />
-                    Shared {d.name} Inbox
-                  </button>
-                ))}
+                {showDeptDropdown && (
+                  <div className="absolute top-full mt-1 left-0 bg-white border border-slate-200 rounded-xl shadow-lg z-20 min-w-[160px] py-1">
+                    {(myDepts ?? []).map((d: any) => (
+                      <button
+                        key={d.id}
+                        onClick={() => { setActiveDeptId(d.id); setShowDeptDropdown(false); setSelected(new Set()); setPage(0) }}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-xs font-medium transition-colors hover:bg-slate-50 text-left ${
+                          activeDeptId === d.id ? 'text-blue-600' : 'text-slate-700'
+                        }`}
+                      >
+                        {activeDeptId === d.id ? <Check size={12} /> : <span className="w-3" />}
+                        {d.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -988,21 +1002,20 @@ export default function InboxQueue() {
                   <div ref={assignedFilterRef} className="relative">
                     <button
                       onClick={() => setShowAssignedFilter(o => !o)}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold transition-colors"
-                      style={{
-                        borderRadius: 'var(--radius-sm)',
-                        background: assignedToUser ? 'var(--brand-soft)' : 'transparent',
-                        color: assignedToUser ? 'var(--brand-deep)' : 'var(--text-muted)',
-                      }}
+                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
+                        assignedToUser
+                          ? 'bg-yippie border-transparent text-white'
+                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
+                      }`}
                     >
                       {assignedToUser ? memberMap[assignedToUser] ?? 'User' : 'Assigned to…'}
-                      <ChevronDown size={10} className={`transition-transform ${showAssignedFilter ? 'rotate-180' : ''}`} />
+                      <ChevronDown size={11} className={`transition-transform ${showAssignedFilter ? 'rotate-180' : ''}`} />
                     </button>
                     {showAssignedFilter && (
                       <div className="absolute left-0 top-full mt-1 z-20 w-44 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
                         <button
                           onClick={() => { setAssignedToUser(null); setAssignedToMe(false); setPage(0); setShowAssignedFilter(false) }}
-                          className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${!assignedToUser ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                          className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${!assignedToUser ? 'bg-yippie text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                         >
                           All users
                         </button>
@@ -1010,7 +1023,7 @@ export default function InboxQueue() {
                           <button
                             key={m.id}
                             onClick={() => { setAssignedToUser(m.id); setAssignedToMe(false); setPage(0); setShowAssignedFilter(false) }}
-                            className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${assignedToUser === m.id ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                            className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${assignedToUser === m.id ? 'bg-yippie text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                           >
                             {m.full_name}
                           </button>
@@ -1043,10 +1056,8 @@ export default function InboxQueue() {
 
 
             <div className="flex flex-col gap-3 min-h-[200px]">
-              {pageDrafts.length === 0 && assignedToMe && (
-                <div className="py-10 text-center text-sm" style={{ color: 'var(--text-muted)' }}>
-                  Nothing assigned to you here.
-                </div>
+              {pageDrafts.length === 0 && (assignedToMe || assignedToUser) && (
+                <AllCaughtUp />
               )}
               {pageDrafts.map((d: any, index: number) => {
                 const isFollowUp = d.status === 'approved' && d.follow_up_at
@@ -1105,6 +1116,12 @@ export default function InboxQueue() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                          {d.assigned_to && memberMap[d.assigned_to] && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yippie text-white shrink-0">
+                              <User size={10} />
+                              {memberMap[d.assigned_to]}
+                            </span>
+                          )}
                           {SOURCE_ICON[d.source] ?? <Mail size={13} className="text-slate-400" />}
                           <span className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors text-sm">{d.ai_suggested_subject}</span>
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${PRIORITY_STYLES[d.ai_suggested_priority]}`}>
@@ -1125,12 +1142,6 @@ export default function InboxQueue() {
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700">
                               <Building2 size={10} />
                               {deptNameMap[d.forwarded_to_department_id]}
-                            </span>
-                          )}
-                          {d.assigned_to && memberMap[d.assigned_to] && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-600">
-                              <User size={10} />
-                              {memberMap[d.assigned_to]}
                             </span>
                           )}
                           {d.status !== 'pending' && (
