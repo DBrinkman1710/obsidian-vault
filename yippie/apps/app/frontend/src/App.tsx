@@ -343,8 +343,7 @@ export default function App() {
         </main>
         <BottomNav />
         <QuickCapturePopup />
-        {/* z-index below Yip popup (z-9999) so toasts never cover the input */}
-        <Toaster position="bottom-right" richColors style={{ '--z-index': '9000' } as any} />
+        <Toaster position="bottom-right" richColors />
       </div>
       </ComposeProvider>
     </TenantConfigContext.Provider>
