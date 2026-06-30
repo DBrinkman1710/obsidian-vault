@@ -26,6 +26,7 @@ class UserOut(BaseModel):
     tour_completed: bool = False
     setup_checklist_dismissed: bool = False
     ui_language: str = "en"
+    jarvis_prefs: Optional[dict] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

@@ -33,6 +33,8 @@ from app.modules.saas.scheduler import start_scheduler as start_saas_scheduler
 from app.modules.stripe_platform.router import router as stripe_router
 from app.modules.stripe_platform.webhooks import webhook_router as stripe_webhook_router
 from app.modules.shipments.router import webhook_router as shipments_webhook_router
+from app.modules.jarvis.router import router as jarvis_router
+from app.modules.jarvis.scheduler import start_scheduler as start_jarvis_scheduler
 
 
 @asynccontextmanager
@@ -41,6 +43,7 @@ async def lifespan(app: FastAPI):
     start_email_poller()
     start_marketing_scheduler()
     start_saas_scheduler()
+    start_jarvis_scheduler()
     yield
 
 
@@ -151,6 +154,14 @@ def create_app() -> FastAPI:
             prefix="/api/v1",
             dependencies=deps,
         )
+
+    # Jarvis quick-capture — a feature of the AI module, not a standalone module.
+    # Gated behind the tenant having "ai" enabled and plan-unlocked.
+    app.include_router(
+        jarvis_router,
+        prefix="/api/v1",
+        dependencies=[Depends(require_module("ai")), Depends(require_feature("ai"))],
+    )
 
     return app
 

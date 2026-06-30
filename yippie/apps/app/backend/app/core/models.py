@@ -149,6 +149,8 @@ class User(Base):
     # True once the user has dismissed the post-tour setup checklist widget.
     setup_checklist_dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     ui_language: Mapped[str] = mapped_column(String(10), nullable=False, server_default="en")
+    # Quick-capture (Jarvis) preferences: {hotkey, enabled_actions, default_context_mode}.
+    jarvis_prefs: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -185,6 +187,22 @@ class UserSignature(Base):
     )
 
     user: Mapped[User] = relationship("User", back_populates="signatures")
+
+
+class UserReminder(Base):
+    """A personal Jarvis reminder; the minute-job fires a WebSocket toast at remind_at."""
+
+    __tablename__ = "user_reminders"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    body: Mapped[str] = mapped_column(Text, nullable=False)
+    remind_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class RbacRole(Base):
