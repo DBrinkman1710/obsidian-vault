@@ -271,7 +271,10 @@ export default function InboxQueue() {
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [showProcessedFilter, setShowProcessedFilter] = useState(false)
   const [assignedToMe, setAssignedToMe] = useState(false)
+  const [assignedToUser, setAssignedToUser] = useState<string | null>(null)
+  const [showAssignedFilter, setShowAssignedFilter] = useState(false)
   const processedFilterRef = useRef<HTMLDivElement>(null)
+  const assignedFilterRef = useRef<HTMLDivElement>(null)
   // Undo bar state (lives here so the modal can close immediately on send)
   const [pendingCompose, setPendingCompose] = useState<{ composeId: string; recipientCount: number; restoreData: ComposeInitialState } | null>(null)
   const [undoProgress, setUndoProgress] = useState(0)
@@ -320,6 +323,9 @@ export default function InboxQueue() {
     function handler(e: MouseEvent) {
       if (processedFilterRef.current && !processedFilterRef.current.contains(e.target as Node)) {
         setShowProcessedFilter(false)
+      }
+      if (assignedFilterRef.current && !assignedFilterRef.current.contains(e.target as Node)) {
+        setShowAssignedFilter(false)
       }
     }
     document.addEventListener('mousedown', handler)
@@ -470,9 +476,12 @@ export default function InboxQueue() {
   const allDrafts = activeTab === 'pending' ? (pendingDrafts ?? []) : activeTab === 'sent' ? [] : processedDrafts
   const isLoading = activeTab === 'pending' ? pendingLoading : activeTab === 'sent' ? outboundLoading : false
 
-  // Client-side "Assigned to me" filter — applied before pagination.
+  // Client-side assignment filters — applied before pagination.
+  const assignedToMeCount = allDrafts.filter((d: any) => d.assigned_to === user?.id).length
   const visibleDrafts = assignedToMe && user?.id
     ? allDrafts.filter((d: any) => d.assigned_to === user.id)
+    : assignedToUser
+    ? allDrafts.filter((d: any) => d.assigned_to === assignedToUser)
     : allDrafts
 
   // Client-side pagination — the full filtered list is already in memory.
@@ -566,6 +575,7 @@ export default function InboxQueue() {
   })
 
   const deptNameMap = Object.fromEntries(allDepartments.map((d: any) => [d.id, d.name]))
+  const memberMap = Object.fromEntries(inboxTeamMembers.map((m: any) => [m.id, m.full_name as string]))
 
   const routeDraftMutation = useMutation({
     mutationFn: ({ id, departmentId }: { id: string; departmentId: string }) =>
@@ -952,7 +962,7 @@ export default function InboxQueue() {
                   {selected.size === visibleDrafts.length && visibleDrafts.length > 0 ? 'Deselect all' : `Select all (${visibleDrafts.length})`}
                 </button>
                 <button
-                  onClick={() => { setAssignedToMe(v => !v); setPage(0) }}
+                  onClick={() => { setAssignedToMe(v => !v); setAssignedToUser(null); setPage(0) }}
                   className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold transition-colors"
                   style={{
                     borderRadius: 'var(--radius-sm)',
@@ -961,7 +971,54 @@ export default function InboxQueue() {
                   }}
                 >
                   Assigned to me
+                  {assignedToMeCount > 0 && (
+                    <span
+                      className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold"
+                      style={{
+                        background: assignedToMe ? 'var(--brand-deep)' : 'var(--border-default)',
+                        color: assignedToMe ? '#fff' : 'var(--text-muted)',
+                      }}
+                    >
+                      {assignedToMeCount > 9 ? '9+' : assignedToMeCount}
+                    </span>
+                  )}
                 </button>
+                {/* Per-user assignment filter dropdown */}
+                {inboxTeamMembers.length > 0 && (
+                  <div ref={assignedFilterRef} className="relative">
+                    <button
+                      onClick={() => setShowAssignedFilter(o => !o)}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold transition-colors"
+                      style={{
+                        borderRadius: 'var(--radius-sm)',
+                        background: assignedToUser ? 'var(--brand-soft)' : 'transparent',
+                        color: assignedToUser ? 'var(--brand-deep)' : 'var(--text-muted)',
+                      }}
+                    >
+                      {assignedToUser ? memberMap[assignedToUser] ?? 'User' : 'Assigned to…'}
+                      <ChevronDown size={10} className={`transition-transform ${showAssignedFilter ? 'rotate-180' : ''}`} />
+                    </button>
+                    {showAssignedFilter && (
+                      <div className="absolute left-0 top-full mt-1 z-20 w-44 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+                        <button
+                          onClick={() => { setAssignedToUser(null); setAssignedToMe(false); setPage(0); setShowAssignedFilter(false) }}
+                          className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${!assignedToUser ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                        >
+                          All users
+                        </button>
+                        {inboxTeamMembers.map((m: any) => (
+                          <button
+                            key={m.id}
+                            onClick={() => { setAssignedToUser(m.id); setAssignedToMe(false); setPage(0); setShowAssignedFilter(false) }}
+                            className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${assignedToUser === m.id ? 'bg-slate-800 text-white' : 'text-slate-600 hover:bg-slate-50'}`}
+                          >
+                            {m.full_name}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               {totalPages > 1 && (
                 <div className="flex items-center gap-2 text-xs text-slate-500">
@@ -1068,6 +1125,12 @@ export default function InboxQueue() {
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-violet-50 text-violet-700">
                               <Building2 size={10} />
                               {deptNameMap[d.forwarded_to_department_id]}
+                            </span>
+                          )}
+                          {d.assigned_to && memberMap[d.assigned_to] && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-blue-50 text-blue-600">
+                              <User size={10} />
+                              {memberMap[d.assigned_to]}
                             </span>
                           )}
                           {d.status !== 'pending' && (
