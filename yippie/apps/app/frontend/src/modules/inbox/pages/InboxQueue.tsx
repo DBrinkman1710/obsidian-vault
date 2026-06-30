@@ -1116,14 +1116,14 @@ export default function InboxQueue() {
                     >
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1.5">
+                          {SOURCE_ICON[d.source] ?? <Mail size={13} className="text-slate-400" />}
+                          <span className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors text-sm">{d.ai_suggested_subject}</span>
                           {d.assigned_to && memberMap[d.assigned_to] && (
                             <span className="inline-flex items-center gap-1 text-xs font-semibold shrink-0" style={{ color: 'var(--brand)' }}>
                               <User size={11} />
                               {memberMap[d.assigned_to]}
                             </span>
                           )}
-                          {SOURCE_ICON[d.source] ?? <Mail size={13} className="text-slate-400" />}
-                          <span className="font-semibold text-slate-900 group-hover:text-blue-700 transition-colors text-sm">{d.ai_suggested_subject}</span>
                           <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold capitalize ${PRIORITY_STYLES[d.ai_suggested_priority]}`}>
                             {d.ai_suggested_priority}
                           </span>
