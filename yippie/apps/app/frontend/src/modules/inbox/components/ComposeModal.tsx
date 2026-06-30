@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { X, Sparkles, Send, Users, Plus, Paperclip, Palette, Pencil, Building2, CheckSquare, Square } from 'lucide-react'
+import { X, Sparkles, Send, Users, Plus, Paperclip, Palette, Pencil, Building2, CheckSquare, Square, Wand2 } from 'lucide-react'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from './TemplatePicker'
@@ -350,6 +350,14 @@ export default function ComposeModal({
     },
   })
 
+  const improveMutation = useMutation({
+    mutationFn: () => api.post('/inbox/compose/improve', { subject, body }).then((r: any) => r.data),
+    onSuccess: (data: any) => {
+      if (data.subject) setSubject(data.subject)
+      if (data.body) setBody(data.body)
+    },
+  })
+
   const [sendError, setSendError] = useState('')
 
   const sendMutation = useMutation({
@@ -441,23 +449,39 @@ export default function ComposeModal({
           </div>
 
           {aiEnabled && (
-            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4">
-              <button
-                type="button"
-                onClick={() => setShowAiPrompt(!showAiPrompt)}
-                className="inline-flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-blue-600 transition-colors"
-              >
+            <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex flex-col gap-3">
+              <div className="flex items-center gap-2">
                 <Sparkles size={13} className="text-blue-500" />
-                {showAiPrompt ? 'Hide AI suggestion' : 'Use AI to write this email'}
-              </button>
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">AI</span>
+                <div className="flex items-center gap-2 ml-auto">
+                  <button
+                    type="button"
+                    onClick={() => setShowAiPrompt(!showAiPrompt)}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
+                  >
+                    <Sparkles size={11} />
+                    Generate
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => improveMutation.mutate()}
+                    disabled={!body.trim() || improveMutation.isPending}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
+                  >
+                    <Wand2 size={11} />
+                    {improveMutation.isPending ? 'Improving…' : 'Improve'}
+                  </button>
+                </div>
+              </div>
               {showAiPrompt && (
-                <div className="mt-3 flex gap-2">
+                <div className="flex gap-2">
                   <input
                     className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30"
                     value={aiPrompt}
                     onChange={e => setAiPrompt(e.target.value)}
                     placeholder="e.g. Follow up with clients about their overdue invoices, polite tone"
                     onKeyDown={e => { if (e.key === 'Enter') suggestMutation.mutate() }}
+                    autoFocus
                   />
                   <button
                     type="button"
@@ -465,7 +489,7 @@ export default function ComposeModal({
                     disabled={!aiPrompt.trim() || suggestMutation.isPending}
                     className="px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
                   >
-                    {suggestMutation.isPending ? 'Writing…' : 'Suggest'}
+                    {suggestMutation.isPending ? 'Writing…' : 'Generate'}
                   </button>
                 </div>
               )}

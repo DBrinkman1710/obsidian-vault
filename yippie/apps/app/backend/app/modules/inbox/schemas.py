@@ -171,3 +171,8 @@ class ComposeRequest(BaseModel):
 
 class ComposeSuggestRequest(BaseModel):
     prompt: str
+
+
+class ComposeImproveRequest(BaseModel):
+    subject: str
+    body: str

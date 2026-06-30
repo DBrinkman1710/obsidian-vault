@@ -30,7 +30,7 @@ from app.modules.inbox.schemas import (
     AssigneeOut,
     BulkActionRequest,
     BulkAssignRequest,
-    ComposeSuggestRequest,
+    ComposeImproveRequest, ComposeSuggestRequest,
     DraftReview, DraftTicketOut, DraftWithContextOut,
     ForwardRequest,
     LinkContactRequest, ImproveReplyRequest,
@@ -666,6 +666,12 @@ async def compose_send(
 async def compose_suggest(body: ComposeSuggestRequest, current_user: CurrentUser):
     """Use AI to suggest a subject and body for a new outbound email."""
     return await ai_scanner.generate_compose_suggestion(body.prompt)
+
+
+@router.post("/compose/improve", status_code=status.HTTP_200_OK, dependencies=[Depends(require_module("ai"))])
+async def compose_improve(body: ComposeImproveRequest, current_user: CurrentUser):
+    """Use AI to improve an existing compose email."""
+    return await ai_scanner.improve_compose_email(body.subject, body.body)
 
 
 # --- Webhook endpoints — public router, no auth, mounted separately in main.py ---

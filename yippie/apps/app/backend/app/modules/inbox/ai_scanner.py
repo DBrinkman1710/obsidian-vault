@@ -173,6 +173,26 @@ Return a JSON array of up to 3 objects:
     return parsed[:3] if isinstance(parsed, list) else []
 
 
+async def improve_compose_email(subject: str, body: str) -> dict:
+    """Improve an existing compose email subject + body."""
+    text = await ai_completion(
+        [{
+            "role": "user",
+            "content": (
+                "You are a professional writing assistant. Improve the clarity, tone, and professionalism "
+                "of the email below. Keep the same intent and length — just make it better.\n\n"
+                f"Subject: {subject}\n\nBody:\n{body}\n\n"
+                "Return JSON only: {\"subject\": \"...\", \"body\": \"...\"}"
+            ),
+        }],
+        max_tokens=512,
+    )
+    data = _parse_json(text, fallback=None)
+    if isinstance(data, dict):
+        return {"subject": data.get("subject", subject), "body": data.get("body", body)}
+    return {"subject": subject, "body": text}
+
+
 async def generate_compose_suggestion(prompt: str) -> dict:
     """Generate email subject + body from a plain-text brief."""
     text = await ai_completion(
