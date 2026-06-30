@@ -24,20 +24,23 @@ _fired: set[str] = set()
 
 @scheduler.scheduled_job("interval", minutes=1, id="jarvis_reminders", max_instances=1, coalesce=True)
 async def jarvis_reminder_job():
+    import sys
     now = datetime.now(timezone.utc)
-    async with db_session() as db:
-        # Disable row-level security for this system-level cross-tenant query.
-        # The scheduler runs as the DB owner (postgres) which has BYPASSRLS;
-        # this SET LOCAL makes it explicit and survives even if the role changes.
-        await db.execute(text("SET LOCAL row_security = off"))
-        result = await db.execute(
-            select(UserReminder).where(
-                UserReminder.remind_at <= now,
-                UserReminder.dismissed_at.is_(None),
+    print(f"[jarvis_scheduler] tick at {now.isoformat()}", file=sys.stderr, flush=True)
+    try:
+        async with db_session() as db:
+            await db.execute(text("SET LOCAL row_security = off"))
+            result = await db.execute(
+                select(UserReminder).where(
+                    UserReminder.remind_at <= now,
+                    UserReminder.dismissed_at.is_(None),
+                )
             )
-        )
-        reminders = result.scalars().all()
-    log.info("jarvis_reminder_job: %d due reminder(s) found", len(reminders))
+            reminders = result.scalars().all()
+        print(f"[jarvis_scheduler] {len(reminders)} due reminder(s)", file=sys.stderr, flush=True)
+    except Exception as exc:
+        print(f"[jarvis_scheduler] ERROR: {exc}", file=sys.stderr, flush=True)
+        raise
 
     for reminder in reminders:
         key = str(reminder.id)
