@@ -100,7 +100,10 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> List[str]:
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        origins = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        if self.environment == "production":
+            origins = [o for o in origins if not o.startswith("http://localhost")]
+        return origins
 
 
 _DEFAULT_SECRET_KEY = "change-me-in-production"

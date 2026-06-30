@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import re
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, List, Optional
@@ -436,6 +437,7 @@ async def download_attachment(
         if content is None:
             raise HTTPException(status_code=404, detail="Attachment no longer available")
     filename = att.get("filename", "attachment")
+    filename = re.sub(r'[^\w\-. ]', '_', filename)[:200] or "attachment"
     content_type = att.get("content_type", "application/octet-stream")
     return Response(
         content=content,

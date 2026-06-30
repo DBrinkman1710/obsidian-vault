@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import time
 import uuid
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
@@ -29,6 +31,40 @@ from app.auth.tokens import create_signed_token, verify_signed_token
 router = APIRouter(prefix="/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# In-memory rate limiters — process-local, sufficient for single-instance Railway deploy.
+# Limits: 10 failed logins / IP / 15 min; 5 reset requests / IP / 5 min.
+_LOGIN_WINDOW = 15 * 60
+_LOGIN_LIMIT = 10
+_RESET_WINDOW = 5 * 60
+_RESET_LIMIT = 5
+_login_attempts: dict[str, list[float]] = defaultdict(list)
+_reset_attempts: dict[str, list[float]] = defaultdict(list)
+
+
+def _check_login_rate(ip: str) -> None:
+    now = time.monotonic()
+    hits = [t for t in _login_attempts[ip] if now - t < _LOGIN_WINDOW]
+    if len(hits) >= _LOGIN_LIMIT:
+        _login_attempts[ip] = hits
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many failed login attempts. Try again later.")
+    _login_attempts[ip] = hits
+
+
+def _record_login_failure(ip: str) -> None:
+    _login_attempts[ip].append(time.monotonic())
+
+
+def _check_reset_rate(ip: str) -> None:
+    now = time.monotonic()
+    hits = [t for t in _reset_attempts[ip] if now - t < _RESET_WINDOW]
+    if len(hits) >= _RESET_LIMIT:
+        _reset_attempts[ip] = hits
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many password reset requests. Try again later.")
+    hits.append(now)
+    _reset_attempts[ip] = hits
+
 
 class LoginRequest(BaseModel):
     email: str
@@ -47,11 +83,14 @@ def create_access_token(user_id: str, settings, expires: Optional[timedelta] = N
 
 
 @router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+async def login(body: LoginRequest, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
+    ip = request.client.host if request.client else "unknown"
+    _check_login_rate(ip)
     result = await db.execute(select(User).where(func.lower(User.email) == body.email.strip().lower()))
     user = result.scalar_one_or_none()
 
     if not user or not pwd_context.verify(body.password, user.hashed_password):
+        _record_login_failure(ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     if not user.is_active:
@@ -128,8 +167,9 @@ class ForgotPasswordRequest(BaseModel):
 
 
 @router.post("/forgot-password")
-async def forgot_password(body: ForgotPasswordRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
     """Always returns ok — never reveals whether the email has an account."""
+    _check_reset_rate(request.client.host if request.client else "unknown")
     user = await db.scalar(select(User).where(User.email == body.email.lower().strip()))
     if user and user.is_active:
         settings = get_settings()
