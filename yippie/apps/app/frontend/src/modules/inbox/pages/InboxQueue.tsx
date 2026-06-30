@@ -1002,11 +1002,12 @@ export default function InboxQueue() {
                   <div ref={assignedFilterRef} className="relative">
                     <button
                       onClick={() => setShowAssignedFilter(o => !o)}
-                      className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-colors ${
-                        assignedToUser
-                          ? 'bg-yippie border-transparent text-white'
-                          : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'
-                      }`}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold transition-colors"
+                      style={{
+                        borderRadius: 'var(--radius-sm)',
+                        background: assignedToUser ? 'var(--brand-soft)' : 'transparent',
+                        color: assignedToUser ? 'var(--brand-deep)' : 'var(--text-muted)',
+                      }}
                     >
                       {assignedToUser ? memberMap[assignedToUser] ?? 'User' : 'Assigned to…'}
                       <ChevronDown size={11} className={`transition-transform ${showAssignedFilter ? 'rotate-180' : ''}`} />
