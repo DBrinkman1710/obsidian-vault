@@ -1096,8 +1096,6 @@ export default function InboxQueue() {
                         })),
                       },
                       { separator: true },
-                      { label: 'Approve & create ticket', icon: <Check size={14} />, onClick: () => reviewMutation.mutate({ id: d.id, action: 'approve' }) },
-                      { separator: true },
                       { label: 'Reject', icon: <XCircle size={14} />, danger: true, onClick: () => reviewMutation.mutate({ id: d.id, action: 'reject' }) },
                     ])}
                   >
