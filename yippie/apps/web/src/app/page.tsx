@@ -4,7 +4,7 @@ import SiteFooter from "./components/SiteFooter";
 import Reveal from "./components/Reveal";
 import ROICalculator from "./components/ROICalculator";
 import { PLAN_LIMITS } from "@/lib/config";
-import HourCounter from "./components/HourCounter";
+// import HourCounter from "./components/HourCounter";
 import {
   InboxIcon,
   TicketIcon,
@@ -286,7 +286,7 @@ export default function HomePage() {
         ))}
       </section>
 
-      <HourCounter statsUrl={APP_URL} />
+      {/* <HourCounter statsUrl={APP_URL} /> */}
 
       {/* Features */}
       <section id="features" className={styles.section}>
@@ -331,24 +331,6 @@ export default function HomePage() {
             </Reveal>
           ))}
         </div>
-      </section>
-
-      {/* ROI calculator */}
-      <ROICalculator appUrl={DEMO_URL} />
-
-      {/* Product moment (dark) */}
-      <section className={`${styles.moment} bgDots`}>
-        <Reveal className={styles.momentHead}>
-          <p className={styles.eyebrowDark}>// One workspace</p>
-          <h2 className={styles.momentTitle}>Everything in one place</h2>
-          <p className={styles.momentSub}>
-            Inbox, tickets, contacts, and pipeline share the same screen — so nothing
-            falls through the cracks and every reply has full context.
-          </p>
-        </Reveal>
-        <Reveal className={styles.momentVisual} delay={120}>
-          <ProductMockup wide />
-        </Reveal>
       </section>
 
       {/* Growth Partner */}
@@ -396,6 +378,24 @@ export default function HomePage() {
             </div>
           </Reveal>
         </div>
+      </section>
+
+      {/* ROI calculator */}
+      <ROICalculator appUrl={DEMO_URL} />
+
+      {/* Product moment (dark) */}
+      <section className={`${styles.moment} bgDots`}>
+        <Reveal className={styles.momentHead}>
+          <p className={styles.eyebrowDark}>// One workspace</p>
+          <h2 className={styles.momentTitle}>Everything in one place</h2>
+          <p className={styles.momentSub}>
+            Inbox, tickets, contacts, and pipeline share the same screen — so nothing
+            falls through the cracks and every reply has full context.
+          </p>
+        </Reveal>
+        <Reveal className={styles.momentVisual} delay={120}>
+          <ProductMockup wide />
+        </Reveal>
       </section>
 
       {/* Pricing teaser */}

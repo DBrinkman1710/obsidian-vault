@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 from typing import Annotated, Optional
 
@@ -135,7 +136,8 @@ async def download_invoice_pdf(invoice_id: uuid.UUID, current_user: CurrentUser,
         pdf_bytes = await service.generate_pdf_bytes(db, current_user.tenant_id, invoice)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {e}")
-    filename = f"factuur-{invoice.invoice_number}.pdf"
+    safe_num = re.sub(r'[^\w\-.]', '_', invoice.invoice_number)[:50]
+    filename = f"factuur-{safe_num}.pdf"
     return StreamingResponse(
         iter([pdf_bytes]),
         media_type="application/pdf",

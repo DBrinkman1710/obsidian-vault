@@ -198,7 +198,10 @@ async def _assign_stage(
     clicks), so the activity feed shows the full transition history inline.
     """
     existing = await db.scalar(
-        select(ContactPipelineEntry).where(ContactPipelineEntry.contact_id == contact_id)
+        select(ContactPipelineEntry).where(
+            ContactPipelineEntry.contact_id == contact_id,
+            ContactPipelineEntry.tenant_id == tenant_id,
+        )
     )
     changed = False
     if existing is None:
@@ -213,7 +216,10 @@ async def _assign_stage(
         return
 
     stage_name = await db.scalar(
-        select(PipelineStage.name).where(PipelineStage.id == stage_id)
+        select(PipelineStage.name).where(
+            PipelineStage.id == stage_id,
+            PipelineStage.tenant_id == tenant_id,
+        )
     )
     await activity_service.log_event(
         db,
