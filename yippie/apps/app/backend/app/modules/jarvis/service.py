@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 import json
+import re
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -52,13 +53,13 @@ Input: "{body}"
 Schema:
 {{
   "action": "reminder | contact_note | ticket_note | context_query | navigate | search",
-  "body": "text to store (note body, or reminder text) — null when not applicable",
-  "remind_at": "ISO 8601 UTC datetime for reminders, else null",
+  "body": "the subject/topic only — strip trigger phrases like 'remind me to', 'set a reminder for', 'follow up'. Example: 'remind me to call Jan' → 'call Jan'. 'set a reminder for the meeting at 3pm' → 'meeting'.",
+  "remind_at": "ISO 8601 UTC datetime for reminders. For relative times like 'in 5 minutes', add exactly that offset to the current UTC time above. Return null for non-reminders.",
   "search_query": "name or keyword to look up for navigate/search, else null"
 }}
 
 Guidance:
-- "Remind me ..." / "follow up at ..." -> reminder; resolve relative times against the current UTC time.
+- "Remind me ..." / "follow up at ..." -> reminder; compute remind_at by adding the stated offset to the current UTC time exactly.
 - A short note when a contact is open -> contact_note. When a ticket is open -> ticket_note.
 - "What do we know about ..." / "show context" with a contact open -> context_query.
 - "Find ...", "Open ...", "Go to ...", "Take me to ...", "Show me ..." -> navigate (set search_query to the destination or person/ticket name)."""
@@ -171,11 +172,24 @@ async def execute(
     note_body = (plan.get("body") or body).strip()
 
     if action == "reminder":
-        remind_at = _parse_remind_at(plan.get("remind_at"))
+        remind_at = _parse_remind_at(plan.get("remind_at"), body)
+        # Strip trigger phrases the AI may have left in the body
+        clean = re.sub(
+            r'^(?:remind(?:er)?\s+me\s+(?:to\s+)?|set\s+a\s+reminder\s+(?:for\s+)?)',
+            '', note_body, flags=re.IGNORECASE,
+        ).strip() or note_body
+        # Also strip trailing time phrases like "at 3pm today / tomorrow at 9am / in 1 minute"
+        clean = re.sub(
+            r'\s+(?:at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?(?:\s+(?:today|tomorrow|on\s+\w+))?'
+            r'|(?:today|tomorrow)\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?'
+            r'|in\s+\d+\s*(?:minute|min|hour|hr|day|week)s?'
+            r'|next\s+\w+\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*$',
+            '', clean, flags=re.IGNORECASE,
+        ).strip() or clean
         reminder = UserReminder(
             user_id=user.id,
             tenant_id=tenant.id,
-            body=note_body,
+            body=clean,
             remind_at=remind_at,
         )
         db.add(reminder)
@@ -236,8 +250,39 @@ async def execute(
     return {"action_taken": "search", "summary": f"Nothing found for \u201c{query}\u201d."}
 
 
-def _parse_remind_at(raw: str | None) -> datetime:
+_REL_TIME = re.compile(
+    r'\bin\s+(\d+(?:\.\d+)?)\s*(minute|min|hour|hr|day|week)s?\b',
+    re.IGNORECASE,
+)
+
+def _parse_relative_time(body: str) -> datetime | None:
+    """Parse 'in X minutes/hours/days/weeks' from the raw input string."""
+    m = _REL_TIME.search(body)
+    if not m:
+        return None
+    amount = float(m.group(1))
+    unit = m.group(2).lower()
     now = datetime.now(timezone.utc)
+    if unit in ("minute", "min"):
+        return now + timedelta(minutes=amount)
+    if unit in ("hour", "hr"):
+        return now + timedelta(hours=amount)
+    if unit == "day":
+        return now + timedelta(days=amount)
+    if unit == "week":
+        return now + timedelta(weeks=amount)
+    return None
+
+
+def _parse_remind_at(raw: str | None, original_body: str = "") -> datetime:
+    """Parse the AI-supplied ISO datetime; fall back to server-side relative-time parsing."""
+    now = datetime.now(timezone.utc)
+
+    # Server-side parse first for relative expressions — always exact
+    server_dt = _parse_relative_time(original_body)
+    if server_dt and server_dt > now:
+        return server_dt
+
     if not raw:
         return now
     try:
@@ -246,6 +291,9 @@ def _parse_remind_at(raw: str | None) -> datetime:
         return now
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=timezone.utc)
+    # Sanity-check: reject past times and times more than 1 year out
+    if dt <= now or dt > now + timedelta(days=365):
+        return now
     return dt
 
 
