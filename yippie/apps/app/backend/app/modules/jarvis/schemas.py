@@ -9,6 +9,15 @@ from pydantic import BaseModel
 ContextType = Literal["contact", "ticket", "none"]
 
 
+class TrainMessage(BaseModel):
+    role: Literal["assistant", "user"]
+    content: str
+
+
+class TrainRequest(BaseModel):
+    messages: list[TrainMessage]
+
+
 class CaptureRequest(BaseModel):
     body: str
     context_type: ContextType = "none"

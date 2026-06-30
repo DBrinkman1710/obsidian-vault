@@ -12,7 +12,7 @@ from app.auth.dependencies import CurrentUser
 from app.core.models import Tenant, UserReminder
 from app.database import get_db
 from app.modules.jarvis import service
-from app.modules.jarvis.schemas import CaptureRequest, CaptureResponse, ReminderOut
+from app.modules.jarvis.schemas import CaptureRequest, CaptureResponse, ReminderOut, TrainRequest
 
 router = APIRouter(prefix="/jarvis", tags=["jarvis"])
 
@@ -32,6 +32,18 @@ async def capture(body: CaptureRequest, current_user: CurrentUser, db: DB):
         db, current_user, tenant, body.body, body.context_type, body.context_id, plan
     )
     return CaptureResponse(**result)
+
+
+@router.post("/train")
+async def train(body: TrainRequest, current_user: CurrentUser, db: DB):
+    """Synthesise a Yip training conversation into an ai_profile and save it."""
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    profile = await service.synthesise_profile(body.messages, tenant)
+    tenant.ai_profile = profile
+    await db.commit()
+    return {"profile": profile}
 
 
 @router.get("/reminders", response_model=list[ReminderOut])

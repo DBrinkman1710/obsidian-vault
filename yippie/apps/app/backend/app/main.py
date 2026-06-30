@@ -136,6 +136,7 @@ def create_app() -> FastAPI:
             stripe_publishable_key=settings.stripe_publishable_key,
             ai_scans_used_this_period=tenant.ai_scans_used_this_period,
             tracking_token=str(tenant.tracking_token) if tenant.tracking_token else None,
+            ai_profile=tenant.ai_profile,
         )
 
     # Stripe auth-protected endpoints — no module gate (always accessible)

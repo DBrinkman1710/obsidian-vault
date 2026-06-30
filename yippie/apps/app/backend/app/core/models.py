@@ -100,6 +100,9 @@ class Tenant(Base):
     # Rolling AI scan counter — reset to 0 at the start of each billing period.
     ai_scans_used_this_period: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     ai_scans_period_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # AI profile — set via the Yip training conversation or Settings → AI & Yip.
+    # Keys: business_description, tone, reply_language, sign_off, common_terms, faq_context
+    ai_profile: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     # Sendcloud shipping integration — public key + secret key per tenant.
     # Secret is used for HMAC webhook verification; never returned raw to the frontend.
     sendcloud_api_key: Mapped[str | None] = mapped_column(Text, nullable=True)

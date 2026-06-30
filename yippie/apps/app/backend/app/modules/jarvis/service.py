@@ -18,6 +18,51 @@ from app.modules.tickets.models import Ticket, TicketComment, TicketStatus
 ACTIONS = ("reminder", "contact_note", "ticket_note", "context_query", "navigate", "search")
 
 
+def _build_tenant_context(tenant: Tenant) -> str:
+    """Build a short context block from ai_profile to inject into AI prompts."""
+    p = tenant.ai_profile or {}
+    lines = []
+    if p.get("business_description"):
+        lines.append(f"Business: {p['business_description']}")
+    if p.get("tone"):
+        lines.append(f"Tone: {p['tone']}")
+    if p.get("common_terms"):
+        lines.append(f"Terminology: {p['common_terms']}")
+    return "\n".join(lines) if lines else ""
+
+
+async def synthesise_profile(messages: list, tenant: Tenant) -> dict:
+    """Extract structured ai_profile from a Yip training conversation."""
+    conversation = "\n".join(f"{m.role.upper()}: {m.content}" for m in messages)
+    prompt = f"""Extract a structured AI profile from this onboarding conversation for the workspace "{tenant.name}".
+
+Conversation:
+{conversation}
+
+Return ONLY a JSON object with these exact keys:
+{{
+  "business_description": "one sentence describing what the business does",
+  "tone": "formal | friendly | casual",
+  "reply_language": "ISO 639-1 code e.g. en, nl, fr",
+  "sign_off": "how to sign off replies e.g. 'The Acme Team'",
+  "common_terms": "any abbreviations or product terms mentioned, or empty string",
+  "faq_context": ""
+}}
+
+If a field has no clear answer from the conversation, use sensible defaults (tone=friendly, reply_language=en, sign_off="{tenant.name} Team")."""
+
+    text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=400)
+    data = _parse_json(text, {})
+    return {
+        "business_description": data.get("business_description", ""),
+        "tone": data.get("tone", "friendly"),
+        "reply_language": data.get("reply_language", "en"),
+        "sign_off": data.get("sign_off", f"{tenant.name} Team"),
+        "common_terms": data.get("common_terms", ""),
+        "faq_context": data.get("faq_context", ""),
+    }
+
+
 def _strip_fences(text: str) -> str:
     if text.startswith("```"):
         lines = text.split("\n")
@@ -63,6 +108,10 @@ Guidance:
 - A short note when a contact is open -> contact_note. When a ticket is open -> ticket_note.
 - "What do we know about ..." / "show context" with a contact open -> context_query.
 - "Find ...", "Open ...", "Go to ...", "Take me to ...", "Show me ..." -> navigate (set search_query to the destination or person/ticket name)."""
+
+    tenant_ctx = _build_tenant_context(tenant)
+    if tenant_ctx:
+        prompt += f"\n\nWorkspace context:\n{tenant_ctx}"
 
     text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=400)
     data = _parse_json(text, {"action": "search", "search_query": body})
@@ -137,9 +186,11 @@ async def build_context_summary(db: AsyncSession, tenant: Tenant, contact: Conta
         "notes": contact.notes,
     }
 
+    tone = (tenant.ai_profile or {}).get("tone", "friendly")
     prompt = f"""You are Yip, assisting an agent at {tenant.name}.
 Using the structured customer data below, write a 2-3 sentence briefing the agent can read at a glance.
 Be concrete; mention open tickets, pipeline stage and anything notable. No preamble.
+Use a {tone} tone.
 
 Data:
 {json.dumps(facts, default=str)}"""
