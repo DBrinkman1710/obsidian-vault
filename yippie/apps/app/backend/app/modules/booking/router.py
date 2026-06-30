@@ -6,7 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentUser
+from app.auth.dependencies import AdminUser, CurrentUser
 from app.database import get_db
 from app.modules.booking import service
 from app.modules.booking.schemas import (
@@ -27,7 +27,7 @@ async def get_settings(current_user: CurrentUser, db: DB):
 
 
 @router.patch("/settings", response_model=CalendarSettingsOut)
-async def update_settings(body: CalendarSettingsUpdate, current_user: CurrentUser, db: DB):
+async def update_settings(body: CalendarSettingsUpdate, current_user: AdminUser, db: DB):
     return await service.update_settings(db, current_user.tenant_id, body)
 
 
