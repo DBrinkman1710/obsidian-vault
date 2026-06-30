@@ -341,15 +341,6 @@ export function Sidebar() {
 
           {(user?.role === 'admin' || user?.role === 'superadmin') && (
             <>
-              {config.environment === 'sandbox' && (
-                <span
-                  title={collapsed ? 'Subscription' : undefined}
-                  className={navCls(false) + ' opacity-40 cursor-not-allowed pointer-events-none'}
-                >
-                  <CreditCard size={16} strokeWidth={2} />
-                  {!collapsed && <span>Subscription</span>}
-                </span>
-              )}
               <NavLink
                 to="/settings/team"
                 title={collapsed ? t('settings') : undefined}
