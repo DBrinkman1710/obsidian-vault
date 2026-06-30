@@ -1,7 +1,7 @@
 # Yippie — Roadmap
 **Repo:** github.com/DBrinkman1710/obsidian-vault · **Branch:** `sandbox`
 
-**Latest:** Session 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER; 83 — inbox badges/VS-ZD/COM-LOGO; 82A — BK-DATE/DEMO-BUG/FOUNDER-PLAN; 81 — LIVECHAT-SESSION-DEDUP/INBOX-ASSIGN; 80 — MERGE-MULTISELECT; 79 — RC1-PEEK. See Appendix A for full history.
+**Latest:** Session 89 — [JARVIS1] quick-capture assistant (⌘K popup, AI routing, reminders, contact/ticket notes, context query); 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER; 83 — inbox badges/VS-ZD/COM-LOGO. See Appendix A for full history.
 
 ---
 
@@ -93,7 +93,7 @@ Everything below must be done **before** going live. Items not listed here are d
 | ~~4~~ | ~~[TRACK1] Track & trace~~ | ~~Medium~~ | ✅ Shipped — `92b3dd1` (Sendcloud integration, shipments module, track & trace settings modal) |
 | 5 | [AI-MOD1] Cloud LLM | High | Biggest long-term moat — but only compounds with volume. At 5 tenants it's a cheaper Anthropic replacement. At 50+ tenants with real conversation history it becomes defensible. Build last, after data exists to train on. |
 | 6 | [CLUSTER1] Issue cluster generator | Medium | Depends on [AI-MOD1]. Groups open tickets by theme to surface recurring problems — turns raw volume into actionable insight for agents and content teams. |
-| 7 | [JARVIS1] Quick-capture assistant | High | Sticky daily-use differentiator — reduces context switching for agents; personal reminders + contact/ticket notes from one hotkey; AI routing uses Mistral API (EU, GDPR-safe) early, upgrades to self-hosted vLLM when [AI-MOD1] ships |
+| ~~7~~ | ~~[JARVIS1] Quick-capture assistant~~ | ~~High~~ | ✅ Shipped — `ca9b2f8` (⌘K popup, AI routing, reminders WebSocket, contact/ticket notes, context query + inline edit, user prefs, right-click menus) |
 
 **The differentiation:** No SMB competitor combines behavioral tracking ([SALES-MOD1]) with a learning, tenant-aware AI ([AI-MOD1]). Intercom has AI but it's stateless and expensive at scale. Zendesk has tracking but it's disconnected from the AI. The combination is the moat — build [SALES-MOD1] first so the data is already accumulating when [AI-MOD1] is ready to consume it.
 
