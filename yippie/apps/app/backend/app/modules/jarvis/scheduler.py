@@ -46,7 +46,7 @@ async def jarvis_reminder_job():
         key = str(reminder.id)
         if key in _fired:
             continue
-        await manager.broadcast_to_agents(
+        delivered = await manager.broadcast_to_agents(
             str(reminder.tenant_id),
             {
                 "event": "jarvis_reminder",
@@ -56,8 +56,11 @@ async def jarvis_reminder_job():
                 "body": reminder.body,
             },
         )
-        _fired.add(key)
-        log.info("Fired Jarvis reminder %s", key)
+        if delivered:
+            _fired.add(key)
+            print(f"[jarvis_scheduler] Fired reminder {key[:8]} to agents", flush=True)
+        else:
+            print(f"[jarvis_scheduler] No agents online for reminder {key[:8]}, will retry", flush=True)
 
 
 def start_scheduler():
