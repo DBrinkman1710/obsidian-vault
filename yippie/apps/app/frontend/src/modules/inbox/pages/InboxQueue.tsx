@@ -1117,8 +1117,8 @@ export default function InboxQueue() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1.5">
                           {d.assigned_to && memberMap[d.assigned_to] && (
-                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-yippie text-white shrink-0">
-                              <User size={10} />
+                            <span className="inline-flex items-center gap-1 text-xs font-semibold shrink-0" style={{ color: 'var(--brand)' }}>
+                              <User size={11} />
                               {memberMap[d.assigned_to]}
                             </span>
                           )}
