@@ -135,7 +135,7 @@ export default function QuickCapturePopup() {
             <Ticket size={12} /> Ticket <X size={11} className="opacity-60" />
           </button>
         ) : (
-          <span className="text-xs font-semibold text-slate-400">Jarvis</span>
+          <span className="text-xs font-semibold text-slate-400">Yip</span>
         )}
         <div className="flex items-center gap-1">
           <button onClick={() => setShowPrefs(s => !s)} title="Preferences"

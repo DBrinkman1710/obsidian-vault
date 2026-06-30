@@ -42,7 +42,7 @@ async def classify(body: str, context_type: str, context_id: str | None, tenant:
     elif context_type == "ticket" and context_id:
         context_line = f"A TICKET is currently open (ticket_id={context_id})."
 
-    prompt = f"""You are Jarvis, a quick-capture assistant inside the {tenant.name} customer-service workspace.
+    prompt = f"""You are Yip, a quick-capture assistant inside the {tenant.name} customer-service workspace.
 The current UTC time is {now.isoformat()}.
 {context_line}
 
@@ -61,7 +61,7 @@ Guidance:
 - "Remind me ..." / "follow up at ..." -> reminder; resolve relative times against the current UTC time.
 - A short note when a contact is open -> contact_note. When a ticket is open -> ticket_note.
 - "What do we know about ..." / "show context" with a contact open -> context_query.
-- "Find ...", "Open ...", "Go to ..." -> navigate (set search_query)."""
+- "Find ...", "Open ...", "Go to ...", "Take me to ...", "Show me ..." -> navigate (set search_query to the destination or person/ticket name)."""
 
     text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=400)
     data = _parse_json(text, {"action": "search", "search_query": body})
@@ -136,7 +136,7 @@ async def build_context_summary(db: AsyncSession, tenant: Tenant, contact: Conta
         "notes": contact.notes,
     }
 
-    prompt = f"""You are Jarvis, assisting an agent at {tenant.name}.
+    prompt = f"""You are Yip, assisting an agent at {tenant.name}.
 Using the structured customer data below, write a 2-3 sentence briefing the agent can read at a glance.
 Be concrete; mention open tickets, pipeline stage and anything notable. No preamble.
 
@@ -249,24 +249,47 @@ def _parse_remind_at(raw: str | None) -> datetime:
     return dt
 
 
+_PAGE_ROUTES: list[tuple[tuple[str, ...], str, str]] = [
+    ((“inbox”, “mail”, “email”, “messages”), “/inbox”, “Opening Inbox…”),
+    ((“contact”, “contacts”, “people”, “customers”, “clients”), “/contacts”, “Opening Contacts…”),
+    ((“ticket”, “tickets”, “support”, “issues”, “cases”), “/tickets”, “Opening Tickets…”),
+    ((“calendar”, “schedule”, “appointments”, “bookings”), “/calendar”, “Opening Calendar…”),
+    ((“pipeline”, “kanban”, “deals”, “funnel”), “/pipeline”, “Opening Pipeline…”),
+    ((“activity”, “feed”, “history”, “log”, “timeline”), “/activity”, “Opening Activity…”),
+    ((“billing”, “invoices”, “payments”), “/billing”, “Opening Billing…”),
+    ((“chat”, “livechat”, “live chat”, “whatsapp”), “/chat”, “Opening Live Chat…”),
+    ((“marketing”, “campaigns”, “email campaign”), “/marketing”, “Opening Marketing…”),
+    ((“tracking”, “shipment”, “shipments”, “track”), “/tracking”, “Opening Tracking…”),
+    ((“sales”, “analytics”, “revenue”), “/sales”, “Opening Sales…”),
+    ((“settings”, “admin”, “configuration”), “/settings/profile”, “Opening Settings…”),
+]
+
+
 async def _resolve_navigation(db: AsyncSession, tenant_id: uuid.UUID, query: str) -> dict | None:
     if not query:
         return None
+    q = query.lower().strip()
+
+    # Check page-level keywords before trying record lookup.
+    for keywords, path, label in _PAGE_ROUTES:
+        if any(kw in q for kw in keywords):
+            return {“path”: path, “label”: label}
+
     contact = await db.execute(
         select(Contact)
-        .where(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None), Contact.full_name.ilike(f"%{query}%"))
+        .where(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None), Contact.full_name.ilike(f”%{query}%”))
         .limit(1)
     )
     found = contact.scalar_one_or_none()
     if found:
-        return {"path": f"/contacts/{found.id}", "label": f"Opening {found.full_name}…"}
+        return {“path”: f”/contacts/{found.id}”, “label”: f”Opening {found.full_name}…”}
     ticket = await db.execute(
         select(Ticket)
-        .where(Ticket.tenant_id == tenant_id, Ticket.deleted_at.is_(None), Ticket.subject.ilike(f"%{query}%"))
+        .where(Ticket.tenant_id == tenant_id, Ticket.deleted_at.is_(None), Ticket.subject.ilike(f”%{query}%”))
         .order_by(Ticket.created_at.desc())
         .limit(1)
     )
     t = ticket.scalar_one_or_none()
     if t:
-        return {"path": f"/tickets/{t.id}", "label": f"Opening ticket “{t.subject}”…"}
+        return {“path”: f”/tickets/{t.id}”, “label”: f”Opening ticket “{t.subject}”…”}
     return None
