@@ -831,8 +831,8 @@ function EditClientModal({
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl">
-        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
           <div>
             <h2 className="text-lg font-bold text-slate-900">Edit client</h2>
             <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
@@ -840,7 +840,7 @@ function EditClientModal({
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
         </div>
 
-        <div className="flex border-b border-slate-100 px-6">
+        <div className="flex border-b border-slate-100 px-6 shrink-0">
           {TABS.map(({ key, label }) => (
             <button
               key={key}
@@ -854,7 +854,7 @@ function EditClientModal({
           ))}
         </div>
 
-        <div className="p-6 flex flex-col gap-4">
+        <div className="p-6 flex flex-col gap-4 overflow-y-auto">
           {tab === 'info' && (
             <>
               <div>
