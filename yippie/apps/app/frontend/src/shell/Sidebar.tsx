@@ -6,7 +6,7 @@ import { toast } from 'sonner'
 import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
-  ChevronLeft, ChevronRight, Network, Megaphone, GripVertical, Package,
+  ChevronLeft, ChevronRight, Megaphone, GripVertical, Package,
   TrendingUp, BarChart3, Settings,
   type LucideIcon,
 } from 'lucide-react'
@@ -158,12 +158,6 @@ export function Sidebar() {
     enabled: !!config && (config.enabled_modules ?? []).includes('chat'),
   })
 
-  const { data: myDepts } = useQuery<Array<{ id: string; name: string }>>({
-    queryKey: ['departments', 'my'],
-    queryFn: () => api.get('/departments/my').then((r: any) => r.data),
-    enabled: !!config && (config.enabled_modules ?? []).includes('departments'),
-    staleTime: 60_000,
-  })
 
   const pendingCount: number = draftCount?.pending ?? 0
   const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
@@ -249,26 +243,6 @@ export function Sidebar() {
           )}
         </NavLink>
 
-        {mod === 'inbox' && !collapsed && myDepts && myDepts.length > 0 && (
-          <div className="pl-5 mt-0.5 space-y-0.5">
-            {myDepts.map((dept: any) => {
-              const params = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
-              const isThisDept = params.get('dept') === dept.id
-              return (
-                <NavLink
-                  key={dept.id}
-                  to={`/inbox?dept=${dept.id}`}
-                  className={() => `flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
-                    isThisDept ? 'bg-white/20 text-white font-semibold' : 'text-white/65 hover:bg-white/10 hover:text-white'
-                  }`}
-                >
-                  <Network size={12} strokeWidth={2} className="shrink-0" />
-                  <span className="truncate">{dept.name}</span>
-                </NavLink>
-              )
-            })}
-          </div>
-        )}
       </div>
     )
   }
@@ -368,14 +342,13 @@ export function Sidebar() {
           {(user?.role === 'admin' || user?.role === 'superadmin') && (
             <>
               {config.environment === 'sandbox' && (
-                <NavLink
-                  to="/settings/subscription"
+                <span
                   title={collapsed ? 'Subscription' : undefined}
-                  className={({ isActive }: any) => navCls(isActive)}
+                  className={navCls(false) + ' opacity-40 cursor-not-allowed pointer-events-none'}
                 >
                   <CreditCard size={16} strokeWidth={2} />
                   {!collapsed && <span>Subscription</span>}
-                </NavLink>
+                </span>
               )}
               <NavLink
                 to="/settings/team"
