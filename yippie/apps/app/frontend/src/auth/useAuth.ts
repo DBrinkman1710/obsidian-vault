@@ -6,7 +6,7 @@ import { queryClient } from '../main'
 // every root-owner action is re-verified server-side with a password.
 export const ROOT_OWNER_EMAIL = 'diederik1710@gmail.com'
 
-interface User {
+export interface User {
   id: string
   email: string
   full_name: string

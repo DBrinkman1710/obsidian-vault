@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ArrowRight, Loader2, Settings, User, Ticket, X, Check } from 'lucide-react'
 import { api } from '../api/client'
-import { useAuth, type JarvisPrefs } from '../auth/useAuth'
+import { useAuth, type JarvisPrefs, type User } from '../auth/useAuth'
 import { useQuickCapture } from '../hooks/useQuickCapture'
 
 interface CaptureResponse {
@@ -262,7 +262,7 @@ function ContextCard({ data, summary, onDone }: {
 }
 
 function PrefsPanel({ user, refreshUser, onClose }: {
-  user: ReturnType<typeof useAuth>['user']; refreshUser: () => Promise<void>; onClose: () => void
+  user: User | null; refreshUser: () => Promise<void>; onClose: () => void
 }) {
   const prefs = user?.jarvis_prefs
   const [hotkey, setHotkey] = useState(prefs?.hotkey_display ?? DEFAULT_HOTKEY)
