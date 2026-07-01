@@ -7,12 +7,12 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
+import bcrypt as _bcrypt
+import jwt
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+from pydantic import BaseModel
 
 log = logging.getLogger(__name__)
-from jose import jwt
-from passlib.context import CryptContext
-from pydantic import BaseModel
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -32,11 +32,10 @@ from app.auth.dependencies import CurrentUser
 from app.auth.tokens import create_signed_token, verify_signed_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # Pre-computed dummy hash used to equalise login timing for unknown emails,
 # preventing user enumeration via response-time side-channel.
-_DUMMY_HASH = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY2v1aOHBzJXHni"
+_DUMMY_HASH = b"$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY2v1aOHBzJXHni"
 
 # In-memory rate limiters — process-local, sufficient for single-instance Railway deploy.
 # Limits: 10 failed logins / IP / 15 min; 5 reset requests / IP / 5 min.
@@ -97,11 +96,11 @@ async def login(body: LoginRequest, request: Request, db: Annotated[AsyncSession
     user = result.scalar_one_or_none()
 
     if not user:
-        pwd_context.verify(body.password, _DUMMY_HASH)  # equalise timing — prevents user enumeration
+        _bcrypt.checkpw(body.password.encode(), _DUMMY_HASH)  # equalise timing — prevents user enumeration
         _record_login_failure(ip)
         log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    if not pwd_context.verify(body.password, user.hashed_password):
+    if not _bcrypt.checkpw(body.password.encode(), user.hashed_password.encode()):
         _record_login_failure(ip)
         log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
@@ -153,7 +152,7 @@ async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(ge
         tenant_id=uuid.UUID(claims["tenant_id"]),
         email=email,
         full_name=(body.full_name or claims.get("full_name") or "User").strip(),
-        hashed_password=pwd_context.hash(body.password),
+        hashed_password=_bcrypt.hashpw(body.password.encode(), _bcrypt.gensalt()).decode(),
         role=UserRole(claims.get("role", "agent")),
     )
     db.add(user)
@@ -221,7 +220,7 @@ async def reset_password(body: ResetPasswordRequest, db: Annotated[AsyncSession,
     user = await db.get(User, uuid.UUID(claims["sub"]))
     if user is None or not user.is_active:
         raise HTTPException(status_code=400, detail="Invalid or expired reset link")
-    user.hashed_password = pwd_context.hash(body.new_password)
+    user.hashed_password = _bcrypt.hashpw(body.new_password.encode(), _bcrypt.gensalt()).decode()
     await db.commit()
     return {"ok": True}
 
@@ -248,11 +247,11 @@ async def change_password(
             raise
         except Exception:
             pass
-    if not pwd_context.verify(body.current_password, current_user.hashed_password):
+    if not _bcrypt.checkpw(body.current_password.encode(), current_user.hashed_password.encode()):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Current password is incorrect")
     if len(body.new_password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    current_user.hashed_password = pwd_context.hash(body.new_password)
+    current_user.hashed_password = _bcrypt.hashpw(body.new_password.encode(), _bcrypt.gensalt()).decode()
     await db.commit()
     log.warning("AUTH_PASSWORD_CHANGE user_id=%s ip=%s", current_user.id, request.client.host if request.client else "unknown")
     return {"ok": True}

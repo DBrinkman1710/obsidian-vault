@@ -5,7 +5,7 @@ Run once after `alembic upgrade head`. Safe to run on every deploy — fully ide
 import asyncio
 import os
 
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from sqlalchemy import select
 
 from app.config import ALL_MODULES
@@ -13,8 +13,6 @@ from app.core.models import Tenant, User, UserRole
 from app.database import db_session, get_engine
 from app.modules.rbac.service import provision_default_rbac_roles
 from app.modules.tickets.models import ResponseTemplate
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 import json as _json
 
@@ -212,7 +210,7 @@ async def main():
             tenant_id=tenant.id,
             email=admin_email,
             full_name="Superadmin",
-            hashed_password=pwd_context.hash(admin_password),
+            hashed_password=_bcrypt.hashpw(admin_password.encode(), _bcrypt.gensalt()).decode(),
             role=UserRole.superadmin,
         )
         db.add(user)

@@ -6,7 +6,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,8 +23,6 @@ from app.modules.admin.schemas import (
     TenantUpdate,
 )
 from app.modules.contacts.models import Contact
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 DEFAULT_DEMO_DAYS = 7
 
@@ -94,7 +92,7 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
             tenant_id=tenant.id,
             email=data.admin_email,
             full_name=data.admin_full_name,
-            hashed_password=pwd_context.hash(data.admin_password),
+            hashed_password=_bcrypt.hashpw(data.admin_password.encode(), _bcrypt.gensalt()).decode(),
             role=UserRole.admin,
         ))
         user_count = 1
@@ -194,7 +192,7 @@ async def add_tenant_user(db: AsyncSession, tenant_id: uuid.UUID, data: AddAdmin
         tenant_id=tenant_id,
         email=data.email,
         full_name=data.full_name,
-        hashed_password=pwd_context.hash(data.password),
+        hashed_password=_bcrypt.hashpw(data.password.encode(), _bcrypt.gensalt()).decode(),
         role=UserRole.admin,
     )
     db.add(user)
@@ -264,7 +262,7 @@ TENANT_DELETE_ORDER = [
 def _require_root_owner(current_user: User, current_password: str) -> None:
     if current_user.email.lower() != PROTECTED_SUPERADMIN_EMAIL:
         raise ValueError("Only the root owner can do this")
-    if not pwd_context.verify(current_password, current_user.hashed_password):
+    if not _bcrypt.checkpw(current_password.encode(), current_user.hashed_password.encode()):
         raise ValueError("Password incorrect")
 
 
@@ -358,7 +356,7 @@ async def toggle_superadmin_active(
     is_active: bool,
     current_password: str,
 ) -> User:
-    if not pwd_context.verify(current_password, current_user.hashed_password):
+    if not _bcrypt.checkpw(current_password.encode(), current_user.hashed_password.encode()):
         raise ValueError("Incorrect password.")
     if target_id == current_user.id:
         raise ValueError("You cannot deactivate your own account.")
@@ -740,7 +738,7 @@ async def promote_superadmin(
     target_email: str,
     current_password: str,
 ) -> User | None:
-    if not pwd_context.verify(current_password, current_user.hashed_password):
+    if not _bcrypt.checkpw(current_password.encode(), current_user.hashed_password.encode()):
         raise ValueError("Incorrect password.")
     target = await db.scalar(select(User).where(User.email == target_email))
     if target is None:

@@ -1268,7 +1268,6 @@ async def signup(
     slug = await _unique_slug(db, base_slug)
 
     try:
-        from app.auth.router import pwd_context
         tenant_result = await create_tenant(
             db,
             TenantCreate(

@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from jose import JWTError, jwt
+import jwt
 
 from app.config import get_settings
 
@@ -22,7 +22,7 @@ def verify_signed_token(token: str, purpose: str) -> Optional[dict]:
     settings = get_settings()
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-    except JWTError:
+    except jwt.PyJWTError:
         return None
     if payload.get("purpose") != purpose:
         return None

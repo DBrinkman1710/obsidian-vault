@@ -12,7 +12,7 @@ from typing import Annotated, Optional
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect, status
-from jose import JWTError, jwt
+import jwt
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -1329,7 +1329,7 @@ async def agent_ws(websocket: WebSocket, token: str):
         user_id: str | None = payload.get("sub")
         if not user_id:
             raise ValueError("missing sub")
-    except (JWTError, ValueError):
+    except (jwt.PyJWTError, ValueError):
         await websocket.close(code=4001)
         return
 
