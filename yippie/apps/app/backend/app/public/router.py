@@ -1017,6 +1017,7 @@ async def submit_lead(
             await _assign_stage(db, tenant.id, contact.id, stage.id)
 
     await db.commit()
+    return {"ok": True}
 
 
 # ---------------------------------------------------------------------------
