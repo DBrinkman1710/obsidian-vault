@@ -7,7 +7,7 @@ import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
   ChevronLeft, ChevronRight, Megaphone, GripVertical, Package,
-  TrendingUp, BarChart3, Settings,
+  TrendingUp, BarChart3, Settings, UsersRound,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -342,12 +342,20 @@ export function Sidebar() {
           {(user?.role === 'admin' || user?.role === 'superadmin') && (
             <>
               <NavLink
-                to="/settings/team"
+                to="/settings/workspace"
                 title={collapsed ? t('settings') : undefined}
                 className={({ isActive }: any) => navCls(isActive)}
               >
                 <Settings size={16} strokeWidth={2} />
                 {!collapsed && <span>{t('settings')}</span>}
+              </NavLink>
+              <NavLink
+                to="/settings/team"
+                title={collapsed ? 'Team' : undefined}
+                className={({ isActive }: any) => navCls(isActive)}
+              >
+                <UsersRound size={16} strokeWidth={2} />
+                {!collapsed && <span>Team</span>}
               </NavLink>
             </>
           )}
