@@ -8,7 +8,8 @@ The q1r2s3t4u5v6 migration added whatsapp_webhook_secret and backfilled NULLs,
 but tenants whose rows were created with the column's server_default of '' may
 still have an empty secret, which causes the fail-closed auth check to reject
 all requests. This migration regenerates the secret for any tenant with an
-empty or NULL value.
+empty or NULL value using md5(random()::text || clock_timestamp()::text)
+(no pgcrypto / gen_random_bytes required).
 """
 from typing import Sequence, Union
 
@@ -23,7 +24,8 @@ depends_on: Union[str, Sequence[str], None] = None
 def upgrade() -> None:
     op.execute(
         "UPDATE tenants "
-        "SET whatsapp_webhook_secret = encode(gen_random_bytes(32), 'hex') "
+        "SET whatsapp_webhook_secret = md5(random()::text || clock_timestamp()::text) "
+        "   || md5(random()::text || clock_timestamp()::text) "
         "WHERE whatsapp_webhook_secret IS NULL OR whatsapp_webhook_secret = ''"
     )
 

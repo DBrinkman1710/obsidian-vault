@@ -5,9 +5,10 @@ Revises: p5q6r7s8t9u0
 Create Date: 2026-07-01
 
 Adds a per-tenant HMAC secret for the Evolution API WhatsApp webhook.
-Existing rows are backfilled with a cryptographically random hex string
-using Postgres's built-in gen_random_bytes(). New rows get the secret
-from the application default; the column is non-nullable after backfill.
+Existing rows are backfilled with a random hex string using
+md5(random()::text || clock_timestamp()::text) — no pgcrypto required.
+New rows get the secret from the application default; the column is
+non-nullable after backfill.
 """
 from typing import Sequence, Union
 
