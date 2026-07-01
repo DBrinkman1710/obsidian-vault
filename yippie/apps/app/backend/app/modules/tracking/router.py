@@ -53,4 +53,10 @@ async def track_click(token: uuid.UUID, db: DB):
 
     await db.commit()
     dest = row.redirect_url or "/track/confirm"
+    # Reject redirects to external domains — only allow relative paths or same origin.
+    if dest.startswith("http"):
+        from app.config import get_settings as _get_settings
+        base = _get_settings().app_base_url.rstrip("/")
+        if not dest.startswith(base):
+            dest = "/track/confirm"
     return RedirectResponse(dest, status_code=302)

@@ -15,7 +15,7 @@ from app.modules.contacts.models import Contact
 from app.modules.tickets.models import Ticket, TicketComment, TicketStatus
 
 # Action types Jarvis can route to. Mirrors the frontend prefs toggles.
-ACTIONS = ("reminder", "contact_note", "ticket_note", "context_query", "navigate", "search")
+ACTIONS = ("reminder", "contact_note", "ticket_note", "context_query", "navigate", "search", "compose_email", "help", "math")
 
 
 def _build_tenant_context(tenant: Tenant) -> str:
@@ -79,8 +79,41 @@ def _parse_json(text: str, fallback: dict) -> dict:
         return fallback
 
 
+
+def _safe_eval(expr: str):
+    """Evaluate simple arithmetic expressions safely using AST."""
+    import ast
+    import math as _m
+    # Strip natural language prefix
+    expr = re.sub(r'^(?:what\s+is|calculate|compute|how\s+much\s+is)\s+', '', expr.strip(), flags=re.IGNORECASE)
+    # Replace common math words
+    expr = re.sub(r'\bx\b', '*', expr)
+    try:
+        tree = ast.parse(expr, mode='eval')
+        allowed = (
+            ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant,
+            ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod, ast.FloorDiv,
+            ast.USub, ast.UAdd,
+        )
+        for node in ast.walk(tree):
+            if not isinstance(node, allowed):
+                return None
+        result = eval(compile(tree, '<string>', 'eval'), {'__builtins__': {}}, {})
+        if isinstance(result, float) and result == int(result):
+            return int(result)
+        if isinstance(result, float):
+            return round(result, 6)
+        return result
+    except Exception:
+        return None
+
+
 async def classify(body: str, context_type: str, context_id: str | None, tenant: Tenant) -> dict:
     """Ask the model to classify the captured text into a single routed action."""
+    # Pre-classify math before hitting the LLM — more reliable than asking the model.
+    if _safe_eval(body) is not None:
+        return {"action": "math", "body": body}
+
     now = datetime.now(timezone.utc)
     context_line = "No record is currently open."
     if context_type == "contact" and context_id:
@@ -97,17 +130,20 @@ Input: "{body}"
 
 Schema:
 {{
-  "action": "reminder | contact_note | ticket_note | context_query | navigate | search",
+  "action": "reminder | contact_note | ticket_note | context_query | navigate | search | compose_email | help | math",
   "body": "the subject/topic only — strip trigger phrases like 'remind me to', 'set a reminder for', 'follow up'. Example: 'remind me to call Jan' → 'call Jan'. 'set a reminder for the meeting at 3pm' → 'meeting'.",
   "remind_at": "ISO 8601 UTC datetime for reminders. For relative times like 'in 5 minutes', add exactly that offset to the current UTC time above. Return null for non-reminders.",
-  "search_query": "name or keyword to look up for navigate/search, else null"
+  "search_query": "name or keyword to look up for navigate/search/compose_email, else null"
 }}
 
 Guidance:
 - "Remind me ..." / "follow up at ..." -> reminder; compute remind_at by adding the stated offset to the current UTC time exactly.
 - A short note when a contact is open -> contact_note. When a ticket is open -> ticket_note.
 - "What do we know about ..." / "show context" with a contact open -> context_query.
-- "Find ...", "Open ...", "Go to ...", "Take me to ...", "Show me ..." -> navigate (set search_query to the destination or person/ticket name)."""
+- "Find ...", "Open ...", "Go to ...", "Take me to ...", "Show me ..." -> navigate (set search_query to the destination or person/ticket name).
+- "Compose mail to ...", "Send email to ...", "Write mail to ...", "Email ..." -> compose_email (set search_query to the contact name).
+- "What can you do", "Help", "How do I ...", "What are your commands" -> help.
+- Arithmetic or math ("what is 5*15", "20% of 300", "square root of 144") -> math (put the raw expression in body)."""
 
     tenant_ctx = _build_tenant_context(tenant)
     if tenant_ctx:
@@ -293,6 +329,30 @@ async def execute(
         await db.commit()
         return {"action_taken": "contact_note", "summary": f"Note added to {contact.full_name}."}
 
+    if action == "math":
+        expr = (plan.get("body") or body).strip()
+        result = _safe_eval(expr)
+        if result is not None:
+            return {"action_taken": "math", "summary": str(result)}
+        # Fall back to AI for complex/textual expressions
+        answer = await ai_completion(
+            [{"role": "user", "content": f"Compute and return ONLY the numeric answer, no explanation: {body}"}],
+            max_tokens=32,
+        )
+        return {"action_taken": "math", "summary": answer.strip()}
+
+    if action == "help":
+        lines = [
+            "Here's what I can do:",
+            "\u2022 Set reminders \u2014 \"remind me to call Jan at 3pm\"",
+            "\u2022 Add notes \u2014 \"make a note: client prefers phone calls\"",
+            "\u2022 Look up a contact \u2014 \"what do we know about Guus Stuiver\"",
+            "\u2022 Navigate \u2014 \"take me to tickets\" or \"open Acme BV\"",
+            "\u2022 Compose email \u2014 \"compose mail to Guus Stuiver\"",
+            "\u2022 Math \u2014 \"what is 5*15\"",
+            "Just type naturally and I'll figure out the rest.",
+        ]
+        return {"action_taken": "help", "summary": "\n".join(lines)}
     # navigate / search — resolve to a destination URL the popup can route to.
     query = (plan.get("search_query") or body).strip()
     nav = await _resolve_navigation(db, tenant.id, query)

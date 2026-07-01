@@ -110,6 +110,7 @@ class Tenant(Base):
     # Generic ERP order webhook — ERPs push order/tracking updates to /webhooks/orders/{slug}.
     # If set, the X-Api-Key header must match; if unset, all requests are accepted (easy onboarding).
     orders_webhook_secret: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    whatsapp_webhook_secret: Mapped[str] = mapped_column(String(100), nullable=False, server_default="")
     # JS snippet auth token for SALES-MOD1 / SAAS-MOD1 ingest. Stable per tenant;
     # rotatable via POST /sales/token/rotate if compromised.
     tracking_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, unique=True, default=uuid.uuid4)

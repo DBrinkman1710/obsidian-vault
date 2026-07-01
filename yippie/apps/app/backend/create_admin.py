@@ -1,11 +1,9 @@
 """One-time script: creates admin user if it doesn't exist. Safe to run repeatedly."""
 import asyncio, os
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from sqlalchemy import select
 from app.core.models import Tenant, User, UserRole
 from app.database import db_session, get_engine
-
-pwd = CryptContext(schemes=["bcrypt"], deprecated="auto")
 EMAIL = os.getenv("ADMIN_EMAIL", "diederik1710@gmail.com")
 PASSWORD = os.getenv("ADMIN_PASSWORD", "password")
 
@@ -36,7 +34,7 @@ async def main():
             tenant_id=tenant.id,
             email=EMAIL,
             full_name="Superadmin",
-            hashed_password=pwd.hash(PASSWORD),
+            hashed_password=_bcrypt.hashpw(PASSWORD.encode(), _bcrypt.gensalt()).decode(),
             role=UserRole.superadmin,
         ))
         await db.commit()

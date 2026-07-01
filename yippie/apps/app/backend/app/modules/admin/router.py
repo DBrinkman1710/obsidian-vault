@@ -7,7 +7,7 @@ from typing import Annotated
 import re
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -141,9 +141,9 @@ async def patch_tenant_user(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID, use
 
 
 @router.post("/tenants/{tenant_id}/impersonate")
-async def impersonate_tenant(current_superadmin: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
-    """Mint a short-lived token for the tenant's first active admin, so a
-    superadmin can view the client's environment without their password."""
+async def impersonate_tenant(current_superadmin: SuperAdminUser, request: Request, response: Response, db: DB, tenant_id: uuid.UUID):
+    """Swap the SA access_token cookie for a short-lived tenant JWT; save the
+    original token as sa_token so the SA can return to their own session."""
     import logging as _logging
     _log = _logging.getLogger(__name__)
 
@@ -152,19 +152,56 @@ async def impersonate_tenant(current_superadmin: SuperAdminUser, db: DB, tenant_
         raise HTTPException(status_code=404, detail="No active admin user in this tenant")
     tenant, user = result
 
-    from app.auth.router import create_access_token
+    from app.auth.router import create_access_token, _set_auth_cookie
     from datetime import timedelta
 
-    token = create_access_token(str(user.id), get_settings(), expires=timedelta(hours=1), imp=True)
+    settings = get_settings()
+    sa_token = request.cookies.get("access_token", "")
+    imp_token = create_access_token(str(user.id), settings, expires=timedelta(hours=1), imp=True)
+
+    # Save current SA token so we can restore it on unimpersonate.
+    response.set_cookie(
+        key="sa_token",
+        value=sa_token,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        max_age=3600,
+        path="/",
+    )
+    _set_auth_cookie(response, imp_token, settings)
+
     _log.warning(
         "IMPERSONATION: superadmin %s (%s) impersonated tenant %s (user %s)",
         current_superadmin.email, str(current_superadmin.id), tenant.name, user.email,
     )
     return {
-        "access_token": token,
         "impersonated_tenant_name": tenant.name,
         "impersonated_user_email": user.email,
     }
+
+
+@router.post("/unimpersonate")
+async def unimpersonate(request: Request, response: Response):
+    """Restore the SA's original access_token cookie and clear the impersonation cookies."""
+    import logging as _logging
+    import jwt as _jwt
+    _log = _logging.getLogger(__name__)
+    sa_token = request.cookies.get("sa_token", "")
+    settings = get_settings()
+    if sa_token:
+        try:
+            claims = _jwt.decode(sa_token, settings.secret_key, algorithms=[settings.algorithm])
+        except _jwt.PyJWTError:
+            response.delete_cookie("sa_token", path="/")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token")
+        from app.auth.router import _set_auth_cookie
+        _set_auth_cookie(response, sa_token, settings)
+        _log.warning("UNIMPERSONATE: user %s ended impersonation session", claims.get("sub", "unknown"))
+    else:
+        response.delete_cookie("access_token", path="/")
+    response.delete_cookie("sa_token", path="/")
+    return {"ok": True}
 
 
 @router.post("/promote-superadmin", response_model=schemas.TenantUserOut)

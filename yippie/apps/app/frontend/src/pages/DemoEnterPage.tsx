@@ -19,7 +19,7 @@ export default function DemoEnterPage() {
       try {
         const { data } = await api.get('/public/demo-enter', { params: { token } })
         if (cancelled) return
-        setSession(data.access_token, data.user)
+        setSession(data.user)
         navigate('/', { replace: true })
       } catch {
         if (!cancelled) navigate('/login', { replace: true })

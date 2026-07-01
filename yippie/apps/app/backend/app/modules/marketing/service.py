@@ -724,17 +724,18 @@ def _apply_personalization(
         (contact.company_rel.name or "") if contact.company_rel is not None
         else (contact.company or "")
     )
+    from html import escape as _escape
     replacements = {
-        "{{first_name}}": first_name,
-        "{{first name}}": first_name,
-        "{{last_name}}": last_name,
-        "{{last name}}": last_name,
-        "{{company}}": company_name,
-        "{{email}}": contact.email or "",
-        "{{phone}}": contact.phone or "",
-        "{{ticket_id}}": ticket_id or "",
-        "{{ticket_subject}}": ticket_subject or "",
-        "{{agent_name}}": agent_name or "",
+        "{{first_name}}": _escape(first_name),
+        "{{first name}}": _escape(first_name),
+        "{{last_name}}": _escape(last_name),
+        "{{last name}}": _escape(last_name),
+        "{{company}}": _escape(company_name),
+        "{{email}}": _escape(contact.email or ""),
+        "{{phone}}": _escape(contact.phone or ""),
+        "{{ticket_id}}": _escape(ticket_id or ""),
+        "{{ticket_subject}}": _escape(ticket_subject or ""),
+        "{{agent_name}}": _escape(agent_name or ""),
     }
     for token, value in replacements.items():
         html = html.replace(token, value)

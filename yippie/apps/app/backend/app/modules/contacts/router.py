@@ -196,6 +196,8 @@ async def import_preview(
     file: UploadFile = File(...),
 ):
     content = await file.read()
+    if len(content) > _MAX_IMPORT_SIZE:
+        raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
     if not content:
         raise HTTPException(status_code=400, detail="Empty file")
     rows = _parse_import_file(file.filename or "", content)

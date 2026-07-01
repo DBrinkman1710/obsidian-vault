@@ -6,7 +6,7 @@ import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -24,8 +24,6 @@ from app.modules.admin.schemas import (
 )
 from app.modules.contacts.models import Contact
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-
 DEFAULT_DEMO_DAYS = 7
 
 TENANT_SAFE_FIELDS = {
@@ -40,7 +38,16 @@ TENANT_SAFE_FIELDS = {
 
 # The platform owner's account — same default as promote_superadmin.py / seed.py.
 # No one, including other superadmins, may deactivate it.
-PROTECTED_SUPERADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "diederik1710@gmail.com").lower()
+_admin_email_env = os.getenv("ADMIN_EMAIL", "").lower()
+_environment_env = os.getenv("ENVIRONMENT", "development").lower()
+if not _admin_email_env:
+    if _environment_env not in ("development", "local", "test"):
+        raise RuntimeError(
+            "ADMIN_EMAIL env var must be set in non-development environments. "
+            "This guards the protected superadmin account from deletion/deactivation."
+        )
+    _admin_email_env = "admin@localhost"
+PROTECTED_SUPERADMIN_EMAIL = _admin_email_env
 
 
 def _tenant_to_dict(tenant: Tenant, user_count: int) -> dict:
@@ -94,7 +101,7 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
             tenant_id=tenant.id,
             email=data.admin_email,
             full_name=data.admin_full_name,
-            hashed_password=pwd_context.hash(data.admin_password),
+            hashed_password=_bcrypt.hashpw(data.admin_password.encode(), _bcrypt.gensalt()).decode(),
             role=UserRole.admin,
         ))
         user_count = 1
@@ -194,7 +201,7 @@ async def add_tenant_user(db: AsyncSession, tenant_id: uuid.UUID, data: AddAdmin
         tenant_id=tenant_id,
         email=data.email,
         full_name=data.full_name,
-        hashed_password=pwd_context.hash(data.password),
+        hashed_password=_bcrypt.hashpw(data.password.encode(), _bcrypt.gensalt()).decode(),
         role=UserRole.admin,
     )
     db.add(user)
@@ -264,7 +271,7 @@ TENANT_DELETE_ORDER = [
 def _require_root_owner(current_user: User, current_password: str) -> None:
     if current_user.email.lower() != PROTECTED_SUPERADMIN_EMAIL:
         raise ValueError("Only the root owner can do this")
-    if not pwd_context.verify(current_password, current_user.hashed_password):
+    if not _bcrypt.checkpw(current_password.encode(), current_user.hashed_password.encode()):
         raise ValueError("Password incorrect")
 
 
@@ -358,7 +365,7 @@ async def toggle_superadmin_active(
     is_active: bool,
     current_password: str,
 ) -> User:
-    if not pwd_context.verify(current_password, current_user.hashed_password):
+    if not _bcrypt.checkpw(current_password.encode(), current_user.hashed_password.encode()):
         raise ValueError("Incorrect password.")
     if target_id == current_user.id:
         raise ValueError("You cannot deactivate your own account.")
@@ -400,18 +407,13 @@ def encode_unsubscribe_token(contact_id: uuid.UUID, tenant_id: uuid.UUID | None 
 
 
 def decode_unsubscribe_token(token: str) -> uuid.UUID:
-    """Decode an unsubscribe token. Accepts both the legacy base64 format and the
-    new HMAC-signed JWT format for backward compatibility with already-sent emails."""
+    """Decode an HMAC-signed unsubscribe JWT. Legacy base64 fallback removed — tokens
+    without a signature are rejected to prevent forged opt-outs."""
     from app.auth.tokens import verify_signed_token
     payload = verify_signed_token(token, "unsubscribe")
     if payload is not None:
         return uuid.UUID(payload["cid"])
-    # Legacy base64 fallback (no expiry, no signature — kept so old links still work)
-    try:
-        padded = token + "=" * (-len(token) % 4)
-        return uuid.UUID(bytes=base64.urlsafe_b64decode(padded))
-    except Exception:
-        raise ValueError("Invalid unsubscribe token")
+    raise ValueError("Invalid unsubscribe token")
 
 
 async def broadcast_to_tenant(
@@ -745,7 +747,7 @@ async def promote_superadmin(
     target_email: str,
     current_password: str,
 ) -> User | None:
-    if not pwd_context.verify(current_password, current_user.hashed_password):
+    if not _bcrypt.checkpw(current_password.encode(), current_user.hashed_password.encode()):
         raise ValueError("Incorrect password.")
     target = await db.scalar(select(User).where(User.email == target_email))
     if target is None:

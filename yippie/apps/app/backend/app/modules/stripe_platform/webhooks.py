@@ -34,6 +34,12 @@ async def stripe_platform_webhook(request: Request):
             log.warning("Stripe webhook signature verification failed")
             return Response(status_code=400)
     else:
+        if settings.environment not in ("development", "local", "test"):
+            log.warning(
+                "Stripe webhook secret not configured — rejecting unsigned event in environment '%s'",
+                settings.environment,
+            )
+            return Response(status_code=400)
         import json
         try:
             event = json.loads(payload)

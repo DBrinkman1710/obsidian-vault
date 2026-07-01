@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hmac
 import json
 import logging
 import mimetypes
@@ -12,7 +13,7 @@ from typing import Annotated, Optional
 
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile, WebSocket, WebSocketDisconnect, status
-from jose import JWTError, jwt
+import jwt
 from pydantic import BaseModel
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -891,7 +892,7 @@ async def get_whatsapp_qr(current_user: CurrentUser, db: DB):
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     try:
-        data = await whatsapp_service.get_pairing_qr(tenant.slug)
+        data = await whatsapp_service.get_pairing_qr(tenant.slug, tenant.whatsapp_webhook_secret)
     except RuntimeError as exc:
         # EVOLUTION_API_URL not set in this environment
         logger.warning("WhatsApp QR requested but Evolution API is not configured: %s", exc)
@@ -1080,15 +1081,29 @@ async def broadcast(
 
 @webhook_router.post("/webhooks/{tenant_slug}/whatsapp", status_code=status.HTTP_200_OK)
 async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
-    """Receive inbound WhatsApp messages from Evolution API. No auth — called by Evolution.
+    """Receive inbound WhatsApp messages from Evolution API.
     https://{env}.getyippie.com/api/v1/chat/webhooks/{slug}/whatsapp"""
+    from app.core.models import Tenant
+    from sqlalchemy import select as _select
+    tenant = await db.scalar(_select(Tenant).where(Tenant.slug == tenant_slug))
+    if not tenant:
+        return {"status": "ignored"}
+    api_key = request.headers.get("X-Api-Key", "")
+    secret = tenant.whatsapp_webhook_secret or ""
+    # Fail-closed: if the secret is unconfigured (empty), reject all requests.
+    # Both sides must be non-empty for a valid comparison.
+    if not secret or not api_key or not hmac.compare_digest(api_key, secret):
+        logger.warning("WEBHOOK_AUTH_FAIL tenant=%s ip=%s", tenant_slug, request.client.host if request.client else "unknown")
+        from fastapi.responses import Response as _Response
+        return _Response(status_code=403, content="Invalid API key")
+
     try:
         payload = await request.json()
     except Exception:
         return {"status": "ignored"}
 
     logger.debug("Evolution webhook payload for %s: %s", tenant_slug, payload)
-    tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
+    tenant_id = tenant.id
     await set_tenant_context(db, tenant_id)
 
     # Handle message status update events (delivery/read receipts)
@@ -1317,19 +1332,20 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
 # ---------------------------------------------------------------------------
 
 @ws_router.websocket("/ws/agent")
-async def agent_ws(websocket: WebSocket, token: str):
+async def agent_ws(websocket: WebSocket, token: str = ""):
     """Authenticated WebSocket for agent dashboards.
 
-    Connect with: wss://host/api/v1/chat/ws/agent?token={access_token}
-    Pushes 'message' and 'new_session' events for all sessions in the tenant.
+    Reads the JWT from the HttpOnly access_token cookie; falls back to ?token=
+    query param for programmatic clients.
     """
     settings = get_settings()
+    raw_token = websocket.cookies.get("access_token") or token
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(raw_token, settings.secret_key, algorithms=[settings.algorithm])
         user_id: str | None = payload.get("sub")
         if not user_id:
             raise ValueError("missing sub")
-    except (JWTError, ValueError):
+    except (jwt.PyJWTError, ValueError):
         await websocket.close(code=4001)
         return
 

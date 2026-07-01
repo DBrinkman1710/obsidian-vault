@@ -5,6 +5,7 @@ import { ArrowRight, Loader2, Settings, User, Ticket, X, Check, BotMessageSquare
 import { api } from '../api/client'
 import { useAuth, type JarvisPrefs, type User as AuthUser } from '../auth/useAuth'
 import { useQuickCapture } from '../hooks/useQuickCapture'
+import { useCompose } from '../hooks/useCompose'
 
 interface CaptureResponse {
   action_taken: string
@@ -34,10 +35,8 @@ function useReminderSocket(userId: string | undefined) {
 
     function connect() {
       if (destroyed) return
-      const token = localStorage.getItem('access_token')
-      if (!token) return
       const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-      ws = new WebSocket(`${proto}://${location.host}${REMINDER_WS_URL}?token=${encodeURIComponent(token)}`)
+      ws = new WebSocket(`${proto}://${location.host}${REMINDER_WS_URL}`)
 
       ws.onmessage = (e) => {
         try {
@@ -70,6 +69,7 @@ function useReminderSocket(userId: string | undefined) {
 export default function QuickCapturePopup() {
   const { isOpen, close, context, clearContext } = useQuickCapture()
   const { user, refreshUser } = useAuth()
+  const { openCompose } = useCompose()
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -104,6 +104,11 @@ export default function QuickCapturePopup() {
       })
       if (data.action_taken === 'navigate' && data.navigate_to) {
         navigate(data.navigate_to)
+        close()
+        return
+      }
+      if (data.action_taken === 'compose_email' && data.inline_data?.email) {
+        openCompose({ recipients: [{ email: data.inline_data.email, label: data.inline_data.name || data.inline_data.email }], subject: '', body: '', fromEmail: null })
         close()
         return
       }
@@ -179,8 +184,20 @@ export default function QuickCapturePopup() {
         <div className="px-4 pb-4">
           {result.action_taken === 'context_query' && result.inline_data ? (
             <ContextCard data={result.inline_data} summary={result.summary} onDone={close} />
+          ) : result.action_taken === 'context_query' && !result.inline_data ? (
+            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{result.summary}</p>
           ) : result.action_taken === 'error' ? (
-            <p className="text-sm text-red-600">{result.summary}</p>
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{result.summary}</p>
+          ) : result.action_taken === 'math' ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-center">
+              <p className="text-2xl font-bold text-blue-700">{result.summary}</p>
+            </div>
+          ) : result.action_taken === 'help' ? (
+            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
+              {result.summary.split('\n').map((line, i) => (
+                <p key={i} className={`text-xs text-slate-700 ${i === 0 ? 'font-semibold mb-1.5' : ''}`}>{line}</p>
+              ))}
+            </div>
           ) : (
             <div className="flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
               <Check size={15} className="mt-0.5 shrink-0" />

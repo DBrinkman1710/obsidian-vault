@@ -1,15 +1,16 @@
 from __future__ import annotations
 
-import time
+import logging
 import uuid
-from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from jose import jwt
-from passlib.context import CryptContext
+import bcrypt as _bcrypt
+import jwt
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
+
+log = logging.getLogger(__name__)
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -27,43 +28,20 @@ from app.core.schemas import (
 from app.database import get_db
 from app.auth.dependencies import CurrentUser
 from app.auth.tokens import create_signed_token, verify_signed_token
+from app.core.rate_limit import get_client_ip, rl_hit, rl_is_blocked
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto", bcrypt__rounds=10)
 
-# In-memory rate limiters — process-local, sufficient for single-instance Railway deploy.
-# Limits: 10 failed logins / IP / 15 min; 5 reset requests / IP / 5 min.
+# Pre-computed dummy hash used to equalise login timing for unknown emails,
+# preventing user enumeration via response-time side-channel.
+_DUMMY_HASH = b"$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY2v1aOHBzJXHni"
+
 _LOGIN_WINDOW = 15 * 60
 _LOGIN_LIMIT = 10
 _RESET_WINDOW = 5 * 60
 _RESET_LIMIT = 5
-_login_attempts: dict[str, list[float]] = defaultdict(list)
-_reset_attempts: dict[str, list[float]] = defaultdict(list)
-
-
-def _check_login_rate(ip: str) -> None:
-    now = time.monotonic()
-    hits = [t for t in _login_attempts[ip] if now - t < _LOGIN_WINDOW]
-    if len(hits) >= _LOGIN_LIMIT:
-        _login_attempts[ip] = hits
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                            detail="Too many failed login attempts. Try again later.")
-    _login_attempts[ip] = hits
-
-
-def _record_login_failure(ip: str) -> None:
-    _login_attempts[ip].append(time.monotonic())
-
-
-def _check_reset_rate(ip: str) -> None:
-    now = time.monotonic()
-    hits = [t for t in _reset_attempts[ip] if now - t < _RESET_WINDOW]
-    if len(hits) >= _RESET_LIMIT:
-        _reset_attempts[ip] = hits
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-                            detail="Too many password reset requests. Try again later.")
-    hits.append(now)
-    _reset_attempts[ip] = hits
+_REGISTER_WINDOW = 15 * 60
+_REGISTER_LIMIT = 10
 
 
 class LoginRequest(BaseModel):
@@ -77,20 +55,44 @@ class TokenResponse(BaseModel):
     user: UserOut
 
 
+class UserResponse(BaseModel):
+    user: UserOut
+
+
+def _set_auth_cookie(response: Response, token: str, settings) -> None:
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        max_age=settings.access_token_expire_minutes * 60,
+        path="/",
+    )
+
+
 def create_access_token(user_id: str, settings, expires: Optional[timedelta] = None, **extra) -> str:
     expire = datetime.now(timezone.utc) + (expires or timedelta(minutes=settings.access_token_expire_minutes))
     return jwt.encode({"sub": user_id, "exp": expire, **extra}, settings.secret_key, algorithm=settings.algorithm)
 
 
-@router.post("/login", response_model=TokenResponse)
-async def login(body: LoginRequest, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
-    ip = request.client.host if request.client else "unknown"
-    _check_login_rate(ip)
+@router.post("/login", response_model=UserResponse)
+async def login(body: LoginRequest, request: Request, response: Response, db: Annotated[AsyncSession, Depends(get_db)]):
+    ip = get_client_ip(request)
+    if await rl_is_blocked(f"login:{ip}", _LOGIN_LIMIT, _LOGIN_WINDOW):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many failed login attempts. Try again later.")
     result = await db.execute(select(User).where(func.lower(User.email) == body.email.strip().lower()))
     user = result.scalar_one_or_none()
 
-    if not user or not pwd_context.verify(body.password, user.hashed_password):
-        _record_login_failure(ip)
+    if not user:
+        _bcrypt.checkpw(body.password.encode(), _DUMMY_HASH)  # equalise timing — prevents user enumeration
+        await rl_hit(f"login:{ip}", _LOGIN_WINDOW)
+        log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if not _bcrypt.checkpw(body.password.encode(), user.hashed_password.encode()):
+        await rl_hit(f"login:{ip}", _LOGIN_WINDOW)
+        log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     if not user.is_active:
@@ -107,7 +109,15 @@ async def login(body: LoginRequest, request: Request, db: Annotated[AsyncSession
 
     settings = get_settings()
     token = create_access_token(str(user.id), settings)
-    return TokenResponse(access_token=token, user=UserOut.model_validate(user))
+    _set_auth_cookie(response, token, settings)
+    log.info("AUTH_LOGIN_SUCCESS user_id=%s email=%s ip=%s", user.id, user.email, ip)
+    return UserResponse(user=UserOut.model_validate(user))
+
+
+@router.post("/logout")
+async def logout(response: Response):
+    response.delete_cookie("access_token", path="/")
+    return {"ok": True}
 
 
 @router.get("/me", response_model=UserOut)
@@ -121,9 +131,14 @@ class RegisterRequest(BaseModel):
     full_name: Optional[str] = None
 
 
-@router.post("/register", response_model=TokenResponse)
-async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+@router.post("/register", response_model=UserResponse)
+async def register(body: RegisterRequest, request: Request, response: Response, db: Annotated[AsyncSession, Depends(get_db)]):
     """Create an account from an invite token; the invitee sets their own password."""
+    _ip = get_client_ip(request)
+    if await rl_is_blocked(f"register:{_ip}", _REGISTER_LIMIT, _REGISTER_WINDOW):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many registration attempts. Try again later.")
+    await rl_hit(f"register:{_ip}", _REGISTER_WINDOW)
     claims = verify_signed_token(body.token, "invite")
     if not claims:
         raise HTTPException(status_code=400, detail="Invalid or expired invite link")
@@ -139,7 +154,7 @@ async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(ge
         tenant_id=uuid.UUID(claims["tenant_id"]),
         email=email,
         full_name=(body.full_name or claims.get("full_name") or "User").strip(),
-        hashed_password=pwd_context.hash(body.password),
+        hashed_password=_bcrypt.hashpw(body.password.encode(), _bcrypt.gensalt()).decode(),
         role=UserRole(claims.get("role", "agent")),
     )
     db.add(user)
@@ -158,8 +173,10 @@ async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(ge
     await db.commit()
     await db.refresh(user)
 
-    token = create_access_token(str(user.id), get_settings())
-    return TokenResponse(access_token=token, user=UserOut.model_validate(user))
+    settings = get_settings()
+    token = create_access_token(str(user.id), settings)
+    _set_auth_cookie(response, token, settings)
+    return UserResponse(user=UserOut.model_validate(user))
 
 
 class ForgotPasswordRequest(BaseModel):
@@ -169,7 +186,11 @@ class ForgotPasswordRequest(BaseModel):
 @router.post("/forgot-password")
 async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
     """Always returns ok — never reveals whether the email has an account."""
-    _check_reset_rate(request.client.host if request.client else "unknown")
+    _ip = get_client_ip(request)
+    if await rl_is_blocked(f"reset:{_ip}", _RESET_LIMIT, _RESET_WINDOW):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many password reset requests. Try again later.")
+    await rl_hit(f"reset:{_ip}", _RESET_WINDOW)
     user = await db.scalar(select(User).where(User.email == body.email.lower().strip()))
     if user and user.is_active:
         settings = get_settings()
@@ -207,7 +228,7 @@ async def reset_password(body: ResetPasswordRequest, db: Annotated[AsyncSession,
     user = await db.get(User, uuid.UUID(claims["sub"]))
     if user is None or not user.is_active:
         raise HTTPException(status_code=400, detail="Invalid or expired reset link")
-    user.hashed_password = pwd_context.hash(body.new_password)
+    user.hashed_password = _bcrypt.hashpw(body.new_password.encode(), _bcrypt.gensalt()).decode()
     await db.commit()
     return {"ok": True}
 
@@ -234,12 +255,13 @@ async def change_password(
             raise
         except Exception:
             pass
-    if not pwd_context.verify(body.current_password, current_user.hashed_password):
+    if not _bcrypt.checkpw(body.current_password.encode(), current_user.hashed_password.encode()):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Current password is incorrect")
     if len(body.new_password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    current_user.hashed_password = pwd_context.hash(body.new_password)
+    current_user.hashed_password = _bcrypt.hashpw(body.new_password.encode(), _bcrypt.gensalt()).decode()
     await db.commit()
+    log.warning("AUTH_PASSWORD_CHANGE user_id=%s ip=%s", current_user.id, get_client_ip(request))
     return {"ok": True}
 
 
@@ -303,7 +325,23 @@ async def update_me(
     if "sidebar_order" in body.model_fields_set:
         current_user.sidebar_order = body.sidebar_order
     if "send_from_aliases" in body.model_fields_set:
-        current_user.send_from_aliases = body.send_from_aliases or []
+        aliases = body.send_from_aliases or []
+        if aliases:
+            from app.core.mailer import email_domain as _email_domain, is_valid_email as _is_valid_email
+            tenant = await db.get(Tenant, current_user.tenant_id)
+            allowed: set[str] = set()
+            if tenant and tenant.inbound_email:
+                allowed.add(_email_domain(tenant.inbound_email))
+            _cfg = get_settings()
+            if _cfg.resend_from:
+                allowed.add(_email_domain(_cfg.resend_from))
+            allowed = {d for d in allowed if d}
+            for alias in aliases:
+                if not _is_valid_email(alias):
+                    raise HTTPException(status_code=400, detail=f"Invalid alias email address: {alias}")
+                if allowed and _email_domain(alias) not in allowed:
+                    raise HTTPException(status_code=403, detail="Alias domain is not permitted for this tenant")
+        current_user.send_from_aliases = aliases
     if body.tour_completed is not None:
         current_user.tour_completed = body.tour_completed
     if body.setup_checklist_dismissed is True:

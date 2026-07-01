@@ -129,7 +129,7 @@ def _base_url() -> str:
     return url.rstrip("/")
 
 
-async def _register_webhook(client: httpx.AsyncClient, instance_name: str) -> None:
+async def _register_webhook(client: httpx.AsyncClient, instance_name: str, webhook_secret: str) -> None:
     """Tell Evolution API where to POST incoming messages for this instance."""
     settings = get_settings()
     base_url = settings.effective_base_url
@@ -139,6 +139,7 @@ async def _register_webhook(client: httpx.AsyncClient, instance_name: str) -> No
     webhook_url = f"{base_url}/api/v1/chat/webhooks/{instance_name}/whatsapp"
     # Evolution API v2 payload: nested under "webhook", byEvents=false so all
     # events POST to a single URL, event names in UPPER_SNAKE_CASE.
+    # webhookSecret causes Evolution to send X-Api-Key on every POST for auth.
     resp = await client.post(
         f"{_base_url()}/webhook/set/{instance_name}",
         headers={"Content-Type": "application/json", **_headers()},
@@ -146,6 +147,7 @@ async def _register_webhook(client: httpx.AsyncClient, instance_name: str) -> No
             "webhook": {
                 "enabled": True,
                 "url": webhook_url,
+                "webhookSecret": webhook_secret,
                 "byEvents": False,
                 "events": ["MESSAGES_UPSERT", "MESSAGES_UPDATE", "CONNECTION_UPDATE"],
             }
@@ -157,7 +159,7 @@ async def _register_webhook(client: httpx.AsyncClient, instance_name: str) -> No
         logger.info("Webhook registered for '%s' → %s", instance_name, webhook_url)
 
 
-async def _ensure_instance(client: httpx.AsyncClient, instance_name: str) -> None:
+async def _ensure_instance(client: httpx.AsyncClient, instance_name: str, webhook_secret: str) -> None:
     """Create the Evolution API instance for this tenant slug if it doesn't exist."""
     base = _base_url()
     resp = await client.get(
@@ -180,10 +182,10 @@ async def _ensure_instance(client: httpx.AsyncClient, instance_name: str) -> Non
             )
             create_resp.raise_for_status()
         logger.info("Evolution API instance '%s' created", instance_name)
-        await _register_webhook(client, instance_name)
+        await _register_webhook(client, instance_name, webhook_secret)
     else:
         # Re-register on every QR fetch in case the URL changed (e.g. env switch)
-        await _register_webhook(client, instance_name)
+        await _register_webhook(client, instance_name, webhook_secret)
 
 
 async def get_connection_state(instance_name: str) -> str:
@@ -222,10 +224,10 @@ async def disconnect_instance(instance_name: str) -> bool:
         return True
 
 
-async def get_pairing_qr(instance_name: str) -> dict:
+async def get_pairing_qr(instance_name: str, webhook_secret: str) -> dict:
     base = _base_url()
     async with httpx.AsyncClient(timeout=15) as client:
-        await _ensure_instance(client, instance_name)
+        await _ensure_instance(client, instance_name, webhook_secret)
         resp = await client.get(
             f"{base}/instance/connect/{instance_name}",
             headers=_headers(),
