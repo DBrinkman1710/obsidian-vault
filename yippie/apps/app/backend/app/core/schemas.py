@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, model_validator
 
 from app.core.models import UserRole
 
@@ -15,6 +16,7 @@ class UserOut(BaseModel):
     email: str
     full_name: str
     role: UserRole
+    is_root_owner: bool = False
     reply_from_email: Optional[str] = None
     inbound_email: Optional[str] = None
     email_signature: Optional[str] = None
@@ -30,6 +32,13 @@ class UserOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def _set_root_owner(self) -> "UserOut":
+        protected = os.getenv("ADMIN_EMAIL", "").lower()
+        if protected:
+            self.is_root_owner = self.email.lower() == protected
+        return self
 
 
 class SignatureOut(BaseModel):

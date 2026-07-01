@@ -9,7 +9,7 @@ import {
   Globe, ShieldCheck, RefreshCw, Copy,
 } from 'lucide-react'
 import { api } from '../../../api/client'
-import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
+import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 
 const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'ai', 'departments', 'marketing', 'tracking', 'sales', 'saas']
@@ -717,7 +717,7 @@ function EditClientModal({
 }) {
   const qc = useQueryClient()
   const { user } = useAuth()
-  const isRootOwner = user?.email?.toLowerCase() === ROOT_OWNER_EMAIL
+  const isRootOwner = user?.is_root_owner ?? false
   const [tab, setTab] = useState<EditTab>(defaultTab ?? 'info')
   const [form, setForm] = useState({
     name: tenant.name,
@@ -2042,7 +2042,7 @@ export default function SuperAdminPage() {
   const config = useTenantConfig()
   const navigate = useNavigate()
   const { user, startImpersonation } = useAuth()
-  const isRootOwner = user?.email?.toLowerCase() === ROOT_OWNER_EMAIL
+  const isRootOwner = user?.is_root_owner ?? false
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, model_validator
 
 from app.config import ALL_MODULES
 from app.core.plans import PlanTier
@@ -111,9 +111,18 @@ class SuperadminOut(BaseModel):
     email: str
     full_name: str
     is_active: bool
+    is_root_owner: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+    @model_validator(mode="after")
+    def _set_root_owner(self) -> "SuperadminOut":
+        import os
+        protected = os.getenv("ADMIN_EMAIL", "").lower()
+        if protected:
+            self.is_root_owner = self.email.lower() == protected
+        return self
 
 
 class ToggleSuperadminRequest(BaseModel):

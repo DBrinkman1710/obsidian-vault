@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ShieldCheck, UserPlus, X, ToggleLeft, ToggleRight, Trash2, Puzzle } from 'lucide-react'
 import { api } from '../../../api/client'
-import { ROOT_OWNER_EMAIL, useAuth } from '../../../auth/useAuth'
+import { useAuth } from '../../../auth/useAuth'
 
 const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'ai', 'departments', 'marketing', 'tracking', 'sales', 'saas'] as const
 type ModuleName = typeof ALL_MODULES[number]
@@ -71,6 +71,7 @@ interface Superadmin {
   email: string
   full_name: string
   is_active: boolean
+  is_root_owner: boolean
   created_at: string
 }
 
@@ -279,7 +280,7 @@ function DeleteSuperadminModal({ target, onClose }: { target: Superadmin; onClos
 
 export default function SuperadminsSettingsPage() {
   const { user } = useAuth()
-  const isRootOwner = user?.email?.toLowerCase() === ROOT_OWNER_EMAIL
+  const isRootOwner = user?.is_root_owner ?? false
   const [toggling, setToggling] = useState<Superadmin | null>(null)
   const [deleting, setDeleting] = useState<Superadmin | null>(null)
   const [showInvite, setShowInvite] = useState(false)
@@ -366,7 +367,7 @@ export default function SuperadminsSettingsPage() {
                               {sa.is_active ? 'Deactivate' : 'Activate'}
                             </button>
                           )}
-                          {isRootOwner && !isOwnAccount && sa.email.toLowerCase() !== ROOT_OWNER_EMAIL && (
+                          {isRootOwner && !isOwnAccount && !sa.is_root_owner && (
                             <button
                               onClick={() => setDeleting(sa)}
                               title="Permanently delete this superadmin"

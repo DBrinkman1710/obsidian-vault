@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import Depends, FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,13 +51,13 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     settings = get_settings()
     is_prod = settings.environment == "production"
+    hide_docs = settings.environment in ("production", "sandbox")
 
     app = FastAPI(
         title="Yippie — Customer Platform",
         version="1.0.0",
-        # API docs are disabled in production to avoid exposing the schema/diagnostics.
-        docs_url=None if is_prod else "/api/docs",
-        redoc_url=None if is_prod else "/api/redoc",
+        docs_url=None if hide_docs else "/api/docs",
+        redoc_url=None if hide_docs else "/api/redoc",
         lifespan=lifespan,
     )
 
@@ -67,6 +68,9 @@ def create_app() -> FastAPI:
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["Content-Type", "Authorization", "X-Requested-With", "Accept"],
     )
+    # Trust Railway's reverse proxy to forward the real client IP via X-Forwarded-For,
+    # so rate limiters key on the client IP rather than the shared proxy IP.
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
 
     # Core routes — always present, no module gating
     app.include_router(auth_router, prefix="/api/v1")

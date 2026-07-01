@@ -34,6 +34,10 @@ from app.auth.tokens import create_signed_token, verify_signed_token
 router = APIRouter(prefix="/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+# Pre-computed dummy hash used to equalise login timing for unknown emails,
+# preventing user enumeration via response-time side-channel.
+_DUMMY_HASH = "$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY2v1aOHBzJXHni"
+
 # In-memory rate limiters — process-local, sufficient for single-instance Railway deploy.
 # Limits: 10 failed logins / IP / 15 min; 5 reset requests / IP / 5 min.
 _LOGIN_WINDOW = 15 * 60
@@ -92,7 +96,12 @@ async def login(body: LoginRequest, request: Request, db: Annotated[AsyncSession
     result = await db.execute(select(User).where(func.lower(User.email) == body.email.strip().lower()))
     user = result.scalar_one_or_none()
 
-    if not user or not pwd_context.verify(body.password, user.hashed_password):
+    if not user:
+        pwd_context.verify(body.password, _DUMMY_HASH)  # equalise timing — prevents user enumeration
+        _record_login_failure(ip)
+        log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    if not pwd_context.verify(body.password, user.hashed_password):
         _record_login_failure(ip)
         log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")

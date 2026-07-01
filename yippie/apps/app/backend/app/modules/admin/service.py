@@ -400,18 +400,13 @@ def encode_unsubscribe_token(contact_id: uuid.UUID, tenant_id: uuid.UUID | None 
 
 
 def decode_unsubscribe_token(token: str) -> uuid.UUID:
-    """Decode an unsubscribe token. Accepts both the legacy base64 format and the
-    new HMAC-signed JWT format for backward compatibility with already-sent emails."""
+    """Decode an HMAC-signed unsubscribe JWT. Legacy base64 fallback removed — tokens
+    without a signature are rejected to prevent forged opt-outs."""
     from app.auth.tokens import verify_signed_token
     payload = verify_signed_token(token, "unsubscribe")
     if payload is not None:
         return uuid.UUID(payload["cid"])
-    # Legacy base64 fallback (no expiry, no signature — kept so old links still work)
-    try:
-        padded = token + "=" * (-len(token) % 4)
-        return uuid.UUID(bytes=base64.urlsafe_b64decode(padded))
-    except Exception:
-        raise ValueError("Invalid unsubscribe token")
+    raise ValueError("Invalid unsubscribe token")
 
 
 async def broadcast_to_tenant(

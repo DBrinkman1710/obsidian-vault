@@ -2,16 +2,13 @@ import { create } from 'zustand'
 import { api } from '../api/client'
 import { queryClient } from '../main'
 
-// Mirrors PROTECTED_SUPERADMIN_EMAIL on the backend — UI gating only,
-// every root-owner action is re-verified server-side with a password.
-export const ROOT_OWNER_EMAIL = 'diederik1710@gmail.com'
-
 export interface User {
   id: string
   email: string
   full_name: string
   role: string
   tenant_id: string
+  is_root_owner?: boolean
   reply_from_email?: string | null
   inbound_email?: string | null
   email_signature?: string | null
