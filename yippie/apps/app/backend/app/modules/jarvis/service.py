@@ -15,7 +15,7 @@ from app.modules.contacts.models import Contact
 from app.modules.tickets.models import Ticket, TicketComment, TicketStatus
 
 # Action types Jarvis can route to. Mirrors the frontend prefs toggles.
-ACTIONS = ("reminder", "contact_note", "ticket_note", "context_query", "navigate", "search")
+ACTIONS = ("reminder", "contact_note", "ticket_note", "context_query", "navigate", "search", "compose_email", "help")
 
 
 def _build_tenant_context(tenant: Tenant) -> str:
@@ -97,17 +97,19 @@ Input: "{body}"
 
 Schema:
 {{
-  "action": "reminder | contact_note | ticket_note | context_query | navigate | search",
+  "action": "reminder | contact_note | ticket_note | context_query | navigate | search | compose_email | help",
   "body": "the subject/topic only — strip trigger phrases like 'remind me to', 'set a reminder for', 'follow up'. Example: 'remind me to call Jan' → 'call Jan'. 'set a reminder for the meeting at 3pm' → 'meeting'.",
   "remind_at": "ISO 8601 UTC datetime for reminders. For relative times like 'in 5 minutes', add exactly that offset to the current UTC time above. Return null for non-reminders.",
-  "search_query": "name or keyword to look up for navigate/search, else null"
+  "search_query": "name or keyword to look up for navigate/search/compose_email, else null"
 }}
 
 Guidance:
 - "Remind me ..." / "follow up at ..." -> reminder; compute remind_at by adding the stated offset to the current UTC time exactly.
 - A short note when a contact is open -> contact_note. When a ticket is open -> ticket_note.
 - "What do we know about ..." / "show context" with a contact open -> context_query.
-- "Find ...", "Open ...", "Go to ...", "Take me to ...", "Show me ..." -> navigate (set search_query to the destination or person/ticket name)."""
+- "Find ...", "Open ...", "Go to ...", "Take me to ...", "Show me ..." -> navigate (set search_query to the destination or person/ticket name).
+- "Compose mail to ...", "Send email to ...", "Write mail to ...", "Email ..." -> compose_email (set search_query to the contact name).
+- "What can you do", "Help", "How do I ...", "What are your commands" -> help."""
 
     tenant_ctx = _build_tenant_context(tenant)
     if tenant_ctx:
@@ -292,6 +294,39 @@ async def execute(
         )
         await db.commit()
         return {"action_taken": "contact_note", "summary": f"Note added to {contact.full_name}."}
+
+    if action == "help":
+        return {
+            "action_taken": "help",
+            "summary": (
+                "Here’s what I can do:
+"
+                "• Set reminders — “remind me to call Jan at 3pm”
+"
+                "• Add notes — “make a note: client prefers phone calls”
+"
+                "• Look up a contact — “what do we know about Guus Stuiver”
+"
+                "• Navigate — “take me to tickets” or “open Acme BV”
+"
+                "• Compose email — “compose mail to Guus Stuiver”
+"
+                "Just type naturally and I’ll figure out the rest."
+            ),
+        }
+
+    if action == "compose_email":
+        query = (plan.get("search_query") or body).strip()
+        contact = await _resolve_contact(db, tenant.id, None, query)
+        if not contact:
+            return {"action_taken": "error", "summary": f"No contact found matching \u201c{query}\u201d."}
+        if not contact.email:
+            return {"action_taken": "error", "summary": f"{contact.full_name} has no email address on file."}
+        return {
+            "action_taken": "compose_email",
+            "summary": f"Opening compose for {contact.full_name}\u2026",
+            "inline_data": {"email": contact.email, "name": contact.full_name},
+        }
 
     # navigate / search — resolve to a destination URL the popup can route to.
     query = (plan.get("search_query") or body).strip()

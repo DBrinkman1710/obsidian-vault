@@ -38,6 +38,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
         TicketPriority,
         TicketStatus,
     )
+    from app.core.models import Tenant, User
 
     log = logging.getLogger(__name__)
     now = datetime.now(timezone.utc)
@@ -46,8 +47,14 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
         async with db_session() as db:
             await set_tenant_context(db, str(tenant_id))
 
+            tenant = await db.get(Tenant, tenant_id)
+            admin_user = await db.get(User, admin_user_id)
+            company_name = (tenant.name.strip() if tenant and tenant.name.strip() else None) or "Acme Nederland BV"
+            admin_email = admin_user.email if admin_user else ""
+            requester_domain = admin_email.split("@")[1] if "@" in admin_email else "example.nl"
+
             # ── Companies ────────────────────────────────────────────────────
-            co_acme = Company(tenant_id=tenant_id, name="Acme Nederland BV", domain="acme.nl", notes="Tech scale-up, 50 fte.")
+            co_acme = Company(tenant_id=tenant_id, name=company_name, domain=requester_domain, notes="Tech scale-up, 50 fte.")
             co_boer = Company(tenant_id=tenant_id, name="De Boer Retail B.V.", domain="deboer.nl", notes="Retail chain, 12 vestigingen.")
             co_sun = Company(tenant_id=tenant_id, name="Sunflower Group", domain="sunflowergroup.eu", notes="Hospitality groep, 4 hotels.")
             db.add_all([co_acme, co_boer, co_sun])
@@ -61,8 +68,8 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             await db.flush()
 
             # ── Contacts ─────────────────────────────────────────────────────
-            c1 = Contact(tenant_id=tenant_id, full_name="Sophie van der Berg", email="sophie@acme.nl", phone="+31 6 1234 5678", company_id=co_acme.id, tags=["enterprise"])
-            c2 = Contact(tenant_id=tenant_id, full_name="Lars Janssen", email="lars@acme.nl", phone="+31 6 8765 4321", company_id=co_acme.id)
+            c1 = Contact(tenant_id=tenant_id, full_name="Sophie van der Berg", email=f"sophie@{requester_domain}", phone="+31 6 1234 5678", company_id=co_acme.id, tags=["enterprise"])
+            c2 = Contact(tenant_id=tenant_id, full_name="Lars Janssen", email=f"lars@{requester_domain}", phone="+31 6 8765 4321", company_id=co_acme.id)
             c3 = Contact(tenant_id=tenant_id, full_name="Emma de Vries", email="emma@deboer.nl", phone="+31 6 2222 3333", company_id=co_boer.id, tags=["new"])
             c4 = Contact(tenant_id=tenant_id, full_name="Tom Bakker", email="tom@deboer.nl", company_id=co_boer.id)
             c5 = Contact(tenant_id=tenant_id, full_name="Fiona Smits", email="fiona@sunflowergroup.eu", phone="+31 6 5555 6666", company_id=co_sun.id, tags=["enterprise"])
@@ -163,7 +170,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             # ── Ticket comments ──────────────────────────────────────────────
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t1.id, author_id=admin_user_id, body="Factuur nagelopen — er staat inderdaad een fout in de korting. Nieuwe factuur wordt verstuurd.", is_internal=True, source=MessageSource.manual))
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t1.id, body="Goedemiddag, bedankt voor uw melding. We hebben de fout gevonden en sturen u vandaag een gecorrigeerde factuur.", is_internal=False, source=MessageSource.email))
-            db.add(TicketComment(tenant_id=tenant_id, ticket_id=t2.id, author_id=admin_user_id, body="Account tijdelijk ontgrendeld. Reset link verstuurd naar lars@acme.nl.", is_internal=True, source=MessageSource.manual))
+            db.add(TicketComment(tenant_id=tenant_id, ticket_id=t2.id, author_id=admin_user_id, body=f"Account tijdelijk ontgrendeld. Reset link verstuurd naar lars@{requester_domain}.", is_internal=True, source=MessageSource.manual))
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t4.id, body="Retourlabel is verzonden per email. Verwachte vervanging: 3–5 werkdagen na ontvangst retour.", is_internal=False, source=MessageSource.email))
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t6.id, author_id=admin_user_id, body="Demo gepland op dinsdag 10:00. Invite verstuurd naar kees@sunflowergroup.eu en 7 collega's.", is_internal=False, source=MessageSource.manual))
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t7.id, author_id=admin_user_id, body="WhatsApp integratie vereist een Evolution API instance. Ik stuur Nina de setup guide.", is_internal=True, source=MessageSource.manual))
