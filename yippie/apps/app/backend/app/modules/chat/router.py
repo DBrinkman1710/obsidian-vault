@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+import hmac
 import json
 import logging
 import mimetypes
@@ -891,7 +892,7 @@ async def get_whatsapp_qr(current_user: CurrentUser, db: DB):
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     try:
-        data = await whatsapp_service.get_pairing_qr(tenant.slug)
+        data = await whatsapp_service.get_pairing_qr(tenant.slug, tenant.whatsapp_webhook_secret)
     except RuntimeError as exc:
         # EVOLUTION_API_URL not set in this environment
         logger.warning("WhatsApp QR requested but Evolution API is not configured: %s", exc)
@@ -1080,15 +1081,25 @@ async def broadcast(
 
 @webhook_router.post("/webhooks/{tenant_slug}/whatsapp", status_code=status.HTTP_200_OK)
 async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
-    """Receive inbound WhatsApp messages from Evolution API. No auth — called by Evolution.
+    """Receive inbound WhatsApp messages from Evolution API.
     https://{env}.getyippie.com/api/v1/chat/webhooks/{slug}/whatsapp"""
+    from app.core.models import Tenant
+    from sqlalchemy import select as _select
+    tenant = await db.scalar(_select(Tenant).where(Tenant.slug == tenant_slug))
+    if not tenant:
+        return {"status": "ignored"}
+    api_key = request.headers.get("X-Api-Key", "")
+    if not hmac.compare_digest(api_key, tenant.whatsapp_webhook_secret):
+        from fastapi.responses import Response as _Response
+        return _Response(status_code=403, content="Invalid API key")
+
     try:
         payload = await request.json()
     except Exception:
         return {"status": "ignored"}
 
     logger.debug("Evolution webhook payload for %s: %s", tenant_slug, payload)
-    tenant_id = await resolve_tenant_by_slug(db, tenant_slug)
+    tenant_id = tenant.id
     await set_tenant_context(db, tenant_id)
 
     # Handle message status update events (delivery/read receipts)
