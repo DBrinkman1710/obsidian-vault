@@ -1,6 +1,6 @@
 # Yippie Platform — Complete Product Manual
 
-> Last updated: June 2026. Reflects what is built and deployed on sandbox.
+> Last updated: July 2026. Reflects what is built and deployed on sandbox.
 
 ---
 
@@ -33,6 +33,8 @@
 25. [Automation & Background Jobs](#25-automation--background-jobs)
 26. [Public Pages (No Login Required)](#26-public-pages-no-login-required)
 27. [Security & Access Control](#27-security--access-control)
+28. [Module: AI Assistant (Jarvis)](#28-module-ai-assistant-jarvis)
+29. [Onboarding & Setup](#29-onboarding--setup)
 
 ---
 
@@ -94,15 +96,22 @@ The left sidebar is the main navigation. It shows only the modules enabled for t
 - **Inbox** badge: count of pending (unreviewed) messages
 - **Chat** badge: count of open (unassigned or in-progress) chat sessions
 - **Tickets** badge: count of overdue tickets (past SLA deadline)
+- **Calendar** badge: count of pending event invitations you have not yet responded to
 
 The sidebar collapses to icon-only on narrower screens. On mobile, the sidebar is replaced by a **bottom navigation bar** with the most common destinations.
+
+Right-click any sidebar item to access a **Reorder** option — drag module items to change the order they appear in the sidebar.
 
 ### Keyboard Shortcuts
 
 | Keys | Action |
 |---|---|
 | `g` then `i` (within 1 second) | Navigate to Inbox |
+| `c` | Open Compose (new outbound email) — when in Inbox |
+| `j` / `k` | Move selection down / up in inbox list |
+| `r` | Open the focused inbox item |
 | `Cmd+Enter` / `Ctrl+Enter` | Send email / reply (in compose windows) |
+| `Cmd+K` / `Ctrl+K` | Open Quick Capture popup (AI natural-language input) |
 
 Keyboard shortcuts can be toggled off per user in **Settings → Profile**.
 
@@ -124,11 +133,15 @@ The Inbox is the nerve center of Yippie. Every inbound customer message — whet
 
 Inbound messages are scanned by AI (Claude Haiku), which reads the message and suggests a ticket subject, priority level, and description. Agents review the AI draft, edit if needed, and approve with one click. Approved drafts become structured tickets. This eliminates manual ticket write-up entirely.
 
+### Trending Topics
+
+A **Trending** indicator in the Inbox header shows the most common keywords appearing in recent inbound messages — refreshed every 15 minutes. Use it to spot recurring issues (e.g., "delivery delay", "invoice") before opening individual messages.
+
 ### Tabs
 
 - **Pending**: Messages that have been AI-scanned and are awaiting agent review. This is the primary working view.
 - **Processed**: Messages that have been approved (converted to tickets), rejected, or archived.
-- **Sent**: Outbound emails composed and sent from the inbox.
+- **Sent**: Outbound emails composed and sent from the inbox. Each entry shows delivery status: Sent, Delivered, Opened, Clicked, or Bounced.
 
 ### Draft Review
 
@@ -142,6 +155,9 @@ Clicking a pending message opens the **Draft Review** page. Here you can:
 - **Approve** the draft → creates a ticket immediately
 - **Reject** the draft → moves it to Processed without creating a ticket
 - **Regenerate AI scan** → asks the AI to re-read the message and produce a new suggestion
+- **Forward** the draft to a different department or agent
+- **Clear follow-up date** → remove a previously set follow-up reminder
+- **Right-click context menu** on any draft in the list: assign, route to department, move to bin, mark as spam
 
 ### Compose (New Outbound Email)
 
@@ -329,34 +345,77 @@ The platform runs an automated SLA checker every 5 minutes:
 
 ## 6. Module: Calendar
 
-The Calendar shows a unified view of events, ticket SLA deadlines, and customer bookings on a single monthly grid.
+The Calendar shows a unified view of events, ticket SLA deadlines, and customer bookings on a single monthly grid. Team members can also invite each other to events.
 
 ### What It Does
 
-Agents use the calendar to track their schedule alongside their support workload — deadlines and meetings in one place.
+Agents use the calendar to track their schedule alongside their support workload — deadlines, meetings, and teammate invitations in one place.
+
+### Shared / Personal Toggle
+
+A **Shared / Personal** slider at the top of the Calendar page switches between two views:
+
+- **Shared**: all team events visible to everyone in the workspace
+- **Personal**: your own personal (private) events, plus any shared or personal events you have been invited to and accepted. Personal events are only visible to you.
+
+If you have pending invitations, the Personal tab shows a badge with the count.
 
 ### Calendar Grid
 
 - **Monthly view**: displays the full month with all events and deadlines
-- **Ticket deadlines**: SLA due dates appear as colored entries on the calendar — red for overdue (≤1 day), orange for due soon (≤2 days)
+- **Event colour**: your own events appear in **blue**; events you were invited to (and accepted) appear in **violet**
+- **Ticket deadlines**: SLA due dates appear as coloured entries — red for overdue (≤1 day), orange for due soon (≤2 days)
 - **Booking confirmations**: when a customer books a meeting via the booking link, the confirmed slot appears on the calendar automatically
-- **Click on a day**: see all events for that date in a detail panel
+- **Right-click a day**: quick option to create a new event on that date
 
 ### Creating Events
 
 Click any day or the **+ New Event** button:
 
 - **Title**: name of the event
-- **Date and time**: start and end datetime with timezone support
+- **Date and time**: start and end datetime; optional end date/time
+- **All day**: toggles to a full-day event with no time component
+- **Visibility**:
+  - **Shared (team)**: visible to all team members in the workspace
+  - **Personal (only me)**: visible only to you, even in the Shared view of others
+- **Description**: optional context or agenda
 - **Link to contact**: optionally associate the event with a contact record
 - **Link to ticket**: optionally associate with a support ticket
-- **Shared / Personal**: shared events are visible to all team members; personal events are visible only to you
+- **Invite teammates**: search and add one or more team members to the event. Each invitee receives an email notification and an in-app invitation they can respond to.
 
 ### Editing and Deleting Events
 
 - Click any event to open its detail view
 - Edit any field and save
-- Delete the event (no soft delete — this is permanent)
+- On the edit form, existing invitees are shown as read-only status chips (Invited / Accepted / Declined / New time proposed)
+- Delete the event (no soft delete — this is permanent; also removes all associated invitations)
+
+### Inviting Teammates
+
+When you create an event, you can invite any other team member in your workspace:
+
+1. In the **Invite teammates** field, type a name or email to search
+2. Select team members to add — they appear as chips below the field
+3. Save the event — each invitee receives an email: "You're invited to: [event title]"
+4. The **Invitations** button in the header shows a count of pending invitations across the team
+
+Invitees can only be added at creation time. Existing invitees are shown on the edit form.
+
+### Responding to Invitations
+
+Click the **Invitations** button in the Calendar header to open the Invitations panel. For each pending invitation you see:
+
+- The **event title**, **date and time**, and who organised it
+- Three response options:
+  - **Accept**: the event is added to your Personal calendar view in violet
+  - **Decline**: the invitation is closed; the organiser is notified by email
+  - **Propose time**: pick an alternative start and end date/time and send it to the organiser as a counter-proposal
+
+When you respond, the organiser receives an email notification with your response (and any proposed times if you counter-proposed).
+
+### Sidebar Badge
+
+The **Calendar** sidebar item shows a badge when you have pending invitations waiting for a response. The badge clears as soon as you accept or decline each invitation.
 
 ---
 
@@ -433,6 +492,9 @@ Open a session to see the full conversation thread:
 
 - **Message input**: type and send text replies
 - **Media attachments**: send images or files (WhatsApp and web widget support)
+- **Internal note**: add a private note visible only to agents — not sent to the customer
+- **Create ticket**: convert this chat session into a support ticket (opens the New Ticket form pre-filled with the session contact)
+- **Send booking link**: send a booking invitation link directly in the chat
 - **Resolve**: mark the session as resolved — it moves out of the open list
 - **Close**: end the session permanently
 
@@ -448,8 +510,9 @@ To enable WhatsApp, a superadmin or admin connects the WhatsApp account:
 
 From the Chat module, admins can send a message to multiple WhatsApp contacts at once:
 
-- Select contacts or import a list
+- Select contacts or filter by label
 - Compose the message
+- Optionally **append a booking link** to the broadcast — a unique booking URL is generated per recipient and appended to the message automatically
 - Send — each contact receives it as a direct WhatsApp message from your number
 
 ### Bulk Actions
@@ -496,9 +559,16 @@ You design an email, pick an audience, and send it. Contacts who click specific 
 
 ### Campaign List
 
-- **Create campaign**: starts a new blank campaign draft
+- **Create campaign**: starts a new blank campaign draft — choose **Email** or **WhatsApp** as the delivery channel
 - **Duplicate**: copy an existing campaign to reuse its design and settings
 - **Delete**: only draft campaigns can be deleted; sent campaigns are read-only
+
+### Email vs WhatsApp Campaigns
+
+When creating a campaign, select the channel:
+
+- **Email**: sends via Resend using the GrapesJS visual HTML editor. Supports open tracking, click tracking, drip sequences, and A/B testing.
+- **WhatsApp**: sends via Evolution API. Compose a plain-text message; each recipient receives it as a direct WhatsApp message from the connected WhatsApp number.
 
 ### Campaign Detail — Tabs
 
@@ -614,6 +684,13 @@ On any invoice:
 - Click **Record payment**
 - Enter the payment date and amount
 - The invoice status updates to **Paid**
+
+### Sending a Payment Reminder
+
+On any invoice with status **Sent** or **Overdue**:
+
+- Click **Send reminder**
+- Yippie sends a follow-up email to the contact with the invoice details and a polite payment reminder
 
 ### Subscriptions
 
@@ -952,7 +1029,9 @@ Manage your personal email signatures:
 
 ### UI Language
 
-- Choose from 10+ available interface languages. The app UI re-renders in the selected language immediately.
+Choose from 14 available interface languages — the app UI re-renders immediately:
+
+English, Dutch (Nederlands), French (Français), German (Deutsch), Spanish (Español), Portuguese (Português), Italian (Italiano), Arabic (العربية), Chinese (中文), Japanese (日本語), Korean (한국어), Russian (Русский), Polish (Polski), Turkish (Türkçe)
 
 ### Change Password
 
@@ -1352,6 +1431,97 @@ Requests with invalid or missing signatures are rejected with a 403 before any p
 - All data stored in PostgreSQL 16
 - Railway manages disk encryption at rest
 - Backups are managed by Railway's Postgres plugin
+
+---
+
+## 28. Module: AI Assistant (Jarvis)
+
+Jarvis is the AI layer that runs throughout the platform. Most of its features are available when the `ai` module is enabled for the tenant.
+
+### Quick Capture Popup
+
+Press **`Cmd+K`** (Mac) or **`Ctrl+K`** (Windows/Linux) from anywhere in the app to open the Quick Capture popup. Type a natural-language instruction and Jarvis interprets it:
+
+- **Set a reminder**: "Remind me to follow up with Jan tomorrow" → creates a reminder that fires as a push notification at the specified time
+- **Add a contact note**: "Add a note to Pieter Bakker: called about invoice" → appends an internal note to that contact's timeline
+- **Add a ticket note**: "Add note to ticket 42: escalated to team lead" → appends an internal note to the ticket
+- **Context lookup**: "Find the ticket about the broken export for Acme BV" → locates the matching ticket and opens it
+
+### Reminders
+
+Reminders set via Quick Capture are delivered as push notifications inside the app (via WebSocket). When a reminder fires:
+
+- A notification banner appears in the top-right corner
+- Click the banner to navigate to the related contact or ticket
+- Click **Dismiss** to clear the reminder
+- View all upcoming reminders in the **Reminders** panel (accessible from the notification bell in the sidebar)
+
+### Yip Train (AI Configuration)
+
+**Yip Train** is a 5-question onboarding flow that teaches Jarvis the context of your business. Access it from **Settings → Workspace → Train Yip AI**.
+
+The five questions configure:
+
+1. **Tone**: formal, friendly, or neutral — how Yippie writes AI-generated replies
+2. **Language**: the primary language the AI should write in when suggesting replies
+3. **Product / service**: what your business does — used to contextualise reply suggestions and ticket briefings
+4. **Audience**: who your customers are (B2B, B2C, enterprise, etc.)
+5. **Common topics**: the most frequent issues your support team handles
+
+Answers are saved and applied across all AI features: inbox scanning, reply suggestions, ticket briefings, and template generation. Re-run Yip Train at any time to update the profile.
+
+### AI Features by Module
+
+| Module | AI Feature | Trigger |
+|---|---|---|
+| Inbox | Draft scanning | Automatic (every 10 seconds) |
+| Inbox | Suggest reply | Button in Draft Review |
+| Inbox | Improve reply | Button in Draft Review |
+| Inbox | Regenerate scan | Button in Draft Review |
+| Inbox | Compose suggest / improve | Buttons in Compose modal |
+| Tickets | Ticket briefing | Auto-loads when reply tab is focused |
+| Tickets | Suggest reply | Button in ticket reply composer |
+| Tickets | Improve reply | Button in ticket reply composer |
+| Templates | AI suggest template | Button in template editor |
+| Jarvis | Quick Capture | `Cmd+K` / `Ctrl+K` |
+| Jarvis | Reminders | Fired by Quick Capture or scheduled |
+
+### AI Scan Usage
+
+Each inbox draft AI scan counts against the tenant's monthly AI scan limit (determined by the subscription plan). The current usage and limit are visible on the **Subscription** page. When the limit is reached, new drafts are stored but not scanned until the next billing period or a plan upgrade.
+
+---
+
+## 29. Onboarding & Setup
+
+New workspaces receive guided onboarding to help the team get up and running.
+
+### Welcome Tour
+
+On first login, a **Welcome Tour** overlay walks new users through the main areas of the platform:
+
+- Where the Inbox is and how AI scanning works
+- How to open a ticket and reply to a customer
+- Where to find contacts and the pipeline board
+
+The tour can be dismissed and replayed at any time from the Help menu.
+
+### Setup Checklist
+
+A **Setup Checklist** widget appears in the sidebar for new workspaces. It tracks four key milestones:
+
+| Step | Action |
+|---|---|
+| **Connect email** | Add an inbound email address and configure your sending domain in Settings → Team |
+| **Invite team** | Add at least one other team member via Settings → Team → Invite |
+| **Handle first ticket** | Approve an inbox draft or create a ticket manually and change its status |
+| **Train Yip AI** | Complete the Yip Train flow in Settings → Workspace → Train Yip AI |
+
+Each step is checked off automatically once completed. The checklist collapses after all four steps are done.
+
+### Onboarding Drip Emails
+
+New tenants receive automated onboarding tip emails from the platform on **Day 3** and **Day 7** after signup. These are sent by the background scheduler and contain tips for getting the most out of the platform. Superadmins can view these sends in the activity log.
 
 ---
 
