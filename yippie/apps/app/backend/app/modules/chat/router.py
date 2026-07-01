@@ -1089,7 +1089,10 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
     if not tenant:
         return {"status": "ignored"}
     api_key = request.headers.get("X-Api-Key", "")
-    if not hmac.compare_digest(api_key, tenant.whatsapp_webhook_secret):
+    secret = tenant.whatsapp_webhook_secret or ""
+    # Fail-closed: if the secret is unconfigured (empty), reject all requests.
+    # Both sides must be non-empty for a valid comparison.
+    if not secret or not api_key or not hmac.compare_digest(api_key, secret):
         from fastapi.responses import Response as _Response
         return _Response(status_code=403, content="Invalid API key")
 
