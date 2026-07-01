@@ -184,10 +184,20 @@ async def impersonate_tenant(current_superadmin: SuperAdminUser, request: Reques
 @router.post("/unimpersonate")
 async def unimpersonate(request: Request, response: Response):
     """Restore the SA's original access_token cookie and clear the impersonation cookies."""
+    import logging as _logging
+    import jwt as _jwt
+    _log = _logging.getLogger(__name__)
     sa_token = request.cookies.get("sa_token", "")
     settings = get_settings()
     if sa_token:
+        try:
+            claims = _jwt.decode(sa_token, settings.secret_key, algorithms=[settings.algorithm])
+        except _jwt.PyJWTError:
+            response.delete_cookie("sa_token", path="/")
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session token")
+        from app.auth.router import _set_auth_cookie
         _set_auth_cookie(response, sa_token, settings)
+        _log.warning("UNIMPERSONATE: user %s ended impersonation session", claims.get("sub", "unknown"))
     else:
         response.delete_cookie("access_token", path="/")
     response.delete_cookie("sa_token", path="/")

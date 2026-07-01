@@ -8,6 +8,20 @@ from __future__ import annotations
 
 import time
 from collections import defaultdict
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from fastapi import Request
+
+
+def get_client_ip(request: "Request") -> str:
+    """Return the real client IP, preferring CF-Connecting-IP over the socket peer."""
+    return (
+        request.headers.get("cf-connecting-ip")
+        or request.headers.get("x-real-ip")
+        or (request.client.host if request.client else None)
+        or "unknown"
+    )
 
 _client = None
 

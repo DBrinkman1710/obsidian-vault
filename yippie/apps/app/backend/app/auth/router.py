@@ -28,7 +28,7 @@ from app.core.schemas import (
 from app.database import get_db
 from app.auth.dependencies import CurrentUser
 from app.auth.tokens import create_signed_token, verify_signed_token
-from app.core.rate_limit import rl_hit, rl_is_blocked
+from app.core.rate_limit import get_client_ip, rl_hit, rl_is_blocked
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -78,7 +78,7 @@ def create_access_token(user_id: str, settings, expires: Optional[timedelta] = N
 
 @router.post("/login", response_model=UserResponse)
 async def login(body: LoginRequest, request: Request, response: Response, db: Annotated[AsyncSession, Depends(get_db)]):
-    ip = request.client.host if request.client else "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"login:{ip}", _LOGIN_LIMIT, _LOGIN_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many failed login attempts. Try again later.")
@@ -134,7 +134,7 @@ class RegisterRequest(BaseModel):
 @router.post("/register", response_model=UserResponse)
 async def register(body: RegisterRequest, request: Request, response: Response, db: Annotated[AsyncSession, Depends(get_db)]):
     """Create an account from an invite token; the invitee sets their own password."""
-    _ip = request.client.host if request.client else "unknown"
+    _ip = get_client_ip(request)
     if await rl_is_blocked(f"register:{_ip}", _REGISTER_LIMIT, _REGISTER_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many registration attempts. Try again later.")
@@ -186,7 +186,7 @@ class ForgotPasswordRequest(BaseModel):
 @router.post("/forgot-password")
 async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
     """Always returns ok — never reveals whether the email has an account."""
-    _ip = request.client.host if request.client else "unknown"
+    _ip = get_client_ip(request)
     if await rl_is_blocked(f"reset:{_ip}", _RESET_LIMIT, _RESET_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many password reset requests. Try again later.")
@@ -261,7 +261,7 @@ async def change_password(
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     current_user.hashed_password = _bcrypt.hashpw(body.new_password.encode(), _bcrypt.gensalt()).decode()
     await db.commit()
-    log.warning("AUTH_PASSWORD_CHANGE user_id=%s ip=%s", current_user.id, request.client.host if request.client else "unknown")
+    log.warning("AUTH_PASSWORD_CHANGE user_id=%s ip=%s", current_user.id, get_client_ip(request))
     return {"ok": True}
 
 

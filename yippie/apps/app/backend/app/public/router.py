@@ -4,7 +4,7 @@ import os
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Optional
+from typing import Annotated, Literal, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel, EmailStr, Field
@@ -12,7 +12,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
-from app.core.rate_limit import rl_hit, rl_is_blocked
+from app.core.rate_limit import get_client_ip, rl_hit, rl_is_blocked
 from app.database import get_db, set_tenant_context
 from app.modules.booking.schemas import BookingConfirm, CounterProposeRequest, ManageBookingOut, RescheduleRequest
 
@@ -319,7 +319,7 @@ async def request_demo(
     from app.modules.pipeline.service import _assign_stage
     from app.modules.tickets.models import MessageSource, Ticket, TicketPriority, TicketStatus
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -569,7 +569,7 @@ async def meet_book(
     from app.modules.contacts.models import Contact
     from app.modules.pipeline.service import _assign_stage
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -677,7 +677,7 @@ async def ai_demo(body: AIDemoRequest, request: Request) -> dict:
     from app.modules.inbox.ai_scanner import scan_message
     from app.config import get_settings
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -710,7 +710,7 @@ async def public_get_manage(
     from app.modules.calendar.models import CalendarEvent
     from app.modules.contacts.models import Contact
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -772,7 +772,7 @@ async def public_reschedule(
 ) -> dict:
     from app.modules.booking import service as booking_service
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -806,7 +806,7 @@ async def public_cancel(
 ) -> dict:
     from app.modules.booking import service as booking_service
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -840,7 +840,7 @@ async def public_get_booking(
     from app.modules.booking.schemas import PublicBookingOut, SlotProposal
     from app.modules.contacts.models import Contact
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -891,7 +891,7 @@ async def public_counter_propose(
 ):
     from app.modules.booking import service as booking_service
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -925,7 +925,7 @@ async def public_confirm_booking(
 ):
     from app.modules.booking import service as booking_service
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -970,7 +970,7 @@ async def submit_lead(
     from app.modules.pipeline.models import PipelineStage
     from app.modules.pipeline.service import _assign_stage
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -1058,7 +1058,7 @@ async def track_events(
     from app.modules.contacts.models import Contact
 
     # Rate limit per IP
-    client_ip = request.client.host if request.client else "unknown"
+    client_ip = get_client_ip(request)
     if await rl_is_blocked(f"track:{client_ip}", _TRACK_RATE_LIMIT, _TRACK_RATE_WINDOW):
         raise HTTPException(status_code=429, detail="Too many requests")
     await rl_hit(f"track:{client_ip}", _TRACK_RATE_WINDOW)
@@ -1157,7 +1157,7 @@ async def questionnaire_lead(
     from app.modules.contacts.models import Contact
     from app.modules.pipeline.service import _assign_stage
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -1207,7 +1207,7 @@ class SignupRequest(BaseModel):
     company_name: str = Field(min_length=1)
     email: EmailStr
     password: str = Field(min_length=8)
-    plan: str = "starter"
+    plan: Literal["starter", "growth"] = "starter"
     enabled_modules: list[str] = []
     questionnaire: Optional[Questionnaire] = None
     from_demo_token: Optional[str] = None
@@ -1238,7 +1238,7 @@ async def signup(
     from app.public.payment_service import handle_signup_payment
     from app.config import ALL_MODULES
 
-    ip = (request.client.host if request.client else None) or "unknown"
+    ip = get_client_ip(request)
     if await rl_is_blocked(f"demo:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many demo requests. Please try again later.")
@@ -1291,8 +1291,8 @@ async def signup(
                 plan=body.plan,
             ),
         )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Account could not be created. Please check your details and try again.")
     except ResendNotConfiguredError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

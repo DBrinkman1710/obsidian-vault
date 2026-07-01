@@ -1093,6 +1093,7 @@ async def whatsapp_incoming(tenant_slug: str, request: Request, db: DB):
     # Fail-closed: if the secret is unconfigured (empty), reject all requests.
     # Both sides must be non-empty for a valid comparison.
     if not secret or not api_key or not hmac.compare_digest(api_key, secret):
+        logger.warning("WEBHOOK_AUTH_FAIL tenant=%s ip=%s", tenant_slug, request.client.host if request.client else "unknown")
         from fastapi.responses import Response as _Response
         return _Response(status_code=403, content="Invalid API key")
 
