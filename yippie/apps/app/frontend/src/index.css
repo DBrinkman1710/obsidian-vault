@@ -92,3 +92,26 @@
 
 /* Keep Sonner toasts below the Yip quick-capture popup (z-9999) */
 [data-sonner-toaster] { z-index: 9000 !important; }
+
+/* Sidebar scrollbars: hidden until the sidebar is hovered */
+.sidebar-scroll {
+  scrollbar-width: none;
+}
+.sidebar-scroll::-webkit-scrollbar {
+  display: none;
+}
+aside:hover .sidebar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+aside:hover .sidebar-scroll::-webkit-scrollbar {
+  display: block;
+  width: 3px;
+}
+aside:hover .sidebar-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 9999px;
+}
+aside:hover .sidebar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
