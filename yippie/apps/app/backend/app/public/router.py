@@ -1023,8 +1023,6 @@ async def submit_lead(
 # JS snippet ingest — [SALES-MOD1] + [SAAS-MOD1]
 # ---------------------------------------------------------------------------
 
-# Simple in-process rate limiter: max 200 calls per IP per minute.
-_track_rate: dict[str, list[float]] = defaultdict(list)
 _TRACK_RATE_LIMIT = 200
 _TRACK_RATE_WINDOW = 60  # seconds
 
@@ -1061,12 +1059,9 @@ async def track_events(
 
     # Rate limit per IP
     client_ip = request.client.host if request.client else "unknown"
-    now_ts = time.time()
-    bucket = _track_rate[client_ip]
-    bucket[:] = [t for t in bucket if now_ts - t < _TRACK_RATE_WINDOW]
-    if len(bucket) >= _TRACK_RATE_LIMIT:
+    if await rl_is_blocked(f"track:{client_ip}", _TRACK_RATE_LIMIT, _TRACK_RATE_WINDOW):
         raise HTTPException(status_code=429, detail="Too many requests")
-    bucket.append(now_ts)
+    await rl_hit(f"track:{client_ip}", _TRACK_RATE_WINDOW)
 
     # Resolve tenant by tracking_token (no RLS needed — token lookup is global)
     from app.core.models import Tenant as TenantModel
