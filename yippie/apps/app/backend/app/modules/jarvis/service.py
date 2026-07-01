@@ -110,6 +110,10 @@ def _safe_eval(expr: str):
 
 async def classify(body: str, context_type: str, context_id: str | None, tenant: Tenant) -> dict:
     """Ask the model to classify the captured text into a single routed action."""
+    # Pre-classify math before hitting the LLM — more reliable than asking the model.
+    if _safe_eval(body) is not None:
+        return {"action": "math", "body": body}
+
     now = datetime.now(timezone.utc)
     context_line = "No record is currently open."
     if context_type == "contact" and context_id:
