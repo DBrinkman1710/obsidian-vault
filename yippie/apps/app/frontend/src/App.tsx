@@ -333,8 +333,7 @@ export default function App() {
               <Route path="/settings/superadmins" element={<PagePad><SuperadminsSettingsPage /></PagePad>} />
               <Route path="/settings/profile" element={<PagePad><ProfileSettingsPage /></PagePad>} />
               <Route path="/settings/workspace" element={<PagePad><WorkspaceSettingsPage /></PagePad>} />
-              <Route path="/settings/labels" element={<Navigate to="/settings/workspace" replace />} />
-              <Route path="/settings/team" element={<PagePad><TeamSettingsPage /></PagePad>} />
+<Route path="/settings/team" element={<PagePad><TeamSettingsPage /></PagePad>} />
               <Route path="/settings/templates" element={<PagePad><TemplatesPage /></PagePad>} />
               {config?.environment === 'sandbox' && (
                 <Route path="/settings/subscription" element={<PagePad><SubscriptionPage /></PagePad>} />
