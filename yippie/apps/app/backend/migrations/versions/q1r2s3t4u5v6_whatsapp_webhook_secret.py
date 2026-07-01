@@ -22,7 +22,7 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     op.add_column('tenants', sa.Column('whatsapp_webhook_secret', sa.String(100), nullable=True))
-    op.execute("UPDATE tenants SET whatsapp_webhook_secret = encode(gen_random_bytes(32), 'hex') WHERE whatsapp_webhook_secret IS NULL")
+    op.execute("UPDATE tenants SET whatsapp_webhook_secret = md5(random()::text || clock_timestamp()::text) WHERE whatsapp_webhook_secret IS NULL")
     op.alter_column('tenants', 'whatsapp_webhook_secret', nullable=False, server_default='')
 
 
