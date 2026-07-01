@@ -172,10 +172,11 @@ async def erp_orders_webhook(tenant_slug: str, request: Request, db: DB):
     if not tenant:
         return Response(status_code=200)
 
-    if tenant.orders_webhook_secret:
-        api_key = request.headers.get("X-Api-Key", "")
-        if not hmac.compare_digest(api_key, tenant.orders_webhook_secret):
-            return Response(status_code=403, content="Invalid API key")
+    if not tenant.orders_webhook_secret:
+        return Response(status_code=403, content="Webhook not configured")
+    api_key = request.headers.get("X-Api-Key", "")
+    if not hmac.compare_digest(api_key, tenant.orders_webhook_secret):
+        return Response(status_code=403, content="Invalid API key")
 
     try:
         data = await request.json()

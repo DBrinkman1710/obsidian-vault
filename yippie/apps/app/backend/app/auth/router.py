@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import time
 import uuid
 from collections import defaultdict
@@ -7,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Annotated, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
+
+log = logging.getLogger(__name__)
 from jose import jwt
 from passlib.context import CryptContext
 from pydantic import BaseModel
@@ -91,6 +94,7 @@ async def login(body: LoginRequest, request: Request, db: Annotated[AsyncSession
 
     if not user or not pwd_context.verify(body.password, user.hashed_password):
         _record_login_failure(ip)
+        log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     if not user.is_active:
@@ -107,6 +111,7 @@ async def login(body: LoginRequest, request: Request, db: Annotated[AsyncSession
 
     settings = get_settings()
     token = create_access_token(str(user.id), settings)
+    log.info("AUTH_LOGIN_SUCCESS user_id=%s email=%s ip=%s", user.id, user.email, ip)
     return TokenResponse(access_token=token, user=UserOut.model_validate(user))
 
 
@@ -240,6 +245,7 @@ async def change_password(
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     current_user.hashed_password = pwd_context.hash(body.new_password)
     await db.commit()
+    log.warning("AUTH_PASSWORD_CHANGE user_id=%s ip=%s", current_user.id, request.client.host if request.client else "unknown")
     return {"ok": True}
 
 
