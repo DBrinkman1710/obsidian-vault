@@ -315,7 +315,7 @@ export function Sidebar() {
         )}
 
         {/* Module nav — scrolls independently */}
-        <nav className="flex-1 min-h-0 overflow-y-auto px-2 space-y-0.5">
+        <nav className="flex-1 min-h-0 overflow-y-auto sidebar-scroll px-2 space-y-0.5">
           {reordering ? (
             <DndContext sensors={sensors} onDragEnd={handleDragEnd}>
               <SortableContext items={orderedMods} strategy={verticalListSortingStrategy}>
@@ -332,7 +332,7 @@ export function Sidebar() {
         </nav>
 
         {/* Settings nav — scrolls independently */}
-        <div className="border-t border-white/15 px-2 pt-2 pb-1 shrink-0 overflow-y-auto space-y-0.5" style={{ maxHeight: '13rem' }}>
+        <div className="border-t border-white/15 px-2 pt-2 pb-1 shrink-0 overflow-y-auto sidebar-scroll space-y-0.5" style={{ maxHeight: '13rem' }}>
           {user?.role === 'superadmin' && (
             <NavLink
               to="/superadmin/clients"
