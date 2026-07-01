@@ -158,6 +158,15 @@ export function Sidebar() {
     enabled: !!config && (config.enabled_modules ?? []).includes('chat'),
   })
 
+  const { data: calInvData } = useQuery({
+    queryKey: ['calendar-invitation-count'],
+    queryFn: () => api.get('/calendar/invitations/pending/count').then((r: any) => r.data),
+    refetchInterval: 60_000,
+    enabled: !!config && (config.enabled_modules ?? []).includes('calendar'),
+  })
+  const calInvCount: number = calInvData?.count ?? 0
+  const calInvBadge = calInvCount === 0 ? null : calInvCount > 9 ? '9+' : String(calInvCount)
+
 
   const pendingCount: number = draftCount?.pending ?? 0
   const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
@@ -240,6 +249,11 @@ export function Sidebar() {
                 </span>
               )}
             </div>
+          )}
+          {!collapsed && mod === 'calendar' && calInvBadge && (
+            <span className="bg-white/90 text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
+              {calInvBadge}
+            </span>
           )}
         </NavLink>
 
