@@ -98,6 +98,8 @@ async def delete_tenant(current_user: SuperAdminUser, db: DB, tenant_id: uuid.UU
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Delete failed: {type(e).__name__}: {e}")
 
 
 @router.get("/tenants/{tenant_id}/pipeline-stages")
