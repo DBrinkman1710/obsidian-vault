@@ -38,7 +38,16 @@ TENANT_SAFE_FIELDS = {
 
 # The platform owner's account — same default as promote_superadmin.py / seed.py.
 # No one, including other superadmins, may deactivate it.
-PROTECTED_SUPERADMIN_EMAIL = os.getenv("ADMIN_EMAIL", "diederik1710@gmail.com").lower()
+_admin_email_env = os.getenv("ADMIN_EMAIL", "").lower()
+_environment_env = os.getenv("ENVIRONMENT", "development").lower()
+if not _admin_email_env:
+    if _environment_env not in ("development", "local", "test"):
+        raise RuntimeError(
+            "ADMIN_EMAIL env var must be set in non-development environments. "
+            "This guards the protected superadmin account from deletion/deactivation."
+        )
+    _admin_email_env = "admin@localhost"
+PROTECTED_SUPERADMIN_EMAIL = _admin_email_env
 
 
 def _tenant_to_dict(tenant: Tenant, user_count: int) -> dict:

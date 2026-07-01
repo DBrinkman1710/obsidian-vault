@@ -70,7 +70,7 @@ def create_app() -> FastAPI:
     )
     # Trust Railway's reverse proxy to forward the real client IP via X-Forwarded-For,
     # so rate limiters key on the client IP rather than the shared proxy IP.
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="*")
+    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts="127.0.0.1")
 
     # Core routes — always present, no module gating
     app.include_router(auth_router, prefix="/api/v1")

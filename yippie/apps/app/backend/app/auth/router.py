@@ -43,8 +43,11 @@ _LOGIN_WINDOW = 15 * 60
 _LOGIN_LIMIT = 10
 _RESET_WINDOW = 5 * 60
 _RESET_LIMIT = 5
+_REGISTER_WINDOW = 15 * 60
+_REGISTER_LIMIT = 10
 _login_attempts: dict[str, list[float]] = defaultdict(list)
 _reset_attempts: dict[str, list[float]] = defaultdict(list)
+_register_attempts: dict[str, list[float]] = defaultdict(list)
 
 
 def _check_login_rate(ip: str) -> None:
@@ -70,6 +73,17 @@ def _check_reset_rate(ip: str) -> None:
                             detail="Too many password reset requests. Try again later.")
     hits.append(now)
     _reset_attempts[ip] = hits
+
+
+def _check_register_rate(ip: str) -> None:
+    now = time.monotonic()
+    hits = [t for t in _register_attempts[ip] if now - t < _REGISTER_WINDOW]
+    if len(hits) >= _REGISTER_LIMIT:
+        _register_attempts[ip] = hits
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many registration attempts. Try again later.")
+    hits.append(now)
+    _register_attempts[ip] = hits
 
 
 class LoginRequest(BaseModel):
@@ -135,8 +149,9 @@ class RegisterRequest(BaseModel):
 
 
 @router.post("/register", response_model=TokenResponse)
-async def register(body: RegisterRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+async def register(body: RegisterRequest, request: Request, db: Annotated[AsyncSession, Depends(get_db)]):
     """Create an account from an invite token; the invitee sets their own password."""
+    _check_register_rate(request.client.host if request.client else "unknown")
     claims = verify_signed_token(body.token, "invite")
     if not claims:
         raise HTTPException(status_code=400, detail="Invalid or expired invite link")
@@ -317,7 +332,23 @@ async def update_me(
     if "sidebar_order" in body.model_fields_set:
         current_user.sidebar_order = body.sidebar_order
     if "send_from_aliases" in body.model_fields_set:
-        current_user.send_from_aliases = body.send_from_aliases or []
+        aliases = body.send_from_aliases or []
+        if aliases:
+            from app.core.mailer import email_domain as _email_domain, is_valid_email as _is_valid_email
+            tenant = await db.get(Tenant, current_user.tenant_id)
+            allowed: set[str] = set()
+            if tenant and tenant.inbound_email:
+                allowed.add(_email_domain(tenant.inbound_email))
+            _cfg = get_settings()
+            if _cfg.resend_from:
+                allowed.add(_email_domain(_cfg.resend_from))
+            allowed = {d for d in allowed if d}
+            for alias in aliases:
+                if not _is_valid_email(alias):
+                    raise HTTPException(status_code=400, detail=f"Invalid alias email address: {alias}")
+                if allowed and _email_domain(alias) not in allowed:
+                    raise HTTPException(status_code=403, detail="Alias domain is not permitted for this tenant")
+        current_user.send_from_aliases = aliases
     if body.tour_completed is not None:
         current_user.tour_completed = body.tour_completed
     if body.setup_checklist_dismissed is True:
