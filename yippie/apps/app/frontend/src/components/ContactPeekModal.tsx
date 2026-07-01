@@ -17,9 +17,11 @@ interface ContactPeekData {
 export default function ContactPeekModal({
   contactId,
   onClose,
+  onCompose,
 }: {
   contactId: string | null
   onClose: () => void
+  onCompose?: (email: string, name: string) => void
 }) {
   const { data: contact, isLoading } = useQuery<ContactPeekData>({
     queryKey: ['contact', contactId],
@@ -120,10 +122,19 @@ export default function ContactPeekModal({
               )}
             </div>
 
-            <div className="border-t border-slate-100 px-5 py-4">
+            <div className="border-t border-slate-100 px-5 py-4 flex flex-col gap-2">
+              {onCompose && contact.email && (
+                <button
+                  onClick={() => { onCompose(contact.email!, contact.full_name); onClose() }}
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-white bg-yippie hover:opacity-90 rounded-xl transition-opacity"
+                >
+                  <Mail size={13} />
+                  Compose email
+                </button>
+              )}
               <button
                 onClick={() => window.open(`/contacts/${contactId}`, '_blank')}
-                className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-white bg-yippie hover:opacity-90 rounded-xl transition-opacity"
+                className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
               >
                 Open full contact
                 <ExternalLink size={13} />

@@ -109,7 +109,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
   onCreateHandled: () => void
   onCompanyClick: (companyId: string) => void
 }) {
-  const navigate = useNavigate()
+  const { openCompose } = useCompose()
   const { user } = useAuth()
   const qc = useQueryClient()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
@@ -187,8 +187,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
         .filter(c => c.email && !seen.has(c.email) && seen.add(c.email!))
         .map(c => ({ email: c.email!, label: c.full_name || c.email! }))
       if (recipients.length === 0) { toast.error('No contacts with email in selected companies'); return }
-      sessionStorage.setItem('compose-prefill', JSON.stringify(recipients))
-      navigate('/inbox?compose=1')
+      openCompose({ recipients, subject: '', body: '', fromEmail: null })
     } catch {
       toast.error('Failed to fetch contacts')
     } finally {
@@ -550,8 +549,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
       .filter((c: any) => selected.has(c.id) && c.email && !seen.has(c.email) && seen.add(c.email!))
       .map((c: any) => ({ email: c.email!, label: c.full_name || c.email! }))
     if (recipients.length === 0) { toast.error('No selected contacts have an email address'); return }
-    sessionStorage.setItem('compose-prefill', JSON.stringify(recipients))
-    navigate('/inbox?compose=1')
+    openCompose({ recipients, subject: '', body: '', fromEmail: null })
   }
 
   return (
@@ -778,6 +776,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
       <ContactPeekModal
         contactId={peekContactId}
         onClose={() => setPeekContactId(null)}
+        onCompose={(email, name) => openCompose({ recipients: [{ email, label: name }], subject: '', body: '', fromEmail: null })}
       />
       <ContextMenu state={ctx.state} onClose={ctx.close} />
     </div>
