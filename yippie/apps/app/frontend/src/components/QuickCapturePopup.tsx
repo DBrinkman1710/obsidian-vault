@@ -188,6 +188,10 @@ export default function QuickCapturePopup() {
             <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{result.summary}</p>
           ) : result.action_taken === 'error' ? (
             <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{result.summary}</p>
+          ) : result.action_taken === 'math' ? (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-center">
+              <p className="text-2xl font-bold text-blue-700">{result.summary}</p>
+            </div>
           ) : result.action_taken === 'help' ? (
             <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
               {result.summary.split('\n').map((line, i) => (

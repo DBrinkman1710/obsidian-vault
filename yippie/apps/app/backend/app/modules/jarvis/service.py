@@ -15,7 +15,7 @@ from app.modules.contacts.models import Contact
 from app.modules.tickets.models import Ticket, TicketComment, TicketStatus
 
 # Action types Jarvis can route to. Mirrors the frontend prefs toggles.
-ACTIONS = ("reminder", "contact_note", "ticket_note", "context_query", "navigate", "search", "compose_email", "help")
+ACTIONS = ("reminder", "contact_note", "ticket_note", "context_query", "navigate", "search", "compose_email", "help", "math")
 
 
 def _build_tenant_context(tenant: Tenant) -> str:
@@ -79,6 +79,35 @@ def _parse_json(text: str, fallback: dict) -> dict:
         return fallback
 
 
+
+def _safe_eval(expr: str):
+    """Evaluate simple arithmetic expressions safely using AST."""
+    import ast
+    import math as _m
+    # Strip natural language prefix
+    expr = re.sub(r'^(?:what\s+is|calculate|compute|how\s+much\s+is)\s+', '', expr.strip(), flags=re.IGNORECASE)
+    # Replace common math words
+    expr = re.sub(r'\bx\b', '*', expr)
+    try:
+        tree = ast.parse(expr, mode='eval')
+        allowed = (
+            ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant,
+            ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod, ast.FloorDiv,
+            ast.USub, ast.UAdd,
+        )
+        for node in ast.walk(tree):
+            if not isinstance(node, allowed):
+                return None
+        result = eval(compile(tree, '<string>', 'eval'), {'__builtins__': {}}, {})
+        if isinstance(result, float) and result == int(result):
+            return int(result)
+        if isinstance(result, float):
+            return round(result, 6)
+        return result
+    except Exception:
+        return None
+
+
 async def classify(body: str, context_type: str, context_id: str | None, tenant: Tenant) -> dict:
     """Ask the model to classify the captured text into a single routed action."""
     now = datetime.now(timezone.utc)
@@ -97,7 +126,7 @@ Input: "{body}"
 
 Schema:
 {{
-  "action": "reminder | contact_note | ticket_note | context_query | navigate | search | compose_email | help",
+  "action": "reminder | contact_note | ticket_note | context_query | navigate | search | compose_email | help | math",
   "body": "the subject/topic only — strip trigger phrases like 'remind me to', 'set a reminder for', 'follow up'. Example: 'remind me to call Jan' → 'call Jan'. 'set a reminder for the meeting at 3pm' → 'meeting'.",
   "remind_at": "ISO 8601 UTC datetime for reminders. For relative times like 'in 5 minutes', add exactly that offset to the current UTC time above. Return null for non-reminders.",
   "search_query": "name or keyword to look up for navigate/search/compose_email, else null"
@@ -109,7 +138,8 @@ Guidance:
 - "What do we know about ..." / "show context" with a contact open -> context_query.
 - "Find ...", "Open ...", "Go to ...", "Take me to ...", "Show me ..." -> navigate (set search_query to the destination or person/ticket name).
 - "Compose mail to ...", "Send email to ...", "Write mail to ...", "Email ..." -> compose_email (set search_query to the contact name).
-- "What can you do", "Help", "How do I ...", "What are your commands" -> help."""
+- "What can you do", "Help", "How do I ...", "What are your commands" -> help.
+- Arithmetic or math ("what is 5*15", "20% of 300", "square root of 144") -> math (put the raw expression in body)."""
 
     tenant_ctx = _build_tenant_context(tenant)
     if tenant_ctx:
@@ -294,6 +324,18 @@ async def execute(
         )
         await db.commit()
         return {"action_taken": "contact_note", "summary": f"Note added to {contact.full_name}."}
+
+    if action == "math":
+        expr = (plan.get("body") or body).strip()
+        result = _safe_eval(expr)
+        if result is not None:
+            return {"action_taken": "math", "summary": str(result)}
+        # Fall back to AI for complex/textual expressions
+        answer = await ai_completion(
+            [{"role": "user", "content": f"Compute and return ONLY the numeric answer, no explanation: {body}"}],
+            max_tokens=32,
+        )
+        return {"action_taken": "math", "summary": answer.strip()}
 
     if action == "help":
         return {
