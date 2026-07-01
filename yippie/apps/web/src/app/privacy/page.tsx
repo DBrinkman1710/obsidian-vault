@@ -25,7 +25,7 @@ export default function PrivacyPage() {
       <SiteNav />
 
       <article className={styles.article}>
-        <div className={styles.articleDate}>Last updated: June 23, 2026</div>
+        <div className={styles.articleDate}>Last updated: July 1, 2026</div>
         <h1 className={styles.articleTitle}>Privacy Policy</h1>
 
         <div className={styles.articleBody}>
@@ -130,6 +130,14 @@ export default function PrivacyPage() {
             <li>
               <strong>Email and communication providers</strong> — to process
               and deliver messages you send us.
+            </li>
+            <li>
+              <strong>AI processing providers</strong> — to power AI-assisted
+              features (inbox classification, reply suggestions, and the Yip
+              assistant), message content and contact data may be processed by
+              Mistral AI SAS, 15 rue des Halles, 75001 Paris, France
+              (EU-hosted). Mistral AI does not use this data to train its
+              models. A Data Processing Agreement with Mistral AI is in place.
             </li>
           </ul>
           <p>
