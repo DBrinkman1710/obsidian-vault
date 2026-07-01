@@ -338,38 +338,17 @@ async def execute(
         return {"action_taken": "math", "summary": answer.strip()}
 
     if action == "help":
-        return {
-            "action_taken": "help",
-            "summary": (
-                "Here’s what I can do:
-"
-                "• Set reminders — “remind me to call Jan at 3pm”
-"
-                "• Add notes — “make a note: client prefers phone calls”
-"
-                "• Look up a contact — “what do we know about Guus Stuiver”
-"
-                "• Navigate — “take me to tickets” or “open Acme BV”
-"
-                "• Compose email — “compose mail to Guus Stuiver”
-"
-                "Just type naturally and I’ll figure out the rest."
-            ),
-        }
-
-    if action == "compose_email":
-        query = (plan.get("search_query") or body).strip()
-        contact = await _resolve_contact(db, tenant.id, None, query)
-        if not contact:
-            return {"action_taken": "error", "summary": f"No contact found matching \u201c{query}\u201d."}
-        if not contact.email:
-            return {"action_taken": "error", "summary": f"{contact.full_name} has no email address on file."}
-        return {
-            "action_taken": "compose_email",
-            "summary": f"Opening compose for {contact.full_name}\u2026",
-            "inline_data": {"email": contact.email, "name": contact.full_name},
-        }
-
+        lines = [
+            "Here's what I can do:",
+            "\u2022 Set reminders \u2014 \"remind me to call Jan at 3pm\"",
+            "\u2022 Add notes \u2014 \"make a note: client prefers phone calls\"",
+            "\u2022 Look up a contact \u2014 \"what do we know about Guus Stuiver\"",
+            "\u2022 Navigate \u2014 \"take me to tickets\" or \"open Acme BV\"",
+            "\u2022 Compose email \u2014 \"compose mail to Guus Stuiver\"",
+            "\u2022 Math \u2014 \"what is 5*15\"",
+            "Just type naturally and I'll figure out the rest.",
+        ]
+        return {"action_taken": "help", "summary": "\n".join(lines)}
     # navigate / search — resolve to a destination URL the popup can route to.
     query = (plan.get("search_query") or body).strip()
     nav = await _resolve_navigation(db, tenant.id, query)
