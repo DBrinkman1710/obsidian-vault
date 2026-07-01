@@ -106,7 +106,7 @@ function useGlobalHotkeys() {
 }
 
 export default function App() {
-  const { token, user, refreshUser, impersonating, exitImpersonation } = useAuth()
+  const { user, refreshUser, impersonating, exitImpersonation } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
   const [configError, setConfigError] = useState(false)
   useGlobalHotkeys()
@@ -146,7 +146,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    if (!token) return
+    if (!user) return
     let cancelled = false
     refreshUser()
     setConfigError(false)
@@ -154,7 +154,7 @@ export default function App() {
       .then((cfg) => { if (!cancelled) setConfig(cfg) })
       .catch(() => { if (!cancelled) setConfigError(true) })
     return () => { cancelled = true }
-  }, [token])
+  }, [user?.id])
 
   // Inject saas.js once with the platform token so all tenant sessions post
   // feature-usage events into the product owner's analytics account.
@@ -190,7 +190,7 @@ export default function App() {
     whenYippie((y) => y.track('module_visited', { module, path: location.pathname }))
   }, [location.pathname, user?.id])
 
-  if (!token) {
+  if (!user) {
     return (
       <Suspense fallback={null}>
         <Routes>

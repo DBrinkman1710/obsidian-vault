@@ -42,13 +42,12 @@ interface Impersonation {
 
 interface AuthState {
   user: User | null
-  token: string | null
   impersonating: Impersonation | null
   login: (email: string, password: string) => Promise<void>
-  setSession: (token: string, user: User) => void
-  logout: () => void
+  setSession: (user: User) => void
+  logout: () => Promise<void>
   refreshUser: () => Promise<void>
-  startImpersonation: (token: string, tenantName: string, userEmail: string) => Promise<void>
+  startImpersonation: (tenantId: string, tenantName: string, userEmail: string) => Promise<void>
   exitImpersonation: () => Promise<void>
 }
 
@@ -57,30 +56,26 @@ const storedImpersonation = sessionStorage.getItem('impersonation')
 
 export const useAuth = create<AuthState>((set: any, get: any) => ({
   user: storedUser ? JSON.parse(storedUser) : null,
-  token: localStorage.getItem('access_token'),
   impersonating: storedImpersonation ? JSON.parse(storedImpersonation) : null,
 
   login: async (email: any, password: any) => {
     const { data } = await api.post('/auth/login', { email, password })
-    localStorage.setItem('access_token', data.access_token)
     localStorage.setItem('auth_user', JSON.stringify(data.user))
     queryClient.clear()
-    set({ token: data.access_token, user: data.user })
+    set({ user: data.user })
   },
 
-  setSession: (token: any, user: any) => {
-    localStorage.setItem('access_token', token)
+  setSession: (user: any) => {
     localStorage.setItem('auth_user', JSON.stringify(user))
-    set({ token, user })
+    set({ user })
   },
 
-  logout: () => {
-    localStorage.removeItem('access_token')
+  logout: async () => {
+    try { await api.post('/auth/logout') } catch { /* ignore */ }
     localStorage.removeItem('auth_user')
-    sessionStorage.removeItem('superadmin_token')
     sessionStorage.removeItem('impersonation')
     queryClient.clear()
-    set({ token: null, user: null, impersonating: null })
+    set({ user: null, impersonating: null })
   },
 
   refreshUser: async () => {
@@ -89,32 +84,24 @@ export const useAuth = create<AuthState>((set: any, get: any) => ({
       localStorage.setItem('auth_user', JSON.stringify(data))
       set({ user: data })
     } catch {
-      // Silently fail — let the existing token/logout flow handle expired sessions
+      // Silently fail — let the existing logout flow handle expired sessions
     }
   },
 
-  startImpersonation: async (token: any, tenantName: any, userEmail: any) => {
-    const current = localStorage.getItem('access_token')
-    if (current) sessionStorage.setItem('superadmin_token', current)
+  startImpersonation: async (tenantId: any, tenantName: any, userEmail: any) => {
+    await api.post(`/admin/tenants/${tenantId}/impersonate`)
     const imp = { tenantName, userEmail }
     sessionStorage.setItem('impersonation', JSON.stringify(imp))
-    localStorage.setItem('access_token', token)
     queryClient.clear()
-    set({ token, impersonating: imp })
+    set({ impersonating: imp })
     await get().refreshUser()
   },
 
   exitImpersonation: async () => {
-    const original = sessionStorage.getItem('superadmin_token')
-    sessionStorage.removeItem('superadmin_token')
+    try { await api.post('/admin/unimpersonate') } catch { /* ignore */ }
     sessionStorage.removeItem('impersonation')
-    if (!original) {
-      get().logout()
-      return
-    }
-    localStorage.setItem('access_token', original)
     queryClient.clear()
-    set({ token: original, impersonating: null })
+    set({ impersonating: null })
     await get().refreshUser()
   },
 }))

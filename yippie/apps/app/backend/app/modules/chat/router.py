@@ -1331,15 +1331,16 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
 # ---------------------------------------------------------------------------
 
 @ws_router.websocket("/ws/agent")
-async def agent_ws(websocket: WebSocket, token: str):
+async def agent_ws(websocket: WebSocket, token: str = ""):
     """Authenticated WebSocket for agent dashboards.
 
-    Connect with: wss://host/api/v1/chat/ws/agent?token={access_token}
-    Pushes 'message' and 'new_session' events for all sessions in the tenant.
+    Reads the JWT from the HttpOnly access_token cookie; falls back to ?token=
+    query param for programmatic clients.
     """
     settings = get_settings()
+    raw_token = websocket.cookies.get("access_token") or token
     try:
-        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+        payload = jwt.decode(raw_token, settings.secret_key, algorithms=[settings.algorithm])
         user_id: str | None = payload.get("sub")
         if not user_id:
             raise ValueError("missing sub")

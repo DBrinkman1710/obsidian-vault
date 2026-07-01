@@ -34,10 +34,8 @@ function useReminderSocket(userId: string | undefined) {
 
     function connect() {
       if (destroyed) return
-      const token = localStorage.getItem('access_token')
-      if (!token) return
       const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-      ws = new WebSocket(`${proto}://${location.host}${REMINDER_WS_URL}?token=${encodeURIComponent(token)}`)
+      ws = new WebSocket(`${proto}://${location.host}${REMINDER_WS_URL}`)
 
       ws.onmessage = (e) => {
         try {

@@ -97,6 +97,12 @@ class Settings(BaseSettings):
     # Public URL of the marketing site (getyippie.com) — used for signup links
     # in demo outreach emails.
     site_base_url: str = "https://getyippie.com"
+    # Redis connection URL — injected automatically by Railway. When absent, rate
+    # limiters fall back to in-memory state (single-instance safe).
+    redis_url: Optional[str] = None
+    # Cookie settings for HttpOnly auth tokens.
+    cookie_secure: bool = True
+    cookie_samesite: str = "lax"
 
     @property
     def cors_origins_list(self) -> List[str]:

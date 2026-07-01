@@ -445,10 +445,8 @@ export default function ChatPage() {
 
     function connect() {
       if (destroyed) return
-      const token = localStorage.getItem('access_token')
-      if (!token) return
       const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-      ws = new WebSocket(`${proto}://${location.host}/api/v1/chat/ws/agent?token=${encodeURIComponent(token)}`)
+      ws = new WebSocket(`${proto}://${location.host}/api/v1/chat/ws/agent`)
 
       ws.onopen = () => {
         retries = 0  // reset retry counter on successful connection

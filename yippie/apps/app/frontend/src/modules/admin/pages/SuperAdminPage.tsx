@@ -2114,9 +2114,9 @@ export default function SuperAdminPage() {
   })
 
   const impersonateMutation = useMutation({
-    mutationFn: (id: string) => api.post(`/admin/tenants/${id}/impersonate`).then((r: any) => r.data),
+    mutationFn: (id: string) => api.post(`/admin/tenants/${id}/impersonate`).then((r: any) => ({ ...r.data, tenantId: id })),
     onSuccess: async (data: any) => {
-      await startImpersonation(data.access_token, data.impersonated_tenant_name, data.impersonated_user_email)
+      await startImpersonation(data.tenantId, data.impersonated_tenant_name, data.impersonated_user_email)
       navigate('/')
     },
   })
