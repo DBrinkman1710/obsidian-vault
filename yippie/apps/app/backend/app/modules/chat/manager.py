@@ -61,16 +61,20 @@ class ConnectionManager:
         if not self._agent_connections[tenant_key]:
             del self._agent_connections[tenant_key]
 
-    async def broadcast_to_agents(self, tenant_key: str, data: dict):
+    async def broadcast_to_agents(self, tenant_key: str, data: dict) -> bool:
+        """Broadcast to all agent sockets for the tenant. Returns True if at least one was reached."""
         payload = json.dumps(data)
         dead = set()
+        sent = 0
         for ws in list(self._agent_connections[tenant_key]):
             try:
                 await ws.send_text(payload)
+                sent += 1
             except Exception:
                 dead.add(ws)
         for ws in dead:
             self._agent_connections[tenant_key].discard(ws)
+        return sent > 0
 
 
 manager = ConnectionManager()

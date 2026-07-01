@@ -108,3 +108,17 @@ async def delete_team_user(current_user: AdminUser, db: DB, user_id: uuid.UUID):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.patch("/ai-profile")
+async def update_ai_profile(current_user: AdminUser, db: DB, data: schemas.AiProfileUpdate):
+    from app.core.models import Tenant
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    existing = dict(tenant.ai_profile or {})
+    update_fields = data.model_dump(exclude_none=True)
+    existing.update(update_fields)
+    tenant.ai_profile = existing
+    await db.commit()
+    return {"ai_profile": tenant.ai_profile}

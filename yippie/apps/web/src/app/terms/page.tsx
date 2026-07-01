@@ -25,7 +25,7 @@ export default function TermsPage() {
       <SiteNav />
 
       <article className={styles.article}>
-        <div className={styles.articleDate}>Last updated: June 21, 2026</div>
+        <div className={styles.articleDate}>Last updated: July 1, 2026</div>
         <h1 className={styles.articleTitle}>Terms of Service</h1>
 
         <div className={styles.articleBody}>
@@ -109,6 +109,13 @@ export default function TermsPage() {
             controller and Yippie is the data processor. A Data Processing Agreement
             (DPA) is available upon request and governs the processing of Personal
             Data.
+          </p>
+          <p>
+            The Platform uses AI-assisted features (inbox classification, reply
+            drafts, and the Yip assistant) powered by Mistral AI SAS (EU-hosted,
+            Paris, France). Customer message content and contact data processed
+            for these features is subject to a Data Processing Agreement with
+            Mistral AI and is not used for model training.
           </p>
           <p>
             Yippie uses industry-standard security measures to protect data at rest

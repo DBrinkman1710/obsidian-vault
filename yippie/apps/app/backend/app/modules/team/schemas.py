@@ -64,3 +64,12 @@ class UserDepartmentOut(BaseModel):
 
 class UserDepartmentsUpdate(BaseModel):
     department_ids: list[uuid.UUID] = []
+
+
+class AiProfileUpdate(BaseModel):
+    business_description: Optional[str] = None
+    tone: Optional[str] = None
+    reply_language: Optional[str] = None
+    sign_off: Optional[str] = None
+    common_terms: Optional[str] = None
+    faq_context: Optional[str] = None

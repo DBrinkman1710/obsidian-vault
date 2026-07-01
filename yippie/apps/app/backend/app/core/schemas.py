@@ -26,6 +26,7 @@ class UserOut(BaseModel):
     tour_completed: bool = False
     setup_checklist_dismissed: bool = False
     ui_language: str = "en"
+    jarvis_prefs: Optional[dict] = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -85,3 +86,5 @@ class TenantConfigOut(BaseModel):
     # Tenant's tracking token — always present, used to auto-embed the saas.js
     # snippet in every Yippie environment for internal platform usage tracking.
     tracking_token: str | None = None
+    # AI profile — set via Yip training or Settings -> AI & Yip.
+    ai_profile: dict | None = None

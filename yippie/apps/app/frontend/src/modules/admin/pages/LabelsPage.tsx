@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { GripVertical, Layers, MessageSquare, Palette, Building2, Plus, Settings2, Tag, Trash2 } from 'lucide-react'
+import { BotMessageSquare, GripVertical, Layers, MessageSquare, Palette, Building2, Plus, RefreshCcw, Settings2, Tag, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 import { SendcloudSettingsCard } from '../../shipments/components/SendcloudSettingsCard'
+import YipTrainModal from '../../../components/YipTrainModal'
 
 interface PipelineStage {
   id: string
@@ -400,6 +401,150 @@ function ContactLabelsCard() {
   )
 }
 
+function AiYipCard() {
+  const config = useTenantConfig()
+  const existing = config?.ai_profile
+  const [businessDescription, setBusinessDescription] = useState(existing?.business_description ?? '')
+  const [tone, setTone] = useState(existing?.tone ?? 'friendly')
+  const [replyLanguage, setReplyLanguage] = useState(existing?.reply_language ?? 'en')
+  const [signOff, setSignOff] = useState(existing?.sign_off ?? '')
+  const [commonTerms, setCommonTerms] = useState(existing?.common_terms ?? '')
+  const [showTrain, setShowTrain] = useState(false)
+
+  useEffect(() => {
+    if (existing) {
+      setBusinessDescription(existing.business_description ?? '')
+      setTone(existing.tone ?? 'friendly')
+      setReplyLanguage(existing.reply_language ?? 'en')
+      setSignOff(existing.sign_off ?? '')
+      setCommonTerms(existing.common_terms ?? '')
+    }
+  }, [config?.ai_profile])
+
+  const mutation = useMutation({
+    mutationFn: () => api.patch('/team/ai-profile', {
+      business_description: businessDescription,
+      tone,
+      reply_language: replyLanguage,
+      sign_off: signOff,
+      common_terms: commonTerms,
+    }),
+    onSuccess: () => toast.success('AI profile saved'),
+    onError: () => toast.error('Failed to save'),
+  })
+
+  const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+  const labelCls = 'block text-xs font-semibold text-slate-500 mb-1.5'
+
+  return (
+    <>
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+      <div className="flex items-center gap-2 mb-1">
+        <BotMessageSquare size={16} className="text-slate-400" />
+        <h2 className="text-base font-semibold text-slate-900">AI & Yip</h2>
+      </div>
+      <p className="text-sm text-slate-500 mb-5">
+        Tell Yip about your business so AI-generated replies match your brand voice.
+      </p>
+
+      <div className="space-y-4">
+        <div>
+          <label className={labelCls}>Business description</label>
+          <textarea
+            rows={3}
+            value={businessDescription}
+            onChange={e => setBusinessDescription(e.target.value)}
+            placeholder="e.g. We sell specialty coffee equipment to cafes and home brewers."
+            className={`${inputCls} resize-none`}
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className={labelCls}>Tone</label>
+            <select
+              value={tone}
+              onChange={e => setTone(e.target.value)}
+              className={inputCls}
+            >
+              <option value="friendly">Friendly</option>
+              <option value="professional">Professional</option>
+              <option value="formal">Formal</option>
+            </select>
+          </div>
+
+          <div>
+            <label className={labelCls}>Reply language</label>
+            <select
+              value={replyLanguage}
+              onChange={e => setReplyLanguage(e.target.value)}
+              className={inputCls}
+            >
+              <option value="en">English</option>
+              <option value="nl">Dutch</option>
+              <option value="fr">French</option>
+              <option value="de">German</option>
+              <option value="es">Spanish</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className={labelCls}>Sign-off name</label>
+          <input
+            type="text"
+            value={signOff}
+            onChange={e => setSignOff(e.target.value)}
+            placeholder="e.g. The Acme Team"
+            className={inputCls}
+          />
+        </div>
+
+        <div>
+          <label className={labelCls}>Common terms & abbreviations</label>
+          <textarea
+            rows={2}
+            value={commonTerms}
+            onChange={e => setCommonTerms(e.target.value)}
+            placeholder="e.g. PO = purchase order, ETA = estimated time of arrival"
+            className={`${inputCls} resize-none`}
+          />
+        </div>
+      </div>
+
+      <div className="flex items-center gap-3 mt-5">
+        <button
+          onClick={() => mutation.mutate()}
+          disabled={mutation.isPending}
+          className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
+        >
+          {mutation.isPending ? 'Saving…' : 'Save'}
+        </button>
+        <button
+          type="button"
+          onClick={() => setShowTrain(true)}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-semibold text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 rounded-xl transition-colors"
+        >
+          <RefreshCcw size={13} />
+          Re-run Yip training
+        </button>
+      </div>
+    </div>
+
+    {showTrain && (
+      <YipTrainModal
+        tenantName={config?.tenant_name ?? ''}
+        onComplete={() => {
+          setShowTrain(false)
+          window.location.reload()
+        }}
+        onDismiss={() => setShowTrain(false)}
+      />
+    )}
+    </>
+  )
+}
+
 export default function LabelsPage() {
   const { user } = useAuth()
   const config = useTenantConfig()
@@ -452,6 +597,7 @@ export default function LabelsPage() {
         </div>
         {mutation.isError && <p className="mt-2 text-xs text-red-500">Failed to save — try again.</p>}
       </div>
+      {isAdmin && <AiYipCard />}
       {isAdmin && <ContactLabelsCard />}
       {isAdmin && <LiveChatSettingsCard />}
       {isAdmin && <KanbanStagesPanel />}

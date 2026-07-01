@@ -15,6 +15,10 @@ from app.modules.calendar.schemas import (
     CalendarEventOut,
     CalendarEventUpdate,
     CalendarItemList,
+    InvitationCreate,
+    InvitationOut,
+    InvitationRespond,
+    PendingInvitationOut,
 )
 from app.modules.calendar.service import TenantScopeError
 
@@ -51,10 +55,10 @@ async def create_event(body: CalendarEventCreate, current_user: CurrentUser, db:
 
 @router.get("/events/{event_id}", response_model=CalendarEventOut)
 async def get_event(event_id: uuid.UUID, current_user: CurrentUser, db: DB):
-    event = await service.get_event(db, current_user.tenant_id, event_id)
-    if not event:
+    event_orm = await service.get_event_orm(db, current_user.tenant_id, event_id)
+    if not event_orm:
         raise HTTPException(status_code=404, detail="Event not found")
-    return event
+    return await service._to_event_out(db, event_orm, include_invitations=True)
 
 
 @router.patch("/events/{event_id}", response_model=CalendarEventOut)
@@ -76,3 +80,64 @@ async def delete_event(event_id: uuid.UUID, current_user: CurrentUser, db: DB):
     if not event:
         raise HTTPException(status_code=404, detail="Event not found")
     await service.delete_event(db, event)
+
+
+# ---------------------------------------------------------------------------
+# Invitation endpoints
+# ---------------------------------------------------------------------------
+
+@router.post(
+    "/events/{event_id}/invitations",
+    status_code=status.HTTP_201_CREATED,
+)
+async def invite_users(
+    event_id: uuid.UUID, body: InvitationCreate, current_user: CurrentUser, db: DB
+):
+    event = await service.get_event_orm(db, current_user.tenant_id, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    if event.created_by != current_user.id:
+        raise HTTPException(status_code=403, detail="Only the event organiser can invite people")
+    try:
+        invitations = await service.bulk_invite(
+            db, current_user.tenant_id, current_user.id, event_id, body.user_ids
+        )
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return {"invited": len(invitations)}
+
+
+@router.get("/events/{event_id}/invitations", response_model=list[InvitationOut])
+async def get_event_invitations(event_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    event = await service.get_event_orm(db, current_user.tenant_id, event_id)
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return await service.get_event_invitations(db, current_user.tenant_id, event_id)
+
+
+@router.get("/invitations/pending", response_model=list[PendingInvitationOut])
+async def list_pending_invitations(current_user: CurrentUser, db: DB):
+    return await service.list_pending_invitations(db, current_user.id, current_user.tenant_id)
+
+
+@router.get("/invitations/pending/count")
+async def pending_invitation_count(current_user: CurrentUser, db: DB):
+    count = await service.get_pending_invitation_count(db, current_user.id)
+    return {"count": count}
+
+
+@router.patch("/invitations/{inv_id}", response_model=InvitationOut)
+async def respond_to_invitation(
+    inv_id: uuid.UUID, body: InvitationRespond, current_user: CurrentUser, db: DB
+):
+    if body.status == "counter_proposed" and not body.counter_proposed_slots:
+        raise HTTPException(
+            status_code=400, detail="counter_proposed_slots required when counter-proposing"
+        )
+    try:
+        inv = await service.respond_to_invitation(
+            db, current_user.tenant_id, inv_id, current_user.id, body
+        )
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return inv

@@ -249,6 +249,7 @@ async def _enrich_ai(
     contact_dict: Optional[dict],
     recent_tickets: list[dict],
     billing: Optional[dict],
+    tenant_profile: Optional[dict] = None,
 ) -> None:
     """The pure-AI half of enrichment — no DB access, so multiple drafts can run
     through this concurrently on one session. Sets ai_status to 'done' on success,
@@ -258,13 +259,14 @@ async def _enrich_ai(
     try:
         scan, context_summary = await asyncio.wait_for(
             asyncio.gather(
-                scan_message(msg.sender, msg.raw_body, msg.source.value),
+                scan_message(msg.sender, msg.raw_body, msg.source.value, tenant_profile=tenant_profile),
                 generate_context_summary(
                     sender=msg.sender,
                     raw_body=msg.raw_body,
                     contact=contact_dict,
                     recent_tickets=recent_tickets,
                     billing=billing,
+                    tenant_profile=tenant_profile,
                 ),
             ),
             timeout=ENRICH_TIMEOUT_SECONDS,
@@ -289,9 +291,10 @@ async def enrich_draft(
     from sqlalchemy import update as _update
     contact = await _match_contact(db, tenant_id, msg.sender)
     contact_dict, recent_tickets, billing = await _context_inputs(db, tenant_id, contact)
-    await _enrich_ai(draft, msg, contact_dict, recent_tickets, billing)
+    tenant = await db.get(Tenant, tenant_id)
+    tenant_profile = tenant.ai_profile if tenant else None
+    await _enrich_ai(draft, msg, contact_dict, recent_tickets, billing, tenant_profile=tenant_profile)
     if draft.ai_status == "done":
-        from app.core.models import Tenant
         await db.execute(
             _update(Tenant)
             .where(Tenant.id == tenant_id)
@@ -305,9 +308,11 @@ async def enrich_scan_only(
     """Run only the subject/priority/description scan — leave briefing untouched."""
     import asyncio
     from sqlalchemy import update as _update
+    tenant = await db.get(Tenant, tenant_id)
+    tenant_profile = tenant.ai_profile if tenant else None
     try:
         scan = await asyncio.wait_for(
-            scan_message(msg.sender, msg.raw_body, msg.source.value),
+            scan_message(msg.sender, msg.raw_body, msg.source.value, tenant_profile=tenant_profile),
             timeout=ENRICH_TIMEOUT_SECONDS,
         )
         draft.ai_suggested_subject = scan.subject or msg.subject or "(no subject)"
@@ -316,7 +321,6 @@ async def enrich_scan_only(
         draft.ai_suggested_category = scan.category
         draft.detected_language = scan.language
         draft.ai_status = "done"
-        from app.core.models import Tenant
         await db.execute(
             _update(Tenant)
             .where(Tenant.id == tenant_id)
@@ -334,6 +338,8 @@ async def enrich_briefing_only(
     import asyncio
     contact = await _match_contact(db, tenant_id, msg.sender)
     contact_dict, recent_tickets, billing = await _context_inputs(db, tenant_id, contact)
+    tenant = await db.get(Tenant, tenant_id)
+    tenant_profile = tenant.ai_profile if tenant else None
     try:
         summary = await asyncio.wait_for(
             generate_context_summary(
@@ -342,6 +348,7 @@ async def enrich_briefing_only(
                 contact=contact_dict,
                 recent_tickets=recent_tickets,
                 billing=billing,
+                tenant_profile=tenant_profile,
             ),
             timeout=ENRICH_TIMEOUT_SECONDS,
         )
@@ -381,7 +388,9 @@ async def enrich_queued_drafts(db: AsyncSession) -> int:
     for draft, msg in rows:
         contact = await _match_contact(db, draft.tenant_id, msg.sender)
         contact_dict, recent_tickets, billing = await _context_inputs(db, draft.tenant_id, contact)
-        prepared.append((draft, msg, contact_dict, recent_tickets, billing))
+        tenant = await db.get(Tenant, draft.tenant_id)
+        tenant_profile = tenant.ai_profile if tenant else None
+        prepared.append((draft, msg, contact_dict, recent_tickets, billing, tenant_profile))
 
     await asyncio.gather(*[_enrich_ai(*p) for p in prepared])
     await db.commit()

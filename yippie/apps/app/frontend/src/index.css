@@ -89,3 +89,6 @@
   from { transform: translateX(100%); opacity: 0; }
   to   { transform: translateX(0);    opacity: 1; }
 }
+
+/* Keep Sonner toasts below the Yip quick-capture popup (z-9999) */
+[data-sonner-toaster] { z-index: 9000 !important; }

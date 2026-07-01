@@ -79,7 +79,7 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
 
   // Parse campaign_buttons from the saved template for the button action rows.
   const campaignButtons: Array<{ id: string; text: string }> = (() => {
-    const tpl = templates.find(t => t.variant === 'a') ?? templates[0]
+    const tpl = templates.find((t: CampaignTemplate) => t.variant === 'a') ?? templates[0]
     if (!tpl) return []
     try {
       const raw = (tpl as any).campaign_buttons
@@ -94,7 +94,7 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
   })()
 
   const rawHtml = (() => {
-    const tpl = templates.find(t => t.variant === 'a') ?? templates[0]
+    const tpl = templates.find((t: CampaignTemplate) => t.variant === 'a') ?? templates[0]
     return tpl?.raw_html ?? null
   })()
 

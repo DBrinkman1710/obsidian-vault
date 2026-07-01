@@ -1,7 +1,7 @@
 # Yippie — Roadmap
 **Repo:** github.com/DBrinkman1710/obsidian-vault · **Branch:** `sandbox`
 
-**Latest:** Session 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER; 83 — inbox badges/VS-ZD/COM-LOGO; 82A — BK-DATE/DEMO-BUG/FOUNDER-PLAN; 81 — LIVECHAT-SESSION-DEDUP/INBOX-ASSIGN; 80 — MERGE-MULTISELECT; 79 — RC1-PEEK. See Appendix A for full history.
+**Latest:** Session 89 — [JARVIS1] quick-capture assistant (⌘K popup, AI routing, reminders, contact/ticket notes, context query); 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER; 83 — inbox badges/VS-ZD/COM-LOGO. See Appendix A for full history.
 
 ---
 
@@ -81,19 +81,19 @@ Everything below must be done **before** going live. Items not listed here are d
 - ✅ Send-from aliases + in-app tour after first login ✅ DONE (session 75)
 
 **Deferred (after June 28):**
-[CUSTOM1], [B2X1], Per-tenant custom domain, [Phase 11C T2] "Connect your inbox", [LANG1], [WEB-CONS1], Customer data + AI briefing, [AI-MOD1] Self-hosted AI module, [SALES-MOD1] Sales module (website tracking tag), [SAAS-MOD1] SaaS product analytics module, [TRACK1] Track & trace module, [EMBED1] Lead capture embed widget
+[CUSTOM1], [B2X1], Per-tenant custom domain, [Phase 11C T2] "Connect your inbox", [LANG1], [WEB-CONS1], Customer data + AI briefing, [AI-MOD1] Self-hosted AI module, [SALES-MOD1] Sales module (website tracking tag), [SAAS-MOD1] SaaS product analytics module, [TRACK1] Track & trace module, ~~[EMBED1] Lead capture embed widget~~ ✅ shipped
 
 **Post-launch build order:**
 
 | Priority | Item | Effort | Why |
 |---|---|---|---|
-| 1 | [EMBED1] Lead capture embed widget | Low | Immediate value, reuses Phase 12 pattern, works day one — turns every client's website into a Kanban funnel |
-| 2 | [SALES-MOD1] Sales module | Medium | High differentiation once adopted; feeds behavioral data into AI context |
-| 3 | [SAAS-MOD1] SaaS product analytics | Medium | Same ingest pattern as SALES-MOD1 but for software clients — tracks feature adoption + health scores; support agents see what customers are stuck on before the ticket is even written |
-| 4 | [TRACK1] Track & trace | Medium | High value for commerce clients; depends on clients connecting their shop/Sendcloud |
+| ~~1~~ | ~~[EMBED1] Lead capture embed widget~~ | ~~Low~~ | ✅ Shipped — `ecf4fb5` (lead-widget.js + Developer Tools tab + `/public/embed/{slug}` endpoint) |
+| ~~2~~ | ~~[SALES-MOD1] Sales module~~ | ~~Medium~~ | ✅ Shipped — `4d98765` (sales events ingest, sales.js embed, settings modal, superadmin dashboard) |
+| ~~3~~ | ~~[SAAS-MOD1] SaaS product analytics~~ | ~~Medium~~ | ✅ Shipped — `4d98765` (saas events, saas.js auto-embed, health summary, SaaS settings modal) |
+| ~~4~~ | ~~[TRACK1] Track & trace~~ | ~~Medium~~ | ✅ Shipped — `92b3dd1` (Sendcloud integration, shipments module, track & trace settings modal) |
 | 5 | [AI-MOD1] Cloud LLM | High | Biggest long-term moat — but only compounds with volume. At 5 tenants it's a cheaper Anthropic replacement. At 50+ tenants with real conversation history it becomes defensible. Build last, after data exists to train on. |
 | 6 | [CLUSTER1] Issue cluster generator | Medium | Depends on [AI-MOD1]. Groups open tickets by theme to surface recurring problems — turns raw volume into actionable insight for agents and content teams. |
-| 7 | [JARVIS1] Quick-capture assistant | High | Sticky daily-use differentiator — reduces context switching for agents; personal reminders + contact/ticket notes from one hotkey; AI routing uses Mistral API (EU, GDPR-safe) early, upgrades to self-hosted vLLM when [AI-MOD1] ships |
+| ~~7~~ | ~~[JARVIS1] Quick-capture assistant~~ | ~~High~~ | ✅ Shipped — `ca9b2f8` (⌘K popup, AI routing, reminders WebSocket, contact/ticket notes, context query + inline edit, user prefs, right-click menus) |
 
 **The differentiation:** No SMB competitor combines behavioral tracking ([SALES-MOD1]) with a learning, tenant-aware AI ([AI-MOD1]). Intercom has AI but it's stateless and expensive at scale. Zendesk has tracking but it's disconnected from the AI. The combination is the moat — build [SALES-MOD1] first so the data is already accumulating when [AI-MOD1] is ready to consume it.
 

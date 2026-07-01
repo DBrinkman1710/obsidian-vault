@@ -256,6 +256,7 @@ class UserSelfUpdate(BaseModel):
     tour_completed: Optional[bool] = None
     setup_checklist_dismissed: Optional[bool] = None
     ui_language: Optional[str] = None
+    jarvis_prefs: Optional[dict] = None
 
 
 @router.patch("/me", response_model=UserOut)
@@ -309,6 +310,8 @@ async def update_me(
         current_user.setup_checklist_dismissed = True
     if body.ui_language is not None and body.ui_language in ("en", "nl"):
         current_user.ui_language = body.ui_language
+    if "jarvis_prefs" in body.model_fields_set:
+        current_user.jarvis_prefs = body.jarvis_prefs
     await db.commit()
     await db.refresh(current_user)
     return UserOut.model_validate(current_user)

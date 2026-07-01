@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../../api/client'
 
@@ -24,6 +24,16 @@ interface PipelineKpi {
   color: string
   contact_count: number
   avg_days_in_stage: number | null
+}
+
+interface AgentKpi {
+  agent_id: string
+  agent_name: string
+  emails_sent: number
+  emails_opened: number
+  tickets_assigned: number
+  tickets_resolved_this_week: number
+  avg_resolution_hours: number | null
 }
 
 interface Kpis {
@@ -110,12 +120,48 @@ const EVENTS_PER_PAGE = 10
 export default function ActivityFeed() {
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
   const [eventsPage, setEventsPage] = useState(0)
+  const [selectedAgentId, setSelectedAgentId] = useState<string>('all')
 
   const { data: kpis, isLoading, isError } = useQuery<Kpis>({
     queryKey: ['activity-kpis'],
     queryFn: () => api.get('/activity/kpis').then((r: any) => r.data),
     refetchInterval: 60_000,
   })
+
+  const { data: agentKpis } = useQuery<AgentKpi[]>({
+    queryKey: ['activity-agent-kpis'],
+    queryFn: () => api.get('/activity/agent-kpis').then((r: any) => r.data),
+    refetchInterval: 60_000,
+  })
+
+  const agentStats = useMemo(() => {
+    if (!agentKpis || agentKpis.length === 0) return null
+    if (selectedAgentId === 'all') {
+      const totalSent = agentKpis.reduce((s, a) => s + a.emails_sent, 0)
+      const totalOpened = agentKpis.reduce((s, a) => s + a.emails_opened, 0)
+      const withHours = agentKpis.filter(a => a.avg_resolution_hours !== null)
+      return {
+        agent_name: 'All agents',
+        emails_sent: totalSent,
+        open_rate: totalSent > 0 ? totalOpened / totalSent : null,
+        tickets_assigned: agentKpis.reduce((s, a) => s + a.tickets_assigned, 0),
+        tickets_resolved_this_week: agentKpis.reduce((s, a) => s + a.tickets_resolved_this_week, 0),
+        avg_resolution_hours: withHours.length > 0
+          ? Math.round((withHours.reduce((s, a) => s + a.avg_resolution_hours!, 0) / withHours.length) * 10) / 10
+          : null,
+      }
+    }
+    const agent = agentKpis.find(a => a.agent_id === selectedAgentId)
+    if (!agent) return null
+    return {
+      agent_name: agent.agent_name,
+      emails_sent: agent.emails_sent,
+      open_rate: agent.emails_sent > 0 ? agent.emails_opened / agent.emails_sent : null,
+      tickets_assigned: agent.tickets_assigned,
+      tickets_resolved_this_week: agent.tickets_resolved_this_week,
+      avg_resolution_hours: agent.avg_resolution_hours,
+    }
+  }, [agentKpis, selectedAgentId])
 
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
@@ -221,6 +267,53 @@ export default function ActivityFeed() {
               </div>
             </div>
           </div>
+
+          {/* Agent performance */}
+          {agentKpis && agentKpis.length > 0 && agentStats && (
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <p className={SECTION_HEADER} style={{ marginBottom: 0 }}>Agent performance</p>
+                <select
+                  value={selectedAgentId}
+                  onChange={e => setSelectedAgentId(e.target.value)}
+                  className="text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="all">All agents</option>
+                  {agentKpis.map(a => (
+                    <option key={a.agent_id} value={a.agent_id}>{a.agent_name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className={CARD}>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Emails sent</p>
+                    <p className="text-2xl font-extrabold text-slate-900 tabular-nums">{agentStats.emails_sent}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Open rate</p>
+                    <p className="text-2xl font-extrabold text-slate-900 tabular-nums">
+                      {agentStats.open_rate === null ? '—' : `${Math.round(agentStats.open_rate * 1000) / 10}%`}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Tickets assigned</p>
+                    <p className="text-2xl font-extrabold text-slate-900 tabular-nums">{agentStats.tickets_assigned}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Resolved this week</p>
+                    <p className="text-2xl font-extrabold text-slate-900 tabular-nums">{agentStats.tickets_resolved_this_week}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-slate-500 mb-1">Avg resolution (hrs)</p>
+                    <p className="text-2xl font-extrabold text-slate-900 tabular-nums">
+                      {agentStats.avg_resolution_hours === null ? '—' : agentStats.avg_resolution_hours}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Recent activity */}
           <section>

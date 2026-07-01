@@ -42,8 +42,11 @@ def _parse_json(text: str, fallback):
         return fallback
 
 
-async def scan_message(sender: str, raw_body: str, source: str) -> AIScanResult:
+async def scan_message(sender: str, raw_body: str, source: str, tenant_profile: dict | None = None) -> AIScanResult:
     """Classify an inbound message and extract structured ticket fields."""
+    common_terms = (tenant_profile or {}).get("common_terms", "")
+    terms_line = f"\nWorkspace terminology: {common_terms}" if common_terms else ""
+
     prompt = f"""You are a customer service assistant. Analyze the following inbound {source} message and extract key information.
 
 From: {sender}
@@ -63,7 +66,7 @@ Priority guidance:
 - urgent: system down, payment failed, legal threat
 - high: blocking issue, unhappy customer, time-sensitive
 - medium: normal request or question
-- low: general inquiry, feedback"""
+- low: general inquiry, feedback{terms_line}"""
 
     text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=512)
     data = _parse_json(text, fallback={})
@@ -84,6 +87,7 @@ async def generate_context_summary(
     contact: Optional[dict],
     recent_tickets: list[dict],
     billing: Optional[dict],
+    tenant_profile: dict | None = None,
 ) -> str:
     contact_block = "Unknown sender — no matching contact found." if not contact else f"""
 Name: {contact.get('full_name')}
@@ -103,7 +107,10 @@ Outstanding invoices: {billing.get('outstanding_invoices', 0)}""".strip()
         for t in recent_tickets[:5]
     )
 
-    prompt = f"""You are a customer service briefing assistant. Produce a quick-scan briefing for an agent about to review an inbound message.
+    business_desc = (tenant_profile or {}).get("business_description", "")
+    business_line = f"\nBusiness context: {business_desc}" if business_desc else ""
+
+    prompt = f"""You are a customer service briefing assistant. Produce a quick-scan briefing for an agent about to review an inbound message.{business_line}
 
 INBOUND MESSAGE FROM: {sender}
 ---
@@ -130,12 +137,16 @@ async def generate_reply_draft(
     context_summary: Optional[str],
     contact_name: Optional[str],
     language: str = "en",
+    tenant_profile: dict | None = None,
 ) -> str:
     lang_name = LANGUAGE_NAMES.get(language, "English")
     context_block = f"\n\nCustomer context: {context_summary}" if context_summary else ""
     greeting = f"Dear {contact_name}" if contact_name else "Dear Customer"
+    sign_off = (tenant_profile or {}).get("sign_off", "Support Team") or "Support Team"
+    tone = (tenant_profile or {}).get("tone", "professional")
+    tone_line = f" Use a {tone} tone." if tone else ""
 
-    prompt = f"""Write a professional, empathetic reply to this customer support request. Sign off as "Support Team". Max 200 words. Return plain text only, no JSON, no markdown.
+    prompt = f"""Write a professional, empathetic reply to this customer support request. Sign off as "{sign_off}". Max 200 words. Return plain text only, no JSON, no markdown.{tone_line}
 
 IMPORTANT: The customer wrote in {lang_name}. Your entire reply MUST be written in {lang_name}.
 
@@ -152,13 +163,16 @@ async def generate_reply_improvements(
     context_summary: Optional[str],
     subject: str,
     language: str = "en",
+    tenant_profile: dict | None = None,
 ) -> list[dict]:
     lang_name = LANGUAGE_NAMES.get(language, "English")
     context_block = f"\nCustomer context: {context_summary}" if context_summary else ""
+    tone = (tenant_profile or {}).get("tone", "")
+    tone_line = f"\nTarget tone: {tone}." if tone else ""
 
     prompt = f"""You are a customer service writing coach. Suggest up to 3 concrete improvements to this support reply. Return ONLY a JSON array, no other text.
 
-IMPORTANT: All revised replies MUST be written in {lang_name}.
+IMPORTANT: All revised replies MUST be written in {lang_name}.{tone_line}
 
 Subject: {subject}{context_block}
 

@@ -231,11 +231,33 @@ async def get_impersonation_target(db: AsyncSession, tenant_id: uuid.UUID) -> tu
 
 # Children before parents so plain DELETEs never trip an FK.
 TENANT_DELETE_ORDER = [
+    # Campaign children (CASCADE to campaigns)
+    "campaign_analytics", "campaign_sequences", "campaign_templates",
+    "label_click_tokens", "outbound_emails",
+    "campaigns",
+    # Shipment children — shipments has RESTRICT FK to contacts, so must precede contacts
+    "shipment_events", "shipments",
+    # Contact children (CASCADE/SET NULL to contacts — explicit cleanup)
+    "contact_unsubscribes", "contact_bounces", "contact_pipeline_entries",
+    "saas_events", "saas_identity", "saas_health",
+    # Calendar — invitations CASCADE to events; events + booking_tokens have RESTRICT FK to users
+    "calendar_event_invitations",
+    "booking_tokens",
+    "calendar_events", "calendar_settings",
+    # Pipeline stages (CASCADE-referenced by contact_pipeline_entries already cleaned)
+    "pipeline_stages",
+    # RBAC
+    "rbac_user_roles", "permissions_matrix", "rbac_roles",
+    # User children (CASCADE to users — explicit cleanup before users row is deleted)
+    "user_signatures", "user_reminders",
+    "department_members",
+    # Core tables
     "payments", "invoices", "subscriptions",
     "chat_messages", "chat_sessions",
     "ticket_comments", "draft_tickets", "inbound_messages", "pending_sends",
     "activity_events", "tickets", "response_templates",
-    "contacts", "departments", "users",
+    "contact_labels", "companies", "contacts",
+    "departments", "users",
 ]
 
 

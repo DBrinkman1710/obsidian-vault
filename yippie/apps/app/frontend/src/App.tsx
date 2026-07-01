@@ -11,6 +11,7 @@ import { PlanGate } from './shell/PlanGate'
 import { Sidebar } from './shell/Sidebar'
 import { BottomNav } from './shell/BottomNav'
 import { DesktopOnly } from './shell/DesktopOnly'
+import QuickCapturePopup from './components/QuickCapturePopup'
 
 const ContactDetail = lazy(() => import('./modules/contacts/pages/ContactDetail'))
 const ContactNew    = lazy(() => import('./modules/contacts/pages/ContactNew'))
@@ -30,6 +31,7 @@ const RegisterPage       = lazy(() => import('./auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('./auth/ForgotPasswordPage'))
 const ResetPasswordPage  = lazy(() => import('./auth/ResetPasswordPage'))
 const TeamSettingsPage   = lazy(() => import('./modules/admin/pages/TeamSettingsPage'))
+const WorkspaceSettingsPage = lazy(() => import('./modules/admin/pages/LabelsPage'))
 const ContactsPage             = lazy(() => import('./modules/contacts/pages/ContactsPage'))
 const SuperAdminPage           = lazy(() => import('./modules/admin/pages/SuperAdminPage'))
 const SuperadminsSettingsPage  = lazy(() => import('./modules/admin/pages/SuperadminsSettingsPage'))
@@ -326,11 +328,12 @@ export default function App() {
                 <ModuleGate module="saas"><PagePad><DesktopOnly><SaasPage /></DesktopOnly></PagePad></ModuleGate>
               } />
 
-              <Route path="/settings" element={<Navigate to="/settings/team" replace />} />
+              <Route path="/settings" element={<Navigate to="/settings/workspace" replace />} />
 
               <Route path="/settings/superadmins" element={<PagePad><SuperadminsSettingsPage /></PagePad>} />
               <Route path="/settings/profile" element={<PagePad><ProfileSettingsPage /></PagePad>} />
-              <Route path="/settings/team" element={<PagePad><TeamSettingsPage /></PagePad>} />
+              <Route path="/settings/workspace" element={<PagePad><WorkspaceSettingsPage /></PagePad>} />
+<Route path="/settings/team" element={<PagePad><TeamSettingsPage /></PagePad>} />
               <Route path="/settings/templates" element={<PagePad><TemplatesPage /></PagePad>} />
               {config?.environment === 'sandbox' && (
                 <Route path="/settings/subscription" element={<PagePad><SubscriptionPage /></PagePad>} />
@@ -341,6 +344,7 @@ export default function App() {
           </Suspense>
         </main>
         <BottomNav />
+        <QuickCapturePopup />
         <Toaster position="bottom-right" richColors />
       </div>
       </ComposeProvider>

@@ -320,12 +320,14 @@ async def suggest_reply(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
         raise HTTPException(status_code=404, detail="Draft not found")
     draft = ctx["draft"]
     contact = ctx["contact"]
+    tenant = await db.get(Tenant, current_user.tenant_id)
     suggestion = await ai_scanner.generate_reply_draft(
         subject=draft.ai_suggested_subject,
         description=draft.ai_suggested_description,
         context_summary=draft.context_summary,
         contact_name=contact.full_name if contact else None,
         language=draft.detected_language or "en",
+        tenant_profile=tenant.ai_profile if tenant else None,
     )
     return {"suggestion": suggestion}
 
@@ -336,11 +338,13 @@ async def improve_reply(draft_id: uuid.UUID, body: ImproveReplyRequest, current_
     if not ctx:
         raise HTTPException(status_code=404, detail="Draft not found")
     draft = ctx["draft"]
+    tenant = await db.get(Tenant, current_user.tenant_id)
     suggestions = await ai_scanner.generate_reply_improvements(
         current_text=body.current_text,
         context_summary=draft.context_summary,
         subject=draft.ai_suggested_subject,
         language=draft.detected_language or "en",
+        tenant_profile=tenant.ai_profile if tenant else None,
     )
     return {"suggestions": suggestions}
 

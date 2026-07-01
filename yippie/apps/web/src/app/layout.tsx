@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
 import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
+import Script from "next/script";
 import ConsentDefaults from "./components/ConsentDefaults";
 import CookieBanner from "./components/CookieBanner";
 import "./globals.css";
+
+const YIPPIE_TRACKING_TOKEN = process.env.NEXT_PUBLIC_YIPPIE_TRACKING_TOKEN;
 
 const SITE_URL = process.env.NEXT_PUBLIC_WEB_URL ?? "https://getyippie.com";
 
@@ -114,6 +117,14 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         />
         {children}
         <CookieBanner />
+        {YIPPIE_TRACKING_TOKEN && (
+          <Script
+            id="yippie-sales"
+            src="https://getyippie.com/sales.js"
+            data-token={YIPPIE_TRACKING_TOKEN}
+            strategy="afterInteractive"
+          />
+        )}
       </body>
     </html>
   );

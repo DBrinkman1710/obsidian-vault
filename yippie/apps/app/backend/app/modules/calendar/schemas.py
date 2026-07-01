@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Literal, Optional
+from typing import List, Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -40,6 +40,20 @@ class CalendarEventUpdate(BaseModel):
     notify_contact: bool = True
 
 
+class InvitationOut(BaseModel):
+    id: uuid.UUID
+    event_id: uuid.UUID
+    invitee_id: uuid.UUID
+    invitee_name: str
+    invitee_email: str
+    status: str
+    counter_proposed_slots: Optional[list] = None
+    message: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
 class CalendarEventOut(BaseModel):
     id: uuid.UUID
     tenant_id: uuid.UUID
@@ -55,8 +69,38 @@ class CalendarEventOut(BaseModel):
     created_by: uuid.UUID
     calendar_type: str = "shared"
     created_at: datetime
+    invitations: List[InvitationOut] = []
 
     model_config = {"from_attributes": True}
+
+
+class InvitationCreate(BaseModel):
+    user_ids: List[uuid.UUID]
+
+
+class SlotProposal(BaseModel):
+    start: datetime
+    end: datetime
+
+
+class InvitationRespond(BaseModel):
+    status: Literal["accepted", "declined", "counter_proposed"]
+    counter_proposed_slots: Optional[List[SlotProposal]] = None
+    message: Optional[str] = None
+
+
+class PendingInvitationOut(BaseModel):
+    id: uuid.UUID
+    event_id: uuid.UUID
+    event_title: str
+    event_start_at: datetime
+    event_end_at: Optional[datetime] = None
+    event_all_day: bool
+    organiser_name: str
+    status: str
+    counter_proposed_slots: Optional[list] = None
+    message: Optional[str] = None
+    created_at: datetime
 
 
 class CalendarItem(BaseModel):
@@ -79,6 +123,9 @@ class CalendarItem(BaseModel):
     # Deadline-only context, used by the UI for urgency colouring
     ticket_status: Optional[str] = None
     ticket_priority: Optional[str] = None
+    # Invitation context — set when item comes from an accepted invitation
+    invitation_status: Optional[str] = None
+    is_invited: bool = False
 
 
 class CalendarItemList(BaseModel):

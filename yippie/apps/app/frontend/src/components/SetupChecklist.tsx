@@ -4,19 +4,25 @@ import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, X } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuth } from '../auth/useAuth'
+import { useTenantConfig } from '../App'
+import YipTrainModal from './YipTrainModal'
 
 interface Gate {
   id: string
   label: string
   detail: string
-  route: string
+  route?: string
+  action?: () => void
   done: boolean
 }
 
 export default function SetupChecklist() {
   const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
+  const config = useTenantConfig()
   const [collapsed, setCollapsed] = useState(false)
+  const [showYipTrain, setShowYipTrain] = useState(false)
+  const [yipTrainDone, setYipTrainDone] = useState(false)
 
   const isAdmin = user?.role === 'admin'
 
@@ -56,6 +62,13 @@ export default function SetupChecklist() {
       route: '/inbox',
       done: (ticketQuery.data?.total ?? 0) > 0,
     },
+    ...(isAdmin ? [{
+      id: 'yip-train',
+      label: 'Train Yip',
+      detail: 'Help Yip learn your business so AI replies fit your brand.',
+      action: () => setShowYipTrain(true),
+      done: yipTrainDone || !!(config?.ai_profile),
+    }] : []),
   ]
 
   const completedCount = gates.filter(g => g.done).length
@@ -78,6 +91,7 @@ export default function SetupChecklist() {
   if (ticketQuery.isLoading || (isAdmin && teamQuery.isLoading)) return null
 
   return (
+    <>
     <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
@@ -122,7 +136,10 @@ export default function SetupChecklist() {
             <li key={gate.id}>
               <button
                 disabled={gate.done}
-                onClick={() => navigate(gate.route)}
+                onClick={() => {
+                  if (gate.action) gate.action()
+                  else if (gate.route) navigate(gate.route)
+                }}
                 className="w-full flex items-start gap-3 px-4 py-3 text-left hover:bg-slate-50 disabled:cursor-default transition-colors"
               >
                 {gate.done
@@ -143,5 +160,17 @@ export default function SetupChecklist() {
         </ul>
       )}
     </div>
+
+    {showYipTrain && (
+      <YipTrainModal
+        tenantName={config?.tenant_name ?? ''}
+        onComplete={() => {
+          setShowYipTrain(false)
+          setYipTrainDone(true)
+        }}
+        onDismiss={() => setShowYipTrain(false)}
+      />
+    )}
+    </>
   )
 }

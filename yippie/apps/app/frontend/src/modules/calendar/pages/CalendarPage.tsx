@@ -1,10 +1,11 @@
 import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, ChevronLeft, ChevronRight, Edit2, ExternalLink, Plus, Settings2, Trash2, User, X } from 'lucide-react'
+import { CalendarClock, Check, ChevronLeft, ChevronRight, Edit2, ExternalLink, Plus, Settings2, Trash2, User, UserPlus, Users, X } from 'lucide-react'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
+import { useAuth } from '../../../auth/useAuth'
 import SendBookingModal from '../../booking/components/SendBookingModal'
 import ContactPeekModal from '../../../components/ContactPeekModal'
 import TicketPeekModal from '../../../components/TicketPeekModal'
@@ -25,6 +26,34 @@ interface CalendarItem {
   ticket_priority: string | null
   calendar_type: string | null
   created_by: string | null
+  invitation_status: string | null
+  is_invited: boolean
+}
+
+interface InvitationOut {
+  id: string
+  event_id: string
+  invitee_id: string
+  invitee_name: string
+  invitee_email: string
+  status: string
+  counter_proposed_slots: Array<{ start: string; end: string }> | null
+  message: string | null
+  created_at: string
+}
+
+interface PendingInvitation {
+  id: string
+  event_id: string
+  event_title: string
+  event_start_at: string
+  event_end_at: string | null
+  event_all_day: boolean
+  organiser_name: string
+  status: string
+  counter_proposed_slots: Array<{ start: string; end: string }> | null
+  message: string | null
+  created_at: string
 }
 
 interface EventPayload {
@@ -38,7 +67,7 @@ interface EventPayload {
   calendar_type: string
 }
 
-type CalendarTypeFilter = 'all' | 'shared' | 'personal'
+type CalendarTypeFilter = 'shared' | 'personal'
 
 interface PickerOption { id: string; label: string }
 
@@ -163,9 +192,95 @@ function TicketPicker({ selected, onSelect }: {
     selected={selected} onSelect={onSelect} options={options} loading={isFetching} onQueryChange={setQ} />
 }
 
+function UserPicker({ selected, onSelect, excludeIds }: {
+  selected: PickerOption[]
+  onSelect: (opts: PickerOption[]) => void
+  excludeIds?: string[]
+}) {
+  const [q, setQ] = useState('')
+  const [open, setOpen] = useState(false)
+  const blurTimer = useRef<number | undefined>(undefined)
+
+  const { data: members = [] } = useQuery<{ id: string; full_name: string; email: string }[]>({
+    queryKey: ['team-members'],
+    queryFn: () => api.get('/team/members').then((r: any) => r.data),
+  })
+
+  const term = q.trim().toLowerCase()
+  const options = members
+    .filter(u => !excludeIds?.includes(u.id))
+    .filter(u => !selected.some(s => s.id === u.id))
+    .filter(u => !term || u.full_name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term))
+    .slice(0, 10)
+    .map(u => ({ id: u.id, label: `${u.full_name} — ${u.email}` }))
+
+  function add(opt: PickerOption) {
+    onSelect([...selected, opt])
+    setQ('')
+    setOpen(false)
+  }
+  function remove(id: string) {
+    onSelect(selected.filter(s => s.id !== id))
+  }
+
+  return (
+    <div>
+      <label className={labelCls}>Invite teammates</label>
+      <div className="relative">
+        <input
+          className={inputCls}
+          placeholder="Search teammates…"
+          value={q}
+          onChange={e => { setQ(e.target.value); setOpen(true) }}
+          onFocus={() => setOpen(true)}
+          onBlur={() => { blurTimer.current = window.setTimeout(() => setOpen(false), 150) }}
+        />
+        {open && (
+          <div className="absolute z-10 mt-1 w-full max-h-44 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
+            {options.length === 0 ? (
+              <p className="px-3 py-2 text-sm text-slate-400">{term ? 'No matches' : 'No teammates to invite'}</p>
+            ) : options.map(opt => (
+              <button key={opt.id} type="button"
+                onMouseDown={() => { window.clearTimeout(blurTimer.current); add(opt) }}
+                className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 truncate">
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      {selected.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mt-2">
+          {selected.map(s => (
+            <span key={s.id}
+              className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg border border-blue-100">
+              {s.label.split(' — ')[0]}
+              <button type="button" onClick={() => remove(s.id)}
+                className="ml-0.5 text-blue-400 hover:text-red-500 leading-none">×</button>
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Create / edit modal
 // ---------------------------------------------------------------------------
+
+const STATUS_CHIP: Record<string, string> = {
+  proposed: 'bg-slate-100 text-slate-600',
+  accepted: 'bg-green-50 text-green-700',
+  declined: 'bg-red-50 text-red-600',
+  counter_proposed: 'bg-amber-50 text-amber-700',
+}
+const STATUS_LABEL: Record<string, string> = {
+  proposed: 'Invited',
+  accepted: 'Accepted',
+  declined: 'Declined',
+  counter_proposed: 'New time proposed',
+}
 
 function EventModal({ event, onClose, onSaved, defaultDate }: {
   event: CalendarItem | null   // null = create
@@ -173,6 +288,8 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
   onSaved: () => void
   defaultDate?: Date
 }) {
+  const { user } = useAuth()
+  const qc = useQueryClient()
   const start = event ? new Date(event.start_at) : null
   const end = event?.end_at ? new Date(event.end_at) : null
 
@@ -189,12 +306,27 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
     event?.contact_id ? { id: event.contact_id, label: event.contact_name ?? 'Linked contact' } : null)
   const [ticket, setTicket] = useState<PickerOption | null>(
     event?.ticket_id ? { id: event.ticket_id, label: event.ticket_subject ?? 'Linked ticket' } : null)
+  const [invitees, setInvitees] = useState<PickerOption[]>([])
   const [error, setError] = useState('')
+
+  // Existing invitations for edit view
+  const { data: existingInvitations = [] } = useQuery<InvitationOut[]>({
+    queryKey: ['event-invitations', event?.id],
+    queryFn: () => api.get(`/calendar/events/${event!.id}/invitations`).then((r: any) => r.data),
+    enabled: !!event?.id,
+  })
 
   const saveMutation = useMutation({
     mutationFn: (payload: EventPayload) =>
       event ? api.patch(`/calendar/events/${event.id}`, payload) : api.post('/calendar/events', payload),
-    onSuccess: () => { onSaved(); onClose() },
+    onSuccess: async (res: any) => {
+      if (!event && invitees.length > 0) {
+        const newId = res.data.id
+        await api.post(`/calendar/events/${newId}/invitations`, { user_ids: invitees.map(i => i.id) })
+        qc.invalidateQueries({ queryKey: ['calendar-invitation-count'] })
+      }
+      onSaved(); onClose()
+    },
     onError: (e: any) => setError(errDetail(e)),
   })
 
@@ -297,6 +429,28 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
           <ContactPicker selected={contact} onSelect={setContact} />
           <TicketPicker selected={ticket} onSelect={setTicket} />
 
+          {/* Invite teammates — only on create, or show existing invitations on edit */}
+          {!event ? (
+            <UserPicker
+              selected={invitees}
+              onSelect={setInvitees}
+              excludeIds={user?.id ? [user.id] : []}
+            />
+          ) : existingInvitations.length > 0 && (
+            <div>
+              <label className={labelCls}>Teammates invited</label>
+              <div className="flex flex-wrap gap-1.5">
+                {existingInvitations.map(inv => (
+                  <span key={inv.id}
+                    className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-lg border ${STATUS_CHIP[inv.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                    {inv.invitee_name}
+                    <span className="opacity-60 font-normal">· {STATUS_LABEL[inv.status] ?? inv.status}</span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
           {error && <p className="text-sm text-red-500">{error}</p>}
 
           <div className="flex items-center gap-3 pt-1">
@@ -317,6 +471,150 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
             )}
           </div>
         </form>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------------------
+// Invitations panel
+// ---------------------------------------------------------------------------
+
+function InvitationsPanel({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient()
+  const [counterFor, setCounterFor] = useState<string | null>(null)
+  const [counterStart, setCounterStart] = useState('')
+  const [counterStartTime, setCounterStartTime] = useState('09:00')
+  const [counterEnd, setCounterEnd] = useState('')
+  const [counterEndTime, setCounterEndTime] = useState('10:00')
+
+  const { data: invitations = [], isLoading } = useQuery<PendingInvitation[]>({
+    queryKey: ['calendar-pending-invitations'],
+    queryFn: () => api.get('/calendar/invitations/pending').then((r: any) => r.data),
+  })
+
+  const respondMut = useMutation({
+    mutationFn: ({ id, status, slots }: { id: string; status: string; slots?: any[] }) =>
+      api.patch(`/calendar/invitations/${id}`, { status, counter_proposed_slots: slots }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['calendar-pending-invitations'] })
+      qc.invalidateQueries({ queryKey: ['calendar-invitation-count'] })
+      qc.invalidateQueries({ queryKey: ['calendar-items'] })
+      setCounterFor(null)
+    },
+  })
+
+  function fmtEvent(inv: PendingInvitation) {
+    const s = new Date(inv.event_start_at)
+    const day = s.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+    if (inv.event_all_day) return `${day} (all day)`
+    const t1 = s.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    if (!inv.event_end_at) return `${day}, ${t1}`
+    const t2 = new Date(inv.event_end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+    return `${day}, ${t1}–${t2}`
+  }
+
+  function submitCounter(inv: PendingInvitation) {
+    if (!counterStart || !counterEnd) return
+    const start = new Date(`${counterStart}T${counterStartTime}`)
+    const end = new Date(`${counterEnd}T${counterEndTime}`)
+    if (end <= start) return
+    respondMut.mutate({ id: inv.id, status: 'counter_proposed', slots: [{ start: start.toISOString(), end: end.toISOString() }] })
+  }
+
+  return (
+    <div className="fixed inset-0 z-50" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/20" />
+      <div
+        className="absolute right-0 top-0 h-full w-96 bg-white shadow-2xl flex flex-col"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
+          <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+            <UserPlus size={16} className="text-slate-400" /> Invitations
+          </h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
+          {isLoading && <p className="px-5 py-8 text-sm text-slate-400 text-center">Loading…</p>}
+          {!isLoading && invitations.length === 0 && (
+            <p className="px-5 py-8 text-sm text-slate-400 text-center">No pending invitations.</p>
+          )}
+          {invitations.map(inv => (
+            <div key={inv.id} className="px-5 py-4">
+              <p className="text-sm font-semibold text-slate-800 truncate">{inv.event_title}</p>
+              <p className="text-xs text-slate-500 mt-0.5">{fmtEvent(inv)}</p>
+              <p className="text-xs text-slate-400 mt-0.5">Invited by {inv.organiser_name}</p>
+
+              {counterFor !== inv.id ? (
+                <div className="flex gap-2 mt-3">
+                  <button
+                    onClick={() => respondMut.mutate({ id: inv.id, status: 'accepted' })}
+                    disabled={respondMut.isPending}
+                    className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    <Check size={12} /> Accept
+                  </button>
+                  <button
+                    onClick={() => respondMut.mutate({ id: inv.id, status: 'declined' })}
+                    disabled={respondMut.isPending}
+                    className="flex-1 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+                  >
+                    Decline
+                  </button>
+                  <button
+                    onClick={() => setCounterFor(inv.id)}
+                    className="flex-1 px-3 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition-colors"
+                  >
+                    Propose time
+                  </button>
+                </div>
+              ) : (
+                <div className="mt-3 flex flex-col gap-2">
+                  <p className="text-xs font-semibold text-slate-600">Propose an alternative time:</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Start date</label>
+                      <input type="date" value={counterStart} onChange={e => setCounterStart(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Start time</label>
+                      <input type="time" value={counterStartTime} onChange={e => setCounterStartTime(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">End date</label>
+                      <input type="date" value={counterEnd} onChange={e => setCounterEnd(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">End time</label>
+                      <input type="time" value={counterEndTime} onChange={e => setCounterEndTime(e.target.value)}
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => submitCounter(inv)}
+                      disabled={respondMut.isPending || !counterStart || !counterEnd}
+                      className="flex-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
+                    >
+                      Send proposal
+                    </button>
+                    <button
+                      onClick={() => setCounterFor(null)}
+                      className="px-3 py-1.5 text-xs text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -849,8 +1147,9 @@ export default function CalendarPage() {
     mutationFn: (id: string) => api.delete(`/calendar/events/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar-items'] }),
   })
-  const [calendarTypeFilter, setCalendarTypeFilter] = useState<CalendarTypeFilter>('all')
+  const [calendarTypeFilter, setCalendarTypeFilter] = useState<CalendarTypeFilter>('shared')
   const [bookingsOpen, setBookingsOpen] = useState(false)
+  const [invitationsOpen, setInvitationsOpen] = useState(false)
   const [newBookingOpen, setNewBookingOpen] = useState(false)
   const [bookingSettingsOpen, setBookingSettingsOpen] = useState(false)
 
@@ -860,6 +1159,13 @@ export default function CalendarPage() {
     enabled: bookingEnabled,
   })
   const pendingCount = (bookingTokens ?? []).filter((t: any) => t.status === 'pending' || t.status === 'counter_proposed').length
+
+  const { data: invCountData } = useQuery<{ count: number }>({
+    queryKey: ['calendar-invitation-count'],
+    queryFn: () => api.get('/calendar/invitations/pending/count').then((r: any) => r.data),
+    refetchInterval: 60_000,
+  })
+  const pendingInvitationCount = invCountData?.count ?? 0
 
   const days = useMemo(() => monthGrid(year, month), [year, month])
   const rangeStart = days[0]
@@ -871,7 +1177,7 @@ export default function CalendarPage() {
       params: {
         start: rangeStart.toISOString(),
         end: rangeEnd.toISOString(),
-        ...(calendarTypeFilter !== 'all' ? { calendar_type: calendarTypeFilter } : {}),
+        calendar_type: calendarTypeFilter,
       },
     }).then((r: any) => r.data.items),
   })
@@ -923,6 +1229,15 @@ export default function CalendarPage() {
               </button>
             </>
           )}
+          <button onClick={() => setInvitationsOpen(true)}
+            className="relative inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+            <UserPlus size={15} strokeWidth={2.5} /> Invitations
+            {pendingInvitationCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-blue-600 rounded-full">
+                {pendingInvitationCount > 9 ? '9+' : pendingInvitationCount}
+              </span>
+            )}
+          </button>
           <button onClick={() => setModal({ open: true, event: null })}
             className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
             <Plus size={15} strokeWidth={2.5} /> New event
@@ -930,21 +1245,35 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Calendar type filter */}
-      <div className="flex items-center gap-1 mb-4">
-        {(['all', 'shared', 'personal'] as CalendarTypeFilter[]).map(t => (
-          <button
-            key={t}
-            onClick={() => setCalendarTypeFilter(t)}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors capitalize ${
-              calendarTypeFilter === t
-                ? 'bg-blue-600 text-white'
-                : 'text-slate-500 border border-slate-200 hover:bg-slate-50'
-            }`}
-          >
-            {t === 'all' ? 'All events' : t === 'shared' ? 'Shared' : 'Personal'}
-          </button>
-        ))}
+      {/* Shared / Personal slider */}
+      <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 mb-4 w-fit">
+        {([
+          { value: 'shared' as CalendarTypeFilter, label: 'Shared', icon: <Users size={13} /> },
+          { value: 'personal' as CalendarTypeFilter, label: 'Personal', icon: <User size={13} />, count: pendingInvitationCount },
+        ]).map(m => {
+          const displayCount = m.count && m.count > 0 ? (m.count > 9 ? '9+' : String(m.count)) : null
+          return (
+            <button
+              key={m.value}
+              onClick={() => setCalendarTypeFilter(m.value)}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                calendarTypeFilter === m.value
+                  ? 'bg-blue-600 text-white'
+                  : 'text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              {m.icon}
+              {m.label}
+              {displayCount && (
+                <span className={`inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold ${
+                  calendarTypeFilter === m.value ? 'bg-white/30 text-white' : 'bg-slate-200 text-slate-600'
+                }`}>
+                  {displayCount}
+                </span>
+              )}
+            </button>
+          )
+        })}
       </div>
 
       {bookingEnabled && bookingsOpen && (
@@ -953,6 +1282,10 @@ export default function CalendarPage() {
           onNewBooking={() => setNewBookingOpen(true)}
           onOpenSettings={() => setBookingSettingsOpen(true)}
         />
+      )}
+
+      {invitationsOpen && (
+        <InvitationsPanel onClose={() => setInvitationsOpen(false)} />
       )}
 
       {/* Month card */}
@@ -1034,7 +1367,11 @@ export default function CalendarPage() {
                           { separator: true },
                           { label: 'Delete event', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${item.title}"?`)) deleteEventMut.mutate(item.id) } },
                         ]) }}
-                        className="w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium truncate bg-blue-50 text-blue-700 border border-blue-100 hover:bg-blue-100 transition-colors">
+                        className={`w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium truncate border transition-colors ${
+                          item.is_invited
+                            ? 'bg-violet-50 text-violet-700 border-violet-100 hover:bg-violet-100'
+                            : 'bg-blue-50 text-blue-700 border-blue-100 hover:bg-blue-100'
+                        }`}>
                         {!item.all_day && (
                           <span className="font-semibold mr-1">
                             {new Date(item.start_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
@@ -1057,6 +1394,9 @@ export default function CalendarPage() {
       <div className="flex items-center gap-5 mt-4 px-1 text-xs text-slate-500">
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-blue-400" /> Event
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="w-2.5 h-2.5 rounded-full bg-violet-400" /> Invited
         </span>
         <span className="inline-flex items-center gap-1.5">
           <span className="w-2.5 h-2.5 rounded-full bg-orange-400" /> Ticket deadline
