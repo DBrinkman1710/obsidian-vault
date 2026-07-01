@@ -232,7 +232,7 @@ async def get_impersonation_target(db: AsyncSession, tenant_id: uuid.UUID) -> tu
 # Children before parents so plain DELETEs never trip an FK.
 TENANT_DELETE_ORDER = [
     # Campaign children (CASCADE to campaigns)
-    "campaign_analytics", "campaign_sequences", "campaign_templates",
+    "campaign_analytics", "campaign_sequences",
     "label_click_tokens", "outbound_emails",
     "campaigns",
     # Shipment children — shipments has RESTRICT FK to contacts, so must precede contacts
