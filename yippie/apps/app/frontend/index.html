@@ -40,19 +40,28 @@
     </div>
     <div id="root"></div>
     <script>
-      document.addEventListener('DOMContentLoaded', function() {
+      (function() {
         var splash = document.getElementById('splash');
+        var root = document.getElementById('root');
+        function removeSplash() {
+          if (!splash || !splash.parentNode) return;
+          splash.style.opacity = '0';
+          splash.style.transition = 'opacity 0.2s';
+          setTimeout(function() { if (splash.parentNode) splash.remove(); }, 200);
+        }
+        // React (type="module") may already have mounted before DOMContentLoaded —
+        // check immediately, then watch for future mutations as a fallback.
+        if (root && root.children.length > 0) { removeSplash(); return; }
         var observer = new MutationObserver(function() {
-          var root = document.getElementById('root');
           if (root && root.children.length > 0) {
-            splash.style.opacity = '0';
-            splash.style.transition = 'opacity 0.2s';
-            setTimeout(function() { splash.remove(); }, 200);
+            removeSplash();
             observer.disconnect();
           }
         });
-        observer.observe(document.getElementById('root'), { childList: true });
-      });
+        observer.observe(root, { childList: true });
+        // Safety net: remove after 5 s regardless.
+        setTimeout(function() { observer.disconnect(); removeSplash(); }, 5000);
+      })();
     </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
