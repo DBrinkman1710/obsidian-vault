@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { marked } from "marked";
+import DOMPurify from "isomorphic-dompurify";
 import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import DownloadPdfButton from "./DownloadPdfButton";
@@ -36,7 +37,7 @@ export default async function DocsPage() {
 
   try {
     const markdown = await fetchManual();
-    html = await marked(markdown);
+    html = DOMPurify.sanitize(await marked(markdown));
   } catch {
     fetchError = true;
   }

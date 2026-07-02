@@ -69,8 +69,8 @@ class Questionnaire(BaseModel):
 
 
 class RequestDemo(BaseModel):
-    name: str = Field(min_length=1)
-    company_name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=200)
+    company_name: str = Field(min_length=1, max_length=200)
     email: EmailStr
     slug: Optional[str] = None
     questionnaire: Optional[Questionnaire] = None
@@ -1137,9 +1137,9 @@ async def track_events(
 # ── Questionnaire Lead capture ────────────────────────────────────────────────
 
 class QuestionnaireLead(BaseModel):
-    name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=200)
     email: EmailStr
-    company: str = Field(min_length=1)
+    company: str = Field(min_length=1, max_length=200)
     questionnaire: Optional[Questionnaire] = None
 
 
@@ -1204,12 +1204,12 @@ async def questionnaire_lead(
 # ── Self-serve signup ─────────────────────────────────────────────────────────
 
 class SignupRequest(BaseModel):
-    name: str = Field(min_length=1)
-    company_name: str = Field(min_length=1)
+    name: str = Field(min_length=1, max_length=200)
+    company_name: str = Field(min_length=1, max_length=200)
     email: EmailStr
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=8, max_length=128)
     plan: Literal["founder", "starter", "growth", "pro"] = "starter"
-    enabled_modules: list[str] = []
+    enabled_modules: list[str] = Field(default=[], max_length=20)
     questionnaire: Optional[Questionnaire] = None
     from_demo_token: Optional[str] = None
 
@@ -1274,7 +1274,8 @@ async def signup(
             except Exception:
                 pass
 
-    enabled_modules = body.enabled_modules or ALL_MODULES
+    _all = set(ALL_MODULES)
+    enabled_modules = [m for m in body.enabled_modules if m in _all] or ALL_MODULES
     base_slug = _slugify(body.company_name)
     slug = await _unique_slug(db, base_slug)
 

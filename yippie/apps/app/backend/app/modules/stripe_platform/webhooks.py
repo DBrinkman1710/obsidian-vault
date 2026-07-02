@@ -122,21 +122,34 @@ async def _handle_subscription_updated(db, subscription: dict) -> None:
 
 
 async def _handle_subscription_deleted(db, subscription: dict) -> None:
+    from datetime import datetime, timezone, timedelta
     customer_id = subscription.get("customer")
     tenant = await _find_tenant_by_stripe_customer(db, customer_id)
     if tenant is None:
         return
+
+    # Use Stripe's current_period_end so the tenant keeps access until the
+    # period they already paid for ends (~1 month for monthly plans).
+    # Fall back to 30 days from now if the field is missing.
+    period_end_ts = subscription.get("current_period_end")
+    if period_end_ts:
+        ends_at = datetime.fromtimestamp(period_end_ts, tz=timezone.utc)
+    else:
+        ends_at = datetime.now(timezone.utc) + timedelta(days=30)
 
     await db.execute(
         update(Tenant)
         .where(Tenant.id == tenant.id)
         .values(
             stripe_subscription_status="canceled",
-            plan="founder",
+            subscription_ends_at=ends_at,
         )
     )
     await db.commit()
-    log.info("subscription.deleted: tenant %s downgraded to founder", tenant.slug)
+    log.info(
+        "subscription.deleted: tenant %s marked canceled, access ends %s",
+        tenant.slug, ends_at.date(),
+    )
 
 
 async def _handle_invoice_paid(db, invoice: dict) -> None:
