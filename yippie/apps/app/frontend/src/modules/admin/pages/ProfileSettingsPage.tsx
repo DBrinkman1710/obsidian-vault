@@ -11,6 +11,7 @@ export default function ProfileSettingsPage() {
   const [personalEmail, setPersonalEmail] = useState(user?.inbound_email ?? user?.reply_from_email ?? '')
   const [hotkeysEnabled, setHotkeysEnabled] = useState(user?.hotkeys_enabled !== false)
   const [personalWorkMode, setPersonalWorkMode] = useState(user?.shared_inbox_disabled === true)
+  const [helpTipsEnabled, setHelpTipsEnabled] = useState(user?.help_tips_enabled !== false)
   const [uiLanguage, setUiLanguage] = useState<string>(user?.ui_language ?? 'en')
   const [aliases, setAliases] = useState<string[]>(user?.send_from_aliases ?? [])
   const [newAlias, setNewAlias] = useState('')
@@ -24,6 +25,7 @@ export default function ProfileSettingsPage() {
       inbound_email: personalEmail.trim() || null,
       hotkeys_enabled: hotkeysEnabled,
       shared_inbox_disabled: personalWorkMode,
+      help_tips_enabled: helpTipsEnabled,
       ui_language: uiLanguage,
       send_from_aliases: aliases.length > 0 ? aliases : [],
     }).then((r: any) => r.data),
@@ -173,6 +175,24 @@ export default function ProfileSettingsPage() {
               className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${personalWorkMode ? 'bg-yippie' : 'bg-slate-300'}`}
             >
               <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${personalWorkMode ? 'translate-x-6' : 'translate-x-1'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-start justify-between gap-4 border-t border-slate-100 pt-5">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Help tips</label>
+              <p className="text-xs text-slate-400 max-w-sm">
+                Show contextual <span className="font-medium text-slate-500">?</span> icons throughout the app with short explanations. Turn off to hide them all.
+              </p>
+            </div>
+            <button
+              type="button"
+              role="switch"
+              aria-checked={helpTipsEnabled}
+              onClick={() => setHelpTipsEnabled(v => !v)}
+              className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors ${helpTipsEnabled ? 'bg-yippie' : 'bg-slate-300'}`}
+            >
+              <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${helpTipsEnabled ? 'translate-x-6' : 'translate-x-1'}`} />
             </button>
           </div>
 

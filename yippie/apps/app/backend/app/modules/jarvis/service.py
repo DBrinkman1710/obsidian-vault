@@ -3,9 +3,12 @@ from __future__ import annotations
 import ast
 import json
 import math
+import os
 import re
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -18,6 +21,35 @@ from app.modules.tickets.models import Ticket, TicketComment, TicketStatus
 
 # Action types Jarvis can route to. Mirrors the frontend prefs toggles.
 ACTIONS = ("reminder", "contact_note", "ticket_note", "context_query", "navigate", "search", "compose_email", "help", "math")
+
+# ---------------------------------------------------------------------------
+# Manual loader — reads user_manual.md from disk and caches for 5 minutes.
+# The file lives next to the backend code so it's always at the deployed
+# version without needing a GitHub API call.
+# ---------------------------------------------------------------------------
+
+_MANUAL_CANDIDATES = [
+    Path(__file__).parent.parent.parent.parent / "user_manual.md",   # /app/user_manual.md in Docker
+    Path(__file__).parent.parent.parent.parent.parent / "user_manual.md",  # one level up (dev)
+]
+
+_manual_cache: str | None = None
+_manual_loaded_at: float = 0.0
+_MANUAL_TTL = 300  # seconds
+
+
+def _load_manual() -> str:
+    global _manual_cache, _manual_loaded_at
+    now = time.monotonic()
+    if _manual_cache is not None and (now - _manual_loaded_at) < _MANUAL_TTL:
+        return _manual_cache
+    for path in _MANUAL_CANDIDATES:
+        if path.exists():
+            _manual_cache = path.read_text(encoding="utf-8")
+            _manual_loaded_at = now
+            return _manual_cache
+    # Fallback: empty string — Yip will say it has no manual loaded
+    return ""
 
 
 def _build_tenant_context(tenant: Tenant) -> str:
@@ -380,6 +412,20 @@ async def execute(
         return {"action_taken": "math", "summary": answer.strip()}
 
     if action == "help":
+        manual = _load_manual()
+        if manual:
+            system_msg = (
+                "You are Yip, a helpful AI assistant inside the Yippie customer service platform. "
+                "Answer the user's question using ONLY the platform manual provided below. "
+                "Be concise \u2014 2-5 sentences max. If the answer is not in the manual, say so briefly.\n\n"
+                f"MANUAL:\n{manual}"
+            )
+            answer = await ai_completion(
+                [{"role": "system", "content": system_msg}, {"role": "user", "content": body}],
+                max_tokens=300,
+            )
+            return {"action_taken": "help", "summary": answer.strip()}
+        # Fallback when manual file is unavailable
         lines = [
             "Here's what I can do:",
             "\u2022 Set reminders \u2014 \"remind me to call Jan at 3pm\"",

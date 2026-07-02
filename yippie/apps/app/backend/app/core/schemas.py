@@ -29,6 +29,7 @@ class UserOut(BaseModel):
     setup_checklist_dismissed: bool = False
     ui_language: str = "en"
     jarvis_prefs: Optional[dict] = None
+    help_tips_enabled: bool = True
     created_at: datetime
 
     model_config = {"from_attributes": True}

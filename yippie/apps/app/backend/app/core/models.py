@@ -159,6 +159,8 @@ class User(Base):
     # True once the user has dismissed the post-tour setup checklist widget.
     setup_checklist_dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     ui_language: Mapped[str] = mapped_column(String(10), nullable=False, server_default="en")
+    # Per-user toggle for contextual ? help tips shown throughout the app.
+    help_tips_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     # Quick-capture (Jarvis) preferences: {hotkey, enabled_actions, default_context_mode}.
     jarvis_prefs: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -21,6 +21,7 @@ export interface User {
   setup_checklist_dismissed?: boolean
   ui_language?: string
   jarvis_prefs?: JarvisPrefs | null
+  help_tips_enabled?: boolean
 }
 
 export interface JarvisPrefs {
