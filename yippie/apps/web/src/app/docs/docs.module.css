@@ -193,10 +193,6 @@
 
 /* ── Print / PDF ────────────────────────────────── */
 @media print {
-  /* hide chrome */
-  :global(header),
-  :global(nav),
-  :global(footer) { display: none !important; }
   .header { border-bottom: 1px solid #ddd; margin-bottom: 32px; padding-bottom: 24px; }
   .downloadBtn { display: none !important; }
 

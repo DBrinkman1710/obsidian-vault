@@ -118,3 +118,8 @@ img { display: block; max-width: 100%; }
   html { scroll-behavior: auto; }
   [data-reveal] { opacity: 1; transform: none; transition: none; }
 }
+
+/* ── Docs page — print/PDF ─────────────────────── */
+@media print {
+  header, nav, footer { display: none !important; }
+}
