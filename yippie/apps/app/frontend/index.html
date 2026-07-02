@@ -11,22 +11,32 @@
     <style>
       body { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
       #splash {
-        position: fixed; inset: 0; display: flex; flex-direction: column;
+        position: fixed; inset: 0; display: flex;
         align-items: center; justify-content: center; background: #fff; z-index: 9999;
       }
-      #splash img { width: 40px; height: 40px; margin-bottom: 20px; }
+      #splash-wrap {
+        position: relative; width: 72px; height: 72px;
+        display: flex; align-items: center; justify-content: center;
+      }
+      #splash-wrap img { width: 40px; height: 40px; position: relative; z-index: 1; }
       #splash-ring {
-        width: 28px; height: 28px; border-radius: 50%;
-        border: 3px solid #e8f0fd; border-top-color: #5BA4F5;
-        animation: spin 0.75s linear infinite;
+        position: absolute; inset: 0; border-radius: 50%;
+        background: conic-gradient(from 0deg, #5BA4F5 0%, rgba(91,164,245,0.15) 70%, rgba(91,164,245,0) 100%);
+        animation: spin 1s linear infinite;
+      }
+      #splash-ring::after {
+        content: ''; position: absolute; inset: 4px;
+        background: #fff; border-radius: 50%;
       }
       @keyframes spin { to { transform: rotate(360deg); } }
     </style>
   </head>
   <body>
     <div id="splash">
-      <img src="/logo-white-bg-mark.svg" alt="Yippie" />
-      <div id="splash-ring"></div>
+      <div id="splash-wrap">
+        <div id="splash-ring"></div>
+        <img src="/logo-white-bg-mark.svg" alt="Yippie" />
+      </div>
     </div>
     <div id="root"></div>
     <script>
