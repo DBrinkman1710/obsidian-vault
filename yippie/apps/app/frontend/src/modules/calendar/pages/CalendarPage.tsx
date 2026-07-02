@@ -9,6 +9,7 @@ import { useAuth } from '../../../auth/useAuth'
 import SendBookingModal from '../../booking/components/SendBookingModal'
 import ContactPeekModal from '../../../components/ContactPeekModal'
 import TicketPeekModal from '../../../components/TicketPeekModal'
+import { useCompose } from '../../../hooks/useCompose'
 
 interface CalendarItem {
   kind: 'event' | 'deadline'
@@ -1134,6 +1135,7 @@ export default function CalendarPage() {
   const navigate = useNavigate()
   const ctx = useContextMenu()
   const qc = useQueryClient()
+  const { openCompose } = useCompose()
   const config = useTenantConfig()
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const today = new Date()
@@ -1415,7 +1417,11 @@ export default function CalendarPage() {
         />
       )}
       <ContextMenu state={ctx.state} onClose={ctx.close} />
-      <ContactPeekModal contactId={peekContactId} onClose={() => setPeekContactId(null)} />
+      <ContactPeekModal
+        contactId={peekContactId}
+        onClose={() => setPeekContactId(null)}
+        onCompose={(email, name) => openCompose({ recipients: [{ email, label: name }], subject: '', body: '', fromEmail: null })}
+      />
       <TicketPeekModal ticketId={peekTicketId} onClose={() => setPeekTicketId(null)} />
 
       {bookingEnabled && (

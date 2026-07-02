@@ -7,6 +7,7 @@ import { useMobile } from '../../../shell/useMobile'
 import { api } from '../../../api/client'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import ContactPeekModal from '../../../components/ContactPeekModal'
+import { useCompose } from '../../../hooks/useCompose'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 import SendBookingModal from '../../booking/components/SendBookingModal'
@@ -476,6 +477,7 @@ function ContactCard({
 export default function PipelinePage() {
   const qc = useQueryClient()
   const { user } = useAuth()
+  const { openCompose } = useCompose()
   const config = useTenantConfig()
   const isMobile = useMobile()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
@@ -882,7 +884,11 @@ export default function PipelinePage() {
         </div>
       )}
       <ContextMenu state={ctx.state} onClose={ctx.close} />
-      <ContactPeekModal contactId={peekContactId} onClose={() => setPeekContactId(null)} />
+      <ContactPeekModal
+        contactId={peekContactId}
+        onClose={() => setPeekContactId(null)}
+        onCompose={(email, name) => openCompose({ recipients: [{ email, label: name }], subject: '', body: '', fromEmail: null })}
+      />
     </>
   )
 }

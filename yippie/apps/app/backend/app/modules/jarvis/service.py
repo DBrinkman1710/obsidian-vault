@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import ast
 import json
+import math
 import re
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -80,25 +82,55 @@ def _parse_json(text: str, fallback: dict) -> dict:
 
 
 
+_ALLOWED_AST_NODES = (
+    ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant,
+    ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod, ast.FloorDiv,
+    ast.USub, ast.UAdd,
+)
+
+
 def _safe_eval(expr: str):
-    """Evaluate simple arithmetic expressions safely using AST."""
-    import ast
-    import math as _m
+    """Evaluate simple arithmetic expressions safely using AST.
+
+    Returns a numeric int or float, or None if the expression is not valid
+    arithmetic. Bare constants (42, True, 1j) return None so single tokens
+    don't shadow note/search/navigate intents in classify().
+    """
+    if not any(c.isdigit() for c in expr):
+        return None
+    if len(expr) > 200:
+        return None
     # Strip natural language prefix
     expr = re.sub(r'^(?:what\s+is|calculate|compute|how\s+much\s+is)\s+', '', expr.strip(), flags=re.IGNORECASE)
-    # Replace common math words
-    expr = re.sub(r'\bx\b', '*', expr)
+    # Handle digit-adjacent 'x'/'X' as multiplication (e.g. '5x4', '5 x 4', '10x20')
+    expr = re.sub(r'(\d)\s*[xX]\s*(\d)', r'\1*\2', expr)
     try:
         tree = ast.parse(expr, mode='eval')
-        allowed = (
-            ast.Expression, ast.BinOp, ast.UnaryOp, ast.Constant,
-            ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow, ast.Mod, ast.FloorDiv,
-            ast.USub, ast.UAdd,
-        )
+        has_operator = False
         for node in ast.walk(tree):
-            if not isinstance(node, allowed):
+            if not isinstance(node, _ALLOWED_AST_NODES):
                 return None
+            if isinstance(node, (ast.BinOp, ast.UnaryOp)):
+                has_operator = True
+            # Prevent exponentiation towers (e.g. 9**9**9 hangs the event loop):
+            # require the right operand of ** to be a small literal constant.
+            if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Pow):
+                right = node.right
+                if not (
+                    isinstance(right, ast.Constant)
+                    and isinstance(right.value, (int, float))
+                    and 0 <= right.value <= 200
+                ):
+                    return None
+        # Bare constants (42, True, 1j) must not short-circuit to math
+        if not has_operator:
+            return None
         result = eval(compile(tree, '<string>', 'eval'), {'__builtins__': {}}, {})
+        # Reject non-numeric results (bool, complex, etc.)
+        if isinstance(result, bool) or not isinstance(result, (int, float)):
+            return None
+        if math.isinf(result) or math.isnan(result):
+            return None
         if isinstance(result, float) and result == int(result):
             return int(result)
         if isinstance(result, float):
@@ -111,8 +143,10 @@ def _safe_eval(expr: str):
 async def classify(body: str, context_type: str, context_id: str | None, tenant: Tenant) -> dict:
     """Ask the model to classify the captured text into a single routed action."""
     # Pre-classify math before hitting the LLM — more reliable than asking the model.
-    if _safe_eval(body) is not None:
-        return {"action": "math", "body": body}
+    # Store the result so execute() can use it without re-evaluating.
+    _math_result = _safe_eval(body)
+    if _math_result is not None:
+        return {"action": "math", "body": body, "_result": str(_math_result)}
 
     now = datetime.now(timezone.utc)
     context_line = "No record is currently open."
@@ -330,13 +364,17 @@ async def execute(
         return {"action_taken": "contact_note", "summary": f"Note added to {contact.full_name}."}
 
     if action == "math":
+        # Use the result pre-computed by classify() when available — avoids double eval.
+        pre_result = plan.get("_result")
+        if pre_result is not None:
+            return {"action_taken": "math", "summary": pre_result}
         expr = (plan.get("body") or body).strip()
         result = _safe_eval(expr)
         if result is not None:
             return {"action_taken": "math", "summary": str(result)}
-        # Fall back to AI for complex/textual expressions
+        # Fall back to AI for complex/textual expressions (e.g. "sqrt(144)")
         answer = await ai_completion(
-            [{"role": "user", "content": f"Compute and return ONLY the numeric answer, no explanation: {body}"}],
+            [{"role": "user", "content": f"Compute and return ONLY the numeric answer, no explanation: {expr}"}],
             max_tokens=32,
         )
         return {"action_taken": "math", "summary": answer.strip()}
@@ -353,6 +391,28 @@ async def execute(
             "Just type naturally and I'll figure out the rest.",
         ]
         return {"action_taken": "help", "summary": "\n".join(lines)}
+
+    if action == "compose_email":
+        query = (plan.get("search_query") or body).strip()
+        contact = await _resolve_contact(db, tenant.id, None, query)
+        if contact and contact.email:
+            return {
+                "action_taken": "compose_email",
+                "summary": f"Opening compose for {contact.full_name}.",
+                "inline_data": {"email": contact.email, "name": contact.full_name},
+            }
+        if contact:
+            return {
+                "action_taken": "compose_email",
+                "summary": f"{contact.full_name} has no email address on file.",
+                "inline_data": None,
+            }
+        return {
+            "action_taken": "compose_email",
+            "summary": f"No contact found matching “{query}”.",
+            "inline_data": None,
+        }
+
     # navigate / search — resolve to a destination URL the popup can route to.
     query = (plan.get("search_query") or body).strip()
     nav = await _resolve_navigation(db, tenant.id, query)
