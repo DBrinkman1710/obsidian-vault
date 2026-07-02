@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Star, ChevronUp, ChevronDown, Image as ImageIcon, Pencil, Check, X } from 'lucide-react'
+import { Plus, Trash2, Star, ChevronUp, ChevronDown, Image as ImageIcon, Pencil, Check, X, Download } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useSignatures, readSignatureImage, signatureImageTag, type Signature } from '../../../hooks/useSignatures'
@@ -17,6 +17,22 @@ export default function ProfileSettingsPage() {
   const [newAlias, setNewAlias] = useState('')
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [downloadingManual, setDownloadingManual] = useState(false)
+
+  async function handleDownloadManual() {
+    setDownloadingManual(true)
+    try {
+      const res = await api.get('/auth/manual.pdf', { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'yippie-platform-manual.pdf'
+      a.click()
+      URL.revokeObjectURL(url)
+    } finally {
+      setDownloadingManual(false)
+    }
+  }
 
   const mutation = useMutation({
     // One personal address does both: outbound "from" and inbound routing
@@ -214,6 +230,23 @@ export default function ProfileSettingsPage() {
         <div className="w-96 flex-shrink-0">
           <ChangePasswordCard />
         </div>
+      </div>
+
+      {/* Platform manual download */}
+      <div className="mt-10 pt-6 border-t border-slate-200 flex items-center justify-between">
+        <div>
+          <p className="text-sm font-semibold text-slate-700">Platform Manual</p>
+          <p className="text-xs text-slate-400 mt-0.5">Download the latest version of the Yippie Platform Manual as a PDF.</p>
+        </div>
+        <button
+          type="button"
+          onClick={handleDownloadManual}
+          disabled={downloadingManual}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-sm font-semibold text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
+        >
+          <Download size={15} />
+          {downloadingManual ? 'Generating…' : 'Download PDF'}
+        </button>
       </div>
     </div>
   )

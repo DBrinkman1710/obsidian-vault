@@ -463,3 +463,14 @@ async def delete_signature(
             remaining[0].is_default = True
     await db.commit()
     return None
+
+
+@router.get("/manual.pdf", include_in_schema=False)
+async def download_manual_pdf(current_user: CurrentUser):
+    from app.core.manual_pdf import generate_manual_pdf
+    pdf_bytes = generate_manual_pdf()
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="yippie-platform-manual.pdf"'},
+    )
