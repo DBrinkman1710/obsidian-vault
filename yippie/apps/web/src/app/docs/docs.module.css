@@ -190,3 +190,28 @@
   .main { padding-top: 88px; }
   .md table { font-size: 13px; overflow-x: auto; display: block; }
 }
+
+/* ── Print / PDF ────────────────────────────────── */
+@media print {
+  /* hide chrome */
+  :global(header),
+  :global(nav),
+  :global(footer) { display: none !important; }
+  .header { border-bottom: 1px solid #ddd; margin-bottom: 32px; padding-bottom: 24px; }
+  .downloadBtn { display: none !important; }
+
+  .main { padding: 0; max-width: 100%; }
+  .page { background: #fff; }
+
+  /* readable print typography */
+  .md h1 { font-size: 26px; }
+  .md h2 { font-size: 18px; page-break-after: avoid; }
+  .md h3 { font-size: 15px; page-break-after: avoid; }
+  .md p, .md li { font-size: 12px; line-height: 1.65; }
+  .md pre, .md table { page-break-inside: avoid; }
+  .md a { color: #000; text-decoration: none; }
+  .md a::after { content: " (" attr(href) ")"; font-size: 10px; color: #666; }
+  .md code { background: #f5f5f5; border: 1px solid #e0e0e0; }
+  .md pre { background: #f5f5f5; border: 1px solid #e0e0e0; }
+  .md blockquote { border-left: 2px solid #5ba4f5; }
+}

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { marked } from "marked";
 import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
+import DownloadPdfButton from "./DownloadPdfButton";
 import styles from "./docs.module.css";
 
 const MANUAL_RAW_URL =
@@ -52,27 +53,7 @@ export default async function DocsPage() {
             Complete reference for everything in the Yippie platform. Always
             reflects the latest shipped version.
           </p>
-          <a
-            href={MANUAL_RAW_URL}
-            download="Yippie Platform Manual.md"
-            className={styles.downloadBtn}
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2.2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            Download manual
-          </a>
+          <DownloadPdfButton />
         </div>
 
         <div className={styles.content}>
