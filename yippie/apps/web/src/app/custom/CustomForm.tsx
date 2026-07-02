@@ -27,27 +27,33 @@ const PLAN_NAMES: Record<PlanKey, string> = {
 };
 
 const MODULE_CONFIG = [
-  { key: "ai",          recName: "AI Inbox",    icon: "✦",  price: MODULE_PRICES.ai,          desc: "AI reads every message and drafts the ticket for you" },
-  { key: "tickets",     recName: "Tickets",     icon: "🎫", price: MODULE_PRICES.tickets,     desc: "Track, assign, and close requests with SLA alerts" },
-  { key: "chat",        recName: "Live Chat",   icon: "💬", price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp — all conversations in one inbox" },
-  { key: "calendar",    recName: "Calendar",    icon: "📅", price: MODULE_PRICES.calendar,    desc: "Booking links, availability grids, appointments" },
-  { key: "kanban",      recName: "Pipeline",    icon: "📌", price: MODULE_PRICES.kanban,      desc: "Drag-and-drop Kanban to move leads through stages" },
-  { key: "marketing",   recName: "Marketing",   icon: "📣", price: MODULE_PRICES.marketing,   desc: "Email campaigns, drip sequences, open tracking" },
-  { key: "departments", recName: "Departments", icon: "🏢", price: MODULE_PRICES.departments, desc: "Route tickets to the right team automatically" },
-  { key: "billing",     recName: "Billing",     icon: "🧾", price: MODULE_PRICES.billing,     desc: "Invoices, payments, subscription management" },
+  { key: "ai",          recName: "AI",               icon: "✦",  price: MODULE_PRICES.ai,          desc: "AI scans every message and drafts the ticket — one-click approve" },
+  { key: "tickets",     recName: "Tickets",          icon: "🎫", price: MODULE_PRICES.tickets,     desc: "Track, assign, and close requests with SLA alerts" },
+  { key: "chat",        recName: "Live Chat",        icon: "💬", price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp — all conversations in one inbox" },
+  { key: "calendar",    recName: "Calendar",         icon: "📅", price: MODULE_PRICES.calendar,    desc: "Booking links, availability grids, appointments" },
+  { key: "kanban",      recName: "Pipeline",         icon: "📌", price: MODULE_PRICES.kanban,      desc: "Drag-and-drop Kanban to move leads through stages" },
+  { key: "marketing",   recName: "Marketing",        icon: "📣", price: MODULE_PRICES.marketing,   desc: "Email campaigns, drip sequences, open tracking" },
+  { key: "departments", recName: "Departments",      icon: "🏢", price: MODULE_PRICES.departments, desc: "Route tickets to the right team automatically" },
+  { key: "billing",     recName: "Billing",          icon: "🧾", price: MODULE_PRICES.billing,     desc: "Invoices, payments, subscription management" },
+  { key: "tracking",    recName: "Shipment Tracking",icon: "📦", price: MODULE_PRICES.tracking,   desc: "DHL, UPS, PostNL, FedEx — live carrier updates linked to contacts" },
+  { key: "sales",       recName: "Sales",            icon: "📈", price: MODULE_PRICES.sales,       desc: "Track product views, add-to-cart, purchases — spot high-intent buyers" },
+  { key: "saas",        recName: "SaaS Billing",     icon: "🔁", price: MODULE_PRICES.saas,        desc: "Recurring subscriptions, MRR and churn tracking, linked to contacts" },
 ] as const;
 
 type ModuleKey = (typeof MODULE_CONFIG)[number]["key"];
 
 const REC_TO_KEY: Record<string, ModuleKey | undefined> = {
-  "AI Inbox":    "ai",
-  "Tickets":     "tickets",
-  "Live Chat":   "chat",
-  "Calendar":    "calendar",
-  "Pipeline":    "kanban",
-  "Marketing":   "marketing",
-  "Departments": "departments",
-  "Billing":     "billing",
+  "AI Inbox":         "ai",
+  "Tickets":          "tickets",
+  "Live Chat":        "chat",
+  "Calendar":         "calendar",
+  "Pipeline":         "kanban",
+  "Marketing":        "marketing",
+  "Departments":      "departments",
+  "Billing":          "billing",
+  "Shipment Tracking":"tracking",
+  "Sales":            "sales",
+  "SaaS Billing":     "saas",
 };
 
 type FormState = "idle" | "submitting" | "success" | "error";

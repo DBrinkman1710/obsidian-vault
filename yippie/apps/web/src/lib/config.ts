@@ -16,6 +16,9 @@ export const MODULE_PRICES = {
   marketing:   9,
   departments: 7,
   billing:     7,
+  tracking:    9,
+  sales:       20,
+  saas:        20,
 } as const;
 
 export type PlanTier = keyof typeof PLAN_LIMITS;

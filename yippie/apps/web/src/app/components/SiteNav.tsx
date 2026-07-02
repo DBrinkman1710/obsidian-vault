@@ -69,8 +69,8 @@ export default function SiteNav() {
         <div className={styles.navRight}>
           <a href={`${APP_URL}/login`} className={styles.navLogin}>Log in</a>
           <a href={DEMO_URL} className={styles.navLoginOutline}>Request demo</a>
-          <a href="/signup" className={styles.navCta}>
-            Sign up <span aria-hidden="true">→</span>
+          <a href="/custom" className={styles.navCta}>
+            Get started <span aria-hidden="true">→</span>
           </a>
         </div>
 
@@ -108,8 +108,8 @@ export default function SiteNav() {
             <a href={DEMO_URL} className={styles.mobileLogin} onClick={() => setOpen(false)}>
               Request demo
             </a>
-            <a href="/signup" className={styles.navCta} onClick={() => setOpen(false)}>
-              Sign up →
+            <a href="/custom" className={styles.navCta} onClick={() => setOpen(false)}>
+              Get started →
             </a>
           </div>
         </div>

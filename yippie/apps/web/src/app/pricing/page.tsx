@@ -228,7 +228,7 @@ export default function PricingPage() {
           <p className={styles.founderText}>
             <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
           </p>
-          <a href="/signup?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
+          <a href="/custom" className={styles.founderBtn}>Claim a founder spot →</a>
         </div>
 
         <div className={styles.plansGrid}>
@@ -267,7 +267,7 @@ export default function PricingPage() {
                 ))}
               </ul>
               <a
-                href={plan.enterprise ? TALK_PATH : `/signup?plan=${plan.tier.toLowerCase()}`}
+                href={plan.enterprise ? TALK_PATH : "/custom"}
                 className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}
               >
                 {plan.enterprise ? "Book a call" : "Get started"}
