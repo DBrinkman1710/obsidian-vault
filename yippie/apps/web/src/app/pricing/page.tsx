@@ -450,7 +450,7 @@ export default function PricingPage() {
           <a href="/custom" className={styles.btnPrimary}>
             Build your package →
           </a>
-          <a href={TALK_PATH} className={styles.btnGhost}>
+          <a href={TALK_PATH} className={contentStyles.btnGhost}>
             Book a call
           </a>
         </div>

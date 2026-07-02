@@ -103,8 +103,8 @@ export default function CustomForm() {
   );
 
   const displayMonthlyTotal = useMemo(
-    () => annual ? Math.round(rawMonthlyTotal * 0.9) : rawMonthlyTotal,
-    [rawMonthlyTotal, annual],
+    () => annual ? (planMonthlyDisplay ?? 0) + Math.round(modulesRawTotal * 0.9) : rawMonthlyTotal,
+    [annual, planMonthlyDisplay, modulesRawTotal, rawMonthlyTotal],
   );
 
   function toggleChallenge(v: string) {
