@@ -126,13 +126,23 @@ async def get_available_slots(
             day_entries = weekly_slots_map.get(day_key) or []
             for entry in day_entries:
                 raw_time = entry.get("time", "")
+                raw_end_time = entry.get("end_time")
                 capacity = int(entry.get("capacity", 1))
                 try:
                     h, m = (int(x) for x in raw_time.split(":"))
                 except (ValueError, AttributeError):
                     continue  # skip malformed entries
                 slot_start = datetime.combine(day, time(hour=h, minute=m), tzinfo=tz).astimezone(timezone.utc)
-                slot_end = slot_start + timedelta(minutes=30)
+                if raw_end_time:
+                    try:
+                        eh, em = (int(x) for x in raw_end_time.split(":"))
+                        slot_end = datetime.combine(day, time(hour=eh, minute=em), tzinfo=tz).astimezone(timezone.utc)
+                        if slot_end <= slot_start:
+                            slot_end = slot_start + timedelta(minutes=30)
+                    except (ValueError, AttributeError):
+                        slot_end = slot_start + timedelta(minutes=30)
+                else:
+                    slot_end = slot_start + timedelta(minutes=30)
                 if slot_start <= now:
                     continue  # skip past slots
                 slots.append((slot_start, slot_end, capacity))

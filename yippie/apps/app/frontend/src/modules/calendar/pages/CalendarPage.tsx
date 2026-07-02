@@ -364,13 +364,13 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between mb-5">
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-8 pt-7 pb-4 shrink-0">
           <h2 className="text-lg font-bold text-slate-900">{event ? 'Edit event' : 'New event'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
         </div>
 
-        <form onSubmit={submit} className="flex flex-col gap-4">
+        <form onSubmit={submit} className="flex flex-col gap-4 overflow-y-auto px-8 pb-8">
           <div>
             <label className={labelCls}>Title *</label>
             <input className={inputCls} value={title} onChange={e => setTitle(e.target.value)}
@@ -638,7 +638,8 @@ interface BookingToken {
 }
 
 interface WeeklySlotEntry {
-  time: string    // HH:MM
+  time: string      // HH:MM start
+  end_time?: string // HH:MM end
   capacity: number
 }
 
@@ -811,11 +812,11 @@ function WeeklyGrid({
   slots: Record<string, WeeklySlotEntry[]>
   onChange: (slots: Record<string, WeeklySlotEntry[]>) => void
 }) {
-  // Per-day inline-add state: {dayKey -> {time, capacity}}
-  const [adding, setAdding] = useState<Record<string, { time: string; capacity: number }>>({})
+  // Per-day inline-add state: {dayKey -> {time, end_time, capacity}}
+  const [adding, setAdding] = useState<Record<string, { time: string; end_time: string; capacity: number }>>({})
 
   function startAdd(dayKey: string) {
-    setAdding(prev => ({ ...prev, [dayKey]: { time: '09:00', capacity: 1 } }))
+    setAdding(prev => ({ ...prev, [dayKey]: { time: '09:00', end_time: '10:00', capacity: 1 } }))
   }
 
   function cancelAdd(dayKey: string) {
@@ -825,15 +826,14 @@ function WeeklyGrid({
   function commitAdd(dayKey: string) {
     const entry = adding[dayKey]
     if (!entry) return
-    // Validate HH:MM
-    if (!/^\d{2}:\d{2}$/.test(entry.time)) return
+    if (!/^\d{2}:\d{2}$/.test(entry.time) || !/^\d{2}:\d{2}$/.test(entry.end_time)) return
+    if (entry.end_time <= entry.time) return
     const existing = slots[dayKey] ?? []
-    // Prevent duplicate times on same day
     if (existing.some(e => e.time === entry.time)) {
       cancelAdd(dayKey)
       return
     }
-    const updated = { ...slots, [dayKey]: [...existing, entry].sort((a, b) => a.time.localeCompare(b.time)) }
+    const updated = { ...slots, [dayKey]: [...existing, { time: entry.time, end_time: entry.end_time, capacity: entry.capacity }].sort((a, b) => a.time.localeCompare(b.time)) }
     onChange(updated)
     cancelAdd(dayKey)
   }
@@ -862,7 +862,7 @@ function WeeklyGrid({
                     key={idx}
                     className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg border border-blue-100"
                   >
-                    {entry.time} ×{entry.capacity}
+                    {entry.time}{entry.end_time ? `–${entry.end_time}` : ''} ×{entry.capacity}
                     <button
                       onClick={() => removeSlot(dayKey, idx)}
                       className="ml-0.5 text-blue-400 hover:text-red-500 transition-colors leading-none"
@@ -883,12 +883,21 @@ function WeeklyGrid({
               )}
             </div>
             {addState && (
-              <div className="flex items-center gap-2 mt-1.5 pl-24">
+              <div className="flex items-center gap-2 mt-1.5 pl-24 flex-wrap">
                 <input
                   type="time"
                   value={addState.time}
                   onChange={e => setAdding(prev => ({ ...prev, [dayKey]: { ...prev[dayKey], time: e.target.value } }))}
                   className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-28"
+                  title="Start time"
+                />
+                <span className="text-xs text-slate-400">to</span>
+                <input
+                  type="time"
+                  value={addState.end_time}
+                  onChange={e => setAdding(prev => ({ ...prev, [dayKey]: { ...prev[dayKey], end_time: e.target.value } }))}
+                  className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-28"
+                  title="End time"
                 />
                 <input
                   type="number"
@@ -1329,7 +1338,8 @@ export default function CalendarPage() {
             const items = itemsByDay.get(key) ?? []
             return (
               <div key={key}
-                className={`min-h-[96px] p-1.5 border-gray-100 ${i % 7 !== 0 ? 'border-l' : ''} ${i >= 7 ? 'border-t' : ''} ${inMonth ? 'bg-white' : 'bg-slate-50/60'}`}
+                className={`min-h-[96px] p-1.5 border-gray-100 cursor-default ${i % 7 !== 0 ? 'border-l' : ''} ${i >= 7 ? 'border-t' : ''} ${inMonth ? 'bg-white' : 'bg-slate-50/60'}`}
+                onDoubleClick={() => { const noon = new Date(day); noon.setHours(12, 0, 0, 0); setModal({ open: true, event: null, defaultDate: noon }) }}
                 onContextMenu={e => { e.preventDefault(); const noon = new Date(day); noon.setHours(12, 0, 0, 0); ctx.open(e, [{ label: 'New event on this date', icon: <Plus size={13} />, onClick: () => setModal({ open: true, event: null, defaultDate: noon }) }]) }}>
                 <div className="flex justify-end mb-1">
                   <span className={`w-6 h-6 flex items-center justify-center text-xs rounded-full ${

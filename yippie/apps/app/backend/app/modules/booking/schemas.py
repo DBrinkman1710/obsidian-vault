@@ -8,7 +8,8 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class WeeklySlotEntry(BaseModel):
-    time: str  # HH:MM
+    time: str  # HH:MM start
+    end_time: Optional[str] = None  # HH:MM end; if omitted, defaults to 30 min after start
     capacity: int = Field(ge=1)
 
 
