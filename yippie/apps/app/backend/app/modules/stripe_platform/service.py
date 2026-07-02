@@ -21,7 +21,9 @@ PLAN_LOOKUP_KEYS: dict[str, PlanTier] = {
     "yippie_starter_monthly": PlanTier.starter,
     "yippie_starter_annual": PlanTier.starter,
     "yippie_growth_monthly": PlanTier.growth,
-    "yippie_growth_annual": PlanTier.growth,
+    "yippie_growth_annual":  PlanTier.growth,
+    "yippie_pro_monthly":    PlanTier.pro,
+    "yippie_pro_annual":     PlanTier.pro,
 }
 
 # Maps Stripe price lookup_keys → Yippie module name.

@@ -70,11 +70,12 @@ export default function SetupChecklist() {
       detail: 'Teammates get their own login and can claim tickets.',
       route: '/settings/team',
       done: (teamQuery.data?.length ?? 0) > 1,
+      optional: true,
     }] : []),
   ]
 
   const requiredGates = gates.filter(g => !g.optional)
-  const completedCount = gates.filter(g => g.done).length
+  const completedCount = requiredGates.filter(g => g.done).length
   const allDone = requiredGates.every(g => g.done)
 
   const dismissMutation = useMutation({
@@ -90,7 +91,7 @@ export default function SetupChecklist() {
   }, [allDone, dismissMutation.isPending, dismissMutation.isSuccess])
 
   if (!user?.tour_completed || user?.setup_checklist_dismissed) return null
-  if (isAdmin && teamQuery.isLoading) return null
+  if (signatureQuery.isLoading || (isAdmin && teamQuery.isLoading)) return null
 
   return (
     <>
@@ -102,7 +103,7 @@ export default function SetupChecklist() {
             {allDone ? 'All done!' : 'Get started'}
           </p>
           <p className="text-xs text-slate-400 mt-0.5">
-            {allDone ? 'Your workspace is ready.' : `${completedCount} of ${gates.length} complete`}
+            {allDone ? 'Your workspace is ready.' : `${completedCount} of ${requiredGates.length} complete`}
           </p>
         </div>
         <div className="flex items-center gap-1">
@@ -127,7 +128,7 @@ export default function SetupChecklist() {
       <div className="h-1 bg-slate-100">
         <div
           className="h-full bg-yippie transition-all duration-500"
-          style={{ width: `${(completedCount / gates.length) * 100}%` }}
+          style={{ width: `${(completedCount / requiredGates.length) * 100}%` }}
         />
       </div>
 

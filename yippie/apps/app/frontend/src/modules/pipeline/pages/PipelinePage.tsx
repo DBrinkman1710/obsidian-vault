@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowRight, CalendarClock, GripVertical, Loader2, Megaphone, Plus, Settings2, Trash2, User, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
@@ -500,10 +500,16 @@ export default function PipelinePage() {
   const dragContactRef = useRef<{ contactId: string; fromStageId: string } | null>(null)
   const boardRef = useRef<HTMLDivElement>(null)
 
-  const handleBoardWheel = useCallback((e: React.WheelEvent) => {
-    if (!e.shiftKey) return
-    e.preventDefault()
-    boardRef.current?.scrollBy({ left: e.deltaY, behavior: 'auto' })
+  useEffect(() => {
+    const el = boardRef.current
+    if (!el) return
+    const handler = (e: WheelEvent) => {
+      if (!e.shiftKey) return
+      e.preventDefault()
+      el.scrollBy({ left: e.deltaY, behavior: 'auto' })
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
   }, [])
 
   const { data: campaigns = [] } = useQuery<Campaign[]>({
@@ -794,7 +800,7 @@ export default function PipelinePage() {
         </div>
       ) : (
         /* Desktop — horizontally scrollable kanban board */
-        <div ref={boardRef} onWheel={handleBoardWheel} className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-13rem)] items-start">
+        <div ref={boardRef} className="flex gap-4 overflow-x-auto pb-4 h-[calc(100vh-13rem)] items-start">
           {board.map((col: any) => (
             <div
               key={col.stage.id}

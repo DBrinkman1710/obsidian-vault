@@ -50,11 +50,20 @@ export const MODULE_INFO: Record<string, { icon: string; desc: string }> = {
 
 export const TOP_MODULES = ["AI Inbox", "Tickets", "Live Chat", "Pipeline"];
 
+const PAIN_POINT_ALIASES: Record<string, string> = {
+  "Ticket volume":        "Too many support tickets",
+  "Slow responses":       "Slow response times",
+  "Manual sorting":       "Manual sorting & routing",
+  "No reporting":         "Too many support tickets",
+  "Customer follow-up":   "Losing track of customers",
+};
+
 export function computeRecommendations(
   industry: string,
   currentTools: string[],
   painPoints: string[],
 ): string[] {
+  const normalized = painPoints.map(p => PAIN_POINT_ALIASES[p] ?? p);
   const rec = new Set(["AI Inbox", "Tickets"]);
 
   // Industry signals
@@ -94,20 +103,20 @@ export function computeRecommendations(
   }
 
   // Pain point signals
-  if (painPoints.includes("Missing automation") || painPoints.includes("Manual sorting & routing")) {
+  if (normalized.includes("Missing automation") || normalized.includes("Manual sorting & routing")) {
     rec.add("AI Inbox");
   }
-  if (painPoints.includes("Losing track of customers")) {
+  if (normalized.includes("Losing track of customers")) {
     rec.add("Pipeline");
   }
-  if (painPoints.includes("Scattered channels (email, WhatsApp, chat)")) {
+  if (normalized.includes("Scattered channels (email, WhatsApp, chat)")) {
     rec.add("Live Chat");
   }
-  if (painPoints.includes("Shipment & order queries")) {
+  if (normalized.includes("Shipment & order queries")) {
     rec.add("Shipment Tracking");
     rec.add("AI Inbox");
   }
-  if (painPoints.includes("Too many support tickets") || painPoints.includes("Slow response times")) {
+  if (normalized.includes("Too many support tickets") || normalized.includes("Slow response times")) {
     rec.add("Live Chat");
     rec.add("Departments");
   }
