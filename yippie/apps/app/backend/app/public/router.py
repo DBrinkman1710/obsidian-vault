@@ -1208,7 +1208,7 @@ class SignupRequest(BaseModel):
     company_name: str = Field(min_length=1)
     email: EmailStr
     password: str = Field(min_length=8)
-    plan: Literal["starter", "growth", "pro"] = "starter"
+    plan: Literal["founder", "starter", "growth", "pro"] = "starter"
     enabled_modules: list[str] = []
     questionnaire: Optional[Questionnaire] = None
     from_demo_token: Optional[str] = None

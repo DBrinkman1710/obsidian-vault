@@ -36,6 +36,9 @@ export async function POST(req: NextRequest) {
 
   if (upstream.ok) {
     const data = await upstream.json().catch(() => ({}));
+    // Stripe hook: backend returns { payment: { type: "stripe", checkout_url: "..." }, login_url, tenant_slug }.
+    // Frontend checks data.payment?.checkout_url and redirects to Stripe Checkout automatically.
+    // Until Stripe is live, backend returns { payment: { type: "invoice", invoice_id: "..." } } and signup completes immediately.
     return NextResponse.json(data, { status: 201 });
   }
 
