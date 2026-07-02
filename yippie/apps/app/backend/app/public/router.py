@@ -76,6 +76,28 @@ class RequestDemo(BaseModel):
     questionnaire: Optional[Questionnaire] = None
 
 
+class CustomPlanQuestionnaire(BaseModel):
+    team_size: Optional[str] = None
+    industry: Optional[str] = None
+    challenges: Optional[list[str]] = None
+    current_tool: Optional[str] = None
+    plan_selected: Optional[str] = None
+    modules_selected: Optional[list[str]] = None
+    monthly_total: Optional[int] = None
+    billing_cycle: Optional[str] = None  # "monthly" | "annual"
+
+
+class CustomPlanRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    company_name: str = Field(min_length=1, max_length=200)
+    email: EmailStr
+    questionnaire: Optional[CustomPlanQuestionnaire] = None
+
+
+CUSTOM_PLAN_PIPELINE_STAGE = "Custom plan"
+CUSTOM_PLAN_LABEL = "custom plan"
+
+
 def _slugify(value: str) -> str:
     """company_name -> lowercase, spaces->hyphens, strip non-alphanumeric."""
     value = (value or "").strip().lower()
@@ -293,6 +315,122 @@ async def _ensure_demo_label(db: AsyncSession, tenant_id: uuid.UUID):
         db.add(label)
         await db.flush()
     return label
+
+
+async def _ensure_custom_plan_label(db: AsyncSession, tenant_id: uuid.UUID):
+    """Find or create the 'custom plan' label in the root tenant."""
+    from app.modules.contacts.models import ContactLabel
+
+    label = await db.scalar(
+        select(ContactLabel).where(
+            ContactLabel.tenant_id == tenant_id,
+            ContactLabel.name == CUSTOM_PLAN_LABEL,
+        )
+    )
+    if label is None:
+        label = ContactLabel(tenant_id=tenant_id, name=CUSTOM_PLAN_LABEL)
+        db.add(label)
+        await db.flush()
+    return label
+
+
+@router.post("/custom-plan", status_code=201)
+async def custom_plan_request(
+    body: CustomPlanRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Capture a bespoke-package configurator lead — no auth, no demo tenant created.
+
+    Files a Contact + Ticket in the root owner's tenant so the lead shows up
+    in the pipeline immediately.
+    """
+    from app.modules.contacts.models import Contact, contact_label_links
+    from app.modules.pipeline.service import _assign_stage
+    from app.modules.tickets.models import MessageSource, Ticket, TicketPriority, TicketStatus
+
+    ip = get_client_ip(request)
+    if await rl_is_blocked(f"custom_plan:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Too many requests. Please try again later.",
+        )
+    await rl_hit(f"custom_plan:{ip}", DEMO_RATE_WINDOW)
+
+    root_tenant_id = await _resolve_root_tenant_id(db)
+    await set_tenant_context(db, str(root_tenant_id))
+
+    label = await _ensure_custom_plan_label(db, root_tenant_id)
+    contact = Contact(
+        tenant_id=root_tenant_id,
+        full_name=body.name.strip(),
+        email=body.email.lower().strip(),
+        company=body.company_name.strip(),
+    )
+    db.add(contact)
+    await db.flush()
+    await db.execute(
+        contact_label_links.insert().values(contact_id=contact.id, label_id=label.id)
+    )
+
+    stage = await _ensure_stage_by_name(
+        db, root_tenant_id, CUSTOM_PLAN_PIPELINE_STAGE, "#8B5CF6"
+    )
+    await _assign_stage(db, root_tenant_id, contact.id, stage.id)
+
+    q = body.questionnaire
+    if q:
+        contact.custom_fields = {
+            "team_size": q.team_size,
+            "industry": q.industry,
+            "challenges": q.challenges,
+            "current_tool": q.current_tool,
+            "plan_selected": q.plan_selected,
+            "modules_selected": q.modules_selected,
+            "monthly_total": q.monthly_total,
+            "billing_cycle": q.billing_cycle,
+        }
+
+    q_lines: list[str] = []
+    if q:
+        if q.team_size:
+            q_lines.append(f"Team size: {q.team_size}")
+        if q.industry:
+            q_lines.append(f"Industry: {q.industry}")
+        if q.challenges:
+            q_lines.append(f"Challenges: {', '.join(q.challenges)}")
+        if q.current_tool:
+            q_lines.append(f"Current tool: {q.current_tool}")
+        if q.plan_selected:
+            q_lines.append(f"Plan: {q.plan_selected.capitalize()}")
+        if q.modules_selected:
+            q_lines.append(f"Modules: {', '.join(q.modules_selected)}")
+        if q.monthly_total is not None:
+            cycle = q.billing_cycle or "monthly"
+            q_lines.append(f"Estimated total: €{q.monthly_total}/mo ({cycle})")
+
+    plan_label = q.plan_selected.capitalize() if q and q.plan_selected else "Custom"
+    description = (
+        f"Custom plan request from {body.name.strip()} ({body.email.lower().strip()}) "
+        f"at {body.company_name.strip()}."
+    )
+    if q_lines:
+        description += "\n\nConfiguration:\n" + "\n".join(f"- {line}" for line in q_lines)
+
+    now = datetime.now(timezone.utc)
+    db.add(Ticket(
+        tenant_id=root_tenant_id,
+        contact_id=contact.id,
+        subject=f"Custom plan: {body.company_name.strip()} — {plan_label}",
+        description=description,
+        status=TicketStatus.open,
+        priority=TicketPriority.medium,
+        source=MessageSource.manual,
+        sla_due_at=now + timedelta(days=2),
+    ))
+    await db.commit()
+
+    return {"ok": True}
 
 
 @router.post("/request-demo")

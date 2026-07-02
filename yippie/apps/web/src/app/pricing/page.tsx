@@ -441,14 +441,19 @@ export default function PricingPage() {
       </section>
 
       <section className={styles.ctaSection}>
-        <h2 className={styles.ctaTitle}>Not sure which plan fits?</h2>
+        <h2 className={styles.ctaTitle}>Want a tailored quote?</h2>
         <p className={styles.ctaSub}>
-          Tell us about your team and we&apos;ll help you pick the right plan and
-          add-ons. No pressure, no credit card.
+          Answer a few quick questions and we&apos;ll put together a personalised
+          package with exactly the modules your team needs.
         </p>
-        <a href={TALK_PATH} className={styles.btnPrimary}>
-          Book a call →
-        </a>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
+          <a href="/custom" className={styles.btnPrimary}>
+            Build your package →
+          </a>
+          <a href={TALK_PATH} className={styles.btnGhost}>
+            Book a call
+          </a>
+        </div>
       </section>
 
       <SiteFooter />
