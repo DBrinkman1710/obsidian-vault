@@ -47,7 +47,7 @@ export default function RegisterPage() {
         {error && <div className={authErrorCls}>{error}</div>}
         <div className="flex flex-col gap-1.5">
           <label className={authLabelCls}>Your name</label>
-          <input type="text" placeholder="Jan de Vries" value={fullName}
+          <input type="text" placeholder="Alex Johnson" value={fullName}
             onChange={e => setFullName(e.target.value)} className={authInputCls} />
         </div>
         <div className="flex flex-col gap-1.5">

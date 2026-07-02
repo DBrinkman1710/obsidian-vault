@@ -64,7 +64,10 @@ function ContactPicker({ value, onChange }: {
         <div className="absolute top-full left-0 right-0 z-10 bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
           {!data?.length && (
             <div className="px-4 py-3 text-sm text-slate-400">
-              {search ? 'No contacts found' : 'Start typing to search…'}
+              {search
+                ? <>No contacts found. <Link to="/contacts/new" className="text-blue-600 hover:underline">Create one?</Link></>
+                : <>Start typing to search… or <Link to="/contacts/new" className="text-blue-600 hover:underline">add a new contact</Link></>
+              }
             </div>
           )}
           {data?.map((c: any) => (

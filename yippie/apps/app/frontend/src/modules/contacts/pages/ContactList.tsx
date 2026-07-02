@@ -28,7 +28,7 @@ interface ImportResult {
   error_details: string[]
 }
 
-const TEMPLATE_CSV = 'full_name,email,phone,company,notes\nJan de Vries,jan@example.nl,+31612345678,Acme BV,VIP customer\n'
+const TEMPLATE_CSV = 'full_name,email,phone,company,notes\nAlex Johnson,alex@example.com,+1 555 012 3456,Acme Ltd,VIP customer\n'
 
 function downloadBlob(data: BlobPart, filename: string, type: string) {
   const url = URL.createObjectURL(new Blob([data], { type }))

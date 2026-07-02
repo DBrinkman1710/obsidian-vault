@@ -118,6 +118,12 @@ class Tenant(Base):
     # and which pipeline stage they land in.
     lead_widget_save_contact: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     lead_widget_stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    # Order system webhook → pipeline stage mapping.
+    # When an ERP/Shopify order arrives, the contact's kanban card is moved to the
+    # configured stage for that order status event.
+    order_placed_stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    order_shipped_stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    order_delivered_stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     users: Mapped[list[User]] = relationship("User", back_populates="tenant")
@@ -153,6 +159,8 @@ class User(Base):
     # True once the user has dismissed the post-tour setup checklist widget.
     setup_checklist_dismissed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     ui_language: Mapped[str] = mapped_column(String(10), nullable=False, server_default="en")
+    # Per-user toggle for contextual ? help tips shown throughout the app.
+    help_tips_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     # Quick-capture (Jarvis) preferences: {hotkey, enabled_actions, default_context_mode}.
     jarvis_prefs: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

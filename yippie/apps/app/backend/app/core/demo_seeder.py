@@ -49,9 +49,16 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
 
             tenant = await db.get(Tenant, tenant_id)
             admin_user = await db.get(User, admin_user_id)
-            company_name = (tenant.name.strip() if tenant and tenant.name.strip() else None) or "Acme Nederland BV"
+            name_raw = (tenant.name or "").strip() if tenant else ""
+            company_name = name_raw or "Acme Nederland BV"
             admin_email = admin_user.email if admin_user else ""
-            requester_domain = admin_email.split("@")[1] if "@" in admin_email else "example.nl"
+            raw_domain = admin_email.split("@", 1)[1] if "@" in admin_email else ""
+            # Don't seed demo contacts with real consumer-inbox addresses (e.g. gmail.com)
+            _free_domains = {"gmail.com", "googlemail.com", "hotmail.com", "hotmail.nl",
+                             "outlook.com", "outlook.nl", "live.com", "live.nl",
+                             "yahoo.com", "yahoo.nl", "icloud.com", "me.com",
+                             "mac.com", "msn.com", "protonmail.com", "proton.me"}
+            requester_domain = raw_domain if raw_domain and raw_domain not in _free_domains else "example.nl"
 
             # ── Companies ────────────────────────────────────────────────────
             co_acme = Company(tenant_id=tenant_id, name=company_name, domain=requester_domain, notes="Tech scale-up, 50 fte.")

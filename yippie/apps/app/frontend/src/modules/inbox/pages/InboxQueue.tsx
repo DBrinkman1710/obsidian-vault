@@ -40,7 +40,7 @@ const INBOX_FACTS = [
   "Tip: use the search bar to find messages by subject or sender in any tab.",
 ]
 
-function AllCaughtUp() {
+function AllCaughtUp({ hasHistory = false }: { hasHistory?: boolean }) {
   const [fact, setFact] = useState(() => INBOX_FACTS[Math.floor(Math.random() * INBOX_FACTS.length)])
   useEffect(() => {
     const id = setInterval(() => {
@@ -48,6 +48,21 @@ function AllCaughtUp() {
     }, 120_000)
     return () => clearInterval(id)
   }, [])
+
+  if (!hasHistory) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+          <Mail size={32} className="text-slate-400" strokeWidth={1.5} />
+        </div>
+        <h3 className="text-lg font-semibold text-slate-700">No messages yet</h3>
+        <p className="text-sm text-slate-400 max-w-xs leading-relaxed">
+          Incoming emails and WhatsApp messages will appear here for review.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
       <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center">
@@ -289,24 +304,6 @@ export default function InboxQueue() {
   const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? true
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
-
-  // Auto-open compose with pre-filled recipients from contacts/companies page
-  useEffect(() => {
-    const raw = sessionStorage.getItem('compose-prefill')
-    const autoCompose = new URLSearchParams(window.location.search).get('compose')
-    if (raw && autoCompose === '1') {
-      try {
-        const recipients = JSON.parse(raw)
-        setComposeInitial({ recipients, subject: '', body: defaultSigBody ? `\n\n${defaultSigBody}` : '', fromEmail: null })
-        setShowCompose(true)
-      } catch { /* ignore */ }
-      sessionStorage.removeItem('compose-prefill')
-      // Remove ?compose=1 from URL without reload
-      const url = new URL(window.location.href)
-      url.searchParams.delete('compose')
-      window.history.replaceState({}, '', url.toString())
-    }
-  }, [defaultSigBody])
 
   useEffect(() => { setFocusedIdx(-1) }, [activeTab, mailbox])
 
@@ -946,7 +943,7 @@ export default function InboxQueue() {
 
         {activeTab !== 'sent' && isLoading && <CardListSkeleton rows={5} />}
         {!isLoading && allDrafts.length === 0 && activeTab === 'pending' && (
-          <AllCaughtUp />
+          <AllCaughtUp hasHistory={allProcessed.length > 0} />
         )}
         {activeTab === 'processed' && !isLoading && allDrafts.length === 0 && (
           <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
@@ -1058,7 +1055,7 @@ export default function InboxQueue() {
 
             <div className="flex flex-col gap-3 min-h-[200px]">
               {pageDrafts.length === 0 && (assignedToMe || assignedToUser) && (
-                <AllCaughtUp />
+                <AllCaughtUp hasHistory={allProcessed.length > 0} />
               )}
               {pageDrafts.map((d: any, index: number) => {
                 const isFollowUp = d.status === 'approved' && d.follow_up_at

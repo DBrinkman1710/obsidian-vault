@@ -84,6 +84,8 @@ class ErpOrderPayload(BaseModel):
     carrier: Carrier = Carrier.other
     status: ShipmentStatus = ShipmentStatus.registered
     contact_email: Optional[str] = None
+    contact_name: Optional[str] = None
+    contact_phone: Optional[str] = None
     description: Optional[str] = None
     estimated_delivery: Optional[datetime] = None
 
@@ -91,3 +93,22 @@ class ErpOrderPayload(BaseModel):
 class WebhookSettingsOut(BaseModel):
     orders_webhook_url: str
     orders_webhook_secret_set: bool
+
+
+class StageOption(BaseModel):
+    id: uuid.UUID
+    name: str
+    color: str
+
+
+class StageSettingsOut(BaseModel):
+    order_placed_stage_id: Optional[uuid.UUID] = None
+    order_shipped_stage_id: Optional[uuid.UUID] = None
+    order_delivered_stage_id: Optional[uuid.UUID] = None
+    stages: list[StageOption] = []
+
+
+class StageSettingsUpdate(BaseModel):
+    order_placed_stage_id: Optional[uuid.UUID] = None
+    order_shipped_stage_id: Optional[uuid.UUID] = None
+    order_delivered_stage_id: Optional[uuid.UUID] = None

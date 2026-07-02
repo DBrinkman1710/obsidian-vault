@@ -21,6 +21,8 @@ from app.modules.shipments.schemas import (
     ShipmentList,
     ShipmentOut,
     ShipmentUpdate,
+    StageSettingsOut,
+    StageSettingsUpdate,
     WebhookSettingsOut,
 )
 
@@ -66,6 +68,19 @@ async def get_sendcloud_settings(current_user: CurrentUser, db: DB):
     return await service.get_sendcloud_settings(
         db, current_user.tenant_id, settings.effective_base_url, slug
     )
+
+
+@router.get("/settings/stages", response_model=StageSettingsOut)
+async def get_stage_settings(current_user: AdminUser, db: DB):
+    return await service.get_stage_settings(db, current_user.tenant_id)
+
+
+@router.patch("/settings/stages", response_model=StageSettingsOut)
+async def update_stage_settings(body: StageSettingsUpdate, current_user: AdminUser, db: DB):
+    try:
+        return await service.update_stage_settings(db, current_user.tenant_id, body)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.patch("/settings/sendcloud", response_model=SendcloudSettingsOut)

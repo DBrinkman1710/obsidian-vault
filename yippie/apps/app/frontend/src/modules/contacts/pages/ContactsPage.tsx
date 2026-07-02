@@ -23,7 +23,7 @@ interface ImportResult {
   error_details: string[]
 }
 
-const TEMPLATE_CSV = 'full_name,email,phone,company,notes\nJan de Vries,jan@example.nl,+31612345678,Acme BV,VIP customer\n'
+const TEMPLATE_CSV = 'full_name,email,phone,company,notes\nAlex Johnson,alex@example.com,+1 555 012 3456,Acme Ltd,VIP customer\n'
 
 function downloadBlob(data: BlobPart, filename: string, type: string) {
   const url = URL.createObjectURL(new Blob([data], { type }))
@@ -78,7 +78,7 @@ function CompanyForm({ initial, onSave, onCancel, isPending, serverError }: {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Company name *</label>
-          <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme BV" maxLength={255} autoFocus />
+          <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme Ltd" maxLength={255} autoFocus />
         </div>
         <div>
           <label className={labelCls}>Domain</label>
@@ -762,7 +762,15 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         {!isLoading && items.length === 0 && (
           <div className="py-12 text-center">
             <User size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 font-medium">No contacts found</p>
+            <p className="text-sm text-slate-400 font-medium mb-1">No contacts yet</p>
+            <p className="text-xs text-slate-400 mb-4">Add your first contact to start creating tickets.</p>
+            <Link
+              to="/contacts/new"
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+            >
+              <Plus size={14} />
+              Add contact
+            </Link>
           </div>
         )}
       </div>

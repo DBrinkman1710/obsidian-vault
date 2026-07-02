@@ -352,7 +352,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
           <div>
             <label className={labelCls}>Name</label>
             <input className={inputCls} value={form.full_name} autoFocus
-              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jan de Vries" />
+              onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Alex Johnson" />
           </div>
           <div>
             <label className={labelCls}>Email</label>
@@ -521,7 +521,7 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
             <div>
               <label className={labelCls}>Name</label>
               <input className={inputCls} value={form.full_name} autoFocus
-                onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jan de Vries" />
+                onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Alex Johnson" />
             </div>
             <div>
               <label className={labelCls}>Login email</label>
