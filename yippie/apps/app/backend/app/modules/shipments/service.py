@@ -20,6 +20,9 @@ from app.modules.shipments.schemas import (
     ShipmentDetail,
     ShipmentOut,
     ShipmentUpdate,
+    StageOption,
+    StageSettingsOut,
+    StageSettingsUpdate,
     WebhookSettingsOut,
 )
 
@@ -304,13 +307,65 @@ async def get_sendcloud_settings(
     )
 
 
+def _resolve_order_stage(tenant, status: ShipmentStatus) -> uuid.UUID | None:
+    """Map an order status to the tenant's configured pipeline stage ID, or None."""
+    if status == ShipmentStatus.registered:
+        return tenant.order_placed_stage_id
+    if status in (ShipmentStatus.in_transit, ShipmentStatus.out_for_delivery):
+        return tenant.order_shipped_stage_id
+    if status == ShipmentStatus.delivered:
+        return tenant.order_delivered_stage_id
+    return None
+
+
+async def get_stage_settings(db: AsyncSession, tenant_id: uuid.UUID) -> StageSettingsOut:
+    from app.core.models import Tenant
+    from app.modules.pipeline.models import PipelineStage
+    from sqlalchemy import select
+
+    tenant = await db.get(Tenant, tenant_id)
+    stages_result = await db.scalars(
+        select(PipelineStage)
+        .where(PipelineStage.tenant_id == tenant_id)
+        .order_by(PipelineStage.display_order)
+    )
+    stages = [StageOption(id=s.id, name=s.name, color=s.color) for s in stages_result]
+    return StageSettingsOut(
+        order_placed_stage_id=tenant.order_placed_stage_id if tenant else None,
+        order_shipped_stage_id=tenant.order_shipped_stage_id if tenant else None,
+        order_delivered_stage_id=tenant.order_delivered_stage_id if tenant else None,
+        stages=stages,
+    )
+
+
+async def update_stage_settings(
+    db: AsyncSession, tenant_id: uuid.UUID, body: StageSettingsUpdate
+) -> StageSettingsOut:
+    from app.core.models import Tenant
+
+    tenant = await db.get(Tenant, tenant_id)
+    if not tenant:
+        raise LookupError("Tenant not found")
+
+    fields = body.model_dump(exclude_unset=True)
+    for key, value in fields.items():
+        setattr(tenant, key, value)
+    await db.flush()
+    await db.commit()
+
+    return await get_stage_settings(db, tenant_id)
+
+
 async def handle_erp_order_webhook(
     db: AsyncSession,
     tenant_id: uuid.UUID,
     payload: ErpOrderPayload,
 ) -> None:
+    from app.core.models import Tenant
     from app.database import set_tenant_context
     from app.modules.contacts.models import Contact
+    from app.modules.contacts.service import _normalize_phone
+    from app.modules.pipeline import service as pipeline_service
 
     await set_tenant_context(db, str(tenant_id))
 
@@ -322,16 +377,37 @@ async def handle_erp_order_webhook(
         ).order_by(Shipment.created_at.desc())
     )
 
+    contact: Contact | None = None
     contact_id = None
     if payload.contact_email:
+        email_norm = payload.contact_email.lower().strip()
         contact = await db.scalar(
             select(Contact).where(
                 Contact.tenant_id == tenant_id,
-                Contact.email == payload.contact_email.lower().strip(),
+                Contact.email == email_norm,
                 Contact.deleted_at.is_(None),
             )
         )
         if contact:
+            # Merge-only: fill in blank fields, never overwrite existing data.
+            if payload.contact_name and not contact.full_name:
+                contact.full_name = payload.contact_name
+            if payload.contact_phone and not contact.phone:
+                contact.phone = _normalize_phone(payload.contact_phone)
+            await db.flush()
+            contact_id = contact.id
+        else:
+            # New contact — create from order data.
+            full_name = (payload.contact_name or "").strip() or email_norm.split("@")[0]
+            contact = Contact(
+                tenant_id=tenant_id,
+                full_name=full_name,
+                email=email_norm,
+                phone=_normalize_phone(payload.contact_phone) if payload.contact_phone else None,
+                tags=["order-system"],
+            )
+            db.add(contact)
+            await db.flush()
             contact_id = contact.id
 
     now = datetime.now(timezone.utc)
@@ -363,6 +439,25 @@ async def handle_erp_order_webhook(
             shipment.last_event_at = now
 
     await db.flush()
+
+    # Move contact's pipeline card to the configured stage for this order status.
+    # Skipped when a human explicitly placed the contact in a stage — their intent takes priority.
+    if contact_id:
+        tenant = await db.get(Tenant, tenant_id)
+        stage_id = _resolve_order_stage(tenant, payload.status)
+        if stage_id:
+            try:
+                from app.modules.pipeline.models import ContactPipelineEntry
+                existing_entry = await db.scalar(
+                    select(ContactPipelineEntry).where(
+                        ContactPipelineEntry.contact_id == contact_id,
+                        ContactPipelineEntry.tenant_id == tenant_id,
+                    )
+                )
+                if existing_entry is None or not existing_entry.moved_by_human:
+                    await pipeline_service._assign_stage(db, tenant_id, contact_id, stage_id)
+            except Exception:
+                log.exception("Pipeline stage move failed for contact %s", contact_id)
 
 
 async def get_erp_webhook_settings(

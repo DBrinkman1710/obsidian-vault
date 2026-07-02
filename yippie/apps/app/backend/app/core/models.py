@@ -118,6 +118,12 @@ class Tenant(Base):
     # and which pipeline stage they land in.
     lead_widget_save_contact: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     lead_widget_stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    # Order system webhook → pipeline stage mapping.
+    # When an ERP/Shopify order arrives, the contact's kanban card is moved to the
+    # configured stage for that order status event.
+    order_placed_stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    order_shipped_stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    order_delivered_stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     users: Mapped[list[User]] = relationship("User", back_populates="tenant")

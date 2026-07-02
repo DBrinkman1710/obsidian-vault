@@ -197,6 +197,7 @@ async def _assign_stage(
     stages flows through here (kanban drag, booking auto-move, tracking link
     clicks), so the activity feed shows the full transition history inline.
     """
+    by_human = actor_id is not None
     existing = await db.scalar(
         select(ContactPipelineEntry).where(
             ContactPipelineEntry.contact_id == contact_id,
@@ -205,12 +206,19 @@ async def _assign_stage(
     )
     changed = False
     if existing is None:
-        db.add(ContactPipelineEntry(contact_id=contact_id, stage_id=stage_id, tenant_id=tenant_id))
+        db.add(ContactPipelineEntry(
+            contact_id=contact_id, stage_id=stage_id, tenant_id=tenant_id,
+            moved_by_human=by_human,
+        ))
         changed = True
     elif existing.stage_id != stage_id:
         existing.stage_id = stage_id
         existing.entered_at = datetime.now(timezone.utc)
+        existing.moved_by_human = by_human
         changed = True
+    elif by_human and not existing.moved_by_human:
+        # Same stage but human is explicitly confirming it — promote the flag.
+        existing.moved_by_human = True
 
     if not changed:
         return
