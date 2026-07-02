@@ -1055,7 +1055,7 @@ export default function InboxQueue() {
 
             <div className="flex flex-col gap-3 min-h-[200px]">
               {pageDrafts.length === 0 && (assignedToMe || assignedToUser) && (
-                <AllCaughtUp />
+                <AllCaughtUp hasHistory={allProcessed.length > 0} />
               )}
               {pageDrafts.map((d: any, index: number) => {
                 const isFollowUp = d.status === 'approved' && d.follow_up_at
