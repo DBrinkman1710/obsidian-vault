@@ -788,6 +788,14 @@ Yippie exposes a generic orders endpoint that external ERP systems can post to:
 - Yippie automatically creates a Shipment record and links it to the matching contact
 - Webhook requests are authenticated with an HMAC-SHA256 signature using a shared secret
 
+**Contact synchronisation**
+
+When an order arrives, Yippie automatically keeps your contact list in sync:
+
+- If a contact with that email already exists, Yippie fills in any blank name or phone fields from the order — it never overwrites data you already have.
+- If no matching contact is found, Yippie creates one automatically using the name, email, and phone from the order. New contacts receive the tag `order-system` so you can identify their origin.
+- The shipment is then linked to this contact in either case.
+
 ### Settings
 
 - **Sendcloud API key**: enter in **Settings → Organisation** to enable automatic status sync
