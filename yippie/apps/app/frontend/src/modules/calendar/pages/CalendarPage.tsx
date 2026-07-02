@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Check, ChevronLeft, ChevronRight, Edit2, ExternalLink, Plus, Settings2, Trash2, User, UserPlus, Users, X } from 'lucide-react'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
+import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
@@ -283,14 +284,21 @@ const STATUS_LABEL: Record<string, string> = {
   counter_proposed: 'New time proposed',
 }
 
-function EventModal({ event, onClose, onSaved, defaultDate }: {
+function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
   event: CalendarItem | null   // null = create
   onClose: () => void
   onSaved: () => void
   defaultDate?: Date
+  bookingEnabled?: boolean
 }) {
   const { user } = useAuth()
   const qc = useQueryClient()
+  const isCreate = !event
+  const showTabs = isCreate && bookingEnabled
+
+  const [tab, setTab] = useState<'event' | 'booking'>('event')
+
+  // ── Event tab state ──────────────────────────────────────────────────────
   const start = event ? new Date(event.start_at) : null
   const end = event?.end_at ? new Date(event.end_at) : null
 
@@ -310,7 +318,86 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
   const [invitees, setInvitees] = useState<PickerOption[]>([])
   const [error, setError] = useState('')
 
-  // Existing invitations for edit view
+  // ── Booking tab state ────────────────────────────────────────────────────
+  const bToday = useMemo(() => new Date(), [])
+  const [bContact, setBContact] = useState<PickerOption | null>(null)
+  const [bMode, setBMode] = useState<'open' | 'propose'>('open')
+  const [bMessage, setBMessage] = useState('')
+  const [bStageId, setBStageId] = useState('')
+  const [bSending, setBSending] = useState(false)
+  const [bSlots, setBSlots] = useState<{ start: string; end: string }[]>([])
+  const [bYear, setBYear] = useState(bToday.getFullYear())
+  const [bMonth, setBMonth] = useState(bToday.getMonth())
+  const [bActiveDay, setBActiveDay] = useState<string | null>(null)
+  const [bFromPersonal, setBFromPersonal] = useState(false)
+
+  const { data: bSettings } = useQuery<CalendarSettings>({
+    queryKey: ['booking-settings'],
+    queryFn: () => api.get('/booking/settings').then((r: any) => r.data),
+    enabled: showTabs && tab === 'booking',
+  })
+  const { data: bStages = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
+    enabled: showTabs,
+  })
+
+  const bDays = useMemo(() => monthGrid(bYear, bMonth), [bYear, bMonth])
+  const bMonthLabel = new Date(bYear, bMonth, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const bTodayKey = dateKey(bToday)
+
+  const bDayChips = useMemo(() => {
+    if (!bActiveDay || !bSettings) return []
+    const [y, m, d] = bActiveDay.split('-').map(Number)
+    const step = bSettings.slot_minutes
+    const out: { start: string; end: string }[] = []
+    let cursor = new Date(y, m - 1, d, bSettings.work_start_hour, 0, 0)
+    const dayEnd = new Date(y, m - 1, d, bSettings.work_end_hour, 0, 0)
+    while (cursor.getTime() + step * 60000 <= dayEnd.getTime()) {
+      const s = new Date(cursor)
+      const e = new Date(cursor.getTime() + step * 60000)
+      out.push({ start: s.toISOString(), end: e.toISOString() })
+      cursor = e
+    }
+    return out
+  }, [bActiveDay, bSettings])
+
+  function bToggleSlot(slot: { start: string; end: string }) {
+    setBSlots(prev =>
+      prev.some(s => s.start === slot.start)
+        ? prev.filter(s => s.start !== slot.start)
+        : [...prev, slot])
+  }
+
+  function bShiftMonth(delta: number) {
+    const dt = new Date(bYear, bMonth + delta, 1)
+    setBYear(dt.getFullYear()); setBMonth(dt.getMonth())
+  }
+
+  async function handleBookingSend() {
+    if (!bContact) { setError('Please select a contact'); return }
+    if (bMode === 'propose' && bSlots.length === 0) { setError('Add at least one proposed time'); return }
+    setBSending(true); setError('')
+    try {
+      await api.post('/booking/send', {
+        contact_id: bContact.id,
+        mode: bMode,
+        message: bMessage.trim() || undefined,
+        proposed_slots: bMode === 'propose' ? bSlots : undefined,
+        stage_id_override: bStageId || undefined,
+        from_email: bFromPersonal && (user as any)?.reply_from_email ? (user as any).reply_from_email : undefined,
+      })
+      toast.success('Booking link sent!')
+      qc.invalidateQueries({ queryKey: ['booking-tokens'] })
+      onClose()
+    } catch {
+      setError('Could not send booking link. Please try again.')
+    } finally {
+      setBSending(false)
+    }
+  }
+
+  // ── Existing invitations for edit view ───────────────────────────────────
   const { data: existingInvitations = [] } = useQuery<InvitationOut[]>({
     queryKey: ['event-invitations', event?.id],
     queryFn: () => api.get(`/calendar/events/${event!.id}/invitations`).then((r: any) => r.data),
@@ -365,113 +452,271 @@ function EventModal({ event, onClose, onSaved, defaultDate }: {
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-8 pt-7 pb-4 shrink-0">
-          <h2 className="text-lg font-bold text-slate-900">{event ? 'Edit event' : 'New event'}</h2>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-8 pt-7 pb-0 shrink-0">
+          <h2 className="text-lg font-bold text-slate-900">{event ? 'Edit event' : 'New'}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
         </div>
 
-        <form onSubmit={submit} className="flex flex-col gap-4 overflow-y-auto px-8 pb-8">
-          <div>
-            <label className={labelCls}>Title *</label>
-            <input className={inputCls} value={title} onChange={e => setTitle(e.target.value)}
-              placeholder="Call with customer…" maxLength={255} autoFocus />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>Date *</label>
-              <input type="date" className={inputCls} value={date} onChange={e => setDate(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>Time {allDay ? '' : '*'}</label>
-              <input type="time" className={`${inputCls} disabled:bg-slate-50 disabled:text-slate-400`}
-                value={time} onChange={e => setTime(e.target.value)} disabled={allDay} />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className={labelCls}>End date</label>
-              <input type="date" className={inputCls} value={endDate} onChange={e => setEndDate(e.target.value)} />
-            </div>
-            <div>
-              <label className={labelCls}>End time</label>
-              <input type="time" className={`${inputCls} disabled:bg-slate-50 disabled:text-slate-400`}
-                value={endTime} onChange={e => setEndTime(e.target.value)} disabled={allDay || !endDate} />
-            </div>
-          </div>
-
-          <label className="flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}
-              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
-            <span className="text-sm text-slate-700 font-medium">All day</span>
-          </label>
-
-          <div>
-            <label className={labelCls}>Visibility</label>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => setCalendarType('shared')}
-                className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${calendarType === 'shared' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                Shared (team)
+        {/* Tabs — only for create mode when booking module is on */}
+        {showTabs && (
+          <div className="flex px-8 mt-3 shrink-0 border-b border-slate-200">
+            {(['event', 'booking'] as const).map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => { setTab(t); setError('') }}
+                className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+                  tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {t === 'event' ? 'Event' : 'Booking link'}
               </button>
-              <button type="button" onClick={() => setCalendarType('personal')}
-                className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${calendarType === 'personal' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                Personal (only me)
-              </button>
-            </div>
+            ))}
           </div>
+        )}
 
-          <div>
-            <label className={labelCls}>Description</label>
-            <textarea className={`${inputCls} resize-vertical min-h-[70px] font-[inherit]`}
-              value={description} onChange={e => setDescription(e.target.value)} placeholder="Any context…" />
-          </div>
-
-          <ContactPicker selected={contact} onSelect={setContact} />
-          <TicketPicker selected={ticket} onSelect={setTicket} />
-
-          {/* Invite teammates — only on create, or show existing invitations on edit */}
-          {!event ? (
-            <UserPicker
-              selected={invitees}
-              onSelect={setInvitees}
-              excludeIds={user?.id ? [user.id] : []}
-            />
-          ) : existingInvitations.length > 0 && (
+        {/* ── EVENT TAB ─────────────────────────────────────────────────── */}
+        {tab === 'event' && (
+          <form onSubmit={submit} className="flex flex-col gap-4 overflow-y-auto px-8 pb-8 pt-5">
             <div>
-              <label className={labelCls}>Teammates invited</label>
-              <div className="flex flex-wrap gap-1.5">
-                {existingInvitations.map(inv => (
-                  <span key={inv.id}
-                    className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-lg border ${STATUS_CHIP[inv.status] ?? 'bg-slate-100 text-slate-600'}`}>
-                    {inv.invitee_name}
-                    <span className="opacity-60 font-normal">· {STATUS_LABEL[inv.status] ?? inv.status}</span>
-                  </span>
-                ))}
+              <label className={labelCls}>Title *</label>
+              <input className={inputCls} value={title} onChange={e => setTitle(e.target.value)}
+                placeholder="Call with customer…" maxLength={255} autoFocus />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>Date *</label>
+                <input type="date" className={inputCls} value={date} onChange={e => setDate(e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>Time {allDay ? '' : '*'}</label>
+                <input type="time" className={`${inputCls} disabled:bg-slate-50 disabled:text-slate-400`}
+                  value={time} onChange={e => setTime(e.target.value)} disabled={allDay} />
               </div>
             </div>
-          )}
 
-          {error && <p className="text-sm text-red-500">{error}</p>}
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={labelCls}>End date</label>
+                <input type="date" className={inputCls} value={endDate} onChange={e => setEndDate(e.target.value)} />
+              </div>
+              <div>
+                <label className={labelCls}>End time</label>
+                <input type="time" className={`${inputCls} disabled:bg-slate-50 disabled:text-slate-400`}
+                  value={endTime} onChange={e => setEndTime(e.target.value)} disabled={allDay || !endDate} />
+              </div>
+            </div>
 
-          <div className="flex items-center gap-3 pt-1">
-            <button type="submit" disabled={saveMutation.isPending}
-              className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
-              {saveMutation.isPending ? 'Saving…' : event ? 'Save changes' : 'Create event'}
-            </button>
-            <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-              Cancel
-            </button>
-            {event && (
-              <button type="button" disabled={deleteMutation.isPending}
-                onClick={() => { if (confirm(`Delete "${event.title}"?`)) deleteMutation.mutate() }}
-                className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50">
-                <Trash2 size={13} /> Delete
-              </button>
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+              <span className="text-sm text-slate-700 font-medium">All day</span>
+            </label>
+
+            <div>
+              <label className={labelCls}>Visibility</label>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setCalendarType('shared')}
+                  className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${calendarType === 'shared' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                  Shared (team)
+                </button>
+                <button type="button" onClick={() => setCalendarType('personal')}
+                  className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${calendarType === 'personal' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                  Personal (only me)
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label className={labelCls}>Description</label>
+              <textarea className={`${inputCls} resize-vertical min-h-[70px] font-[inherit]`}
+                value={description} onChange={e => setDescription(e.target.value)} placeholder="Any context…" />
+            </div>
+
+            <ContactPicker selected={contact} onSelect={setContact} />
+            <TicketPicker selected={ticket} onSelect={setTicket} />
+
+            {!event ? (
+              <UserPicker
+                selected={invitees}
+                onSelect={setInvitees}
+                excludeIds={user?.id ? [user.id] : []}
+              />
+            ) : existingInvitations.length > 0 && (
+              <div>
+                <label className={labelCls}>Teammates invited</label>
+                <div className="flex flex-wrap gap-1.5">
+                  {existingInvitations.map(inv => (
+                    <span key={inv.id}
+                      className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-lg border ${STATUS_CHIP[inv.status] ?? 'bg-slate-100 text-slate-600'}`}>
+                      {inv.invitee_name}
+                      <span className="opacity-60 font-normal">· {STATUS_LABEL[inv.status] ?? inv.status}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
             )}
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
+
+            <div className="flex items-center gap-3 pt-1">
+              <button type="submit" disabled={saveMutation.isPending}
+                className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
+                {saveMutation.isPending ? 'Saving…' : event ? 'Save changes' : 'Create event'}
+              </button>
+              <button type="button" onClick={onClose}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                Cancel
+              </button>
+              {event && (
+                <button type="button" disabled={deleteMutation.isPending}
+                  onClick={() => { if (confirm(`Delete "${event.title}"?`)) deleteMutation.mutate() }}
+                  className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50">
+                  <Trash2 size={13} /> Delete
+                </button>
+              )}
+            </div>
+          </form>
+        )}
+
+        {/* ── BOOKING TAB ───────────────────────────────────────────────── */}
+        {tab === 'booking' && (
+          <div className="flex flex-col gap-4 overflow-y-auto px-8 pb-8 pt-5">
+            {/* Contact picker */}
+            <ContactPicker selected={bContact} onSelect={setBContact} />
+
+            {/* Mode */}
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setBMode('open')}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${bMode === 'open' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                Customer picks time
+              </button>
+              <button type="button" onClick={() => setBMode('propose')}
+                className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${bMode === 'propose' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                Propose times
+              </button>
+            </div>
+
+            {/* Mini calendar for propose mode */}
+            {bMode === 'propose' && (
+              <div className="border border-slate-200 rounded-xl overflow-hidden">
+                <div className="flex items-center justify-between px-3 py-2 border-b border-slate-100">
+                  <span className="text-sm font-semibold text-slate-700">{bMonthLabel}</span>
+                  <div className="flex items-center gap-1">
+                    <button type="button" onClick={() => bShiftMonth(-1)} className="p-1 rounded text-slate-500 hover:bg-slate-100"><ChevronLeft size={15} /></button>
+                    <button type="button" onClick={() => bShiftMonth(1)} className="p-1 rounded text-slate-500 hover:bg-slate-100"><ChevronRight size={15} /></button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-7 px-2 pt-2">
+                  {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
+                    <div key={d} className="text-center text-[10px] font-semibold text-slate-400 uppercase py-1">{d}</div>
+                  ))}
+                </div>
+                <div className="grid grid-cols-7 px-2 pb-2 gap-0.5">
+                  {bDays.map(day => {
+                    const key = dateKey(day)
+                    const inMonth = day.getMonth() === bMonth
+                    const isPast = key < bTodayKey
+                    const isActive = key === bActiveDay
+                    return (
+                      <button key={key} type="button" disabled={isPast} onClick={() => setBActiveDay(key)}
+                        className={`h-8 text-xs rounded-lg transition-colors ${
+                          isActive ? 'bg-blue-600 text-white font-bold'
+                            : isPast ? 'text-slate-300 cursor-not-allowed'
+                            : inMonth ? 'text-slate-700 hover:bg-slate-100'
+                            : 'text-slate-300 hover:bg-slate-50'}`}>
+                        {day.getDate()}
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {bActiveDay && (
+                  <div className="px-3 py-3 border-t border-slate-100">
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">Tap to add times</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {bDayChips.length === 0 && <p className="text-xs text-slate-400">No slots for this day.</p>}
+                      {bDayChips.map(chip => {
+                        const selected = bSlots.some(s => s.start === chip.start)
+                        return (
+                          <button key={chip.start} type="button" onClick={() => bToggleSlot(chip)}
+                            className={`px-2 py-1 text-xs rounded-md border transition-colors ${selected ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
+                            {new Date(chip.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {bSlots.length > 0 && (
+                  <div className="px-3 py-3 border-t border-slate-100">
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">Proposed ({bSlots.length})</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {bSlots.slice().sort((a, b) => a.start.localeCompare(b.start)).map(s => {
+                        const sd = new Date(s.start); const ed = new Date(s.end)
+                        const label = `${sd.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' })} ${sd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}–${ed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })}`
+                        return (
+                          <span key={s.start} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md">
+                            {label}
+                            <button type="button" onClick={() => bToggleSlot(s)} className="hover:text-blue-900"><X size={11} /></button>
+                          </span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Stage override */}
+            {bStages.length > 0 && (
+              <div>
+                <label className={labelCls}>Move to stage after booking (optional)</label>
+                <select className={inputCls} value={bStageId} onChange={e => setBStageId(e.target.value)}>
+                  <option value="">— Use default —</option>
+                  {bStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                </select>
+              </div>
+            )}
+
+            {/* Personal sender */}
+            {(user as any)?.reply_from_email && (
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" checked={bFromPersonal} onChange={e => setBFromPersonal(e.target.checked)}
+                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                <span className="text-sm text-slate-700 font-medium">
+                  Send from <span className="text-slate-500 font-normal">{(user as any).reply_from_email}</span>
+                </span>
+              </label>
+            )}
+
+            {/* Message */}
+            <div>
+              <label className={labelCls}>Message (optional)</label>
+              <textarea value={bMessage} onChange={e => setBMessage(e.target.value)}
+                placeholder="Add a short note for the customer…"
+                className={`${inputCls} resize-vertical min-h-[70px] font-[inherit]`} />
+            </div>
+
+            {error && <p className="text-sm text-red-500">{error}</p>}
+
+            <div className="flex items-center gap-3 pt-1">
+              <button type="button" onClick={handleBookingSend}
+                disabled={bSending || !bContact}
+                className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
+                {bSending ? 'Sending…' : 'Send booking link'}
+              </button>
+              <button type="button" onClick={onClose}
+                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+                Cancel
+              </button>
+            </div>
           </div>
-        </form>
+        )}
       </div>
     </div>
   )
@@ -1422,6 +1667,7 @@ export default function CalendarPage() {
         <EventModal
           event={modal.event}
           defaultDate={modal.defaultDate}
+          bookingEnabled={bookingEnabled}
           onClose={() => setModal({ open: false, event: null })}
           onSaved={() => qc.invalidateQueries({ queryKey: ['calendar-items'] })}
         />
