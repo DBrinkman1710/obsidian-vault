@@ -1,7 +1,11 @@
 import type { Metadata } from "next";
-import { marked } from "marked";
-import DOMPurify from "isomorphic-dompurify";
+import { Marked } from "marked";
 import SiteNav from "../components/SiteNav";
+
+// Strip raw HTML blocks so injected <script> tags in the Markdown source
+// can never reach the browser, even if the GitHub repo were compromised.
+const safeMarked = new Marked();
+safeMarked.use({ renderer: { html: () => "" } });
 import SiteFooter from "../components/SiteFooter";
 import DownloadPdfButton from "./DownloadPdfButton";
 import styles from "./docs.module.css";
@@ -37,7 +41,7 @@ export default async function DocsPage() {
 
   try {
     const markdown = await fetchManual();
-    html = DOMPurify.sanitize(await marked(markdown));
+    html = await safeMarked.parse(markdown);
   } catch {
     fetchError = true;
   }

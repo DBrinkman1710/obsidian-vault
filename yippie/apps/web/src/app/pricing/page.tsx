@@ -377,7 +377,7 @@ export default function PricingPage() {
                     Add-ons are per workspace.
                   </p>
                 )}
-                <a href={isEnterprise ? TALK_PATH : `/signup?plan=${recommendedPlanName.toLowerCase()}`} className={styles.quizResultBtn}>
+                <a href={isEnterprise ? TALK_PATH : `/signup?plan=${(recommendedPlanName ?? "starter").toLowerCase()}`} className={styles.quizResultBtn}>
                   {isEnterprise ? "Book a call →" : "Get started →"}
                 </a>
               </>
