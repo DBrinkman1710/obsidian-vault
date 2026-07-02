@@ -49,7 +49,7 @@ function CompanyForm({ initial, onSave, onCancel, isPending, serverError }: {
           <label className={labelCls}>Company name *</label>
           <input
             className={inputCls} value={form.name} onChange={set('name')}
-            placeholder="Acme BV" maxLength={255} autoFocus
+            placeholder="Acme Ltd" maxLength={255} autoFocus
           />
         </div>
         <div>

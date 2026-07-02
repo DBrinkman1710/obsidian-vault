@@ -40,7 +40,7 @@ const INBOX_FACTS = [
   "Tip: use the search bar to find messages by subject or sender in any tab.",
 ]
 
-function AllCaughtUp() {
+function AllCaughtUp({ hasHistory }: { hasHistory: boolean }) {
   const [fact, setFact] = useState(() => INBOX_FACTS[Math.floor(Math.random() * INBOX_FACTS.length)])
   useEffect(() => {
     const id = setInterval(() => {
@@ -48,6 +48,21 @@ function AllCaughtUp() {
     }, 120_000)
     return () => clearInterval(id)
   }, [])
+
+  if (!hasHistory) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
+        <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
+          <Mail size={32} className="text-slate-400" strokeWidth={1.5} />
+        </div>
+        <h3 className="text-lg font-semibold text-slate-700">No messages yet</h3>
+        <p className="text-sm text-slate-400 max-w-xs leading-relaxed">
+          Incoming emails and WhatsApp messages will appear here for review.
+        </p>
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
       <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center">
@@ -928,7 +943,7 @@ export default function InboxQueue() {
 
         {activeTab !== 'sent' && isLoading && <CardListSkeleton rows={5} />}
         {!isLoading && allDrafts.length === 0 && activeTab === 'pending' && (
-          <AllCaughtUp />
+          <AllCaughtUp hasHistory={allProcessed.length > 0} />
         )}
         {activeTab === 'processed' && !isLoading && allDrafts.length === 0 && (
           <div className="py-12 text-center bg-white rounded-xl border border-slate-200">

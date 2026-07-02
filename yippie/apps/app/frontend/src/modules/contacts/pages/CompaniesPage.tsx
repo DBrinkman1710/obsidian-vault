@@ -32,11 +32,11 @@ function CompanyForm({ initial, onSave, onCancel, isPending, serverError }: {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <label className={labelCls}>Company name *</label>
-          <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme BV" maxLength={255} autoFocus />
+          <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme Ltd" maxLength={255} autoFocus />
         </div>
         <div>
           <label className={labelCls}>Domain</label>
-          <input className={inputCls} value={form.domain} onChange={set('domain')} placeholder="acme.nl" maxLength={255} />
+          <input className={inputCls} value={form.domain} onChange={set('domain')} placeholder="acme.com" maxLength={255} />
         </div>
       </div>
       <div>

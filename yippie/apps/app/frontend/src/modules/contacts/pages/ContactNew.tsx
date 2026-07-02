@@ -79,7 +79,7 @@ export default function ContactNew() {
           <input
             className={inputClass(!!errors.full_name)}
             value={form.full_name} onChange={set('full_name')}
-            placeholder="Jan de Vries" autoFocus
+            placeholder="Alex Johnson" autoFocus
           />
           {errors.full_name && <p className="text-xs text-red-500 mt-1">{errors.full_name}</p>}
         </div>
@@ -90,13 +90,13 @@ export default function ContactNew() {
             <input
               className={inputClass(!!errors.email)}
               type="email" value={form.email} onChange={set('email')}
-              placeholder="jan@example.nl"
+              placeholder="alex@example.com"
             />
             {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Phone</label>
-            <input className={inputClass()} value={form.phone} onChange={set('phone')} placeholder="+31 6 00000000" />
+            <input className={inputClass()} value={form.phone} onChange={set('phone')} placeholder="+1 555 000 0000" />
           </div>
         </div>
 

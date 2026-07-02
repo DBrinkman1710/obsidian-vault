@@ -201,7 +201,7 @@ function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
             </p>
             <div>
               <label className={labelCls}>Full name</label>
-              <input className={inputCls} value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Jan de Vries" autoFocus />
+              <input className={inputCls} value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Alex Johnson" autoFocus />
             </div>
             <div>
               <label className={labelCls}>Email *</label>

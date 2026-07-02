@@ -498,7 +498,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Company name *</label>
-                  <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme BV" autoFocus />
+                  <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme Ltd" autoFocus />
                 </div>
                 <div>
                   <label className={labelCls}>Slug *</label>
@@ -522,7 +522,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
                 <div>
                   <label className={labelCls}>Admin name</label>
-                  <input className={inputCls} value={form.admin_full_name} onChange={set('admin_full_name')} placeholder="Jan de Vries" />
+                  <input className={inputCls} value={form.admin_full_name} onChange={set('admin_full_name')} placeholder="Alex Johnson" />
                 </div>
                 <div>
                   <label className={labelCls}>Admin email *</label>

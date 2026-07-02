@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Ticket, Trash2, UserPlus, Check, Archive, GitMerge, User } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { CardListSkeleton } from '../../../shell/Skeleton'
 import { useAuth } from '../../../auth/useAuth'
@@ -117,7 +118,7 @@ export default function TicketList() {
       qc.invalidateQueries({ queryKey: ['tickets'] })
     },
     onError: (err: any) => {
-      alert(err?.response?.data?.detail ?? 'Could not merge tickets — they must belong to the same contact.')
+      toast.error(err?.response?.data?.detail ?? 'Could not merge tickets — they must belong to the same contact.')
       setMergeDialog(null)
     },
   })

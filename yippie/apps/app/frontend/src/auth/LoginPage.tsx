@@ -157,6 +157,17 @@ export default function LoginPage() {
           >
             Forgot password?
           </Link>
+
+          <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
+            Don't have an account?{' '}
+            <a
+              href="https://getyippie.com"
+              className="underline transition-colors"
+              style={{ color: 'var(--text-subtle)' }}
+            >
+              Request access
+            </a>
+          </p>
         </form>
       </div>
     </div>
