@@ -400,7 +400,7 @@ export default function HomePage() {
           <p className={styles.founderText}>
             <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
           </p>
-          <a href={DEMO_URL} className={styles.founderBtn}>Claim a founder spot →</a>
+          <a href="/signup?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
         </div>
 
         <div className={styles.pricingGrid}>
