@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.models import Tenant, User
+from app.core.plans import limits_for_plan
 from app.modules.contacts.models import Contact
 from app.modules.billing.models import Invoice, InvoiceStatus, Subscription
 from app.modules.tickets.models import Ticket
@@ -386,9 +387,14 @@ async def enrich_queued_drafts(db: AsyncSession) -> int:
 
     prepared = []
     for draft, msg in rows:
+        tenant = await db.get(Tenant, draft.tenant_id)
+        if tenant:
+            scan_limit = limits_for_plan(tenant.plan).get("ai_scans")
+            if scan_limit is not None and tenant.ai_scans_used_this_period >= scan_limit:
+                draft.ai_status = "skipped"
+                continue
         contact = await _match_contact(db, draft.tenant_id, msg.sender)
         contact_dict, recent_tickets, billing = await _context_inputs(db, draft.tenant_id, contact)
-        tenant = await db.get(Tenant, draft.tenant_id)
         tenant_profile = tenant.ai_profile if tenant else None
         prepared.append((draft, msg, contact_dict, recent_tickets, billing, tenant_profile))
 
