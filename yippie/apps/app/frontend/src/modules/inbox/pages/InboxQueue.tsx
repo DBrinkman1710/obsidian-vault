@@ -40,7 +40,7 @@ const INBOX_FACTS = [
   "Tip: use the search bar to find messages by subject or sender in any tab.",
 ]
 
-function AllCaughtUp({ hasHistory }: { hasHistory: boolean }) {
+function AllCaughtUp({ hasHistory = false }: { hasHistory?: boolean }) {
   const [fact, setFact] = useState(() => INBOX_FACTS[Math.floor(Math.random() * INBOX_FACTS.length)])
   useEffect(() => {
     const id = setInterval(() => {
