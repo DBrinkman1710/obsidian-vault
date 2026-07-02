@@ -13,13 +13,16 @@ export const PLAN_LIMITS = {
 
 export const MODULE_PRICES = {
   tickets:     9,
-  ai:          9,
+  ai:          15,
   calendar:    7,
   kanban:      7,
   chat:        9,
   marketing:   9,
   departments: 7,
   billing:     7,
+  tracking:    9,
+  sales:       20,
+  saas:        20,
 } as const;
 
 export type PlanTier = keyof typeof PLAN_LIMITS;

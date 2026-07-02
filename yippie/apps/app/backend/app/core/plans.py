@@ -84,7 +84,7 @@ PLAN_LIMITS: dict[PlanTier, dict[str, "int | float | None"]] = {
 # included; everything else is a paid add-on.
 MODULE_PRICES: dict[str, int] = {
     "tickets": 9,
-    "ai": 9,
+    "ai": 15,
     "calendar": 7,
     "kanban": 7,
     "chat": 9,

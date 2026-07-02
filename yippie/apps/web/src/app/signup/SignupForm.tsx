@@ -14,12 +14,13 @@ import {
   TOP_MODULES,
   computeRecommendations,
 } from "../../lib/recommendations";
+import { PLAN_LIMITS } from "@/lib/config";
 
-// Plan options
 const PLANS = [
-  { key: "starter", label: "Starter", price: 19, users: 3 },
-  { key: "growth", label: "Growth", price: 39, users: 5 },
-  { key: "pro", label: "Pro", price: 69, users: 10 },
+  { key: "founder", label: "Founding Member", badge: "Limited — 5 spots", price: PLAN_LIMITS.founder.priceMonthly, users: PLAN_LIMITS.founder.users },
+  { key: "starter", label: "Starter", badge: null, price: PLAN_LIMITS.starter.priceMonthly, users: PLAN_LIMITS.starter.users },
+  { key: "growth",  label: "Growth",  badge: null, price: PLAN_LIMITS.growth.priceMonthly,  users: PLAN_LIMITS.growth.users },
+  { key: "pro",     label: "Pro",     badge: null, price: PLAN_LIMITS.pro.priceMonthly,     users: PLAN_LIMITS.pro.users },
 ];
 
 type Step = 1 | 2 | 3;
@@ -39,6 +40,8 @@ function decodeToken(token: string): { company_name?: string; questionnaire?: Re
 export default function SignupForm() {
   const searchParams = useSearchParams();
   const fromDemoToken = searchParams.get("token") ?? "";
+  const planParam = searchParams.get("plan") ?? "";
+  const initialPlan = PLANS.find((p) => p.key === planParam)?.key ?? "growth";
 
   const [step, setStep] = useState<Step>(fromDemoToken ? 2 : 1);
 
@@ -62,7 +65,7 @@ export default function SignupForm() {
   }, []); // run once on mount
 
   // Step 2 — Plan + modules
-  const [plan, setPlan] = useState("growth");
+  const [plan, setPlan] = useState(initialPlan);
 
   // Step 3 — Account details
   const [name, setName] = useState("");
@@ -144,6 +147,12 @@ export default function SignupForm() {
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
+        // Stripe hook: backend returns { payment: { type: "stripe", checkout_url: "..." } }
+        // when Stripe is live. No other frontend change needed.
+        if (data.payment?.checkout_url) {
+          window.location.href = data.payment.checkout_url as string;
+          return;
+        }
         setLoginUrl(data.login_url ?? "");
         setState("success");
         return;
@@ -307,17 +316,18 @@ export default function SignupForm() {
 
         <div className={styles.question}>
           <span className={styles.qLabel}>Choose your plan</span>
-          <div style={{ display: "flex", gap: 10, marginTop: 8 }}>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginTop: 8 }}>
             {PLANS.map((p) => (
               <button key={p.key} type="button"
                 onClick={() => setPlan(p.key)}
                 style={{
-                  flex: 1, padding: "14px 8px", borderRadius: 10, border: "2px solid",
+                  flex: "1 1 calc(50% - 5px)", padding: "14px 8px", borderRadius: 10, border: "2px solid",
                   borderColor: plan === p.key ? "#5BA4F5" : "#e2e8f0",
                   background: plan === p.key ? "#eff6ff" : "#fff",
                   cursor: "pointer", textAlign: "center",
                 }}>
                 <div style={{ fontWeight: 700, fontSize: 15, color: "#0f172a" }}>{p.label}</div>
+                {p.badge && <div style={{ color: "#f59e0b", fontWeight: 600, fontSize: 11, marginBottom: 2 }}>{p.badge}</div>}
                 <div style={{ color: "#5BA4F5", fontWeight: 600, fontSize: 14 }}>€{p.price}/mo</div>
                 <div style={{ color: "#64748b", fontSize: 12, marginTop: 2 }}>up to {p.users} users</div>
               </button>

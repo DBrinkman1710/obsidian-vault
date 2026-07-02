@@ -153,7 +153,7 @@ const faqs = [
   },
   {
     q: "Is there a free trial?",
-    a: "We offer a guided demo and a trial workspace so you can try Yippie with your real inbox before committing. Talk to us to get set up.",
+    a: "We don't offer a free trial — instead, we run a guided demo so you can see Yippie working with your real inbox before you commit. Request a demo from the nav to get started.",
   },
 ];
 
@@ -228,7 +228,7 @@ export default function PricingPage() {
           <p className={styles.founderText}>
             <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
           </p>
-          <a href={DEMO_PATH} className={styles.founderBtn}>Claim a founder spot →</a>
+          <a href="/custom" className={styles.founderBtn}>Claim a founder spot →</a>
         </div>
 
         <div className={styles.plansGrid}>
@@ -267,10 +267,10 @@ export default function PricingPage() {
                 ))}
               </ul>
               <a
-                href={plan.enterprise ? TALK_PATH : DEMO_PATH}
+                href={plan.enterprise ? TALK_PATH : "/custom"}
                 className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}
               >
-                {plan.enterprise ? "Book a call" : "Request demo"}
+                {plan.enterprise ? "Book a call" : "Get started"}
               </a>
             </div>
           ))}
@@ -377,8 +377,8 @@ export default function PricingPage() {
                     Add-ons are per workspace.
                   </p>
                 )}
-                <a href={isEnterprise ? TALK_PATH : DEMO_PATH} className={styles.quizResultBtn}>
-                  {isEnterprise ? "Book a call →" : "Request demo →"}
+                <a href={isEnterprise ? TALK_PATH : `/signup?plan=${(recommendedPlanName ?? "starter").toLowerCase()}`} className={styles.quizResultBtn}>
+                  {isEnterprise ? "Book a call →" : "Get started →"}
                 </a>
               </>
             ) : (
@@ -441,14 +441,19 @@ export default function PricingPage() {
       </section>
 
       <section className={styles.ctaSection}>
-        <h2 className={styles.ctaTitle}>Not sure which plan fits?</h2>
+        <h2 className={styles.ctaTitle}>Want a tailored quote?</h2>
         <p className={styles.ctaSub}>
-          Tell us about your team and we&apos;ll help you pick the right plan and
-          add-ons. No pressure, no credit card.
+          Answer a few quick questions and we&apos;ll put together a personalised
+          package with exactly the modules your team needs.
         </p>
-        <a href={TALK_PATH} className={styles.btnPrimary}>
-          Book a call →
-        </a>
+        <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
+          <a href="/custom" className={styles.btnPrimary}>
+            Build your package →
+          </a>
+          <a href={TALK_PATH} className={contentStyles.btnGhost}>
+            Book a call
+          </a>
+        </div>
       </section>
 
       <SiteFooter />

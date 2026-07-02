@@ -248,7 +248,9 @@ export default function App() {
           )}
           {config?.is_demo && (
             <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4">
-              Demo environment — data may be reset at any time. Contact support to go live.
+              Demo environment — data may be reset at any time.{' '}
+              <a href="mailto:hello@getyippie.com" className="underline hover:text-amber-100">Contact support</a>
+              {' '}to go live.
             </div>
           )}
           <Suspense fallback={<div className="p-8 text-slate-400">Loading…</div>}>

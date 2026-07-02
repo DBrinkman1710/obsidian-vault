@@ -1,7 +1,7 @@
 # Yippie — Roadmap
 **Repo:** github.com/DBrinkman1710/obsidian-vault · **Branch:** `sandbox`
 
-**Latest:** Session 89 — [JARVIS1] quick-capture assistant (⌘K popup, AI routing, reminders, contact/ticket notes, context query); 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER; 83 — inbox badges/VS-ZD/COM-LOGO. See Appendix A for full history.
+**Latest:** Session 90 — [CUSTOM1] /custom bespoke package configurator (3-step form, module picker, live pricing, lead capture); 89 — [JARVIS1] quick-capture assistant (⌘K popup, AI routing, reminders, contact/ticket notes, context query); 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER. See Appendix A for full history.
 
 ---
 
@@ -237,7 +237,7 @@ All major Tier 1 modules shipped. The items below were explicitly out of go-live
 
 - **Per-tenant custom domain** — `Opus` — *not built.* `acme.getyippie.com` → shared Railway service (subdomain/slug-based tenant routing; no public slug-config lookup before login).
 - **Customer data + AI briefing** *(architecture decision)* — `Opus` — define where full contact history is stored; the AI briefing (already running) must pull complete history.
-- **[CUSTOM1] Bespoke package configurator** — `Opus` — *not built.* Public page on `getyippie.com` (`/custom` or `/get-a-plan`) where a potential customer answers a short guided questionnaire (team size, industry, problems, current tools, budget). Output: recommended plan + module add-ons with pricing breakdown + "Book a call" CTA. Coordinates with [PRICE1].
+- ~~**[CUSTOM1] Bespoke package configurator**~~ ✅ session 90 — `/custom` page: 3-step form (team profile → module picker with live pricing → quote form), leads into "Custom plan" pipeline stage in root tenant; "Build your package" in nav + pricing CTA.
 - **[B2X1] B2B vs B2C client split** — `Opus` — *not built.* Flag per tenant (`client_type: b2b | b2c`). B2B mode: company-centric views, Kanban, account management. B2C mode: individual contacts, fast ticket resolution, high-volume inbox. Needs UX prototype before building.
 - **[Phase 11C T2] "Connect your inbox" ROI estimate** — `Opus` — *not built.* CSV/mailbox-export upload (parsed in-browser, best privacy/effort); one-time IMAP/OAuth scan next; Gmail/Workspace metadata add-on last.
 

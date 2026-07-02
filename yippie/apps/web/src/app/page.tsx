@@ -161,8 +161,6 @@ const inboxItems = [
   { sender: "Bloom Agency", subject: "Onboarding call request", dot: "", badge: "review" },
 ];
 
-const trustNames = ["Acme BV", "Nordex", "Bloom Agency", "TechCorp", "Lumen Studio", "Vela Foods"];
-
 /* Light, browser-framed product mockup reused in hero + product moment. */
 function ProductMockup({ wide = false }: { wide?: boolean }) {
   return (
@@ -258,17 +256,6 @@ export default function HomePage() {
           <Reveal className={styles.heroVisual} delay={120}>
             <ProductMockup />
           </Reveal>
-        </div>
-      </section>
-
-      {/* Trust strip */}
-      <section className={styles.trust}>
-        <p className={styles.trustLabel}>Teams at growing businesses run support on Yippie</p>
-        <div className={styles.trustRow}>
-          {trustNames.map((n) => (
-            <span key={n} className={styles.trustName}>{n}</span>
-          ))}
-          <span className={styles.trustNamePlaceholder}>[Your Company]</span>
         </div>
       </section>
 
@@ -407,6 +394,15 @@ export default function HomePage() {
             No hidden fees. Unlimited contacts. Start small and add modules as you grow.
           </p>
         </Reveal>
+
+        <div className={styles.founderBanner}>
+          <span className={styles.founderBadge}>Limited offer</span>
+          <p className={styles.founderText}>
+            <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
+          </p>
+          <a href="/signup?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
+        </div>
+
         <div className={styles.pricingGrid}>
           {plans.map((plan, i) => (
             <Reveal

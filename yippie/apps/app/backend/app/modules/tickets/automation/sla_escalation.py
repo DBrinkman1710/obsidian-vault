@@ -278,6 +278,44 @@ async def demo_expiry_check():
             await db.commit()
 
 
+@scheduler.scheduled_job("interval", hours=1, id="subscription_expiry_check", max_instances=1, coalesce=True)
+async def subscription_expiry_check():
+    """Deactivate paid tenants whose subscription_ends_at has passed."""
+    import os
+
+    from app.core.mailer import send_email
+    from app.core.models import Tenant
+
+    admin_email = os.getenv("ADMIN_EMAIL", "")
+    now = datetime.now(timezone.utc)
+    async with db_session() as db:
+        result = await db.execute(
+            select(Tenant).where(
+                Tenant.is_demo.is_(False),
+                Tenant.is_active.is_(True),
+                Tenant.subscription_ends_at.isnot(None),
+                Tenant.subscription_ends_at < now,
+            )
+        )
+        tenants = result.scalars().all()
+        for tenant in tenants:
+            tenant.is_active = False
+            log.info("Deactivated tenant %s (%s) — subscription ended %s", tenant.name, tenant.slug, tenant.subscription_ends_at)
+            try:
+                await send_email(
+                    to=admin_email,
+                    subject=f"Subscription ended: {tenant.name}",
+                    body=(
+                        f"Subscription ended for {tenant.name} ({tenant.slug}). "
+                        f"Tenant deactivated at {now.isoformat()}."
+                    ),
+                )
+            except Exception:
+                log.exception("Failed to send subscription-expiry admin email for %s", tenant.slug)
+        if tenants:
+            await db.commit()
+
+
 @scheduler.scheduled_job("interval", hours=1, id="contact_retention_purge", max_instances=1, coalesce=True)
 async def contact_retention_purge():
     """Hard-delete contacts that have been soft-deleted for more than 30 days."""

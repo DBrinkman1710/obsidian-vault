@@ -414,6 +414,46 @@
 .momentVisual { position: relative; }
 
 /* ── Pricing teaser ──────────────────────────── */
+.founderBanner {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+  max-width: 1200px;
+  margin: 0 auto 32px;
+  padding: 16px 22px;
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--brand-soft), rgba(255,255,255,0.6));
+  border: 1px solid var(--brand-ring);
+}
+.founderBadge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  background: var(--brand-700);
+  color: #fff;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.founderText { font-size: 13.5px; color: var(--text); line-height: 1.5; flex: 1; min-width: 200px; }
+.founderText strong { color: var(--ink); }
+.founderBtn {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--brand-700);
+  border: 1px solid var(--brand-ring);
+  background: #fff;
+  padding: 8px 16px;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  transition: background 0.18s, color 0.18s;
+}
+.founderBtn:hover { background: var(--brand-700); color: #fff; }
+
 .pricingGrid {
   max-width: 1200px;
   margin: 0 auto;

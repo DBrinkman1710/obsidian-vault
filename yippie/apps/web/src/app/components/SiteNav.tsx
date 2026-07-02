@@ -8,16 +8,16 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 const links = [
   { href: "/", label: "Home" },
-  { href: "/modules", label: "Product" },
+  { href: "/modules", label: "Modules" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
-  { href: "/blog", label: "Blog" },
 ];
 
 const useCaseLinks = [
   { href: "/for-smbs", label: "For SMBs" },
   { href: "/for-agencies", label: "For agencies" },
   { href: "/vs-zendesk", label: "Yippie vs Zendesk" },
+  { href: "/custom", label: "Build your package" },
 ];
 
 export default function SiteNav() {
@@ -69,8 +69,8 @@ export default function SiteNav() {
         <div className={styles.navRight}>
           <a href={`${APP_URL}/login`} className={styles.navLogin}>Log in</a>
           <a href={DEMO_URL} className={styles.navLoginOutline}>Request demo</a>
-          <a href={`${APP_URL}/register`} className={styles.navCta}>
-            Sign up <span aria-hidden="true">→</span>
+          <a href="/custom" className={styles.navCta}>
+            Get started <span aria-hidden="true">→</span>
           </a>
         </div>
 
@@ -108,8 +108,8 @@ export default function SiteNav() {
             <a href={DEMO_URL} className={styles.mobileLogin} onClick={() => setOpen(false)}>
               Request demo
             </a>
-            <a href={`${APP_URL}/register`} className={styles.navCta} onClick={() => setOpen(false)}>
-              Sign up →
+            <a href="/custom" className={styles.navCta} onClick={() => setOpen(false)}>
+              Get started →
             </a>
           </div>
         </div>

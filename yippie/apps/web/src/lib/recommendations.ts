@@ -1,77 +1,127 @@
 // Shared questionnaire + module recommendation logic
 // Used by /request-demo and /signup
 
-export const TEAM_SIZES = ["1–5", "6–20", "21–50", "50+"];
+export const TEAM_SIZES = ["1–3", "4–10", "11–25", "25+"];
+
 export const INDUSTRIES = [
   "E-commerce",
   "SaaS / Tech",
-  "Services",
+  "Services / Agency",
   "Healthcare",
   "Retail",
+  "Logistics / Wholesale",
   "Other",
 ];
+
 export const TOOLS = [
   "Email only",
   "Zendesk / Freshdesk",
   "HubSpot / CRM",
   "Intercom / Drift",
+  "WhatsApp / Social media",
   "None / Spreadsheets",
 ];
+
 export const PAIN_POINTS = [
-  "Ticket volume",
-  "Manual sorting",
-  "Slow responses",
-  "No reporting",
+  "Too many support tickets",
+  "Manual sorting & routing",
+  "Slow response times",
+  "Scattered channels (email, WhatsApp, chat)",
   "Missing automation",
-  "Customer follow-up",
+  "Losing track of customers",
+  "Shipment & order queries",
 ];
 export const MAX_PAIN_POINTS = 3;
 
 export const MODULE_INFO: Record<string, { icon: string; desc: string }> = {
-  "AI Inbox": { icon: "✦", desc: "AI auto-sorts and drafts replies to every inbound email" },
-  Tickets: { icon: "🎫", desc: "Track every issue from first contact to resolution" },
-  "Live Chat": { icon: "💬", desc: "Real-time WhatsApp & web chat with session management" },
-  "Calendar & Booking": { icon: "📅", desc: "Smart booking links, availability grids, auto-confirmations" },
-  "Kanban Pipeline": { icon: "📌", desc: "Visual pipeline for leads, deals, and client stages" },
-  "Email Tracking": { icon: "📬", desc: "See when emails are opened, clicked, and bounced" },
-  Marketing: { icon: "📣", desc: "Email campaigns, A/B testing, drip sequences, analytics" },
+  "AI Inbox":         { icon: "✦",  desc: "AI reads every message and drafts the ticket for you — one-click approve" },
+  "Tickets":          { icon: "🎫", desc: "Track, assign, and close support requests with SLA alerts" },
+  "Live Chat":        { icon: "💬", desc: "Web chat widget + WhatsApp — all conversations in one inbox" },
+  "Calendar":         { icon: "📅", desc: "Booking links, availability grids, and appointment management" },
+  "Pipeline":         { icon: "📌", desc: "Drag-and-drop Kanban to move leads and clients through custom stages" },
+  "Marketing":        { icon: "📣", desc: "Email campaigns, A/B testing, drip sequences, and open tracking" },
+  "Departments":      { icon: "🏢", desc: "Route tickets and chats to the right team automatically" },
+  "Billing":          { icon: "🧾", desc: "Issue invoices, track payments, and manage subscriptions" },
+  "Shipment Tracking":{ icon: "📦", desc: "DHL, UPS, PostNL, FedEx — live carrier updates linked to contacts" },
+  "Sales":            { icon: "📈", desc: "Track product views, add-to-cart, and purchases — identify high-intent buyers" },
+  "SaaS Billing":     { icon: "🔁", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts" },
+  "Templates":        { icon: "✉️", desc: "Shared canned responses your team can pick and personalise before sending" },
 };
 
-export const TOP_MODULES = ["AI Inbox", "Tickets", "Live Chat", "Kanban Pipeline"];
+export const TOP_MODULES = ["AI Inbox", "Tickets", "Live Chat", "Pipeline"];
+
+const PAIN_POINT_ALIASES: Record<string, string> = {
+  "Ticket volume":        "Too many support tickets",
+  "Slow responses":       "Slow response times",
+  "Manual sorting":       "Manual sorting & routing",
+  "No reporting":         "Too many support tickets",
+  "Customer follow-up":   "Losing track of customers",
+};
 
 export function computeRecommendations(
   industry: string,
   currentTools: string[],
   painPoints: string[],
 ): string[] {
-  const recommendations = ["AI Inbox", "Tickets"];
+  const normalized = painPoints.map(p => PAIN_POINT_ALIASES[p] ?? p);
+  const rec = new Set(["AI Inbox", "Tickets"]);
 
+  // Industry signals
   if (industry === "E-commerce" || industry === "Retail") {
-    recommendations.push("Email Tracking", "Marketing");
-  }
-  if (industry === "Services" || industry === "Healthcare") {
-    recommendations.push("Calendar & Booking");
+    rec.add("Shipment Tracking");
+    rec.add("Marketing");
+    rec.add("Sales");
   }
   if (industry === "SaaS / Tech") {
-    recommendations.push("Live Chat");
+    rec.add("Live Chat");
+    rec.add("SaaS Billing");
   }
-  if (painPoints.includes("Missing automation") || painPoints.includes("Manual sorting")) {
-    if (!recommendations.includes("AI Inbox")) recommendations.push("AI Inbox");
+  if (industry === "Services / Agency") {
+    rec.add("Calendar");
+    rec.add("Billing");
+    rec.add("Pipeline");
   }
-  if (painPoints.includes("Customer follow-up")) {
-    recommendations.push("Kanban Pipeline");
+  if (industry === "Healthcare") {
+    rec.add("Calendar");
+    rec.add("Departments");
   }
-  if (painPoints.includes("No reporting")) {
-    recommendations.push("Email Tracking");
-  }
-  if (painPoints.includes("Ticket volume") || painPoints.includes("Slow responses")) {
-    recommendations.push("Live Chat");
-  }
-  if (currentTools.includes("Email only") || currentTools.includes("None / Spreadsheets")) {
-    recommendations.push("Kanban Pipeline");
+  if (industry === "Logistics / Wholesale") {
+    rec.add("Shipment Tracking");
+    rec.add("Departments");
   }
 
-  return [...new Set(recommendations)].slice(0, 4);
+  // Tool signals
+  if (currentTools.includes("WhatsApp / Social media")) {
+    rec.add("Live Chat");
+  }
+  if (currentTools.includes("Email only") || currentTools.includes("None / Spreadsheets")) {
+    rec.add("Pipeline");
+  }
+  if (currentTools.includes("HubSpot / CRM")) {
+    rec.add("Pipeline");
+    rec.add("Marketing");
+  }
+
+  // Pain point signals
+  if (normalized.includes("Missing automation") || normalized.includes("Manual sorting & routing")) {
+    rec.add("AI Inbox");
+  }
+  if (normalized.includes("Losing track of customers")) {
+    rec.add("Pipeline");
+  }
+  if (normalized.includes("Scattered channels (email, WhatsApp, chat)")) {
+    rec.add("Live Chat");
+  }
+  if (normalized.includes("Shipment & order queries")) {
+    rec.add("Shipment Tracking");
+    rec.add("AI Inbox");
+  }
+  if (normalized.includes("Too many support tickets") || normalized.includes("Slow response times")) {
+    rec.add("Live Chat");
+    rec.add("Departments");
+  }
+
+  return [...rec].slice(0, 4);
 }
 
 export interface Questionnaire {

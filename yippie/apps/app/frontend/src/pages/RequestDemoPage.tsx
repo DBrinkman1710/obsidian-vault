@@ -7,7 +7,6 @@ export default function RequestDemoPage() {
   const [name, setName] = useState('')
   const [companyName, setCompanyName] = useState('')
   const [email, setEmail] = useState('')
-  const [slug, setSlug] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
@@ -21,7 +20,6 @@ export default function RequestDemoPage() {
         name,
         company_name: companyName,
         email,
-        slug: slug.trim() || undefined,
       })
       setDone(true)
     } catch (err: any) {
@@ -57,11 +55,6 @@ export default function RequestDemoPage() {
             <label className={authLabelCls}>Email</label>
             <input type="email" placeholder="you@company.com" value={email}
               onChange={e => setEmail(e.target.value)} className={authInputCls} required />
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label className={authLabelCls}>Preferred slug (optional)</label>
-            <input value={slug} onChange={e => setSlug(e.target.value)}
-              placeholder="acme" className={authInputCls} />
           </div>
           <button type="submit" disabled={loading} className={authButtonCls}>
             {loading ? 'Requesting…' : 'Request demo'}

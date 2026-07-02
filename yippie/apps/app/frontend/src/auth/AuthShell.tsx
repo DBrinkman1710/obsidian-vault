@@ -1,6 +1,6 @@
 export function AuthShell({ subtitle, children }: { subtitle: string; children: React.ReactNode }) {
   return (
-    <div className="relative min-h-screen bg-slate-50 flex items-center justify-center p-4 overflow-hidden">
+    <div className="bgGrid relative min-h-screen flex items-center justify-center p-4 overflow-hidden" style={{ background: 'var(--off-white)' }}>
       <img
         src="/logo-white-bg-mark.svg"
         alt=""
@@ -19,11 +19,11 @@ export function AuthShell({ subtitle, children }: { subtitle: string; children: 
       <div className="w-full max-w-sm relative z-10">
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-3">
-            <img src="/logo.svg" alt="Yippie" className="h-36 w-auto" />
+            <img src="/logo-lockup-onLight.svg" alt="Yippie" style={{ width: 200, height: 'auto' }} />
           </div>
-          <p className="text-sm text-slate-500">{subtitle}</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>
         </div>
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+        <div className="bg-white rounded-2xl p-8" style={{ boxShadow: 'var(--shadow-lg)', border: '1px solid var(--border-default)' }}>
           {children}
         </div>
       </div>
@@ -31,7 +31,7 @@ export function AuthShell({ subtitle, children }: { subtitle: string; children: 
   )
 }
 
-export const authInputCls = 'w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-export const authLabelCls = 'text-xs font-semibold text-slate-500 uppercase tracking-wide'
-export const authButtonCls = 'w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-semibold text-sm rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed mt-2'
+export const authInputCls = 'w-full px-3 py-2.5 border border-[var(--border-default)] rounded-lg text-sm text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent transition-shadow'
+export const authLabelCls = 'text-xs font-semibold text-[var(--text-subtle)] uppercase tracking-wide'
+export const authButtonCls = 'w-full py-2.5 bg-[var(--ink)] hover:bg-[var(--brand-hover)] disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed mt-2'
 export const authErrorCls = 'bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-600'

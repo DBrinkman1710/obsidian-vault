@@ -97,6 +97,9 @@ class Tenant(Base):
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     stripe_subscription_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     stripe_price_ids: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    # When set, the hourly subscription_expiry_check job deactivates the tenant after this time.
+    # Populated from Stripe's current_period_end on subscription cancellation.
+    subscription_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Rolling AI scan counter — reset to 0 at the start of each billing period.
     ai_scans_used_this_period: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     ai_scans_period_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
