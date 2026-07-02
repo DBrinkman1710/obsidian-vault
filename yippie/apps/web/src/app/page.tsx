@@ -91,7 +91,7 @@ const features = [
   {
     Icon: TrackingIcon,
     title: "Tracking",
-    desc: "Add shipment tracking to contacts and tickets. Live carrier updates for DHL, UPS, PostNL, and FedEx.",
+    desc: "Connect your ERP or shop and shipments land on the right contact automatically. Live carrier updates for DHL, UPS, PostNL, and FedEx — no copy-pasting.",
   },
   {
     Icon: SalesIcon,
