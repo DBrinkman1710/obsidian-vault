@@ -306,7 +306,14 @@ export default function TicketList() {
       {!isLoading && items.length === 0 && (
         <div className="py-12 text-center">
           <Ticket size={32} className="mx-auto mb-3" style={{ color: 'var(--border-strong)' }} />
-          <p className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>No tickets found</p>
+          <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-muted)' }}>No tickets yet</p>
+          <Link
+            to="/tickets/new"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
+          >
+            <Plus size={14} strokeWidth={2.5} />
+            Create first ticket
+          </Link>
         </div>
       )}
 

@@ -347,7 +347,14 @@ export default function ContactList() {
         {!isLoading && items.length === 0 && (
           <div className="py-12 text-center">
             <User size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 font-medium">No contacts found</p>
+            <p className="text-sm text-slate-400 font-medium mb-4">No contacts yet</p>
+            <Link
+              to="/contacts/new"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
+            >
+              <Plus size={14} strokeWidth={2.5} />
+              Add first contact
+            </Link>
           </div>
         )}
       </div>

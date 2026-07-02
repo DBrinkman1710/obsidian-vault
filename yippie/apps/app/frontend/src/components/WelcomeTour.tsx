@@ -204,7 +204,7 @@ export default function WelcomeTour() {
         {/* Actions */}
         <div className="flex items-center justify-between mt-4">
           <button
-            onClick={() => navigate(current.route)}
+            onClick={() => { navigate(current.route); if (!isLast) setStep(s => s + 1) }}
             className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 transition-colors"
           >
             <ArrowRight size={12} />
