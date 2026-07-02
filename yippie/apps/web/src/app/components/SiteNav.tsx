@@ -8,7 +8,7 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 const links = [
   { href: "/", label: "Home" },
-  { href: "/modules", label: "Product" },
+  { href: "/modules", label: "Modules" },
   { href: "/pricing", label: "Pricing" },
   { href: "/about", label: "About" },
   { href: "/blog", label: "Blog" },

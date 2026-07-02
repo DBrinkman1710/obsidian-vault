@@ -407,6 +407,15 @@ export default function HomePage() {
             No hidden fees. Unlimited contacts. Start small and add modules as you grow.
           </p>
         </Reveal>
+
+        <div className={styles.founderBanner}>
+          <span className={styles.founderBadge}>Limited offer</span>
+          <p className={styles.founderText}>
+            <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
+          </p>
+          <a href={DEMO_URL} className={styles.founderBtn}>Claim a founder spot →</a>
+        </div>
+
         <div className={styles.pricingGrid}>
           {plans.map((plan, i) => (
             <Reveal

@@ -55,7 +55,7 @@ export default function VsZendeskPage() {
           per-agent fees that climb as you grow.
         </p>
         <div className={styles.heroActions}>
-          <a href={DEMO_URL} className={styles.btnPrimary}>Try Yippie free →</a>
+          <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
           <a href="/modules" className={styles.btnGhost}>See all features</a>
         </div>
       </section>
@@ -117,10 +117,10 @@ export default function VsZendeskPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Switch to support that fits your business</h2>
         <p className={styles.ctaSub}>
-          See why SMBs choose Yippie over Zendesk. Try it free — no credit card
-          required.
+          See why SMBs choose Yippie over Zendesk. Request a guided demo — no
+          credit card required.
         </p>
-        <a href={DEMO_URL} className={styles.btnPrimary}>Try Yippie free →</a>
+        <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
       </section>
 
       <SiteFooter />
