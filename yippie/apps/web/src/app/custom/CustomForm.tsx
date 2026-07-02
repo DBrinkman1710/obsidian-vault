@@ -27,14 +27,14 @@ const PLAN_NAMES: Record<PlanKey, string> = {
 };
 
 const MODULE_CONFIG = [
-  { key: "ai",          recName: "AI Inbox",    icon: "✦",  price: MODULE_PRICES.ai,          desc: "AI reads every message and drafts the ticket" },
-  { key: "tickets",     recName: "Tickets",     icon: "🎫", price: MODULE_PRICES.tickets,     desc: "Track, assign, and close with SLA alerts" },
-  { key: "chat",        recName: "Live Chat",   icon: "💬", price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp in one inbox" },
-  { key: "calendar",    recName: "Calendar",    icon: "📅", price: MODULE_PRICES.calendar,    desc: "Booking links and appointment management" },
-  { key: "kanban",      recName: "Pipeline",    icon: "📌", price: MODULE_PRICES.kanban,      desc: "Drag-and-drop Kanban for leads and clients" },
-  { key: "marketing",   recName: "Marketing",   icon: "📣", price: MODULE_PRICES.marketing,   desc: "Email campaigns, sequences, open tracking" },
+  { key: "ai",          recName: "AI Inbox",    icon: "✦",  price: MODULE_PRICES.ai,          desc: "AI reads every message and drafts the ticket for you" },
+  { key: "tickets",     recName: "Tickets",     icon: "🎫", price: MODULE_PRICES.tickets,     desc: "Track, assign, and close requests with SLA alerts" },
+  { key: "chat",        recName: "Live Chat",   icon: "💬", price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp — all conversations in one inbox" },
+  { key: "calendar",    recName: "Calendar",    icon: "📅", price: MODULE_PRICES.calendar,    desc: "Booking links, availability grids, appointments" },
+  { key: "kanban",      recName: "Pipeline",    icon: "📌", price: MODULE_PRICES.kanban,      desc: "Drag-and-drop Kanban to move leads through stages" },
+  { key: "marketing",   recName: "Marketing",   icon: "📣", price: MODULE_PRICES.marketing,   desc: "Email campaigns, drip sequences, open tracking" },
   { key: "departments", recName: "Departments", icon: "🏢", price: MODULE_PRICES.departments, desc: "Route tickets to the right team automatically" },
-  { key: "billing",     recName: "Billing",     icon: "🧾", price: MODULE_PRICES.billing,     desc: "Invoices, payments, subscriptions" },
+  { key: "billing",     recName: "Billing",     icon: "🧾", price: MODULE_PRICES.billing,     desc: "Invoices, payments, subscription management" },
 ] as const;
 
 type ModuleKey = (typeof MODULE_CONFIG)[number]["key"];
@@ -50,7 +50,7 @@ const REC_TO_KEY: Record<string, ModuleKey | undefined> = {
   "Billing":     "billing",
 };
 
-type State = "idle" | "submitting" | "success" | "error";
+type FormState = "idle" | "submitting" | "success" | "error";
 
 export default function CustomForm() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
@@ -63,13 +63,14 @@ export default function CustomForm() {
 
   // Step 2 state
   const [annual, setAnnual] = useState(false);
+  const [recommendedKeys, setRecommendedKeys] = useState<ModuleKey[]>([]);
   const [selectedModules, setSelectedModules] = useState<ModuleKey[]>([]);
 
   // Step 3 state
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
-  const [formState, setFormState] = useState<State>("idle");
+  const [formState, setFormState] = useState<FormState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
 
   const recommendedPlanKey = useMemo<PlanKey>(() => {
@@ -97,14 +98,18 @@ export default function CustomForm() {
     [selectedModules],
   );
 
-  const rawMonthlyTotal = useMemo(
-    () => (planMonthlyDisplay ?? 0) + modulesRawTotal,
-    [planMonthlyDisplay, modulesRawTotal],
+  // Plan price already encodes the annual discount via priceAnnual/12;
+  // apply 10% only to modules to avoid double-discounting the plan.
+  const displayMonthlyTotal = useMemo(
+    () => annual
+      ? (planMonthlyDisplay ?? 0) + Math.round(modulesRawTotal * 0.9)
+      : (planMonthlyDisplay ?? 0) + modulesRawTotal,
+    [annual, planMonthlyDisplay, modulesRawTotal],
   );
 
-  const displayMonthlyTotal = useMemo(
-    () => annual ? (planMonthlyDisplay ?? 0) + Math.round(modulesRawTotal * 0.9) : rawMonthlyTotal,
-    [annual, planMonthlyDisplay, modulesRawTotal, rawMonthlyTotal],
+  const modulesSaving = useMemo(
+    () => annual ? modulesRawTotal - Math.round(modulesRawTotal * 0.9) : 0,
+    [annual, modulesRawTotal],
   );
 
   function toggleChallenge(v: string) {
@@ -131,6 +136,7 @@ export default function CustomForm() {
     const preSelected = recs
       .map((r) => REC_TO_KEY[r])
       .filter((k): k is ModuleKey => !!k);
+    setRecommendedKeys(preSelected);
     setSelectedModules(preSelected);
     setStep(2);
   }
@@ -167,11 +173,11 @@ export default function CustomForm() {
       }
 
       const data = await res.json().catch(() => ({}));
-      const msg =
+      setErrorMsg(
         typeof data?.error === "string"
           ? data.error
-          : "Something went wrong. Please try again.";
-      setErrorMsg(msg);
+          : "Something went wrong. Please try again.",
+      );
       setFormState("error");
     } catch {
       setErrorMsg("Network error — please check your connection and try again.");
@@ -179,7 +185,7 @@ export default function CustomForm() {
     }
   }
 
-  // ── Success ─────────────────────────────────────────────
+  // ── Success ──────────────────────────────────────────────
   if (formState === "success") {
     return (
       <div className={styles.card}>
@@ -296,6 +302,10 @@ export default function CustomForm() {
 
   // ── Step 2 — Recommended package ────────────────────────
   if (step === 2) {
+    const recMods = MODULE_CONFIG.filter((m) => recommendedKeys.includes(m.key as ModuleKey));
+    const extraMods = MODULE_CONFIG.filter((m) => !recommendedKeys.includes(m.key as ModuleKey));
+    const isEnterprise = recommendedPlanKey === "enterprise";
+
     return (
       <div className={styles.card}>
         <div className={styles.steps}>
@@ -313,6 +323,7 @@ export default function CustomForm() {
           <span className={styles.stepDot}>3</span>
         </div>
 
+        {/* Billing toggle */}
         <div className={styles.billingToggle}>
           <button
             type="button"
@@ -330,11 +341,12 @@ export default function CustomForm() {
           </button>
         </div>
 
+        {/* Plan tile */}
         <div className={styles.planTile}>
-          <p className={styles.planLabel}>Recommended for your team</p>
+          <p className={styles.planLabel}>Recommended plan for your team</p>
           <div className={styles.planRow}>
             <span className={styles.planName}>{PLAN_NAMES[recommendedPlanKey]}</span>
-            {recommendedPlanKey === "enterprise" ? (
+            {isEnterprise ? (
               <span className={styles.planEnterprise}>Custom pricing</span>
             ) : (
               <span>
@@ -349,44 +361,102 @@ export default function CustomForm() {
               {annual && " · billed annually"}
             </p>
           )}
-          {recommendedPlanKey === "enterprise" && (
+          {isEnterprise && (
             <p className={styles.planMeta}>Unlimited users · unlimited AI scans</p>
           )}
         </div>
 
-        <p className={styles.modulesLabel}>Add-on modules — toggle what you need</p>
-        <div className={styles.moduleGrid}>
-          {MODULE_CONFIG.map((mod) => {
-            const active = selectedModules.includes(mod.key as ModuleKey);
-            return (
-              <button
-                key={mod.key}
-                type="button"
-                className={`${styles.moduleCard} ${active ? styles.moduleCardActive : ""}`}
-                onClick={() => toggleModule(mod.key as ModuleKey)}
-              >
-                <div className={styles.moduleCardHeader}>
-                  <span className={styles.moduleIcon}>{mod.icon}</span>
-                  <span className={styles.moduleCheck}>{active ? "✓" : ""}</span>
-                </div>
-                <span className={styles.moduleName}>{mod.recName}</span>
-                <span className={styles.moduleDesc}>{mod.desc}</span>
-                <span className={styles.modulePrice}>€{mod.price}/mo</span>
-              </button>
-            );
-          })}
+        {/* Recommended modules */}
+        <div className={styles.moduleSection}>
+          <div className={styles.moduleSectionHeader}>
+            <span className={styles.moduleSectionLabel}>Recommended for you</span>
+            <span className={styles.moduleSectionHint}>based on your answers</span>
+          </div>
+          <div className={styles.moduleList}>
+            {recMods.map((mod) => {
+              const active = selectedModules.includes(mod.key as ModuleKey);
+              return (
+                <button
+                  key={mod.key}
+                  type="button"
+                  className={`${styles.moduleRow} ${active ? styles.moduleRowActive : styles.moduleRowDeselected}`}
+                  onClick={() => toggleModule(mod.key as ModuleKey)}
+                >
+                  <div className={styles.moduleRowLeft}>
+                    <span className={styles.moduleRowIcon}>{mod.icon}</span>
+                    <span className={styles.moduleRowInfo}>
+                      <span className={styles.moduleRowName}>{mod.recName}</span>
+                      <span className={styles.moduleRowDesc}>{mod.desc}</span>
+                    </span>
+                  </div>
+                  <div className={styles.moduleRowRight}>
+                    <span className={styles.moduleRowPrice}>€{mod.price}/mo</span>
+                    <span className={active ? styles.moduleTagIncluded : styles.moduleTagAddBack}>
+                      {active ? "✓ Included" : "+ Add back"}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
+        {/* Extra modules */}
+        {extraMods.length > 0 && (
+          <div className={styles.moduleSection}>
+            <div className={styles.moduleSectionHeader}>
+              <span className={styles.moduleSectionLabel}>Add more modules</span>
+            </div>
+            <div className={styles.moduleList}>
+              {extraMods.map((mod) => {
+                const active = selectedModules.includes(mod.key as ModuleKey);
+                return (
+                  <button
+                    key={mod.key}
+                    type="button"
+                    className={`${styles.moduleRow} ${active ? styles.moduleRowActive : ""}`}
+                    onClick={() => toggleModule(mod.key as ModuleKey)}
+                  >
+                    <div className={styles.moduleRowLeft}>
+                      <span className={styles.moduleRowIcon}>{mod.icon}</span>
+                      <span className={styles.moduleRowInfo}>
+                        <span className={styles.moduleRowName}>{mod.recName}</span>
+                        <span className={styles.moduleRowDesc}>{mod.desc}</span>
+                      </span>
+                    </div>
+                    <div className={styles.moduleRowRight}>
+                      <span className={styles.moduleRowPrice}>€{mod.price}/mo</span>
+                      <span className={active ? styles.moduleTagIncluded : styles.moduleTagAdd}>
+                        {active ? "✓ Included" : "+ Add"}
+                      </span>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Total */}
         <div className={styles.totalBar}>
-          <span className={styles.totalLabel}>
-            {annual ? "Estimated total/mo (annual)" : "Estimated total/mo"}
-          </span>
-          {recommendedPlanKey === "enterprise" ? (
-            <span className={styles.totalCustom}>Talk to us</span>
+          <div className={styles.totalBarLeft}>
+            <span className={styles.totalLabel}>
+              {isEnterprise
+                ? "Enterprise plan + " + selectedModules.length + " module" + (selectedModules.length !== 1 ? "s" : "")
+                : PLAN_NAMES[recommendedPlanKey] + " plan"
+                  + (selectedModules.length > 0
+                    ? " + " + selectedModules.length + " module" + (selectedModules.length !== 1 ? "s" : "")
+                    : "")}
+            </span>
+            {annual && modulesSaving > 0 && (
+              <span className={styles.totalSaving}>saving €{modulesSaving}/mo on add-ons</span>
+            )}
+          </div>
+          {isEnterprise ? (
+            <span className={styles.totalCustom}>Let&apos;s talk</span>
           ) : (
-            <span>
-              <span className={styles.totalAmount}>€{displayMonthlyTotal}</span>
-              <span className={styles.totalAmountSub}>/mo</span>
+            <span className={styles.totalAmount}>
+              €{displayMonthlyTotal}<span className={styles.totalAmountSub}>/mo</span>
             </span>
           )}
         </div>
@@ -412,6 +482,7 @@ export default function CustomForm() {
   const selectedModuleDetails = MODULE_CONFIG.filter((m) =>
     selectedModules.includes(m.key as ModuleKey),
   );
+  const isEnterprise = recommendedPlanKey === "enterprise";
 
   return (
     <form className={styles.card} onSubmit={handleSubmit} noValidate>
@@ -437,14 +508,13 @@ export default function CustomForm() {
         <span className={`${styles.stepDot} ${styles.stepDotActive}`}>3</span>
       </div>
 
+      {/* Package summary */}
       <div className={styles.summaryCard}>
         <p className={styles.summaryTitle}>Your package</p>
         <div className={styles.summaryLines}>
           <div className={styles.summaryLine}>
-            <span className={styles.summaryLineName}>
-              {PLAN_NAMES[recommendedPlanKey]} plan
-            </span>
-            {recommendedPlanKey !== "enterprise" && planMonthlyDisplay !== null ? (
+            <span className={styles.summaryLineName}>{PLAN_NAMES[recommendedPlanKey]} plan</span>
+            {!isEnterprise && planMonthlyDisplay !== null ? (
               <span className={styles.summaryLinePrice}>€{planMonthlyDisplay}/mo</span>
             ) : (
               <span className={styles.summaryLinePrice}>Custom</span>
@@ -459,13 +529,19 @@ export default function CustomForm() {
               <span className={styles.summaryLinePrice}>€{m.price}/mo</span>
             </div>
           ))}
+          {annual && modulesSaving > 0 && (
+            <div className={styles.summaryLine}>
+              <span className={styles.summaryLineSaving}>Annual discount (add-ons)</span>
+              <span className={styles.summaryLineSavingPrice}>−€{modulesSaving}/mo</span>
+            </div>
+          )}
         </div>
         <div className={styles.summaryDivider} />
         <div className={styles.summaryTotal}>
           <span className={styles.summaryTotalLabel}>
-            {annual ? "Total/mo (annual)" : "Total/mo"}
+            {annual ? "Total/mo (billed annually)" : "Total/mo"}
           </span>
-          {recommendedPlanKey === "enterprise" ? (
+          {isEnterprise ? (
             <span className={styles.summaryTotalCustom}>Let&apos;s talk</span>
           ) : (
             <span>
