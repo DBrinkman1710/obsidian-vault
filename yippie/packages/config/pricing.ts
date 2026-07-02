@@ -13,7 +13,7 @@ export const PLAN_LIMITS = {
 
 export const MODULE_PRICES = {
   tickets:     9,
-  ai:          9,
+  ai:          15,
   calendar:    7,
   kanban:      7,
   chat:        9,
