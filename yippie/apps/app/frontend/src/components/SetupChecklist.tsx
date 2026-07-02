@@ -14,6 +14,7 @@ interface Gate {
   route?: string
   action?: () => void
   done: boolean
+  optional?: boolean
 }
 
 export default function SetupChecklist() {
@@ -33,34 +34,28 @@ export default function SetupChecklist() {
     staleTime: 5 * 60 * 1000,
   })
 
-  const ticketQuery = useQuery({
-    queryKey: ['setup-closed-ticket'],
-    queryFn: () => api.get('/tickets', { params: { status: 'closed', limit: 1 } }).then((r: any) => r.data as { items: { id: string }[]; total: number }),
+  const signatureQuery = useQuery({
+    queryKey: ['setup-signatures'],
+    queryFn: () => api.get('/auth/me/signatures').then((r: any) => r.data as { id: string }[]),
     staleTime: 5 * 60 * 1000,
     enabled: !!user && !!user.tour_completed && !user.setup_checklist_dismissed,
   })
 
   const gates: Gate[] = [
     {
-      id: 'email',
-      label: 'Connect your email',
-      detail: 'Add a personal address so you can send and receive mail directly.',
+      id: 'profile',
+      label: 'Set up your profile',
+      detail: 'Add your personal email address so replies go out in your name.',
       route: '/settings/profile',
       done: !!user?.reply_from_email,
     },
-    ...(isAdmin ? [{
-      id: 'team',
-      label: 'Invite your team',
-      detail: 'Teammates get their own login and can claim tickets.',
-      route: '/settings/team',
-      done: (teamQuery.data?.length ?? 0) > 1,
-    }] : []),
     {
-      id: 'ticket',
-      label: 'Handle your first ticket',
-      detail: 'Go to Inbox, approve a draft — it becomes a ticket.',
-      route: '/inbox',
-      done: (ticketQuery.data?.total ?? 0) > 0,
+      id: 'signature',
+      label: 'Add your email signature',
+      detail: 'Give your replies a professional sign-off.',
+      route: '/settings/profile',
+      done: (signatureQuery.data?.length ?? 0) > 0,
+      optional: true,
     },
     ...(isAdmin ? [{
       id: 'yip-train',
@@ -69,10 +64,18 @@ export default function SetupChecklist() {
       action: () => setShowYipTrain(true),
       done: yipTrainDone || !!(config?.ai_profile),
     }] : []),
+    ...(isAdmin ? [{
+      id: 'team',
+      label: 'Invite your team',
+      detail: 'Teammates get their own login and can claim tickets.',
+      route: '/settings/team',
+      done: (teamQuery.data?.length ?? 0) > 1,
+    }] : []),
   ]
 
+  const requiredGates = gates.filter(g => !g.optional)
   const completedCount = gates.filter(g => g.done).length
-  const allDone = completedCount === gates.length
+  const allDone = requiredGates.every(g => g.done)
 
   const dismissMutation = useMutation({
     mutationFn: () => api.patch('/auth/me', { setup_checklist_dismissed: true }).then((r: any) => r.data),
@@ -87,8 +90,7 @@ export default function SetupChecklist() {
   }, [allDone, dismissMutation.isPending, dismissMutation.isSuccess])
 
   if (!user?.tour_completed || user?.setup_checklist_dismissed) return null
-  // Only show while data is loading or there's something to do
-  if (ticketQuery.isLoading || (isAdmin && teamQuery.isLoading)) return null
+  if (isAdmin && teamQuery.isLoading) return null
 
   return (
     <>
@@ -149,6 +151,9 @@ export default function SetupChecklist() {
                 <div>
                   <p className={`text-xs font-semibold ${gate.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
                     {gate.label}
+                    {gate.optional && !gate.done && (
+                      <span className="text-[10px] text-slate-400 font-normal ml-1">Optional</span>
+                    )}
                   </p>
                   {!gate.done && (
                     <p className="text-xs text-slate-400 mt-0.5 leading-snug">{gate.detail}</p>
