@@ -5,7 +5,7 @@
     "dockerfilePath": "Dockerfile.railway"
   },
   "deploy": {
-    "startCommand": "sh -c 'python run_migrations.py && python seed.py && python promote_superadmin.py && uvicorn app.main:app --host 0.0.0.0 --port 8001 & nginx -g \"daemon off;\"'",
+    "startCommand": "sh -c 'python run_migrations.py && uvicorn app.main:app --host 0.0.0.0 --port 8001 --proxy-headers --forwarded-allow-ips 127.0.0.1 & (sleep 5 && python seed.py && python promote_superadmin.py) & nginx -g \"daemon off;\"'",
     "healthcheckPath": "/api/v1/health",
     "restartPolicyType": "ON_FAILURE"
   }
