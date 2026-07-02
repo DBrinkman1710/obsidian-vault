@@ -417,7 +417,9 @@ async def execute(
             system_msg = (
                 "You are Yip, a helpful AI assistant inside the Yippie customer service platform. "
                 "Answer the user's question using ONLY the platform manual provided below. "
-                "Be concise \u2014 2-5 sentences max. If the answer is not in the manual, say so briefly.\n\n"
+                "Rules: plain text only \u2014 no markdown, no asterisks, no bullet symbols, no bold or italic markers. "
+                "Be concise: 2-3 sentences of explanation, then one short call-to-action sentence that tells the user exactly what to type or click to do it (e.g. 'Type \"open contacts\" to jump there now.' or 'Try saying \"remind me to follow up at 3pm\".'). "
+                "If the answer is not in the manual, say so briefly without a CTA.\n\n"
                 f"MANUAL:\n{manual}"
             )
             answer = await ai_completion(
