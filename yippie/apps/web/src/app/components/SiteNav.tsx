@@ -70,7 +70,7 @@ export default function SiteNav() {
           <a href={`${APP_URL}/login`} className={styles.navLogin}>Log in</a>
           <a href={DEMO_URL} className={styles.navLoginOutline}>Request demo</a>
           <a href="/custom" className={styles.navCta}>
-            Get started <span aria-hidden="true">→</span>
+            Build your plan <span aria-hidden="true">→</span>
           </a>
         </div>
 
@@ -109,7 +109,7 @@ export default function SiteNav() {
               Request demo
             </a>
             <a href="/custom" className={styles.navCta} onClick={() => setOpen(false)}>
-              Get started →
+              Build your plan →
             </a>
           </div>
         </div>
