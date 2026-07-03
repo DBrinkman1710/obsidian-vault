@@ -81,7 +81,7 @@ Everything below must be done **before** going live. Items not listed here are d
 - ✅ Send-from aliases + in-app tour after first login ✅ DONE (session 75)
 
 **Deferred (after June 28):**
-[CUSTOM1], [B2X1], Per-tenant custom domain, [Phase 11C T2] "Connect your inbox", [LANG1], [WEB-CONS1], Customer data + AI briefing, [AI-MOD1] Self-hosted AI module, [SALES-MOD1] Sales module (website tracking tag), [SAAS-MOD1] SaaS product analytics module, [TRACK1] Track & trace module, ~~[EMBED1] Lead capture embed widget~~ ✅ shipped
+[CUSTOM1], [Phase 11C T2] "Connect your inbox", [LANG1], [WEB-CONS1], Customer data + AI briefing, [AI-MOD1] Self-hosted AI module, [SALES-MOD1] Sales module (website tracking tag), [SAAS-MOD1] SaaS product analytics module, [TRACK1] Track & trace module, ~~[EMBED1] Lead capture embed widget~~ ✅ shipped
 
 **Post-launch build order:**
 
@@ -235,10 +235,8 @@ All four steps shipped (sessions 19–24): composite indexes + nginx gzip/cache;
 
 All major Tier 1 modules shipped. The items below were explicitly out of go-live scope; their full specs are in the **Post-launch build order** section above.
 
-- **Per-tenant custom domain** — `Opus` — *not built.* `acme.getyippie.com` → shared Railway service (subdomain/slug-based tenant routing; no public slug-config lookup before login).
 - **Customer data + AI briefing** *(architecture decision)* — `Opus` — define where full contact history is stored; the AI briefing (already running) must pull complete history.
 - ~~**[CUSTOM1] Bespoke package configurator**~~ ✅ session 90 — `/custom` page: 3-step form (team profile → module picker with live pricing → quote form), leads into "Custom plan" pipeline stage in root tenant; "Build your package" in nav + pricing CTA.
-- **[B2X1] B2B vs B2C client split** — `Opus` — *not built.* Flag per tenant (`client_type: b2b | b2c`). B2B mode: company-centric views, Kanban, account management. B2C mode: individual contacts, fast ticket resolution, high-volume inbox. Needs UX prototype before building.
 - **[Phase 11C T2] "Connect your inbox" ROI estimate** — `Opus` — *not built.* CSV/mailbox-export upload (parsed in-browser, best privacy/effort); one-time IMAP/OAuth scan next; Gmail/Workspace metadata add-on last.
 
 ---

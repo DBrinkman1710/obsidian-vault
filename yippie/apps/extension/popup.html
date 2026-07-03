@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+<div id="app">
+
+  <!-- Welcome -->
+  <div id="state-welcome" class="state">
+    <div class="logo">
+      <span class="logo-dot"></span>
+      <span class="logo-text">yippie</span>
+      <button id="btn-settings-welcome" class="btn-gear" title="Settings">⚙</button>
+    </div>
+    <h1>Inbox Analyser</h1>
+    <p class="subtitle">See how much time you spend on manual email triage — and what Yippie saves you.</p>
+    <div class="privacy-note">
+      🔒 Only reads email headers. Nothing leaves your browser.
+    </div>
+    <button id="btn-analyse" class="btn-primary">Analyse my Gmail inbox</button>
+  </div>
+
+  <!-- Loading -->
+  <div id="state-loading" class="state hidden">
+    <div class="spinner"></div>
+    <p id="loading-message">Connecting to Gmail…</p>
+    <div class="progress-bar-wrap">
+      <div id="progress-bar" class="progress-bar"></div>
+    </div>
+    <p id="progress-text" class="progress-text"></p>
+  </div>
+
+  <!-- Results -->
+  <div id="state-results" class="state hidden">
+    <div class="results-header">
+      <span class="results-period">Last 30 days</span>
+      <div class="results-actions">
+        <button id="btn-settings-results" class="btn-gear" title="Settings">⚙</button>
+        <button id="btn-refresh" class="btn-refresh">↻</button>
+      </div>
+    </div>
+
+    <div class="stat-total">
+      <span id="stat-total-num">0</span>
+      <span class="stat-label">emails received</span>
+    </div>
+
+    <div class="breakdown">
+      <div class="breakdown-row">
+        <span class="dot dot-customer"></span>
+        <span class="breakdown-label">Customer conversations</span>
+        <span id="stat-customer" class="breakdown-num">0</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="dot dot-newsletter"></span>
+        <span class="breakdown-label">Newsletters / automated</span>
+        <span id="stat-newsletter" class="breakdown-num">0</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="dot dot-internal"></span>
+        <span class="breakdown-label">Internal</span>
+        <span id="stat-internal" class="breakdown-num">0</span>
+      </div>
+      <div class="breakdown-row">
+        <span class="dot dot-other"></span>
+        <span class="breakdown-label">Other</span>
+        <span id="stat-other" class="breakdown-num">0</span>
+      </div>
+    </div>
+
+    <div class="savings-card">
+      <div class="savings-row">
+        <span>Manual triage time</span>
+        <strong id="stat-triage-hours">0 hrs/month</strong>
+      </div>
+      <div class="savings-row highlight">
+        <span>Yippie saves you</span>
+        <strong id="stat-saved-hours">~0 hrs/month</strong>
+      </div>
+      <div class="savings-row euros">
+        <span>Value at €30/hr</span>
+        <strong id="stat-saved-euros">€0/month</strong>
+      </div>
+    </div>
+
+    <a id="btn-cta" href="https://getyippie.com?utm_source=extension&utm_medium=analyser" target="_blank" class="btn-cta">
+      Try Yippie free →
+    </a>
+
+    <p class="analysed-at">Analysed <span id="analysed-at"></span></p>
+  </div>
+
+  <!-- Settings -->
+  <div id="state-settings" class="state hidden">
+    <div class="settings-header">
+      <button id="btn-settings-back" class="btn-back">← Back</button>
+      <span class="settings-title">Assumptions</span>
+    </div>
+    <p class="settings-desc">Adjust the values used to calculate your savings estimate.</p>
+
+    <div class="setting-row">
+      <label for="setting-minutes">Minutes to triage one email</label>
+      <div class="setting-input-row">
+        <input type="range" id="setting-minutes" min="1" max="15" step="1" value="3">
+        <span id="setting-minutes-val" class="setting-val">3 min</span>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <label for="setting-automation">Yippie automation rate</label>
+      <div class="setting-input-row">
+        <input type="range" id="setting-automation" min="50" max="99" step="1" value="90">
+        <span id="setting-automation-val" class="setting-val">90%</span>
+      </div>
+    </div>
+
+    <div class="setting-row">
+      <label for="setting-rate">Your hourly rate</label>
+      <div class="setting-input-row">
+        <input type="number" id="setting-rate" min="1" max="500" step="1" value="30" class="setting-number">
+        <span class="setting-val">€/hr</span>
+      </div>
+    </div>
+
+    <button id="btn-settings-save" class="btn-primary">Save</button>
+  </div>
+
+  <!-- Error -->
+  <div id="state-error" class="state hidden">
+    <div class="error-icon">⚠️</div>
+    <p id="error-message">Something went wrong.</p>
+    <button id="btn-retry" class="btn-secondary">Try again</button>
+  </div>
+
+</div>
+<script src="popup.js"></script>
+</body>
+</html>

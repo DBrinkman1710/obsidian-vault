@@ -85,6 +85,65 @@ export default function PrivacyPage() {
             interest in managing business enquiries (Art. 6(1)(f) GDPR).
           </p>
 
+          <h2>Yippie Inbox Analyser — Chrome extension</h2>
+          <p>
+            The Yippie Inbox Analyser is a free Chrome extension that reads your
+            Gmail inbox metadata to estimate how much time you spend on manual
+            email triage.
+          </p>
+
+          <h3>What the extension accesses</h3>
+          <p>
+            The extension requests the <strong>gmail.metadata</strong> OAuth
+            scope. This grants read-only access to email metadata only — the
+            sender address, recipient address, subject line, and date of each
+            message. It does <strong>not</strong> grant access to message bodies,
+            attachments, drafts, or any other content.
+          </p>
+
+          <h3>Where your data is processed</h3>
+          <p>
+            All analysis runs <strong>entirely inside your browser</strong>.
+            Your email metadata is fetched directly from Gmail to your device
+            and is never transmitted to Yippie's servers, stored in any
+            database, or shared with any third party. The extension has no
+            backend and makes no outbound requests except to the Gmail API on
+            your behalf.
+          </p>
+
+          <h3>What is stored locally</h3>
+          <p>
+            The extension uses <code>chrome.storage.local</code> (your device
+            only) to cache the analysis result for up to one hour, so the
+            popup loads instantly on repeat opens. It also stores your
+            preferences (minutes per email, automation rate, hourly rate).
+            This data never leaves your device and is automatically cleared
+            when you uninstall the extension.
+          </p>
+
+          <h3>Legal basis</h3>
+          <p>
+            Processing is based on your explicit consent (Art. 6(1)(a) GDPR),
+            granted when you click &quot;Analyse my Gmail inbox&quot; and
+            approve the Gmail permission in the OAuth consent screen. You can
+            withdraw consent at any time by revoking the extension&apos;s
+            Gmail access at{" "}
+            <a
+              href="https://myaccount.google.com/permissions"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              myaccount.google.com/permissions
+            </a>{" "}
+            or by uninstalling the extension.
+          </p>
+
+          <h3>Removing your data</h3>
+          <p>
+            Uninstalling the extension from Chrome removes all locally stored
+            data immediately. No data exists anywhere else.
+          </p>
+
           <h2>Cookies &amp; analytics</h2>
           <p>
             We use <strong>Google Analytics 4</strong> with Google{" "}

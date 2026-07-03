@@ -435,6 +435,58 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Chrome Extension — coming soon */}
+      <section className={styles.sectionLight}>
+        <Reveal className={styles.sectionHead}>
+          <span className={styles.eyebrowPill}>
+            <span className={styles.eyebrowDot} style={{ background: "#f59e0b" }} />
+            Coming soon
+          </span>
+          <h2 className={styles.sectionTitle}>See your inbox ROI in 60 seconds</h2>
+          <p className={styles.sectionSub}>
+            Install the free Yippie Chrome extension, connect your Gmail, and get a
+            personalised breakdown of how much time you spend on manual triage —
+            and what Yippie saves you. No data leaves your browser.
+          </p>
+        </Reveal>
+        <div className={styles.extensionPreview}>
+          <div className={styles.extensionCard}>
+            <div className={styles.extensionHeader}>
+              <img src="/logo-white-bg-mark.svg" alt="" className={styles.extensionLogo} />
+              <span className={styles.extensionName}>Yippie Inbox Analyser</span>
+            </div>
+            <div className={styles.extensionStat}>
+              <span className={styles.extensionStatNum}>847</span>
+              <span className={styles.extensionStatLabel}>emails last 30 days</span>
+            </div>
+            <div className={styles.extensionRows}>
+              <div className={styles.extensionRow}>
+                <span className={`${styles.extensionDot} ${styles.dotBlue}`} />
+                <span>Customer conversations</span>
+                <strong>340</strong>
+              </div>
+              <div className={styles.extensionRow}>
+                <span className={`${styles.extensionDot} ${styles.dotGrey}`} />
+                <span>Newsletters / automated</span>
+                <strong>290</strong>
+              </div>
+              <div className={styles.extensionRow}>
+                <span className={`${styles.extensionDot} ${styles.dotAmber}`} />
+                <span>Internal</span>
+                <strong>150</strong>
+              </div>
+            </div>
+            <div className={styles.extensionSavings}>
+              <span>Yippie saves you</span>
+              <strong>~15 hrs/month</strong>
+            </div>
+            <div className={styles.extensionBadge}>
+              <span>🔒</span> Headers only · nothing leaves your browser
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA */}
       <section className={styles.cta}>
         <Reveal className={styles.ctaCard}>
