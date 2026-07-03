@@ -8,7 +8,6 @@ import {
   INDUSTRIES,
   TOOLS,
   PAIN_POINTS,
-  MAX_PAIN_POINTS,
   computeRecommendations,
 } from "../../lib/recommendations";
 import { PLAN_LIMITS, MODULE_PRICES } from "../../lib/config";
@@ -38,7 +37,7 @@ const MODULE_CONFIG = [
   { key: "billing",     recName: "Billing",          icon: "🧾", price: MODULE_PRICES.billing,     desc: "Invoices, payments, subscription management" },
   { key: "tracking",    recName: "Shipment Tracking",icon: "📦", price: MODULE_PRICES.tracking,   desc: "DHL, UPS, PostNL, FedEx — live carrier updates linked to contacts" },
   { key: "sales",       recName: "Sales",            icon: "📈", price: MODULE_PRICES.sales,       desc: "Track product views, add-to-cart, purchases — spot high-intent buyers" },
-  { key: "saas",        recName: "SaaS Billing",     icon: "🔁", price: MODULE_PRICES.saas,        desc: "Recurring subscriptions, MRR and churn tracking, linked to contacts" },
+  { key: "saas",        recName: "SaaS Analytics",     icon: "🔁", price: MODULE_PRICES.saas,        desc: "Recurring subscriptions, MRR and churn tracking, linked to contacts" },
 ] as const;
 
 type ModuleKey = (typeof MODULE_CONFIG)[number]["key"];
@@ -54,7 +53,7 @@ const REC_TO_KEY: Record<string, ModuleKey | undefined> = {
   "Billing":          "billing",
   "Shipment Tracking":"tracking",
   "Sales":            "sales",
-  "SaaS Billing":     "saas",
+  "SaaS Analytics":     "saas",
 };
 
 type FormState = "idle" | "submitting" | "success" | "error";
@@ -137,7 +136,6 @@ export default function CustomForm() {
     if (challenges.includes(v)) {
       setChallenges(challenges.filter((c) => c !== v));
     } else {
-      if (challenges.length >= MAX_PAIN_POINTS) return;
       setChallenges([...challenges, v]);
     }
   }
@@ -281,21 +279,16 @@ export default function CustomForm() {
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>
-            Biggest challenges?{" "}
-            <span className={styles.qHint}>pick up to {MAX_PAIN_POINTS}</span>
-          </span>
+          <span className={styles.qLabel}>Biggest challenges?</span>
           <div className={styles.chips}>
             {PAIN_POINTS.map((opt) => {
               const selected = challenges.includes(opt);
-              const disabled = !selected && challenges.length >= MAX_PAIN_POINTS;
               return (
                 <button
                   key={opt}
                   type="button"
                   className={`${styles.chip} ${selected ? styles.chipActive : ""}`}
                   onClick={() => toggleChallenge(opt)}
-                  disabled={disabled}
                 >
                   {opt}
                 </button>
@@ -434,7 +427,7 @@ export default function CustomForm() {
                   </div>
                   <div className={styles.moduleRowRight}>
                     <span className={styles.moduleRowPrice}>€{isFounder ? Math.round(mod.price * 0.5) : mod.price}/mo</span>
-                    <span className={active ? styles.moduleTagIncluded : styles.moduleTagAddBack}:
+                    <span className={active ? styles.moduleTagIncluded : styles.moduleTagAddBack}>
                       {active ? "✓ Included" : "+ Add back"}
                     </span>
                   </div>

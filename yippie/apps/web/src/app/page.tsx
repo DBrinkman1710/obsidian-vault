@@ -100,7 +100,7 @@ const features = [
   },
   {
     Icon: SaasIcon,
-    title: "SaaS Billing",
+    title: "SaaS Analytics",
     desc: "Manage recurring subscriptions, track MRR and churn, and link every subscription to a contact.",
   },
 ];

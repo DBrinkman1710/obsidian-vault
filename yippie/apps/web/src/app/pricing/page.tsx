@@ -15,7 +15,6 @@ import {
   INDUSTRIES,
   TOOLS,
   PAIN_POINTS,
-  MAX_PAIN_POINTS,
   computeRecommendations,
   TOP_MODULES,
 } from "@/lib/recommendations";
@@ -31,7 +30,7 @@ const MODULE_PRICE_MAP: Record<string, number> = {
   "Billing":           MODULE_PRICES.billing,
   "Shipment Tracking": MODULE_PRICES.tracking,
   "Sales":             MODULE_PRICES.sales,
-  "SaaS Billing":      MODULE_PRICES.saas,
+  "SaaS Analytics":      MODULE_PRICES.saas,
 };
 
 const TEAM_RANK_MAP: Record<string, number> = {
@@ -134,7 +133,7 @@ const addOns = [
   { Icon: BillingIcon, name: "Billing", desc: "Issue invoices, track payments, and manage subscriptions.", price: MODULE_PRICES.billing },
   { Icon: TrackingIcon, name: "Shipment Tracking", desc: "DHL, UPS, PostNL, FedEx — live carrier updates linked to contacts.", price: MODULE_PRICES.tracking },
   { Icon: SalesIcon, name: "Sales", desc: "Track product views, add-to-cart, and purchases — identify high-intent buyers.", price: MODULE_PRICES.sales },
-  { Icon: SaasIcon, name: "SaaS Billing", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts.", price: MODULE_PRICES.saas },
+  { Icon: SaasIcon, name: "SaaS Analytics", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts.", price: MODULE_PRICES.saas },
 ];
 
 const PLAN_RANK = ["Starter", "Growth", "Pro", "Enterprise"] as const;
@@ -347,21 +346,16 @@ export default function PricingPage() {
             </div>
 
             <div className={styles.quizQuestion}>
-              <p className={styles.quizLabel}>
-                Biggest pain points?{" "}
-                <span className={styles.quizHint}>pick up to {MAX_PAIN_POINTS}</span>
-              </p>
+              <p className={styles.quizLabel}>Biggest pain points?</p>
               <div className={styles.quizOptions}>
                 {PAIN_POINTS.map((o) => {
                   const selected = painPoints.includes(o);
-                  const disabled = !selected && painPoints.length >= MAX_PAIN_POINTS;
                   return (
                     <button
                       key={o}
                       type="button"
                       className={`${styles.quizOption} ${selected ? styles.quizSelected : ""}`}
-                      onClick={() => toggleMulti(o, painPoints, setPainPoints, MAX_PAIN_POINTS)}
-                      disabled={disabled}
+                      onClick={() => toggleMulti(o, painPoints, setPainPoints)}
                     >
                       {o}
                     </button>

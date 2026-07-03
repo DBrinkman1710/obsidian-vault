@@ -30,8 +30,14 @@ export const PAIN_POINTS = [
   "Missing automation",
   "Losing track of customers",
   "Shipment & order queries",
+  "No follow-up on leads or deals",
+  "Missed appointments or no-shows",
+  "Chasing invoices or late payments",
+  "Too many billing questions from customers",
+  "No way to reach customers proactively",
+  "No visibility into what customers are buying",
+  "Too many how-to or onboarding questions from users",
 ];
-export const MAX_PAIN_POINTS = 3;
 
 export const MODULE_INFO: Record<string, { icon: string; desc: string }> = {
   "AI Inbox":         { icon: "✦",  desc: "AI reads every message and drafts the ticket for you — one-click approve" },
@@ -44,7 +50,7 @@ export const MODULE_INFO: Record<string, { icon: string; desc: string }> = {
   "Billing":          { icon: "🧾", desc: "Issue invoices, track payments, and manage subscriptions" },
   "Shipment Tracking":{ icon: "📦", desc: "DHL, UPS, PostNL, FedEx — live carrier updates linked to contacts" },
   "Sales":            { icon: "📈", desc: "Track product views, add-to-cart, and purchases — identify high-intent buyers" },
-  "SaaS Billing":     { icon: "🔁", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts" },
+  "SaaS Analytics":   { icon: "🔁", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts" },
   "Templates":        { icon: "✉️", desc: "Shared canned responses your team can pick and personalise before sending" },
 };
 
@@ -64,17 +70,18 @@ export function computeRecommendations(
   painPoints: string[],
 ): string[] {
   const normalized = painPoints.map(p => PAIN_POINT_ALIASES[p] ?? p);
-  const rec = new Set(["AI Inbox", "Tickets"]);
+  const rec = new Set(["AI Inbox"]);
 
   // Industry signals
   if (industry === "E-commerce" || industry === "Retail") {
+    rec.add("Tickets");
     rec.add("Shipment Tracking");
     rec.add("Marketing");
     rec.add("Sales");
   }
   if (industry === "SaaS / Tech") {
     rec.add("Live Chat");
-    rec.add("SaaS Billing");
+    rec.add("SaaS Analytics");
   }
   if (industry === "Services / Agency") {
     rec.add("Calendar");
@@ -117,8 +124,30 @@ export function computeRecommendations(
     rec.add("AI Inbox");
   }
   if (normalized.includes("Too many support tickets") || normalized.includes("Slow response times")) {
+    rec.add("Tickets");
     rec.add("Live Chat");
     rec.add("Departments");
+  }
+  if (normalized.includes("No follow-up on leads or deals")) {
+    rec.add("Pipeline");
+    rec.add("Marketing");
+  }
+  if (normalized.includes("Missed appointments or no-shows")) {
+    rec.add("Calendar");
+  }
+  if (normalized.includes("Chasing invoices or late payments") || normalized.includes("Too many billing questions from customers")) {
+    rec.add("Billing");
+  }
+  if (normalized.includes("No way to reach customers proactively")) {
+    rec.add("Marketing");
+    rec.add("Pipeline");
+  }
+  if (normalized.includes("No visibility into what customers are buying")) {
+    rec.add("Sales");
+    rec.add("Marketing");
+  }
+  if (normalized.includes("Too many how-to or onboarding questions from users")) {
+    rec.add("SaaS Analytics");
   }
 
   return [...rec].slice(0, 4);

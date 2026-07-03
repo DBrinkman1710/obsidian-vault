@@ -30,12 +30,12 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 export const metadata: Metadata = {
   title: "Modules — Yippie customer service platform",
   description:
-    "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, team, tracking, sales, and SaaS billing — all built for SMBs.",
+    "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, team, tracking, sales, and SaaS analytics — all built for SMBs.",
   alternates: { canonical: "/modules" },
   openGraph: {
     title: "Modules — Yippie customer service platform",
     description:
-      "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, team, tracking, sales, and SaaS billing — all built for SMBs.",
+      "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, team, tracking, sales, and SaaS analytics — all built for SMBs.",
     url: "https://getyippie.com/modules",
     type: "website",
   },
@@ -267,8 +267,8 @@ const modules: Module[] = [
   },
   {
     id: "saas",
-    kicker: "SAAS BILLING",
-    title: "SaaS Billing — subscriptions and MRR at a glance",
+    kicker: "SAAS ANALYTICS",
+    title: "SaaS Analytics — subscriptions and MRR at a glance",
     desc: "Manage recurring subscriptions, track MRR and churn, and link every subscription to a contact. Your finance and support teams see the same data — no exporting to spreadsheets.",
     bullets: [
       "Create and manage monthly or annual subscriptions",
@@ -339,7 +339,7 @@ export default function ModulesPage() {
         <p className={contentStyles.heroSub}>
           Inbox, tickets, contacts, calendar, pipeline, live chat, marketing,
           departments, billing, templates, activity, team, tracking, sales, and
-          SaaS billing — all working together, all in one workspace.
+          SaaS analytics — all working together, all in one workspace.
         </p>
         <div className={contentStyles.heroActions}>
           <a href={DEMO_URL} className={contentStyles.btnPrimary}>

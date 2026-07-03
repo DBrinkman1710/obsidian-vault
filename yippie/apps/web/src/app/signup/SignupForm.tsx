@@ -9,7 +9,6 @@ import {
   INDUSTRIES,
   TOOLS,
   PAIN_POINTS,
-  MAX_PAIN_POINTS,
   MODULE_INFO,
   TOP_MODULES,
   computeRecommendations,
@@ -243,19 +242,14 @@ export default function SignupForm() {
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>
-            Biggest pain points?{" "}
-            <span className={styles.qHint}>pick up to {MAX_PAIN_POINTS}</span>
-          </span>
+          <span className={styles.qLabel}>Biggest pain points?</span>
           <div className={styles.chips}>
             {PAIN_POINTS.map((opt) => {
               const selected = painPoints.includes(opt);
-              const disabled = !selected && painPoints.length >= MAX_PAIN_POINTS;
               return (
                 <button key={opt} type="button"
                   className={`${styles.chip} ${selected ? styles.chipActive : ""}`}
-                  onClick={() => toggleMulti(opt, painPoints, setPainPoints, MAX_PAIN_POINTS)}
-                  disabled={disabled}>
+                  onClick={() => toggleMulti(opt, painPoints, setPainPoints)}>
                   {opt}
                 </button>
               );
