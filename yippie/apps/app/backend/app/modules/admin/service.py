@@ -289,6 +289,29 @@ async def delete_tenant(
         raise ValueError("Cannot delete your own tenant")
 
     name = tenant.name
+
+    # For demo tenants: also remove the corresponding lead contact + ticket
+    # from the root owner's pipeline (created by /public/request-demo).
+    if tenant.is_demo:
+        admin_user = await db.scalar(
+            select(User).where(User.tenant_id == tenant_id).limit(1)
+        )
+        if admin_user:
+            root_contact = await db.scalar(
+                select(Contact).where(
+                    func.lower(Contact.email) == admin_user.email.lower(),
+                    Contact.tenant_id == current_user.tenant_id,
+                )
+            )
+            if root_contact:
+                # Ticket references contact via nullable FK (SET NULL or CASCADE
+                # depending on migration); delete the follow-up ticket explicitly.
+                await db.execute(
+                    text("DELETE FROM tickets WHERE contact_id = :cid"),
+                    {"cid": str(root_contact.id)},
+                )
+                await db.delete(root_contact)
+
     _allowed = frozenset(TENANT_DELETE_ORDER)
     for table in TENANT_DELETE_ORDER:
         assert table in _allowed, f"BUG: unknown table {table!r} in delete loop"
