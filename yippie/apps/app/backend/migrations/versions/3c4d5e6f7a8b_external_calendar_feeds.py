@@ -1,7 +1,7 @@
 """external_calendar_feeds
 
-Revision ID: a1b2c3d4e5f6
-Revises: z9a0b1c2d3e4
+Revision ID: 3c4d5e6f7a8b
+Revises: a1b2c3d4e5f7, ca4c445f94a2, help1
 Create Date: 2026-07-03
 
 """
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = 'a1b2c3d4e5f6'
-down_revision: Union[str, Sequence[str], None] = 'z9a0b1c2d3e4'
+revision: str = '3c4d5e6f7a8b'
+down_revision: Union[str, Sequence[str], None] = ('a1b2c3d4e5f7', 'ca4c445f94a2', 'help1')
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
@@ -49,7 +49,6 @@ def upgrade() -> None:
     )
     op.create_index("ix_ext_cal_events_overlap", "external_calendar_events", ["tenant_id", "user_id", "start_at", "end_at"])
 
-    # Add calendar_feed_token to users for the export feed URL
     op.add_column(
         "users",
         sa.Column(
@@ -60,7 +59,6 @@ def upgrade() -> None:
         ),
     )
 
-    # Enable RLS and create tenant isolation policies
     op.execute("ALTER TABLE external_calendar_feeds ENABLE ROW LEVEL SECURITY")
     op.execute("ALTER TABLE external_calendar_feeds FORCE ROW LEVEL SECURITY")
     op.execute("""
