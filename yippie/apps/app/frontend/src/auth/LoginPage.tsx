@@ -167,6 +167,14 @@ export default function LoginPage() {
             >
               Get started
             </a>
+            {' · '}
+            <Link
+              to="/request-demo"
+              className="underline transition-colors"
+              style={{ color: 'var(--text-subtle)' }}
+            >
+              Request a demo
+            </Link>
           </p>
         </form>
       </div>
