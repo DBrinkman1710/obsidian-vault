@@ -165,7 +165,7 @@ export default function LoginPage() {
               className="underline transition-colors"
               style={{ color: 'var(--text-subtle)' }}
             >
-              Get started
+              Build your plan
             </a>
             {' · '}
             <Link
