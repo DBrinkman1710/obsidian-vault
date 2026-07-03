@@ -1592,8 +1592,16 @@ async def signup(
         )
 
     base = _demo_client_base_url()
+    login_url = f"{base}/login"
+
+    try:
+        from app.auth.invite import send_signup_welcome_email
+        await send_signup_welcome_email(email, body.name.strip(), login_url)
+    except Exception:
+        pass  # tenant is created; email failure must not fail the response
+
     return {
         "tenant_slug": slug,
-        "login_url": f"{base}/login",
+        "login_url": login_url,
         "payment": payment_result,
     }

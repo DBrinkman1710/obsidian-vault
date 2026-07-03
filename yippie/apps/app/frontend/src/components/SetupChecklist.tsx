@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { CheckCircle2, Circle, ChevronDown, ChevronUp, X } from 'lucide-react'
@@ -21,7 +21,9 @@ export default function SetupChecklist() {
   const { user, refreshUser } = useAuth()
   const navigate = useNavigate()
   const config = useTenantConfig()
-  const [collapsed, setCollapsed] = useState(false)
+  const tourActive = !user?.tour_completed
+  const [collapsed, setCollapsed] = useState(true)
+  const prevTourActive = useRef(tourActive)
   const [showYipTrain, setShowYipTrain] = useState(false)
   const [yipTrainDone, setYipTrainDone] = useState(false)
 
@@ -38,7 +40,7 @@ export default function SetupChecklist() {
     queryKey: ['setup-signatures'],
     queryFn: () => api.get('/auth/me/signatures').then((r: any) => r.data as { id: string }[]),
     staleTime: 5 * 60 * 1000,
-    enabled: !!user && !!user.tour_completed && !user.setup_checklist_dismissed,
+    enabled: !!user && !user.setup_checklist_dismissed,
   })
 
   const gates: Gate[] = [
@@ -90,12 +92,20 @@ export default function SetupChecklist() {
     }
   }, [allDone, dismissMutation.isPending, dismissMutation.isSuccess])
 
-  if (!user?.tour_completed || user?.setup_checklist_dismissed) return null
+  // Auto-expand when tour is dismissed/completed
+  useEffect(() => {
+    if (prevTourActive.current && !tourActive) {
+      setCollapsed(false)
+    }
+    prevTourActive.current = tourActive
+  }, [tourActive])
+
+  if (user?.setup_checklist_dismissed) return null
   if (signatureQuery.isLoading || (isAdmin && teamQuery.isLoading)) return null
 
   return (
     <>
-    <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+    <div className={`fixed bottom-20 md:bottom-6 z-40 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden ${tourActive ? 'right-4 md:right-[22rem]' : 'right-4 md:right-6'}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
         <div>

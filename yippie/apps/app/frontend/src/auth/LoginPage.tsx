@@ -160,13 +160,13 @@ export default function LoginPage() {
 
           <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
             Don't have an account?{' '}
-            <Link
-              to="/request-demo"
+            <a
+              href="https://getyippie.com/custom"
               className="underline transition-colors"
               style={{ color: 'var(--text-subtle)' }}
             >
-              Request a demo
-            </Link>
+              Get started
+            </a>
           </p>
         </form>
       </div>

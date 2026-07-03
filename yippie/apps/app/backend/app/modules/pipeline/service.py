@@ -20,11 +20,10 @@ from app.modules.pipeline.schemas import (
 
 
 DEFAULT_STAGES = [
-    {"name": "Questionnaire Lead", "color": "#94a3b8"},
-    {"name": "Lead",               "color": "#64748b"},
-    {"name": "Demo",               "color": "#5BA4F5"},
-    {"name": "Call Planned",       "color": "#f59e0b"},
-    {"name": "Live",               "color": "#22c55e"},
+    {"name": "New",                  "color": "#94a3b8"},
+    {"name": "In Progress",          "color": "#5BA4F5"},
+    {"name": "Waiting for Customer", "color": "#f59e0b"},
+    {"name": "Resolved",             "color": "#22c55e"},
 ]
 
 # Kanban cards in a stage whose name contains "demo" (case-insensitive) for this
