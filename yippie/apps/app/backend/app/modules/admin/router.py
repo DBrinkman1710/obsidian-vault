@@ -7,7 +7,7 @@ from typing import Annotated
 import re
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -74,11 +74,25 @@ async def check_slug(_: SuperAdminUser, db: DB, slug: str = ""):
 
 
 @router.post("/tenants", response_model=schemas.TenantOut, status_code=status.HTTP_201_CREATED)
-async def create_tenant(_: SuperAdminUser, db: DB, data: schemas.TenantCreate):
+async def create_tenant(_: SuperAdminUser, db: DB, background_tasks: BackgroundTasks, data: schemas.TenantCreate):
     try:
-        return await service.create_tenant(db, data)
+        result = await service.create_tenant(db, data)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+
+    if data.is_demo:
+        from app.core.models import User
+        from app.core.demo_seeder import seed_demo_data
+        user = await db.scalar(
+            sa_select(User).where(
+                User.email == data.admin_email.lower().strip(),
+                User.tenant_id == uuid.UUID(str(result["id"])),
+            )
+        )
+        if user:
+            background_tasks.add_task(seed_demo_data, uuid.UUID(str(result["id"])), user.id)
+
+    return result
 
 
 @router.patch("/tenants/{tenant_id}", response_model=schemas.TenantOut)

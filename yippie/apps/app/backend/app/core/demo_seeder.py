@@ -59,6 +59,16 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
                              "yahoo.com", "yahoo.nl", "icloud.com", "me.com",
                              "mac.com", "msn.com", "protonmail.com", "proton.me"}
             requester_domain = raw_domain if raw_domain and raw_domain not in _free_domains else "example.nl"
+            log.info("Demo seeder starting for tenant %s (%s)", tenant_id, company_name)
+
+            # ── Pipeline stages (clear defaults first) ───────────────────────
+            # create_tenant calls provision_default_stages which seeds generic
+            # stages (New / In Progress / …). Replace them with demo-specific
+            # stages that match the seeded contacts and pipeline narrative.
+            from sqlalchemy import delete as _delete
+            await db.execute(_delete(PipelineStage).where(PipelineStage.tenant_id == tenant_id))
+            await db.flush()
+            log.info("Demo seeder: cleared default pipeline stages")
 
             # ── Companies ────────────────────────────────────────────────────
             co_acme = Company(tenant_id=tenant_id, name=company_name, domain=requester_domain, notes="Tech scale-up, 50 fte.")
@@ -66,6 +76,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             co_sun = Company(tenant_id=tenant_id, name="Sunflower Group", domain="sunflowergroup.eu", notes="Hospitality groep, 4 hotels.")
             db.add_all([co_acme, co_boer, co_sun])
             await db.flush()
+            log.info("Demo seeder: companies done")
 
             # ── Contact labels ───────────────────────────────────────────────
             lbl_vip = ContactLabel(tenant_id=tenant_id, name="VIP", color="#f59e0b")
@@ -90,6 +101,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             await db.execute(contact_label_links.insert().values(contact_id=c5.id, label_id=lbl_enterprise.id))
             await db.execute(contact_label_links.insert().values(contact_id=c8.id, label_id=lbl_lead.id))
             await db.execute(contact_label_links.insert().values(contact_id=c1.id, label_id=lbl_enterprise.id))
+            log.info("Demo seeder: contacts + labels done")
 
             # ── Departments ──────────────────────────────────────────────────
             dept_support = Department(tenant_id=tenant_id, name="Support", email="support@demo.yippie.io", sla_working_days=3)
@@ -97,6 +109,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             dept_billing = Department(tenant_id=tenant_id, name="Billing", email="billing@demo.yippie.io", sla_working_days=5)
             db.add_all([dept_support, dept_sales, dept_billing])
             await db.flush()
+            log.info("Demo seeder: departments done")
 
             # ── Pipeline stages ──────────────────────────────────────────────
             stage_prospect = PipelineStage(tenant_id=tenant_id, name="Prospect", color="#64748b", display_order=1)
@@ -115,6 +128,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
                 (c8, stage_prospect),
             ]:
                 db.add(ContactPipelineEntry(contact_id=contact.id, stage_id=stage.id, tenant_id=tenant_id))
+            log.info("Demo seeder: pipeline done")
 
             # ── Tickets ──────────────────────────────────────────────────────
             t1 = Ticket(
@@ -173,6 +187,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             )
             db.add_all([t1, t2, t3, t4, t5, t6, t7, t8])
             await db.flush()
+            log.info("Demo seeder: tickets done")
 
             # ── Ticket comments ──────────────────────────────────────────────
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t1.id, author_id=admin_user_id, body="Factuur nagelopen — er staat inderdaad een fout in de korting. Nieuwe factuur wordt verstuurd.", is_internal=True, source=MessageSource.manual))
@@ -182,23 +197,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t6.id, author_id=admin_user_id, body="Demo gepland op dinsdag 10:00. Invite verstuurd naar kees@sunflowergroup.eu en 7 collega's.", is_internal=False, source=MessageSource.manual))
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t7.id, author_id=admin_user_id, body="WhatsApp integratie vereist een Evolution API instance. Ik stuur Nina de setup guide.", is_internal=True, source=MessageSource.manual))
 
-            # ── Calendar events ──────────────────────────────────────────────
-            db.add(CalendarEvent(
-                tenant_id=tenant_id, created_by=admin_user_id,
-                title="Demo call: De Boer Retail",
-                description="Product walkthrough voor Emma de Vries en het team.",
-                start_at=now + timedelta(days=2),
-                end_at=now + timedelta(days=2, hours=1),
-                contact_id=c3.id, ticket_id=t3.id,
-            ))
-            db.add(CalendarEvent(
-                tenant_id=tenant_id, created_by=admin_user_id,
-                title="Follow-up: Sunflower Group offerte",
-                description="Bel Fiona na over het jaarabonnement voorstel.",
-                start_at=now + timedelta(days=5),
-                end_at=now + timedelta(days=5, hours=1),
-                contact_id=c5.id,
-            ))
+            # ── Calendar events (spread over 2 weeks from request date) ─────
             db.add(CalendarEvent(
                 tenant_id=tenant_id, created_by=admin_user_id,
                 title="Kick-off meeting: Acme Nederland",
@@ -211,10 +210,27 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
                 tenant_id=tenant_id, created_by=admin_user_id,
                 title="Enterprise offerte klaar: Marco Visser",
                 description="Kosten berekening en SLA voorstel voorbereiden vóór dit gesprek.",
-                start_at=now + timedelta(days=1),
-                end_at=now + timedelta(days=1, hours=1),
+                start_at=now + timedelta(days=2),
+                end_at=now + timedelta(days=2, hours=1),
                 contact_id=c8.id, ticket_id=t8.id,
             ))
+            db.add(CalendarEvent(
+                tenant_id=tenant_id, created_by=admin_user_id,
+                title="Demo call: De Boer Retail",
+                description="Product walkthrough voor Emma de Vries en het team.",
+                start_at=now + timedelta(days=7),
+                end_at=now + timedelta(days=7, hours=1),
+                contact_id=c3.id, ticket_id=t3.id,
+            ))
+            db.add(CalendarEvent(
+                tenant_id=tenant_id, created_by=admin_user_id,
+                title="Follow-up: Sunflower Group offerte",
+                description="Bel Fiona na over het jaarabonnement voorstel.",
+                start_at=now + timedelta(days=14),
+                end_at=now + timedelta(days=14, hours=1),
+                contact_id=c5.id,
+            ))
+            log.info("Demo seeder: calendar events done")
 
             # ── Invoices ─────────────────────────────────────────────────────
             today = now.date()
@@ -249,6 +265,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
                 subtotal_cents=210000, tax_cents=44100, total_cents=254100, currency="EUR",
                 due_date=today + timedelta(days=30),
             ))
+            log.info("Demo seeder: invoices done")
 
             # ── Inbox draft messages (pending AI review) ─────────────────────
             # inbound_to=None so these appear in the shared inbox regardless of
@@ -277,6 +294,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             )
             db.add_all([msg1, msg2])
             await db.flush()
+            log.info("Demo seeder: inbox messages done")
 
             db.add(DraftTicket(
                 tenant_id=tenant_id, inbound_message_id=msg1.id, status=DraftStatus.pending,
@@ -332,6 +350,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             )
             db.add_all([chat1, chat2, chat3])
             await db.flush()
+            log.info("Demo seeder: chat sessions done")
 
             db.add(ChatMessage(
                 tenant_id=tenant_id, session_id=chat1.id,

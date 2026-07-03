@@ -646,24 +646,29 @@ async def demo_enter(token: str, response: Response, db: Annotated[AsyncSession,
 
     claims = verify_signed_token(token, "demo_magic")
     if not claims:
+        logger.warning("demo_enter: invalid or expired token (first 20 chars: %s…)", token[:20])
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired demo link.")
 
     user = await db.get(User, uuid.UUID(claims["user_id"]))
     if not user or not user.is_active:
+        logger.warning("demo_enter: user %s not found or inactive", claims.get("user_id"))
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Demo account not found.")
 
     token_email = (claims.get("email") or "").lower()
     if token_email and token_email != user.email.lower():
+        logger.warning("demo_enter: token email %s does not match user email %s", token_email, user.email)
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired demo link.")
 
     tenant = await db.get(Tenant, user.tenant_id)
     if not tenant or not tenant.is_active:
+        logger.warning("demo_enter: tenant %s not found or inactive for user %s", user.tenant_id, user.id)
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Demo account not found.")
     if tenant.is_demo and tenant.demo_expires_at:
         expires = tenant.demo_expires_at
         if expires.tzinfo is None:
             expires = expires.replace(tzinfo=timezone.utc)
         if expires < datetime.now(timezone.utc):
+            logger.warning("demo_enter: demo expired at %s for user %s", expires, user.id)
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="This demo has expired.")
 
     settings = get_settings()
