@@ -2,7 +2,21 @@
 
 import { useMemo, useState } from "react";
 import styles from "./request-demo.module.css";
-import { CheckIcon } from "../components/icons";
+import {
+  CheckIcon,
+  AiIcon,
+  TicketIcon,
+  ChatIcon,
+  CalendarIcon,
+  KanbanIcon,
+  MegaphoneIcon,
+  TeamIcon,
+  BillingIcon,
+  TrackingIcon,
+  SalesIcon,
+  SaasIcon,
+  TemplateIcon,
+} from "../components/icons";
 import {
   TEAM_SIZES,
   INDUSTRIES,
@@ -13,6 +27,25 @@ import {
   TOP_MODULES,
   computeRecommendations,
 } from "../../lib/recommendations";
+
+type IconComponent = React.ComponentType<{ size?: number }>;
+
+const MODULE_ICONS: Record<string, IconComponent> = {
+  "AI Inbox":          AiIcon,
+  "Tickets":           TicketIcon,
+  "Live Chat":         ChatIcon,
+  "Calendar":          CalendarIcon,
+  "Pipeline":          KanbanIcon,
+  "Marketing":         MegaphoneIcon,
+  "Departments":       TeamIcon,
+  "Billing":           BillingIcon,
+  "Shipment Tracking": TrackingIcon,
+  "Sales":             SalesIcon,
+  "SaaS Billing":      SaasIcon,
+  "Templates":         TemplateIcon,
+};
+
+const ALL_MODULES = Object.keys(MODULE_INFO);
 
 type State = "idle" | "submitting" | "success" | "error";
 
@@ -213,7 +246,7 @@ export default function DemoForm() {
     );
   }
 
-  // ── Step 2 — Recommendation + contact form ──────────
+  // ── Step 2 — Module overview + contact form ──────────
   return (
     <form className={styles.card} onSubmit={handleSubmit} noValidate>
       <div className={styles.steps}>
@@ -229,23 +262,33 @@ export default function DemoForm() {
         <span className={`${styles.stepDot} ${styles.stepDotActive}`}>2</span>
       </div>
 
-      <div className={styles.recCard}>
-        <span className={styles.recLabel}>
+      <div className={styles.moduleSection}>
+        <p className={styles.moduleSectionLabel}>
+          {hasAnyAnswer ? "Modules we'll show you" : "What's inside Yippie"}
+        </p>
+        <p className={styles.moduleSectionSub}>
           {hasAnyAnswer
-            ? "Recommended for you"
-            : "Here's what teams like yours use most"}
-        </span>
-        <div className={styles.recList}>
-          {recommendations.map((m) => {
+            ? "We'll focus on the highlighted modules based on your answers — you'll also get a full tour."
+            : "Pick a demo to see any of these modules in action."}
+        </p>
+        <div className={styles.moduleGrid}>
+          {ALL_MODULES.map((m) => {
             const info = MODULE_INFO[m];
-            if (!info) return null;
+            const Icon = MODULE_ICONS[m];
+            const isRec = recommendations.includes(m);
             return (
-              <div key={m} className={styles.recBadge}>
-                <span className={styles.recIcon}>{info.icon}</span>
-                <span className={styles.recText}>
-                  <span className={styles.recName}>{m}</span>
-                  <span className={styles.recDesc}>{info.desc}</span>
-                </span>
+              <div
+                key={m}
+                className={`${styles.moduleCard} ${isRec ? styles.moduleCardRec : ""}`}
+              >
+                {isRec && (
+                  <span className={styles.moduleRecBadge}>Recommended</span>
+                )}
+                <div className={`${styles.moduleCardIcon} ${isRec ? styles.moduleCardIconRec : ""}`}>
+                  {Icon && <Icon size={18} />}
+                </div>
+                <p className={styles.moduleCardName}>{m}</p>
+                <p className={styles.moduleCardDesc}>{info?.desc}</p>
               </div>
             );
           })}

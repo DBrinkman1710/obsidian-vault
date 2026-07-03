@@ -25,6 +25,7 @@ class CalendarSettingsOut(BaseModel):
     weekly_slots: Optional[list] = None
     use_weekly_slots: bool = False
     cancel_edit_hours_before: int = 24
+    min_notice_days: int = 0
     timezone: str = "Europe/Amsterdam"
 
     model_config = {"from_attributes": True}
@@ -40,6 +41,7 @@ class CalendarSettingsUpdate(BaseModel):
     weekly_slots: Optional[list] = None
     use_weekly_slots: Optional[bool] = None
     cancel_edit_hours_before: Optional[int] = Field(default=None, ge=1, le=720)
+    min_notice_days: Optional[int] = Field(default=None, ge=0, le=30)
     timezone: Optional[str] = None
 
 

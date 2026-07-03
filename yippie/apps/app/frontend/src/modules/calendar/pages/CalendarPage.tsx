@@ -899,6 +899,7 @@ interface CalendarSettings {
   use_weekly_slots: boolean
   weekly_slots: Record<string, WeeklySlotEntry[]> | null
   cancel_edit_hours_before: number
+  min_notice_days: number
   timezone: string
 }
 
@@ -1322,6 +1323,17 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
               </p>
             </div>
             <div>
+              <label className={labelCls}>Minimum notice required</label>
+              <select className={inputCls} value={current.min_notice_days ?? 0}
+                onChange={e => update({ min_notice_days: Number(e.target.value) })}>
+                <option value={0}>No minimum</option>
+                {[1, 2, 3, 5, 7, 14].map(d => <option key={d} value={d}>{d} {d === 1 ? 'day' : 'days'} in advance</option>)}
+              </select>
+              <p className="mt-1 text-xs text-slate-400">
+                Clients cannot book anything within this many days from today.
+              </p>
+            </div>
+            <div>
               <label className={labelCls}>How far ahead customers can book</label>
               <select className={inputCls} value={current.booking_window_days ?? 60}
                 onChange={e => update({ booking_window_days: Number(e.target.value) })}>
@@ -1360,6 +1372,7 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
                   use_weekly_slots: current.use_weekly_slots,
                   weekly_slots: current.weekly_slots,
                   cancel_edit_hours_before: current.cancel_edit_hours_before,
+                  min_notice_days: current.min_notice_days ?? 0,
                   timezone: current.timezone,
                 })}
                 disabled={saveMut.isPending}

@@ -116,9 +116,11 @@ async def get_available_slots(
             weekly_slots_map = raw
         # (list form not expected, but guard anyway)
 
+    min_notice = max(0, getattr(settings, "min_notice_days", 0))
+
     if use_weekly and weekly_slots_map:
         # Weekly schedule mode
-        for offset in range(1, days_ahead + 1):
+        for offset in range(min_notice + 1, days_ahead + 1):
             day = today + timedelta(days=offset)
             # Skip weekends (Saturday=5, Sunday=6)
             if day.weekday() >= 5:
@@ -154,7 +156,7 @@ async def get_available_slots(
     else:
         # Legacy uniform-hours mode
         step = timedelta(minutes=settings.slot_minutes)
-        for offset in range(1, days_ahead + 1):
+        for offset in range(min_notice + 1, days_ahead + 1):
             day = today + timedelta(days=offset)
             if day.weekday() >= 5:
                 continue

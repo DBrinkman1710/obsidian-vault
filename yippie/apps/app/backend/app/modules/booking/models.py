@@ -39,6 +39,9 @@ class CalendarSettings(Base):
     cancel_edit_hours_before: Mapped[int] = mapped_column(
         Integer, nullable=False, default=24, server_default="24"
     )
+    min_notice_days: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     timezone: Mapped[str] = mapped_column(
         String(64), nullable=False, default="Europe/Amsterdam", server_default="Europe/Amsterdam"
     )
