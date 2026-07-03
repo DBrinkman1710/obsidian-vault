@@ -270,7 +270,7 @@ export default function PricingPage() {
                 href={plan.enterprise ? TALK_PATH : "/custom"}
                 className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}
               >
-                {plan.enterprise ? "Book a call" : "Get started"}
+                {plan.enterprise ? "Book a call" : "Build your plan"}
               </a>
             </div>
           ))}
@@ -377,8 +377,8 @@ export default function PricingPage() {
                     Add-ons are per workspace.
                   </p>
                 )}
-                <a href={isEnterprise ? TALK_PATH : `/signup?plan=${(recommendedPlanName ?? "starter").toLowerCase()}`} className={styles.quizResultBtn}>
-                  {isEnterprise ? "Book a call →" : "Get started →"}
+                <a href={isEnterprise ? TALK_PATH : `/custom`} className={styles.quizResultBtn}>
+                  {isEnterprise ? "Book a call →" : "Build your plan →"}
                 </a>
               </>
             ) : (

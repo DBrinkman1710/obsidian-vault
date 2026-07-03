@@ -245,7 +245,7 @@ export default function HomePage() {
               alongside your business. Review, approve, done.
             </p>
             <div className={styles.heroActions}>
-              <a href={DEMO_URL} className={styles.btnPrimary}>
+              <a href="/custom" className={styles.btnPrimary}>
                 Start growing with us <ArrowRightIcon size={17} />
               </a>
               <a href="/modules" className={styles.btnGhost}>See the product</a>
