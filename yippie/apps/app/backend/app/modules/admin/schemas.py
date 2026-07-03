@@ -194,3 +194,7 @@ class SuperAdminStats(BaseModel):
     tenants: list[TenantStatRow]
     start: datetime
     end: datetime
+
+
+class ResendDemoInviteRequest(BaseModel):
+    email: str

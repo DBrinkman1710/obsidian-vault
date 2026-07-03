@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import logging
 import os
 import re
 import uuid
+
+logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal, Optional
 
@@ -538,7 +541,7 @@ async def request_demo(
     try:
         await send_demo_ready_email(email, body.name.strip(), magic_link)
     except Exception:
-        pass  # demo is created; email failure must not fail the response
+        logger.exception("Failed to send demo ready email to %s", email)
 
     # All remaining writes are in the root tenant — set RLS context so
     # pipeline_stages INSERT/SELECT passes the tenant_isolation policy.

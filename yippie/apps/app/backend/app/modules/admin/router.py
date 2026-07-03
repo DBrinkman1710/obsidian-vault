@@ -635,3 +635,35 @@ async def seed_chat_sessions(_: SuperAdminUser, db: DB, tenant_id: uuid.UUID):
 
     await db.commit()
     return {"created": created}
+
+
+@router.post("/tenants/resend-demo-invite")
+async def resend_demo_invite(_: SuperAdminUser, db: DB, data: schemas.ResendDemoInviteRequest):
+    """Resend the magic-link welcome email to a demo tenant user by email address."""
+    from app.auth.invite import send_demo_ready_email
+    from app.auth.tokens import create_signed_token
+    from app.core.models import User, Tenant
+    from app.public.router import _demo_client_base_url, DEFAULT_DEMO_DAYS
+    from datetime import timedelta
+    from sqlalchemy import select
+
+    user = await db.scalar(select(User).where(User.email == data.email))
+    if user is None:
+        raise HTTPException(status_code=404, detail="No user found with that email.")
+    tenant = await db.get(Tenant, user.tenant_id)
+    if tenant is None or not tenant.is_demo:
+        raise HTTPException(status_code=400, detail="User is not on a demo tenant.")
+
+    token = create_signed_token(
+        "demo_magic",
+        timedelta(days=DEFAULT_DEMO_DAYS),
+        user_id=str(user.id),
+        email=data.email,
+        tenant_id=str(tenant.id),
+    )
+    base = _demo_client_base_url()
+    if not base:
+        raise HTTPException(status_code=503, detail="Demo link URL is not configured.")
+    magic_link = f"{base}/demo-enter?token={token}"
+    await send_demo_ready_email(data.email, user.full_name or data.email, magic_link)
+    return {"sent": True, "magic_link": magic_link}
