@@ -89,8 +89,7 @@ export const useAuth = create<AuthState>((set: any, get: any) => ({
     }
   },
 
-  startImpersonation: async (tenantId: any, tenantName: any, userEmail: any) => {
-    await api.post(`/admin/tenants/${tenantId}/impersonate`)
+  startImpersonation: async (_tenantId: any, tenantName: any, userEmail: any) => {
     const imp = { tenantName, userEmail }
     sessionStorage.setItem('impersonation', JSON.stringify(imp))
     queryClient.clear()
