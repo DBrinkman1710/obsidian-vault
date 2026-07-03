@@ -419,7 +419,7 @@ async def execute(
                 "Answer the user's question using ONLY the platform manual provided below. "
                 "Rules: plain text only \u2014 no markdown, no asterisks, no bullet symbols, no bold or italic markers. "
                 "Be concise: 2-3 sentences of explanation, then one short call-to-action sentence that tells the user exactly what to type or click to do it (e.g. 'Type \"open contacts\" to jump there now.' or 'Try saying \"remind me to follow up at 3pm\".'). "
-                "If the answer is not in the manual, say so briefly without a CTA.\n\n"
+                "If the answer is not in the manual, say: 'I don't have that answer \u2014 reach out to support@getyippie.com and we'll help you out.'\n\n"
                 f"MANUAL:\n{manual}"
             )
             answer = await ai_completion(
@@ -437,6 +437,7 @@ async def execute(
             "\u2022 Compose email \u2014 \"compose mail to Guus Stuiver\"",
             "\u2022 Math \u2014 \"what is 5*15\"",
             "Just type naturally and I'll figure out the rest.",
+            "Need more help? Reach out to support@getyippie.com.",
         ]
         return {"action_taken": "help", "summary": "\n".join(lines)}
 
@@ -466,7 +467,7 @@ async def execute(
     nav = await _resolve_navigation(db, tenant.id, query)
     if nav:
         return {"action_taken": "navigate", "summary": nav["label"], "navigate_to": nav["path"]}
-    return {"action_taken": "search", "summary": f"Nothing found for \u201c{query}\u201d."}
+    return {"action_taken": "search", "summary": f"Nothing found for \u201c{query}\u201d. If you need help, contact support@getyippie.com."}
 
 
 _REL_TIME = re.compile(
