@@ -80,6 +80,7 @@ async def get_available_slots(
     tenant_id: uuid.UUID,
     settings: CalendarSettings,
     days_ahead: int,
+    agent_user_id: Optional[uuid.UUID] = None,
 ) -> list[AvailableSlot]:
     """Generate open/closed slots for the next ``days_ahead`` weekdays.
 
@@ -183,6 +184,21 @@ async def get_available_slots(
         )
     )
     events = [(r.start_at, r.end_at) for r in result.all() if r.end_at is not None]
+
+    # Also block slots that overlap with the agent's external calendar events (Apple/Outlook).
+    if agent_user_id is not None:
+        from app.modules.external_calendar.models import ExternalCalendarEvent
+        ext_result = await db.execute(
+            select(ExternalCalendarEvent.start_at, ExternalCalendarEvent.end_at).where(
+                ExternalCalendarEvent.tenant_id == tenant_id,
+                ExternalCalendarEvent.user_id == agent_user_id,
+                ExternalCalendarEvent.start_at < window_end,
+                ExternalCalendarEvent.end_at > window_start,
+            )
+        )
+        events.extend(
+            (r.start_at, r.end_at) for r in ext_result.all() if r.end_at is not None
+        )
 
     out: list[AvailableSlot] = []
     for slot_start, slot_end, capacity in slots:
@@ -365,6 +381,19 @@ async def confirm_booking(
         )
     )
     if conflict is not None:
+        raise ValueError("That time is no longer available. Please pick another slot.")
+
+    # Also check external calendar events for the agent.
+    from app.modules.external_calendar.models import ExternalCalendarEvent
+    ext_conflict = await db.scalar(
+        select(ExternalCalendarEvent.id).where(
+            ExternalCalendarEvent.tenant_id == token.tenant_id,
+            ExternalCalendarEvent.user_id == token.created_by,
+            ExternalCalendarEvent.start_at < slot_end,
+            ExternalCalendarEvent.end_at > slot_start,
+        )
+    )
+    if ext_conflict is not None:
         raise ValueError("That time is no longer available. Please pick another slot.")
 
     contact = await db.get(Contact, token.contact_id)

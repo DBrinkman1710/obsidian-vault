@@ -885,7 +885,7 @@ async def public_get_manage(
 
     days_ahead = max(getattr(settings, "booking_window_days", 60) or 60, 14)
     available = await booking_service.get_available_slots(
-        db, token.tenant_id, settings, days_ahead
+        db, token.tenant_id, settings, days_ahead, agent_user_id=token.created_by
     )
 
     first_name = ((contact.full_name if contact else "") or "there").split(" ")[0]
@@ -999,7 +999,7 @@ async def public_get_booking(
     settings = await booking_service.get_or_create_settings(db, token.tenant_id)
     days_ahead = max(getattr(settings, "booking_window_days", 60) or 60, 14)
     available = await booking_service.get_available_slots(
-        db, token.tenant_id, settings, days_ahead
+        db, token.tenant_id, settings, days_ahead, agent_user_id=token.created_by
     )
 
     proposed = (
@@ -1086,6 +1086,100 @@ async def public_confirm_booking(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
     return {"event_id": str(event.id), "start_at": event.start_at, "end_at": event.end_at}
+
+
+@router.get("/calendar/{feed_token}.ics")
+async def export_user_calendar(
+    feed_token: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Response:
+    """Personal iCal feed — unauthenticated. Returns the user's Yippie calendar events
+    and confirmed bookings as a .ics file for subscription in Apple Calendar / Outlook."""
+    import icalendar as _ical
+
+    from app.core.models import User
+    from app.modules.booking.models import BookingToken
+    from app.modules.calendar.models import CalendarEvent, CalendarEventInvitation
+
+    user = await db.scalar(
+        select(User).where(User.calendar_feed_token == feed_token)
+    )
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feed not found.")
+
+    await set_tenant_context(db, str(user.tenant_id))
+
+    cal = _ical.Calendar()
+    cal.add("PRODID", "-//Yippie//Calendar//EN")
+    cal.add("VERSION", "2.0")
+    cal.add("CALSCALE", "GREGORIAN")
+    cal.add("X-WR-CALNAME", f"{user.full_name} — Yippie")
+
+    # Own events + accepted invitations
+    own_events_result = await db.execute(
+        select(CalendarEvent).where(
+            CalendarEvent.tenant_id == user.tenant_id,
+            CalendarEvent.created_by == user.id,
+        )
+    )
+    own_event_ids = {e.id for e in own_events_result.scalars().all()}
+
+    accepted_result = await db.execute(
+        select(CalendarEventInvitation.event_id).where(
+            CalendarEventInvitation.tenant_id == user.tenant_id,
+            CalendarEventInvitation.invitee_id == user.id,
+            CalendarEventInvitation.status == "accepted",
+        )
+    )
+    accepted_ids = {r.event_id for r in accepted_result.all()}
+
+    all_event_ids = own_event_ids | accepted_ids
+    if all_event_ids:
+        events_result = await db.execute(
+            select(CalendarEvent).where(CalendarEvent.id.in_(all_event_ids))
+        )
+        for event in events_result.scalars().all():
+            vevent = _ical.Event()
+            vevent.add("UID", f"{event.id}@yippie")
+            vevent.add("SUMMARY", event.title or "Meeting")
+            vevent.add("DTSTART", event.start_at)
+            vevent.add("DTEND", event.end_at)
+            if event.description:
+                vevent.add("DESCRIPTION", event.description)
+            vevent.add("DTSTAMP", event.created_at)
+            cal.add_component(vevent)
+
+    # Confirmed bookings where this user is the agent
+    tokens_result = await db.execute(
+        select(BookingToken).where(
+            BookingToken.tenant_id == user.tenant_id,
+            BookingToken.created_by == user.id,
+            BookingToken.booked_at.isnot(None),
+            BookingToken.event_id.isnot(None),
+        )
+    )
+    booked_event_ids = {t.event_id for t in tokens_result.scalars().all() if t.event_id not in all_event_ids}
+    if booked_event_ids:
+        booked_result = await db.execute(
+            select(CalendarEvent).where(CalendarEvent.id.in_(booked_event_ids))
+        )
+        for event in booked_result.scalars().all():
+            vevent = _ical.Event()
+            vevent.add("UID", f"{event.id}@yippie")
+            vevent.add("SUMMARY", event.title or "Meeting")
+            vevent.add("DTSTART", event.start_at)
+            vevent.add("DTEND", event.end_at)
+            if event.description:
+                vevent.add("DESCRIPTION", event.description)
+            vevent.add("DTSTAMP", event.created_at)
+            cal.add_component(vevent)
+
+    ical_bytes = cal.to_ical()
+    return Response(
+        content=ical_bytes,
+        media_type="text/calendar; charset=utf-8",
+        headers={"Content-Disposition": "attachment; filename=yippie.ics"},
+    )
 
 
 class LeadSubmit(BaseModel):

@@ -468,6 +468,15 @@ async def mark_overdue_invoices():
             await db.commit()
 
 
+@scheduler.scheduled_job("interval", minutes=5, id="external_calendar_sync", max_instances=1, coalesce=True)
+async def sync_external_calendars():
+    """Refresh iCal feeds (Apple Calendar, Outlook) for all active users across all tenants."""
+    from app.modules.external_calendar.service import sync_all_active_feeds
+
+    async with db_session() as db:
+        await sync_all_active_feeds(db)
+
+
 def start_scheduler():
     if not scheduler.running:
         scheduler.start()

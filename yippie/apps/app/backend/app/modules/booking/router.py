@@ -16,7 +16,10 @@ from app.modules.booking.schemas import (
     CalendarSettingsUpdate,
 )
 
+from app.modules.external_calendar.router import router as _ext_cal_router
+
 router = APIRouter(prefix="/booking", tags=["booking"])
+router.include_router(_ext_cal_router)
 
 DB = Annotated[AsyncSession, Depends(get_db)]
 

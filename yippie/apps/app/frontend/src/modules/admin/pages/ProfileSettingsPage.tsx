@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import DOMPurify from 'dompurify'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Trash2, Star, ChevronUp, ChevronDown, Image as ImageIcon, Pencil, Check, X, Download } from 'lucide-react'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Plus, Trash2, Star, ChevronUp, ChevronDown, Image as ImageIcon, Pencil, Check, X, Download, RefreshCw, Copy, Link, Unlink } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useSignatures, readSignatureImage, signatureImageTag, type Signature } from '../../../hooks/useSignatures'
@@ -230,6 +230,12 @@ export default function ProfileSettingsPage() {
         <div className="w-96 flex-shrink-0">
           <ChangePasswordCard />
         </div>
+      </div>
+
+      {/* Calendar integration */}
+      <div className="mt-10 pt-6 border-t border-slate-200 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ConnectedCalendarsCard />
+        <YippieCalendarFeedCard />
       </div>
 
       {/* Platform manual download */}
@@ -542,6 +548,250 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
           </button>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ── Connected Calendars (import: Apple / Outlook → Yippie) ───────────────────
+
+type Feed = {
+  id: string
+  name: string
+  ical_url: string
+  last_synced_at: string | null
+  last_sync_error: string | null
+  is_active: boolean
+  created_at: string
+}
+
+function ConnectedCalendarsCard() {
+  const qc = useQueryClient()
+  const [adding, setAdding] = useState(false)
+  const [name, setName] = useState('')
+  const [url, setUrl] = useState('')
+  const [addError, setAddError] = useState('')
+  const [syncingId, setSyncingId] = useState<string | null>(null)
+
+  const { data: feeds = [], isLoading } = useQuery<Feed[]>({
+    queryKey: ['external-calendars'],
+    queryFn: () => api.get('/booking/external-calendars').then((r: any) => r.data),
+  })
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['external-calendars'] })
+
+  const addMutation = useMutation({
+    mutationFn: (body: { name: string; ical_url: string }) =>
+      api.post('/booking/external-calendars', body).then((r: any) => r.data),
+    onSuccess: () => { invalidate(); setAdding(false); setName(''); setUrl(''); setAddError('') },
+    onError: (err: any) => setAddError(err.response?.data?.detail ?? 'Could not add calendar.'),
+  })
+
+  const toggleMutation = useMutation({
+    mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
+      api.patch(`/booking/external-calendars/${id}`, { is_active }).then((r: any) => r.data),
+    onSuccess: invalidate,
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => api.delete(`/booking/external-calendars/${id}`),
+    onSuccess: invalidate,
+  })
+
+  async function handleSync(id: string) {
+    setSyncingId(id)
+    try {
+      await api.post(`/booking/external-calendars/${id}/sync`)
+      invalidate()
+    } finally {
+      setSyncingId(null)
+    }
+  }
+
+  function lastSyncLabel(feed: Feed) {
+    if (feed.last_sync_error) return { text: 'Error', cls: 'text-red-500 bg-red-50' }
+    if (!feed.last_synced_at) return { text: 'Never synced', cls: 'text-slate-400 bg-slate-50' }
+    const mins = Math.round((Date.now() - new Date(feed.last_synced_at).getTime()) / 60000)
+    const label = mins < 2 ? 'Just now' : mins < 60 ? `${mins}m ago` : `${Math.round(mins / 60)}h ago`
+    return { text: label, cls: 'text-emerald-600 bg-emerald-50' }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="flex items-center justify-between mb-1">
+        <h2 className="text-sm font-bold text-slate-900">Connected Calendars</h2>
+        {!adding && feeds.length < 5 && (
+          <button
+            type="button"
+            onClick={() => { setAdding(true); setAddError('') }}
+            className="inline-flex items-center gap-1 text-xs font-semibold text-yippie hover:opacity-80 cursor-pointer"
+          >
+            <Plus size={13} /> Add calendar
+          </button>
+        )}
+      </div>
+      <p className="text-xs text-slate-400 mb-4">
+        Add iCal feed URLs from Apple Calendar or Outlook. Busy times are automatically blocked from your booking availability.
+      </p>
+
+      {isLoading && <p className="text-xs text-slate-400">Loading…</p>}
+
+      <div className="space-y-3">
+        {feeds.map(feed => {
+          const sync = lastSyncLabel(feed)
+          return (
+            <div key={feed.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl bg-slate-50">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-800 truncate">{feed.name}</p>
+                <p className="text-xs text-slate-400 truncate">{feed.ical_url}</p>
+                {feed.last_sync_error && (
+                  <p className="text-xs text-red-500 mt-0.5 truncate" title={feed.last_sync_error}>{feed.last_sync_error}</p>
+                )}
+              </div>
+              <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${sync.cls}`}>{sync.text}</span>
+              <button
+                type="button"
+                title="Sync now"
+                onClick={() => handleSync(feed.id)}
+                disabled={syncingId === feed.id}
+                className="p-1.5 text-slate-400 hover:text-yippie hover:bg-yippie/10 rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
+              >
+                <RefreshCw size={13} className={syncingId === feed.id ? 'animate-spin' : ''} />
+              </button>
+              <button
+                type="button"
+                title={feed.is_active ? 'Disable' : 'Enable'}
+                onClick={() => toggleMutation.mutate({ id: feed.id, is_active: !feed.is_active })}
+                className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors cursor-pointer ${feed.is_active ? 'bg-yippie' : 'bg-slate-300'}`}
+              >
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${feed.is_active ? 'translate-x-4' : 'translate-x-0.5'}`} />
+              </button>
+              <button
+                type="button"
+                title="Remove"
+                onClick={() => deleteMutation.mutate(feed.id)}
+                className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
+              >
+                <Unlink size={13} />
+              </button>
+            </div>
+          )
+        })}
+      </div>
+
+      {adding && (
+        <div className="mt-3 border border-yippie/40 bg-yippie/5 rounded-xl p-3 space-y-2">
+          <input
+            value={name}
+            onChange={e => setName(e.target.value)}
+            placeholder="Name (e.g. Apple Calendar, School)"
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+          />
+          <input
+            value={url}
+            onChange={e => setUrl(e.target.value)}
+            placeholder="iCal URL (webcal:// or https://)"
+            className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+          />
+          <p className="text-xs text-slate-400">
+            Apple Calendar: right-click calendar → Share → Copy Link (webcal://…) &nbsp;·&nbsp;
+            Outlook: Calendar settings → Share → ICS link
+          </p>
+          {addError && <p className="text-xs text-red-500">{addError}</p>}
+          <div className="flex items-center gap-2 justify-end">
+            <button
+              type="button"
+              onClick={() => { setAdding(false); setName(''); setUrl(''); setAddError('') }}
+              className="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={!name.trim() || !url.trim() || addMutation.isPending}
+              onClick={() => addMutation.mutate({ name: name.trim(), ical_url: url.trim() })}
+              className="px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 cursor-pointer"
+            >
+              {addMutation.isPending ? 'Adding…' : 'Add'}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Yippie iCal Export Feed (Yippie → Apple Calendar / Outlook) ──────────────
+
+function YippieCalendarFeedCard() {
+  const [copied, setCopied] = useState(false)
+  const [regenerating, setRegenerating] = useState(false)
+  const [feedUrl, setFeedUrl] = useState<string | null>(null)
+
+  const { data, isLoading } = useQuery<{ ical_url: string }>({
+    queryKey: ['my-calendar-feed-url'],
+    queryFn: () => api.get('/booking/external-calendars/my-feed-url').then((r: any) => r.data),
+    onSuccess: (d: any) => setFeedUrl(d.ical_url),
+  } as any)
+
+  const url = feedUrl ?? data?.ical_url ?? ''
+
+  async function handleCopy() {
+    if (!url) return
+    await navigator.clipboard.writeText(url)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  async function handleRegenerate() {
+    if (!confirm('This will invalidate the old URL. Any existing subscriptions will stop working. Continue?')) return
+    setRegenerating(true)
+    try {
+      const res: any = await api.post('/booking/external-calendars/my-feed-url/regenerate')
+      setFeedUrl(res.data.ical_url)
+    } finally {
+      setRegenerating(false)
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-6">
+      <div className="flex items-center gap-2 mb-1">
+        <Link size={15} className="text-slate-400" />
+        <h2 className="text-sm font-bold text-slate-900">Your Yippie Calendar Feed</h2>
+      </div>
+      <p className="text-xs text-slate-400 mb-4">
+        Subscribe to this URL in Apple Calendar (File → New Calendar Subscription) or Outlook (Add Calendar → From internet) to see your Yippie events and bookings there.
+      </p>
+
+      {isLoading ? (
+        <p className="text-xs text-slate-400">Loading…</p>
+      ) : (
+        <div className="flex items-center gap-2">
+          <input
+            readOnly
+            value={url}
+            className="flex-1 min-w-0 px-3 py-2 text-xs text-slate-600 bg-slate-50 border border-slate-200 rounded-xl truncate cursor-text"
+          />
+          <button
+            type="button"
+            onClick={handleCopy}
+            title="Copy URL"
+            className="shrink-0 p-2 text-slate-400 hover:text-yippie hover:bg-yippie/10 rounded-xl transition-colors cursor-pointer"
+          >
+            {copied ? <Check size={15} className="text-emerald-500" /> : <Copy size={15} />}
+          </button>
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={handleRegenerate}
+        disabled={regenerating}
+        className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50 cursor-pointer"
+      >
+        <RefreshCw size={12} className={regenerating ? 'animate-spin' : ''} />
+        {regenerating ? 'Regenerating…' : 'Regenerate URL'}
+      </button>
     </div>
   )
 }

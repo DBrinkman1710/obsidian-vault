@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.sql import func
@@ -166,6 +166,8 @@ class User(Base):
     help_tips_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     # Quick-capture (Jarvis) preferences: {hotkey, enabled_actions, default_context_mode}.
     jarvis_prefs: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Opaque token for the personal iCal export feed (/public/calendar/{token}.ics).
+    calendar_feed_token: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, server_default=text("gen_random_uuid()"))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
