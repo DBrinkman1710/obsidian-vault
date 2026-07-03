@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "../components/content.module.css";
@@ -39,7 +40,9 @@ export default function CustomPage() {
       </section>
 
       <div className={customStyles.wrap}>
-        <CustomForm />
+        <Suspense fallback={null}>
+          <CustomForm />
+        </Suspense>
       </div>
 
       <SiteFooter />

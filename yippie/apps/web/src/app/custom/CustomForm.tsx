@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import styles from "./custom.module.css";
 import {
   TEAM_SIZES,
@@ -72,6 +73,9 @@ export default function CustomForm() {
   const [recommendedKeys, setRecommendedKeys] = useState<ModuleKey[]>([]);
   const [selectedModules, setSelectedModules] = useState<ModuleKey[]>([]);
 
+  const searchParams = useSearchParams();
+  const isFounder = searchParams.get("plan") === "founder";
+
   // Step 3 state
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
@@ -104,18 +108,29 @@ export default function CustomForm() {
     [selectedModules],
   );
 
+  const founderModulesTotal = useMemo(
+    () => selectedModules.reduce((sum, key) => {
+      const m = MODULE_CONFIG.find((c) => c.key === key);
+      return sum + Math.round((m?.price ?? 0) * 0.5);
+    }, 0),
+    [selectedModules],
+  );
+
   // Plan price already encodes the annual discount via priceAnnual/12;
   // apply 10% only to modules to avoid double-discounting the plan.
   const displayMonthlyTotal = useMemo(
-    () => annual
-      ? (planMonthlyDisplay ?? 0) + Math.round(modulesRawTotal * 0.9)
-      : (planMonthlyDisplay ?? 0) + modulesRawTotal,
-    [annual, planMonthlyDisplay, modulesRawTotal],
+    () => {
+      if (isFounder) return 9 + founderModulesTotal;
+      return annual
+        ? (planMonthlyDisplay ?? 0) + Math.round(modulesRawTotal * 0.9)
+        : (planMonthlyDisplay ?? 0) + modulesRawTotal;
+    },
+    [isFounder, founderModulesTotal, annual, planMonthlyDisplay, modulesRawTotal],
   );
 
   const modulesSaving = useMemo(
-    () => annual ? modulesRawTotal - Math.round(modulesRawTotal * 0.9) : 0,
-    [annual, modulesRawTotal],
+    () => (annual && !isFounder) ? modulesRawTotal - Math.round(modulesRawTotal * 0.9) : 0,
+    [annual, isFounder, modulesRawTotal],
   );
 
   function toggleChallenge(v: string) {
@@ -165,7 +180,7 @@ export default function CustomForm() {
             industry: industry || null,
             challenges: challenges.length ? challenges : null,
             current_tool: currentTool || null,
-            plan_selected: recommendedPlanKey,
+            plan_selected: isFounder ? "founder" : recommendedPlanKey,
             modules_selected: selectedModules.length ? selectedModules : null,
             monthly_total: recommendedPlanKey !== "enterprise" ? displayMonthlyTotal : null,
             billing_cycle: annual ? "annual" : "monthly",
@@ -223,6 +238,12 @@ export default function CustomForm() {
           <span className={styles.stepLine} />
           <span className={styles.stepDot}>3</span>
         </div>
+        {isFounder && (
+          <div className={styles.founderBanner}>
+            <span className={styles.founderBadge}>Founding Member</span>
+            €9/mo for up to 10 users · 50% off all add-on modules
+          </div>
+        )}
         <p className={styles.stepHint}>
           A few quick questions so we can build the right package for you.
         </p>
@@ -349,26 +370,42 @@ export default function CustomForm() {
 
         {/* Plan tile */}
         <div className={styles.planTile}>
-          <p className={styles.planLabel}>Recommended plan for your team</p>
-          <div className={styles.planRow}>
-            <span className={styles.planName}>{PLAN_NAMES[recommendedPlanKey]}</span>
-            {isEnterprise ? (
-              <span className={styles.planEnterprise}>Custom pricing</span>
-            ) : (
-              <span>
-                <span className={styles.planPrice}>€{planMonthlyDisplay}</span>
-                <span className={styles.planPricePer}>/mo</span>
-              </span>
-            )}
-          </div>
-          {planLimits && (
-            <p className={styles.planMeta}>
-              {planLimits.users} users · {(planLimits.aiScans ?? 0).toLocaleString()} AI scans/mo
-              {annual && " · billed annually"}
-            </p>
-          )}
-          {isEnterprise && (
-            <p className={styles.planMeta}>Unlimited users · unlimited AI scans</p>
+          {isFounder ? (
+            <>
+              <p className={styles.planLabel}>Your plan</p>
+              <div className={styles.planRow}>
+                <span className={styles.planName}>Founding Member</span>
+                <span>
+                  <span className={styles.planPrice}>€9</span>
+                  <span className={styles.planPricePer}>/mo</span>
+                </span>
+              </div>
+              <p className={styles.planMeta}>Up to 10 users · 50% off all add-on modules</p>
+            </>
+          ) : (
+            <>
+              <p className={styles.planLabel}>Recommended plan for your team</p>
+              <div className={styles.planRow}>
+                <span className={styles.planName}>{PLAN_NAMES[recommendedPlanKey]}</span>
+                {isEnterprise ? (
+                  <span className={styles.planEnterprise}>Custom pricing</span>
+                ) : (
+                  <span>
+                    <span className={styles.planPrice}>€{planMonthlyDisplay}</span>
+                    <span className={styles.planPricePer}>/mo</span>
+                  </span>
+                )}
+              </div>
+              {planLimits && (
+                <p className={styles.planMeta}>
+                  {planLimits.users} users · {(planLimits.aiScans ?? 0).toLocaleString()} AI scans/mo
+                  {annual && " · billed annually"}
+                </p>
+              )}
+              {isEnterprise && (
+                <p className={styles.planMeta}>Unlimited users · unlimited AI scans</p>
+              )}
+            </>
           )}
         </div>
 
@@ -396,8 +433,8 @@ export default function CustomForm() {
                     </span>
                   </div>
                   <div className={styles.moduleRowRight}>
-                    <span className={styles.moduleRowPrice}>€{mod.price}/mo</span>
-                    <span className={active ? styles.moduleTagIncluded : styles.moduleTagAddBack}>
+                    <span className={styles.moduleRowPrice}>€{isFounder ? Math.round(mod.price * 0.5) : mod.price}/mo</span>
+                    <span className={active ? styles.moduleTagIncluded : styles.moduleTagAddBack}:
                       {active ? "✓ Included" : "+ Add back"}
                     </span>
                   </div>
@@ -519,7 +556,7 @@ export default function CustomForm() {
         <p className={styles.summaryTitle}>Your package</p>
         <div className={styles.summaryLines}>
           <div className={styles.summaryLine}>
-            <span className={styles.summaryLineName}>{PLAN_NAMES[recommendedPlanKey]} plan</span>
+            <span className={styles.summaryLineName}>{isFounder ? "Founding Member" : PLAN_NAMES[recommendedPlanKey]} plan</span>
             {!isEnterprise && planMonthlyDisplay !== null ? (
               <span className={styles.summaryLinePrice}>€{planMonthlyDisplay}/mo</span>
             ) : (
@@ -532,7 +569,7 @@ export default function CustomForm() {
                 <span className={styles.summaryLineIcon}>{m.icon}</span>
                 {m.recName}
               </span>
-              <span className={styles.summaryLinePrice}>€{m.price}/mo</span>
+              <span className={styles.summaryLinePrice}>€{isFounder ? Math.round(m.price * 0.5) : m.price}/mo</span>
             </div>
           ))}
           {annual && modulesSaving > 0 && (
