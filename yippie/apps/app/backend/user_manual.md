@@ -968,6 +968,14 @@ The contact can manage their booking via the link in their confirmation email (`
 
 Each user has a permanent public booking URL: `/meet/:slug` (e.g., `/meet/diederik`). This is a persistent link you can share on your website or email signature — no per-contact token required. Anyone can use it to book a meeting with you.
 
+### Calendar Sync — Blocking External Busy Times
+
+If you use Apple Calendar, Microsoft Outlook, or any other calendar app alongside Yippie, you can connect your external calendars so that busy times from those apps are automatically blocked in your Yippie booking availability. Customers will not be able to book a slot that overlaps with an event in your external calendar.
+
+Yippie fetches your external calendar feeds every 5 minutes and caches the busy windows. The block is also enforced at confirm time — if a slot becomes occupied between the availability check and the customer confirming, the booking is rejected.
+
+See **Settings → Profile → Connected Calendars** to set this up.
+
 ---
 
 ## 16. Departments
@@ -1044,6 +1052,36 @@ English, Dutch (Nederlands), French (Français), German (Deutsch), Spanish (Espa
 ### Change Password
 
 - Enter your current password, then your new password (minimum 8 characters), and confirm.
+
+### Connected Calendars (Import)
+
+Connect your Apple Calendar, Microsoft Outlook, or any iCal-compatible calendar so that your external busy times are automatically blocked from your Yippie booking availability.
+
+**How to connect:**
+
+1. Go to **Settings → Profile → Connected Calendars**
+2. Click **Add calendar**
+3. Give it a name (e.g. "Apple Calendar" or "School Outlook") and paste the iCal feed URL
+4. Click **Add** — Yippie immediately syncs the feed
+
+**Where to find your iCal URL:**
+- **Apple Calendar**: right-click a calendar in the sidebar → **Share Calendar** → **Copy Link** (the URL starts with `webcal://` — paste it as-is)
+- **Microsoft Outlook**: Calendar settings → **Shared calendars** → **Publish a calendar** → copy the ICS link
+
+Once connected, the feed is refreshed every 5 minutes. A green badge shows when it last synced successfully; a red badge shows if there was a fetch error. You can disable a feed temporarily with the toggle, or remove it with the unlink button. You can connect up to 5 feeds per account.
+
+### Your Yippie Calendar Feed (Export)
+
+Yippie generates a personal `.ics` feed URL that you can subscribe to in Apple Calendar or Outlook. This lets your Yippie events and confirmed bookings appear alongside your other calendars — read-only, auto-refreshing.
+
+**How to subscribe:**
+
+1. Go to **Settings → Profile → Your Yippie Calendar Feed**
+2. Copy the feed URL
+3. In **Apple Calendar**: File → New Calendar Subscription → paste the URL
+4. In **Outlook**: Add Calendar → From internet → paste the URL
+
+The feed includes all calendar events you created or accepted, plus confirmed bookings where you are the agent. If you ever need to invalidate the URL (e.g. after accidentally sharing it), click **Regenerate URL** — all existing subscriptions using the old URL will stop receiving updates.
 
 ---
 
