@@ -209,7 +209,8 @@ function UserPicker({ selected, onSelect, excludeIds }: {
   })
 
   const term = q.trim().toLowerCase()
-  const options = members
+  const typedMembers = members as { id: string; full_name: string; email: string }[]
+  const options = typedMembers
     .filter(u => !excludeIds?.includes(u.id))
     .filter(u => !selected.some(s => s.id === u.id))
     .filter(u => !term || u.full_name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term))
@@ -549,7 +550,7 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
               <div>
                 <label className={labelCls}>Teammates invited</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {existingInvitations.map(inv => (
+                  {existingInvitations.map((inv: InvitationOut) => (
                     <span key={inv.id}
                       className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-lg border ${STATUS_CHIP[inv.status] ?? 'bg-slate-100 text-slate-600'}`}>
                       {inv.invitee_name}
@@ -678,7 +679,7 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
                 <label className={labelCls}>Move to stage after booking (optional)</label>
                 <select className={inputCls} value={bStageId} onChange={e => setBStageId(e.target.value)}>
                   <option value="">— Use default —</option>
-                  {bStages.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {bStages.map((s: { id: string; name: string }) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
             )}
@@ -787,7 +788,7 @@ function InvitationsPanel({ onClose }: { onClose: () => void }) {
           {!isLoading && invitations.length === 0 && (
             <p className="px-5 py-8 text-sm text-slate-400 text-center">No pending invitations.</p>
           )}
-          {invitations.map(inv => (
+          {invitations.map((inv: PendingInvitation) => (
             <div key={inv.id} className="px-5 py-4">
               <p className="text-sm font-semibold text-slate-800 truncate">{inv.event_title}</p>
               <p className="text-xs text-slate-500 mt-0.5">{fmtEvent(inv)}</p>

@@ -636,7 +636,7 @@ function ConnectedCalendarsCard() {
       {isLoading && <p className="text-xs text-slate-400">Loading…</p>}
 
       <div className="space-y-3">
-        {feeds.map(feed => {
+        {feeds.map((feed: Feed) => {
           const sync = lastSyncLabel(feed)
           return (
             <div key={feed.id} className="flex items-center gap-3 p-3 border border-slate-100 rounded-xl bg-slate-50">

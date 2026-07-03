@@ -137,21 +137,21 @@ export default function ActivityFeed() {
   const agentStats = useMemo(() => {
     if (!agentKpis || agentKpis.length === 0) return null
     if (selectedAgentId === 'all') {
-      const totalSent = agentKpis.reduce((s, a) => s + a.emails_sent, 0)
-      const totalOpened = agentKpis.reduce((s, a) => s + a.emails_opened, 0)
-      const withHours = agentKpis.filter(a => a.avg_resolution_hours !== null)
+      const totalSent = agentKpis.reduce((s: number, a: AgentKpi) => s + a.emails_sent, 0)
+      const totalOpened = agentKpis.reduce((s: number, a: AgentKpi) => s + a.emails_opened, 0)
+      const withHours = agentKpis.filter((a: AgentKpi) => a.avg_resolution_hours !== null)
       return {
         agent_name: 'All agents',
         emails_sent: totalSent,
         open_rate: totalSent > 0 ? totalOpened / totalSent : null,
-        tickets_assigned: agentKpis.reduce((s, a) => s + a.tickets_assigned, 0),
-        tickets_resolved_this_week: agentKpis.reduce((s, a) => s + a.tickets_resolved_this_week, 0),
+        tickets_assigned: agentKpis.reduce((s: number, a: AgentKpi) => s + a.tickets_assigned, 0),
+        tickets_resolved_this_week: agentKpis.reduce((s: number, a: AgentKpi) => s + a.tickets_resolved_this_week, 0),
         avg_resolution_hours: withHours.length > 0
-          ? Math.round((withHours.reduce((s, a) => s + a.avg_resolution_hours!, 0) / withHours.length) * 10) / 10
+          ? Math.round((withHours.reduce((s: number, a: AgentKpi) => s + a.avg_resolution_hours!, 0) / withHours.length) * 10) / 10
           : null,
       }
     }
-    const agent = agentKpis.find(a => a.agent_id === selectedAgentId)
+    const agent = agentKpis.find((a: AgentKpi) => a.agent_id === selectedAgentId)
     if (!agent) return null
     return {
       agent_name: agent.agent_name,
@@ -279,7 +279,7 @@ export default function ActivityFeed() {
                   className="text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
                   <option value="all">All agents</option>
-                  {agentKpis.map(a => (
+                  {agentKpis.map((a: AgentKpi) => (
                     <option key={a.agent_id} value={a.agent_id}>{a.agent_name}</option>
                   ))}
                 </select>
