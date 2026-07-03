@@ -11,7 +11,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request,
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from sqlalchemy import select as sa_select
+from sqlalchemy import func, select as sa_select
 
 from app.auth.dependencies import SuperAdminUser
 from app.config import get_settings
@@ -85,7 +85,7 @@ async def create_tenant(_: SuperAdminUser, db: DB, background_tasks: BackgroundT
         from app.core.demo_seeder import seed_demo_data
         user = await db.scalar(
             sa_select(User).where(
-                User.email == data.admin_email.lower().strip(),
+                func.lower(User.email) == data.admin_email.lower().strip(),
                 User.tenant_id == uuid.UUID(str(result["id"])),
             )
         )
