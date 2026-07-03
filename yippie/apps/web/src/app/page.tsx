@@ -128,21 +128,21 @@ const plans = [
     tier: "Starter",
     price: `€${PLAN_LIMITS.starter.priceMonthly}`,
     desc: "For small teams getting started",
-    features: ["Inbox + Contacts + Activity", "3 users", "Unlimited contacts", "2,000 AI scans/mo", "Add-ons à la carte"],
+    features: ["Inbox + Tickets", "3 users", "Unlimited contacts", "2,000 AI scans/mo", "Add-ons à la carte"],
     featured: false,
   },
   {
     tier: "Growth",
     price: `€${PLAN_LIMITS.growth.priceMonthly}`,
     desc: "For growing teams handling real volume",
-    features: ["Inbox + Contacts + Activity", "5 users", "Unlimited contacts", "5,000 AI scans/mo", "Add-ons à la carte"],
+    features: ["Inbox + Tickets", "5 users", "Unlimited contacts", "5,000 AI scans/mo", "Add-ons à la carte"],
     featured: false,
   },
   {
     tier: "Pro",
     price: `€${PLAN_LIMITS.pro.priceMonthly}`,
     desc: "For established support operations",
-    features: ["Inbox + Contacts + Activity", "10 users", "Unlimited contacts", "10,000 AI scans/mo", "Add-ons à la carte"],
+    features: ["Inbox + Tickets", "10 users", "Unlimited contacts", "10,000 AI scans/mo", "Add-ons à la carte"],
     featured: true,
   },
   {
@@ -400,7 +400,7 @@ export default function HomePage() {
           <p className={styles.founderText}>
             <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
           </p>
-          <a href="/signup?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
+          <a href="/custom?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
         </div>
 
         <div className={styles.pricingGrid}>
