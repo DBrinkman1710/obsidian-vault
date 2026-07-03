@@ -1,15 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "./page.module.css";
 import contentStyles from "../components/content.module.css";
 import {
-  TicketIcon, AiIcon, CalendarIcon, KanbanIcon, ChatIcon, LayersIcon,
-  BillingIcon, MailTrackIcon, TeamIcon,
+  AiIcon, CalendarIcon, KanbanIcon, ChatIcon, LayersIcon,
+  BillingIcon, MailTrackIcon, TeamIcon, TrackingIcon, SalesIcon, SaasIcon,
 } from "../components/icons";
 import { PLAN_LIMITS, MODULE_PRICES } from "@/lib/config";
+import {
+  TEAM_SIZES,
+  INDUSTRIES,
+  TOOLS,
+  PAIN_POINTS,
+  MAX_PAIN_POINTS,
+  computeRecommendations,
+  TOP_MODULES,
+} from "@/lib/recommendations";
+
+const MODULE_PRICE_MAP: Record<string, number> = {
+  "AI Inbox":          MODULE_PRICES.ai,
+  "Tickets":           MODULE_PRICES.tickets,
+  "Live Chat":         MODULE_PRICES.chat,
+  "Calendar":          MODULE_PRICES.calendar,
+  "Pipeline":          MODULE_PRICES.kanban,
+  "Marketing":         MODULE_PRICES.marketing,
+  "Departments":       MODULE_PRICES.departments,
+  "Billing":           MODULE_PRICES.billing,
+  "Shipment Tracking": MODULE_PRICES.tracking,
+  "Sales":             MODULE_PRICES.sales,
+  "SaaS Billing":      MODULE_PRICES.saas,
+};
+
+const TEAM_RANK_MAP: Record<string, number> = {
+  "1–3": 0, "4–10": 1, "11–25": 2, "25+": 3,
+};
 
 const DEMO_PATH = "/request-demo";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
@@ -29,7 +56,7 @@ type Plan = {
   enterprise?: boolean;
 };
 
-const CORE_FEATURES = ["Inbox", "Contacts", "Activity"];
+const CORE_FEATURES = ["Inbox", "Tickets"];
 
 const plans: Plan[] = [
   {
@@ -98,45 +125,19 @@ const plans: Plan[] = [
 ];
 
 const addOns = [
-  { Icon: TicketIcon, name: "Tickets", desc: "Track, assign, and close requests with SLA alerts.", price: MODULE_PRICES.tickets },
-  { Icon: AiIcon, name: "AI", desc: "Auto-draft tickets and replies from incoming messages.", price: MODULE_PRICES.ai },
+  { Icon: AiIcon, name: "AI Inbox", desc: "Auto-draft tickets and replies from incoming messages.", price: MODULE_PRICES.ai },
   { Icon: CalendarIcon, name: "Calendar + Booking", desc: "Share booking links and manage appointments.", price: MODULE_PRICES.calendar },
-  { Icon: KanbanIcon, name: "Kanban", desc: "Visual pipeline boards to move work through stages.", price: MODULE_PRICES.kanban },
+  { Icon: KanbanIcon, name: "Pipeline", desc: "Visual Kanban boards to move contacts through custom stages.", price: MODULE_PRICES.kanban },
   { Icon: ChatIcon, name: "Live Chat", desc: "Embed a chat widget and manage WhatsApp conversations.", price: MODULE_PRICES.chat },
   { Icon: MailTrackIcon, name: "Marketing", desc: "Email campaigns, A/B testing, open tracking, and drip sequences.", price: MODULE_PRICES.marketing },
   { Icon: TeamIcon, name: "Departments", desc: "Route tickets and chats to the right team automatically.", price: MODULE_PRICES.departments },
   { Icon: BillingIcon, name: "Billing", desc: "Issue invoices, track payments, and manage subscriptions.", price: MODULE_PRICES.billing },
+  { Icon: TrackingIcon, name: "Shipment Tracking", desc: "DHL, UPS, PostNL, FedEx — live carrier updates linked to contacts.", price: MODULE_PRICES.tracking },
+  { Icon: SalesIcon, name: "Sales", desc: "Track product views, add-to-cart, and purchases — identify high-intent buyers.", price: MODULE_PRICES.sales },
+  { Icon: SaasIcon, name: "SaaS Billing", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts.", price: MODULE_PRICES.saas },
 ];
 
-// Guided questionnaire — customers answer a few questions about their business
-// and we recommend a plan (and add-ons). Each option carries the minimum plan
-// rank it requires; the recommendation is the highest rank across all answers.
 const PLAN_RANK = ["Starter", "Growth", "Pro", "Enterprise"] as const;
-
-const teamOptions = [
-  { label: "1–3 people", rank: 0 },
-  { label: "4–5 people", rank: 1 },
-  { label: "6–10 people", rank: 2 },
-  { label: "More than 10", rank: 3 },
-];
-
-const contactOptions = [
-  { label: "Under 500 messages/mo", rank: 0 },
-  { label: "500–5,000 messages/mo", rank: 1 },
-  { label: "5,000–10,000 messages/mo", rank: 2 },
-  { label: "More than 10,000 messages/mo", rank: 3 },
-];
-
-const featureOptions = [
-  { key: "tickets", label: "Ticket tracking + SLAs", price: MODULE_PRICES.tickets },
-  { key: "ai", label: "AI auto-drafting", price: MODULE_PRICES.ai },
-  { key: "calendar", label: "Calendar + booking links", price: MODULE_PRICES.calendar },
-  { key: "kanban", label: "Kanban pipeline boards", price: MODULE_PRICES.kanban },
-  { key: "chat", label: "Live Chat (web + WhatsApp)", price: MODULE_PRICES.chat },
-  { key: "marketing", label: "Email campaigns + tracking", price: MODULE_PRICES.marketing },
-  { key: "departments", label: "Departments + routing", price: MODULE_PRICES.departments },
-  { key: "billing", label: "Billing + invoicing", price: MODULE_PRICES.billing },
-];
 
 const faqs = [
   {
@@ -153,7 +154,7 @@ const faqs = [
   },
   {
     q: "Is there a free trial?",
-    a: "We don't offer a free trial — instead, we run a guided demo so you can see Yippie working with your real inbox before you commit. Request a demo from the nav to get started.",
+    a: "We don't offer a free trial — instead, we run a guided demo so you can see Yippie working with your real inbox before you commit. Feel free to book a call to discuss your options, or request a demo to get started.",
   },
 ];
 
@@ -162,28 +163,38 @@ export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Questionnaire state
-  const [teamRank, setTeamRank] = useState<number | null>(null);
-  const [contactRank, setContactRank] = useState<number | null>(null);
-  const [wantedFeatures, setWantedFeatures] = useState<string[]>([]);
+  const [teamSize, setTeamSize] = useState("");
+  const [industry, setIndustry] = useState("");
+  const [currentTools, setCurrentTools] = useState<string[]>([]);
+  const [painPoints, setPainPoints] = useState<string[]>([]);
 
-  const toggleFeature = (key: string) =>
-    setWantedFeatures((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
-    );
+  function toggleMulti(value: string, list: string[], setList: (v: string[]) => void, max?: number) {
+    if (list.includes(value)) {
+      setList(list.filter((v) => v !== value));
+    } else {
+      if (max && list.length >= max) return;
+      setList([...list, value]);
+    }
+  }
 
-  const answered = teamRank !== null && contactRank !== null;
-  const recommendedRank = answered ? Math.max(teamRank!, contactRank!) : 0;
-  const recommendedPlanName = PLAN_RANK[recommendedRank];
-  const recommendedPlan = plans.find((p) => p.tier === recommendedPlanName);
-  const chosenAddOns = featureOptions.filter((f) => wantedFeatures.includes(f.key));
+  const hasAnyAnswer = !!teamSize || !!industry || currentTools.length > 0 || painPoints.length > 0;
+  const answered = !!teamSize;
+
+  const teamRank = teamSize ? (TEAM_RANK_MAP[teamSize] ?? 0) : null;
+  const recommendedRank = teamRank ?? 0;
+  const recommendedPlanName = answered ? PLAN_RANK[recommendedRank] : null;
+  const recommendedPlan = recommendedPlanName ? plans.find((p) => p.tier === recommendedPlanName) : null;
+
+  const recommendations = useMemo(() => {
+    if (!hasAnyAnswer) return TOP_MODULES;
+    return computeRecommendations(industry, currentTools, painPoints);
+  }, [hasAnyAnswer, industry, currentTools, painPoints]);
+
   const planPrice = recommendedPlan
-    ? annual
-      ? (recommendedPlan.annual ?? null)
-      : (recommendedPlan.monthly ?? null)
-    : 0;
+    ? annual ? (recommendedPlan.annual ?? null) : (recommendedPlan.monthly ?? null)
+    : null;
   const isEnterprise = recommendedPlan?.enterprise ?? false;
-  const proIncludesAll = recommendedPlan?.allModules ?? false;
-  const addOnsTotal = proIncludesAll ? 0 : chosenAddOns.reduce((sum, a) => sum + a.price, 0);
+  const addOnsTotal = isEnterprise ? 0 : recommendations.reduce((sum, m) => sum + (MODULE_PRICE_MAP[m] ?? 0), 0);
   const estimatedTotal = planPrice != null ? planPrice + addOnsTotal : null;
 
   return (
@@ -290,48 +301,72 @@ export default function PricingPage() {
             <div className={styles.quizQuestion}>
               <p className={styles.quizLabel}>How big is your team?</p>
               <div className={styles.quizOptions}>
-                {teamOptions.map((o) => (
+                {TEAM_SIZES.map((o) => (
                   <button
-                    key={o.label}
+                    key={o}
                     type="button"
-                    className={`${styles.quizOption} ${teamRank === o.rank ? styles.quizSelected : ""}`}
-                    onClick={() => setTeamRank(o.rank)}
+                    className={`${styles.quizOption} ${teamSize === o ? styles.quizSelected : ""}`}
+                    onClick={() => setTeamSize(teamSize === o ? "" : o)}
                   >
-                    {o.label}
+                    {o} people
                   </button>
                 ))}
               </div>
             </div>
 
             <div className={styles.quizQuestion}>
-              <p className={styles.quizLabel}>How many support messages do you receive per month?</p>
+              <p className={styles.quizLabel}>What industry are you in?</p>
               <div className={styles.quizOptions}>
-                {contactOptions.map((o) => (
+                {INDUSTRIES.map((o) => (
                   <button
-                    key={o.label}
+                    key={o}
                     type="button"
-                    className={`${styles.quizOption} ${contactRank === o.rank ? styles.quizSelected : ""}`}
-                    onClick={() => setContactRank(o.rank)}
+                    className={`${styles.quizOption} ${industry === o ? styles.quizSelected : ""}`}
+                    onClick={() => setIndustry(industry === o ? "" : o)}
                   >
-                    {o.label}
+                    {o}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className={styles.quizQuestion}>
-              <p className={styles.quizLabel}>Which features do you need? (optional)</p>
+              <p className={styles.quizLabel}>What tools do you use today?</p>
               <div className={styles.quizOptions}>
-                {featureOptions.map((f) => (
+                {TOOLS.map((o) => (
                   <button
-                    key={f.key}
+                    key={o}
                     type="button"
-                    className={`${styles.quizOption} ${wantedFeatures.includes(f.key) ? styles.quizSelected : ""}`}
-                    onClick={() => toggleFeature(f.key)}
+                    className={`${styles.quizOption} ${currentTools.includes(o) ? styles.quizSelected : ""}`}
+                    onClick={() => toggleMulti(o, currentTools, setCurrentTools)}
                   >
-                    {f.label}
+                    {o}
                   </button>
                 ))}
+              </div>
+            </div>
+
+            <div className={styles.quizQuestion}>
+              <p className={styles.quizLabel}>
+                Biggest pain points?{" "}
+                <span className={styles.quizHint}>pick up to {MAX_PAIN_POINTS}</span>
+              </p>
+              <div className={styles.quizOptions}>
+                {PAIN_POINTS.map((o) => {
+                  const selected = painPoints.includes(o);
+                  const disabled = !selected && painPoints.length >= MAX_PAIN_POINTS;
+                  return (
+                    <button
+                      key={o}
+                      type="button"
+                      className={`${styles.quizOption} ${selected ? styles.quizSelected : ""}`}
+                      onClick={() => toggleMulti(o, painPoints, setPainPoints, MAX_PAIN_POINTS)}
+                      disabled={disabled}
+                    >
+                      {o}
+                    </button>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -352,18 +387,13 @@ export default function PricingPage() {
                       <span>{recommendedPlan.tier} plan</span>
                       <span>€{planPrice}/mo</span>
                     </div>
-                    {proIncludesAll ? (
-                      <div className={styles.quizRow}>
-                        <span>All modules included</span>
-                        <span>✓</span>
-                      </div>
-                    ) : (
-                      chosenAddOns.map((a) => (
-                        <div key={a.key} className={styles.quizRow}>
-                          <span>+ {a.label}</span>
-                          <span>€{a.price}/mo</span>
+                    {recommendations.map((m) =>
+                      MODULE_PRICE_MAP[m] != null ? (
+                        <div key={m} className={styles.quizRow}>
+                          <span>+ {m}</span>
+                          <span>€{MODULE_PRICE_MAP[m]}/mo</span>
                         </div>
-                      ))
+                      ) : null
                     )}
                     <div className={`${styles.quizRow} ${styles.quizTotal}`}>
                       <span>Estimated total</span>
@@ -373,11 +403,11 @@ export default function PricingPage() {
                 )}
                 {!isEnterprise && (
                   <p className={styles.quizResultNote}>
-                    {annual ? "Billed annually (10% off). Add-ons also discounted × 12 × 0.9." : "Billed monthly."}{" "}
-                    Add-ons are per workspace.
+                    {annual ? "Billed annually (10% off)." : "Billed monthly."}{" "}
+                    Add-ons are per workspace. Modules based on your answers.
                   </p>
                 )}
-                <a href={isEnterprise ? TALK_PATH : `/custom`} className={styles.quizResultBtn}>
+                <a href={isEnterprise ? TALK_PATH : "/custom"} className={styles.quizResultBtn}>
                   {isEnterprise ? "Book a call →" : "Build your plan →"}
                 </a>
               </>
@@ -385,8 +415,7 @@ export default function PricingPage() {
               <div className={styles.quizEmpty}>
                 <div className={styles.quizEmptyIcon}><LayersIcon size={30} /></div>
                 <p className={styles.quizEmptyText}>
-                  Answer the team size and contact questions to see your
-                  recommended plan and estimated price.
+                  Tell us about your team to see your recommended plan and estimated price.
                 </p>
               </div>
             )}
