@@ -29,7 +29,7 @@ export default function SalesPage() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [showSettings, setShowSettings] = useState(false)
 
-  const { data: stats } = useQuery<SalesStats>({
+  const { data: stats, isError, isLoading } = useQuery<SalesStats>({
     queryKey: ['sales-summary'],
     queryFn: () => api.get('/sales/summary').then((r: any) => r.data),
     refetchInterval: 30_000,
@@ -63,24 +63,37 @@ export default function SalesPage() {
         </div>
       </div>
 
+      {/* Error state */}
+      {isError && (
+        <div className="text-center py-16 text-slate-400">
+          <TrendingUp className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-medium text-slate-500">Could not load sales data</p>
+          <p className="text-xs mt-1">Check that the Sales Tracking module is enabled for your account.</p>
+        </div>
+      )}
+
       {/* Stats strip */}
-      <div className="grid grid-cols-3 gap-4">
-        {[
-          { label: 'Total events', value: stats?.total_events ?? '—', Icon: TrendingUp },
-          { label: 'Page views',   value: stats?.pageviews     ?? '—', Icon: Eye },
-          { label: 'Purchases',    value: stats?.purchases     ?? '—', Icon: ShoppingCart },
-        ].map(({ label, value, Icon }) => (
-          <div key={label} className="bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-3">
-            <div className="p-2 bg-slate-100 rounded-xl">
-              <Icon className="w-4 h-4 text-slate-600" />
+      {!isError && (
+        <div className="grid grid-cols-3 gap-4">
+          {[
+            { label: 'Total events', value: isLoading ? '—' : (stats?.total_events ?? 0), Icon: TrendingUp },
+            { label: 'Page views',   value: isLoading ? '—' : (stats?.pageviews     ?? 0), Icon: Eye },
+            { label: 'Purchases',    value: isLoading ? '—' : (stats?.purchases     ?? 0), Icon: ShoppingCart },
+          ].map(({ label, value, Icon }) => (
+            <div key={label} className="bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-3">
+              <div className="p-2 bg-slate-100 rounded-xl">
+                <Icon className="w-4 h-4 text-slate-600" />
+              </div>
+              <div>
+                <p className="text-xs text-slate-500">{label}</p>
+                <p className="text-xl font-semibold text-slate-900">
+                  {typeof value === 'number' ? value.toLocaleString() : value}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-xs text-slate-500">{label}</p>
-              <p className="text-xl font-semibold text-slate-900">{value.toLocaleString()}</p>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {/* Top pages */}
       {stats && stats.top_pages.length > 0 && (
@@ -108,7 +121,7 @@ export default function SalesPage() {
       )}
 
       {/* Empty state */}
-      {stats && stats.total_events === 0 && (
+      {!isLoading && !isError && stats && stats.total_events === 0 && (
         <div className="text-center py-16 text-slate-400">
           <TrendingUp className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">No events yet</p>

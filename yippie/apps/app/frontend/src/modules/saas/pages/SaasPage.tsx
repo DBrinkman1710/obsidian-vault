@@ -27,7 +27,7 @@ export default function SaasPage() {
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [showSettings, setShowSettings] = useState(false)
 
-  const { data: summary } = useQuery<HealthSummary>({
+  const { data: summary, isError, isLoading } = useQuery<HealthSummary>({
     queryKey: ['saas-health-summary'],
     queryFn: () => api.get('/saas/health/summary').then((r: any) => r.data),
     refetchInterval: 60_000,
@@ -53,13 +53,22 @@ export default function SaasPage() {
         )}
       </div>
 
+      {/* Error state */}
+      {isError && (
+        <div className="text-center py-16 text-slate-400">
+          <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-30" />
+          <p className="text-sm font-medium text-slate-500">Could not load product analytics</p>
+          <p className="text-xs mt-1">Check that the Product Analytics module is enabled for your account.</p>
+        </div>
+      )}
+
       {/* Stats strip */}
-      {summary && (
+      {!isError && (
         <div className="grid grid-cols-3 gap-4">
           {[
-            { label: 'Contacts tracked',      value: summary.total_contacts_tracked,       Icon: Users,          color: 'text-blue-600',  bg: 'bg-blue-50' },
-            { label: 'Onboarding completion', value: `${summary.onboarding_completion_pct}%`, Icon: Zap,         color: 'text-green-600', bg: 'bg-green-50' },
-            { label: 'At-risk customers',     value: summary.at_risk_count,                Icon: AlertTriangle,  color: 'text-red-600',   bg: 'bg-red-50' },
+            { label: 'Contacts tracked',      value: isLoading ? '—' : String(summary?.total_contacts_tracked ?? 0),                    Icon: Users,          color: 'text-blue-600',  bg: 'bg-blue-50' },
+            { label: 'Onboarding completion', value: isLoading ? '—' : `${summary?.onboarding_completion_pct ?? 0}%`,                   Icon: Zap,            color: 'text-green-600', bg: 'bg-green-50' },
+            { label: 'At-risk customers',     value: isLoading ? '—' : String(summary?.at_risk_count ?? 0),                             Icon: AlertTriangle,  color: 'text-red-600',   bg: 'bg-red-50' },
           ].map(({ label, value, Icon, color, bg }) => (
             <div key={label} className="bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-3">
               <div className={`p-2 rounded-xl ${bg}`}>
@@ -67,7 +76,7 @@ export default function SaasPage() {
               </div>
               <div>
                 <p className="text-xs text-slate-500">{label}</p>
-                <p className="text-xl font-semibold text-slate-900">{String(value)}</p>
+                <p className="text-xl font-semibold text-slate-900">{value}</p>
               </div>
             </div>
           ))}
@@ -75,7 +84,7 @@ export default function SaasPage() {
       )}
 
       {/* Feature adoption */}
-      {summary && summary.top_features.length > 0 && (
+      {!isError && summary && summary.top_features.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
           <h2 className="text-sm font-semibold text-slate-700">Top features this month</h2>
           <div className="space-y-2">
@@ -97,7 +106,7 @@ export default function SaasPage() {
       )}
 
       {/* Common errors */}
-      {summary && summary.common_errors.length > 0 && (
+      {!isError && summary && summary.common_errors.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
             <h2 className="text-sm font-semibold text-slate-700">Most common errors (30 days)</h2>
@@ -122,7 +131,7 @@ export default function SaasPage() {
       )}
 
       {/* Empty state */}
-      {summary && summary.total_contacts_tracked === 0 && (
+      {!isLoading && !isError && summary && summary.total_contacts_tracked === 0 && (
         <div className="text-center py-16 text-slate-400">
           <BarChart3 className="w-10 h-10 mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">No product data yet</p>
