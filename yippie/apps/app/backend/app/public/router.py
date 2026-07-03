@@ -609,6 +609,7 @@ async def request_demo(
     from app.core.demo_seeder import seed_demo_data
     background_tasks.add_task(seed_demo_data, uuid.UUID(str(tenant_id)), user.id)
 
+    import asyncio
     from app.core.mailer import notify_owner
     _q_parts: list[str] = []
     if body.questionnaire:
