@@ -1,7 +1,7 @@
 # Yippie — Roadmap
 **Repo:** github.com/DBrinkman1710/obsidian-vault · **Branch:** `sandbox`
 
-**Latest:** Session 90 — [CUSTOM1] /custom bespoke package configurator (3-step form, module picker, live pricing, lead capture); 89 — [JARVIS1] quick-capture assistant (⌘K popup, AI routing, reminders, contact/ticket notes, context query); 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER. See Appendix A for full history.
+**Latest:** Session 91 — [EXT1] Chrome extension inbox analyser (gmail.metadata scope, local processing, settings panel, coming soon section on getyippie.com, store listing copy at apps/extension/store-listing.md); 90 — [CUSTOM1] /custom bespoke package configurator (3-step form, module picker, live pricing, lead capture); 89 — [JARVIS1] quick-capture assistant (⌘K popup, AI routing, reminders, contact/ticket notes, context query); 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER. See Appendix A for full history.
 
 ---
 
