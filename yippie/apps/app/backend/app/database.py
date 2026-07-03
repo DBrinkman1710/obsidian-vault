@@ -73,8 +73,8 @@ def get_engine():
             url, sslmode, sslrootcert,
             echo=settings.environment == "development",
             pool_pre_ping=True,
-            pool_size=5 if is_prod else 2,
-            max_overflow=10 if is_prod else 3,
+            pool_size=10 if is_prod else 2,
+            max_overflow=20 if is_prod else 3,
             pool_timeout=30,
         )
     return _engine
