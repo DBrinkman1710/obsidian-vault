@@ -90,6 +90,8 @@ async def send_email(
 
 async def notify_owner(subject: str, body: str) -> None:
     settings = get_settings()
+    if settings.environment != "production":
+        return
     to = settings.owner_notification_email
     if not to or not is_valid_email(to):
         return
