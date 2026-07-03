@@ -200,7 +200,7 @@ async def import_preview(
         raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
     mime = (file.content_type or "").split(";")[0].strip()
     if mime and mime not in _ALLOWED_IMPORT_TYPES:
-        raise HTTPException(status_code=415, detail="Unsupported file type — use CSV, JSON, or XLSX")
+        raise HTTPException(status_code=415, detail="Unsupported file type. Use CSV, JSON, or XLSX.")
     if not content:
         raise HTTPException(status_code=400, detail="Empty file")
     rows = _parse_import_file(file.filename or "", content)
@@ -235,7 +235,7 @@ async def import_contacts(
         raise HTTPException(status_code=413, detail="File too large (max 10 MB)")
     mime = (file.content_type or "").split(";")[0].strip()
     if mime and mime not in _ALLOWED_IMPORT_TYPES:
-        raise HTTPException(status_code=415, detail="Unsupported file type — use CSV, JSON, or XLSX")
+        raise HTTPException(status_code=415, detail="Unsupported file type. Use CSV, JSON, or XLSX.")
     if not content:
         raise HTTPException(status_code=400, detail="Empty file")
     rows = _parse_import_file(file.filename or "", content)

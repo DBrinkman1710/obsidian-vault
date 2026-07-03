@@ -119,7 +119,7 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
       qc.invalidateQueries({ queryKey: ['draft', draftId] })
       onSuccess()
     },
-    onError: () => setError('Something went wrong — try again.'),
+    onError: () => setError('Something went wrong. Try again.'),
   })
 
   function handleSubmit(e: React.FormEvent) {
@@ -418,7 +418,7 @@ export default function DraftReview() {
       qc.invalidateQueries({ queryKey: ['drafts'] })
       toast.success('AI suggestions generated.')
     },
-    onError: () => toast.error('AI generation failed — please try again.'),
+    onError: () => toast.error('AI generation failed. Please try again.'),
   })
 
   const generateBriefingMutation = useMutation({
@@ -428,7 +428,7 @@ export default function DraftReview() {
       qc.invalidateQueries({ queryKey: ['drafts'] })
       toast.success('Customer briefing generated.')
     },
-    onError: () => toast.error('AI generation failed — please try again.'),
+    onError: () => toast.error('AI generation failed. Please try again.'),
   })
 
   const reviewMutation = useMutation({
@@ -524,7 +524,7 @@ export default function DraftReview() {
       qc.invalidateQueries({ queryKey: ['draft', id] })
       setSuggestions([])
     } catch {
-      setActionError('Couldn\'t forward this draft — please try again.')
+      setActionError('Couldn\'t forward this draft. Please try again.')
     } finally {
       setForwardLoading(false)
     }
@@ -538,7 +538,7 @@ export default function DraftReview() {
       setReplyText(appliedSig ? `${res.data.suggestion}\n\n${appliedSig}` : res.data.suggestion)
       setSuggestions([])
     } catch {
-      setActionError('Couldn\'t generate a reply — please try again.')
+      setActionError('Couldn\'t generate a reply. Please try again.')
     } finally {
       setReplyLoading(false)
     }
@@ -552,7 +552,7 @@ export default function DraftReview() {
       const res = await api.post(`/inbox/drafts/${id}/improve-reply`, { current_text: replyText })
       setSuggestions(res.data.suggestions)
     } catch {
-      setActionError('Couldn\'t suggest improvements — please try again.')
+      setActionError('Couldn\'t suggest improvements. Please try again.')
     } finally {
       setImproveLoading(false)
     }
@@ -619,7 +619,7 @@ export default function DraftReview() {
         : Array.isArray(detail)
         ? detail.map((d: any) => d?.msg).filter(Boolean).join(', ')
         : ''
-      setSendError(message || 'Failed to send — check Resend configuration.')
+      setSendError(message || 'Failed to send. Check Resend configuration.')
     } finally {
       setSending(false)
     }
@@ -640,7 +640,7 @@ export default function DraftReview() {
         setUndoUntil(null)
         setUndoProgress(0)
       }
-      setSendError('Could not undo — email may already be sent.')
+      setSendError('Could not undo. Email may already be sent.')
     }
   }
 
@@ -808,7 +808,7 @@ export default function DraftReview() {
                 </div>
               ) : (
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
-                  <p className="text-xs text-amber-800 mb-2">Unknown sender — no matching contact.</p>
+                  <p className="text-xs text-amber-800 mb-2">Unknown sender. No matching contact.</p>
                   {!isProcessed && (
                     <button
                       onClick={() => setModalDismissed(false)}
@@ -1047,7 +1047,7 @@ export default function DraftReview() {
                 </>
               ) : (
                 <div className="rounded-xl bg-amber-50 border border-amber-200 p-3">
-                  <p className="text-xs text-amber-800 mb-2">Unknown sender — no matching contact.</p>
+                  <p className="text-xs text-amber-800 mb-2">Unknown sender. No matching contact.</p>
                   {!isProcessed && (
                     <button
                       onClick={() => setModalDismissed(false)}
@@ -1147,7 +1147,7 @@ export default function DraftReview() {
                         <button
                           onClick={() => undoReviewMutation.mutate()}
                           disabled={undoReviewMutation.isPending}
-                          title={draft.status === 'approved' ? 'Back to pending — the created ticket is removed' : 'Back to pending'}
+                          title={draft.status === 'approved' ? 'Back to pending (the created ticket is removed)' : 'Back to pending'}
                           className="ml-auto shrink-0 text-xs font-semibold px-3 py-1.5 bg-white text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50 cursor-pointer"
                         >
                           {undoReviewMutation.isPending ? 'Undoing…' : 'Undo'}
@@ -1581,7 +1581,7 @@ export default function DraftReview() {
                 )}
                 <div className="text-xs">
                   {undoCancelled && <span className="text-slate-400">Send cancelled</span>}
-                  {demoNotice && <span className="text-amber-600">Demo mode — email not sent</span>}
+                  {demoNotice && <span className="text-amber-600">Demo mode. Email not sent.</span>}
                   {sentTo && !undoCancelled && <span className="text-emerald-600">Sent to {sentTo}</span>}
                   {sendError && <span className="text-red-500">{sendError}</span>}
                   {actionError && !sendError && <span className="text-red-500">{actionError}</span>}

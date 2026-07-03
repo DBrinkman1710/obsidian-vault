@@ -62,7 +62,7 @@ export default function Post() {
             Response time is the metric customers feel first. A fast reply signals
             that you care; a slow one quietly erodes trust. The good news is you
             can <strong>reduce customer service response time</strong> dramatically
-            without hiring a single extra person — it comes down to removing
+            without hiring a single extra person. It comes down to removing
             friction from your support workflow. Here are five tactics that
             consistently cut response time in half.
           </p>
@@ -87,7 +87,7 @@ export default function Post() {
           <p>
             Answering in the order things arrive is slow and unfair to urgent
             cases. Sort by priority first. AI inbox triage can read each incoming
-            message, flag what is urgent, and route it to the right person — so the
+            message, flag what is urgent, and route it to the right person, so the
             important tickets get answered first, automatically.
           </p>
 
@@ -109,7 +109,7 @@ export default function Post() {
           <p>
             Put these together and the math is simple: less time hunting, less time
             typing, and less time waiting in the queue. Faster responses mean
-            happier customers — and a support team that finally feels ahead of the
+            happier customers, and a support team that finally feels ahead of the
             inbox instead of buried under it.
           </p>
         </div>

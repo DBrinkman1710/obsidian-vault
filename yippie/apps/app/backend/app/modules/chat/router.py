@@ -495,7 +495,7 @@ async def send_media_to_session(
                 logger.exception("WhatsApp sendMedia failed for session %s", session_id)
                 raise HTTPException(
                     status_code=422,
-                    detail="WhatsApp delivery failed — check that WhatsApp is still connected",
+                    detail="WhatsApp delivery failed. Check that WhatsApp is still connected.",
                 )
     else:
         await db.commit()
@@ -904,7 +904,7 @@ async def get_whatsapp_qr(current_user: CurrentUser, db: DB):
             tenant.slug,
             exc.response.text,
         )
-        raise HTTPException(status_code=502, detail="Evolution API error — check server logs")
+        raise HTTPException(status_code=502, detail="Evolution API error. Check server logs.")
     except Exception as exc:
         logger.error(
             "Could not reach Evolution API for tenant '%s': %s: %s",

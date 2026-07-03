@@ -8,7 +8,7 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
 
 const TITLE = "5 Ways AI Is Saving SMBs 10+ Hours a Week on Customer Service";
 const DESCRIPTION =
-  "AI customer service for small business is giving owners back 10+ hours a week — through inbox triage, drafted replies, suggested responses, and smarter help desk software.";
+  "AI customer service for small business is giving owners back 10+ hours a week through inbox triage, drafted replies, suggested responses, and smarter help desk software.";
 const URL = "https://getyippie.com/blog/5-ways-ai-saves-smb-customer-service-time";
 const DATE = "2026-06-12";
 
@@ -63,7 +63,7 @@ export default function Post() {
             disappears. You answer the same questions, triage a tangled inbox,
             and write up tickets by hand. The good news: <strong>AI customer
             service for small business</strong> has matured to the point where it
-            handles the busywork — not by replacing your team, but by clearing the
+            handles the busywork, not by replacing your team, but by clearing the
             grunt work off their desk. Here are five ways it adds up to 10+ hours a
             week.
           </p>
@@ -78,7 +78,7 @@ export default function Post() {
 
           <h2>2. It drafts tickets for you</h2>
           <p>
-            Writing up a ticket — subject, priority, a clean description — takes a
+            Writing up a ticket (subject, priority, a clean description) takes a
             minute or two every time, and those minutes stack up. AI reads the
             customer&apos;s message and fills in all three. You review and approve
             in one click. Across dozens of tickets a day, that is hours back.
@@ -97,7 +97,7 @@ export default function Post() {
             Before answering, you usually dig through past emails, tickets, and
             notes to remember who this customer is. AI summarizes the full history
             into a short briefing, so you walk into every conversation already
-            informed — no scrolling required.
+            informed. No scrolling required.
           </p>
 
           <h2>5. Automation handles the follow-ups</h2>
@@ -109,7 +109,7 @@ export default function Post() {
           </p>
 
           <p>
-            None of this removes the human touch — it protects it. By handing the
+            None of this removes the human touch. It protects it. By handing the
             repetitive work to AI, SMB owners spend their hours on the
             conversations that actually need a person. That is the real promise of
             AI in customer support software: not fewer people, but more time for

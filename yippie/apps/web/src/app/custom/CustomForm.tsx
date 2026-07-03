@@ -27,16 +27,16 @@ const PLAN_NAMES: Record<PlanKey, string> = {
 };
 
 const MODULE_CONFIG = [
-  { key: "ai",          recName: "AI",               icon: "✦",  price: MODULE_PRICES.ai,          desc: "AI scans every message and drafts the ticket — one-click approve" },
+  { key: "ai",          recName: "AI",               icon: "✦",  price: MODULE_PRICES.ai,          desc: "AI scans every message and drafts the ticket. One click to approve." },
   { key: "tickets",     recName: "Tickets",          icon: "🎫", price: MODULE_PRICES.tickets,     desc: "Track, assign, and close requests with SLA alerts" },
-  { key: "chat",        recName: "Live Chat",        icon: "💬", price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp — all conversations in one inbox" },
+  { key: "chat",        recName: "Live Chat",        icon: "💬", price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp. All conversations in one inbox." },
   { key: "calendar",    recName: "Calendar",         icon: "📅", price: MODULE_PRICES.calendar,    desc: "Booking links, availability grids, appointments" },
   { key: "kanban",      recName: "Pipeline",         icon: "📌", price: MODULE_PRICES.kanban,      desc: "Drag-and-drop Kanban to move leads through stages" },
   { key: "marketing",   recName: "Marketing",        icon: "📣", price: MODULE_PRICES.marketing,   desc: "Email campaigns, drip sequences, open tracking" },
   { key: "departments", recName: "Departments",      icon: "🏢", price: MODULE_PRICES.departments, desc: "Route tickets to the right team automatically" },
   { key: "billing",     recName: "Billing",          icon: "🧾", price: MODULE_PRICES.billing,     desc: "Invoices, payments, subscription management" },
-  { key: "tracking",    recName: "Shipment Tracking",icon: "📦", price: MODULE_PRICES.tracking,   desc: "DHL, UPS, PostNL, FedEx — live carrier updates linked to contacts" },
-  { key: "sales",       recName: "Sales",            icon: "📈", price: MODULE_PRICES.sales,       desc: "Track product views, add-to-cart, purchases — spot high-intent buyers" },
+  { key: "tracking",    recName: "Shipment Tracking",icon: "📦", price: MODULE_PRICES.tracking,   desc: "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts." },
+  { key: "sales",       recName: "Sales",            icon: "📈", price: MODULE_PRICES.sales,       desc: "Track product views, add-to-cart, and purchases. Spot high-intent buyers." },
   { key: "saas",        recName: "SaaS Analytics",     icon: "🔁", price: MODULE_PRICES.saas,        desc: "Recurring subscriptions, MRR and churn tracking, linked to contacts" },
 ] as const;
 
@@ -199,7 +199,7 @@ export default function CustomForm() {
       );
       setFormState("error");
     } catch {
-      setErrorMsg("Network error — please check your connection and try again.");
+      setErrorMsg("Network error. Please check your connection and try again.");
       setFormState("error");
     }
   }

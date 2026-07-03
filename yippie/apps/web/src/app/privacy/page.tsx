@@ -3,7 +3,7 @@ import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "../components/content.module.css";
 
-const TITLE = "Privacy Policy — Yippie";
+const TITLE = "Privacy Policy | Yippie";
 const DESCRIPTION =
   "How Yippie collects, uses, and protects your data, including our use of cookies and Google Analytics with Consent Mode.";
 
@@ -61,9 +61,9 @@ export default function PrivacyPage() {
 
           <h3>1. Website analytics</h3>
           <p>
-            We collect <strong>anonymous usage statistics</strong> — pages
+            We collect <strong>anonymous usage statistics</strong> (pages
             viewed, approximate location, device and browser type, and how you
-            arrived — to understand how the site is used and improve it.
+            arrived) to understand how the site is used and improve it.
           </p>
           <p>
             <strong>Legal basis:</strong> Consent (Art. 6(1)(a) GDPR). We only
@@ -80,8 +80,8 @@ export default function PrivacyPage() {
           </p>
           <p>
             <strong>Legal basis:</strong> Pre-contractual measures at your
-            request (Art. 6(1)(b) GDPR) — processing is necessary to take
-            steps before entering into an agreement — and our legitimate
+            request (Art. 6(1)(b) GDPR), meaning processing is necessary to take
+            steps before entering into an agreement, and our legitimate
             interest in managing business enquiries (Art. 6(1)(f) GDPR).
           </p>
 
@@ -91,7 +91,7 @@ export default function PrivacyPage() {
             <strong>Consent Mode v2</strong> to understand how the site is
             used. Until you make a choice in our cookie banner, all analytics
             and advertising storage is set to <strong>denied</strong> by
-            default — no tracking cookies are placed. Google Analytics may
+            default. No tracking cookies are placed. Google Analytics may
             still receive anonymous, cookieless signals (pings) so we can
             measure aggregate traffic without identifying you.
           </p>
@@ -120,19 +120,19 @@ export default function PrivacyPage() {
           </p>
           <ul>
             <li>
-              <strong>Analytics providers</strong> — to measure website traffic
+              <strong>Analytics providers</strong>: to measure website traffic
               and usage (e.g. Google Analytics).
             </li>
             <li>
-              <strong>Hosting and infrastructure providers</strong> — to serve
+              <strong>Hosting and infrastructure providers</strong>: to serve
               and maintain the website.
             </li>
             <li>
-              <strong>Email and communication providers</strong> — to process
+              <strong>Email and communication providers</strong>: to process
               and deliver messages you send us.
             </li>
             <li>
-              <strong>AI processing providers</strong> — to power AI-assisted
+              <strong>AI processing providers</strong>: to power AI-assisted
               features (inbox classification, reply suggestions, and the Yip
               assistant), message content and contact data may be processed by
               Mistral AI SAS, 15 rue des Halles, 75001 Paris, France
@@ -149,8 +149,8 @@ export default function PrivacyPage() {
 
           <h2>International data transfers</h2>
           <p>
-            Some of our service providers — including Google (Google Analytics)
-            — are based outside the European Economic Area (EEA) or transfer
+            Some of our service providers, including Google (Google Analytics),
+            are based outside the European Economic Area (EEA) or transfer
             data to countries outside the EEA, including the United States. We
             ensure that such transfers are subject to appropriate safeguards.
             For Google, these transfers are covered by the{" "}

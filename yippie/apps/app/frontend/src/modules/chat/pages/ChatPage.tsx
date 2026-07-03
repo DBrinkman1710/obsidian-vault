@@ -307,7 +307,7 @@ export default function ChatPage() {
         qc.setQueryData(['chat-messages', ctx?.sessionId], ctx.previous)
       }
       setReplyText(body)
-      setReplyError(err?.response?.data?.detail ?? 'Message not sent — check WhatsApp is connected')
+      setReplyError(err?.response?.data?.detail ?? 'Message not sent. Check WhatsApp is connected.')
     },
   })
 
@@ -698,7 +698,7 @@ export default function ChatPage() {
               {qrLoading && <p className="text-sm text-slate-400 py-8">Loading QR code…</p>}
               {!qrLoading && qrError && (
                 <p className="text-sm text-red-500 py-8">
-                  Couldn't load the QR code — check Evolution API is configured for this environment.
+                  Couldn't load the QR code. Check that Evolution API is configured for this environment.
                 </p>
               )}
               {!qrLoading && !qrError && qrData?.base64 && (
@@ -1019,7 +1019,7 @@ export default function ChatPage() {
         </div>
       ) : lockedByOther ? (
         <div className="px-6 py-4 border-t border-slate-200 bg-amber-50 text-center text-sm text-amber-700">
-          Assigned to {selectedSession.assigned_to_name ?? 'another agent'} — re-assign to reply.
+          Assigned to {selectedSession.assigned_to_name ?? 'another agent'}. Re-assign to reply.
         </div>
       ) : selectedSession.is_open ? (
         <div className="px-4 md:px-6 py-4 border-t border-slate-200 bg-white relative">
@@ -1201,7 +1201,7 @@ function HistoryPanel({ contactId, currentId, onView }: { contactId: string; cur
           className="text-left text-xs text-slate-600 hover:text-blue-600 hover:underline"
         >
           {new Date(s.started_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-          {s.solved_at && ` — solved ${new Date(s.solved_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+          {s.solved_at && `, solved ${new Date(s.solved_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
         </button>
       ))}
     </div>

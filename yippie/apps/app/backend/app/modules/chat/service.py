@@ -343,7 +343,7 @@ async def send_media(
                 logger.exception("WhatsApp sendMedia failed for session %s", session.id)
                 raise HTTPException(
                     status_code=422,
-                    detail="WhatsApp delivery failed — check that WhatsApp is still connected",
+                    detail="WhatsApp delivery failed. Check that WhatsApp is still connected.",
                 )
     else:
         await db.commit()

@@ -396,7 +396,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                               setBookingDropOpen(false)
                             }}
                             className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 truncate">
-                            {c.full_name}{c.email ? ` — ${c.email}` : ''}
+                            {c.full_name}{c.email ? ` (${c.email})` : ''}
                           </button>
                         ))}
                       </div>

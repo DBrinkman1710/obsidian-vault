@@ -16,7 +16,7 @@ import {
 import { PLAN_LIMITS } from "@/lib/config";
 
 const PLANS = [
-  { key: "founder", label: "Founding Member", badge: "Limited — 5 spots", price: PLAN_LIMITS.founder.priceMonthly, users: PLAN_LIMITS.founder.users },
+  { key: "founder", label: "Founding Member", badge: "Limited: 5 spots", price: PLAN_LIMITS.founder.priceMonthly, users: PLAN_LIMITS.founder.users },
   { key: "starter", label: "Starter", badge: null, price: PLAN_LIMITS.starter.priceMonthly, users: PLAN_LIMITS.starter.users },
   { key: "growth",  label: "Growth",  badge: null, price: PLAN_LIMITS.growth.priceMonthly,  users: PLAN_LIMITS.growth.users },
   { key: "pro",     label: "Pro",     badge: null, price: PLAN_LIMITS.pro.priceMonthly,     users: PLAN_LIMITS.pro.users },
@@ -161,7 +161,7 @@ export default function SignupForm() {
       setErrorMsg(typeof data?.error === "string" ? data.error : "Something went wrong. Please try again.");
       setState("error");
     } catch {
-      setErrorMsg("Network error — please check your connection and try again.");
+      setErrorMsg("Network error. Please check your connection and try again.");
       setState("error");
     }
   }

@@ -309,7 +309,7 @@ async def generate_draft_ai(
         await service.enrich_draft(db, current_user.tenant_id, draft, msg)
     await db.commit()
     if draft.ai_status == "failed":
-        raise HTTPException(status_code=502, detail="AI generation failed — please try again")
+        raise HTTPException(status_code=502, detail="AI generation failed. Please try again.")
     return await service.get_draft_with_context(db, current_user.tenant_id, draft_id)
 
 

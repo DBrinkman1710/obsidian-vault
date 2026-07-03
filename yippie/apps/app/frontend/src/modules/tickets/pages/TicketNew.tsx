@@ -213,7 +213,7 @@ export default function TicketNew() {
         </div>
 
         {mutation.isError && (
-          <p className="text-sm text-red-500">Something went wrong — try again.</p>
+          <p className="text-sm text-red-500">Something went wrong. Try again.</p>
         )}
 
         <div className="flex gap-3 items-center">

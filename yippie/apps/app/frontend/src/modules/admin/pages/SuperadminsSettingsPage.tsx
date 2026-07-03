@@ -188,7 +188,7 @@ function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
         {sent ? (
           <div className="p-6 flex flex-col gap-4">
             <p className="text-sm text-emerald-600 font-medium">
-              ✓ Invite sent to <strong>{sent}</strong> — they appear in this list once they set their password.
+              ✓ Invite sent to <strong>{sent}</strong>. They appear in this list once they set their password.
             </p>
             <div className="flex justify-end">
               <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">Done</button>
@@ -305,7 +305,7 @@ export default function SuperadminsSettingsPage() {
               <h1 className="text-2xl font-bold text-slate-900">Superadmins</h1>
             </div>
             <p className="text-sm text-slate-400">
-              Superadmins in this environment. Scope is limited to this database — sandbox superadmins are not live superadmins.
+              Superadmins in this environment. Scope is limited to this database. Sandbox superadmins are not live superadmins.
             </p>
           </div>
           {isRootOwner && (
@@ -389,7 +389,7 @@ export default function SuperadminsSettingsPage() {
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-sm text-amber-800">
             {isRootOwner
-              ? <>New superadmins are added via <strong>invite email</strong> — they set their own password. Deleting is permanent; use Deactivate to suspend access instead.</>
+              ? <>New superadmins are added via <strong>invite email</strong>. They set their own password. Deleting is permanent; use Deactivate to suspend access instead.</>
               : <>Only the root owner can invite or delete superadmins. You can deactivate/reactivate accounts with your password.</>}
           </p>
         </div>

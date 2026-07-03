@@ -7,12 +7,12 @@ const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
 
 export const metadata: Metadata = {
-  title: "Yippie vs Zendesk — The SMB-Friendly Zendesk Alternative",
+  title: "Yippie vs Zendesk | The SMB-Friendly Zendesk Alternative",
   description:
-    "Looking for a Zendesk alternative for small business? Yippie is purpose-built help desk software for SMBs — booking and flat workspace pricing from €19/month.",
+    "Looking for a Zendesk alternative for small business? Yippie is purpose-built help desk software for SMBs with booking and flat workspace pricing from €19/month.",
   alternates: { canonical: "/vs-zendesk" },
   openGraph: {
-    title: "Yippie vs Zendesk — The SMB-Friendly Alternative",
+    title: "Yippie vs Zendesk | The SMB-Friendly Alternative",
     description:
       "A simpler, flat-priced Zendesk alternative built for SMBs. Booking and easy onboarding included, from €19/month.",
     url: "https://getyippie.com/vs-zendesk",
@@ -47,9 +47,9 @@ export default function VsZendeskPage() {
           <span className={styles.heroTagDot} />
           Yippie vs Zendesk
         </div>
-        <h1 className={styles.heroTitle}>Yippie vs Zendesk — the SMB-friendly alternative</h1>
+        <h1 className={styles.heroTitle}>Yippie vs Zendesk: the SMB-friendly alternative</h1>
         <p className={styles.heroSub}>
-          Zendesk is powerful, enterprise-grade customer support software — and
+          Zendesk is powerful, enterprise-grade customer support software, and
           priced like it. Yippie is purpose-built for small and medium businesses:
           simpler, faster to set up, and flat workspace pricing instead of
           per-agent fees that climb as you grow.
@@ -65,7 +65,7 @@ export default function VsZendeskPage() {
           <p className={styles.eyebrow}>Side by side</p>
           <h2 className={styles.sectionTitle}>How Yippie compares to Zendesk</h2>
           <p className={styles.sectionSub}>
-            Same core help desk capabilities — without the enterprise price tag or
+            Same core help desk capabilities, without the enterprise price tag or
             setup overhead.
           </p>
           <div className={styles.tableWrap}>
@@ -117,7 +117,7 @@ export default function VsZendeskPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Switch to support that fits your business</h2>
         <p className={styles.ctaSub}>
-          See why SMBs choose Yippie over Zendesk. Request a guided demo — no
+          See why SMBs choose Yippie over Zendesk. Request a guided demo. No
           credit card required.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>

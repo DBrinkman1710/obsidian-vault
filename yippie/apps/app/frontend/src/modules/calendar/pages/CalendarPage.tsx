@@ -170,7 +170,7 @@ function ContactPicker({ selected, onSelect }: {
       '/contacts', { params: { search: q, limit: 10 } }).then((r: any) => r.data.items),
     enabled: q.trim().length > 0,
   })
-  const options = (data ?? []).map((c: any) => ({ id: c.id, label: c.email ? `${c.full_name} — ${c.email}` : c.full_name }))
+  const options = (data ?? []).map((c: any) => ({ id: c.id, label: c.email ? `${c.full_name} (${c.email})` : c.full_name }))
   return <Picker label="Contact (optional)" placeholder="Search contacts…"
     selected={selected} onSelect={onSelect} options={options} loading={isFetching} onQueryChange={setQ} />
 }
@@ -215,7 +215,7 @@ function UserPicker({ selected, onSelect, excludeIds }: {
     .filter(u => !selected.some(s => s.id === u.id))
     .filter(u => !term || u.full_name.toLowerCase().includes(term) || u.email.toLowerCase().includes(term))
     .slice(0, 10)
-    .map(u => ({ id: u.id, label: `${u.full_name} — ${u.email}` }))
+    .map(u => ({ id: u.id, label: `${u.full_name} (${u.email})` }))
 
   function add(opt: PickerOption) {
     onSelect([...selected, opt])
@@ -257,7 +257,7 @@ function UserPicker({ selected, onSelect, excludeIds }: {
           {selected.map(s => (
             <span key={s.id}
               className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 text-xs font-semibold rounded-lg border border-blue-100">
-              {s.label.split(' — ')[0]}
+              {s.label.split(' (')[0]}
               <button type="button" onClick={() => remove(s.id)}
                 className="ml-0.5 text-blue-400 hover:text-red-500 leading-none">×</button>
             </span>
@@ -1614,7 +1614,7 @@ export default function CalendarPage() {
                       const color = deadlineColor(item.start_at)
                       return (
                         <button key={`d-${item.id}`} onClick={() => navigate(`/tickets/${item.ticket_id}`)}
-                          title={`Deadline — ${item.title}`}
+                          title={`Deadline: ${item.title}`}
                           onContextMenu={e => { e.preventDefault(); e.stopPropagation(); ctx.open(e, [
                             { label: 'View ticket', icon: <ExternalLink size={13} />, onClick: () => setPeekTicketId(item.ticket_id) },
                           ]) }}

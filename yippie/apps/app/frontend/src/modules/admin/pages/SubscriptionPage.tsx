@@ -106,7 +106,7 @@ export default function SubscriptionPage() {
 
       {checkoutSuccess && (
         <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 font-medium">
-          Payment successful — your plan has been activated.
+          Payment successful. Your plan has been activated.
         </div>
       )}
 

@@ -219,13 +219,13 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
     setUploadError(null);
     const reader = new FileReader();
     reader.onerror = () =>
-      setUploadError("We couldn't read that file — try a different export format.");
+      setUploadError("We couldn't read that file. Try a different export format.");
     reader.onload = () => {
       const text = typeof reader.result === "string" ? reader.result : "";
       const result = parseEmailCsv(text);
       if (!result) {
         setScan(null);
-        setUploadError("We couldn't read that file — try a different export format.");
+        setUploadError("We couldn't read that file. Try a different export format.");
         return;
       }
       setScan(result);
@@ -270,7 +270,7 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
       <p className={styles.eyebrow}>ROI Calculator</p>
       <h2 className={styles.title}>See how much time Yippie saves you</h2>
       <p className={styles.sub}>
-        Move the sliders — or connect your inbox for a personalised estimate.
+        Move the sliders, or connect your inbox for a personalised estimate.
       </p>
 
       <div className={styles.tabs} role="tablist" aria-label="ROI estimate mode">
@@ -375,7 +375,7 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
             );
           })}
           <p className={styles.privacyNote}>
-            Calculated in your browser — nothing is sent anywhere.
+            Calculated in your browser. Nothing is sent anywhere.
           </p>
         </div>
 

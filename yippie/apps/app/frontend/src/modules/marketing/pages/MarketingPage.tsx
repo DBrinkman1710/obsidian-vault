@@ -59,7 +59,7 @@ function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreat
         <input
           value={subject}
           onChange={(e) => setSubject(e.target.value)}
-          placeholder="We've missed you — here's 25% off"
+          placeholder="We've missed you. Here's 25% off."
           className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
         />
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Channel</label>

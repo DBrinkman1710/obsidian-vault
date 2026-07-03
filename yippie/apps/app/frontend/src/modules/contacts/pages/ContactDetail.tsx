@@ -481,7 +481,7 @@ function EmailRow({ contactId, email }: { contactId: string; email: string | nul
             placeholder="email@example.com"
             className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
-          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong — try again.</p>}
+          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong. Try again.</p>}
           <div className="flex gap-2">
             <button
               type="button"
@@ -547,7 +547,7 @@ function PhoneRow({ contactId, phone }: { contactId: string; phone: string | nul
             placeholder="+31 6 12345678"
             className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
-          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong — try again.</p>}
+          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong. Try again.</p>}
           <div className="flex gap-2">
             <button
               type="button"
@@ -613,7 +613,7 @@ function CompanyRow({ contactId, company }: { contactId: string; company: Compan
       {editing ? (
         <div className="flex flex-col gap-2">
           <CompanyPicker value={selectedId} onChange={setSelectedId} />
-          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong — try again.</p>}
+          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong. Try again.</p>}
           <div className="flex gap-2">
             <button
               type="button"
@@ -687,7 +687,7 @@ function LabelsRow({ contactId, labels }: { contactId: string; labels: ContactLa
       {editing ? (
         <div className="flex flex-col gap-2">
           <LabelPicker selectedIds={selectedIds} onChange={setSelectedIds} />
-          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong — try again.</p>}
+          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong. Try again.</p>}
           <div className="flex gap-2">
             <button
               type="button"

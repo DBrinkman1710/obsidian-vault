@@ -21,7 +21,7 @@ const STEP_DEFS: {
   {
     module: 'inbox',
     title: 'Your Inbox',
-    body: 'Incoming mail and WhatsApp messages land here. AI drafts a ticket for each one — review and approve with one click.',
+    body: 'Incoming mail and WhatsApp messages land here. AI drafts a ticket for each one. Review and approve with one click.',
     route: '/inbox',
     icon: <Inbox size={22} className="text-blue-500" />,
   },
@@ -35,7 +35,7 @@ const STEP_DEFS: {
   {
     module: 'tickets',
     title: 'Tickets',
-    body: 'Open issues, SLA timers, and status at a glance. Assign, snooze, or escalate — or let automation handle the follow-up.',
+    body: 'Open issues, SLA timers, and status at a glance. Assign, snooze, or escalate. Or let automation handle the follow-up.',
     route: '/tickets',
     icon: <ClipboardList size={22} className="text-emerald-500" />,
   },
@@ -56,14 +56,14 @@ const STEP_DEFS: {
   {
     module: 'activity',
     title: 'Activity Log',
-    body: 'A full audit trail of everything your team has done — replies, ticket updates, pipeline moves, and more.',
+    body: 'A full audit trail of everything your team has done: replies, ticket updates, pipeline moves, and more.',
     route: '/activity',
     icon: <Activity size={22} className="text-teal-500" />,
   },
   {
     module: 'billing',
     title: 'Billing',
-    body: 'Manage invoices, track payment status, and export your financials — all in one place.',
+    body: 'Manage invoices, track payment status, and export your financials. All in one place.',
     route: '/billing',
     icon: <CreditCard size={22} className="text-slate-500" />,
   },

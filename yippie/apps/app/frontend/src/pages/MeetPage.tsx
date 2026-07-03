@@ -319,7 +319,7 @@ export default function MeetPage() {
           onClick={() => setStep('details')}
           className="w-full mt-5 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
         >
-          Continue — {fmtSlotLong(picked.start, picked.end)}
+          Continue: {fmtSlotLong(picked.start, picked.end)}
         </button>
       )}
     </Shell>

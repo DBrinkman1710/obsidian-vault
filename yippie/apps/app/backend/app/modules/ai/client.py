@@ -12,7 +12,7 @@ def _check_provider_config(s) -> None:
     if s.ai_provider == "mistral" and not s.mistral_api_key:
         raise ValueError(
             "AI_PROVIDER=mistral requires MISTRAL_API_KEY to be set. "
-            "Get a key at console.mistral.ai — EU-hosted, GDPR-safe."
+            "Get a key at console.mistral.ai (EU-hosted, GDPR-safe)."
         )
     if s.ai_provider == "self-hosted" and not s.ai_base_url:
         raise ValueError(

@@ -4,12 +4,12 @@ import SiteFooter from "../components/SiteFooter";
 import styles from "../components/content.module.css";
 
 export const metadata: Metadata = {
-  title: "Yippie Blog — Customer support software tips for SMBs",
+  title: "Yippie Blog | Customer support software tips for SMBs",
   description:
     "Practical guides on AI customer service, help desk software, response times, and shared inbox workflows for small businesses and agencies.",
   alternates: { canonical: "/blog" },
   openGraph: {
-    title: "Yippie Blog — Customer support software tips for SMBs",
+    title: "Yippie Blog | Customer support software tips for SMBs",
     description:
       "Practical guides on AI customer service, help desk software, and faster response times for SMBs.",
     url: "https://getyippie.com/blog",
@@ -32,7 +32,7 @@ const posts = [
     date: "2026-06-05",
     dateLabel: "June 5, 2026",
     excerpt:
-      "Want to reduce customer service response time without hiring? These five tactics — templates, SLAs, inbox triage, and clean handoffs — do the heavy lifting.",
+      "Want to reduce customer service response time without hiring? These five tactics do the heavy lifting: templates, SLAs, inbox triage, and clean handoffs.",
   },
 ];
 
@@ -51,7 +51,7 @@ export default function BlogIndexPage() {
         <h1 className={styles.heroTitle}>Customer support, made smarter</h1>
         <p className={styles.heroSub}>
           Practical guides on AI customer service, help desk software, and faster
-          response times — written for small businesses and the agencies that
+          response times, written for small businesses and the agencies that
           serve them.
         </p>
       </section>

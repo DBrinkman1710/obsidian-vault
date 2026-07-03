@@ -3,7 +3,7 @@ import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "../components/content.module.css";
 
-const TITLE = "Terms of Service — Yippie";
+const TITLE = "Terms of Service | Yippie";
 const DESCRIPTION =
   "Terms and conditions for using Yippie, our B2B SaaS customer service platform. Including subscription terms, data processing, and liability.";
 
@@ -40,23 +40,23 @@ export default function TermsPage() {
           <h2>Definitions</h2>
           <ul>
             <li>
-              <strong>Platform</strong> — the Yippie software-as-a-service offering
+              <strong>Platform</strong>: the Yippie software-as-a-service offering
               accessible at app.getyippie.com and related services.
             </li>
             <li>
-              <strong>Tenant</strong> — the organization or legal entity subscribing to
+              <strong>Tenant</strong>: the organization or legal entity subscribing to
               the Platform and responsible for payment and compliance.
             </li>
             <li>
-              <strong>Services</strong> — the functionality provided by Yippie,
+              <strong>Services</strong>: the functionality provided by Yippie,
               including customer communication management, ticket routing, and reporting.
             </li>
             <li>
-              <strong>User</strong> — an individual authorized by the Tenant to access
+              <strong>User</strong>: an individual authorized by the Tenant to access
               and use the Platform on the Tenant&apos;s behalf.
             </li>
             <li>
-              <strong>Personal Data</strong> — any information relating to an identified
+              <strong>Personal Data</strong>: any information relating to an identified
               or identifiable natural person, as defined in the GDPR / AVG.
             </li>
           </ul>

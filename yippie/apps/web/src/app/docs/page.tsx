@@ -16,12 +16,12 @@ const MANUAL_RAW_URL =
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Documentation — Yippie",
+  title: "Documentation | Yippie",
   description:
     "Complete product manual for the Yippie customer service platform.",
   alternates: { canonical: "/docs" },
   openGraph: {
-    title: "Documentation — Yippie",
+    title: "Documentation | Yippie",
     description:
       "Complete product manual for the Yippie customer service platform.",
     url: "https://getyippie.com/docs",

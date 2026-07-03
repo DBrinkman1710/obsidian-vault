@@ -21,7 +21,7 @@ export function readSignatureImage(file: File): Promise<string> {
       return
     }
     if (file.size > MAX_SIGNATURE_IMAGE_BYTES) {
-      reject(new Error('Image is too large — must be 500 KB or smaller.'))
+      reject(new Error('Image is too large. Must be 500 KB or smaller.'))
       return
     }
     const reader = new FileReader()

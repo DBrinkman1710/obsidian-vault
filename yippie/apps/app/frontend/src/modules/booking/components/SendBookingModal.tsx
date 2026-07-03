@@ -182,7 +182,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
               {pickedContact ? (
                 <div className="flex items-center justify-between gap-2 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50">
                   <span className="text-slate-800 truncate">
-                    {pickedContact.full_name}{pickedContact.email ? ` — ${pickedContact.email}` : ''}
+                    {pickedContact.full_name}{pickedContact.email ? ` (${pickedContact.email})` : ''}
                   </span>
                   <button type="button"
                     onClick={() => { setPickedContact(null); setContactQuery('') }}
@@ -215,7 +215,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                         setContactDropOpen(false)
                       }}
                       className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 truncate">
-                      {c.full_name}{c.email ? ` — ${c.email}` : ''}
+                      {c.full_name}{c.email ? ` (${c.email})` : ''}
                     </button>
                   ))}
                 </div>

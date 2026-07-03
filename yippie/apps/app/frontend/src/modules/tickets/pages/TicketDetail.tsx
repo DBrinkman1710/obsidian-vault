@@ -221,7 +221,7 @@ export default function TicketDetail() {
     },
     onError: (err: any) => {
       const detail = err?.response?.data?.detail
-      setReplySendError(typeof detail === 'string' ? detail : 'Failed to send — check your email settings')
+      setReplySendError(typeof detail === 'string' ? detail : 'Failed to send. Check your email settings.')
     },
   })
 
@@ -315,7 +315,7 @@ export default function TicketDetail() {
         return (
           <div className={`mb-4 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-3 ${overdue ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
             <span className="flex items-center gap-2 min-w-0">
-              ⚠ {overdue ? `SLA overdue (was due ${due.toLocaleString()})` : `SLA due in ${Math.ceil(hoursLeft)}h — ${due.toLocaleString()}`}
+              ⚠ {overdue ? `SLA overdue (was due ${due.toLocaleString()})` : `SLA due in ${Math.ceil(hoursLeft)}h (${due.toLocaleString()})`}
             </span>
             <MutationGate>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -615,7 +615,7 @@ export default function TicketDetail() {
                 {/* Improve suggestions */}
                 {improveSuggestions.length > 0 && (
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-2">
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">AI suggestions — click to apply</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">AI suggestions: click to apply</p>
                     <div className="flex flex-col gap-1.5">
                       {improveSuggestions.map((s, i) => (
                         <button

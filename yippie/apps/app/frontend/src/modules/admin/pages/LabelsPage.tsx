@@ -104,7 +104,7 @@ function LiveChatSettingsCard() {
         <h2 className="text-base font-semibold text-slate-900">Live Chat</h2>
       </div>
       <p className="text-sm text-slate-500 mb-4">
-        Solved conversations drop off the active list after this window. Messages are kept permanently — this only hides them from view.
+        Solved conversations drop off the active list after this window. Messages are kept permanently. This only hides them from view.
       </p>
       <div className="flex items-end gap-3">
         <div>
@@ -595,7 +595,7 @@ export default function LabelsPage() {
             {mutation.isPending ? 'Saving…' : saved ? 'Saved!' : 'Save'}
           </button>
         </div>
-        {mutation.isError && <p className="mt-2 text-xs text-red-500">Failed to save — try again.</p>}
+        {mutation.isError && <p className="mt-2 text-xs text-red-500">Failed to save. Try again.</p>}
       </div>
       {isAdmin && <AiYipCard />}
       {isAdmin && <ContactLabelsCard />}

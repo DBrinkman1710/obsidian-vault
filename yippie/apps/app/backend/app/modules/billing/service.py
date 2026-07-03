@@ -266,7 +266,7 @@ async def send_invoice(
     try:
         await send_email(
             to=contact.email,
-            subject=f"Factuur {invoice.invoice_number} — {tenant.name or ''}",
+            subject=f"Factuur {invoice.invoice_number} | {tenant.name or ''}",
             body=body,
             html=html,
             attachments=[{
@@ -328,7 +328,7 @@ async def send_payment_reminder(
     try:
         await send_email(
             to=contact.email,
-            subject=f"Betalingsherinnering: {invoice.invoice_number} — {tenant.name or ''}",
+            subject=f"Betalingsherinnering: {invoice.invoice_number} | {tenant.name or ''}",
             body=body,
             html=html,
             attachments=[{
@@ -575,7 +575,7 @@ async def import_invoices(
             invoice_number=await _next_invoice_number(db, tenant_id),
             contact_id=contact_id,
             line_items=[{
-                "description": description or f"Imported invoice — {raw_total} {currency}",
+                "description": description or f"Imported invoice: {raw_total} {currency}",
                 "quantity": 1,
                 "unit_price_cents": total_cents,
                 "tax_rate_pct": 21,

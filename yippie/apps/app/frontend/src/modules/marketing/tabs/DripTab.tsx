@@ -51,7 +51,7 @@ export function DripTab({ campaign }: { campaign: Campaign }) {
           <div>
             <h3 className="text-sm font-semibold text-slate-900">Follow-up sequence</h3>
             <p className="mt-0.5 text-xs text-slate-400">
-              Steps send automatically after launch — but only to contacts who haven't replied or opted out.
+              Steps send automatically after launch, but only to contacts who haven't replied or opted out.
             </p>
           </div>
           <button

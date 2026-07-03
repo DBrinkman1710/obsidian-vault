@@ -25,10 +25,10 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
       <h1 style="font-size:24px;margin:0 0 12px;">Welcome aboard 👋</h1>
       <p style="font-size:15px;line-height:1.6;margin:0 0 16px;">
         We're thrilled to have you with us. Over the next few days we'll show you
-        how to get the most out of your account — no fluff, just the good stuff.
+        how to get the most out of your account. No fluff, just the good stuff.
       </p>
       <p style="font-size:15px;line-height:1.6;margin:0 0 24px;">
-        Got a question? Just reply to this email — a real person reads every one.
+        Got a question? Just reply. A real person reads every one.
       </p>
       <p style="margin:0 0 8px;">${button('Get started')}</p>
     `),
@@ -68,7 +68,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   },
   {
     id: 'yippie-professional',
-    name: 'Yippie — Professional',
+    name: 'Yippie Professional',
     description: 'Branded email with logo header and clean layout.',
     html: `<table align="center" width="100%" style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;border-spacing:0;">
   <!-- Logo header -->
@@ -87,7 +87,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
         We have something important to share with you. This email was sent just for you, and we'd love for you to take a moment to read it.
       </p>
       <p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 28px;">
-        If you have any questions, just hit reply — a real person will get back to you.
+        If you have any questions, just hit reply. A real person will get back to you.
       </p>
       <p style="margin:0 0 8px;text-align:center;">
         <a href="#" style="display:inline-block;padding:13px 32px;background:#5BA4F5;color:#ffffff;border-radius:8px;font-weight:600;text-decoration:none;font-size:15px;">Take action</a>
@@ -105,7 +105,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   {
     id: 'support-update',
     name: 'Support update',
-    description: 'Ticket confirmation, status update, or resolution — ready to send.',
+    description: 'Ticket confirmation, status update, or resolution. Ready to send.',
     html: `<table align="center" width="100%" style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;border-spacing:0;">
   <!-- Logo header -->
   <tr>
@@ -131,7 +131,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
         Hi [First name],
       </p>
       <p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 14px;">
-        Thank you for reaching out. We wanted to keep you in the loop — here's the latest on your request:
+        Thank you for reaching out. We wanted to keep you in the loop. Here's the latest on your request:
       </p>
       <!-- Highlighted note box -->
       <table width="100%" style="margin:0 0 24px;border-spacing:0;">
@@ -144,7 +144,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
         </tr>
       </table>
       <p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 28px;">
-        If you have any follow-up questions, you can reply directly to this email — we're here to help.
+        If you have any follow-up questions, you can reply directly to this email. We're here to help.
       </p>
       <!-- CTA -->
       <p style="margin:0;text-align:center;">

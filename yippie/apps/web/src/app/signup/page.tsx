@@ -7,12 +7,12 @@ import formStyles from "../request-demo/request-demo.module.css";
 import SignupForm from "./SignupForm";
 
 export const metadata: Metadata = {
-  title: "Start your account — Yippie",
+  title: "Start your account | Yippie",
   description:
     "Set up your Yippie workspace in minutes. AI-powered customer service for your team.",
   alternates: { canonical: "/signup" },
   openGraph: {
-    title: "Start your account — Yippie",
+    title: "Start your account | Yippie",
     description: "Set up your Yippie workspace in minutes.",
     url: "https://getyippie.com/signup",
     type: "website",

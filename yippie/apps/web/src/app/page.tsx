@@ -41,7 +41,7 @@ const features = [
   {
     Icon: UsersIcon,
     title: "Contacts",
-    desc: "Full customer history — emails, tickets, pipeline stage, and company — in one view. No inbox digging.",
+    desc: "Full customer history in one view: emails, tickets, pipeline stage, and company. No inbox digging.",
   },
   {
     Icon: CalendarIcon,
@@ -86,12 +86,12 @@ const features = [
   {
     Icon: TemplateIcon,
     title: "Templates",
-    desc: "Build a shared library of canned responses. Pick and personalise before sending — fast and on-brand.",
+    desc: "Build a shared library of canned responses. Pick and personalise before sending. Fast and on-brand.",
   },
   {
     Icon: TrackingIcon,
     title: "Tracking",
-    desc: "Connect your ERP or shop and shipments land on the right contact automatically. Live carrier updates for DHL, UPS, PostNL, and FedEx — no copy-pasting.",
+    desc: "Connect your ERP or shop and shipments land on the right contact automatically. Live carrier updates for DHL, UPS, PostNL, and FedEx. No copy-pasting.",
   },
   {
     Icon: SalesIcon,
@@ -119,7 +119,7 @@ const steps = [
   {
     n: "03",
     title: "You approve in one click",
-    desc: "Edit if you want, approve — it becomes a real ticket instantly.",
+    desc: "Edit if you want, then approve. It becomes a real ticket instantly.",
   },
 ];
 
@@ -156,7 +156,7 @@ const plans = [
 
 const inboxItems = [
   { sender: "Acme BV", subject: "Invoice INV-0421 question", dot: "", badge: "review" },
-  { sender: "TechCorp", subject: "Login issue — account locked", dot: "amber", badge: "review" },
+  { sender: "TechCorp", subject: "Login issue: account locked", dot: "amber", badge: "review" },
   { sender: "Nordex", subject: "Pricing plan upgrade", dot: "green", badge: "done" },
   { sender: "Bloom Agency", subject: "Onboarding call request", dot: "", badge: "review" },
 ];
@@ -241,7 +241,7 @@ export default function HomePage() {
               Take back the time<br />that matters.
             </h1>
             <p className={styles.heroSub}>
-              Yippie auto-drafts every support ticket from your inbox — and grows
+              Yippie auto-drafts every support ticket from your inbox and grows
               alongside your business. Review, approve, done.
             </p>
             <div className={styles.heroActions}>
@@ -281,8 +281,8 @@ export default function HomePage() {
           <p className={styles.eyebrow}>// Features</p>
           <h2 className={styles.sectionTitle}>Everything your support team needs</h2>
           <p className={styles.sectionSub}>
-            Fifteen modules — inbox, tickets, contacts, pipeline, marketing, live chat, and more.
-            One platform, stop juggling tools.
+            Fifteen modules: inbox, tickets, contacts, pipeline, marketing, live chat, and more.
+            One platform. Stop juggling tools.
           </p>
         </Reveal>
         <div className={styles.featureRows}>
@@ -304,7 +304,7 @@ export default function HomePage() {
       <section id="how-it-works" className={styles.sectionLight}>
         <Reveal className={styles.sectionHead}>
           <p className={styles.eyebrow}>// How it works</p>
-          <h2 className={styles.sectionTitle}>From email to resolved — in seconds</h2>
+          <h2 className={styles.sectionTitle}>From email to resolved in seconds</h2>
           <p className={styles.sectionSub}>
             Yippie&apos;s AI reads every incoming message and does the write-up for you.
           </p>
@@ -335,7 +335,7 @@ export default function HomePage() {
             <div>
               <h3 className={styles.featureTitle}>Unlimited contacts, on every plan</h3>
               <p className={styles.featureDesc}>
-                From your first customer to your ten-thousandth — your contact limit never
+                From your first customer to your ten-thousandth, your contact limit never
                 changes. No forced upgrade, no surprise cap.
               </p>
             </div>
@@ -376,7 +376,7 @@ export default function HomePage() {
           <p className={styles.eyebrowDark}>// One workspace</p>
           <h2 className={styles.momentTitle}>Everything in one place</h2>
           <p className={styles.momentSub}>
-            Inbox, tickets, contacts, and pipeline share the same screen — so nothing
+            Inbox, tickets, contacts, and pipeline share the same screen, so nothing
             falls through the cracks and every reply has full context.
           </p>
         </Reveal>
@@ -398,7 +398,7 @@ export default function HomePage() {
         <div className={styles.founderBanner}>
           <span className={styles.founderBadge}>Limited offer</span>
           <p className={styles.founderText}>
-            <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
+            <strong>Founding Member: first 5 spots</strong> at €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
           </p>
           <a href="/custom?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
         </div>

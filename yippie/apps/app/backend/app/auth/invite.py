@@ -47,7 +47,7 @@ async def send_invite_email(
     )
     await send_email(
         to=to,
-        subject=f"Set your password — your {tenant_name} account on Yippie",
+        subject=f"Set your password for your {tenant_name} account on Yippie",
         body=body,
         html=render_email_html(body, tenant_name="Yippie"),
     )
@@ -60,9 +60,9 @@ async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> Non
 
     plain_body = (
         f"Hi {first_name},\n\n"
-        f"Thank you for requesting a Yippie demo — really appreciate you taking the time.\n\n"
+        f"Thank you for requesting a Yippie demo. Really appreciate you taking the time.\n\n"
         f"Your workspace is ready. Click the link below to get started (no password needed):\n{magic_link}\n\n"
-        f"If you have any questions while exploring, just reply to this email — I read everything.\n\n"
+        f"If you have any questions while exploring, just reply. I read everything.\n\n"
         f"Looking forward to hearing what you think,\n"
         f"Diederik\n"
         f"Founder, Yippie"
@@ -70,14 +70,14 @@ async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> Non
 
     prerendered = (
         f'<p style="margin:0 0 16px;">Hi {safe_name},</p>'
-        f'<p style="margin:0 0 16px;">Thank you for requesting a Yippie demo — really appreciate you taking the time.</p>'
-        f'<p style="margin:0 0 24px;">Your workspace is ready. Click the button below to get started — no password needed.</p>'
+        f'<p style="margin:0 0 16px;">Thank you for requesting a Yippie demo. Really appreciate you taking the time.</p>'
+        f'<p style="margin:0 0 24px;">Your workspace is ready. Click the button below to get started. No password needed.</p>'
         f'<div style="text-align:center;margin:32px 0;">'
         f'<a href="{safe_link}" style="display:inline-block;background:#5BA4F5;color:#ffffff;'
         f'text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">'
         f'Open your Yippie workspace</a>'
         f'</div>'
-        f'<p style="margin:24px 0 16px;">If you have any questions while you\'re exploring, just reply to this email — I read everything.</p>'
+        f'<p style="margin:24px 0 16px;">If you have any questions while you\'re exploring, just reply. I read everything.</p>'
         f'<p style="margin:0;">Looking forward to hearing what you think,<br><strong>Diederik</strong><br>'
         f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
     )
@@ -101,10 +101,10 @@ async def send_signup_welcome_email(to: str, full_name: str, login_url: str) -> 
         f"Hi {first_name},\n\n"
         f"Your Yippie workspace is ready. Click the link below to log in:\n{login_url}\n\n"
         f"A few things to get you started:\n"
-        f"  - Set up your profile — add a reply-from email address\n"
-        f"  - Train Yip — a quick 5-question chat that teaches Yip your brand\n"
-        f"  - Invite your team — teammates each get their own login\n\n"
-        f"If you have any questions, just reply to this email — I read everything.\n\n"
+        f"  - Set up your profile: add a reply-from email address\n"
+        f"  - Train Yip: a quick 5-question chat that teaches Yip your brand\n"
+        f"  - Invite your team: teammates each get their own login\n\n"
+        f"If you have any questions, just reply. I read everything.\n\n"
         f"Diederik\n"
         f"Founder, Yippie"
     )
@@ -119,11 +119,11 @@ async def send_signup_welcome_email(to: str, full_name: str, login_url: str) -> 
         f'</div>'
         f'<p style="margin:24px 0 8px;font-size:14px;">A few things to get you started:</p>'
         f'<ul style="margin:0 0 24px;padding-left:20px;font-size:14px;line-height:1.8;">'
-        f'<li>Set up your profile — add a reply-from email address</li>'
-        f'<li>Train Yip — a quick 5-question chat that teaches Yip your brand</li>'
-        f'<li>Invite your team — teammates each get their own login</li>'
+        f'<li>Set up your profile: add a reply-from email address</li>'
+        f'<li>Train Yip: a quick 5-question chat that teaches Yip your brand</li>'
+        f'<li>Invite your team: teammates each get their own login</li>'
         f'</ul>'
-        f'<p style="margin:0 0 16px;">If you have any questions, just reply to this email — I read everything.</p>'
+        f'<p style="margin:0 0 16px;">If you have any questions, just reply. I read everything.</p>'
         f'<p style="margin:0;"><strong>Diederik</strong><br>'
         f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
     )
@@ -144,21 +144,21 @@ async def send_welcome_to_inbox(tenant_inbound_email: str, tenant_name: str) -> 
     instead of being buried in the password mail."""
     body = (
         f"Hi {tenant_name},\n\n"
-        f"Welcome to Yippie! This is your inbox — every email your customers send to your\n"
+        f"Welcome to Yippie! This is your inbox. Every email your customers send to your\n"
         f"support address lands here, and Yippie drafts a ticket for each one automatically.\n\n"
         f"Getting started:\n"
-        f"  - Inbox: review the tickets Yippie drafts from incoming mail — approve, edit or reject\n"
+        f"  - Inbox: review the tickets Yippie drafts from incoming mail. Approve, edit or reject.\n"
         f"  - Contacts: your customers, with history and AI briefings\n"
         f"  - Tickets: everything your team is working on, with deadlines\n\n"
         f"Set up your email:\n"
-        f"  - Your team's shared support address is already connected — new mail appears in Inbox\n"
+        f"  - Your team's shared support address is already connected. New mail appears in Inbox.\n"
         f"  - Want your own address too? Go to Settings -> Profile and set a personal email\n"
         f"    address. Mail sent to it lands in your Personal inbox, and you can send from it\n"
         f"    when replying or composing\n\n"
         f"As an admin you can also:\n"
-        f"  - Invite your team from Settings -> Team — every teammate gets their own login\n"
+        f"  - Invite your team from Settings -> Team. Every teammate gets their own login.\n"
         f"  - Manage departments and follow-up times from Settings -> Departments\n\n"
-        f"Questions? Just reply to this email — a real person reads it.\n\n"
+        f"Questions? Just reply. A real person reads it.\n\n"
         f"Take back the time that matters,\n"
         f"Team Yippie"
     )

@@ -49,7 +49,7 @@ export default function ProfileSettingsPage() {
       await refreshUser()
       window.location.reload()
     },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to save — try again.'),
+    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to save. Try again.'),
   })
 
   function handleSubmit(e: React.FormEvent) {
@@ -91,7 +91,7 @@ export default function ProfileSettingsPage() {
               <label className="block text-xs font-semibold text-slate-500">Send-from aliases</label>
             </div>
             <p className="mb-2 text-xs text-slate-400">
-              Extra addresses you can pick as "From" when composing or replying. These are display labels only — mail is delivered via your shared inbox domain.
+              Extra addresses you can pick as "From" when composing or replying. These are display labels only. Mail is delivered via your shared inbox domain.
             </p>
             <div className="space-y-1.5 mb-2">
               {aliases.map((alias, i) => (
@@ -396,7 +396,7 @@ function SignaturesSection() {
       ) : (
         <div className="space-y-2">
           {signatures.length === 0 && !adding && (
-            <p className="text-xs text-slate-400 italic">No signatures yet — add one to get started.</p>
+            <p className="text-xs text-slate-400 italic">No signatures yet. Add one to get started.</p>
           )}
 
           {signatures.map((sig: any, i: any) => (
@@ -505,7 +505,7 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
         value={body}
         onChange={e => setBody(e.target.value)}
         rows={4}
-        placeholder={'e.g.\nBest regards,\nEddy — Support Team'}
+        placeholder={'e.g.\nBest regards,\nEddy from Support'}
         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie resize-y font-sans"
       />
       {/<img\s/i.test(body) && (

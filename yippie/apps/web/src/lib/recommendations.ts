@@ -40,16 +40,16 @@ export const PAIN_POINTS = [
 ];
 
 export const MODULE_INFO: Record<string, { icon: string; desc: string }> = {
-  "AI Inbox":         { icon: "✦",  desc: "AI reads every message and drafts the ticket for you — one-click approve" },
+  "AI Inbox":         { icon: "✦",  desc: "AI reads every message and drafts the ticket for you. One click to approve." },
   "Tickets":          { icon: "🎫", desc: "Track, assign, and close support requests with SLA alerts" },
-  "Live Chat":        { icon: "💬", desc: "Web chat widget + WhatsApp — all conversations in one inbox" },
+  "Live Chat":        { icon: "💬", desc: "Web chat widget + WhatsApp. All conversations in one inbox." },
   "Calendar":         { icon: "📅", desc: "Booking links, availability grids, and appointment management" },
   "Pipeline":         { icon: "📌", desc: "Drag-and-drop Kanban to move leads and clients through custom stages" },
   "Marketing":        { icon: "📣", desc: "Email campaigns, A/B testing, drip sequences, and open tracking" },
   "Departments":      { icon: "🏢", desc: "Route tickets and chats to the right team automatically" },
   "Billing":          { icon: "🧾", desc: "Issue invoices, track payments, and manage subscriptions" },
-  "Shipment Tracking":{ icon: "📦", desc: "DHL, UPS, PostNL, FedEx — live carrier updates linked to contacts" },
-  "Sales":            { icon: "📈", desc: "Track product views, add-to-cart, and purchases — identify high-intent buyers" },
+  "Shipment Tracking":{ icon: "📦", desc: "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts." },
+  "Sales":            { icon: "📈", desc: "Track product views, add-to-cart, and purchases. Identify high-intent buyers." },
   "SaaS Analytics":   { icon: "🔁", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts" },
   "Templates":        { icon: "✉️", desc: "Shared canned responses your team can pick and personalise before sending" },
 };

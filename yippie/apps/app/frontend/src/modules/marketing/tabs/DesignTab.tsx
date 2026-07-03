@@ -119,7 +119,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
   function loadStarter(html: string) {
     // Load starter HTML as a GrapesJS project so components are editable
     editorRef.current?.loadDesign(JSON.stringify({ pages: [{ id: 'main', component: html }] }))
-    toast.message('Template loaded — edit and save when ready.')
+    toast.message('Template loaded. Edit and save when ready.')
   }
 
   function openEditor() {

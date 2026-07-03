@@ -54,7 +54,7 @@ def create_app() -> FastAPI:
     hide_docs = settings.environment in ("production", "sandbox")
 
     app = FastAPI(
-        title="Yippie — Customer Platform",
+        title="Yippie | Customer Platform",
         version="1.0.0",
         docs_url=None if hide_docs else "/api/docs",
         redoc_url=None if hide_docs else "/api/redoc",

@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (upstream.status === 429) {
-    return NextResponse.json({ error: "Too many requests — try again later." }, { status: 429 });
+    return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
   }
 
   const upstreamBody = await upstream.json().catch(() => null);

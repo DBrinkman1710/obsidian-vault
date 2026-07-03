@@ -702,7 +702,7 @@ async def reschedule_booking(
 
     if _is_locked(event.start_at, hours_before):
         raise ValueError(
-            f"Changes are locked — the meeting starts within {hours_before} hours."
+            f"Changes are locked. The meeting starts within {hours_before} hours."
         )
 
     # Conflict-check the new slot (exclude the current event from the check).
@@ -746,7 +746,7 @@ async def cancel_booking(db: AsyncSession, token: BookingToken) -> None:
 
     if _is_locked(event.start_at, hours_before):
         raise ValueError(
-            f"Changes are locked — the meeting starts within {hours_before} hours."
+            f"Changes are locked. The meeting starts within {hours_before} hours."
         )
 
     contact = await db.get(Contact, token.contact_id)
@@ -847,7 +847,7 @@ async def _notify_agent_rescheduled(
             return
         when = _format_slot(event.start_at, event.end_at)
         contact_name = contact.full_name if contact else "A contact"
-        subject = f"{contact_name} rescheduled their meeting — {when}"
+        subject = f"{contact_name} rescheduled their meeting: {when}"
         body_text = "\n".join(
             [f"{contact_name} rescheduled their meeting.", "", f"New time: {when}"]
         )
@@ -902,7 +902,7 @@ async def _notify_agent_confirmed(
             return
         when = _format_slot(event.start_at, event.end_at)
         contact_name = contact.full_name if contact else "A contact"
-        subject = f"{contact_name} booked a meeting — {when}"
+        subject = f"{contact_name} booked a meeting: {when}"
 
         lines = [f"{contact_name} booked a meeting.", "", when]
         if contact and contact.email:

@@ -88,7 +88,7 @@ function SendCampaignPopup({
             <div className="flex items-baseline gap-3">
               <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">Recipients</span>
               <span className="text-sm text-slate-700">
-                All contacts in <span className="font-semibold">{stage.name}</span> — {contactCount} contact{contactCount !== 1 ? 's' : ''}
+                All contacts in <span className="font-semibold">{stage.name}</span> ({contactCount} contact{contactCount !== 1 ? 's' : ''})
               </span>
             </div>
           </div>
@@ -464,7 +464,7 @@ function ContactCard({
       </div>
       <p className={`text-[10px] mt-1.5 ${showStaleAlert ? 'text-amber-600 font-semibold' : 'text-slate-300'}`}>
         {showStaleAlert
-          ? `Follow up — ${daysIn} days in ${stageName}`
+          ? `Follow up: ${daysIn} days in ${stageName}`
           : daysIn === 0 ? 'Added today' : daysIn === 1 ? '1 day' : `${daysIn} days`}
       </p>
     </div>

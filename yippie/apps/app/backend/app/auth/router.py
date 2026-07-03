@@ -148,7 +148,7 @@ async def register(body: RegisterRequest, request: Request, response: Response, 
     email = claims["email"]
     existing = await db.scalar(select(User).where(User.email == email))
     if existing:
-        raise HTTPException(status_code=409, detail="An account with this email already exists — log in instead")
+        raise HTTPException(status_code=409, detail="An account with this email already exists. Log in instead.")
 
     user = User(
         tenant_id=uuid.UUID(claims["tenant_id"]),
@@ -370,7 +370,7 @@ def _validate_signature_body(body: str) -> None:
         # An embedded image (S2) pushed the signature over the inline size cap.
         raise HTTPException(
             status_code=400,
-            detail="Signature is too large — embedded images must be 500 KB or smaller.",
+            detail="Signature is too large. Embedded images must be 500 KB or smaller.",
         )
 
 

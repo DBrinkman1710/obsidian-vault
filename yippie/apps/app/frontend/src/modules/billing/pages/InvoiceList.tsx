@@ -551,7 +551,7 @@ export default function InvoiceList() {
     }
     qc.invalidateQueries({ queryKey: ['invoices'] })
     if (sent) toast.success(`${sent} invoice${sent > 1 ? 's' : ''} sent`)
-    if (failed) toast.error(`${failed} failed — contact may have no email`)
+    if (failed) toast.error(`${failed} failed. Contact may have no email.`)
     selection.clear()
   }
 

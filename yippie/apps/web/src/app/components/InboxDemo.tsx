@@ -10,7 +10,7 @@ const EXAMPLES = [
   },
   {
     label: "Login problem",
-    text: "Good morning, since yesterday our whole team can't log in to the platform. The page just keeps loading indefinitely. We've tried different browsers and restarting our computers but nothing works. This is urgent — we have customer calls this afternoon. Jan - TechCorp",
+    text: "Good morning, since yesterday our whole team can't log in to the platform. The page just keeps loading indefinitely. We've tried different browsers and restarting our computers but nothing works. This is urgent, we have customer calls this afternoon. Jan at TechCorp",
   },
   {
     label: "Plan upgrade",
@@ -130,7 +130,7 @@ export default function InboxDemo({ demoUrl }: { demoUrl: string }) {
                 <button type="button" className={styles.editBtn}>Edit</button>
               </div>
               <p className={styles.ticketNote}>
-                This is a live preview — sign up to connect your inbox.
+                This is a live preview. Sign up to connect your inbox.
               </p>
             </div>
           ) : (
@@ -152,7 +152,7 @@ export default function InboxDemo({ demoUrl }: { demoUrl: string }) {
 
       <div className={styles.cta}>
         <a href={demoUrl} className={styles.ctaBtn}>
-          Connect your inbox — free demo →
+          Connect your inbox. Free demo →
         </a>
       </div>
     </section>

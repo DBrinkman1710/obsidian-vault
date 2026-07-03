@@ -192,3 +192,7 @@ Railway picks up the push via Watch Paths and rebuilds both the app platform and
 ```bash
 railway status
 ```
+
+## Conventions
+
+- **No hyphens** — do not use hyphens in commit messages, branch names, or any other project artefact where a choice exists. Use underscores, spaces, or em-dashes instead.

@@ -211,7 +211,7 @@ export default function BookingManagePage() {
             {fmtSlotLong(data.start_at, data.end_at)}
           </p>
           <p className="text-sm text-slate-500 mt-3">
-            Changes can no longer be made — please contact us directly.
+            Changes can no longer be made. Please contact us directly.
           </p>
           <p className="text-xs text-slate-400 mt-1">
             Changes must be made more than {data.cancel_edit_hours_before}h before the appointment.

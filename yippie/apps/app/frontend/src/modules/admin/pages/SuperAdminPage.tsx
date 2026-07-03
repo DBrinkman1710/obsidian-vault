@@ -182,7 +182,7 @@ function useSlugCheckError(slug: string): string | null {
 
   if (!settled) return null
   if (trimmed.length < 2) return 'Minimum 2 characters'
-  if (!SLUG_RE.test(trimmed)) return 'Only lowercase letters, numbers, hyphens — no leading/trailing hyphens'
+  if (!SLUG_RE.test(trimmed)) return 'Only lowercase letters, numbers, and hyphens. No leading/trailing hyphens.'
   if (data && !data.available) return data.reason ?? 'Slug is not available'
   return null
 }
@@ -393,7 +393,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <div className="text-sm text-slate-700">
                 {allInvited.length > 0
                   ? <>Invite email{allInvited.length > 1 ? 's' : ''} sent to <strong>{allInvited.join(', ')}</strong></>
-                  : <>Admin account ready — password was set.</>
+                  : <>Admin account ready. Password was set.</>
                 }
               </div>
             </div>
@@ -427,7 +427,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                   {hasDomain && domainVerified
                     ? `Sending domain verified (${created.tenant.resend_domain_name})`
                     : hasDomain
-                      ? `DNS pending — add records for ${created.tenant.resend_domain_name}`
+                      ? `DNS pending. Add records for ${created.tenant.resend_domain_name}.`
                       : 'Sending domain not set up'
                   }
                 </p>
@@ -540,8 +540,8 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                 <label className={labelCls}>Admin password</label>
                 <input className={inputCls} type="password" value={form.admin_password} onChange={set('admin_password')} placeholder="••••••••" />
                 {form.admin_password.trim()
-                  ? <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1"><Check size={11} /> Password set — admin can log in directly.</p>
-                  : <p className="mt-1 text-xs text-slate-400">Leave empty to send an invite link — the admin sets their own password.</p>
+                  ? <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1"><Check size={11} /> Password set. Admin can log in directly.</p>
+                  : <p className="mt-1 text-xs text-slate-400">Leave empty to send an invite link. The admin sets their own password.</p>
                 }
               </div>
             </>
@@ -555,7 +555,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                   <ModuleToggle key={mod} mod={mod} active={form.enabled_modules.includes(mod)} onClick={() => toggleModule(mod)} />
                 ))}
               </div>
-              <p className="mt-2 text-xs text-slate-400">{form.enabled_modules.length} of {ALL_MODULES.length} enabled — you can change this any time.</p>
+              <p className="mt-2 text-xs text-slate-400">{form.enabled_modules.length} of {ALL_MODULES.length} enabled. You can change this any time.</p>
             </div>
           )}
 
@@ -577,7 +577,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                 {form.logo_url.trim() && (
                   <img src={form.logo_url.trim()} alt="Logo preview" className="mt-2 h-10 object-contain rounded border border-slate-200 bg-slate-50 p-1" onError={e => (e.currentTarget.style.display = 'none')} />
                 )}
-                <p className="mt-1 text-xs text-slate-400">Optional — shown in the client's sidebar.</p>
+                <p className="mt-1 text-xs text-slate-400">Optional. Shown in the client's sidebar.</p>
               </div>
             </>
           )}
@@ -594,7 +594,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                   <button type="button" onClick={addExtraEmail} className="px-4 py-2 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">Add</button>
                 </div>
                 {extraEmailError && <p className="mt-1 text-xs text-red-500">{extraEmailError}</p>}
-                <p className="mt-1 text-xs text-slate-400">Optional — each gets an invite email to set their own password.</p>
+                <p className="mt-1 text-xs text-slate-400">Optional. Each gets an invite email to set their own password.</p>
               </div>
               {form.extra_admin_emails.length > 0 && (
                 <div className="flex flex-wrap gap-2">
@@ -626,7 +626,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                   <input type="radio" checked={!form.is_demo} onChange={() => setForm(p => ({ ...p, is_demo: false }))} className="mt-0.5" />
                   <span>
                     <span className="block text-sm font-semibold text-slate-900">Go live immediately</span>
-                    <span className="block text-xs text-slate-500">Fully active — real emails are sent from day one.</span>
+                    <span className="block text-xs text-slate-500">Fully active. Real emails are sent from day one.</span>
                   </span>
                 </label>
               </div>
@@ -1166,7 +1166,7 @@ function EditClientModal({
               {isOwnTenant ? (
                 <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
                   <Lock size={14} className="text-slate-400 shrink-0" />
-                  <p className="text-sm text-slate-500">This is your own environment — it cannot be deactivated, set to demo, or deleted.</p>
+                  <p className="text-sm text-slate-500">This is your own environment. It cannot be deactivated, set to demo, or deleted.</p>
                 </div>
               ) : (
                 <>
@@ -1206,7 +1206,7 @@ function EditClientModal({
                     <div className="flex items-center justify-between border-t border-slate-100 pt-4">
                       <div>
                         <p className="text-sm font-semibold text-red-600">Delete client</p>
-                        <p className="text-xs text-slate-400">Removes this client and all its data — irreversible.</p>
+                        <p className="text-xs text-slate-400">Removes this client and all its data. Irreversible.</p>
                       </div>
                       <button
                         onClick={onRequestDelete}
@@ -1247,7 +1247,7 @@ function EditClientModal({
                     value={form.lead_widget_stage_id ?? ''}
                     onChange={e => setForm(p => ({ ...p, lead_widget_stage_id: e.target.value || null }))}
                   >
-                    <option value="">None — don't add to pipeline</option>
+                    <option value="">None: don't add to pipeline</option>
                     {(pipelineStages ?? []).map((s: any) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
@@ -1339,7 +1339,7 @@ function DeleteClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () =>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="bg-red-50 border border-red-200 rounded-xl p-3">
             <p className="text-sm text-red-700">
-              This permanently wipes <strong>{tenant.name}</strong> — all users, contacts, tickets, messages and invoices. <strong>This cannot be undone.</strong>
+              This permanently wipes <strong>{tenant.name}</strong>. All users, contacts, tickets, messages and invoices will be deleted. <strong>This cannot be undone.</strong>
             </p>
           </div>
           <div>
@@ -1406,7 +1406,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
         {invited ? (
           <div className="p-6 flex flex-col gap-4">
             <p className="text-sm text-emerald-600 font-medium">
-              ✓ Invite sent to <strong>{invited}</strong> — they appear in the list once they set their password.
+              ✓ Invite sent to <strong>{invited}</strong>. They appear in the list once they set their password.
             </p>
             <div className="flex justify-end">
               <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">Done</button>
@@ -1426,7 +1426,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
           <div>
             <label className={labelCls}>Password</label>
             <input className={inputCls} type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="••••••••" />
-            <p className="mt-1 text-xs text-slate-400">Leave empty to email an invite link — the admin sets their own password.</p>
+            <p className="mt-1 text-xs text-slate-400">Leave empty to email an invite link. The admin sets their own password.</p>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 justify-end pt-1">
@@ -1453,7 +1453,7 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
     onError: (err: any) => {
       const detail = err.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Failed to delete — check your password')
+      setError(typeof detail === 'string' ? detail : 'Failed to delete. Check your password.')
     },
   })
 
@@ -1477,7 +1477,7 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 max-h-32 overflow-y-auto">
             {tenants.map(t => (
-              <p key={t.id} className="text-sm text-red-700"><strong>{t.name}</strong> — all users, contacts and data wiped.</p>
+              <p key={t.id} className="text-sm text-red-700"><strong>{t.name}</strong>: all users, contacts and data will be wiped.</p>
             ))}
           </div>
           <div>
@@ -1761,7 +1761,7 @@ function DnsRecordsModal({ tenant, onClose }: { tenant: Tenant; onClose: () => v
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div>
-            <h2 className="text-base font-bold text-slate-900">DNS Records — {tenant.resend_domain_name}</h2>
+            <h2 className="text-base font-bold text-slate-900">DNS Records: {tenant.resend_domain_name}</h2>
             <p className="text-xs text-slate-400 mt-0.5">Add these records to your DNS provider, then click Verify.</p>
           </div>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
@@ -2446,7 +2446,7 @@ export default function SuperAdminPage() {
                             onClick={() => impersonateMutation.mutate(t.id)}
                             disabled={impersonateMutation.isPending}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors disabled:opacity-50"
-                            title="Log in as this client's admin (read/write — be careful)"
+                            title="Log in as this client's admin (read/write, be careful)"
                           >
                             <Eye size={11} />
                             View as

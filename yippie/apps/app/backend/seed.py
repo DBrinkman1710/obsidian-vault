@@ -19,7 +19,7 @@ import json as _json
 _STANDARD_TEMPLATES = [
     {
         "name": "Welcome",
-        "body": "Welcome aboard! We're thrilled to have you with us. Over the next few days we'll show you how to get the most out of your account — no fluff, just the good stuff. Got a question? Just reply to this email — a real person reads every one.",
+        "body": "Welcome aboard! We're thrilled to have you with us. Over the next few days we'll show you how to get the most out of your account. No fluff, just the good stuff. Got a question? Just reply. A real person reads every one.",
         "html": (
             '<table align="center" width="100%" style="max-width:600px;margin:0 auto;'
             "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"
@@ -31,10 +31,10 @@ _STANDARD_TEMPLATES = [
             '<tr><td style="background:#ffffff;padding:40px 40px 32px;border-radius:0 0 8px 8px;">'
             '<h1 style="font-size:22px;font-weight:700;color:#0f172a;margin:0 0 12px;">Welcome aboard, {{first_name}}! 👋</h1>'
             '<p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 14px;">'
-            "We're thrilled to have you with us. Over the next few days we'll show you how to get the most out of your account — no fluff, just the good stuff."
+            "We're thrilled to have you with us. Over the next few days we'll show you how to get the most out of your account. No fluff, just the good stuff."
             '</p>'
             '<p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 28px;">'
-            "Got a question? Just reply to this email — a real person reads every one."
+            "Got a question? Just reply. A real person reads every one."
             '</p>'
             '<p style="margin:0 0 8px;text-align:center;">'
             '<a href="#" style="display:inline-block;padding:13px 32px;background:#5BA4F5;color:#ffffff;border-radius:8px;font-weight:600;text-decoration:none;font-size:15px;">Get started</a>'
@@ -62,7 +62,7 @@ _STANDARD_TEMPLATES = [
             '<table width="100%" style="margin:0 0 24px;border-spacing:0;"><tr>'
             '<td style="background:#f8fafc;border-left:3px solid #5BA4F5;border-radius:0 6px 6px 0;padding:14px 18px;">'
             '<p style="font-size:13px;color:#64748b;margin:0 0 4px;font-weight:600;">Reference</p>'
-            '<p style="font-size:14px;color:#0f172a;margin:0;">Ticket #{{ticket_id}} — {{ticket_subject}}</p>'
+            '<p style="font-size:14px;color:#0f172a;margin:0;">Ticket #{{ticket_id}}: {{ticket_subject}}</p>'
             '</td></tr></table>'
             '<p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 28px;">If you have anything to add, simply reply to this email. We\'ll keep you updated every step of the way.</p>'
             '</td></tr>'
@@ -72,7 +72,7 @@ _STANDARD_TEMPLATES = [
     },
     {
         "name": "Support: Issue resolved",
-        "body": "Hi {{first_name}}, great news — your issue has been resolved. If you have any follow-up questions, just reply to this email.",
+        "body": "Hi {{first_name}}, great news. Your issue has been resolved. If you have any follow-up questions, just reply to this email.",
         "html": (
             '<table align="center" width="100%" style="max-width:600px;margin:0 auto;'
             "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"

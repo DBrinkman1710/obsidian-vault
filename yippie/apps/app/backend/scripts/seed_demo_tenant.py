@@ -258,7 +258,7 @@ def seed_tickets(api: Api, contacts: list[dict]) -> None:
         {"subject": "Integratie met boekhoudpakket werkt niet", "priority": "high", "source": "email",
          "contact_id": cid(2), "description": "API-koppeling geeft een 401 sinds de laatste update."},
         # 3 medium pending
-        {"subject": "Factuur klopt niet — verkeerd BTW-tarief", "priority": "medium", "source": "email",
+        {"subject": "Factuur klopt niet: verkeerd BTW-tarief", "priority": "medium", "source": "email",
          "contact_id": cid(1), "description": "Op factuur INV-0007 staat 21% i.p.v. 9% BTW."},
         {"subject": "Vraag over levertijd bestelling #4821", "priority": "medium", "source": "whatsapp",
          "contact_id": cid(11), "description": "Wanneer wordt het pakket bezorgd?"},
@@ -298,7 +298,7 @@ def seed_calendar(api: Api, contacts: list[dict]) -> None:
         {"title": "Onboarding-call Bright Horizons", "description": "Kick-off met het support-team.",
          "start_at": iso(day(-5, 11)), "end_at": iso(day(-5, 12)), "all_day": False,
          "contact_id": cid(0), "calendar_type": "shared", "notify_contact": False},
-        {"title": "Demo marketing-module — Nova Agency", "description": "Persoonlijke demo voor lead.",
+        {"title": "Demo marketing-module: Nova Agency", "description": "Persoonlijke demo voor lead.",
          "start_at": iso(day(2, 14)), "end_at": iso(day(2, 15)), "all_day": False,
          "contact_id": cid(4), "calendar_type": "shared", "notify_contact": False},
         {"title": "Kwartaalreview TechVault", "description": "Bespreken upgrade-traject.",
@@ -367,7 +367,7 @@ def seed_invoices(api: Api, contacts: list[dict]) -> None:
 
     specs = [
         {"contact_id": cid(0), "description": "Maandelijks support-abonnement juni",
-         "line_items": [{"description": "Support Plus — juni 2026", "quantity": 1, "unit_price_cents": 9900}],
+         "line_items": [{"description": "Support Plus, juni 2026", "quantity": 1, "unit_price_cents": 9900}],
          "tax_cents": 2079, "currency": "EUR", "due_date": str(day(-20).date()), "status": "paid"},
         {"contact_id": cid(1), "description": "Implementatie & onboarding",
          "line_items": [{"description": "Onboarding-uren", "quantity": 8, "unit_price_cents": 8500}],
@@ -381,7 +381,7 @@ def seed_invoices(api: Api, contacts: list[dict]) -> None:
         {"contact_id": cid(3), "description": "Jaarlicentie Growth-plan",
          "line_items": [{"description": "Growth jaarabonnement", "quantity": 1, "unit_price_cents": 46800}],
          "tax_cents": 9828, "currency": "EUR", "due_date": str(day(-7).date()), "status": "overdue"},
-        {"contact_id": cid(4), "description": "Concept — extra gebruikersseats",
+        {"contact_id": cid(4), "description": "Concept: extra gebruikersseats",
          "line_items": [{"description": "Extra seats (5)", "quantity": 5, "unit_price_cents": 1900}],
          "tax_cents": 1995, "currency": "EUR", "due_date": str(day(21).date()), "status": "draft"},
     ]
@@ -438,7 +438,7 @@ def seed_marketing(api: Api) -> None:
             print(f"  ~ launched campaign June Product Update -> {launched.get('status')}")
 
     c2 = api.post("/marketing/campaigns",
-                  json={"name": "Summer Promo 2026", "subject": "Zomeractie — 20% korting op jaarplannen",
+                  json={"name": "Summer Promo 2026", "subject": "Zomeractie: 20% korting op jaarplannen",
                         "dispatch_channel": "email"},
                   label="campaign Summer Promo 2026")
     if c2:
@@ -759,9 +759,9 @@ def seed_calendar_month(api: Api) -> None:
         ev("Maandelijks support review",                at(2026, 6, 9, 14, 0)),
         ev("Nova Agency onboarding",                    at(2026, 6, 12, 11, 0)),
         ev("Q2 retrospective",                          at(2026, 6, 16, 15, 30)),
-        ev("Booking: Sophie Visser — adviesgesprek",    at(2026, 6, 20, 9, 0)),
+        ev("Booking: Sophie Visser, adviesgesprek",      at(2026, 6, 20, 9, 0)),
         ev("Team standup",                              at(2026, 6, 24, 9, 0), 30),
-        ev("Demo Pro-plan — Liam de Boer",              at(2026, 6, 26, 14, 0)),
+        ev("Demo Pro-plan: Liam de Boer",                at(2026, 6, 26, 14, 0)),
         ev("Maandafsluiting facturatie",                at(2026, 7, 1, 10, 0)),
     ]
     for e in events:

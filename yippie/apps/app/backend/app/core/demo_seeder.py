@@ -190,7 +190,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             log.info("Demo seeder: tickets done")
 
             # ── Ticket comments ──────────────────────────────────────────────
-            db.add(TicketComment(tenant_id=tenant_id, ticket_id=t1.id, author_id=admin_user_id, body="Factuur nagelopen — er staat inderdaad een fout in de korting. Nieuwe factuur wordt verstuurd.", is_internal=True, source=MessageSource.manual))
+            db.add(TicketComment(tenant_id=tenant_id, ticket_id=t1.id, author_id=admin_user_id, body="Factuur nagelopen. Er staat inderdaad een fout in de korting. Nieuwe factuur wordt verstuurd.", is_internal=True, source=MessageSource.manual))
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t1.id, body="Goedemiddag, bedankt voor uw melding. We hebben de fout gevonden en sturen u vandaag een gecorrigeerde factuur.", is_internal=False, source=MessageSource.email))
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t2.id, author_id=admin_user_id, body=f"Account tijdelijk ontgrendeld. Reset link verstuurd naar lars@{requester_domain}.", is_internal=True, source=MessageSource.manual))
             db.add(TicketComment(tenant_id=tenant_id, ticket_id=t4.id, body="Retourlabel is verzonden per email. Verwachte vervanging: 3–5 werkdagen na ontvangst retour.", is_internal=False, source=MessageSource.email))
@@ -306,7 +306,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             db.add(DraftTicket(
                 tenant_id=tenant_id, inbound_message_id=msg2.id, status=DraftStatus.pending,
                 ai_status="done",
-                ai_suggested_subject="API rate limits en sandbox omgeving — Enterprise plan",
+                ai_suggested_subject="API rate limits en sandbox omgeving: Enterprise plan",
                 ai_suggested_description="Potentiële enterprise klant vraagt naar API rate limits en beschikbaarheid van een sandbox testomgeving voor integratie.",
                 ai_suggested_priority="high", ai_suggested_category="sales",
             ))

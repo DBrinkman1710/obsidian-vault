@@ -131,8 +131,8 @@ const addOns = [
   { Icon: MailTrackIcon, name: "Marketing", desc: "Email campaigns, A/B testing, open tracking, and drip sequences.", price: MODULE_PRICES.marketing },
   { Icon: TeamIcon, name: "Departments", desc: "Route tickets and chats to the right team automatically.", price: MODULE_PRICES.departments },
   { Icon: BillingIcon, name: "Billing", desc: "Issue invoices, track payments, and manage subscriptions.", price: MODULE_PRICES.billing },
-  { Icon: TrackingIcon, name: "Shipment Tracking", desc: "DHL, UPS, PostNL, FedEx — live carrier updates linked to contacts.", price: MODULE_PRICES.tracking },
-  { Icon: SalesIcon, name: "Sales", desc: "Track product views, add-to-cart, and purchases — identify high-intent buyers.", price: MODULE_PRICES.sales },
+  { Icon: TrackingIcon, name: "Shipment Tracking", desc: "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts.", price: MODULE_PRICES.tracking },
+  { Icon: SalesIcon, name: "Sales", desc: "Track product views, add-to-cart, and purchases. Identify high-intent buyers.", price: MODULE_PRICES.sales },
   { Icon: SaasIcon, name: "SaaS Analytics", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts.", price: MODULE_PRICES.saas },
 ];
 
@@ -141,11 +141,11 @@ const PLAN_RANK = ["Starter", "Growth", "Pro", "Enterprise"] as const;
 const faqs = [
   {
     q: "Why unlimited contacts on every plan?",
-    a: "Your contact list growing shouldn't be a reason to pay more. We believe in being a real growth partner — so we removed contact limits entirely. Plans differ by team size (users) and AI processing volume (scans per month), not by how many customers you have.",
+    a: "Your contact list growing shouldn't be a reason to pay more. We believe in being a real growth partner, so we removed contact limits entirely. Plans differ by team size (users) and AI processing volume (scans per month), not by how many customers you have.",
   },
   {
     q: "Can I change my plan?",
-    a: "Yes — upgrade or downgrade at any time. Changes take effect immediately and we prorate the difference on your next invoice.",
+    a: "Yes, upgrade or downgrade at any time. Changes take effect immediately and we prorate the difference on your next invoice.",
   },
   {
     q: "Are add-on prices per user or per workspace?",
@@ -153,7 +153,7 @@ const faqs = [
   },
   {
     q: "Is there a free trial?",
-    a: "We don't offer a free trial — instead, we run a guided demo so you can see Yippie working with your real inbox before you commit. Feel free to book a call to discuss your options, or request a demo to get started.",
+    a: "We don't offer a free trial. Instead, we run a guided demo so you can see Yippie working with your real inbox before you commit. Feel free to book a call to discuss your options, or request a demo to get started.",
   },
 ];
 
@@ -209,7 +209,7 @@ export default function PricingPage() {
         <h1 className={styles.heroTitle}>Scale without limits.</h1>
         <p className={styles.heroSub}>
           Every plan includes unlimited contacts. Pay for the team size and AI
-          power you need — add modules à la carte as you grow. No hidden fees,
+          power you need. Add modules à la carte as you grow. No hidden fees,
           cancel anytime.
         </p>
 
@@ -236,7 +236,7 @@ export default function PricingPage() {
         <div className={styles.founderBanner}>
           <span className={styles.founderBadge}>Limited offer</span>
           <p className={styles.founderText}>
-            <strong>Founding Member — first 5 spots:</strong> €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
+            <strong>Founding Member: first 5 spots</strong> at €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
           </p>
           <a href="/custom?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
         </div>
@@ -260,7 +260,7 @@ export default function PricingPage() {
               )}
               {annual && !plan.enterprise && plan.monthly != null && (
                 <p className={styles.planDiscount}>
-                  10% off — was €{plan.monthly * 12}/yr
+                  10% off (was €{plan.monthly * 12}/yr)
                 </p>
               )}
               {!plan.enterprise && (
@@ -292,7 +292,7 @@ export default function PricingPage() {
         <h2 className={styles.sectionTitle}>Tell us about your business</h2>
         <p className={styles.sectionSub}>
           Answer a few quick questions and we&apos;ll recommend the plan and
-          add-ons that fit — with an estimated monthly price.
+          add-ons that fit, with an estimated monthly price.
         </p>
 
         <div className={styles.quiz}>
@@ -373,7 +373,7 @@ export default function PricingPage() {
                 <p className={styles.quizResultTagline}>{recommendedPlan.tagline}</p>
                 {isEnterprise ? (
                   <p className={styles.quizResultNote}>
-                    Enterprise pricing is custom — let&apos;s talk about what fits your business.
+                    Enterprise pricing is custom. Let&apos;s talk about what fits your business.
                   </p>
                 ) : (
                   <div className={styles.quizBreakdown}>

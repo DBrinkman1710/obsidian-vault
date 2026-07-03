@@ -123,7 +123,7 @@ export default function DemoForm() {
       setErrorMsg(msg);
       setState("error");
     } catch {
-      setErrorMsg("Network error — please check your connection and try again.");
+      setErrorMsg("Network error. Please check your connection and try again.");
       setState("error");
     }
   }
@@ -137,7 +137,7 @@ export default function DemoForm() {
           </div>
           <h2 className={styles.successTitle}>Demo sent</h2>
           <p className={styles.successSub}>
-            Check your inbox — we&apos;ve emailed you a one-click link to enter your
+            Check your inbox. We&apos;ve emailed you a one-click link to enter your
             Yippie demo workspace.
           </p>
         </div>
@@ -260,7 +260,7 @@ export default function DemoForm() {
         </p>
         <p className={styles.moduleSectionSub}>
           {hasAnyAnswer
-            ? "We'll focus on the highlighted modules based on your answers — you'll also get a full tour."
+            ? "We'll focus on the highlighted modules based on your answers. You'll also get a full tour."
             : "Pick a demo to see any of these modules in action."}
         </p>
         <div className={styles.moduleGrid}>

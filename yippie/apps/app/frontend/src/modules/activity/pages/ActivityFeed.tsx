@@ -218,7 +218,7 @@ export default function ActivityFeed() {
                     <p className={BIG}>{stage.contact_count}</p>
                     <p className={`${SUB} mt-1`}>
                       {stage.avg_days_in_stage === null
-                        ? 'avg — days in stage'
+                        ? 'avg days in stage'
                         : `avg ${stage.avg_days_in_stage} days in stage`}
                     </p>
                   </div>

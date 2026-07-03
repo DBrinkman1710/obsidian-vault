@@ -7,14 +7,14 @@ import customStyles from "./custom.module.css";
 import CustomForm from "./CustomForm";
 
 export const metadata: Metadata = {
-  title: "Build your package — Yippie",
+  title: "Build your package | Yippie",
   description:
-    "Answer a few quick questions and we'll put together a personalised plan with exactly the modules your team needs — no guesswork, no bloat.",
+    "Answer a few quick questions and we'll put together a personalised plan with exactly the modules your team needs. No guesswork, no bloat.",
   alternates: { canonical: "/custom" },
   openGraph: {
-    title: "Build your package — Yippie",
+    title: "Build your package | Yippie",
     description:
-      "Answer a few quick questions and we'll put together a personalised plan with exactly the modules your team needs — no guesswork, no bloat.",
+      "Answer a few quick questions and we'll put together a personalised plan with exactly the modules your team needs. No guesswork, no bloat.",
     url: "https://getyippie.com/custom",
     type: "website",
   },
@@ -34,8 +34,8 @@ export default function CustomPage() {
         </div>
         <h1 className={styles.heroTitle}>Your plan, your modules</h1>
         <p className={styles.heroSub}>
-          Tell us about your team and we&apos;ll put together a personalised package —
-          no guesswork, no modules you&apos;ll never use.
+          Tell us about your team and we&apos;ll put together a personalised package.
+          No guesswork, no modules you&apos;ll never use.
         </p>
       </section>
 

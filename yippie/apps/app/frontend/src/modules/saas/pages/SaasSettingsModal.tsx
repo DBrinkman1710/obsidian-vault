@@ -31,7 +31,7 @@ function OverviewTab() {
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
-        The Product Analytics snippet tracks how customers use your SaaS product — feature adoption,
+        The Product Analytics snippet tracks how customers use your SaaS product: feature adoption,
         onboarding completion, and errors. Every ticket from a tracked customer arrives with a silent
         briefing: what they've done, what they've skipped, where they got stuck.
       </p>
@@ -46,7 +46,7 @@ function OverviewTab() {
             <p className="text-sm text-slate-500">
               Copy the one-line{' '}
               <code className="text-xs bg-slate-200 px-1 rounded">&lt;script&gt;</code> tag from the{' '}
-              <strong>Install snippet</strong> tab and paste it into your SaaS product's HTML — just
+              <strong>Install snippet</strong> tab and paste it into your SaaS product's HTML, just
               before the closing <code className="text-xs bg-slate-200 px-1 rounded">&lt;/body&gt;</code>{' '}
               or inside <code className="text-xs bg-slate-200 px-1 rounded">&lt;head&gt;</code>.
             </p>
@@ -64,7 +64,7 @@ function OverviewTab() {
               <code className="text-xs bg-slate-200 px-1 rounded">
                 yippie.identify('user-id', {'{'} email: '…', name: '…', plan: '…' {'}'})
               </code>{' '}
-              right after a user logs in. Yippie links the browser session to a Yippie contact by email —
+              right after a user logs in. Yippie links the browser session to a Yippie contact by email,
               so all events are attributed to the right person.
             </p>
           </div>
@@ -92,7 +92,7 @@ function OverviewTab() {
           <div>
             <p className="text-sm font-semibold text-slate-800 mb-0.5">4. Health scores + agent context</p>
             <p className="text-sm text-slate-500">
-              Yippie computes a health score (0–100) for each tracked customer every hour — based on
+              Yippie computes a health score (0–100) for each tracked customer every hour, based on
               how recently they were active, how many features they use, and how many errors they hit.
               The score and last 4 events appear in the <strong>Product usage</strong> card on every
               ticket, so agents walk into every conversation already informed.
@@ -220,7 +220,7 @@ export function SaasSettingsModal({ onClose }: Props) {
     >
       <div ref={ref} tabIndex={-1} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-900">Product Analytics — Settings</h2>
+          <h2 className="text-base font-semibold text-slate-900">Product Analytics: Settings</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={18} />
           </button>

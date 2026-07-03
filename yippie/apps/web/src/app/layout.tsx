@@ -30,7 +30,7 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Yippie — Your growth partner in customer service",
+  title: "Yippie | Your growth partner in customer service",
   description:
     "Yippie is the AI-powered customer service platform that grows with your business. Unlimited contacts on every plan. Inbox, tickets, contacts, and bookings in one place.",
   metadataBase: new URL(SITE_URL),
@@ -52,9 +52,9 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   openGraph: {
-    title: "Yippie — Your growth partner in customer service",
+    title: "Yippie | Your growth partner in customer service",
     description:
-      "Unlimited contacts on every plan. AI inbox triage, tickets, and bookings — one platform that scales with you.",
+      "Unlimited contacts on every plan. AI inbox triage, tickets, and bookings in one platform that scales with you.",
     type: "website",
     url: SITE_URL,
     siteName: "Yippie",
@@ -67,9 +67,9 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Yippie — Your growth partner in customer service",
+    title: "Yippie | Your growth partner in customer service",
     description:
-      "Unlimited contacts on every plan. AI inbox triage, tickets, and bookings — one platform that scales with you.",
+      "Unlimited contacts on every plan. AI inbox triage, tickets, and bookings in one platform that scales with you.",
     images: ["/logo.svg"],
   },
 };

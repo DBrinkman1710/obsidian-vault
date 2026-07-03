@@ -363,9 +363,9 @@ function InviteModal({ onClose }: { onClose: () => void }) {
             <label className={labelCls}>System role</label>
             <select className={inputCls} value={form.role}
               onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
-              <option value="agent">Agent — handles tickets and inbox</option>
-              <option value="admin">Admin — can manage settings and team</option>
-              <option value="viewer">Viewer — read-only</option>
+              <option value="agent">Agent: handles tickets and inbox</option>
+              <option value="admin">Admin: can manage settings and team</option>
+              <option value="viewer">Viewer: read-only</option>
             </select>
           </div>
           {availableRoles.length > 0 && (
@@ -533,9 +533,9 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
               <label className={labelCls}>System role</label>
               <select className={inputCls} value={form.role}
                 onChange={e => setForm(p => ({ ...p, role: e.target.value }))}>
-                <option value="agent">Agent — handles tickets and inbox</option>
-                <option value="admin">Admin — can manage settings and team</option>
-                <option value="viewer">Viewer — read-only</option>
+                <option value="agent">Agent: handles tickets and inbox</option>
+                <option value="admin">Admin: can manage settings and team</option>
+                <option value="viewer">Viewer: read-only</option>
               </select>
             </div>
             {allDepts.length > 0 && (
@@ -608,7 +608,7 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
                   </select>
                 )}
                 {assignedRoles.length === 0 && unassignedRoles.length === 0 && (
-                  <p className="text-xs text-slate-400">No roles defined yet — create them in the Roles tab.</p>
+                  <p className="text-xs text-slate-400">No roles defined yet. Create them in the Roles tab.</p>
                 )}
               </div>
             </div>

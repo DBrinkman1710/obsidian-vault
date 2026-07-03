@@ -18,7 +18,7 @@ const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-
 
 function errorDetail(err: unknown): string {
   const detail = (err as any)?.response?.data?.detail
-  return typeof detail === 'string' ? detail : 'Something went wrong — try again.'
+  return typeof detail === 'string' ? detail : 'Something went wrong. Try again.'
 }
 
 function CompanyForm({ initial, onSave, onCancel, isPending, serverError }: {
@@ -126,7 +126,7 @@ export default function CompaniesPage() {
   })
 
   if (user?.role !== 'admin' && user?.role !== 'superadmin') {
-    return <p className="text-sm text-red-500 p-8">Access denied — admin only.</p>
+    return <p className="text-sm text-red-500 p-8">Access denied. Admin only.</p>
   }
 
   return (
@@ -135,7 +135,7 @@ export default function CompaniesPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900 mb-1">Companies</h1>
           <p className="text-sm text-slate-500">
-            Group contacts under the company they work for — filter the contact list and email everyone at once.
+            Group contacts under the company they work for. Filter the contact list and email everyone at once.
           </p>
         </div>
         {!showCreate && (

@@ -15,7 +15,7 @@ interface Props {
 
 const QUESTIONS = (tenantName: string): string[] => [
   `Hi! I'm Yip, your AI assistant. Let me ask you 5 quick questions so I can give you better, more relevant help. First: what does ${tenantName} do? One sentence is fine.`,
-  'Who do you typically support — consumers, businesses, or a mix?',
+  'Who do you typically support: consumers, businesses, or a mix?',
   'How should I sound in replies to your customers? Formal, friendly, or casual?',
   'What language do most of your customers write in? (e.g. English, Dutch, French)',
   "Any product names, abbreviations, or terms I should know? You can skip this by typing 'skip'.",
@@ -68,7 +68,7 @@ export default function YipTrainModal({ onComplete, onDismiss, tenantName }: Pro
       // All questions answered — synthesise profile
       const processingMsg: TrainMessage = {
         role: 'assistant',
-        content: 'Got it — give me a moment to put this together…',
+        content: 'Got it. Give me a moment to put this together…',
       }
       setMessages(prev => [...prev, processingMsg])
       setLoading(true)

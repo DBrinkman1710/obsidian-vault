@@ -25,7 +25,7 @@ export default function RegisterPage() {
       setSession(data.user)
       navigate('/inbox')
     } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Registration failed — the invite link may have expired.')
+      setError(err.response?.data?.detail ?? 'Registration failed. The invite link may have expired.')
     } finally {
       setLoading(false)
     }

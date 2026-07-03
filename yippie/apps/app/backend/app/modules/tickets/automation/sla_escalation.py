@@ -191,7 +191,7 @@ async def demo_nudge_check():
             questionnaire_json = await _get_prospect_questionnaire(db, prospect_email)
             book_url, signup_url = _demo_cta_urls(tenant.name, questionnaire_json)
             intro = (
-                '<p style="margin:0 0 16px;">Just checking in — have you had a chance to look around '
+                '<p style="margin:0 0 16px;">Just checking in. Have you had a chance to look around '
                 'your Yippie workspace yet?</p>'
                 '<p style="margin:0 0 16px;">If you have any questions or would like a quick walkthrough, '
                 "I'm happy to jump on a call. Or if you're ready to get started, you can sign up directly below.</p>"
@@ -257,7 +257,7 @@ async def demo_expiry_check():
                 questionnaire_json = await _get_prospect_questionnaire(db, prospect_email)
                 book_url, signup_url = _demo_cta_urls(tenant.name, questionnaire_json)
                 intro = (
-                    '<p style="margin:0 0 16px;">Your Yippie trial has ended — I hope you got a good feel for the product.</p>'
+                    '<p style="margin:0 0 16px;">Your Yippie trial has ended. I hope you got a good feel for the product.</p>'
                     '<p style="margin:0 0 16px;">I\'d love to hear what you thought: what worked, what didn\'t, '
                     'and whether there\'s anything I can improve. Feel free to reply directly to this email.</p>'
                     '<p style="margin:0 0 16px;">If you\'re ready to continue, you can book a call or start your account below.</p>'
@@ -400,14 +400,14 @@ async def onboarding_drip():
                 if missing:
                     from app.core.email_html import render_email_html
                     from app.core.mailer import send_email
-                    subject = f"Getting started with Yippie — {len(missing)} step{'s' if len(missing) > 1 else ''} left"
+                    subject = f"Getting started with Yippie: {len(missing)} step{'s' if len(missing) > 1 else ''} left"
                     body = (
                         f"Hi {admin.full_name},\n\n"
-                        f"You set up {tenant.name} on Yippie 3 days ago — great start!\n\n"
+                        f"You set up {tenant.name} on Yippie 3 days ago. Great start!\n\n"
                         f"A few quick things to get the most out of it:\n\n"
                         + "\n".join(missing)
                         + "\n\nThese take less than 5 minutes and make a big difference.\n\n"
-                        "Questions? Just reply — a real person reads it.\n\n"
+                        "Questions? Just reply. A real person reads it.\n\n"
                         "Take back the time that matters,\nTeam Yippie"
                     )
                     html = render_email_html(body, subject)
@@ -421,9 +421,9 @@ async def onboarding_drip():
             if send_day7:
                 from app.core.email_html import render_email_html
                 from app.core.mailer import send_email
-                subject = f"One week on Yippie — tips for {tenant.name}"
+                subject = f"One week on Yippie: tips for {tenant.name}"
                 tips = [
-                    "  - Use keyboard shortcuts (j/k to move, r to reply, e to close) — Settings → Profile to enable",
+                    "  - Use keyboard shortcuts (j/k to move, r to reply, e to close). Enable in Settings → Profile.",
                     "  - Set up the Pipeline to track where each customer is in your sales flow",
                     "  - Send a booking link from any contact to let customers pick a time with you",
                 ]
@@ -431,7 +431,7 @@ async def onboarding_drip():
                     tips = ["Still to do:"] + ["  " + m.strip() for m in missing] + ["", "Pro tips once you're up:"] + tips
                 body = (
                     f"Hi {admin.full_name},\n\n"
-                    f"A week in — here's how to get even more out of Yippie:\n\n"
+                    f"A week in. Here's how to get even more out of Yippie:\n\n"
                     + "\n".join(tips)
                     + "\n\nReply any time with questions.\n\n"
                     "Take back the time that matters,\nTeam Yippie"

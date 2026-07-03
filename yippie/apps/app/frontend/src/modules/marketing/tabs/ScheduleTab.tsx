@@ -128,7 +128,7 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
         {/* Schedule */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <h3 className="text-sm font-semibold text-slate-900">Schedule for later</h3>
-          <p className="mt-0.5 text-xs text-slate-400">Pick a date and time — it sends automatically.</p>
+          <p className="mt-0.5 text-xs text-slate-400">Pick a date and time. It sends automatically.</p>
           <div className="mt-3 flex items-center gap-2">
             <div className="relative flex-1">
               <Calendar size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />

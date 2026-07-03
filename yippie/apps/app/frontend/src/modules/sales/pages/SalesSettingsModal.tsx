@@ -33,7 +33,7 @@ function OverviewTab() {
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
         The Sales tracking snippet collects visitor behaviour on your clients' websites and surfaces it
-        inside Yippie — so when a customer contacts support, agents already know what they browsed,
+        inside Yippie, so when a customer contacts support, agents already know what they browsed,
         clicked, or purchased.
       </p>
 
@@ -48,7 +48,7 @@ function OverviewTab() {
               Go to the <strong>Install snippet</strong> tab, copy the one-line{' '}
               <code className="text-xs bg-slate-200 px-1 rounded">&lt;script&gt;</code> tag, and paste it
               inside the <code className="text-xs bg-slate-200 px-1 rounded">&lt;head&gt;</code> of your
-              client's website. Each tenant has a unique token — no code changes needed after installation.
+              client's website. Each tenant has a unique token. No code changes needed after installation.
             </p>
           </div>
         </div>
@@ -60,7 +60,7 @@ function OverviewTab() {
           <div>
             <p className="text-sm font-semibold text-slate-800 mb-0.5">2. It tracks automatically</p>
             <p className="text-sm text-slate-500">
-              Once the tag is live, every page view is recorded automatically — no extra code needed.
+              Once the tag is live, every page view is recorded automatically. No extra code needed.
               To track purchases or button clicks, call{' '}
               <code className="text-xs bg-slate-200 px-1 rounded">yippie.track('purchase', {'{'} ... {'}'})</code>{' '}
               anywhere on the page.
@@ -77,7 +77,7 @@ function OverviewTab() {
             <p className="text-sm text-slate-500">
               When a visitor logs in or places an order, call{' '}
               <code className="text-xs bg-slate-200 px-1 rounded">yippie.identify('email@example.com')</code>.
-              Yippie matches the anonymous session to an existing Yippie contact — from that moment,
+              Yippie matches the anonymous session to an existing Yippie contact. From that moment,
               the "Website activity" card appears on their ticket detail page.
             </p>
           </div>
@@ -112,7 +112,7 @@ function SnippetTab() {
   const rotate = useMutation({
     mutationFn: () => api.post('/sales/token/rotate'),
     onSuccess: () => {
-      toast.success('Tracking token rotated — update your snippet')
+      toast.success('Tracking token rotated. Update your snippet.')
       qc.invalidateQueries({ queryKey: ['sales-token'] })
     },
     onError: () => toast.error('Failed to rotate token'),
@@ -211,7 +211,7 @@ export function SalesSettingsModal({ onClose }: Props) {
     >
       <div ref={ref} tabIndex={-1} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-900">Sales Tracking — Settings</h2>
+          <h2 className="text-base font-semibold text-slate-900">Sales Tracking: Settings</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={18} />
           </button>

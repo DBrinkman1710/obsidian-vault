@@ -121,7 +121,7 @@ export default function TemplatesPage() {
       setSelectedId(created.id)
       setSaving(false)
     },
-    onError: () => { setSaving(false); setSaveError('Save failed — please try again') },
+    onError: () => { setSaving(false); setSaveError('Save failed. Please try again.') },
   })
 
   const updateMutation = useMutation({
@@ -131,7 +131,7 @@ export default function TemplatesPage() {
       qc.invalidateQueries({ queryKey: ['templates'] })
       setSaving(false)
     },
-    onError: () => { setSaving(false); setSaveError('Save failed — please try again') },
+    onError: () => { setSaving(false); setSaveError('Save failed. Please try again.') },
   })
 
   const ctx = useContextMenu()

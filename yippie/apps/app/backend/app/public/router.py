@@ -424,7 +424,7 @@ async def custom_plan_request(
     db.add(Ticket(
         tenant_id=root_tenant_id,
         contact_id=contact.id,
-        subject=f"Custom plan: {body.company_name.strip()} — {plan_label}",
+        subject=f"Custom plan: {body.company_name.strip()} | {plan_label}",
         description=description,
         status=TicketStatus.open,
         priority=TicketPriority.medium,
@@ -1152,7 +1152,7 @@ async def export_user_calendar(
     cal.add("PRODID", "-//Yippie//Calendar//EN")
     cal.add("VERSION", "2.0")
     cal.add("CALSCALE", "GREGORIAN")
-    cal.add("X-WR-CALNAME", f"{user.full_name} — Yippie")
+    cal.add("X-WR-CALNAME", f"{user.full_name} | Yippie")
 
     # Own events + accepted invitations
     own_events_result = await db.execute(

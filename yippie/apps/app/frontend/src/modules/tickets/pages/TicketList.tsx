@@ -118,7 +118,7 @@ export default function TicketList() {
       qc.invalidateQueries({ queryKey: ['tickets'] })
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.detail ?? 'Could not merge tickets — they must belong to the same contact.')
+      toast.error(err?.response?.data?.detail ?? 'Could not merge tickets. They must belong to the same contact.')
       setMergeDialog(null)
     },
   })

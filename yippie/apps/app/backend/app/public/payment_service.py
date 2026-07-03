@@ -41,7 +41,7 @@ async def handle_signup_payment(
 
     line_items: list[LineItem] = [
         LineItem(
-            description=f"Yippie {plan.title()} plan — {company_name}",
+            description=f"Yippie {plan.title()} plan for {company_name}",
             quantity=1,
             unit_price_cents=int(plan_price * 100),
         )
@@ -63,7 +63,7 @@ async def handle_signup_payment(
             line_items=line_items,
             status=InvoiceStatus.not_sent,
             due_date=date.today() + timedelta(days=14),
-            description=f"Initial subscription — {company_name}",
+            description=f"Initial subscription for {company_name}",
         ),
     )
     # Caller owns the commit — do not commit here as it resets SET LOCAL tenant context.

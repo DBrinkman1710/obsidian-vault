@@ -374,7 +374,7 @@ export default function ComposeModal({
     },
     onError: (err: any) => {
       const detail = err?.response?.data?.detail
-      setSendError(typeof detail === 'string' ? detail : 'Send failed — please try again')
+      setSendError(typeof detail === 'string' ? detail : 'Send failed. Please try again.')
     },
     onSuccess: (data: any) => {
       setSendError('')
@@ -398,7 +398,7 @@ export default function ComposeModal({
             <Send size={20} className="text-amber-600" />
           </div>
           <h2 className="text-lg font-bold text-slate-900 mb-2">Demo mode</h2>
-          <p className="text-sm text-amber-600 mb-1">This workspace is in demo mode — no email was sent.</p>
+          <p className="text-sm text-amber-600 mb-1">This workspace is in demo mode. No email was sent.</p>
           <button onClick={onClose} className="mt-6 px-6 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
             Done
           </button>
@@ -431,7 +431,7 @@ export default function ComposeModal({
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              To {recipients.length > 1 && <span className="font-normal text-slate-400 normal-case">(BCC — recipients won't see each other)</span>}
+              To {recipients.length > 1 && <span className="font-normal text-slate-400 normal-case">(BCC: recipients won't see each other)</span>}
             </label>
             <ContactSearchPicker onAdd={addRecipient} />
             {recipients.length > 0 && (
@@ -534,7 +534,7 @@ export default function ComposeModal({
                 <div className="flex items-center justify-between px-3 py-2 bg-violet-50 border-b border-violet-100">
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 uppercase tracking-wide">
                     <Palette size={11} />
-                    Rich template — click to edit
+                    Rich template: click to edit
                   </span>
                   <button
                     type="button"

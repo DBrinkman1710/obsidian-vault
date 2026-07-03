@@ -48,7 +48,7 @@ function OverviewTab() {
           <div>
             <p className="text-sm font-semibold text-slate-800 mb-0.5">Manual entry</p>
             <p className="text-sm text-slate-500">
-              Agents add shipments directly in this screen — tracking number, carrier, and order reference.
+              Agents add shipments directly in this screen: tracking number, carrier, and order reference.
               Useful for one-offs or when automation isn't set up yet.
             </p>
           </div>
@@ -155,7 +155,7 @@ function ErpTab() {
         </button>
         {data?.orders_webhook_secret_set && (
           <p className="text-xs text-slate-400 mt-2">
-            Rotating generates a new secret — update your ERP immediately after.
+            Rotating generates a new secret. Update your ERP immediately after.
           </p>
         )}
       </div>
@@ -410,7 +410,7 @@ export function ShipmentSettingsModal({ onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div ref={ref} tabIndex={-1} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-900">Track &amp; Trace — Settings</h2>
+          <h2 className="text-base font-semibold text-slate-900">Track &amp; Trace: Settings</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
             <X size={18} />
           </button>
