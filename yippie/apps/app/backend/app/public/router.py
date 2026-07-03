@@ -609,6 +609,27 @@ async def request_demo(
     from app.core.demo_seeder import seed_demo_data
     background_tasks.add_task(seed_demo_data, uuid.UUID(str(tenant_id)), user.id)
 
+    from app.core.mailer import notify_owner
+    _q_parts: list[str] = []
+    if body.questionnaire:
+        _q = body.questionnaire
+        if _q.team_size:
+            _q_parts.append(f"Team size: {_q.team_size}")
+        if _q.industry:
+            _q_parts.append(f"Industry: {_q.industry}")
+        if _q.current_tools:
+            _q_parts.append(f"Tools: {', '.join(_q.current_tools)}")
+        if _q.pain_points:
+            _q_parts.append(f"Pain points: {', '.join(_q.pain_points)}")
+    _q_summary = ("\n\n" + "\n".join(_q_parts)) if _q_parts else ""
+    asyncio.create_task(notify_owner(
+        subject=f"Demo request: {body.company_name.strip()}",
+        body=(
+            f"{body.name.strip()} ({email}) from {body.company_name.strip()} requested a demo."
+            f"{_q_summary}"
+        ),
+    ))
+
     return {"tenant_id": str(tenant_id), "slug": slug, "invited": True}
 
 
@@ -797,6 +818,15 @@ async def meet_book(
         )
     except Exception:
         pass
+
+    from app.core.mailer import notify_owner
+    asyncio.create_task(notify_owner(
+        subject=f"{contact.full_name} booked a call",
+        body=(
+            f"{contact.full_name} ({contact.email or 'no email'}) just booked a call.\n\n"
+            f"Slot: {booking_service._format_slot(event.start_at, event.end_at)}"
+        ),
+    ))
 
     return {
         "event_id": str(event.id),

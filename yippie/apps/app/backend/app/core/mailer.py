@@ -86,3 +86,14 @@ async def send_email(
         response.raise_for_status()
         data = response.json()
         return data.get("id")
+
+
+async def notify_owner(subject: str, body: str) -> None:
+    settings = get_settings()
+    to = settings.owner_notification_email
+    if not to or not is_valid_email(to):
+        return
+    try:
+        await send_email(to=to, subject=subject, body=body)
+    except Exception:
+        pass

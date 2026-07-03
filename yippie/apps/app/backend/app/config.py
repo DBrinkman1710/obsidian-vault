@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     resend_from: str = ""
     resend_webhook_secret: str = ""
+    owner_notification_email: str = "diederik1710@gmail.com"
     inbound_email: str = ""
     # Evolution API (WhatsApp) — self-hosted gateway, one instance per tenant slug.
     evolution_api_url: str = ""
