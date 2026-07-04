@@ -48,7 +48,7 @@ const STEP_DEFS: {
   },
   {
     module: 'pipeline',
-    title: 'Pipeline',
+    title: 'Kanban',
     body: 'Visualise your workflow with drag-and-drop Kanban stages. Move contacts forward and track deals in real time.',
     route: '/pipeline',
     icon: <Kanban size={22} className="text-pink-500" />,

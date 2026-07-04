@@ -104,9 +104,9 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             log.info("Demo seeder: contacts + labels done")
 
             # ── Departments ──────────────────────────────────────────────────
-            dept_support = Department(tenant_id=tenant_id, name="Support", email="support@demo.yippie.io", sla_working_days=3)
-            dept_sales = Department(tenant_id=tenant_id, name="Sales", email="sales@demo.yippie.io", sla_working_days=2)
-            dept_billing = Department(tenant_id=tenant_id, name="Billing", email="billing@demo.yippie.io", sla_working_days=5)
+            dept_support = Department(tenant_id=tenant_id, name="Support", email=f"support@{requester_domain}", sla_working_days=3)
+            dept_sales = Department(tenant_id=tenant_id, name="Sales", email=f"sales@{requester_domain}", sla_working_days=2)
+            dept_billing = Department(tenant_id=tenant_id, name="Billing", email=f"billing@{requester_domain}", sla_working_days=5)
             db.add_all([dept_support, dept_sales, dept_billing])
             await db.flush()
             log.info("Demo seeder: departments done")
