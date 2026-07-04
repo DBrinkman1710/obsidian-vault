@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 from app.auth.dependencies import AdminUser, CurrentUser
 from app.config import get_settings
-from app.core.models import Tenant, User
+from app.core.models import Tenant, User, UserRole
 from app.core.tenant import resolve_tenant_by_slug
 from app.database import db_session, get_db, set_tenant_context
 from app.modules.booking import service as booking_service
@@ -1026,8 +1026,9 @@ async def _run_broadcast(
                 await manager.broadcast_to_session(tenant_key, session.visitor_id, event_data)
                 await manager.broadcast_to_agents(tenant_key, event_data)
         except Exception:
-            # Never let one failed recipient stop the rest of the broadcast.
-            pass
+            # Never let one failed recipient stop the rest of the broadcast —
+            # but always leave a trace, or failures are invisible.
+            logger.exception("Broadcast failed for contact %s (tenant %s)", contact_id, tenant_id)
 
         if idx < len(contact_ids) - 1:
             await asyncio.sleep(random.uniform(5, 10))
@@ -1332,28 +1333,31 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
 # ---------------------------------------------------------------------------
 
 @ws_router.websocket("/ws/agent")
-async def agent_ws(websocket: WebSocket, token: str = ""):
+async def agent_ws(websocket: WebSocket):
     """Authenticated WebSocket for agent dashboards.
 
-    Reads the JWT from the HttpOnly access_token cookie; falls back to ?token=
-    query param for programmatic clients.
+    Reads the JWT from the HttpOnly access_token cookie only — a ?token= query
+    param would leak the JWT into proxy/access logs and Referer headers.
     """
     settings = get_settings()
-    raw_token = websocket.cookies.get("access_token") or token
+    raw_token = websocket.cookies.get("access_token") or ""
     try:
         payload = jwt.decode(raw_token, settings.secret_key, algorithms=[settings.algorithm])
-        user_id: str | None = payload.get("sub")
-        if not user_id:
-            raise ValueError("missing sub")
+        user_uuid = uuid.UUID(payload.get("sub") or "")
     except (jwt.PyJWTError, ValueError):
         await websocket.close(code=4001)
         return
 
     async with db_session() as db:
-        user = await db.get(User, uuid.UUID(user_id))
+        user = await db.get(User, user_uuid)
         if not user or not user.is_active:
             await websocket.close(code=4001)
             return
+        if user.role != UserRole.superadmin:
+            tenant = await db.get(Tenant, user.tenant_id)
+            if tenant is None or not tenant.is_active:
+                await websocket.close(code=4003)
+                return
         tenant_key = str(user.tenant_id)
 
     await manager.connect_agent(websocket, tenant_key)

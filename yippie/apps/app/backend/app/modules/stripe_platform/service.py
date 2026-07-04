@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timezone
 
 import stripe as _stripe
-from sqlalchemy import update
+from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -105,7 +106,11 @@ async def create_checkout_session(
     module_lookup_keys = [f"yippie_module_{m}" for m in module_add_ons if m in MODULE_LOOKUP_KEYS.values()]
 
     all_lookup_keys = [plan_lookup_key] + module_lookup_keys
-    prices_response = stripe.Price.list(lookup_keys=all_lookup_keys, expand=["data.product"])
+    # The Stripe SDK is synchronous — each call is a network round-trip that
+    # would otherwise stall the event loop for hundreds of ms.
+    prices_response = await asyncio.to_thread(
+        stripe.Price.list, lookup_keys=all_lookup_keys, expand=["data.product"]
+    )
     found_prices = {p["lookup_key"]: p["id"] for p in prices_response["data"] if p.get("lookup_key")}
 
     if plan_lookup_key not in found_prices:
@@ -130,7 +135,7 @@ async def create_checkout_session(
     else:
         params["customer_creation"] = "always"
 
-    session = stripe.checkout.Session.create(**params)
+    session = await asyncio.to_thread(stripe.checkout.Session.create, **params)
     return session["url"]
 
 
@@ -143,7 +148,8 @@ async def create_portal_session(tenant: Tenant, return_url: str) -> str:
     if not tenant.stripe_customer_id:
         raise ValueError("No Stripe customer linked to this tenant yet.")
 
-    session = stripe.billing_portal.Session.create(
+    session = await asyncio.to_thread(
+        stripe.billing_portal.Session.create,
         customer=tenant.stripe_customer_id,
         return_url=return_url,
     )
@@ -161,7 +167,7 @@ async def report_ai_scan_usage(db: AsyncSession) -> None:
     stripe.api_key = settings.stripe_secret_key
 
     result = await db.execute(
-        __import__("sqlalchemy", fromlist=["select"]).select(Tenant).where(
+        select(Tenant).where(
             Tenant.stripe_customer_id.is_not(None),
             Tenant.ai_scans_used_this_period > 0,
         )
@@ -170,7 +176,8 @@ async def report_ai_scan_usage(db: AsyncSession) -> None:
 
     for tenant in tenants:
         try:
-            stripe.billing.MeterEvent.create(
+            await asyncio.to_thread(
+                stripe.billing.MeterEvent.create,
                 event_name="ai_scan_usage",
                 payload={
                     "value": str(tenant.ai_scans_used_this_period),

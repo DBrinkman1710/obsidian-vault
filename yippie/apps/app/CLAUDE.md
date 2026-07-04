@@ -110,10 +110,12 @@ docker compose exec backend pytest
 
 ## What's not built yet (next steps)
 
-- Auto-routing rules (assign tickets based on keywords/contact tags)
-- Customer self-service portal (`/portal/{tenant_slug}` — public ticket submission)
-- Analytics dashboard (`GET /api/v1/analytics/summary`)
-- PostgreSQL RLS policies (migrations scaffolded, policies not yet added)
+See `yippie/ROADMAP.md` Tier sections for the authoritative open-work list (verified 2026-07-04):
+[AI-MOD1] phases 2–3 (self-hosted vLLM), [CLUSTER1] issue clustering, [AI-CTRL] cloud LLM panel,
+Customer data + AI briefing architecture, [Phase 11C T2] "Connect your inbox".
+
+Note: PostgreSQL RLS **is** fully built (policies on all tenant tables, `FORCE ROW LEVEL SECURITY`,
+extended repeatedly since) — an older version of this list claimed otherwise.
 
 ## Per-client deployment checklist
 

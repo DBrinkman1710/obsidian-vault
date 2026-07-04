@@ -9,7 +9,7 @@ from datetime import datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Optional
 
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.email_html import render_email_html
@@ -374,6 +374,15 @@ async def confirm_booking(
     if slot_end <= slot_start:
         raise ValueError("Invalid time slot.")
 
+    # Serialise concurrent confirmations for this agent's calendar. The token
+    # row lock above only guards THIS link — two different tokens for the same
+    # slot could still both pass the overlap checks below. The advisory lock is
+    # released automatically at commit/rollback.
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:tenant), hashtext(:agent))"),
+        {"tenant": str(token.tenant_id), "agent": str(token.created_by)},
+    )
+
     # Re-check availability against current events (race-safe at confirm time).
     conflict = await db.scalar(
         select(CalendarEvent.id).where(
@@ -704,6 +713,13 @@ async def reschedule_booking(
         raise ValueError(
             f"Changes are locked. The meeting starts within {hours_before} hours."
         )
+
+    # Same advisory lock as confirm_booking — serialise against concurrent
+    # confirms/reschedules on this agent's calendar before the overlap check.
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:tenant), hashtext(:agent))"),
+        {"tenant": str(token.tenant_id), "agent": str(token.created_by)},
+    )
 
     # Conflict-check the new slot (exclude the current event from the check).
     conflict = await db.scalar(

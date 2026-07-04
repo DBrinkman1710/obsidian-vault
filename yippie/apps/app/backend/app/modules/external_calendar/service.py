@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import ipaddress
 import logging
@@ -33,12 +34,42 @@ def _normalize_url(raw: str) -> str:
         raise ValueError("Invalid iCal URL: missing hostname")
     try:
         ip = ipaddress.ip_address(hostname)
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast:
+        if _ip_blocked(ip):
             raise ValueError("iCal URL must not point to private or local addresses")
     except ValueError as exc:
         if "does not appear to be an IPv4 or IPv6 address" not in str(exc):
             raise
     return url
+
+
+def _ip_blocked(ip: ipaddress.IPv4Address | ipaddress.IPv6Address) -> bool:
+    return (
+        ip.is_private
+        or ip.is_loopback
+        or ip.is_link_local
+        or ip.is_multicast
+        or ip.is_reserved
+        or ip.is_unspecified
+    )
+
+
+async def _assert_public_destination(url: str) -> None:
+    """SSRF guard, applied per fetch (and per redirect hop): the literal-IP
+    check in _normalize_url doesn't cover hostnames that *resolve* to internal
+    addresses, and DNS can change between feed creation and sync."""
+    hostname = urlparse(url).hostname or ""
+    if not hostname:
+        raise ValueError("Invalid iCal URL: missing hostname")
+    try:
+        addrs = [ipaddress.ip_address(hostname)]
+    except ValueError:
+        try:
+            infos = await asyncio.get_running_loop().getaddrinfo(hostname, None)
+        except OSError as exc:
+            raise ValueError(f"Could not resolve iCal host '{hostname}': {exc}")
+        addrs = [ipaddress.ip_address(info[4][0]) for info in infos]
+    if any(_ip_blocked(ip) for ip in addrs):
+        raise ValueError("iCal URL must not point to private or local addresses")
 
 
 async def list_feeds(
@@ -155,8 +186,18 @@ async def sync_feed(db: AsyncSession, feed: ExternalCalendarFeed) -> int:
     window_end = now + timedelta(days=feed.sync_window_days)
 
     try:
-        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
-            resp = await client.get(feed.ical_url)
+        # Redirects are followed manually so every hop gets the SSRF check —
+        # follow_redirects=True would happily bounce to an internal address.
+        url = feed.ical_url
+        async with httpx.AsyncClient(timeout=15, follow_redirects=False) as client:
+            for _ in range(3):
+                await _assert_public_destination(url)
+                resp = await client.get(url)
+                location = resp.headers.get("location")
+                if resp.status_code in (301, 302, 303, 307, 308) and location:
+                    url = str(httpx.URL(url).join(location))
+                    continue
+                break
             resp.raise_for_status()
             raw = resp.content
     except Exception as exc:

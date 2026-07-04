@@ -105,12 +105,23 @@ async def send_drip_steps():
     settings = get_settings()
     base_url = settings.effective_base_url or settings.app_base_url or ""
 
+    from app.modules.contacts.models import Contact
+    from app.modules.marketing.models import ContactUnsubscribe
+
     async with db_session() as db:
-        # Campaigns that have actually dispatched and have at least one step.
+        # Campaigns that have actually dispatched AND still have an unsent step —
+        # finished campaigns drop out of this scan instead of being re-checked
+        # every hour forever.
         result = await db.execute(
             select(Campaign).where(
                 Campaign.dispatched_at.isnot(None),
                 Campaign.status.in_(["sending", "completed"]),
+                select(CampaignSequence.id)
+                .where(
+                    CampaignSequence.campaign_id == Campaign.id,
+                    CampaignSequence.sent_at.is_(None),
+                )
+                .exists(),
             )
         )
         campaigns = result.scalars().all()
@@ -135,6 +146,13 @@ async def send_drip_steps():
                 if now < due:
                     continue
 
+                # Claim the step BEFORE sending: a restart mid-batch must not
+                # re-send the whole recipient list next hour. (The remainder of
+                # an interrupted step is skipped — duplicates are worse than a
+                # missed follow-up for marketing email.)
+                step.sent_at = now
+                await db.commit()
+
                 # Recipients who received the campaign and have NOT replied.
                 rec_result = await db.execute(
                     select(CampaignAnalytics).where(
@@ -143,22 +161,30 @@ async def send_drip_steps():
                     )
                 )
                 recipients = rec_result.scalars().all()
+
+                # Resolve contacts and opt-outs in two batched queries instead
+                # of two per recipient.
+                emails = {r.recipient_email for r in recipients}
+                contact_rows = await db.execute(
+                    select(Contact.email, Contact.id).where(
+                        Contact.tenant_id == campaign.tenant_id,
+                        Contact.email.in_(emails),
+                        Contact.deleted_at.is_(None),
+                    )
+                )
+                contact_by_email = {email: cid for email, cid in contact_rows.all()}
+                unsub_rows = await db.execute(
+                    select(ContactUnsubscribe.contact_id).where(
+                        ContactUnsubscribe.tenant_id == campaign.tenant_id,
+                        ContactUnsubscribe.contact_id.in_(contact_by_email.values()),
+                    )
+                )
+                unsubscribed_ids = {cid for (cid,) in unsub_rows.all()}
+
                 sent_any = False
                 for row in recipients:
-                    # Skip opted-out contacts (matched by email within tenant).
-                    from app.modules.contacts.models import Contact
-
-                    contact_q = await db.execute(
-                        select(Contact).where(
-                            Contact.tenant_id == campaign.tenant_id,
-                            Contact.email == row.recipient_email,
-                            Contact.deleted_at.is_(None),
-                        )
-                    )
-                    contact = contact_q.scalar_one_or_none()
-                    if contact and await service.is_unsubscribed(
-                        db, campaign.tenant_id, contact.id
-                    ):
+                    contact_id = contact_by_email.get(row.recipient_email)
+                    if contact_id in unsubscribed_ids:
                         continue
 
                     html = render_email_html(
@@ -182,10 +208,8 @@ async def send_drip_steps():
                             row.recipient_email,
                         )
 
-                step.sent_at = now
                 if sent_any:
                     log.info("Sent drip step %s for campaign %s", step.id, campaign.id)
-            await db.commit()
 
 
 @scheduler.scheduled_job("cron", day=1, hour=0, minute=0, id="mktg_engagement_decay")

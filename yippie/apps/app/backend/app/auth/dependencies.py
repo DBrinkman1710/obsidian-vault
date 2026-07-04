@@ -34,13 +34,17 @@ async def get_current_user(
         raise credentials_exception
     try:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
-        user_id: str = payload.get("sub")
-        if user_id is None:
-            raise credentials_exception
-    except jwt.PyJWTError:
+        user_uuid = uuid.UUID(payload.get("sub") or "")
+    except (jwt.PyJWTError, ValueError):
+        # ValueError: a validly-signed token whose sub isn't a UUID is still a
+        # bad credential (401), not a server error.
         raise credentials_exception
+    # Expose the verified claims of the token that actually authenticated this
+    # request (cookie or header), so routes can check e.g. the impersonation
+    # flag without re-guessing where the token came from.
+    request.state.token_claims = payload
 
-    result = await db.execute(select(User).where(User.id == uuid.UUID(user_id)))
+    result = await db.execute(select(User).where(User.id == user_uuid))
     user = result.scalar_one_or_none()
     if user is None:
         raise credentials_exception

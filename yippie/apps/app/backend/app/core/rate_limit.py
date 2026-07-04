@@ -15,13 +15,21 @@ if TYPE_CHECKING:
 
 
 def get_client_ip(request: "Request") -> str:
-    """Return the real client IP, preferring CF-Connecting-IP over the socket peer."""
-    return (
-        request.headers.get("cf-connecting-ip")
-        or request.headers.get("x-real-ip")
-        or (request.client.host if request.client else None)
-        or "unknown"
-    )
+    """Return the real client IP.
+
+    Uses the RIGHTMOST X-Forwarded-For entry: each proxy appends the peer it
+    saw, so the last entry was written by the outermost proxy we actually sit
+    behind (Railway's edge) and cannot be forged by the client — anything the
+    client sends itself arrives earlier in the list. cf-connecting-ip and
+    x-real-ip are deliberately NOT consulted: any client can set those headers
+    directly and mint themselves fresh rate-limit buckets per request.
+    """
+    xff = request.headers.get("x-forwarded-for", "")
+    if xff:
+        last_hop = xff.split(",")[-1].strip()
+        if last_hop:
+            return last_hop
+    return (request.client.host if request.client else None) or "unknown"
 
 _client = None
 
@@ -44,6 +52,27 @@ def _redis():
 
 # In-memory fallback when Redis is not configured or unavailable.
 _fallback: dict[str, list[float]] = defaultdict(list)
+
+# Bound the fallback store: without this, one unique key per client IP
+# accumulates forever when Redis is down. 3600s is the longest window any
+# caller uses, so entries idle longer than that are always expired.
+_FALLBACK_MAX_KEYS = 10_000
+_FALLBACK_MAX_IDLE = 3600
+
+
+def _prune_fallback() -> None:
+    if len(_fallback) < _FALLBACK_MAX_KEYS:
+        return
+    now = time.monotonic()
+    stale = [k for k, hits in _fallback.items() if not hits or now - hits[-1] > _FALLBACK_MAX_IDLE]
+    for k in stale:
+        del _fallback[k]
+    if len(_fallback) >= _FALLBACK_MAX_KEYS:
+        # Still over cap (active flood of unique keys): evict the oldest half.
+        # Being lenient on rate limits beats unbounded memory growth.
+        excess = sorted(_fallback, key=lambda k: _fallback[k][-1])[: len(_fallback) // 2]
+        for k in excess:
+            del _fallback[k]
 
 
 async def rl_is_blocked(key: str, limit: int, window: int) -> bool:
@@ -78,5 +107,6 @@ async def rl_hit(key: str, window: int) -> None:
             return
         except Exception:
             pass
+    _prune_fallback()
     now = time.monotonic()
     _fallback[key].append(now)

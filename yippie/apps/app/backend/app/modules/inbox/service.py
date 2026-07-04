@@ -24,6 +24,12 @@ from app.modules.tickets import service as ticket_service
 
 log = logging.getLogger(__name__)
 
+# Pending-send dispatch: a claimed row is leased for SEND_RETRY_DELAY (send_at is
+# pushed forward), so a crash or send failure retries automatically once the
+# lease expires. After MAX_SEND_ATTEMPTS the row stops being selected.
+MAX_SEND_ATTEMPTS = 5
+SEND_RETRY_DELAY = timedelta(minutes=10)
+
 
 async def _match_contact(db: AsyncSession, tenant_id: uuid.UUID, sender: str) -> Optional[Contact]:
     """Try to find an existing contact by sender email or phone number."""
@@ -898,6 +904,9 @@ async def cancel_send(db: AsyncSession, draft_id: uuid.UUID, tenant_id: uuid.UUI
             PendingSend.draft_id == draft_id,
             PendingSend.tenant_id == tenant_id,
             PendingSend.send_at > now,
+            # attempts > 0 means the row was claimed by the dispatcher (send_at
+            # is a retry lease, not the undo window) — too late to cancel.
+            PendingSend.attempts == 0,
         )
     )
     pending_rows = result.scalars().all()
@@ -918,11 +927,17 @@ async def flush_pending_sends(db: AsyncSession) -> None:
 
     now = datetime.now(timezone.utc)
     # devsandbox and sandbox share one DB, so two containers run this loop
-    # concurrently. Claim rows with SKIP LOCKED and delete them before sending,
-    # so each pending send is dispatched at most once.
+    # concurrently. Claim rows with SKIP LOCKED and lease them: bump attempts and
+    # push send_at into the future, then commit. The row is only deleted after a
+    # successful send, so a Resend outage or crash mid-dispatch retries the email
+    # once the lease expires instead of silently losing it. Rows that exhaust
+    # MAX_SEND_ATTEMPTS are never selected again (dead-letter, kept in the table).
     result = await db.execute(
         select(PendingSend)
-        .where(PendingSend.send_at <= now)
+        .where(
+            PendingSend.send_at <= now,
+            PendingSend.attempts < MAX_SEND_ATTEMPTS,
+        )
         .with_for_update(skip_locked=True)
     )
     pending_list = result.scalars().all()
@@ -946,12 +961,16 @@ async def flush_pending_sends(db: AsyncSession) -> None:
             "prerendered_html": p.prerendered_html,
             "cc_emails": p.cc_emails,
             "bcc_emails": p.bcc_emails,
+            "attempts": p.attempts,
         }
         for p in pending_list
     ]
     for p in pending_list:
-        await db.delete(p)
+        p.attempts += 1
+        p.send_at = now + SEND_RETRY_DELAY
     await db.commit()
+
+    rows_by_id = {p.id: p for p in pending_list}
 
     # One tenant fetch per tenant: demo flag (suppression) + name/color (HTML layout)
     tenant_cache: dict = {}
@@ -1067,12 +1086,27 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                 actor_id=c["actor_id"],
                 payload=payload,
             )
+            # Sent (or demo-suppressed) — release the lease by deleting the row.
+            await db.delete(rows_by_id[c["id"]])
+            await db.commit()
         except ResendNotConfiguredError:
-            log.warning("Resend not configured — skipping pending send %s", c["id"])
+            await db.rollback()
+            log.warning(
+                "Resend not configured — pending send %s left queued for retry (attempt %d/%d)",
+                c["id"], c["attempts"] + 1, MAX_SEND_ATTEMPTS,
+            )
         except Exception:
-            log.exception("Failed to dispatch pending send %s", c["id"])
-
-    await db.commit()
+            await db.rollback()
+            if c["attempts"] + 1 >= MAX_SEND_ATTEMPTS:
+                log.error(
+                    "Pending send %s to %s failed its final attempt (%d/%d) — dead-lettered",
+                    c["id"], c["to_email"], c["attempts"] + 1, MAX_SEND_ATTEMPTS, exc_info=True,
+                )
+            else:
+                log.exception(
+                    "Failed to dispatch pending send %s (attempt %d/%d) — will retry",
+                    c["id"], c["attempts"] + 1, MAX_SEND_ATTEMPTS,
+                )
 
 
 async def get_tenant_inbound_email(db: AsyncSession, tenant_id: uuid.UUID) -> str | None:

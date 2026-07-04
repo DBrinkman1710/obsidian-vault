@@ -33,7 +33,7 @@ async def send_invite_email(
         role=role,
         rbac_role_ids=rbac_role_ids or [],
     )
-    base = settings.client_base_url or settings.app_base_url
+    base = settings.client_base_url or settings.effective_base_url
     link = f"{base}/register?token={token}"
     # Short form on purpose (Diederik, 2026-06-10): just the activation link. The
     # product introduction is a separate mail sent into the client's Yippie inbox

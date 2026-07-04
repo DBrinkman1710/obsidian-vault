@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -35,6 +36,19 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 # Pre-computed dummy hash used to equalise login timing for unknown emails,
 # preventing user enumeration via response-time side-channel.
 _DUMMY_HASH = b"$2b$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LewY2v1aOHBzJXHni"
+
+async def _check_password(password: str, hashed: str | bytes) -> bool:
+    """bcrypt is ~100-300ms of pure CPU — run it off the event loop so one
+    login attempt doesn't stall every concurrent request and websocket."""
+    if isinstance(hashed, str):
+        hashed = hashed.encode()
+    return await asyncio.to_thread(_bcrypt.checkpw, password.encode(), hashed)
+
+
+async def _hash_password(password: str) -> str:
+    hashed = await asyncio.to_thread(_bcrypt.hashpw, password.encode(), _bcrypt.gensalt())
+    return hashed.decode()
+
 
 _LOGIN_WINDOW = 15 * 60
 _LOGIN_LIMIT = 10
@@ -86,11 +100,11 @@ async def login(body: LoginRequest, request: Request, response: Response, db: An
     user = result.scalar_one_or_none()
 
     if not user:
-        _bcrypt.checkpw(body.password.encode(), _DUMMY_HASH)  # equalise timing — prevents user enumeration
+        await _check_password(body.password, _DUMMY_HASH)  # equalise timing — prevents user enumeration
         await rl_hit(f"login:{ip}", _LOGIN_WINDOW)
         log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
-    if not _bcrypt.checkpw(body.password.encode(), user.hashed_password.encode()):
+    if not await _check_password(body.password, user.hashed_password):
         await rl_hit(f"login:{ip}", _LOGIN_WINDOW)
         log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
@@ -145,8 +159,10 @@ async def register(body: RegisterRequest, request: Request, response: Response, 
     if len(body.password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
 
-    email = claims["email"]
-    existing = await db.scalar(select(User).where(User.email == email))
+    # Emails are stored lowercase — login matches on lower(email), so a
+    # mixed-case duplicate here would make that lookup raise MultipleResultsFound.
+    email = claims["email"].strip().lower()
+    existing = await db.scalar(select(User).where(func.lower(User.email) == email))
     if existing:
         raise HTTPException(status_code=409, detail="An account with this email already exists. Log in instead.")
 
@@ -154,7 +170,7 @@ async def register(body: RegisterRequest, request: Request, response: Response, 
         tenant_id=uuid.UUID(claims["tenant_id"]),
         email=email,
         full_name=(body.full_name or claims.get("full_name") or "User").strip(),
-        hashed_password=_bcrypt.hashpw(body.password.encode(), _bcrypt.gensalt()).decode(),
+        hashed_password=await _hash_password(body.password),
         role=UserRole(claims.get("role", "agent")),
     )
     db.add(user)
@@ -191,11 +207,14 @@ async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Ann
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many password reset requests. Try again later.")
     await rl_hit(f"reset:{_ip}", _RESET_WINDOW)
-    user = await db.scalar(select(User).where(User.email == body.email.lower().strip()))
+    user = await db.scalar(select(User).where(func.lower(User.email) == body.email.lower().strip()))
     if user and user.is_active:
         settings = get_settings()
         token = create_signed_token("reset", timedelta(hours=1), sub=str(user.id))
-        link = f"{settings.app_base_url}/reset-password?token={token}"
+        # effective_base_url falls back to the ENVIRONMENT-derived URL when
+        # APP_BASE_URL is unset — a bare app_base_url would produce a relative
+        # (dead) link in the email.
+        link = f"{settings.effective_base_url}/reset-password?token={token}"
         try:
             reset_body = (
                 f"Hi {user.full_name},\n\n"
@@ -228,7 +247,7 @@ async def reset_password(body: ResetPasswordRequest, db: Annotated[AsyncSession,
     user = await db.get(User, uuid.UUID(claims["sub"]))
     if user is None or not user.is_active:
         raise HTTPException(status_code=400, detail="Invalid or expired reset link")
-    user.hashed_password = _bcrypt.hashpw(body.new_password.encode(), _bcrypt.gensalt()).decode()
+    user.hashed_password = await _hash_password(body.new_password)
     await db.commit()
     return {"ok": True}
 
@@ -245,21 +264,17 @@ async def change_password(
     current_user: CurrentUser,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    auth_header = request.headers.get("Authorization", "")
-    if auth_header.startswith("Bearer "):
-        try:
-            _claims = jwt.decode(auth_header[7:], get_settings().secret_key, algorithms=[get_settings().algorithm])
-            if _claims.get("imp"):
-                raise HTTPException(status_code=403, detail="Password changes are blocked in impersonation sessions")
-        except HTTPException:
-            raise
-        except Exception:
-            pass
-    if not _bcrypt.checkpw(body.current_password.encode(), current_user.hashed_password.encode()):
+    # get_current_user stashes the verified claims of the token that actually
+    # authenticated this request (cookie-first, header fallback) — checking the
+    # Authorization header here would miss cookie-delivered impersonation tokens.
+    token_claims = getattr(request.state, "token_claims", None) or {}
+    if token_claims.get("imp"):
+        raise HTTPException(status_code=403, detail="Password changes are blocked in impersonation sessions")
+    if not await _check_password(body.current_password, current_user.hashed_password):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Current password is incorrect")
     if len(body.new_password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-    current_user.hashed_password = _bcrypt.hashpw(body.new_password.encode(), _bcrypt.gensalt()).decode()
+    current_user.hashed_password = await _hash_password(body.new_password)
     await db.commit()
     log.warning("AUTH_PASSWORD_CHANGE user_id=%s ip=%s", current_user.id, get_client_ip(request))
     return {"ok": True}
@@ -468,7 +483,8 @@ async def delete_signature(
 @router.get("/manual.pdf", include_in_schema=False)
 async def download_manual_pdf(current_user: CurrentUser):
     from app.core.manual_pdf import generate_manual_pdf
-    pdf_bytes = generate_manual_pdf()
+    # PDF generation is CPU-bound — keep it off the event loop.
+    pdf_bytes = await asyncio.to_thread(generate_manual_pdf)
     return Response(
         content=pdf_bytes,
         media_type="application/pdf",

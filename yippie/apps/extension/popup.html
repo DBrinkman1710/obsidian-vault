@@ -15,7 +15,7 @@
       <button id="btn-settings-welcome" class="btn-gear" title="Settings">⚙</button>
     </div>
     <h1>Inbox Analyser</h1>
-    <p class="subtitle">See how much time you spend on manual email triage — and what Yippie saves you.</p>
+    <p class="subtitle">See how much time you spend on manual email triage, and what Yippie saves you.</p>
     <div class="privacy-note">
       🔒 Only reads email headers. Nothing leaves your browser.
     </div>
@@ -35,7 +35,7 @@
   <!-- Results -->
   <div id="state-results" class="state hidden">
     <div class="results-header">
-      <span class="results-period">Last 30 days</span>
+      <span id="results-period" class="results-period">Last 30 days</span>
       <div class="results-actions">
         <button id="btn-settings-results" class="btn-gear" title="Settings">⚙</button>
         <button id="btn-refresh" class="btn-refresh">↻</button>
@@ -70,6 +70,11 @@
       </div>
     </div>
 
+    <div class="section-title">Top senders</div>
+    <div id="top-senders" class="top-senders"></div>
+
+    <div id="insights" class="insights"></div>
+
     <div class="savings-card">
       <div class="savings-row">
         <span>Manual triage time</span>
@@ -80,7 +85,7 @@
         <strong id="stat-saved-hours">~0 hrs/month</strong>
       </div>
       <div class="savings-row euros">
-        <span>Value at €30/hr</span>
+        <span id="label-euros">Value at €30/hr</span>
         <strong id="stat-saved-euros">€0/month</strong>
       </div>
     </div>
@@ -88,6 +93,7 @@
     <a id="btn-cta" href="https://getyippie.com?utm_source=extension&utm_medium=analyser" target="_blank" class="btn-cta">
       Try Yippie free →
     </a>
+    <button id="btn-copy" class="btn-secondary btn-copy">Copy report</button>
 
     <p class="analysed-at">Analysed <span id="analysed-at"></span></p>
   </div>

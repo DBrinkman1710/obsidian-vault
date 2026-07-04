@@ -67,7 +67,7 @@ Reads Gmail header metadata in-browser to show prospects how much time they spen
 
 Click the Yippie icon in your Chrome toolbar. Hit "Analyse my Gmail inbox".
 
-The first run asks for Gmail permission — click Allow. It then fetches up to 200 message headers from the last 30 days (never the email body) and shows the breakdown.
+The first run asks for Gmail permission — click Allow. It then fetches up to 500 INBOX message headers (never the email body, never sent mail or drafts), keeps the ones from the last 30 days, and shows the breakdown, top senders, and insights. Classification uses Gmail's own category labels + the List-Unsubscribe header, with keyword fallbacks (EN + NL).
 
 Results are cached for 1 hour. Click ↻ to re-analyse.
 

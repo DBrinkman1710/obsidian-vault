@@ -158,8 +158,8 @@ async def main():
     enabled_modules = os.getenv("ENABLED_MODULES", ",".join(ALL_MODULES)).split(",")
     primary_color = os.getenv("BRANDING_PRIMARY_COLOR", "#5BB8E8")
     logo_url = os.getenv("BRANDING_LOGO_URL") or None
-    admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com")
-    admin_password = os.getenv("ADMIN_PASSWORD", "changeme123")
+    admin_email = os.getenv("ADMIN_EMAIL", "admin@example.com").strip().lower()
+    admin_password = os.getenv("ADMIN_PASSWORD", "")
 
     async with db_session() as db:
         # Guard 1: tenant already exists under the expected slug — nothing to do.
@@ -195,6 +195,19 @@ async def main():
         if existing_superadmin:
             print("A superadmin already exists — skipping superadmin creation.")
             return
+
+        # Only reached when the bootstrap superadmin is about to be created —
+        # never seed it with a guessable default password outside development.
+        # (Mirrors the SECRET_KEY guard in app/config.py.)
+        if not admin_password:
+            if os.getenv("ENVIRONMENT", "development") == "development":
+                admin_password = "changeme123"
+            else:
+                raise RuntimeError(
+                    "ADMIN_PASSWORD is not set. Refusing to create the bootstrap "
+                    "superadmin with a default password outside development — "
+                    "set ADMIN_PASSWORD in the environment and redeploy."
+                )
 
         tenant = Tenant(
             slug=tenant_id,

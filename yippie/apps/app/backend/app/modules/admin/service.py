@@ -99,9 +99,9 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
     if data.admin_password:
         db.add(User(
             tenant_id=tenant.id,
-            email=data.admin_email,
+            email=data.admin_email.strip().lower(),
             full_name=data.admin_full_name,
-            hashed_password=_bcrypt.hashpw(data.admin_password.encode(), _bcrypt.gensalt()).decode(),
+            hashed_password=(await asyncio.to_thread(_bcrypt.hashpw, data.admin_password.encode(), _bcrypt.gensalt())).decode(),
             role=UserRole.admin,
         ))
         user_count = 1
@@ -186,22 +186,23 @@ async def add_tenant_user(db: AsyncSession, tenant_id: uuid.UUID, data: AddAdmin
     tenant = await db.get(Tenant, tenant_id)
     if tenant is None:
         return None
-    existing = await db.scalar(select(User).where(User.email == data.email))
+    email = data.email.strip().lower()
+    existing = await db.scalar(select(User).where(func.lower(User.email) == email))
     if existing:
-        raise ValueError(f"A user with email '{data.email}' already exists.")
+        raise ValueError(f"A user with email '{email}' already exists.")
 
     if not data.password:
         await send_invite_email(
-            to=data.email, full_name=data.full_name, tenant_id=tenant_id,
+            to=email, full_name=data.full_name, tenant_id=tenant_id,
             role=UserRole.admin.value, tenant_name=tenant.name,
         )
-        return {"invited": True, "email": data.email}
+        return {"invited": True, "email": email}
 
     user = User(
         tenant_id=tenant_id,
-        email=data.email,
+        email=email,
         full_name=data.full_name,
-        hashed_password=_bcrypt.hashpw(data.password.encode(), _bcrypt.gensalt()).decode(),
+        hashed_password=(await asyncio.to_thread(_bcrypt.hashpw, data.password.encode(), _bcrypt.gensalt())).decode(),
         role=UserRole.admin,
     )
     db.add(user)
@@ -268,10 +269,10 @@ TENANT_DELETE_ORDER = [
 ]
 
 
-def _require_root_owner(current_user: User, current_password: str) -> None:
+async def _require_root_owner(current_user: User, current_password: str) -> None:
     if current_user.email.lower() != PROTECTED_SUPERADMIN_EMAIL:
         raise ValueError("Only the root owner can do this")
-    if not _bcrypt.checkpw(current_password.encode(), current_user.hashed_password.encode()):
+    if not await asyncio.to_thread(_bcrypt.checkpw, current_password.encode(), current_user.hashed_password.encode()):
         raise ValueError("Password incorrect")
 
 
@@ -281,7 +282,7 @@ async def delete_tenant(
     """Irreversibly wipe a tenant and all its data. Root owner + password only."""
     from sqlalchemy import text
 
-    _require_root_owner(current_user, current_password)
+    await _require_root_owner(current_user, current_password)
     tenant = await db.get(Tenant, tenant_id)
     if tenant is None:
         raise LookupError("Tenant not found")
@@ -328,7 +329,7 @@ async def delete_superadmin(
     Use the is_active toggle instead when only suspending."""
     from sqlalchemy import text
 
-    _require_root_owner(current_user, current_password)
+    await _require_root_owner(current_user, current_password)
     user = await db.get(User, user_id)
     if user is None or user.role != UserRole.superadmin:
         raise LookupError("Superadmin not found")
@@ -360,7 +361,7 @@ async def invite_superadmin(
     sets their own password via /register; no password-less accounts are created."""
     from app.auth.invite import send_invite_email
 
-    _require_root_owner(current_user, current_password)
+    await _require_root_owner(current_user, current_password)
     existing = await db.scalar(select(User).where(User.email == email))
     if existing:
         raise ValueError(f"A user with email '{email}' already exists.")
@@ -388,7 +389,7 @@ async def toggle_superadmin_active(
     is_active: bool,
     current_password: str,
 ) -> User:
-    if not _bcrypt.checkpw(current_password.encode(), current_user.hashed_password.encode()):
+    if not await asyncio.to_thread(_bcrypt.checkpw, current_password.encode(), current_user.hashed_password.encode()):
         raise ValueError("Incorrect password.")
     if target_id == current_user.id:
         raise ValueError("You cannot deactivate your own account.")
@@ -770,7 +771,7 @@ async def promote_superadmin(
     target_email: str,
     current_password: str,
 ) -> User | None:
-    if not _bcrypt.checkpw(current_password.encode(), current_user.hashed_password.encode()):
+    if not await asyncio.to_thread(_bcrypt.checkpw, current_password.encode(), current_user.hashed_password.encode()):
         raise ValueError("Incorrect password.")
     target = await db.scalar(select(User).where(User.email == target_email))
     if target is None:

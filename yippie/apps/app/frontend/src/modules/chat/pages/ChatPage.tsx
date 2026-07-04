@@ -440,7 +440,10 @@ export default function ChatPage() {
     let ws: WebSocket | null = null
     let reconnectTimer: ReturnType<typeof setTimeout>
     let retries = 0
-    const MAX_RETRIES = 5
+    // Exponential backoff, capped per-attempt but never giving up: a network
+    // blip longer than a fixed retry budget must not kill realtime until the
+    // next full page reload.
+    const MAX_BACKOFF_MS = 30000
     let destroyed = false
 
     function connect() {
@@ -506,21 +509,19 @@ export default function ChatPage() {
         } catch { /* ignore malformed frames */ }
       }
 
+      // Reconnect ONLY from onclose. onerror is always followed by onclose,
+      // so scheduling in both fired two timers (the first was never cleared)
+      // and stacked duplicate sockets on every failure.
       ws.onclose = () => {
         if (destroyed) return
-        if (retries < MAX_RETRIES) {
-          retries++
-          reconnectTimer = setTimeout(connect, 3000)
-        }
+        retries++
+        const backoff = Math.min(1000 * 2 ** retries, MAX_BACKOFF_MS)
+        reconnectTimer = setTimeout(connect, backoff)
       }
 
       ws.onerror = () => {
         if (destroyed) return
         ws?.close()
-        if (retries < MAX_RETRIES) {
-          retries++
-          reconnectTimer = setTimeout(connect, 3000)
-        }
       }
     }
 

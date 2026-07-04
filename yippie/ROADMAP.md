@@ -1,7 +1,7 @@
 # Yippie — Roadmap
 **Repo:** github.com/DBrinkman1710/obsidian-vault · **Branch:** `sandbox`
 
-**Latest:** Session 91 — [EXT1] Chrome extension inbox analyser (gmail.metadata scope, local processing, settings panel, coming soon section on getyippie.com, store listing copy at apps/extension/store-listing.md); 90 — [CUSTOM1] /custom bespoke package configurator (3-step form, module picker, live pricing, lead capture); 89 — [JARVIS1] quick-capture assistant (⌘K popup, AI routing, reminders, contact/ticket notes, context query); 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER. See Appendix A for full history.
+**Latest:** Untracked batch (2026-06-27→30, around/after sessions 89–91, reconciled from git 2026-07-04) — bidirectional iCal calendar sync (Apple/Outlook) + personal calendar invitations; Train Yip (per-tenant `ai_profile` + training modal in Settings); Yip compose_email/help/math actions; agent performance section on Activity; ERP order webhook → contact sync + kanban stage (tracking module); `/docs` page with live manual + HelpTip component + manual PDF in Profile; security hardening waves (OWASP P1, pentest phases 1–4: PyJWT, HttpOnly cookie auth, Redis rate limits, WhatsApp webhook HMAC); Ndugu Coffee pilot-readiness UX fixes; self-serve signup wired to /custom; Sales/SaaS page error+loading states; 91 — [EXT1] Chrome extension inbox analyser (gmail.metadata scope, local processing, settings panel, coming soon section on getyippie.com, store listing copy at apps/extension/store-listing.md); 90 — [CUSTOM1] /custom bespoke package configurator (3-step form, module picker, live pricing, lead capture); 89 — [JARVIS1] quick-capture assistant (⌘K popup, AI routing, reminders, contact/ticket notes, context query); 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER. See Appendix A for full history.
 
 ---
 
@@ -29,7 +29,9 @@ When an item ships, update **two places** — missing either causes drift.
 | Section | Role | What to do when an item ships |
 |---|---|---|
 | **Line 4 header** | Running session log | Prepend `[ITEM-ID] ✅ — one-line summary` at the start |
-| **Go-live scope** checklist | Checkbox list for pre-launch items | Change `- [ ]` to `- [x]` and append `✅ session N` |
+| **Tier sections + ✅ Done** | Authoritative open-work list | Remove the item from its tier, add a one-liner to **✅ Done** |
+
+*(The go-live checklist is closed — the platform went live 2026-06-23. Don't add new items there.)*
 
 **The Tier sections** now list only genuinely open/deferred work. When something ships, remove it from the tier and add a one-liner to **✅ Done**. The tier body is the authoritative source of truth — if it says "not built", Claude Code treats it as open.
 
@@ -45,9 +47,9 @@ When an item ships, update **two places** — missing either causes drift.
 
 ---
 
-## 🎯 Go-live scope — 2026-06-28
+## 🎯 Go-live scope — ✅ COMPLETE (live since 2026-06-23 at app.getyippie.com)
 
-Everything below must be done **before** going live. Items not listed here are deferred to after launch.
+**Historical.** Every item in this checklist shipped; the platform is live in production. Kept for item-ID reference only — current open work lives in the Tier sections below.
 
 **Prep (do first):**
 - [x] [GOLIVE-CHECKLIST] Write `GOLIVE.md` ✅ session 60 — 9-section checklist at `/yippie/GOLIVE.md`; covers Railway env vars, DNS, Resend, first deploy, smoke tests, post-deploy ops
@@ -80,8 +82,9 @@ Everything below must be done **before** going live. Items not listed here are d
 - ✅ [SIDEBAR-DND] Sidebar drag-and-drop reorder per user ✅ DONE (session 74)
 - ✅ Send-from aliases + in-app tour after first login ✅ DONE (session 75)
 
-**Deferred (after June 28):**
-[CUSTOM1], [Phase 11C T2] "Connect your inbox", [LANG1], [WEB-CONS1], Customer data + AI briefing, [AI-MOD1] Self-hosted AI module, [SALES-MOD1] Sales module (website tracking tag), [SAAS-MOD1] SaaS product analytics module, [TRACK1] Track & trace module, ~~[EMBED1] Lead capture embed widget~~ ✅ shipped
+**Still open after launch (verified against code 2026-07-04):**
+[Phase 11C T2] "Connect your inbox", Customer data + AI briefing, [AI-MOD1] phases 2–3 (Phase 1 LiteLLM ✅ session 87A), [AI-CTRL], [CLUSTER1], [LANG1] *(more UI languages beyond EN/NL — deferred, not urgent)*. Dropped: [WEB-CONS1] (2026-07-04, spec lost — re-add if it resurfaces).
+Shipped from the old deferred list: ~~[CUSTOM1]~~ ✅ s90, ~~[SALES-MOD1]~~ ✅, ~~[SAAS-MOD1]~~ ✅, ~~[TRACK1]~~ ✅, ~~[EMBED1]~~ ✅, ~~[JARVIS1]~~ ✅ s89.
 
 **Post-launch build order:**
 
@@ -231,24 +234,27 @@ All four steps shipped (sessions 19–24): composite indexes + nginx gzip/cache;
 
 ---
 
-## 🟣 Tier 1 — Deferred / post-launch
+## 🟣 Tier 1 — Open (verified against code 2026-07-04)
 
-All major Tier 1 modules shipped. The items below were explicitly out of go-live scope; their full specs are in the **Post-launch build order** section above.
+Full specs for [AI-MOD1] live in the **Post-launch build order** section above.
 
+- **[AI-MOD1] Self-hosted AI module, phases 2–3** — `Opus` — *trigger: >100K AI calls/month.* Phase 1 (LiteLLM proxy, provider routing incl. `self-hosted` in `config.py`) ✅ session 87A. Open: vLLM on Hetzner deployment, pgvector memory layer, fine-tuning data pipeline.
 - **Customer data + AI briefing** *(architecture decision)* — `Opus` — define where full contact history is stored; the AI briefing (already running) must pull complete history.
-- ~~**[CUSTOM1] Bespoke package configurator**~~ ✅ session 90 — `/custom` page: 3-step form (team profile → module picker with live pricing → quote form), leads into "Custom plan" pipeline stage in root tenant; "Build your package" in nav + pricing CTA.
 - **[Phase 11C T2] "Connect your inbox" ROI estimate** — `Opus` — *not built.* CSV/mailbox-export upload (parsed in-browser, best privacy/effort); one-time IMAP/OAuth scan next; Gmail/Workspace metadata add-on last.
 
 ---
 
-## 🔵 Tier 2 — ✅ All shipped
+## 🔵 Tier 2 — Open (verified against code 2026-07-04)
 
-Every Tier 2 item is complete. See **✅ Done** below.
+- **[CLUSTER1] Issue cluster generator** — `Sonnet` — *not built* (no `ticket_clusters` table or insights code). Spec above. Note: no longer hard-blocked on [AI-MOD1] — Mistral/Anthropic fallback works for early tenants.
+- **[AI-CTRL] Cloud LLM control panel** — `Sonnet` — *not built* (no `/superadmin/cloud-llm` route in `App.tsx`). Spec above.
+- **[LANG1] More UI languages** — `Sonnet` — *deferred, not urgent (confirmed 2026-07-04).* Platform currently supports English + Dutch; add more languages when market expansion (BE/DE/FR) demands it. No build planned for now.
 
 ---
 
 ## 🟢 Tier 3 — Open ops items
 
+- **[EXT1-STORE] Chrome Web Store submission** — extension code + store listing copy shipped (session 91, `apps/extension/store-listing.md`); **not yet submitted to the Web Store** (confirmed 2026-07-04). Manual step: developer account, upload zip, listing assets, review.
 - **getyippie.com 502 fix** — Cloudflare proxy toggle (orange→grey→wait→orange) for Railway domain verification if ever needed.
 
 All other Tier 3 items shipped. See **✅ Done** below.
@@ -256,6 +262,10 @@ All other Tier 3 items shipped. See **✅ Done** below.
 ---
 
 ## ✅ Done
+
+**Late-June untracked batch (2026-06-27→30, reconciled from git 2026-07-04):** bidirectional iCal calendar sync (Apple/Outlook) + personal calendar invitations + shared/personal slider; **Train Yip** (per-tenant `ai_profile`, training modal, Settings card); Yip actions: compose_email, help (manual-backed), math pre-classifier; agent performance section on Activity page; **ERP order webhook** — syncs contacts + moves kanban stage (tracking module); `/docs` page on getyippie.com with live manual fetch + `HelpTip` component + `help_tips_enabled` toggle + Platform Manual PDF download in Profile; **security hardening** (OWASP P1 headers/auth logging/webhook fail-close; pentest phases 1–4: python-jose→PyJWT, passlib→bcrypt, JWT→HttpOnly cookie, Redis rate limits, CSP tighten, WhatsApp webhook HMAC; RLS on calendar_event_invitations); Ndugu Coffee pilot-readiness UX fixes; self-serve signup wired to /custom ("Build your plan" CTAs, founding plan remembered); booking minimum advance notice; em-dashes removed from all user-facing copy; labels module deleted (`/settings/labels` → workspace); Sales/SaaS page error+loading states.
+
+**Modules shipped (15, per `ALL_MODULES` in config.py):** inbox, contacts, tickets, calendar, pipeline, booking, activity, billing, chat, departments, marketing, tracking, sales, saas, ai — plus [JARVIS1] quick-capture (⌘K), [EMBED1] lead-widget.js, [CUSTOM1] /custom configurator, [STRIPE1] SaaS billing, [EXT1] Chrome extension (code shipped; store submission open, see Tier 3).
 
 **Foundations & infra:** Resend inbound+outbound email; 30s email poller; APScheduler jobs (poller 30s, enrichment 10s, pending-send flush 5s, retention 1h, SLA escalation 5m, auto-close 1h, go-live 60s); all four Railway environments healthy; full **Performance initiative** (Steps 1–4).
 
@@ -277,11 +287,15 @@ All other Tier 3 items shipped. See **✅ Done** below.
 
 ## Open questions
 
-- **Sandbox email routing** — `devsandbox` and `sandbox` share one Sandbox DB, so inbound to either `dev-support@`/`sb-support@` surfaces in both; the inbox follows the login, not the URL. Document as intentional, or split per `INBOUND_EMAIL` if true isolation is wanted.
+- ~~**Sandbox email routing**~~ — obsolete: the `devsandbox` branch/env was retired 2026-06-20 (merged into `sandbox`); there is no longer a second env sharing the Sandbox DB.
 
 ---
 
 ## 📎 Appendix A — Session log
+
+> ⚠️ **Incomplete:** detailed logs exist for sessions 2–52 only. Sessions 53–91 were never
+> written up here — their one-liners lived in the header "Latest" line (itself truncated to
+> ~84+) and the go-live checklist. For anything in that range, git history is the source of truth.
 
 ---
 
@@ -1460,23 +1474,22 @@ exists, email exists, or any superadmin exists). `admin/service.py`: duplicate-e
 
 ## 📎 Appendix B — Reference
 
-### Deploy workflow
+### Deploy workflow (current — devsandbox/commercial branches retired 2026-06-20)
 
 ```
-git push origin devsandbox   # → deploys devsandbox.getyippie.com
-git push origin sandbox      # → deploys sandbox.getyippie.com (keep in sync, shared DB)
+git push origin sandbox      # → Railway Watch Paths deploy apps/app (Sandbox env) + apps/web (Commercial env)
+git checkout production && git merge sandbox && git push   # → promote to app.getyippie.com
 ```
 
-⚠️ **When a push includes a new migration** (especially with raw `GRANT`/`ALTER`/DDL): push to
-one branch, **wait for that deploy to finish**, then push to the other. Plain code-only pushes
-are fine to batch since they don't touch the DB.
+⚠️ Before any push with migrations: `python3 -m alembic heads` must return exactly ONE head
+(see `apps/app/CLAUDE.md` → Migration safety). ⚠️ Railway only rebuilds on watch-path changes —
+bundle a `src/` change with screenshot-only pushes.
 
-### Monday review workflow
+### Review workflow
 
-1. Build in `devsandbox` branch
-2. Push to `sandbox` to sync both Railway envs
-3. `/code-review ultra` + `/security-review` + `/verify`
-4. If approved: merge `sandbox → production`
+1. Build on `sandbox`
+2. `/code-review ultra` + `/security-review` + `/verify`
+3. If approved: merge `sandbox → production`
 
 | Skill | When |
 |---|---|
@@ -1511,19 +1524,16 @@ viewer      → read-only
 **Deployment:** nginx (port 8080) serves Vite/React static files AND proxies `/api` and `/ws`
 to uvicorn (port 8000 internal). Railway routes all traffic to port 8080.
 
-### Environments
+### Environments (current as of 2026-07-04)
 
 | Environment | URL | Branch | Purpose |
 |---|---|---|---|
-| production | app.getyippie.com | production | Main client-facing app |
-| Development | dev.getyippie.com | same | Superadmin-only management |
-| Commercial | getyippie.com | same | Next.js marketing site |
-| Sandbox | sandbox.getyippie.com | sandbox | Staging before production |
-| Dev Sandbox | devsandbox.getyippie.com | devsandbox | Feature development & testing |
+| Production | app.getyippie.com | production | **LIVE since 2026-06-23** — real clients |
+| Sandbox | sandbox.getyippie.com | sandbox | Staging + feature development |
+| Commercial | getyippie.com | sandbox (watch: apps/web) | Next.js marketing site |
 
-`devsandbox` ↔ `sandbox` share **Sandbox DB**. `dev` ↔ `app` share **Production DB**. Never cross them.
-
-**Promotion workflow:** `devsandbox → sandbox → production (app + dev)`
+Sandbox DB ≠ Production DB — never cross them. **Promotion workflow:** `sandbox → production`.
+Retired: `devsandbox` + `commercial` branches (merged into `sandbox`, 2026-06-20), dev.getyippie.com pair.
 
 ### Repo structure
 
@@ -1574,31 +1584,11 @@ Set via Railway environment variables per environment:
 | `INBOUND_EMAIL` | `dev-support@getyippie.com` (devsandbox) / `sb-support@getyippie.com` (sandbox) |
 | `DATABASE_URL` | devsandbox and sandbox **must share** the same Sandbox DB URL |
 
-### Migrations in order
+### Migrations
 
-```
-bfadac4990f3  initial schema
-ca081fe1f74d  add matched_contact_id + context fields
-ca4c445f94a2  add departments table
-f43013171b86  add context fields to draft_tickets
-a1b2c3d4e5f6  add department_id to tickets
-b2c3d4e5f6a7  add detected_language to draft_tickets
-40bd1ebcda20  add follow_up_at to draft_tickets
-e1f2a3b4c5d6  add superadmin role to userrole enum
-f2e3d4c5b6a7  add enabled_modules, primary_color, logo_url to tenants
-a9b8c7d6e5f4  add is_active/is_demo/go_live_at/inbound_email to tenants
-b1c2d3e4f5a6  add resend_email_id to inbound_messages
-d3e4f5a6b7c8  add is_active to users + ai module to all tenants (idempotent)
-e4f5a6b7c8d9  add bin/spam to DraftStatus enum
-a6b7c8d9e0f1  add inbound_to to inbound_messages
-f5a6b7c8d9e0  strip aitools from enabled_modules
-b8c9d0e1f2a3  create pending_sends + attachments_json on inbound_messages
-c9d0e1f2a3b4  grant app_user access to pending_sends + ALTER DEFAULT PRIVILEGES
-d0e1f2a3b4c5  add attachments_json to pending_sends
-e2f3a4b5c6d7  add per-user from_email
-f4a5b6c7d8e9  add kind (reply|compose) to pending_sends
-a5b6c7d8e9f0  add deleted_at to tickets (soft delete)
-```
+The hand-maintained list that used to live here went stale (it stopped at `a5b6c7d8e9f0`, dozens
+of migrations ago). The source of truth is `apps/app/backend/migrations/versions/` +
+`python3 -m alembic heads` (must always return exactly one head — see `apps/app/CLAUDE.md`).
 
 > `migrations/env.py` takes `pg_advisory_xact_lock(912021)` before migrating — concurrent
 > deploys of the staging pair can no longer race DDL on the shared DB.

@@ -31,7 +31,9 @@ from app.modules.inbox.attachments import (
 log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
-_is_prod = os.getenv("ENVIRONMENT") == "production"
+from app.config import get_settings as _get_settings
+
+_is_prod = _get_settings().environment == "production"
 
 
 def _html_to_text(html: str) -> str:

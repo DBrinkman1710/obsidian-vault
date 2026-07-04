@@ -8,6 +8,7 @@ Tenant context is set from the analytics row's own tenant_id so RLS passes.
 """
 from __future__ import annotations
 
+import html
 import uuid
 from typing import Annotated
 
@@ -54,6 +55,9 @@ async def track_open(token: uuid.UUID, db: DB):
 
 
 def _unsub_page(message: str) -> str:
+    # message may embed tenant-controlled text (campaign name) — escape it so a
+    # crafted campaign name can't inject HTML/script into this page.
+    message = html.escape(message)
     return (
         "<!DOCTYPE html><html><head><meta charset='utf-8'>"
         "<meta name='viewport' content='width=device-width, initial-scale=1'>"

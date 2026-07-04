@@ -4,7 +4,7 @@
 Yippie Inbox Analyser
 
 ## Short description (132 chars max)
-See how much time you spend on manual email triage — and what Yippie saves you. Free, private, instant.
+See how much time you spend on manual email triage, and what Yippie saves you. Free, private, instant.
 
 ## Full description
 
@@ -12,14 +12,17 @@ See how much time you spend on manual email triage — and what Yippie saves you
 
 Install the Yippie Inbox Analyser, click Analyse, and get a breakdown of your last 30 days of Gmail in under a minute:
 
-- How many emails are genuine customer conversations
+- How many emails are genuine customer conversations, using Gmail's own categories
 - How many are newsletters and automated mail
+- Your top 5 senders and your busiest day of the week
 - How many hours you're spending on manual triage
-- What that time is worth — and how much Yippie saves
+- What that time is worth, and how much Yippie saves
+
+One click copies a shareable text report to your clipboard.
 
 **Your data never leaves your browser.**
 
-The extension reads email headers only (sender, subject, date) — never the message body or attachments. Everything is analysed locally on your device. Nothing is sent to Yippie's servers.
+The extension reads email headers only (sender, subject, date), never the message body or attachments. Everything is analysed locally on your device. Nothing is sent to Yippie's servers.
 
 **Adjust the assumptions to match your reality.**
 
@@ -45,7 +48,7 @@ Used to obtain a Google OAuth token via chrome.identity.getAuthToken() so the ex
 Used to cache the analysis result in chrome.storage.local for up to one hour so the popup loads instantly on repeat opens, and to persist the user's settings (minutes per email, automation rate, hourly rate). No data is synced or transmitted externally.
 
 **Gmail API — gmail.metadata scope**
-The extension reads email metadata (sender, recipient, subject, date) for messages from the last 30 days to classify them into categories (customer conversations, newsletters, internal, other) and calculate triage time estimates. Message bodies, attachments, and drafts are never accessed. All processing happens locally in the browser. No email data is transmitted to Yippie or any third party.
+The extension reads email metadata (sender, recipient, subject, date, Gmail category labels, List-Unsubscribe header) for up to 500 recent INBOX messages from the last 30 days, to classify them into categories (customer conversations, newsletters, internal, other), list top senders, and calculate triage time estimates. Message bodies, attachments, drafts, and sent mail are never accessed. All processing happens locally in the browser. No email data is transmitted to Yippie or any third party.
 
 ---
 

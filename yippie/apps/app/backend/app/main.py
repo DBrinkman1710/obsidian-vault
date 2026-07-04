@@ -50,7 +50,6 @@ async def lifespan(app: FastAPI):
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    is_prod = settings.environment == "production"
     hide_docs = settings.environment in ("production", "sandbox")
 
     app = FastAPI(
