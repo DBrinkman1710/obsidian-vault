@@ -1,7 +1,7 @@
 # Yippie — Roadmap
 **Repo:** github.com/DBrinkman1710/obsidian-vault · **Branch:** `sandbox`
 
-**Latest:** Untracked batch (2026-06-27→30, around/after sessions 89–91, reconciled from git 2026-07-04) — bidirectional iCal calendar sync (Apple/Outlook) + personal calendar invitations; Train Yip (per-tenant `ai_profile` + training modal in Settings); Yip compose_email/help/math actions; agent performance section on Activity; ERP order webhook → contact sync + kanban stage (tracking module); `/docs` page with live manual + HelpTip component + manual PDF in Profile; security hardening waves (OWASP P1, pentest phases 1–4: PyJWT, HttpOnly cookie auth, Redis rate limits, WhatsApp webhook HMAC); Ndugu Coffee pilot-readiness UX fixes; self-serve signup wired to /custom; Sales/SaaS page error+loading states; 91 — [EXT1] Chrome extension inbox analyser (gmail.metadata scope, local processing, settings panel, coming soon section on getyippie.com, store listing copy at apps/extension/store-listing.md); 90 — [CUSTOM1] /custom bespoke package configurator (3-step form, module picker, live pricing, lead capture); 89 — [JARVIS1] quick-capture assistant (⌘K popup, AI routing, reminders, contact/ticket notes, context query); 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER. See Appendix A for full history.
+**Latest:** [YIP-AGENT] ✅ (2026-07-04) — Yip rebuilt from intent routing into agentic tool loop (`jarvis/agent.py`, 13 tenant-filtered tools, `assistant_memories` table + save_memory, conversational ⌘K popup with history, CTA chips under replies, Anthropic prompt caching); open follow-ups tracked as [YIP2]–[YIP5] in the tiers; Untracked batch (2026-06-27→30, around/after sessions 89–91, reconciled from git 2026-07-04) — bidirectional iCal calendar sync (Apple/Outlook) + personal calendar invitations; Train Yip (per-tenant `ai_profile` + training modal in Settings); Yip compose_email/help/math actions; agent performance section on Activity; ERP order webhook → contact sync + kanban stage (tracking module); `/docs` page with live manual + HelpTip component + manual PDF in Profile; security hardening waves (OWASP P1, pentest phases 1–4: PyJWT, HttpOnly cookie auth, Redis rate limits, WhatsApp webhook HMAC); Ndugu Coffee pilot-readiness UX fixes; self-serve signup wired to /custom; Sales/SaaS page error+loading states; 91 — [EXT1] Chrome extension inbox analyser (gmail.metadata scope, local processing, settings panel, coming soon section on getyippie.com, store listing copy at apps/extension/store-listing.md); 90 — [CUSTOM1] /custom bespoke package configurator (3-step form, module picker, live pricing, lead capture); 89 — [JARVIS1] quick-capture assistant (⌘K popup, AI routing, reminders, contact/ticket notes, context query); 88 — [SALES-MOD1] + [SAAS-MOD1] ingest infra; 87A — LiteLLM proxy ([AI-MOD1 Phase 1]); 86 — [STRIPE1] SaaS billing; 85 — [BK8] + security audit [FIX-PLAN]; 84 — BK-HOURS-BUG/WEB-CENTER/PLAN-STARTER. See Appendix A for full history.
 
 ---
 
@@ -241,6 +241,7 @@ Full specs for [AI-MOD1] live in the **Post-launch build order** section above.
 - **[AI-MOD1] Self-hosted AI module, phases 2–3** — `Opus` — *trigger: >100K AI calls/month.* Phase 1 (LiteLLM proxy, provider routing incl. `self-hosted` in `config.py`) ✅ session 87A. Open: vLLM on Hetzner deployment, pgvector memory layer, fine-tuning data pipeline.
 - **Customer data + AI briefing** *(architecture decision)* — `Opus` — define where full contact history is stored; the AI briefing (already running) must pull complete history.
 - **[Phase 11C T2] "Connect your inbox" ROI estimate** — `Opus` — *not built.* CSV/mailbox-export upload (parsed in-browser, best privacy/effort); one-time IMAP/OAuth scan next; Gmail/Workspace metadata add-on last.
+- **[YIP2] Yip drafts replies in tenant tone** — `Opus` — *the flagship Yip feature (chosen 2026-07-04).* Yip drafts ticket/email replies using `ai_profile` (tone, reply_language, sign_off) + full thread context, opens compose prefilled with the draft; human reviews and sends. Also: "brief me on this ticket" thread summaries and message translation.
 
 ---
 
@@ -249,6 +250,9 @@ Full specs for [AI-MOD1] live in the **Post-launch build order** section above.
 - **[CLUSTER1] Issue cluster generator** — `Sonnet` — *not built* (no `ticket_clusters` table or insights code). Spec above. Note: no longer hard-blocked on [AI-MOD1] — Mistral/Anthropic fallback works for early tenants.
 - **[AI-CTRL] Cloud LLM control panel** — `Sonnet` — *not built* (no `/superadmin/cloud-llm` route in `App.tsx`). Spec above.
 - **[LANG1] More UI languages** — `Sonnet` — *deferred, not urgent (confirmed 2026-07-04).* Platform currently supports English + Dutch; add more languages when market expansion (BE/DE/FR) demands it. No build planned for now.
+- **[YIP3] Yip write actions + confirm chips** — `Sonnet` — create ticket, assign/close/reprioritise ticket, create contact, create calendar event, move pipeline stage. Every write goes through a confirmation turn: Yip proposes, popup shows [Confirm]/[Cancel] CTA chips (pattern shipped 2026-07-04), tool executes only after confirm.
+- **[YIP4] Yip read tool expansion** — `Sonnet` — inbox (new mail, pending draft tickets, thread summary), live chat (waiting conversations), emailtracking ("did Jan open my email?"), sales stats (tickets closed this week, revenue), today's bookings. Each tool mirrors the module's existing service queries, tenant-filtered.
+- **[YIP5] Proactive Yip: morning briefing + SLA nudges** — `Sonnet` — APScheduler job builds a per-user digest (SLA breaches due, today's meetings, unanswered chats, overdue follow-ups) delivered via the existing jarvis reminder WebSocket toast channel at start of day; separate near-breach SLA nudge job.
 
 ---
 
@@ -256,6 +260,8 @@ Full specs for [AI-MOD1] live in the **Post-launch build order** section above.
 
 - **[EXT1-STORE] Chrome Web Store submission** — extension code + store listing copy shipped (session 91, `apps/extension/store-listing.md`); **not yet submitted to the Web Store** (confirmed 2026-07-04). Manual step: developer account, upload zip, listing assets, review.
 - **getyippie.com 502 fix** — Cloudflare proxy toggle (orange→grey→wait→orange) for Railway domain verification if ever needed.
+- **[YIP-GATE] Gate Yip tools by enabled modules** — `Haiku` — Yip currently offers e.g. shipment tools to tenants without the shipments module; filter TOOL_DEFS against `tenant.enabled_modules` when building the tool list. Ride along with the next Yip session.
+- **[YIP-STREAM] Streaming Yip replies + server-side threads** — `Haiku`/`Sonnet` — stream tokens into the popup instead of a spinner; persist conversation threads server side so the chat survives closing the popup.
 
 All other Tier 3 items shipped. See **✅ Done** below.
 
