@@ -57,6 +57,10 @@ async def get_current_user(
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This workspace is inactive")
 
     await set_tenant_context(db, user.tenant_id)
+    if settings.sentry_dsn:
+        import sentry_sdk
+
+        sentry_sdk.set_tag("tenant_id", str(user.tenant_id))
     return user
 
 

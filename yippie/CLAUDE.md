@@ -33,7 +33,7 @@ Two fully isolated data planes. **Sandbox DB ≠ Production DB. Never cross them
 | Branch | Purpose | What rebuilds |
 |---|---|---|
 | `sandbox` | **Everything** — app platform + marketing site | Railway Watch Paths route to correct services |
-| `live` | Production (not created yet — wire before go-live) | Railway Production env |
+| `production` | **Production — LIVE since 2026-06-23** (`app.getyippie.com`) | Railway Production env |
 
 - **Deploy everything:** `git push origin sandbox`
 - `commercial` branch: deleted (merged into `sandbox`)
@@ -56,7 +56,7 @@ sandbox branch push
 **Key rules:**
 - Sandbox DB ≠ Production DB — never cross them
 - Tenant isolation via `tenant_id` + `set_tenant_context()` on every request
-- Promotion flow: test on sandbox URLs → push `live` branch at go-live
+- Promotion flow: test on sandbox → `git push origin sandbox:production` (fixes go to both; features stay on sandbox until verified)
 
 ## apps/app — Yippie customer service platform
 

@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # Target: vLLM serving Qwen2.5-7B-Instruct on Hetzner EU (AX102 or GEX130)
     ai_base_url: str = ""
     environment: str = "development"
+    # Sentry error monitoring — leave empty to disable (env: SENTRY_DSN).
+    # Set per Railway environment so sandbox and production report separately.
+    sentry_dsn: str = ""
     resend_api_key: str = ""
     resend_from: str = ""
     resend_webhook_secret: str = ""

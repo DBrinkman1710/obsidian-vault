@@ -52,6 +52,18 @@ def create_app() -> FastAPI:
     settings = get_settings()
     hide_docs = settings.environment in ("production", "sandbox")
 
+    # Error monitoring — no-op unless SENTRY_DSN is set for this environment.
+    # Lazy import so a missing package can never block boot when disabled.
+    if settings.sentry_dsn:
+        import sentry_sdk
+
+        sentry_sdk.init(
+            dsn=settings.sentry_dsn,
+            environment=settings.environment,
+            send_default_pii=False,
+            traces_sample_rate=0.0,
+        )
+
     app = FastAPI(
         title="Yippie | Customer Platform",
         version="1.0.0",
