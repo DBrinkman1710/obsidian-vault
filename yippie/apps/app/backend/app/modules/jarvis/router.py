@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import CurrentUser
 from app.core.models import Tenant, UserReminder
 from app.database import get_db
-from app.modules.jarvis import service
+from app.modules.jarvis import agent, service
 from app.modules.jarvis.schemas import CaptureRequest, CaptureResponse, ReminderOut, TrainRequest
 
 router = APIRouter(prefix="/jarvis", tags=["jarvis"])
@@ -27,9 +27,11 @@ async def capture(body: CaptureRequest, current_user: CurrentUser, db: DB):
     if tenant is None:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
-    plan = await service.classify(body.body, body.context_type, body.context_id, tenant)
-    result = await service.execute(
-        db, current_user, tenant, body.body, body.context_type, body.context_id, plan
+    result = await agent.run_agent(
+        db, current_user, tenant, body.body,
+        body.context_type, body.context_id,
+        route=body.route,
+        history=[t.model_dump() for t in body.history],
     )
     return CaptureResponse(**result)
 

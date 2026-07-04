@@ -29,8 +29,27 @@ def _check_provider_config(s) -> None:
         )
 
 
-async def ai_completion(messages: list[dict], *, max_tokens: int = 512) -> str:
-    """Call the configured AI provider. Returns the text content of the response.
+def _apply_prompt_caching(messages: list[dict]) -> list[dict]:
+    """Mark the system message for Anthropic prompt caching.
+
+    The Yip agent's system prompt is large (persona + manual context + memories),
+    so caching it cuts cost/latency dramatically on multi-turn conversations.
+    Only applied for the anthropic provider; other providers ignore or reject it.
+    """
+    if not messages or messages[0].get("role") != "system":
+        return messages
+    system = messages[0]
+    if isinstance(system.get("content"), str):
+        cached = dict(system)
+        cached["content"] = [
+            {"type": "text", "text": system["content"], "cache_control": {"type": "ephemeral"}}
+        ]
+        return [cached] + messages[1:]
+    return messages
+
+
+async def _acompletion(messages: list[dict], *, max_tokens: int, **extra):
+    """Dispatch a completion to the configured provider and return the raw response.
 
     Provider is controlled by AI_PROVIDER env var:
       "mistral"      — Mistral API (default; EU-hosted, GDPR-safe; uses MISTRAL_API_KEY)
@@ -42,36 +61,53 @@ async def ai_completion(messages: list[dict], *, max_tokens: int = 512) -> str:
     _check_provider_config(s)
 
     if s.ai_provider == "mistral":
-        resp = await litellm.acompletion(
+        return await litellm.acompletion(
             model=f"mistral/{s.ai_model}",
             api_key=s.mistral_api_key,
             messages=messages,
             max_tokens=max_tokens,
+            **extra,
         )
-    elif s.ai_provider == "self-hosted":
-        resp = await litellm.acompletion(
+    if s.ai_provider == "self-hosted":
+        return await litellm.acompletion(
             model=f"openai/{s.ai_model}",
             base_url=s.ai_base_url,
             api_key="local",
             messages=messages,
             max_tokens=max_tokens,
+            **extra,
         )
-    elif s.ai_provider == "deepseek-api":
-        resp = await litellm.acompletion(
+    if s.ai_provider == "deepseek-api":
+        return await litellm.acompletion(
             model=f"deepseek/{s.ai_model}",
             api_key=s.deepseek_api_key,
             messages=messages,
             max_tokens=max_tokens,
+            **extra,
         )
-    else:
-        resp = await litellm.acompletion(
-            model=f"anthropic/{s.ai_model}",
-            api_key=s.anthropic_api_key,
-            messages=messages,
-            max_tokens=max_tokens,
-        )
+    return await litellm.acompletion(
+        model=f"anthropic/{s.ai_model}",
+        api_key=s.anthropic_api_key,
+        messages=_apply_prompt_caching(messages),
+        max_tokens=max_tokens,
+        **extra,
+    )
 
+
+async def ai_completion(messages: list[dict], *, max_tokens: int = 512) -> str:
+    """Call the configured AI provider. Returns the text content of the response."""
+    resp = await _acompletion(messages, max_tokens=max_tokens)
     return (resp.choices[0].message.content or "").strip()
+
+
+async def ai_completion_tools(messages: list[dict], *, tools: list[dict], max_tokens: int = 1024):
+    """Tool-calling completion. Returns the full assistant message (content + tool_calls).
+
+    `tools` uses the OpenAI function-calling schema; litellm translates it for
+    every provider (Anthropic tool_use blocks, Mistral function calling, etc.).
+    """
+    resp = await _acompletion(messages, max_tokens=max_tokens, tools=tools, tool_choice="auto")
+    return resp.choices[0].message
 
 
 def active_provider_label() -> str:

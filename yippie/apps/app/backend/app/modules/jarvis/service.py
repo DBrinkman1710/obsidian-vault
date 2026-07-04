@@ -13,14 +13,11 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models import Tenant, User, UserReminder
+from app.core.models import Tenant
 from app.modules.activity import service as activity_service
 from app.modules.ai.client import ai_completion
 from app.modules.contacts.models import Contact
-from app.modules.tickets.models import Ticket, TicketComment, TicketStatus
-
-# Action types Jarvis can route to. Mirrors the frontend prefs toggles.
-ACTIONS = ("reminder", "contact_note", "ticket_note", "context_query", "navigate", "search", "compose_email", "help", "math")
+from app.modules.tickets.models import Ticket, TicketStatus
 
 # ---------------------------------------------------------------------------
 # Manual loader — reads user_manual.md from disk and caches for 5 minutes.
@@ -126,7 +123,7 @@ def _safe_eval(expr: str):
 
     Returns a numeric int or float, or None if the expression is not valid
     arithmetic. Bare constants (42, True, 1j) return None so single tokens
-    don't shadow note/search/navigate intents in classify().
+    don't shadow note/search/navigate intents in the agent's math fast-path.
     """
     if not any(c.isdigit() for c in expr):
         return None
@@ -172,56 +169,6 @@ def _safe_eval(expr: str):
         return None
 
 
-async def classify(body: str, context_type: str, context_id: str | None, tenant: Tenant) -> dict:
-    """Ask the model to classify the captured text into a single routed action."""
-    # Pre-classify math before hitting the LLM — more reliable than asking the model.
-    # Store the result so execute() can use it without re-evaluating.
-    _math_result = _safe_eval(body)
-    if _math_result is not None:
-        return {"action": "math", "body": body, "_result": str(_math_result)}
-
-    now = datetime.now(timezone.utc)
-    context_line = "No record is currently open."
-    if context_type == "contact" and context_id:
-        context_line = f"A CONTACT is currently open (contact_id={context_id})."
-    elif context_type == "ticket" and context_id:
-        context_line = f"A TICKET is currently open (ticket_id={context_id})."
-
-    prompt = f"""You are Yip, a quick-capture assistant inside the {tenant.name} customer-service workspace.
-The current UTC time is {now.isoformat()}.
-{context_line}
-
-Classify this agent input into exactly one action and return ONLY a JSON object (no markdown):
-Input: "{body}"
-
-Schema:
-{{
-  "action": "reminder | contact_note | ticket_note | context_query | navigate | search | compose_email | help | math",
-  "body": "the subject/topic only — strip trigger phrases like 'remind me to', 'set a reminder for', 'follow up'. Example: 'remind me to call Jan' → 'call Jan'. 'set a reminder for the meeting at 3pm' → 'meeting'.",
-  "remind_at": "ISO 8601 UTC datetime for reminders. For relative times like 'in 5 minutes', add exactly that offset to the current UTC time above. Return null for non-reminders.",
-  "search_query": "name or keyword to look up for navigate/search/compose_email, else null"
-}}
-
-Guidance:
-- "Remind me ..." / "follow up at ..." -> reminder; compute remind_at by adding the stated offset to the current UTC time exactly.
-- A short note when a contact is open -> contact_note. When a ticket is open -> ticket_note.
-- "What do we know about ..." / "show context" with a contact open -> context_query.
-- "Find ...", "Open ...", "Go to ...", "Take me to ...", "Show me ..." -> navigate (set search_query to the destination or person/ticket name).
-- "Compose mail to ...", "Send email to ...", "Write mail to ...", "Email ..." -> compose_email (set search_query to the contact name).
-- "What can you do", "Help", "How do I ...", "What are your commands" -> help.
-- Arithmetic or math ("what is 5*15", "20% of 300", "square root of 144") -> math (put the raw expression in body)."""
-
-    tenant_ctx = _build_tenant_context(tenant)
-    if tenant_ctx:
-        prompt += f"\n\nWorkspace context:\n{tenant_ctx}"
-
-    text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=400)
-    data = _parse_json(text, {"action": "search", "search_query": body})
-    if data.get("action") not in ACTIONS:
-        data["action"] = "search"
-    return data
-
-
 async def _resolve_contact(db: AsyncSession, tenant_id: uuid.UUID, raw_id: str | None, name_hint: str | None) -> Contact | None:
     if raw_id:
         try:
@@ -252,8 +199,8 @@ async def _resolve_ticket(db: AsyncSession, tenant_id: uuid.UUID, raw_id: str | 
     return None
 
 
-async def build_context_summary(db: AsyncSession, tenant: Tenant, contact: Contact) -> dict:
-    """Pull a contact's tickets, recent activity and pipeline stage, then summarise."""
+async def collect_contact_facts(db: AsyncSession, tenant: Tenant, contact: Contact) -> dict:
+    """Pull a contact's tickets, recent activity and pipeline stage into a facts dict."""
     from app.modules.pipeline.models import ContactPipelineEntry, PipelineStage
 
     tickets_result = await db.execute(
@@ -275,7 +222,7 @@ async def build_context_summary(db: AsyncSession, tenant: Tenant, contact: Conta
 
     events = await activity_service.list_events(db, tenant.id, contact_id=contact.id, limit=8)
 
-    facts = {
+    return {
         "name": contact.full_name,
         "company": contact.company_name,
         "email": contact.email,
@@ -287,187 +234,6 @@ async def build_context_summary(db: AsyncSession, tenant: Tenant, contact: Conta
         "recent_activity": [e["event_type"] for e in events[:5]],
         "notes": contact.notes,
     }
-
-    tone = (tenant.ai_profile or {}).get("tone", "friendly")
-    prompt = f"""You are Yip, assisting an agent at {tenant.name}.
-Using the structured customer data below, write a 2-3 sentence briefing the agent can read at a glance.
-Be concrete; mention open tickets, pipeline stage and anything notable. No preamble.
-Use a {tone} tone.
-
-Data:
-{json.dumps(facts, default=str)}"""
-
-    summary = await ai_completion([{"role": "user", "content": prompt}], max_tokens=250)
-
-    return {
-        "summary": summary,
-        "inline_data": {
-            "contact_id": str(contact.id),
-            "full_name": contact.full_name,
-            "email": contact.email,
-            "phone": contact.phone,
-            "notes": contact.notes,
-        },
-    }
-
-
-async def execute(
-    db: AsyncSession,
-    user: User,
-    tenant: Tenant,
-    body: str,
-    context_type: str,
-    context_id: str | None,
-    plan: dict,
-) -> dict:
-    """Run the classified action and return {action_taken, summary, navigate_to?, inline_data?}."""
-    action = plan.get("action", "search")
-    note_body = (plan.get("body") or body).strip()
-
-    if action == "reminder":
-        remind_at = _parse_remind_at(plan.get("remind_at"), body)
-        # Strip trigger phrases the AI may have left in the body
-        clean = re.sub(
-            r'^(?:remind(?:er)?\s+me\s+(?:to\s+)?|set\s+a\s+reminder\s+(?:for\s+)?)',
-            '', note_body, flags=re.IGNORECASE,
-        ).strip() or note_body
-        # Also strip trailing time phrases like "at 3pm today / tomorrow at 9am / in 1 minute"
-        clean = re.sub(
-            r'\s+(?:at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?(?:\s+(?:today|tomorrow|on\s+\w+))?'
-            r'|(?:today|tomorrow)\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?'
-            r'|in\s+\d+\s*(?:minute|min|hour|hr|day|week)s?'
-            r'|next\s+\w+\s+at\s+\d{1,2}(?::\d{2})?\s*(?:am|pm)?)\s*$',
-            '', clean, flags=re.IGNORECASE,
-        ).strip() or clean
-        reminder = UserReminder(
-            user_id=user.id,
-            tenant_id=tenant.id,
-            body=clean,
-            remind_at=remind_at,
-        )
-        db.add(reminder)
-        await db.commit()
-        when = remind_at.strftime("%H:%M on %b %d")
-        return {"action_taken": "reminder", "summary": f"Reminder set for {when}."}
-
-    if action == "context_query":
-        contact = await _resolve_contact(db, tenant.id, context_id, plan.get("search_query"))
-        if not contact:
-            return {"action_taken": "context_query", "summary": "No matching contact to summarise."}
-        result = await build_context_summary(db, tenant, contact)
-        return {
-            "action_taken": "context_query",
-            "summary": result["summary"],
-            "inline_data": result["inline_data"],
-        }
-
-    if action == "ticket_note" or (context_type == "ticket" and action in ("contact_note", "search")):
-        ticket = await _resolve_ticket(db, tenant.id, context_id)
-        if not ticket:
-            return {"action_taken": "ticket_note", "summary": "No ticket in context for this note."}
-        comment = TicketComment(
-            tenant_id=tenant.id,
-            ticket_id=ticket.id,
-            author_id=user.id,
-            body=note_body,
-            is_internal=True,
-        )
-        db.add(comment)
-        await activity_service.log_event(
-            db, tenant.id,
-            module="tickets", event_type="ticket_commented", entity_type="ticket",
-            entity_id=ticket.id, contact_id=ticket.contact_id, actor_id=user.id,
-            payload={"preview": note_body[:100], "source": "jarvis"},
-        )
-        await db.commit()
-        return {"action_taken": "ticket_note", "summary": "Internal note added to the ticket."}
-
-    if action == "contact_note":
-        contact = await _resolve_contact(db, tenant.id, context_id, plan.get("search_query"))
-        if not contact:
-            return {"action_taken": "contact_note", "summary": "No contact in context for this note."}
-        await activity_service.log_event(
-            db, tenant.id,
-            module="contacts", event_type="quick_note", entity_type="contact",
-            entity_id=contact.id, contact_id=contact.id, actor_id=user.id,
-            payload={"body": note_body, "source": "jarvis"},
-        )
-        await db.commit()
-        return {"action_taken": "contact_note", "summary": f"Note added to {contact.full_name}."}
-
-    if action == "math":
-        # Use the result pre-computed by classify() when available — avoids double eval.
-        pre_result = plan.get("_result")
-        if pre_result is not None:
-            return {"action_taken": "math", "summary": pre_result}
-        expr = (plan.get("body") or body).strip()
-        result = _safe_eval(expr)
-        if result is not None:
-            return {"action_taken": "math", "summary": str(result)}
-        # Fall back to AI for complex/textual expressions (e.g. "sqrt(144)")
-        answer = await ai_completion(
-            [{"role": "user", "content": f"Compute and return ONLY the numeric answer, no explanation: {expr}"}],
-            max_tokens=32,
-        )
-        return {"action_taken": "math", "summary": answer.strip()}
-
-    if action == "help":
-        manual = _load_manual()
-        if manual:
-            system_msg = (
-                "You are Yip, a helpful AI assistant inside the Yippie customer service platform. "
-                "Answer the user's question using ONLY the platform manual provided below. "
-                "Rules: plain text only \u2014 no markdown, no asterisks, no bullet symbols, no bold or italic markers. "
-                "Be concise: 2-3 sentences of explanation, then one short call-to-action sentence that tells the user exactly what to type or click to do it (e.g. 'Type \"open contacts\" to jump there now.' or 'Try saying \"remind me to follow up at 3pm\".'). "
-                "If the answer is not in the manual, say: 'I don't have that answer \u2014 reach out to support@getyippie.com and we'll help you out.'\n\n"
-                f"MANUAL:\n{manual}"
-            )
-            answer = await ai_completion(
-                [{"role": "system", "content": system_msg}, {"role": "user", "content": body}],
-                max_tokens=300,
-            )
-            return {"action_taken": "help", "summary": answer.strip()}
-        # Fallback when manual file is unavailable
-        lines = [
-            "Here's what I can do:",
-            "\u2022 Set reminders \u2014 \"remind me to call Jan at 3pm\"",
-            "\u2022 Add notes \u2014 \"make a note: client prefers phone calls\"",
-            "\u2022 Look up a contact \u2014 \"what do we know about Guus Stuiver\"",
-            "\u2022 Navigate \u2014 \"take me to tickets\" or \"open Acme BV\"",
-            "\u2022 Compose email \u2014 \"compose mail to Guus Stuiver\"",
-            "\u2022 Math \u2014 \"what is 5*15\"",
-            "Just type naturally and I'll figure out the rest.",
-            "Need more help? Reach out to support@getyippie.com.",
-        ]
-        return {"action_taken": "help", "summary": "\n".join(lines)}
-
-    if action == "compose_email":
-        query = (plan.get("search_query") or body).strip()
-        contact = await _resolve_contact(db, tenant.id, None, query)
-        if contact and contact.email:
-            return {
-                "action_taken": "compose_email",
-                "summary": f"Opening compose for {contact.full_name}.",
-                "inline_data": {"email": contact.email, "name": contact.full_name},
-            }
-        if contact:
-            return {
-                "action_taken": "compose_email",
-                "summary": f"{contact.full_name} has no email address on file.",
-                "inline_data": None,
-            }
-        return {
-            "action_taken": "compose_email",
-            "summary": f"No contact found matching “{query}”.",
-            "inline_data": None,
-        }
-
-    # navigate / search — resolve to a destination URL the popup can route to.
-    query = (plan.get("search_query") or body).strip()
-    nav = await _resolve_navigation(db, tenant.id, query)
-    if nav:
-        return {"action_taken": "navigate", "summary": nav["label"], "navigate_to": nav["path"]}
-    return {"action_taken": "search", "summary": f"Nothing found for \u201c{query}\u201d. If you need help, contact support@getyippie.com."}
 
 
 _REL_TIME = re.compile(

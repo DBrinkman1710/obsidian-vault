@@ -18,10 +18,17 @@ class TrainRequest(BaseModel):
     messages: list[TrainMessage]
 
 
+class ChatTurn(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
 class CaptureRequest(BaseModel):
     body: str
     context_type: ContextType = "none"
     context_id: Optional[str] = None
+    route: Optional[str] = None
+    history: list[ChatTurn] = []
 
 
 class CaptureResponse(BaseModel):

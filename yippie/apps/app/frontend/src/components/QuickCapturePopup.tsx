@@ -14,6 +14,12 @@ interface CaptureResponse {
   inline_data?: Record<string, any> | null
 }
 
+interface ChatMsg {
+  role: 'user' | 'assistant'
+  content: string
+  data?: CaptureResponse | null
+}
+
 const ACTION_OPTIONS: { key: string; label: string }[] = [
   { key: 'reminder', label: 'Reminders' },
   { key: 'contact_note', label: 'Contact notes' },
@@ -72,10 +78,11 @@ export default function QuickCapturePopup() {
   const { openCompose } = useCompose()
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
+  const bottomRef = useRef<HTMLDivElement>(null)
 
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(false)
-  const [result, setResult] = useState<CaptureResponse | null>(null)
+  const [messages, setMessages] = useState<ChatMsg[]>([])
   const [showPrefs, setShowPrefs] = useState(false)
 
   useReminderSocket(user?.id)
@@ -83,24 +90,33 @@ export default function QuickCapturePopup() {
   useEffect(() => {
     if (!isOpen) {
       setBody('')
-      setResult(null)
+      setMessages([])
       setShowPrefs(false)
       setLoading(false)
     }
   }, [isOpen])
+
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, loading])
 
   if (!isOpen) return null
 
   async function submit() {
     const text = body.trim()
     if (!text || loading) return
+    // History = prior turns only; the backend appends the new message itself.
+    const history = messages.map(m => ({ role: m.role, content: m.content }))
+    setMessages(prev => [...prev, { role: 'user', content: text }])
+    setBody('')
     setLoading(true)
-    setResult(null)
     try {
       const { data } = await api.post<CaptureResponse>('/jarvis/capture', {
         body: text,
         context_type: context.context_type,
         context_id: context.context_id,
+        route: window.location.pathname,
+        history,
       })
       if (data.action_taken === 'navigate' && data.navigate_to) {
         navigate(data.navigate_to)
@@ -112,39 +128,40 @@ export default function QuickCapturePopup() {
         close()
         return
       }
-      setResult(data)
-      if (['reminder', 'contact_note', 'ticket_note'].includes(data.action_taken)) {
-        setTimeout(() => close(), 2000)
-      }
+      setMessages(prev => [...prev, { role: 'assistant', content: data.summary, data }])
     } catch (e: any) {
-      setResult({
-        action_taken: 'error',
-        summary: e?.response?.data?.detail ?? 'Something went wrong.',
-      })
+      setMessages(prev => [...prev, {
+        role: 'assistant',
+        content: e?.response?.data?.detail ?? 'Something went wrong.',
+        data: { action_taken: 'error', summary: '' },
+      }])
     } finally {
       setLoading(false)
+      inputRef.current?.focus()
     }
   }
 
   return (
     <div className="fixed bottom-6 right-6 z-[9999] w-[420px] rounded-xl border border-slate-200 bg-white shadow-2xl">
       <div className="flex items-center justify-between px-4 pt-3 pb-2">
-        {context.context_type === 'contact' ? (
-          <button onClick={clearContext} title="Clear context"
-            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
-            <User size={12} /> Contact <X size={11} className="opacity-60" />
-          </button>
-        ) : context.context_type === 'ticket' ? (
-          <button onClick={clearContext} title="Clear context"
-            className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
-            <Ticket size={12} /> Ticket <X size={11} className="opacity-60" />
-          </button>
-        ) : (
+        <div className="flex items-center gap-2">
           <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400">
             <BotMessageSquare size={14} className="text-yippie" />
             Yip
           </span>
-        )}
+          {context.context_type === 'contact' && (
+            <button onClick={clearContext} title="Clear context"
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
+              <User size={12} /> Contact <X size={11} className="opacity-60" />
+            </button>
+          )}
+          {context.context_type === 'ticket' && (
+            <button onClick={clearContext} title="Clear context"
+              className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
+              <Ticket size={12} /> Ticket <X size={11} className="opacity-60" />
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setShowPrefs(s => !s)} title="Preferences"
             className={`p-1.5 rounded-lg transition-colors ${showPrefs ? 'text-yippie bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}>
@@ -157,6 +174,18 @@ export default function QuickCapturePopup() {
         </div>
       </div>
 
+      {messages.length > 0 && !showPrefs && (
+        <div className="px-4 pb-2 max-h-[360px] overflow-y-auto flex flex-col gap-2">
+          {messages.map((m, i) => <MessageBubble key={i} msg={m} onDone={close} />)}
+          {loading && (
+            <div className="self-start inline-flex items-center gap-2 text-xs text-slate-400 px-3 py-2">
+              <Loader2 size={13} className="animate-spin" /> Yip is thinking…
+            </div>
+          )}
+          <div ref={bottomRef} />
+        </div>
+      )}
+
       <div className="px-4 pb-3">
         <div className="flex items-center gap-2">
           <input
@@ -168,7 +197,7 @@ export default function QuickCapturePopup() {
               if (e.key === 'Enter') { e.preventDefault(); submit() }
               else if (e.key === 'Escape') { e.preventDefault(); close() }
             }}
-            placeholder="Capture a note, reminder, or jump to…"
+            placeholder={messages.length ? 'Reply to Yip…' : 'Ask Yip anything — notes, reminders, lookups…'}
             className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
           <button onClick={submit} disabled={loading || !body.trim()} title="Send"
@@ -179,35 +208,52 @@ export default function QuickCapturePopup() {
       </div>
 
       {showPrefs && <PrefsPanel user={user} refreshUser={refreshUser} onClose={() => setShowPrefs(false)} />}
+    </div>
+  )
+}
 
-      {result && !showPrefs && (
-        <div className="px-4 pb-4">
-          {result.action_taken === 'context_query' && result.inline_data ? (
-            <ContextCard data={result.inline_data} summary={result.summary} onDone={close} />
-          ) : result.action_taken === 'context_query' && !result.inline_data ? (
-            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{result.summary}</p>
-          ) : result.action_taken === 'compose_email' ? (
-            <p className="text-sm text-amber-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">{result.summary}</p>
-          ) : result.action_taken === 'error' ? (
-            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">{result.summary}</p>
-          ) : result.action_taken === 'math' ? (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-center">
-              <p className="text-2xl font-bold text-blue-700">{result.summary}</p>
-            </div>
-          ) : result.action_taken === 'help' ? (
-            <div className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2.5">
-              {result.summary.split('\n').map((line, i) => (
-                <p key={i} className={`text-xs text-slate-700 ${i === 0 ? 'font-semibold mb-1.5' : ''}`}>{line}</p>
-              ))}
-            </div>
-          ) : (
-            <div className="flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-              <Check size={15} className="mt-0.5 shrink-0" />
-              <span>{result.summary}</span>
-            </div>
-          )}
-        </div>
-      )}
+function MessageBubble({ msg, onDone }: { msg: ChatMsg; onDone: () => void }) {
+  if (msg.role === 'user') {
+    return (
+      <div className="self-end max-w-[85%] bg-yippie text-white text-sm rounded-2xl rounded-br-sm px-3 py-2">
+        {msg.content}
+      </div>
+    )
+  }
+
+  const action = msg.data?.action_taken
+  if (action === 'error') {
+    return (
+      <p className="self-start max-w-[85%] text-sm text-red-600 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+        {msg.content}
+      </p>
+    )
+  }
+  if (action === 'math') {
+    return (
+      <div className="self-start bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 text-center">
+        <p className="text-2xl font-bold text-blue-700">{msg.content}</p>
+      </div>
+    )
+  }
+  if (action === 'context_query' && msg.data?.inline_data) {
+    return (
+      <div className="self-start w-full">
+        <ContextCard data={msg.data.inline_data} summary={msg.content} onDone={onDone} />
+      </div>
+    )
+  }
+  if (action && ['reminder', 'contact_note', 'ticket_note'].includes(action)) {
+    return (
+      <div className="self-start max-w-[85%] flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+        <Check size={15} className="mt-0.5 shrink-0" />
+        <span>{msg.content}</span>
+      </div>
+    )
+  }
+  return (
+    <div className="self-start max-w-[85%] bg-slate-100 text-slate-800 text-sm rounded-2xl rounded-bl-sm px-3 py-2 whitespace-pre-wrap">
+      {msg.content}
     </div>
   )
 }
