@@ -24,6 +24,13 @@ from app.modules.booking.schemas import BookingConfirm, CounterProposeRequest, M
 # global aggregates only.
 router = APIRouter(prefix="/public", tags=["public"])
 
+
+@router.get("/sentry-test")
+async def sentry_test() -> None:
+    """Deliberately raises so Sentry capture can be verified end-to-end.
+    Harmless: returns a 500, touches no data. Only useful when SENTRY_DSN is set."""
+    raise RuntimeError("Sentry backend verification test — this error is intentional")
+
 # Average agent time saved per automated ticket, in minutes. Tunable later.
 AVG_MINUTES_PER_TICKET = 15
 
@@ -91,10 +98,12 @@ class RequestDemo(BaseModel):
 
 
 class CustomPlanQuestionnaire(BaseModel):
+    # Same base shape as Questionnaire (demo/signup forms), plus package fields.
     team_size: Optional[str] = None
     industry: Optional[str] = None
-    challenges: Optional[list[str]] = None
-    current_tool: Optional[str] = None
+    current_tools: Optional[list[str]] = None
+    pain_points: Optional[list[str]] = None
+    recommended_modules: Optional[list[str]] = None  # what was shown to user
     plan_selected: Optional[str] = None
     modules_selected: Optional[list[str]] = None
     monthly_total: Optional[int] = None
@@ -397,8 +406,9 @@ async def custom_plan_request(
         contact.custom_fields = {
             "team_size": q.team_size,
             "industry": q.industry,
-            "challenges": q.challenges,
-            "current_tool": q.current_tool,
+            "current_tools": q.current_tools,
+            "pain_points": q.pain_points,
+            "recommended_modules": q.recommended_modules,
             "plan_selected": q.plan_selected,
             "modules_selected": q.modules_selected,
             "monthly_total": q.monthly_total,
@@ -411,10 +421,12 @@ async def custom_plan_request(
             q_lines.append(f"Team size: {q.team_size}")
         if q.industry:
             q_lines.append(f"Industry: {q.industry}")
-        if q.challenges:
-            q_lines.append(f"Challenges: {', '.join(q.challenges)}")
-        if q.current_tool:
-            q_lines.append(f"Current tool: {q.current_tool}")
+        if q.pain_points:
+            q_lines.append(f"Pain points: {', '.join(q.pain_points)}")
+        if q.current_tools:
+            q_lines.append(f"Current tools: {', '.join(q.current_tools)}")
+        if q.recommended_modules:
+            q_lines.append(f"Recommended: {', '.join(q.recommended_modules)}")
         if q.plan_selected:
             q_lines.append(f"Plan: {q.plan_selected.capitalize()}")
         if q.modules_selected:

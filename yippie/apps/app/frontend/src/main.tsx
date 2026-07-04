@@ -21,6 +21,10 @@ if (sentryEnv) {
     environment: sentryEnv,
     sendDefaultPii: false,
   })
+  // Visiting any page with ?sentry_test=1 sends one test event — wiring check.
+  if (new URLSearchParams(window.location.search).has('sentry_test')) {
+    Sentry.captureMessage('Sentry frontend verification test', 'error')
+  }
 }
 
 export const queryClient = new QueryClient({
