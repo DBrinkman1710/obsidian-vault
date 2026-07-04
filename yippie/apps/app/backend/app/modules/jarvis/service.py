@@ -82,7 +82,7 @@ Return ONLY a JSON object with these exact keys:
 
 If a field has no clear answer from the conversation, use sensible defaults (tone=friendly, reply_language=en, sign_off="{tenant.name} Team")."""
 
-    text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=400)
+    text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=400, workload="agent")
     data = _parse_json(text, {})
     return {
         "business_description": data.get("business_description", ""),

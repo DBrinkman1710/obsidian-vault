@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     # Mistral is the default: French company, EU datacenters, no training on API data, GDPR-safe.
     # Self-hosted target: vLLM on Hetzner (DE/FI) with Qwen 2.5 7B — switch when volume > 100K calls/month.
     ai_provider: str = "mistral"
+    # Per-workload override for the Yip agent (falls back to ai_provider/ai_model when empty).
+    # Recommended: AI_AGENT_PROVIDER=anthropic + AI_AGENT_MODEL=claude-haiku-4-5-20251001 —
+    # strongest tool calling for the agent loop while AI_PROVIDER=mistral keeps
+    # high-volume inbox scanning cheap and EU-hosted.
+    ai_agent_provider: str = ""
+    ai_agent_model: str = ""
     # DeepSeek API key — used when ai_provider="deepseek-api"; set AI_MODEL=deepseek-chat
     deepseek_api_key: str = ""
     # Self-hosted OpenAI-compatible endpoint — used when ai_provider="self-hosted"
