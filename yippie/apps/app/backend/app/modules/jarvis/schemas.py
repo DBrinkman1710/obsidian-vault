@@ -36,6 +36,8 @@ class CaptureResponse(BaseModel):
     summary: str
     navigate_to: Optional[str] = None
     inline_data: Optional[dict] = None
+    # CTA buttons under the reply: {label, kind: "navigate"|"compose", path?, email?, name?}
+    actions: Optional[list[dict]] = None
 
 
 class ReminderOut(BaseModel):

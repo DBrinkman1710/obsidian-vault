@@ -7,11 +7,20 @@ import { useAuth, type JarvisPrefs, type User as AuthUser } from '../auth/useAut
 import { useQuickCapture } from '../hooks/useQuickCapture'
 import { useCompose } from '../hooks/useCompose'
 
+interface CtaAction {
+  label: string
+  kind: 'navigate' | 'compose'
+  path?: string
+  email?: string
+  name?: string
+}
+
 interface CaptureResponse {
   action_taken: string
   summary: string
   navigate_to?: string | null
   inline_data?: Record<string, any> | null
+  actions?: CtaAction[] | null
 }
 
 interface ChatMsg {
@@ -102,6 +111,16 @@ export default function QuickCapturePopup() {
 
   if (!isOpen) return null
 
+  function handleAction(action: CtaAction) {
+    if (action.kind === 'navigate' && action.path) {
+      navigate(action.path)
+      close()
+    } else if (action.kind === 'compose' && action.email) {
+      openCompose({ recipients: [{ email: action.email, label: action.name || action.email }], subject: '', body: '', fromEmail: null })
+      close()
+    }
+  }
+
   async function submit() {
     const text = body.trim()
     if (!text || loading) return
@@ -176,7 +195,9 @@ export default function QuickCapturePopup() {
 
       {messages.length > 0 && !showPrefs && (
         <div className="px-4 pb-2 max-h-[360px] overflow-y-auto flex flex-col gap-2">
-          {messages.map((m, i) => <MessageBubble key={i} msg={m} onDone={close} />)}
+          {messages.map((m, i) => (
+            <MessageBubble key={i} msg={m} onDone={close} onAction={handleAction} />
+          ))}
           {loading && (
             <div className="self-start inline-flex items-center gap-2 text-xs text-slate-400 px-3 py-2">
               <Loader2 size={13} className="animate-spin" /> Yip is thinking…
@@ -212,7 +233,23 @@ export default function QuickCapturePopup() {
   )
 }
 
-function MessageBubble({ msg, onDone }: { msg: ChatMsg; onDone: () => void }) {
+function CtaRow({ actions, onAction }: { actions?: CtaAction[] | null; onAction: (a: CtaAction) => void }) {
+  if (!actions?.length) return null
+  return (
+    <div className="flex flex-wrap gap-1.5 mt-1">
+      {actions.map((a, i) => (
+        <button key={i} onClick={() => onAction(a)}
+          className="px-2.5 py-1 rounded-full text-xs font-semibold bg-white border border-yippie/40 text-yippie hover:bg-blue-50 transition-colors">
+          {a.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function MessageBubble({ msg, onDone, onAction }: {
+  msg: ChatMsg; onDone: () => void; onAction: (a: CtaAction) => void
+}) {
   if (msg.role === 'user') {
     return (
       <div className="self-end max-w-[85%] bg-yippie text-white text-sm rounded-2xl rounded-br-sm px-3 py-2">
@@ -240,20 +277,27 @@ function MessageBubble({ msg, onDone }: { msg: ChatMsg; onDone: () => void }) {
     return (
       <div className="self-start w-full">
         <ContextCard data={msg.data.inline_data} summary={msg.content} onDone={onDone} />
+        <CtaRow actions={msg.data?.actions} onAction={onAction} />
       </div>
     )
   }
   if (action && ['reminder', 'contact_note', 'ticket_note'].includes(action)) {
     return (
-      <div className="self-start max-w-[85%] flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
-        <Check size={15} className="mt-0.5 shrink-0" />
-        <span>{msg.content}</span>
+      <div className="self-start max-w-[85%]">
+        <div className="flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+          <Check size={15} className="mt-0.5 shrink-0" />
+          <span>{msg.content}</span>
+        </div>
+        <CtaRow actions={msg.data?.actions} onAction={onAction} />
       </div>
     )
   }
   return (
-    <div className="self-start max-w-[85%] bg-slate-100 text-slate-800 text-sm rounded-2xl rounded-bl-sm px-3 py-2 whitespace-pre-wrap">
-      {msg.content}
+    <div className="self-start max-w-[85%]">
+      <div className="bg-slate-100 text-slate-800 text-sm rounded-2xl rounded-bl-sm px-3 py-2 whitespace-pre-wrap">
+        {msg.content}
+      </div>
+      <CtaRow actions={msg.data?.actions} onAction={onAction} />
     </div>
   )
 }

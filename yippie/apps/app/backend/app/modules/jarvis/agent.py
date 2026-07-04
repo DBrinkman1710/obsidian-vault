@@ -213,6 +213,14 @@ class AgentContext:
         self.action_taken = "answer"
         self.navigate_to: str | None = None
         self.inline_data: dict | None = None
+        # CTA buttons rendered under the reply: {label, kind: navigate|compose, ...}
+        self.actions: list[dict] = []
+
+    def add_action(self, label: str, **fields) -> None:
+        """Attach a CTA button (max 3, deduped by label)."""
+        if len(self.actions) >= 3 or any(a["label"] == label for a in self.actions):
+            return
+        self.actions.append({"label": label, **fields})
 
 
 def _build_system_prompt(ctx: AgentContext, route: str | None, memories: list[str]) -> str:
@@ -285,6 +293,8 @@ async def _tool_search_contacts(ctx: AgentContext, args: dict) -> dict:
         .limit(5)
     )
     contacts = result.scalars().all()
+    for c in contacts[:2]:
+        ctx.add_action(f"Open {c.full_name}", kind="navigate", path=f"/contacts/{c.id}")
     return {
         "matches": [
             {
@@ -315,6 +325,9 @@ async def _tool_get_contact_briefing(ctx: AgentContext, args: dict) -> dict:
         "notes": contact.notes,
     }
     facts["contact_id"] = str(contact.id)
+    ctx.add_action(f"Open {contact.full_name}", kind="navigate", path=f"/contacts/{contact.id}")
+    if contact.email:
+        ctx.add_action(f"Email {contact.full_name}", kind="compose", email=contact.email, name=contact.full_name)
     return facts
 
 
@@ -334,6 +347,11 @@ async def _tool_list_open_tickets(ctx: AgentContext, args: dict) -> dict:
         .limit(15)
     )
     rows = result.all()
+    for t, _name in rows[:2]:
+        subject = t.subject if len(t.subject) <= 32 else t.subject[:29] + "…"
+        ctx.add_action(f"Open “{subject}”", kind="navigate", path=f"/tickets/{t.id}")
+    if rows:
+        ctx.add_action("All tickets", kind="navigate", path="/tickets")
     return {
         "tickets": [
             {
@@ -371,6 +389,8 @@ async def _tool_track_shipments(ctx: AgentContext, args: dict) -> dict:
         .limit(5)
     )
     rows = result.all()
+    if rows:
+        ctx.add_action("Open tracking", kind="navigate", path="/tracking")
     return {
         "shipments": [
             {
@@ -403,6 +423,9 @@ async def _tool_search_tickets(ctx: AgentContext, args: dict) -> dict:
         .limit(5)
     )
     tickets = result.scalars().all()
+    for t in tickets[:2]:
+        subject = t.subject if len(t.subject) <= 32 else t.subject[:29] + "…"
+        ctx.add_action(f"Open “{subject}”", kind="navigate", path=f"/tickets/{t.id}")
     return {
         "matches": [
             {
@@ -446,6 +469,7 @@ async def _tool_list_calendar_events(ctx: AgentContext, args: dict) -> dict:
         i for i in items
         if getattr(i, "calendar_type", None) != "personal" or getattr(i, "created_by", None) == ctx.user.id
     ]
+    ctx.add_action("Open calendar", kind="navigate", path="/calendar")
     return {
         "events": [
             {
@@ -669,4 +693,6 @@ async def run_agent(
         out["navigate_to"] = ctx.navigate_to
     if ctx.inline_data:
         out["inline_data"] = ctx.inline_data
+    if ctx.actions:
+        out["actions"] = ctx.actions
     return out
