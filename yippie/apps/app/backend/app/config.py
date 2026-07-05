@@ -6,10 +6,11 @@ from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings
 
 
-# Canonical list of all compiled-in modules. This is the single source of truth
-# for module names — it matches the keys of ``app.modules.MODULES`` and is used
-# as the default ``enabled_modules`` for new tenants (see app.core.models.Tenant).
-ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai']
+# Canonical list of all compiled-in modules. The single source of truth is
+# packages/config/modules.json; `pnpm sync:config` regenerates ``_modules_gen``.
+# Matches the keys of ``app.modules.MODULES`` and is the default
+# ``enabled_modules`` for new tenants (see app.core.models.Tenant).
+from app.core._modules_gen import ALL_MODULES  # noqa: E402,F401
 
 
 class Settings(BaseSettings):

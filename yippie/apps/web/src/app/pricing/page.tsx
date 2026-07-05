@@ -24,7 +24,7 @@ const MODULE_PRICE_MAP: Record<string, number> = {
   "Tickets":           MODULE_PRICES.tickets,
   "Live Chat":         MODULE_PRICES.chat,
   "Calendar":          MODULE_PRICES.calendar,
-  "Pipeline":          MODULE_PRICES.kanban,
+  "Pipeline":          MODULE_PRICES.pipeline,
   "Marketing":         MODULE_PRICES.marketing,
   "Departments":       MODULE_PRICES.departments,
   "Billing":           MODULE_PRICES.billing,
@@ -126,7 +126,7 @@ const plans: Plan[] = [
 const addOns = [
   { Icon: AiIcon, name: "AI Inbox", desc: "Auto-draft tickets and replies from incoming messages.", price: MODULE_PRICES.ai },
   { Icon: CalendarIcon, name: "Calendar + Booking", desc: "Share booking links and manage appointments.", price: MODULE_PRICES.calendar },
-  { Icon: KanbanIcon, name: "Pipeline", desc: "Visual Kanban boards to move contacts through custom stages.", price: MODULE_PRICES.kanban },
+  { Icon: KanbanIcon, name: "Pipeline", desc: "Visual Kanban boards to move contacts through custom stages.", price: MODULE_PRICES.pipeline },
   { Icon: ChatIcon, name: "Live Chat", desc: "Embed a chat widget and manage WhatsApp conversations.", price: MODULE_PRICES.chat },
   { Icon: MailTrackIcon, name: "Marketing", desc: "Email campaigns, A/B testing, open tracking, and drip sequences.", price: MODULE_PRICES.marketing },
   { Icon: TeamIcon, name: "Departments", desc: "Route tickets and chats to the right team automatically.", price: MODULE_PRICES.departments },

@@ -12,6 +12,8 @@
     "build:app": "turbo run build --filter=@yippie/app",
     "lint": "turbo run lint",
     "type-check": "turbo run type-check",
+    "sync:config": "node packages/config/sync.mjs",
+    "check:config": "node packages/config/sync.mjs --check",
     "clean": "turbo run clean && rm -rf node_modules"
   },
   "devDependencies": {

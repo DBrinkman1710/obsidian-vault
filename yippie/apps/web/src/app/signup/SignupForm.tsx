@@ -9,11 +9,19 @@ import {
   INDUSTRIES,
   TOOLS,
   PAIN_POINTS,
-  MODULE_INFO,
   TOP_MODULES,
   computeRecommendations,
 } from "../../lib/recommendations";
-import { PLAN_LIMITS } from "@/lib/config";
+import { PLAN_LIMITS, MODULE_LIST } from "@/lib/config";
+
+// Paid add-on modules (core modules are always included, so filtered out).
+// `id` is the backend module name sent to /api/signup as enabled_modules.
+const ADDON_MODULES = MODULE_LIST.filter((m) => !m.core && m.price != null);
+
+// Recommendation display name → backend module id, for pre-selecting add-ons.
+const REC_TO_ID: Record<string, string> = Object.fromEntries(
+  MODULE_LIST.filter((m) => m.recName).map((m) => [m.recName as string, m.id]),
+);
 
 const PLANS = [
   { key: "founder", label: "Founding Member", badge: "Limited: 5 spots", price: PLAN_LIMITS.founder.priceMonthly, users: PLAN_LIMITS.founder.users },
@@ -84,6 +92,29 @@ export default function SignupForm() {
     return computeRecommendations(industry, currentTools, painPoints);
   }, [hasAnyAnswer, industry, currentTools, painPoints]);
 
+  // Add-on selection: follows the recommendations until the user edits it.
+  const recommendedIds = useMemo(
+    () => recommendations.map((r) => REC_TO_ID[r]).filter(Boolean) as string[],
+    [recommendations],
+  );
+  const [pickedModules, setPickedModules] = useState<string[] | null>(null);
+  const selectedModules = pickedModules ?? recommendedIds;
+  const toggleModule = (id: string) =>
+    setPickedModules(
+      selectedModules.includes(id)
+        ? selectedModules.filter((m) => m !== id)
+        : [...selectedModules, id],
+    );
+
+  const isFounder = plan === "founder";
+  const planPrice = PLAN_LIMITS[plan as keyof typeof PLAN_LIMITS]?.priceMonthly ?? null;
+  const addonMonthly = (price: number) => (isFounder ? Math.round(price * 0.5) : price);
+  const addonTotal = selectedModules.reduce((sum, id) => {
+    const m = ADDON_MODULES.find((a) => a.id === id);
+    return m && m.price != null ? sum + addonMonthly(m.price) : sum;
+  }, 0);
+  const monthlyTotal = planPrice != null ? planPrice + addonTotal : null;
+
   function toggleMulti(value: string, list: string[], setList: (v: string[]) => void, max?: number) {
     if (list.includes(value)) {
       setList(list.filter((v) => v !== value));
@@ -133,6 +164,7 @@ export default function SignupForm() {
           email: email.trim(),
           password,
           plan,
+          enabled_modules: selectedModules,
           questionnaire: hasAnyAnswer ? {
             team_size: teamSize || null,
             industry: industry || null,
@@ -287,22 +319,43 @@ export default function SignupForm() {
           <span className={styles.stepDot}>3</span>
         </div>
 
-        <div className={styles.recCard}>
-          <span className={styles.recLabel}>
-            {hasAnyAnswer ? "Recommended for you" : "Most popular with teams like yours"}
+        <div className={styles.question}>
+          <span className={styles.qLabel}>
+            {hasAnyAnswer ? "Recommended add-ons" : "Choose your add-ons"}
           </span>
-          <div className={styles.recList}>
-            {recommendations.map((m) => {
-              const info = MODULE_INFO[m];
-              if (!info) return null;
+          <p style={{ color: "#64748b", fontSize: 13, margin: "4px 0 10px" }}>
+            Inbox, Contacts, and Activity are always included. Add only what you need — you can change this anytime.
+          </p>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {ADDON_MODULES.map((m) => {
+              const on = selectedModules.includes(m.id);
+              const recommended = recommendedIds.includes(m.id);
               return (
-                <div key={m} className={styles.recBadge}>
-                  <span className={styles.recIcon}>{info.icon}</span>
-                  <span className={styles.recText}>
-                    <span className={styles.recName}>{m}</span>
-                    <span className={styles.recDesc}>{info.desc}</span>
+                <button key={m.id} type="button" onClick={() => toggleModule(m.id)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 10, padding: "10px 12px",
+                    borderRadius: 10, border: "2px solid",
+                    borderColor: on ? "#5BA4F5" : "#e2e8f0",
+                    background: on ? "#eff6ff" : "#fff", cursor: "pointer", textAlign: "left",
+                  }}>
+                  <span style={{
+                    width: 20, height: 20, borderRadius: 6, flexShrink: 0, display: "flex",
+                    alignItems: "center", justifyContent: "center", fontSize: 13, color: "#fff",
+                    background: on ? "#5BA4F5" : "#cbd5e1",
+                  }}>{on ? "✓" : ""}</span>
+                  <span style={{ fontSize: 18 }}>{m.icon}</span>
+                  <span style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ display: "block", fontWeight: 600, fontSize: 14, color: "#0f172a" }}>
+                      {m.label}
+                      {recommended && <span style={{ color: "#5BA4F5", fontWeight: 600, fontSize: 11, marginLeft: 6 }}>Recommended</span>}
+                    </span>
+                    <span style={{ display: "block", fontSize: 12, color: "#64748b" }}>{m.desc}</span>
                   </span>
-                </div>
+                  <span style={{ fontWeight: 600, fontSize: 13, whiteSpace: "nowrap", color: on ? "#5BA4F5" : "#94a3b8" }}>
+                    {isFounder && <span style={{ textDecoration: "line-through", color: "#cbd5e1", marginRight: 4 }}>€{m.price}</span>}
+                    €{addonMonthly(m.price as number)}/mo
+                  </span>
+                </button>
               );
             })}
           </div>
@@ -328,6 +381,22 @@ export default function SignupForm() {
             ))}
           </div>
         </div>
+
+        {monthlyTotal != null && (
+          <div style={{
+            marginTop: 14, padding: "12px 14px", borderRadius: 10,
+            background: "#f8fafc", border: "1px solid #e2e8f0",
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+          }}>
+            <span style={{ fontSize: 13, color: "#64748b" }}>
+              {PLANS.find((p) => p.key === plan)?.label} + {selectedModules.length} add-on{selectedModules.length !== 1 ? "s" : ""}
+              {isFounder && " · 50% off add-ons"}
+            </span>
+            <span style={{ fontWeight: 700, fontSize: 18, color: "#0f172a" }}>
+              €{monthlyTotal}<span style={{ fontSize: 13, fontWeight: 500, color: "#64748b" }}>/mo</span>
+            </span>
+          </div>
+        )}
 
         <button className={styles.submit} type="button" onClick={() => setStep(3)}>
           Continue →

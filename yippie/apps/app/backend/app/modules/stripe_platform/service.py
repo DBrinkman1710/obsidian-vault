@@ -27,17 +27,9 @@ PLAN_LOOKUP_KEYS: dict[str, PlanTier] = {
     "yippie_pro_annual":     PlanTier.pro,
 }
 
-# Maps Stripe price lookup_keys → Yippie module name.
-MODULE_LOOKUP_KEYS: dict[str, str] = {
-    "yippie_module_tickets": "tickets",
-    "yippie_module_ai": "ai",
-    "yippie_module_calendar": "calendar",
-    "yippie_module_kanban": "kanban",
-    "yippie_module_chat": "chat",
-    "yippie_module_marketing": "marketing",
-    "yippie_module_departments": "departments",
-    "yippie_module_billing": "billing",
-}
+# Maps Stripe price lookup_keys → Yippie module id. Canonical source:
+# packages/config/modules.json via ``_modules_gen`` (`pnpm sync:config`).
+from app.core._modules_gen import MODULE_STRIPE_KEYS as MODULE_LOOKUP_KEYS  # noqa: F401
 
 # Core modules always included regardless of add-on subscriptions.
 CORE_MODULES = ["inbox", "contacts", "activity"]

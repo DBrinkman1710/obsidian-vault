@@ -1,8 +1,21 @@
-// Canonical module IDs — must match ALL_MODULES in apps/app/backend/app/config.py
+// DO NOT EDIT — generated from packages/config/modules.json by packages/config/sync.mjs.
+// Run `pnpm sync:config` after editing modules.json.
 export const MODULE_IDS = [
-  "inbox", "contacts", "tickets", "calendar",
-  "pipeline", "chat", "ai", "emailtracking",
-  "activity", "billing", "departments", "marketing",
+  "inbox",
+  "contacts",
+  "tickets",
+  "calendar",
+  "pipeline",
+  "booking",
+  "activity",
+  "billing",
+  "chat",
+  "departments",
+  "marketing",
+  "tracking",
+  "sales",
+  "saas",
+  "ai"
 ] as const;
 
-export type ModuleId = typeof MODULE_IDS[number];
+export type ModuleId = (typeof MODULE_IDS)[number];

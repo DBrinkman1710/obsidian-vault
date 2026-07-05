@@ -1499,6 +1499,7 @@ async def signup(
     from app.modules.pipeline.service import _assign_stage
     from app.public.payment_service import handle_signup_payment
     from app.config import ALL_MODULES
+    from app.core._modules_gen import CORE_MODULES
 
     ip = get_client_ip(request)
     await _public_rate_limit(ip, "signup", 5)
@@ -1532,8 +1533,14 @@ async def signup(
             except Exception:
                 pass
 
+    # Core modules (inbox/contacts/activity) are always on; the buyer explicitly
+    # picks paid add-ons on the signup form. Only the selected add-ons are billed
+    # (see handle_signup_payment). Booking ships bundled with Calendar.
     _all = set(ALL_MODULES)
-    enabled_modules = [m for m in body.enabled_modules if m in _all] or ALL_MODULES
+    selected = [m for m in body.enabled_modules if m in _all]
+    enabled_modules = list(dict.fromkeys([*CORE_MODULES, *selected]))
+    if "calendar" in enabled_modules and "booking" not in enabled_modules:
+        enabled_modules.append("booking")
     base_slug = _slugify(body.company_name)
     slug = await _unique_slug(db, base_slug)
 
@@ -1562,6 +1569,13 @@ async def signup(
     tenant_id = uuid.UUID(str(tenant_result["id"]))
 
     root_tenant_id = await _resolve_root_tenant_id(db)
+
+    # Load the new tenant now, while the session is still on the connecting
+    # (RLS-bypassing) role — once we switch into root-tenant context below the
+    # tenants RLS policy (id = app_tenant_id()) would hide it. Stripe checkout
+    # needs this object (id/slug/customer id) to build the session.
+    signup_tenant = await db.get(Tenant, tenant_id)
+
     await set_tenant_context(db, str(root_tenant_id))
 
     # Find or create contact in root tenant
@@ -1601,7 +1615,13 @@ async def signup(
 
     await db.flush()
 
-    # Create invoice (or Stripe checkout when ready)
+    base = _demo_client_base_url()
+    login_url = f"{base}/login"
+
+    # Stripe Checkout (when configured) or a manual invoice fallback. On a
+    # successful Stripe session the frontend redirects to checkout_url; on
+    # cancel the buyer lands back on /login (their account already exists and
+    # they can pay later from Settings → Subscription).
     try:
         payment_result = await handle_signup_payment(
             db=db,
@@ -1610,15 +1630,15 @@ async def signup(
             plan=body.plan,
             modules=enabled_modules,
             company_name=body.company_name.strip(),
+            tenant=signup_tenant,
+            success_url=f"{base}/login?checkout=success",
+            cancel_url=f"{base}/login?checkout=cancelled",
         )
     except NotImplementedError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Payment processing is not configured. Contact support.",
         )
-
-    base = _demo_client_base_url()
-    login_url = f"{base}/login"
 
     try:
         from app.auth.invite import send_signup_welcome_email
