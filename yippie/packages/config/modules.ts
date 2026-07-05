@@ -9,6 +9,7 @@ export const MODULE_IDS = [
   "booking",
   "activity",
   "billing",
+  "contracts",
   "chat",
   "departments",
   "marketing",

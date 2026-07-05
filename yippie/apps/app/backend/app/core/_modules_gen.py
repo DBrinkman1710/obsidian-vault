@@ -2,7 +2,7 @@
 # Run `pnpm sync:config` after editing modules.json.
 from __future__ import annotations
 
-ALL_MODULES: list[str] = ["inbox","contacts","tickets","calendar","pipeline","booking","activity","billing","chat","departments","marketing","tracking","sales","saas","ai"]
+ALL_MODULES: list[str] = ["inbox","contacts","tickets","calendar","pipeline","booking","activity","billing","contracts","chat","departments","marketing","tracking","sales","saas","ai"]
 
 CORE_MODULES: list[str] = ["inbox","contacts","activity"]
 
@@ -12,6 +12,7 @@ MODULE_PRICES: dict[str, int] = {
     "calendar": 7,
     "pipeline": 7,
     "billing": 7,
+    "contracts": 9,
     "chat": 9,
     "departments": 7,
     "marketing": 9,
@@ -27,6 +28,7 @@ MODULE_STRIPE_KEYS: dict[str, str] = {
     "yippie_module_calendar": "calendar",
     "yippie_module_pipeline": "pipeline",
     "yippie_module_billing": "billing",
+    "yippie_module_contracts": "contracts",
     "yippie_module_chat": "chat",
     "yippie_module_departments": "departments",
     "yippie_module_marketing": "marketing",
@@ -56,6 +58,7 @@ MODULE_META: dict[str, dict] = {
     "booking": {"label": "Booking", "icon": "🗓", "desc": "Public booking pages and appointment scheduling (included with Calendar).", "core": False, "price": None},
     "activity": {"label": "Activity", "icon": "📊", "desc": "Unified timeline of emails, tickets, and pipeline moves.", "core": True, "price": None},
     "billing": {"label": "Billing", "icon": "🧾", "desc": "Issue invoices, track payments, and manage subscriptions.", "core": False, "price": 7},
+    "contracts": {"label": "Contracts", "icon": "📄", "desc": "Store signed contracts, track renewals and notice periods, and get reminded before they expire.", "core": False, "price": 9},
     "chat": {"label": "Live Chat", "icon": "💬", "desc": "Web chat widget + WhatsApp. All conversations in one inbox.", "core": False, "price": 9},
     "departments": {"label": "Departments", "icon": "🏢", "desc": "Route tickets and chats to the right team automatically.", "core": False, "price": 7},
     "marketing": {"label": "Marketing", "icon": "📣", "desc": "Email campaigns, A/B testing, drip sequences, and shared reply templates.", "core": False, "price": 9},

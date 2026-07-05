@@ -14,6 +14,7 @@ import app.core.models  # noqa
 import app.modules.contacts.models  # noqa
 import app.modules.tickets.models  # noqa
 import app.modules.billing.models  # noqa
+import app.modules.contracts.models  # noqa
 import app.modules.activity.models  # noqa
 import app.modules.inbox.models  # noqa
 import app.modules.chat.models  # noqa

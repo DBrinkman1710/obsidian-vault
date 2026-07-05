@@ -13,6 +13,7 @@ export const MODULE_PRICES = {
   calendar: 7,
   pipeline: 7,
   billing: 7,
+  contracts: 9,
   chat: 9,
   departments: 7,
   marketing: 9,

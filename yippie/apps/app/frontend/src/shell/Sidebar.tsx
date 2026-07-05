@@ -7,7 +7,7 @@ import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
   ChevronLeft, ChevronRight, Megaphone, GripVertical, Package,
-  TrendingUp, BarChart3, Settings, UsersRound,
+  TrendingUp, BarChart3, Settings, UsersRound, FileText,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -38,6 +38,7 @@ const MODULE_MAP: Record<string, { labelKey: TKey; Icon: LucideIcon; path: strin
   pipeline: { labelKey: 'kanban',   Icon: Kanban,        path: '/pipeline' },
   activity: { labelKey: 'activity', Icon: Activity,      path: '/activity' },
   billing:  { labelKey: 'billing',  Icon: CreditCard,    path: '/billing' },
+  contracts: { labelKey: 'contracts', Icon: FileText,    path: '/contracts' },
   chat:     { labelKey: 'livechat', Icon: MessageSquare, path: '/chat' },
   marketing: { labelKey: 'marketing', Icon: Megaphone,   path: '/marketing' },
   tracking:  { labelKey: 'tracking',  Icon: Package,     path: '/tracking' },

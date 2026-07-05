@@ -25,6 +25,7 @@ const CalendarPage  = lazy(() => import('./modules/calendar/pages/CalendarPage')
 const PipelinePage  = lazy(() => import('./modules/pipeline/pages/PipelinePage'))
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const InvoiceDetail = lazy(() => import('./modules/billing/pages/InvoiceDetail'))
+const ContractList  = lazy(() => import('./modules/contracts/pages/ContractList'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
 const LoginPage          = lazy(() => import('./auth/LoginPage'))
 const RegisterPage       = lazy(() => import('./auth/RegisterPage'))
@@ -305,6 +306,10 @@ export default function App() {
 
               <Route path="/billing/invoices/:invoiceId" element={
                 <ModuleGate module="billing"><PagePad><InvoiceDetail /></PagePad></ModuleGate>
+              } />
+
+              <Route path="/contracts" element={
+                <ModuleGate module="contracts"><PagePad><ContractList /></PagePad></ModuleGate>
               } />
 
               <Route path="/activity" element={
