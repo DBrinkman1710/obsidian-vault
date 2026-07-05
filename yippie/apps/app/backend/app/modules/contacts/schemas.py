@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -106,6 +106,45 @@ class ContactOut(BaseModel):
 class ContactList(BaseModel):
     items: list[ContactOut]
     total: int
+
+
+# --- Call logging (click-to-call) ---
+
+CallOutcome = Literal["connected", "voicemail", "no_answer"]
+
+
+class CallAnalyzeRequest(BaseModel):
+    transcript: str
+    outcome: CallOutcome = "connected"
+    duration_minutes: Optional[int] = Field(default=None, ge=0)
+
+
+class CallActionItem(BaseModel):
+    text: str
+    due_at: Optional[datetime] = None
+
+
+class CallAnalyzeResponse(BaseModel):
+    summary: str
+    action_items: list[CallActionItem] = []
+    email_subject: Optional[str] = None
+    email_body: Optional[str] = None
+    ai_ok: bool = True
+
+
+class CallLogSaveRequest(BaseModel):
+    outcome: CallOutcome = "connected"
+    duration_minutes: Optional[int] = Field(default=None, ge=0)
+    summary: str = Field(min_length=1)
+    action_items: list[CallActionItem] = []
+    transcript: Optional[str] = None
+    email_subject: Optional[str] = None
+    email_body: Optional[str] = None
+
+
+class CallLogSaveResponse(BaseModel):
+    activity_event_id: uuid.UUID
+    reminders_created: int = 0
 
 
 class ImportResult(BaseModel):

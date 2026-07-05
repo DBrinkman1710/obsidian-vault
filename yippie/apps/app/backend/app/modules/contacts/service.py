@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import io
+import json
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -11,6 +12,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.contacts.models import Company, Contact, ContactLabel
 from app.modules.contacts.schemas import (
+    CallActionItem,
+    CallAnalyzeRequest,
+    CallAnalyzeResponse,
+    CallLogSaveRequest,
+    CallLogSaveResponse,
     CompanyCreate,
     CompanyUpdate,
     ContactCreate,
@@ -475,6 +481,160 @@ async def import_contacts(
         result.imported = len(to_add)
 
     return result
+
+
+# --- Call logging (click-to-call) ---
+
+# Cap the transcript sent to the model to bound cost/latency on very long calls.
+MAX_CALL_TRANSCRIPT_CHARS = 15000
+
+
+def _strip_fences(text: str) -> str:
+    if text.startswith("```"):
+        lines = text.split("\n")
+        inner = "\n".join(lines[1:])
+        return inner[:inner.rfind("```")].strip() if "```" in inner else inner.strip()
+    return text
+
+
+def _parse_json(text: str, fallback):
+    """Parse model JSON output, returning ``fallback`` on any error."""
+    try:
+        return json.loads(_strip_fences(text))
+    except (json.JSONDecodeError, ValueError, TypeError):
+        return fallback
+
+
+async def analyze_call(contact: Contact, data: CallAnalyzeRequest) -> CallAnalyzeResponse:
+    """Structure a raw call transcript into summary, action items and an email draft.
+
+    Pure AI step — persists nothing. The user reviews/edits the result before
+    saving via ``save_call_log``. On any AI failure the raw transcript is
+    returned as the summary so the call can still be logged manually.
+    """
+    from app.modules.ai.client import ai_completion
+
+    transcript = data.transcript.strip()
+
+    # No conversation happened — nothing to analyze.
+    if data.outcome != "connected" and not transcript:
+        summary = "Voicemail left." if data.outcome == "voicemail" else "No answer."
+        return CallAnalyzeResponse(summary=summary, ai_ok=True)
+
+    truncated = len(transcript) > MAX_CALL_TRANSCRIPT_CHARS
+    now = datetime.now(timezone.utc)
+    company = contact.company_name or "N/A"
+
+    prompt = f"""You are a sales assistant. A call with a lead was just transcribed (speech-to-text of both sides, speakers not labelled). Analyze it.
+
+Contact: {contact.full_name} (company: {company})
+Current date/time (UTC): {now.strftime('%A %Y-%m-%d %H:%M')}
+Call outcome: {data.outcome}
+
+Transcript{' (truncated)' if truncated else ''}:
+{transcript[:MAX_CALL_TRANSCRIPT_CHARS]}
+
+Respond with ONLY a JSON object (no markdown, no explanation) with these exact fields:
+{{
+  "summary": "2-4 sentence summary of the call: who wants what, decisions made, objections raised",
+  "action_items": [{{"text": "concrete follow-up action", "due_at": "ISO 8601 UTC datetime if a deadline or moment was mentioned, else null"}}],
+  "email": {{"subject": "...", "body": "plain-text follow-up email draft to the contact"}}
+}}
+
+Rules:
+- Write the summary and email in the same language as the transcript.
+- Resolve relative dates ("next Tuesday", "end of the week") to ISO datetimes using the current date above; default to 09:00 UTC when no time was mentioned.
+- Only include action items and commitments that were actually said — do not invent any.
+- "email" may be null if no follow-up email makes sense."""
+
+    try:
+        text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=1024)
+        parsed = _parse_json(text, fallback=None)
+    except Exception:
+        parsed = None
+
+    if not isinstance(parsed, dict) or not parsed.get("summary"):
+        return CallAnalyzeResponse(summary=transcript[:300], ai_ok=False)
+
+    items: list[CallActionItem] = []
+    for raw in parsed.get("action_items") or []:
+        if not isinstance(raw, dict) or not (raw.get("text") or "").strip():
+            continue
+        due_at = None
+        if raw.get("due_at"):
+            try:
+                due_at = datetime.fromisoformat(str(raw["due_at"]).replace("Z", "+00:00"))
+                if due_at.tzinfo is None:
+                    due_at = due_at.replace(tzinfo=timezone.utc)
+            except (ValueError, TypeError):
+                due_at = None
+        items.append(CallActionItem(text=raw["text"].strip(), due_at=due_at))
+
+    email = parsed.get("email") if isinstance(parsed.get("email"), dict) else None
+    return CallAnalyzeResponse(
+        summary=str(parsed["summary"]).strip(),
+        action_items=items,
+        email_subject=(email or {}).get("subject"),
+        email_body=(email or {}).get("body"),
+        ai_ok=True,
+    )
+
+
+async def save_call_log(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    user,
+    contact: Contact,
+    data: CallLogSaveRequest,
+) -> CallLogSaveResponse:
+    """Persist a reviewed call log: activity event + notes append + reminders."""
+    from app.core.models import UserReminder
+    from app.modules.activity import service as activity_service
+
+    event = await activity_service.log_event(
+        db,
+        tenant_id,
+        module="contacts",
+        event_type="call_logged",
+        entity_type="contact",
+        entity_id=contact.id,
+        contact_id=contact.id,
+        actor_id=user.id,
+        payload={
+            "outcome": data.outcome,
+            "duration_minutes": data.duration_minutes,
+            "summary": data.summary,
+            "action_items": [
+                {"text": i.text, "due_at": i.due_at.isoformat() if i.due_at else None}
+                for i in data.action_items
+            ],
+            "transcript": data.transcript,
+        },
+    )
+
+    stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M")
+    outcome_label = data.outcome.replace("_", " ")
+    entry = f"[Call {stamp} — {outcome_label}] {data.summary}"
+    contact.notes = f"{contact.notes}\n\n{entry}" if contact.notes else entry
+
+    # Reminders only for action items with a valid future due date — an
+    # instant-firing reminder for undated items would just be noise.
+    now = datetime.now(timezone.utc)
+    reminders_created = 0
+    for item in data.action_items:
+        if item.due_at and item.due_at > now:
+            db.add(
+                UserReminder(
+                    user_id=user.id,
+                    tenant_id=tenant_id,
+                    body=f"{contact.full_name}: {item.text}",
+                    remind_at=item.due_at,
+                )
+            )
+            reminders_created += 1
+
+    await db.commit()
+    return CallLogSaveResponse(activity_event_id=event.id, reminders_created=reminders_created)
 
 
 async def export_contacts_csv(

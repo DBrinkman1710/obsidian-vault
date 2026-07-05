@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Pencil, Kanban, CalendarClock, ChevronDown, ChevronUp, Package } from 'lucide-react'
+import { Plus, Pencil, Kanban, CalendarClock, ChevronDown, ChevronUp, Package, Phone } from 'lucide-react'
 import { useMobile } from '../../../shell/useMobile'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
@@ -10,6 +10,7 @@ import { CompanyBadge, type CompanyRef } from '../components/CompanyBadge'
 import { CompanyPicker } from '../components/CompanyPicker'
 import { useTenantConfig } from '../../../App'
 import SendBookingModal from '../../booking/components/SendBookingModal'
+import CallModal from '../components/CallModal'
 
 function formatEventType(s: string): string {
   return s.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -29,6 +30,10 @@ function timeAgo(iso: string): string {
 
 function payloadSummary(payload: any): string | null {
   if (!payload || typeof payload !== 'object') return null
+  if (payload.outcome) {
+    const duration = payload.duration_minutes ? ` · ${payload.duration_minutes} min` : ''
+    return `${String(payload.outcome).replace('_', ' ')}${duration}${payload.summary ? ` — ${payload.summary}` : ''}`
+  }
   if (payload.subject) return payload.subject
   if (payload.comment) return String(payload.comment).slice(0, 80)
   if (payload.from_status && payload.to_status) return `${payload.from_status} → ${payload.to_status}`
@@ -232,6 +237,7 @@ export default function ContactDetail() {
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? false
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [callOpen, setCallOpen] = useState(false)
   const [activityExpanded, setActivityExpanded] = useState(false)
   const isMobile = useMobile()
   const [detailsOpen, setDetailsOpen] = useState(true)
@@ -305,6 +311,8 @@ export default function ContactDetail() {
           />
         )}
 
+        {callOpen && <CallModal contact={contact} onClose={() => setCallOpen(false)} />}
+
         {contact.notes && (
           <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
             <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Notes</h3>
@@ -367,7 +375,7 @@ export default function ContactDetail() {
                   </div>
                   <div className="divide-y divide-slate-100">
                     <EmailRow contactId={id!} email={contact.email ?? null} />
-                    <PhoneRow contactId={id!} phone={contact.phone ?? null} />
+                    <PhoneRow contactId={id!} phone={contact.phone ?? null} onCall={() => setCallOpen(true)} />
                     <CompanyRow contactId={id!} company={contact.company ?? null} />
                     <LabelsRow contactId={id!} labels={contact.labels ?? []} />
                   </div>
@@ -426,7 +434,7 @@ export default function ContactDetail() {
               </div>
               <div className="divide-y divide-slate-100">
                 <EmailRow contactId={id!} email={contact.email ?? null} />
-                <PhoneRow contactId={id!} phone={contact.phone ?? null} />
+                <PhoneRow contactId={id!} phone={contact.phone ?? null} onCall={() => setCallOpen(true)} />
                 <CompanyRow contactId={id!} company={contact.company ?? null} />
                 <LabelsRow contactId={id!} labels={contact.labels ?? []} />
               </div>
@@ -507,7 +515,7 @@ function EmailRow({ contactId, email }: { contactId: string; email: string | nul
   )
 }
 
-function PhoneRow({ contactId, phone }: { contactId: string; phone: string | null }) {
+function PhoneRow({ contactId, phone, onCall }: { contactId: string; phone: string | null; onCall?: () => void }) {
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
@@ -573,6 +581,20 @@ function PhoneRow({ contactId, phone }: { contactId: string; phone: string | nul
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
               Local format
             </span>
+          )}
+          {phone && (
+            <button
+              type="button"
+              onClick={() => {
+                // tel: hands off to the OS (macOS Continuity → iPhone) without navigating the SPA.
+                window.location.href = `tel:+${phone.replace(/[^\d]/g, '')}`
+                onCall?.()
+              }}
+              className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-blue-600 border border-blue-200 rounded-full hover:bg-blue-50 transition-colors"
+            >
+              <Phone size={9} />
+              Call
+            </button>
           )}
         </div>
       )}

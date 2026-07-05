@@ -15,6 +15,10 @@ from app.database import get_db
 from app.modules.contacts import service
 from app.modules.contacts.models import Contact
 from app.modules.contacts.schemas import (
+    CallAnalyzeRequest,
+    CallAnalyzeResponse,
+    CallLogSaveRequest,
+    CallLogSaveResponse,
     CompanyContactOut,
     CompanyCreate,
     CompanyOut,
@@ -304,6 +308,24 @@ async def permanently_delete_contact(contact_id: uuid.UUID, current_user: AdminU
     if not contact:
         raise HTTPException(status_code=404, detail="Contact not found in trash")
     await service.permanently_delete_contact(db, contact)
+
+
+@router.post("/{contact_id}/log-call/analyze", response_model=CallAnalyzeResponse)
+async def analyze_call(contact_id: uuid.UUID, body: CallAnalyzeRequest, current_user: CurrentUser, db: DB):
+    contact = await service.get_contact(db, current_user.tenant_id, contact_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    if body.outcome == "connected" and not body.transcript.strip():
+        raise HTTPException(status_code=400, detail="Transcript is empty")
+    return await service.analyze_call(contact, body)
+
+
+@router.post("/{contact_id}/log-call", response_model=CallLogSaveResponse)
+async def log_call(contact_id: uuid.UUID, body: CallLogSaveRequest, current_user: CurrentUser, db: DB):
+    contact = await service.get_contact(db, current_user.tenant_id, contact_id)
+    if not contact:
+        raise HTTPException(status_code=404, detail="Contact not found")
+    return await service.save_call_log(db, current_user.tenant_id, current_user, contact, body)
 
 
 @router.get("/{contact_id}", response_model=ContactOut)
