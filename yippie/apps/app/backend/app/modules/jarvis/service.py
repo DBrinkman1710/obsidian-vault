@@ -13,7 +13,7 @@ from pathlib import Path
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.models import Tenant
+from app.core.models import Tenant, User
 from app.modules.ai.client import ai_completion
 from app.modules.contacts.models import Contact
 from app.modules.tickets.models import Ticket
@@ -196,6 +196,128 @@ async def _resolve_ticket(db: AsyncSession, tenant_id: uuid.UUID, raw_id: str | 
     if t and t.tenant_id == tenant_id and t.deleted_at is None:
         return t
     return None
+
+
+async def _resolve_ticket_by_query(db: AsyncSession, tenant_id: uuid.UUID, query: str | None) -> Ticket | None:
+    """Find the most recent ticket whose subject matches a keyword."""
+    if not query:
+        return None
+    result = await db.execute(
+        select(Ticket)
+        .where(Ticket.tenant_id == tenant_id, Ticket.deleted_at.is_(None), Ticket.subject.ilike(f"%{query}%"))
+        .order_by(Ticket.created_at.desc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+async def load_ticket_thread(db: AsyncSession, ticket: Ticket, limit: int = 20) -> list[dict]:
+    """Load a ticket's conversation oldest-first: customer messages, team replies and internal notes."""
+    from app.modules.tickets.models import TicketComment
+
+    result = await db.execute(
+        select(TicketComment, User.full_name)
+        .outerjoin(User, User.id == TicketComment.author_id)
+        .where(TicketComment.ticket_id == ticket.id)
+        .order_by(TicketComment.created_at.desc())
+        .limit(limit)
+    )
+    rows = list(result.all())[::-1]
+    thread = [
+        {
+            "from": author_name or "customer",
+            "internal_note": c.is_internal,
+            "at": c.created_at.isoformat() if c.created_at else None,
+            "body": (c.body or "")[:1200],
+        }
+        for c, author_name in rows
+    ]
+    if not thread and ticket.description:
+        thread = [{"from": "customer", "internal_note": False, "at": None, "body": ticket.description[:1200]}]
+    return thread
+
+
+def _profile_reply_rules(tenant: Tenant) -> str:
+    """Reply-writing rules derived from the tenant's ai_profile (Train Yip)."""
+    from app.modules.inbox.ai_scanner import LANGUAGE_NAMES
+
+    p = tenant.ai_profile or {}
+    tone = p.get("tone") or "friendly"
+    sign_off = p.get("sign_off") or f"{tenant.name} Team"
+    lang_name = LANGUAGE_NAMES.get(p.get("reply_language") or "en", "English")
+    lines = [
+        f"- Use a {tone} tone.",
+        f'- Sign off exactly as "{sign_off}".',
+        f"- Write in the language of the customer's most recent message; if that is unclear, write in {lang_name}.",
+    ]
+    if p.get("business_description"):
+        lines.append(f"- Business context: {p['business_description']}")
+    if p.get("common_terms"):
+        lines.append(f"- Use the business's terminology where relevant: {p['common_terms']}")
+    if p.get("faq_context"):
+        lines.append(f"- Known answers you may draw on: {p['faq_context']}")
+    return "\n".join(lines)
+
+
+def _format_thread(thread: list[dict]) -> str:
+    return "\n\n".join(
+        f"[{m['at'] or 'unknown time'}] {'INTERNAL NOTE — ' if m['internal_note'] else ''}{m['from']}: {m['body']}"
+        for m in thread
+    )
+
+
+async def draft_ticket_reply(
+    tenant: Tenant,
+    ticket: Ticket,
+    thread: list[dict],
+    contact: Contact,
+    context_block: str,
+    instructions: str = "",
+) -> str:
+    """Draft a reply to the ticket's full thread in the tenant's tone. Returns plain-text body."""
+    instr_block = f"\n\nThe agent asked for this in the reply: {instructions}" if instructions else ""
+    prompt = f"""You draft customer replies on behalf of a support agent at {tenant.name}. Draft a reply to the customer in this ticket. Max 200 words. Return ONLY the reply body as plain text — no subject line, no JSON, no markdown.
+
+{_profile_reply_rules(tenant)}
+- Begin with a greeting to {contact.full_name or 'the customer'}.
+- Address the customer's latest message; use the earlier thread and internal notes as context only — never quote internal notes to the customer.
+
+Ticket subject: {ticket.subject}
+
+Customer context:
+{context_block}
+
+Conversation so far:
+{_format_thread(thread)}{instr_block}"""
+
+    return (await ai_completion([{"role": "user", "content": prompt}], max_tokens=500, workload="agent")).strip()
+
+
+async def draft_fresh_email(
+    tenant: Tenant,
+    contact: Contact,
+    context_block: str,
+    instructions: str,
+) -> dict:
+    """Draft a new outbound email to a contact. Returns {"subject", "body"}."""
+    prompt = f"""You draft outbound emails on behalf of an agent at {tenant.name}. Draft an email to {contact.full_name or 'the contact below'}. Max 200 words.
+
+{_profile_reply_rules(tenant)}
+- If no clear customer language is available, use the profile language above.
+
+What the email should say: {instructions or 'a short friendly check-in'}
+
+Customer context:
+{context_block}
+
+Return ONLY a JSON object (no text before or after):
+{{"subject": "<short subject line>", "body": "<plain-text email body>"}}"""
+
+    text = await ai_completion([{"role": "user", "content": prompt}], max_tokens=600, workload="agent")
+    data = _parse_json(text, {})
+    body = (data.get("body") or "").strip() or text.strip()
+    subject = (data.get("subject") or "").strip() or f"Message from {tenant.name}"
+    return {"subject": subject, "body": body}
 
 
 async def collect_contact_facts(db: AsyncSession, tenant: Tenant, contact: Contact) -> dict:

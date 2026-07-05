@@ -67,6 +67,34 @@ TOOL_DEFS: list[dict] = [
     {
         "type": "function",
         "function": {
+            "name": "get_ticket_thread",
+            "description": "Fetch a ticket's full conversation: customer messages, team replies and internal notes, oldest first. Use for 'brief me on this ticket', thread summaries, or translating what the customer wrote. Defaults to the currently open ticket.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ticket_query": {"type": "string", "description": "Subject keyword, only when no ticket is open"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "draft_reply",
+            "description": "Draft a reply email in the workspace's trained tone and language. For the currently open ticket (or one found via ticket_query) it drafts a reply to the full thread; with only a contact_name it drafts a fresh email. The draft opens prefilled in the compose window for the user to review and send — it is NEVER sent automatically.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ticket_query": {"type": "string", "description": "Subject keyword when replying to a ticket that is not open"},
+                    "contact_name": {"type": "string", "description": "Recipient name when drafting a fresh email without a ticket"},
+                    "instructions": {"type": "string", "description": "What the reply should say or emphasise, in the user's words"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
             "name": "list_open_tickets",
             "description": "List open and in-progress tickets, optionally only those assigned to the current user. Use for 'what is on my plate', 'any open tickets', 'what needs attention'.",
             "parameters": {
@@ -193,6 +221,38 @@ TOOL_DEFS: list[dict] = [
 ]
 
 
+# [YIP-GATE] Tool → module that must be in tenant.enabled_modules (None = always
+# available; contacts/inbox/activity are core modules and never disabled).
+TOOL_MODULES: dict[str, str | None] = {
+    "search_contacts": None,
+    "get_contact_briefing": None,
+    "search_tickets": "tickets",
+    "list_open_tickets": "tickets",
+    "get_ticket_thread": "tickets",
+    "add_ticket_note": "tickets",
+    "track_shipments": "tracking",
+    "list_calendar_events": "calendar",
+    "create_reminder": None,
+    "add_contact_note": None,
+    "open_page": None,
+    "compose_email": None,
+    "draft_reply": None,  # fresh-email path needs only core inbox; ticket path degrades gracefully
+    "get_platform_manual": None,
+    "save_memory": None,
+}
+
+
+def _tools_for_tenant(tenant: Tenant) -> list[dict]:
+    """Filter TOOL_DEFS down to the tenant's enabled modules."""
+    enabled = set(tenant.enabled_modules or [])
+    tools = []
+    for t in TOOL_DEFS:
+        required = TOOL_MODULES.get(t["function"]["name"])
+        if required is None or required in enabled:
+            tools.append(t)
+    return tools
+
+
 class AgentContext:
     """Mutable per-request state the tool executors write into."""
 
@@ -248,6 +308,8 @@ def _build_system_prompt(ctx: AgentContext, route: str | None, memories: list[st
         "- If something is truly outside your tools, say so in ONE short sentence and immediately do the closest helpful thing instead (look up related data, or navigate the user there). Never explain how to use the interface and never apologise at length.",
         "- Answer in plain text only — no markdown, asterisks or bullet symbols.",
         "- Be brief: one to three sentences unless the user asks for detail. Lead with the answer, not with caveats.",
+        "- When asked to draft, write or answer a reply or email, use draft_reply — the draft opens in the compose window for the user to review; it is never sent by you. Confirm in one sentence.",
+        "- For 'brief me on this ticket', thread summaries or translating what a customer wrote, fetch the conversation with get_ticket_thread first, then summarise or translate it yourself.",
         "- When the user states a lasting preference or says 'remember', use save_memory.",
         "- If a tool reports an error or no match, say what you found (or didn't) in one sentence and suggest the next step.",
     ]
@@ -406,6 +468,70 @@ async def _tool_track_shipments(ctx: AgentContext, args: dict) -> dict:
             for s, contact_name in rows
         ]
     }
+
+
+async def _resolve_context_ticket(ctx: AgentContext, query: str | None) -> Ticket | None:
+    """The open ticket first, then a subject-keyword lookup."""
+    if ctx.context_type == "ticket" and ctx.context_id:
+        ticket = await service._resolve_ticket(ctx.db, ctx.tenant.id, ctx.context_id)
+        if ticket:
+            return ticket
+    return await service._resolve_ticket_by_query(ctx.db, ctx.tenant.id, query)
+
+
+async def _tool_get_ticket_thread(ctx: AgentContext, args: dict) -> dict:
+    ticket = await _resolve_context_ticket(ctx, args.get("ticket_query"))
+    if not ticket:
+        return {"error": "no ticket is open and no ticket matched that query"}
+    thread = await service.load_ticket_thread(ctx.db, ticket)
+    contact = await ctx.db.get(Contact, ticket.contact_id) if ticket.contact_id else None
+    subject = ticket.subject if len(ticket.subject) <= 32 else ticket.subject[:29] + "…"
+    ctx.add_action(f"Open “{subject}”", kind="navigate", path=f"/tickets/{ticket.id}")
+    return {
+        "ticket": {
+            "ticket_id": str(ticket.id),
+            "subject": ticket.subject,
+            "status": ticket.status.value if hasattr(ticket.status, "value") else str(ticket.status),
+            "priority": ticket.priority.value if ticket.priority else None,
+            "contact": contact.full_name if contact else None,
+            "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+        },
+        "messages": thread,
+    }
+
+
+async def _tool_draft_reply(ctx: AgentContext, args: dict) -> dict:
+    from app.core.customer_context import render_context_block
+
+    instructions = (args.get("instructions") or "").strip()
+
+    # An explicitly named contact wins over the open-ticket context ("draft an
+    # email to Jan" while a ticket is open) — unless a ticket was also named.
+    ticket = None
+    if args.get("ticket_query") or not args.get("contact_name"):
+        ticket = await _resolve_context_ticket(ctx, args.get("ticket_query"))
+    if ticket:
+        contact = await ctx.db.get(Contact, ticket.contact_id) if ticket.contact_id else None
+        if not contact or contact.tenant_id != ctx.tenant.id or not contact.email:
+            return {"error": "this ticket has no contact with an email address to reply to"}
+        thread = await service.load_ticket_thread(ctx.db, ticket)
+        context_block = render_context_block(await service.collect_contact_facts(ctx.db, ctx.tenant, contact) or None)
+        body = await service.draft_ticket_reply(ctx.tenant, ticket, thread, contact, context_block, instructions)
+        subject = ticket.subject if ticket.subject.lower().startswith("re:") else f"Re: {ticket.subject}"
+    else:
+        raw_id = ctx.context_id if ctx.context_type == "contact" and not args.get("contact_name") else None
+        contact = await service._resolve_contact(ctx.db, ctx.tenant.id, raw_id, args.get("contact_name"))
+        if not contact:
+            return {"error": "no ticket or contact found to draft for — ask who the reply is for"}
+        if not contact.email:
+            return {"error": f"{contact.full_name} has no email address on file"}
+        context_block = render_context_block(await service.collect_contact_facts(ctx.db, ctx.tenant, contact) or None)
+        draft = await service.draft_fresh_email(ctx.tenant, contact, context_block, instructions)
+        body, subject = draft["body"], draft["subject"]
+
+    ctx.action_taken = "draft_reply"
+    ctx.inline_data = {"email": contact.email, "name": contact.full_name, "subject": subject, "body": body}
+    return {"ok": True, "draft_for": contact.full_name, "note": "the draft opens in the compose window for review"}
 
 
 async def _tool_search_tickets(ctx: AgentContext, args: dict) -> dict:
@@ -595,6 +721,8 @@ _EXECUTORS = {
     "get_contact_briefing": _tool_get_contact_briefing,
     "search_tickets": _tool_search_tickets,
     "list_open_tickets": _tool_list_open_tickets,
+    "get_ticket_thread": _tool_get_ticket_thread,
+    "draft_reply": _tool_draft_reply,
     "track_shipments": _tool_track_shipments,
     "list_calendar_events": _tool_list_calendar_events,
     "create_reminder": _tool_create_reminder,
@@ -611,6 +739,11 @@ async def _execute_tool(ctx: AgentContext, name: str, args: dict) -> dict:
     executor = _EXECUTORS.get(name)
     if executor is None:
         return {"error": f"unknown tool '{name}'"}
+    # [YIP-GATE] belt-and-braces: refuse tools for modules the tenant doesn't have,
+    # even if the model calls one that wasn't offered.
+    required = TOOL_MODULES.get(name)
+    if required is not None and required not in (ctx.tenant.enabled_modules or []):
+        return {"error": f"the {required} module is not enabled for this workspace"}
     try:
         return await executor(ctx, args)
     except Exception as exc:  # tool failures go back to the model, not to a 500
@@ -649,9 +782,10 @@ async def run_agent(
             messages.append({"role": role, "content": content})
     messages.append({"role": "user", "content": body})
 
+    tools = _tools_for_tenant(tenant)
     final_text = ""
     for _ in range(MAX_ITERATIONS):
-        msg = await ai_completion_tools(messages, tools=TOOL_DEFS)
+        msg = await ai_completion_tools(messages, tools=tools)
         tool_calls = getattr(msg, "tool_calls", None)
         if not tool_calls:
             final_text = (msg.content or "").strip()

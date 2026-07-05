@@ -147,6 +147,17 @@ export default function QuickCapturePopup() {
         close()
         return
       }
+      if (data.action_taken === 'draft_reply' && data.inline_data?.email) {
+        // [YIP2] Yip drafted a reply — open compose prefilled; human reviews and sends.
+        openCompose({
+          recipients: [{ email: data.inline_data.email, label: data.inline_data.name || data.inline_data.email }],
+          subject: data.inline_data.subject || '',
+          body: data.inline_data.body || '',
+          fromEmail: null,
+        })
+        close()
+        return
+      }
       setMessages(prev => [...prev, { role: 'assistant', content: data.summary, data }])
     } catch (e: any) {
       setMessages(prev => [...prev, {
