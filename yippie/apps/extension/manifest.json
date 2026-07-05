@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Yippie Inbox Analyser",
-  "version": "1.1.0",
-  "description": "See how much time you spend on email triage, and what Yippie saves you.",
+  "version": "1.2.0",
+  "description": "See how much time you spend on email triage in Gmail or Outlook, and what Yippie saves you.",
   "permissions": ["identity", "storage"],
   "oauth2": {
     "client_id": "667142505587-u1fpflvqm11vhfv5ckk6o7n4o5lk76qs.apps.googleusercontent.com",

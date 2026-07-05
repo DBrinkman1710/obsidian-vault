@@ -1,6 +1,6 @@
 # Yippie Inbox Analyser — Chrome Extension
 
-Reads Gmail header metadata in-browser to show prospects how much time they spend on manual triage, and what Yippie saves them.
+Reads Gmail or Outlook header metadata in-browser to show prospects how much time they spend on manual triage, and what Yippie saves them.
 
 ---
 
@@ -63,9 +63,47 @@ Reads Gmail header metadata in-browser to show prospects how much time they spen
 
 ---
 
+## Outlook setup (Microsoft Graph)
+
+The Outlook button uses the Microsoft identity platform with PKCE — no client secret ships in the extension.
+
+### Step 1 — Register an Azure app (or reuse Yippie's EML1 app)
+
+1. Go to [portal.azure.com](https://portal.azure.com) → **Microsoft Entra ID → App registrations → New registration**
+   - Or reuse the existing Yippie email-linking app registration (the one behind `MS_OAUTH_CLIENT_ID`) and just add the extension's redirect URI to it
+2. Name: `Yippie Inbox Analyser`
+3. Supported account types: **Accounts in any organizational directory and personal Microsoft accounts** (so both work/school and outlook.com users can sign in)
+4. Skip the redirect URI for now → **Register** → copy the **Application (client) ID**
+
+### Step 2 — Add the extension redirect URI as a SPA platform
+
+1. In the app registration: **Authentication → Add a platform → Single-page application**
+2. Redirect URI: `https://<YOUR_EXTENSION_ID>.chromiumapp.org/`
+   - The extension ID is the same one from `chrome://extensions` (Step 4 above)
+   - It MUST be registered as **SPA**, not Web — otherwise the PKCE token exchange from the popup fails with a CORS error
+3. Save
+
+### Step 3 — API permissions
+
+1. **API permissions → Add a permission → Microsoft Graph → Delegated permissions**
+2. Add `User.Read` and `Mail.ReadBasic` (headers only — no body, no attachments)
+3. Save. No admin consent needed; users consent individually on first sign in.
+
+### Step 4 — Wire the client ID into the extension
+
+1. Open `apps/extension/popup.js`
+2. Replace the `MS_CLIENT_ID` placeholder with the Application (client) ID
+3. Reload the extension in `chrome://extensions`
+
+Note: unlike Google, the extension ID changes if you load the unpacked folder from a different path. After Web Store publication, add the production extension ID's redirect URI to the Azure app as well.
+
+---
+
 ## Testing it
 
-Click the Yippie icon in your Chrome toolbar. Hit "Analyse my Gmail inbox".
+Click the Yippie icon in your Chrome toolbar. Hit "Analyse my Gmail inbox" or "Analyse my Outlook inbox".
+
+**Outlook:** the first run opens a Microsoft sign-in window — sign in and accept. It fetches up to 500 inbox message headers from the last 30 days via Microsoft Graph (`Mail.ReadBasic`: sender, subject, date — never the body). Classification uses Outlook's own Focused/Other split plus the same keyword fallbacks (EN + NL).
 
 The first run asks for Gmail permission — click Allow. It then fetches up to 500 INBOX message headers (never the email body, never sent mail or drafts), keeps the ones from the last 30 days, and shows the breakdown, top senders, and insights. Classification uses Gmail's own category labels + the List-Unsubscribe header, with keyword fallbacks (EN + NL).
 

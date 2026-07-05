@@ -73,6 +73,10 @@ h1 {
 
 .btn-primary:hover { background: #3b8eef; }
 
+/* Outlook variant — Microsoft blue so the two providers read at a glance */
+.btn-outlook { background: #0f6cbd; margin-top: -6px; }
+.btn-outlook:hover { background: #0c5aa0; }
+
 .btn-secondary {
   background: white;
   color: #5BA4F5;

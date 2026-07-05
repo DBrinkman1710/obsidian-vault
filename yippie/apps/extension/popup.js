@@ -1,10 +1,20 @@
 const GMAIL_API = 'https://gmail.googleapis.com/gmail/v1';
-const CACHE_KEY = 'cachedResult_v2'; // v2: new result shape (topSenders, coverage, insights)
+const GRAPH_API = 'https://graph.microsoft.com/v1.0';
+const MS_AUTH_BASE = 'https://login.microsoftonline.com/common/oauth2/v2.0';
+// Azure app registration (SPA platform, redirect URI = chrome.identity.getRedirectURL()).
+// See README "Outlook setup" for how to create this.
+const MS_CLIENT_ID = 'e9384111-0752-4993-a7be-e8bf6509b923';
+const MS_SCOPES = 'User.Read Mail.ReadBasic';
+
+const CACHE_KEY = 'cachedResult_v3'; // v3: normalized message shape + provider field
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const WINDOW_DAYS = 30;
 const MAX_MESSAGES = 500; // hard cap on inbox messages fetched per analysis
 
 const SETTING_DEFAULTS = { minutesPerEmail: 3, automationRate: 90, hourlyRate: 30 };
+
+const PROVIDER_NAMES = { gmail: 'Gmail', outlook: 'Outlook' };
+let lastProvider = 'gmail'; // remembered so Retry re-runs the same provider
 
 async function loadSettings() {
   const { settings } = await chrome.storage.local.get('settings');
@@ -34,7 +44,7 @@ function setProgress(done, total) {
   setText('progress-text', total > 0 ? `${done} / ${total}` : '');
 }
 
-// ── Auth ─────────────────────────────────────────────────────────────────────
+// ── Auth — Google ────────────────────────────────────────────────────────────
 
 function getAuthToken() {
   return new Promise((resolve, reject) => {
@@ -46,6 +56,80 @@ function getAuthToken() {
       }
     });
   });
+}
+
+// ── Auth — Microsoft (PKCE, no client secret in the extension) ───────────────
+
+function base64url(bytes) {
+  return btoa(String.fromCharCode(...bytes))
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+
+async function msGetToken() {
+  if (MS_CLIENT_ID.includes('PASTE_MS_CLIENT_ID_HERE')) {
+    throw new Error('Outlook support is not configured yet: add the Azure client ID to popup.js (see README).');
+  }
+
+  const { msToken } = await chrome.storage.local.get('msToken');
+  if (msToken && msToken.expiresAt > Date.now() + 60_000) return msToken.token;
+
+  const redirectUri = chrome.identity.getRedirectURL();
+  const verifier = base64url(crypto.getRandomValues(new Uint8Array(32)));
+  const challenge = base64url(new Uint8Array(
+    await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
+  ));
+
+  const authUrl = `${MS_AUTH_BASE}/authorize?` + new URLSearchParams({
+    client_id: MS_CLIENT_ID,
+    response_type: 'code',
+    redirect_uri: redirectUri,
+    scope: MS_SCOPES,
+    code_challenge: challenge,
+    code_challenge_method: 'S256',
+    prompt: 'select_account',
+  });
+
+  const resultUrl = await new Promise((resolve, reject) => {
+    chrome.identity.launchWebAuthFlow({ url: authUrl, interactive: true }, (url) => {
+      if (chrome.runtime.lastError || !url) {
+        reject(new Error(chrome.runtime.lastError?.message || 'Sign in was cancelled'));
+      } else {
+        resolve(url);
+      }
+    });
+  });
+
+  const params = new URL(resultUrl).searchParams;
+  if (params.get('error')) {
+    throw new Error(params.get('error_description') || params.get('error'));
+  }
+  const code = params.get('code');
+  if (!code) throw new Error('Microsoft sign in returned no authorization code');
+
+  const res = await fetch(`${MS_AUTH_BASE}/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id: MS_CLIENT_ID,
+      grant_type: 'authorization_code',
+      code,
+      redirect_uri: redirectUri,
+      code_verifier: verifier,
+      scope: MS_SCOPES,
+    }),
+  });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Microsoft auth failed (${res.status}): ${body}`);
+  }
+  const data = await res.json();
+  await chrome.storage.local.set({
+    msToken: {
+      token: data.access_token,
+      expiresAt: Date.now() + (data.expires_in - 60) * 1000,
+    },
+  });
+  return data.access_token;
 }
 
 // ── Gmail API ────────────────────────────────────────────────────────────────
@@ -125,6 +209,74 @@ async function fetchMetadataBatch(ids, token, cutoff, onProgress) {
   return results;
 }
 
+// ── Microsoft Graph API ──────────────────────────────────────────────────────
+
+async function graphGet(url, token) {
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(`Microsoft Graph ${res.status}: ${body}`);
+  }
+  return res.json();
+}
+
+// Unlike Gmail, Graph filters server-side by date and returns headers inline,
+// so a single paginated list call covers the whole 30-day window.
+async function getOutlookMessages(token, cutoff, onProgress) {
+  const select = 'from,toRecipients,subject,receivedDateTime,inferenceClassification';
+  let url = `${GRAPH_API}/me/mailFolders/inbox/messages?` + new URLSearchParams({
+    $select: select,
+    $filter: `receivedDateTime ge ${new Date(cutoff).toISOString()}`,
+    $orderby: 'receivedDateTime desc',
+    $top: '100',
+  });
+  const messages = [];
+  while (url && messages.length < MAX_MESSAGES) {
+    const data = await graphGet(url, token);
+    messages.push(...(data.value || []));
+    onProgress(Math.min(messages.length, MAX_MESSAGES), MAX_MESSAGES);
+    url = data['@odata.nextLink'] || null;
+  }
+  const capped = messages.length > MAX_MESSAGES || !!url;
+  messages.length = Math.min(messages.length, MAX_MESSAGES);
+  return { messages, capped };
+}
+
+// ── Normalization — one message shape for both providers ────────────────────
+
+function normalizeGmail(msg) {
+  const labels = msg.labelIds || [];
+  return {
+    from: getHeader(msg, 'From'),
+    to: getHeader(msg, 'To'),
+    subject: getHeader(msg, 'Subject'),
+    ts: parseInt(msg.internalDate || '0'),
+    unsubscribe: !!getHeader(msg, 'List-Unsubscribe'),
+    // Gmail's own tab categories are far more reliable than keyword matching
+    automated: AUTOMATED_LABELS.some(l => labels.includes(l)),
+    personal: labels.includes('CATEGORY_PERSONAL'),
+  };
+}
+
+function formatGraphAddress(r) {
+  const name = r?.emailAddress?.name || '';
+  const addr = r?.emailAddress?.address || '';
+  return name && name.toLowerCase() !== addr.toLowerCase() ? `${name} <${addr}>` : addr;
+}
+
+function normalizeOutlook(msg) {
+  return {
+    from: formatGraphAddress(msg.from),
+    to: (msg.toRecipients || []).map(formatGraphAddress).join(', '),
+    subject: msg.subject || '',
+    ts: Date.parse(msg.receivedDateTime || '') || 0,
+    unsubscribe: false, // Mail.ReadBasic exposes no List-Unsubscribe header
+    // Outlook's Focused/Other split is its own automated-mail detector
+    automated: msg.inferenceClassification === 'other',
+    personal: msg.inferenceClassification === 'focused',
+  };
+}
+
 // ── Classification ───────────────────────────────────────────────────────────
 
 // Consumer mail domains: a sender sharing one of these with the user is not a colleague.
@@ -153,21 +305,18 @@ const QUERY_SIGNALS = [
   'hoe ', 'wat ', 'wanneer', 'waarom', 'kan ik', 'graag', 'vraag',
 ];
 
-// Gmail's own tab categories are far more reliable than keyword matching —
-// use them first, keep the keyword lists as a fallback for uncategorised mail.
 const AUTOMATED_LABELS = [
   'CATEGORY_PROMOTIONS', 'CATEGORY_SOCIAL', 'CATEGORY_UPDATES', 'CATEGORY_FORUMS',
 ];
 
-function classify(msg, userEmail, userDomain) {
-  const labels = msg.labelIds || [];
-  const from = getHeader(msg, 'From').toLowerCase();
-  const to = getHeader(msg, 'To').toLowerCase();
-  const subject = getHeader(msg, 'Subject').toLowerCase();
+function classify(m, userEmail, userDomain) {
+  const from = m.from.toLowerCase();
+  const to = m.to.toLowerCase();
+  const subject = m.subject.toLowerCase();
 
   if (
-    getHeader(msg, 'List-Unsubscribe') ||
-    AUTOMATED_LABELS.some(l => labels.includes(l)) ||
+    m.unsubscribe ||
+    m.automated ||
     NEWSLETTER_FROM.some(p => from.includes(p)) ||
     NEWSLETTER_SUBJECT.some(p => subject.includes(p))
   ) return 'newsletter';
@@ -177,7 +326,7 @@ function classify(msg, userEmail, userDomain) {
   }
 
   if (QUERY_SIGNALS.some(p => subject.includes(p))) return 'customer';
-  if (labels.includes('CATEGORY_PERSONAL') && to.includes(userEmail.toLowerCase())) {
+  if (m.personal && to.includes(userEmail.toLowerCase())) {
     return 'customer';
   }
   return 'other';
@@ -197,10 +346,9 @@ function parseSender(fromHeader) {
 
 function topSenders(messages, limit = 5) {
   const bySender = new Map();
-  for (const msg of messages) {
-    const raw = getHeader(msg, 'From');
-    if (!raw) continue;
-    const { name, email } = parseSender(raw);
+  for (const m of messages) {
+    if (!m.from) continue;
+    const { name, email } = parseSender(m.from);
     const entry = bySender.get(email) || { name, email, count: 0 };
     entry.count++;
     bySender.set(email, entry);
@@ -213,8 +361,8 @@ const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frida
 function busiestDay(messages) {
   if (!messages.length) return null;
   const counts = [0, 0, 0, 0, 0, 0, 0];
-  for (const msg of messages) {
-    counts[new Date(parseInt(msg.internalDate || '0')).getDay()]++;
+  for (const m of messages) {
+    counts[new Date(m.ts).getDay()]++;
   }
   const max = Math.max(...counts);
   const day = counts.indexOf(max);
@@ -223,46 +371,62 @@ function busiestDay(messages) {
 
 // ── Analysis ─────────────────────────────────────────────────────────────────
 
-async function runAnalysis() {
+async function runAnalysis(provider) {
+  lastProvider = provider;
+  const providerName = PROVIDER_NAMES[provider];
   showState('state-loading');
-  setText('loading-message', 'Connecting to Gmail…');
+  setText('loading-message', `Connecting to ${providerName}…`);
   setProgress(0, 0);
 
   try {
-    const token = await getAuthToken();
-
-    setText('loading-message', 'Reading your profile…');
-    const profile = await getProfile(token);
-    const userEmail = profile.emailAddress;
-    const userDomain = userEmail.split('@')[1]?.toLowerCase() || '';
-
-    setText('loading-message', 'Fetching your inbox…');
-    const sample = await getInboxMessageIds(token);
-
-    setText('loading-message', `Analysing ${sample.length} recent emails…`);
-
     const cutoff = Date.now() - WINDOW_DAYS * 24 * 60 * 60 * 1000;
-    const messages = await fetchMetadataBatch(sample, token, cutoff, (done, total) => {
-      setProgress(done, total);
-    });
+    let userEmail, normalized, windowCovered;
 
-    const recent = messages.filter(m => parseInt(m.internalDate || '0') >= cutoff);
+    if (provider === 'outlook') {
+      const token = await msGetToken();
 
-    const counts = { customer: 0, newsletter: 0, internal: 0, other: 0 };
-    for (const msg of recent) {
-      counts[classify(msg, userEmail, userDomain)]++;
+      setText('loading-message', 'Reading your profile…');
+      const me = await graphGet(`${GRAPH_API}/me?$select=mail,userPrincipalName`, token);
+      userEmail = me.mail || me.userPrincipalName || '';
+
+      setText('loading-message', 'Fetching your inbox…');
+      const { messages, capped } = await getOutlookMessages(token, cutoff, setProgress);
+      normalized = messages.map(normalizeOutlook);
+      windowCovered = !capped;
+
+    } else {
+      const token = await getAuthToken();
+
+      setText('loading-message', 'Reading your profile…');
+      const profile = await getProfile(token);
+      userEmail = profile.emailAddress;
+
+      setText('loading-message', 'Fetching your inbox…');
+      const sample = await getInboxMessageIds(token);
+
+      setText('loading-message', `Analysing ${sample.length} recent emails…`);
+      const raw = await fetchMetadataBatch(sample, token, cutoff, setProgress);
+      normalized = raw.map(normalizeGmail);
+
+      // Did we see the whole 30 days, or did the MAX_MESSAGES cap cut it short?
+      windowCovered =
+        raw.length < sample.length ||        // early-stopped: ran past the cutoff
+        sample.length < MAX_MESSAGES ||      // inbox smaller than the cap
+        normalized.some(m => m.ts < cutoff);
     }
 
-    const oldestAt = recent.length
-      ? Math.min(...recent.map(m => parseInt(m.internalDate || '0')))
-      : Date.now();
-    // Did we see the whole 30 days, or did the MAX_MESSAGES cap cut it short?
-    const windowCovered =
-      messages.length < sample.length ||       // early-stopped: ran past the cutoff
-      sample.length < MAX_MESSAGES ||          // inbox smaller than the cap
-      messages.some(m => parseInt(m.internalDate || '0') < cutoff);
+    const userDomain = userEmail.split('@')[1]?.toLowerCase() || '';
+    const recent = normalized.filter(m => m.ts >= cutoff);
+
+    const counts = { customer: 0, newsletter: 0, internal: 0, other: 0 };
+    for (const m of recent) {
+      counts[classify(m, userEmail, userDomain)]++;
+    }
+
+    const oldestAt = recent.length ? Math.min(...recent.map(m => m.ts)) : Date.now();
 
     const result = {
+      provider,
       total:      recent.length,
       customer:   counts.customer,
       newsletter: counts.newsletter,
@@ -280,7 +444,7 @@ async function runAnalysis() {
     showResults(result);
 
   } catch (err) {
-    showError(err.message);
+    showError(err.message, provider);
   }
 }
 
@@ -347,8 +511,9 @@ function renderInsights(r) {
 }
 
 function buildReport(r, s, savings) {
+  const providerName = PROVIDER_NAMES[r.provider] || 'inbox';
   return [
-    `My inbox, ${coverageLabel(r).toLowerCase()} (Yippie Inbox Analyser):`,
+    `My ${providerName} inbox, ${coverageLabel(r).toLowerCase()} (Yippie Inbox Analyser):`,
     `• ${r.total} inbox emails`,
     `• ${r.customer} customer conversations`,
     `• ${r.newsletter} newsletters and automated`,
@@ -370,7 +535,8 @@ function computeSavings(r, s) {
 async function showResults(r) {
   const s = await loadSettings();
 
-  setText('results-period', coverageLabel(r));
+  const providerName = PROVIDER_NAMES[r.provider];
+  setText('results-period', providerName ? `${coverageLabel(r)} · ${providerName}` : coverageLabel(r));
   setText('stat-total-num',   r.total.toLocaleString());
   setText('stat-customer',    r.customer.toLocaleString());
   setText('stat-newsletter',  r.newsletter.toLocaleString());
@@ -395,13 +561,13 @@ async function showResults(r) {
   showState('state-results');
 }
 
-function showError(message) {
-  const isAuth = message.toLowerCase().includes('oauth') ||
-                 message.toLowerCase().includes('auth')  ||
-                 message.toLowerCase().includes('sign');
+function showError(message, provider) {
+  const isAuth = /oauth|auth|sign|consent|cancel/i.test(message);
   setText('error-message',
     isAuth
-      ? "Couldn't access Gmail. Make sure you're signed into Chrome with a Google account."
+      ? provider === 'outlook'
+        ? "Couldn't access Outlook. Sign in with your Microsoft account and accept the requested permissions."
+        : "Couldn't access Gmail. Make sure you're signed into Chrome with a Google account."
       : `Something went wrong: ${message}`
   );
   showState('state-error');
@@ -411,12 +577,15 @@ function showError(message) {
 
 document.addEventListener('DOMContentLoaded', async () => {
   // Attach all listeners upfront (elements are always in DOM, just hidden/shown)
-  document.getElementById('btn-analyse').addEventListener('click', runAnalysis);
+  document.getElementById('btn-analyse').addEventListener('click', () => runAnalysis('gmail'));
+  document.getElementById('btn-analyse-outlook').addEventListener('click', () => runAnalysis('outlook'));
   document.getElementById('btn-refresh').addEventListener('click', async () => {
-    await chrome.storage.local.remove(['cachedResult', CACHE_KEY]);
-    runAnalysis();
+    const { [CACHE_KEY]: cached } = await chrome.storage.local.get(CACHE_KEY);
+    const provider = cached?.provider || lastProvider;
+    await chrome.storage.local.remove(['cachedResult', 'cachedResult_v2', CACHE_KEY]);
+    runAnalysis(provider);
   });
-  document.getElementById('btn-retry').addEventListener('click', runAnalysis);
+  document.getElementById('btn-retry').addEventListener('click', () => runAnalysis(lastProvider));
 
   // Copy report — plain text to clipboard, nothing leaves the browser
   document.getElementById('btn-copy').addEventListener('click', async () => {
@@ -485,6 +654,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Show cached results if fresh
   const { [CACHE_KEY]: cached } = await chrome.storage.local.get(CACHE_KEY);
   if (cached && Date.now() - cached.analysedAt < CACHE_TTL_MS) {
+    lastProvider = cached.provider || 'gmail';
     showResults(cached);
     return;
   }
