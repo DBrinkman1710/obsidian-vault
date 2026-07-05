@@ -14,10 +14,9 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant
-from app.modules.activity import service as activity_service
 from app.modules.ai.client import ai_completion
 from app.modules.contacts.models import Contact
-from app.modules.tickets.models import Ticket, TicketStatus
+from app.modules.tickets.models import Ticket
 
 # ---------------------------------------------------------------------------
 # Manual loader — reads user_manual.md from disk and caches for 5 minutes.
@@ -200,40 +199,11 @@ async def _resolve_ticket(db: AsyncSession, tenant_id: uuid.UUID, raw_id: str | 
 
 
 async def collect_contact_facts(db: AsyncSession, tenant: Tenant, contact: Contact) -> dict:
-    """Pull a contact's tickets, recent activity and pipeline stage into a facts dict."""
-    from app.modules.pipeline.models import ContactPipelineEntry, PipelineStage
+    """Full cross-module contact history via the canonical aggregator
+    (app/core/customer_context.py) — same picture the inbox/ticket briefings see."""
+    from app.core.customer_context import build_customer_context
 
-    tickets_result = await db.execute(
-        select(Ticket)
-        .where(Ticket.tenant_id == tenant.id, Ticket.contact_id == contact.id, Ticket.deleted_at.is_(None))
-        .order_by(Ticket.created_at.desc())
-        .limit(10)
-    )
-    tickets = tickets_result.scalars().all()
-    open_tickets = [t for t in tickets if t.status in (TicketStatus.open, TicketStatus.in_progress)]
-
-    stage_row = await db.execute(
-        select(PipelineStage.name)
-        .join(ContactPipelineEntry, ContactPipelineEntry.stage_id == PipelineStage.id)
-        .where(ContactPipelineEntry.contact_id == contact.id, ContactPipelineEntry.tenant_id == tenant.id)
-        .limit(1)
-    )
-    stage_name = stage_row.scalar_one_or_none()
-
-    events = await activity_service.list_events(db, tenant.id, contact_id=contact.id, limit=8)
-
-    return {
-        "name": contact.full_name,
-        "company": contact.company_name,
-        "email": contact.email,
-        "phone": contact.phone,
-        "pipeline_stage": stage_name,
-        "open_tickets": len(open_tickets),
-        "total_tickets": len(tickets),
-        "recent_ticket_subjects": [t.subject for t in tickets[:3]],
-        "recent_activity": [e["event_type"] for e in events[:5]],
-        "notes": contact.notes,
-    }
+    return await build_customer_context(db, tenant, contact) or {}
 
 
 _REL_TIME = re.compile(

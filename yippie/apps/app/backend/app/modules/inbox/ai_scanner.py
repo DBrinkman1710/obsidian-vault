@@ -84,28 +84,12 @@ Priority guidance:
 async def generate_context_summary(
     sender: str,
     raw_body: str,
-    contact: Optional[dict],
-    recent_tickets: list[dict],
-    billing: Optional[dict],
+    context: Optional[dict],
     tenant_profile: dict | None = None,
 ) -> str:
-    contact_block = "Unknown sender — no matching contact found." if not contact else f"""
-Name: {contact.get('full_name')}
-Company: {contact.get('company') or 'N/A'}
-Email: {contact.get('email')}
-Phone: {contact.get('phone') or 'N/A'}
-Tags: {', '.join(contact.get('tags') or []) or 'none'}
-Notes: {contact.get('notes') or 'none'}""".strip()
-
-    billing_block = "No billing data." if not billing else f"""
-Subscription: {billing.get('plan_name', 'N/A')} — {billing.get('status', 'N/A')} ({billing.get('billing_cycle', '')})
-Amount: {billing.get('amount_cents', 0) / 100:.2f} {billing.get('currency', 'EUR')}
-Outstanding invoices: {billing.get('outstanding_invoices', 0)}""".strip()
-
-    tickets_block = "No previous tickets." if not recent_tickets else "\n".join(
-        f"- [{t['status'].upper()}] {t['subject']} ({t['priority']} priority)"
-        for t in recent_tickets[:5]
-    )
+    """AI briefing keywords from the unified customer context (see
+    app/core/customer_context.py — the canonical full-history aggregator)."""
+    from app.core.customer_context import render_context_block
 
     business_desc = (tenant_profile or {}).get("business_description", "")
     business_line = f"\nBusiness context: {business_desc}" if business_desc else ""
@@ -117,14 +101,8 @@ INBOUND MESSAGE FROM: {sender}
 {raw_body[:500]}
 ---
 
-CUSTOMER PROFILE:
-{contact_block}
-
-BILLING STATUS:
-{billing_block}
-
-RECENT TICKET HISTORY (newest first):
-{tickets_block}
+CUSTOMER HISTORY:
+{render_context_block(context)}
 
 Return 4-6 short keywords or phrases, comma-separated, capturing who this customer is and what matters most right now (e.g. "VIP customer, overdue invoice, 3rd complaint this month, prefers Dutch"). No full sentences, no bullet points, no labels — just the comma-separated list."""
 

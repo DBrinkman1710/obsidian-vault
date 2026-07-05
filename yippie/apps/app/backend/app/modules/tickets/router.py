@@ -343,8 +343,10 @@ async def send_ticket_reply(
 async def get_ticket_briefing(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
     """AI customer briefing card: summary + 2-3 suggested actions."""
     from sqlalchemy import select
+    from app.core.customer_context import build_customer_context
+    from app.core.models import Tenant
     from app.modules.contacts.models import Contact
-    from app.modules.tickets.models import Ticket, TicketComment
+    from app.modules.tickets.models import TicketComment
     from app.modules.departments.models import Department
     from app.modules.pipeline.models import PipelineStage
     from app.modules.inbox.ai_scanner import generate_context_summary, _parse_json
@@ -355,36 +357,8 @@ async def get_ticket_briefing(ticket_id: uuid.UUID, current_user: CurrentUser, d
         raise HTTPException(status_code=404, detail="Ticket not found")
 
     contact = await db.get(Contact, ticket.contact_id) if ticket.contact_id else None
-    contact_dict: Optional[dict] = None
-    if contact:
-        contact_dict = {
-            "full_name": contact.full_name,
-            "company": getattr(contact, "company", None),
-            "email": getattr(contact, "email", None),
-            "phone": getattr(contact, "phone", None),
-            "tags": getattr(contact, "tags", []) or [],
-            "notes": getattr(contact, "notes", None),
-        }
-
-    # Last 5 tickets for this contact (excluding current)
-    recent_tickets: list[dict] = []
-    if ticket.contact_id:
-        q = (
-            select(Ticket)
-            .where(Ticket.tenant_id == current_user.tenant_id)
-            .where(Ticket.contact_id == ticket.contact_id)
-            .where(Ticket.id != ticket.id)
-            .where(Ticket.deleted_at.is_(None))
-            .order_by(Ticket.created_at.desc())
-            .limit(5)
-        )
-        result = await db.execute(q)
-        for t in result.scalars().all():
-            recent_tickets.append({
-                "status": t.status.value if hasattr(t.status, "value") else t.status,
-                "subject": t.subject,
-                "priority": t.priority.value if hasattr(t.priority, "value") else t.priority,
-            })
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    context = await build_customer_context(db, tenant, contact) if tenant else None
 
     # Build raw body from description + most recent non-internal email comment
     raw_body = ticket.description or ""
@@ -401,7 +375,7 @@ async def get_ticket_briefing(ticket_id: uuid.UUID, current_user: CurrentUser, d
         raw_body = last_comment.body
 
     sender = contact.email if contact and getattr(contact, "email", None) else (contact.full_name if contact else "Unknown")
-    summary = await generate_context_summary(sender, raw_body, contact_dict, recent_tickets, None)
+    summary = await generate_context_summary(sender, raw_body, context, tenant_profile=tenant.ai_profile if tenant else None)
 
     # Load departments and pipeline stages for suggested action validation
     dept_result = await db.execute(
@@ -450,6 +424,8 @@ Only suggest actions that make sense given the current state. Skip set_status if
 async def suggest_ticket_reply(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB):
     """AI-generate a full reply draft for this ticket."""
     from sqlalchemy import select
+    from app.core.customer_context import build_customer_context
+    from app.core.models import Tenant
     from app.modules.contacts.models import Contact
     from app.modules.tickets.models import TicketComment, MessageSource
     from app.modules.inbox.ai_scanner import generate_context_summary, generate_reply_draft
@@ -473,20 +449,11 @@ async def suggest_ticket_reply(ticket_id: uuid.UUID, current_user: CurrentUser, 
     result = await db.execute(q)
     last_email = result.scalars().first()
 
-    # Build context summary inline
-    contact_dict = None
-    if contact:
-        contact_dict = {
-            "full_name": contact.full_name,
-            "company": getattr(contact, "company", None),
-            "email": getattr(contact, "email", None),
-            "phone": getattr(contact, "phone", None),
-            "tags": getattr(contact, "tags", []) or [],
-            "notes": getattr(contact, "notes", None),
-        }
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    context = await build_customer_context(db, tenant, contact) if tenant else None
     raw_body = (last_email.body if last_email else None) or ticket.description or ""
     sender = getattr(contact, "email", None) or (contact.full_name if contact else "Unknown") if contact else "Unknown"
-    context_summary = await generate_context_summary(sender, raw_body, contact_dict, [], None)
+    context_summary = await generate_context_summary(sender, raw_body, context, tenant_profile=tenant.ai_profile if tenant else None)
 
     language = await _detect_language(last_email.body) if last_email else "en"
 
@@ -504,6 +471,8 @@ async def suggest_ticket_reply(ticket_id: uuid.UUID, current_user: CurrentUser, 
 async def improve_ticket_reply(ticket_id: uuid.UUID, body: ImproveReplyRequest, current_user: CurrentUser, db: DB):
     """AI-rewrite the agent's current reply with labelled variants."""
     from sqlalchemy import select
+    from app.core.customer_context import build_customer_context
+    from app.core.models import Tenant
     from app.modules.contacts.models import Contact
     from app.modules.tickets.models import TicketComment, MessageSource
     from app.modules.inbox.ai_scanner import generate_context_summary, generate_reply_improvements
@@ -525,19 +494,11 @@ async def improve_ticket_reply(ticket_id: uuid.UUID, body: ImproveReplyRequest, 
     result = await db.execute(q)
     last_email = result.scalars().first()
 
-    contact_dict = None
-    if contact:
-        contact_dict = {
-            "full_name": contact.full_name,
-            "company": getattr(contact, "company", None),
-            "email": getattr(contact, "email", None),
-            "phone": getattr(contact, "phone", None),
-            "tags": getattr(contact, "tags", []) or [],
-            "notes": getattr(contact, "notes", None),
-        }
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    context = await build_customer_context(db, tenant, contact) if tenant else None
     raw_body = (last_email.body if last_email else None) or ticket.description or ""
     sender = getattr(contact, "email", None) or (contact.full_name if contact else "Unknown") if contact else "Unknown"
-    context_summary = await generate_context_summary(sender, raw_body, contact_dict, [], None)
+    context_summary = await generate_context_summary(sender, raw_body, context, tenant_profile=tenant.ai_profile if tenant else None)
 
     language = await _detect_language(last_email.body) if last_email else "en"
 

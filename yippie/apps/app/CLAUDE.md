@@ -112,7 +112,8 @@ docker compose exec backend pytest
 
 See `yippie/ROADMAP.md` Tier sections for the authoritative open-work list (verified 2026-07-04):
 [AI-MOD1] phases 2–3 (self-hosted vLLM), [CLUSTER1] issue clustering, [AI-CTRL] cloud LLM panel,
-Customer data + AI briefing architecture, [Phase 11C T2] "Connect your inbox".
+[Phase 11C T2] "Connect your inbox". (Customer data + AI briefing shipped 2026-07-05 —
+`app/core/customer_context.py` is the canonical full-history aggregator for all AI surfaces.)
 
 Note: PostgreSQL RLS **is** fully built (policies on all tenant tables, `FORCE ROW LEVEL SECURITY`,
 extended repeatedly since) — an older version of this list claimed otherwise.

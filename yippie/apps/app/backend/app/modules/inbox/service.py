@@ -10,10 +10,11 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
+from app.core.customer_context import build_customer_context
 from app.core.models import Tenant, User
 from app.core.plans import limits_for_plan
 from app.modules.contacts.models import Contact
-from app.modules.billing.models import Invoice, InvoiceStatus, Subscription
+from app.modules.billing.models import Subscription
 from app.modules.tickets.models import Ticket
 from app.modules.inbox.ai_scanner import generate_context_summary, generate_reply_draft, generate_reply_improvements, scan_message
 from app.modules.inbox.models import DraftStatus, DraftTicket, InboundMessage, MessageSource, PendingSend
@@ -43,68 +44,6 @@ async def _match_contact(db: AsyncSession, tenant_id: uuid.UUID, sender: str) ->
     return result.scalar_one_or_none()
 
 
-async def _context_inputs(
-    db: AsyncSession,
-    tenant_id: uuid.UUID,
-    contact: Optional[Contact],
-) -> tuple[Optional[dict], list[dict], Optional[dict]]:
-    """Fetch the contact/tickets/billing data the AI briefing prompt needs."""
-    recent_tickets: list[dict] = []
-    billing: Optional[dict] = None
-
-    if contact:
-        tickets_result = await db.execute(
-            select(Ticket)
-            .where(Ticket.tenant_id == tenant_id, Ticket.contact_id == contact.id)
-            .order_by(Ticket.created_at.desc())
-            .limit(5)
-        )
-        recent_tickets = [
-            {"subject": t.subject, "status": t.status.value, "priority": t.priority.value}
-            for t in tickets_result.scalars().all()
-        ]
-
-        sub_result = await db.execute(
-            select(Subscription)
-            .where(Subscription.tenant_id == tenant_id, Subscription.contact_id == contact.id)
-            .order_by(Subscription.started_at.desc())
-            .limit(1)
-        )
-        sub = sub_result.scalar_one_or_none()
-
-        outstanding = 0
-        if sub:
-            inv_result = await db.execute(
-                select(Invoice).where(
-                    Invoice.tenant_id == tenant_id,
-                    Invoice.contact_id == contact.id,
-                    Invoice.status.in_([InvoiceStatus.sent, InvoiceStatus.overdue]),
-                )
-            )
-            outstanding = len(inv_result.scalars().all())
-            billing = {
-                "plan_name": sub.plan_name,
-                "status": sub.status.value,
-                "billing_cycle": sub.billing_cycle.value,
-                "amount_cents": sub.amount_cents,
-                "currency": sub.currency,
-                "outstanding_invoices": outstanding,
-            }
-
-        contact_dict = {
-            "full_name": contact.full_name,
-            "company": contact.company_name,
-            "email": contact.email,
-            "phone": contact.phone,
-            "tags": contact.tags,
-            "notes": contact.notes,
-        }
-    else:
-        contact_dict = None
-
-    return contact_dict, recent_tickets, billing
-
-
 async def _build_context(
     db: AsyncSession,
     tenant_id: uuid.UUID,
@@ -112,14 +51,14 @@ async def _build_context(
     sender: str,
     raw_body: str,
 ) -> str:
-    """Fetch customer data and generate an AI briefing paragraph."""
-    contact_dict, recent_tickets, billing = await _context_inputs(db, tenant_id, contact)
+    """Fetch the full cross-module customer history and generate an AI briefing."""
+    tenant = await db.get(Tenant, tenant_id)
+    context = await build_customer_context(db, tenant, contact) if tenant else None
     return await generate_context_summary(
         sender=sender,
         raw_body=raw_body,
-        contact=contact_dict,
-        recent_tickets=recent_tickets,
-        billing=billing,
+        context=context,
+        tenant_profile=tenant.ai_profile if tenant else None,
     )
 
 
@@ -262,9 +201,7 @@ ENRICH_BATCH_SIZE = 5
 async def _enrich_ai(
     draft: DraftTicket,
     msg: InboundMessage,
-    contact_dict: Optional[dict],
-    recent_tickets: list[dict],
-    billing: Optional[dict],
+    context: Optional[dict],
     tenant_profile: Optional[dict] = None,
 ) -> None:
     """The pure-AI half of enrichment — no DB access, so multiple drafts can run
@@ -279,9 +216,7 @@ async def _enrich_ai(
                 generate_context_summary(
                     sender=msg.sender,
                     raw_body=msg.raw_body,
-                    contact=contact_dict,
-                    recent_tickets=recent_tickets,
-                    billing=billing,
+                    context=context,
                     tenant_profile=tenant_profile,
                 ),
             ),
@@ -306,10 +241,10 @@ async def enrich_draft(
     Does not commit — callers own the transaction."""
     from sqlalchemy import update as _update
     contact = await _match_contact(db, tenant_id, msg.sender)
-    contact_dict, recent_tickets, billing = await _context_inputs(db, tenant_id, contact)
     tenant = await db.get(Tenant, tenant_id)
+    context = await build_customer_context(db, tenant, contact) if tenant else None
     tenant_profile = tenant.ai_profile if tenant else None
-    await _enrich_ai(draft, msg, contact_dict, recent_tickets, billing, tenant_profile=tenant_profile)
+    await _enrich_ai(draft, msg, context, tenant_profile=tenant_profile)
     if draft.ai_status == "done":
         await db.execute(
             _update(Tenant)
@@ -353,17 +288,15 @@ async def enrich_briefing_only(
     """Run only the customer briefing — leave scan fields untouched."""
     import asyncio
     contact = await _match_contact(db, tenant_id, msg.sender)
-    contact_dict, recent_tickets, billing = await _context_inputs(db, tenant_id, contact)
     tenant = await db.get(Tenant, tenant_id)
+    context = await build_customer_context(db, tenant, contact) if tenant else None
     tenant_profile = tenant.ai_profile if tenant else None
     try:
         summary = await asyncio.wait_for(
             generate_context_summary(
                 sender=msg.sender,
                 raw_body=msg.raw_body,
-                contact=contact_dict,
-                recent_tickets=recent_tickets,
-                billing=billing,
+                context=context,
                 tenant_profile=tenant_profile,
             ),
             timeout=ENRICH_TIMEOUT_SECONDS,
@@ -409,9 +342,9 @@ async def enrich_queued_drafts(db: AsyncSession) -> int:
                 draft.ai_status = "skipped"
                 continue
         contact = await _match_contact(db, draft.tenant_id, msg.sender)
-        contact_dict, recent_tickets, billing = await _context_inputs(db, draft.tenant_id, contact)
+        context = await build_customer_context(db, tenant, contact) if tenant else None
         tenant_profile = tenant.ai_profile if tenant else None
-        prepared.append((draft, msg, contact_dict, recent_tickets, billing, tenant_profile))
+        prepared.append((draft, msg, context, tenant_profile))
 
     await asyncio.gather(*[_enrich_ai(*p) for p in prepared])
     await db.commit()
