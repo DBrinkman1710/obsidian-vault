@@ -9,6 +9,7 @@ import { LabelChip, LabelPicker, type ContactLabel } from '../components/LabelCh
 import { CompanyBadge, type CompanyRef } from '../components/CompanyBadge'
 import { CompanyPicker } from '../components/CompanyPicker'
 import { useTenantConfig } from '../../../App'
+import { useAuth } from '../../../auth/useAuth'
 import SendBookingModal from '../../booking/components/SendBookingModal'
 import CallModal from '../components/CallModal'
 
@@ -234,6 +235,10 @@ function ShipmentsBlock({ contactId }: { contactId: string }) {
 export default function ContactDetail() {
   const { id } = useParams<{ id: string }>()
   const config = useTenantConfig()
+  const { user } = useAuth()
+  // Click-to-call talks to a personal local helper daemon, so only expose it to
+  // the platform owner (superadmin) for now — not to tenant admins/agents.
+  const canCall = user?.role === 'superadmin'
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? false
   const [bookingOpen, setBookingOpen] = useState(false)
@@ -311,7 +316,7 @@ export default function ContactDetail() {
           />
         )}
 
-        {callOpen && <CallModal contact={contact} onClose={() => setCallOpen(false)} />}
+        {canCall && callOpen && <CallModal contact={contact} onClose={() => setCallOpen(false)} />}
 
         {contact.notes && (
           <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
@@ -375,7 +380,7 @@ export default function ContactDetail() {
                   </div>
                   <div className="divide-y divide-slate-100">
                     <EmailRow contactId={id!} email={contact.email ?? null} />
-                    <PhoneRow contactId={id!} phone={contact.phone ?? null} onCall={() => setCallOpen(true)} />
+                    <PhoneRow contactId={id!} phone={contact.phone ?? null} onCall={() => setCallOpen(true)} canCall={canCall} />
                     <CompanyRow contactId={id!} company={contact.company ?? null} />
                     <LabelsRow contactId={id!} labels={contact.labels ?? []} />
                   </div>
@@ -434,7 +439,7 @@ export default function ContactDetail() {
               </div>
               <div className="divide-y divide-slate-100">
                 <EmailRow contactId={id!} email={contact.email ?? null} />
-                <PhoneRow contactId={id!} phone={contact.phone ?? null} onCall={() => setCallOpen(true)} />
+                <PhoneRow contactId={id!} phone={contact.phone ?? null} onCall={() => setCallOpen(true)} canCall={canCall} />
                 <CompanyRow contactId={id!} company={contact.company ?? null} />
                 <LabelsRow contactId={id!} labels={contact.labels ?? []} />
               </div>
@@ -515,7 +520,7 @@ function EmailRow({ contactId, email }: { contactId: string; email: string | nul
   )
 }
 
-function PhoneRow({ contactId, phone, onCall }: { contactId: string; phone: string | null; onCall?: () => void }) {
+function PhoneRow({ contactId, phone, onCall, canCall }: { contactId: string; phone: string | null; onCall?: () => void; canCall?: boolean }) {
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
@@ -582,7 +587,7 @@ function PhoneRow({ contactId, phone, onCall }: { contactId: string; phone: stri
               Local format
             </span>
           )}
-          {phone && (
+          {phone && canCall && (
             <button
               type="button"
               onClick={() => {
