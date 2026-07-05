@@ -14,6 +14,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
     import logging
 
     from app.database import db_session, set_tenant_context
+    from app.modules.activity.models import ActivityEvent
     from app.modules.billing.models import Invoice, InvoiceStatus
     from app.modules.calendar.models import CalendarEvent
     from app.modules.contacts.models import (
@@ -30,7 +31,10 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
         InboundMessage,
         MessageSource as InboxSource,
     )
+    from app.modules.marketing.models import Campaign, CampaignAnalytics
     from app.modules.pipeline.models import ContactPipelineEntry, PipelineStage
+    from app.modules.saas.models import SaasEvent, SaasHealth
+    from app.modules.shipments.models import Carrier, Shipment, ShipmentEvent, ShipmentStatus
     from app.modules.tickets.models import (
         MessageSource,
         Ticket,
@@ -49,6 +53,12 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
 
             tenant = await db.get(Tenant, tenant_id)
             admin_user = await db.get(User, admin_user_id)
+
+            # Pre-complete the "Set up your profile" checklist step so the demo
+            # doesn't open with an immediate required action blocking the tour.
+            if admin_user and not admin_user.reply_from_email:
+                admin_user.reply_from_email = admin_user.email
+
             name_raw = (tenant.name or "").strip() if tenant else ""
             company_name = name_raw or "Acme Nederland BV"
             admin_email = admin_user.email if admin_user else ""
@@ -388,6 +398,158 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
                 body="Dank je wel, dat werkt! Fijne dag.",
                 created_at=now - timedelta(hours=2, minutes=50),
             ))
+
+            # ── Activity feed ────────────────────────────────────────────────
+            # Seeder inserts directly so we create ActivityEvent rows manually.
+            activity_rows = [
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="contacts", event_type="contact_created", entity_type="contact", entity_id=c1.id, payload={"name": c1.full_name}, created_at=now - timedelta(days=5)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="contacts", event_type="contact_created", entity_type="contact", entity_id=c3.id, payload={"name": c3.full_name}, created_at=now - timedelta(days=4)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="contacts", event_type="contact_created", entity_type="contact", entity_id=c5.id, payload={"name": c5.full_name}, created_at=now - timedelta(days=4)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="contacts", event_type="contact_created", entity_type="contact", entity_id=c8.id, payload={"name": c8.full_name}, created_at=now - timedelta(days=3)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="tickets", event_type="ticket_created", entity_type="ticket", entity_id=t1.id, contact_id=c1.id, payload={"subject": t1.subject, "priority": "high"}, created_at=now - timedelta(days=3)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="tickets", event_type="ticket_created", entity_type="ticket", entity_id=t2.id, contact_id=c2.id, payload={"subject": t2.subject, "priority": "urgent"}, created_at=now - timedelta(days=2)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="tickets", event_type="ticket_created", entity_type="ticket", entity_id=t8.id, contact_id=c8.id, payload={"subject": t8.subject, "priority": "high"}, created_at=now - timedelta(days=2)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="tickets", event_type="ticket_status_changed", entity_type="ticket", entity_id=t6.id, contact_id=c6.id, payload={"subject": t6.subject, "from": "open", "to": "resolved"}, created_at=now - timedelta(days=2)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="pipeline", event_type="contact_stage_changed", entity_type="contact", entity_id=c3.id, contact_id=c3.id, payload={"contact": c3.full_name, "to": "Demo Scheduled"}, created_at=now - timedelta(days=1)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="pipeline", event_type="contact_stage_changed", entity_type="contact", entity_id=c5.id, contact_id=c5.id, payload={"contact": c5.full_name, "to": "Proposal Sent"}, created_at=now - timedelta(days=1)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="tickets", event_type="ticket_comment_added", entity_type="ticket", entity_id=t1.id, contact_id=c1.id, payload={"subject": t1.subject, "internal": True}, created_at=now - timedelta(hours=6)),
+                ActivityEvent(tenant_id=tenant_id, actor_id=admin_user_id, module="tickets", event_type="ticket_created", entity_type="ticket", entity_id=t5.id, contact_id=c5.id, payload={"subject": t5.subject, "priority": "medium"}, created_at=now - timedelta(hours=3)),
+            ]
+            db.add_all(activity_rows)
+            log.info("Demo seeder: activity events done")
+
+            # ── Marketing campaigns ──────────────────────────────────────────
+            camp_done = Campaign(
+                tenant_id=tenant_id,
+                name="Zomerpromotie 2024",
+                subject="Exclusief aanbod voor onze vaste klanten 🌞",
+                status="completed",
+                dispatch_channel="email",
+                dispatched_at=now - timedelta(days=14),
+            )
+            camp_draft = Campaign(
+                tenant_id=tenant_id,
+                name="Re-engagement: inactieve contacten",
+                subject="We missen je — kom terug met 20% korting",
+                status="draft",
+                dispatch_channel="email",
+            )
+            db.add_all([camp_done, camp_draft])
+            await db.flush()
+
+            # Analytics for the completed campaign (sent to 5 contacts, 3 opened, 2 clicked)
+            _camp_recipients = [
+                (c1, "opened"),
+                (c3, "clicked"),
+                (c5, "clicked"),
+                (c6, "opened"),
+                (c7, "sent"),
+            ]
+            for contact, status in _camp_recipients:
+                db.add(CampaignAnalytics(
+                    tenant_id=tenant_id,
+                    campaign_id=camp_done.id,
+                    recipient_email=contact.email,
+                    status=status,
+                ))
+            log.info("Demo seeder: marketing campaigns done")
+
+            # ── Shipments ────────────────────────────────────────────────────
+            ship1 = Shipment(
+                tenant_id=tenant_id, contact_id=c4.id, created_by=admin_user_id,
+                tracking_number="3SYZD12345678", carrier=Carrier.postnl,
+                status=ShipmentStatus.delivered, order_reference="ORD-2024-0481",
+                last_event_description="Pakket bezorgd bij ontvanger",
+                last_event_location="Amsterdam",
+                last_event_at=now - timedelta(days=3),
+                estimated_delivery=now - timedelta(days=3),
+            )
+            ship2 = Shipment(
+                tenant_id=tenant_id, contact_id=c3.id, created_by=admin_user_id,
+                tracking_number="1Z999AA10123456784", carrier=Carrier.dhl,
+                status=ShipmentStatus.in_transit, order_reference="ORD-2024-0512",
+                last_event_description="Pakket aangenomen op sorteercentrum Utrecht",
+                last_event_location="Utrecht",
+                last_event_at=now - timedelta(hours=8),
+                estimated_delivery=now + timedelta(days=1),
+            )
+            ship3 = Shipment(
+                tenant_id=tenant_id, contact_id=c1.id, created_by=admin_user_id,
+                tracking_number="JD014600004987612345", carrier=Carrier.postnl,
+                status=ShipmentStatus.out_for_delivery, order_reference="ORD-2024-0528",
+                last_event_description="Pakket onderweg met bezorger",
+                last_event_location="Rotterdam",
+                last_event_at=now - timedelta(hours=2),
+                estimated_delivery=now,
+            )
+            ship4 = Shipment(
+                tenant_id=tenant_id, contact_id=c7.id, created_by=admin_user_id,
+                tracking_number="1234567890", carrier=Carrier.dhl,
+                status=ShipmentStatus.exception, order_reference="ORD-2024-0499",
+                last_event_description="Bezorging mislukt — ontvanger niet aanwezig",
+                last_event_location="Hamburg",
+                last_event_at=now - timedelta(days=1),
+                estimated_delivery=now + timedelta(days=2),
+            )
+            db.add_all([ship1, ship2, ship3, ship4])
+            await db.flush()
+
+            db.add(ShipmentEvent(tenant_id=tenant_id, shipment_id=ship1.id, description="Pakket bezorgd bij ontvanger", location="Amsterdam", status_code="delivered", event_at=now - timedelta(days=3)))
+            db.add(ShipmentEvent(tenant_id=tenant_id, shipment_id=ship1.id, description="Pakket onderweg met bezorger", location="Amsterdam", status_code="out_for_delivery", event_at=now - timedelta(days=3, hours=4)))
+            db.add(ShipmentEvent(tenant_id=tenant_id, shipment_id=ship2.id, description="Pakket aangenomen op sorteercentrum Utrecht", location="Utrecht", status_code="in_transit", event_at=now - timedelta(hours=8)))
+            db.add(ShipmentEvent(tenant_id=tenant_id, shipment_id=ship2.id, description="Pakket opgehaald bij afzender", location="Eindhoven", status_code="registered", event_at=now - timedelta(hours=20)))
+            db.add(ShipmentEvent(tenant_id=tenant_id, shipment_id=ship3.id, description="Pakket onderweg met bezorger", location="Rotterdam", status_code="out_for_delivery", event_at=now - timedelta(hours=2)))
+            db.add(ShipmentEvent(tenant_id=tenant_id, shipment_id=ship4.id, description="Bezorging mislukt — ontvanger niet aanwezig", location="Hamburg", status_code="exception", event_at=now - timedelta(days=1)))
+            log.info("Demo seeder: shipments done")
+
+            # ── Sales / commerce events ──────────────────────────────────────
+            _commerce = [
+                (c1, "pageview",   {"url": "/products/starter-kit",         "title": "Starter Kit"},            now - timedelta(days=4)),
+                (c1, "add_to_cart",{"product_id": "SKU-001", "name": "Starter Kit", "price_cents": 4900},       now - timedelta(days=4, minutes=-5)),
+                (c1, "purchase",   {"order_id": "ORD-2024-0528", "total_cents": 4900, "currency": "EUR"},       now - timedelta(days=3)),
+                (c3, "pageview",   {"url": "/products/growth-plan",          "title": "Growth Plan"},            now - timedelta(days=6)),
+                (c3, "pageview",   {"url": "/pricing",                       "title": "Pricing"},                now - timedelta(days=6, minutes=-2)),
+                (c3, "add_to_cart",{"product_id": "SKU-002", "name": "Growth Plan", "price_cents": 29900},      now - timedelta(days=5)),
+                (c5, "pageview",   {"url": "/products/enterprise",           "title": "Enterprise"},             now - timedelta(days=2)),
+                (c5, "purchase",   {"order_id": "ORD-2024-0512", "total_cents": 69900, "currency": "EUR"},      now - timedelta(days=1)),
+                (c8, "pageview",   {"url": "/products/enterprise",           "title": "Enterprise"},             now - timedelta(hours=5)),
+                (c8, "pageview",   {"url": "/pricing",                       "title": "Pricing"},                now - timedelta(hours=4)),
+            ]
+            for contact, etype, props, ts in _commerce:
+                db.add(SaasEvent(
+                    tenant_id=tenant_id, contact_id=contact.id,
+                    anonymous_id=str(contact.id), event_domain="commerce",
+                    event_type=etype, properties=props, created_at=ts,
+                ))
+            log.info("Demo seeder: sales events done")
+
+            # ── Product analytics (SaaS) events ─────────────────────────────
+            _saas = [
+                (c1, "feature_used",    {"feature": "Inbox AI",    "action": "approve_draft"},   now - timedelta(days=3)),
+                (c1, "feature_used",    {"feature": "Tickets",     "action": "create"},          now - timedelta(days=3)),
+                (c1, "onboarding_step", {"step": "profile_setup",  "completed": True},           now - timedelta(days=4)),
+                (c1, "onboarding_step", {"step": "first_ticket",   "completed": True},           now - timedelta(days=3)),
+                (c3, "feature_used",    {"feature": "Pipeline",    "action": "stage_move"},      now - timedelta(days=2)),
+                (c3, "onboarding_step", {"step": "profile_setup",  "completed": True},           now - timedelta(days=5)),
+                (c5, "feature_used",    {"feature": "Inbox AI",    "action": "approve_draft"},   now - timedelta(days=1)),
+                (c5, "feature_used",    {"feature": "Billing",     "action": "create_invoice"},  now - timedelta(days=1)),
+                (c5, "onboarding_step", {"step": "profile_setup",  "completed": True},           now - timedelta(days=4)),
+                (c5, "onboarding_step", {"step": "first_ticket",   "completed": True},           now - timedelta(days=2)),
+                (c8, "feature_used",    {"feature": "Pipeline",    "action": "stage_move"},      now - timedelta(hours=3)),
+                (c8, "error",           {"error_code": "send_failed", "module": "marketing"},    now - timedelta(hours=2)),
+            ]
+            for contact, etype, props, ts in _saas:
+                db.add(SaasEvent(
+                    tenant_id=tenant_id, contact_id=contact.id,
+                    anonymous_id=str(contact.id), event_domain="saas",
+                    event_type=etype, properties=props, created_at=ts,
+                ))
+
+            db.add(SaasHealth(tenant_id=tenant_id, contact_id=c1.id, score=82, recency_score="28.00", breadth_score="30.00", error_penalty="0.00"))
+            db.add(SaasHealth(tenant_id=tenant_id, contact_id=c3.id, score=61, recency_score="20.00", breadth_score="18.00", error_penalty="0.00"))
+            db.add(SaasHealth(tenant_id=tenant_id, contact_id=c5.id, score=74, recency_score="25.00", breadth_score="27.00", error_penalty="0.00"))
+            db.add(SaasHealth(tenant_id=tenant_id, contact_id=c8.id, score=38, recency_score="15.00", breadth_score="10.00", error_penalty="8.00"))
+            log.info("Demo seeder: saas analytics done")
 
             await db.commit()
             log.info("Demo data seeded for tenant %s", tenant_id)
