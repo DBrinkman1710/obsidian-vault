@@ -7,7 +7,9 @@ import { useCompose } from '../../../hooks/useCompose'
 
 // Local call helper daemon (personal setup — starts/stops Handy recording and
 // switches audio devices). When unreachable the modal degrades to manual mode.
-const HELPER_URL = 'http://127.0.0.1:8765'
+// HTTPS via an mkcert-trusted cert so Safari (which blocks http://localhost from
+// an https page as mixed content) can reach it; 'localhost' matches the cert SAN.
+const HELPER_URL = 'https://localhost:8765'
 
 type Outcome = 'connected' | 'voicemail' | 'no_answer'
 
