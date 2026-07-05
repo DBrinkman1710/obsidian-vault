@@ -435,19 +435,28 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Chrome Extension — coming soon */}
+      {/* Chrome Extension */}
       <section className={styles.sectionLight}>
         <Reveal className={styles.sectionHead}>
           <span className={styles.eyebrowPill}>
-            <span className={styles.eyebrowDot} style={{ background: "#f59e0b" }} />
-            Coming soon
+            <span className={styles.eyebrowDot} style={{ background: "#22c55e" }} />
+            Free Chrome extension
           </span>
           <h2 className={styles.sectionTitle}>See your inbox ROI in 60 seconds</h2>
           <p className={styles.sectionSub}>
-            Install the free Yippie Chrome extension, connect your Gmail, and get a
-            personalised breakdown of how much time you spend on manual triage —
+            Install the free Yippie Chrome extension, connect your Gmail or Outlook inbox,
+            and get a personalised breakdown of how much time you spend on manual triage —
             and what Yippie saves you. No data leaves your browser.
           </p>
+          <a
+            href="https://chromewebstore.google.com/detail/yippie-inbox-analyser/kcenfkplkjdgiaddkjdnomhalofhenbd"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={styles.btnPrimary}
+            style={{ alignSelf: "center", display: "inline-flex", alignItems: "center", gap: 8 }}
+          >
+            Add to Chrome — it&apos;s free
+          </a>
         </Reveal>
         <div className={styles.extensionPreview}>
           <div className={styles.extensionCard}>
