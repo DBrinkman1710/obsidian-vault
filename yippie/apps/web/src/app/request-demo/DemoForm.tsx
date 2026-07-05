@@ -15,7 +15,6 @@ import {
   TrackingIcon,
   SalesIcon,
   SaasIcon,
-  TemplateIcon,
 } from "../components/icons";
 import {
   TEAM_SIZES,
@@ -41,7 +40,6 @@ const MODULE_ICONS: Record<string, IconComponent> = {
   "Shipment Tracking": TrackingIcon,
   "Sales":             SalesIcon,
   "SaaS Analytics":    SaasIcon,
-  "Templates":         TemplateIcon,
 };
 
 const ALL_MODULES = Object.keys(MODULE_INFO);

@@ -17,6 +17,7 @@ async def create_outbound_email(
     contact_id: uuid.UUID | None = None,
     draft_id: uuid.UUID | None = None,
     kind: str = "compose",
+    provider: str = "resend",
 ) -> OutboundEmail:
     record = OutboundEmail(
         tenant_id=tenant_id,
@@ -28,6 +29,7 @@ async def create_outbound_email(
         contact_id=contact_id,
         draft_id=draft_id,
         kind=kind,
+        provider=provider,
         status="sent",
     )
     db.add(record)
@@ -84,6 +86,9 @@ async def list_pending_sync(db: AsyncSession, max_age_days: int = 7) -> list[Out
             and_(
                 OutboundEmail.status == "sent",
                 OutboundEmail.resend_email_id.is_not(None),
+                # Gmail/Outlook sends (EML1) store provider message ids — those
+                # are not Resend ids, so never poll Resend for them.
+                OutboundEmail.provider == "resend",
                 OutboundEmail.created_at > cutoff,
             )
         )

@@ -20,6 +20,9 @@ class OutboundEmail(Base):
     contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True)
     draft_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     kind: Mapped[str] = mapped_column(String(20), nullable=False, default="compose")
+    # Transport that sent this email: 'resend' | 'gmail' | 'outlook'. The Resend
+    # status poller only syncs rows with provider='resend'.
+    provider: Mapped[str] = mapped_column(String(20), nullable=False, default="resend", server_default="resend")
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="sent")
     delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

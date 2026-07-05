@@ -38,6 +38,12 @@ class InboundMessage(Base):
     raw_body: Mapped[str] = mapped_column(Text, nullable=False)
     raw_headers: Mapped[str | None] = mapped_column(Text, nullable=True)
     resend_email_id: Mapped[str | None] = mapped_column(String(100), unique=True, nullable=True, index=True)
+    # Set when ingested from a linked Gmail/Outlook mailbox (email_accounts):
+    # provider_message_id dedupes per account (unique partial index, see EML1
+    # migration); smtp_message_id is the RFC822 Message-ID for reply threading.
+    email_account_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    provider_message_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    smtp_message_id: Mapped[str | None] = mapped_column(Text, nullable=True)
     inbound_to: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     attachments_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
@@ -107,6 +113,9 @@ class PendingSend(Base):
     contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     attachments_json: Mapped[str | None] = mapped_column(Text, nullable=True)
     from_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Transport snapshot at queue time: when set, dispatch via this linked
+    # Gmail/Outlook account instead of Resend (same rationale as from_email).
+    email_account_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     # "reply" (draft_id = the draft) or "compose" (draft_id = a batch id shared
     # by all recipients of one compose, so one undo cancels the whole batch)
     kind: Mapped[str] = mapped_column(String(20), nullable=False, default="reply", server_default="reply")

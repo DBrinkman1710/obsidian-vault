@@ -342,6 +342,15 @@ export default function InboxQueue() {
     refetchIntervalInBackground: false,
   })
 
+  // Linked Gmail/Outlook accounts (EML1) — a personal linked mailbox counts as
+  // a personal inbox address for the "no address configured" banner.
+  const { data: linkedAccounts = [] } = useQuery<{ user_id: string | null }[]>({
+    queryKey: ['email-accounts'],
+    queryFn: () => api.get('/email-accounts').then((r: any) => r.data),
+    staleTime: 5 * 60_000,
+  })
+  const hasPersonalLinkedAccount = linkedAccounts.some(a => a.user_id === user?.id)
+
   // Unread counts for mailbox tabs
   const { data: inboxCounts } = useQuery({
     queryKey: ['inbox-counts', activeDeptId],
@@ -782,7 +791,7 @@ export default function InboxQueue() {
         )}
 
         {/* Personal mailbox without an address configured */}
-        {mailbox === 'personal' && !user?.inbound_email && (
+        {mailbox === 'personal' && !user?.inbound_email && !hasPersonalLinkedAccount && (
           <div className="mt-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
             No personal inbox address set yet.{' '}
             <Link to="/settings/profile" className="font-semibold underline">

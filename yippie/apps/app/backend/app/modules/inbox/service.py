@@ -165,15 +165,24 @@ async def ingest_email(
     inbound_to: Optional[str] = None,
     attachments_json: Optional[str] = None,
     ai_scan: bool = True,
+    sender_name: Optional[str] = None,
+    # Set when ingested from a linked Gmail/Outlook mailbox (EML1)
+    email_account_id: Optional[uuid.UUID] = None,
+    provider_message_id: Optional[str] = None,
+    smtp_message_id: Optional[str] = None,
 ) -> DraftTicket:
     msg = InboundMessage(
         tenant_id=tenant_id,
         source=MessageSource.email,
         sender=sender,
+        sender_name=sender_name,
         subject=subject,
         raw_body=body,
         raw_headers=headers,
         resend_email_id=resend_email_id,
+        email_account_id=email_account_id,
+        provider_message_id=provider_message_id,
+        smtp_message_id=smtp_message_id,
         inbound_to=inbound_to.lower() if inbound_to else None,
         attachments_json=attachments_json,
     )
@@ -509,10 +518,24 @@ async def link_contact_to_draft(
     return await get_draft_with_context(db, tenant_id, draft_id)
 
 
+def _inbound_addr_filter(inbound_email: str | list[str], include_legacy: bool):
+    """Mailbox filter for one address or a list (own address + linked accounts)."""
+    addrs = [inbound_email] if isinstance(inbound_email, str) else inbound_email
+    addrs = [a.lower() for a in addrs if a]
+    addr_filter = (
+        InboundMessage.inbound_to == addrs[0]
+        if len(addrs) == 1
+        else InboundMessage.inbound_to.in_(addrs)
+    )
+    if include_legacy:
+        addr_filter = or_(addr_filter, InboundMessage.inbound_to.is_(None))
+    return addr_filter
+
+
 async def count_pending_drafts(
     db: AsyncSession,
     tenant_id: uuid.UUID,
-    inbound_email: Optional[str] = None,
+    inbound_email: Optional[str | list[str]] = None,
     include_legacy: bool = True,
     department_id: Optional[uuid.UUID] = None,
     unread_only: bool = False,
@@ -533,10 +556,7 @@ async def count_pending_drafts(
         )
     )
     if inbound_email:
-        addr_filter = InboundMessage.inbound_to == inbound_email.lower()
-        if include_legacy:
-            addr_filter = or_(addr_filter, InboundMessage.inbound_to.is_(None))
-        q = q.where(addr_filter)
+        q = q.where(_inbound_addr_filter(inbound_email, include_legacy))
     if department_id:
         q = q.where(DraftTicket.forwarded_to_department_id == department_id)
     if unread_only:
@@ -549,13 +569,13 @@ async def list_drafts(
     db: AsyncSession,
     tenant_id: uuid.UUID,
     status: Optional[DraftStatus] = DraftStatus.pending,
-    inbound_email: Optional[str] = None,
+    inbound_email: Optional[str | list[str]] = None,
     include_legacy: bool = True,
     search: Optional[str] = None,
     contact_id: Optional[uuid.UUID] = None,
     department_id: Optional[uuid.UUID] = None,
     personal_only_user_id: Optional[uuid.UUID] = None,
-    personal_only_inbound_email: Optional[str] = None,
+    personal_only_inbound_email: Optional[str | list[str]] = None,
 ) -> list[tuple[DraftTicket, Optional[str], Optional[str]]]:
     # Always join InboundMessage to include the original email subject and the
     # address the mail was routed to (mailbox diagnostics).
@@ -581,11 +601,10 @@ async def list_drafts(
         )
 
     if inbound_email:
-        # Filter to this mailbox's inbound address; include_legacy keeps pre-inbound_to rows.
-        addr_filter = InboundMessage.inbound_to == inbound_email.lower()
-        if include_legacy:
-            addr_filter = or_(addr_filter, InboundMessage.inbound_to.is_(None))
-        q = q.where(addr_filter)
+        # Filter to this mailbox's inbound address(es) — a user/tenant can have
+        # several: own inbound_email + linked Gmail/Outlook accounts (EML1).
+        # include_legacy keeps pre-inbound_to rows.
+        q = q.where(_inbound_addr_filter(inbound_email, include_legacy))
 
     if status == DraftStatus.pending:
         now = datetime.now(timezone.utc)
@@ -611,7 +630,7 @@ async def list_drafts(
     if personal_only_user_id is not None:
         mine = DraftTicket.assigned_to == personal_only_user_id
         if personal_only_inbound_email:
-            mine = or_(mine, InboundMessage.inbound_to == personal_only_inbound_email.lower())
+            mine = or_(mine, _inbound_addr_filter(personal_only_inbound_email, include_legacy=False))
         q = q.where(mine)
 
     result = await db.execute(q.order_by(DraftTicket.created_at.desc()))
@@ -871,6 +890,21 @@ async def queue_send(
     if not from_email:
         _tenant = await db.get(_Tenant, tenant_id)
         from_email = (_tenant.inbound_email if _tenant else None) or get_settings().resend_from or None
+
+    # EML1 transport snapshot: when the from-address is a linked Gmail/Outlook
+    # account, dispatch goes via that provider instead of Resend. Snapshotted at
+    # queue time for the same two-container reason as from_email above.
+    email_account_id = None
+    if from_email:
+        from app.modules.email_accounts.models import EmailAccount as _EmailAccount
+
+        email_account_id = await db.scalar(
+            select(_EmailAccount.id).where(
+                _EmailAccount.tenant_id == tenant_id,
+                func.lower(_EmailAccount.email_address) == from_email.lower(),
+                _EmailAccount.status == "active",
+            )
+        )
     pending = PendingSend(
         draft_id=draft_id,
         tenant_id=tenant_id,
@@ -882,6 +916,7 @@ async def queue_send(
         contact_id=contact_id,
         attachments_json=attachments_json,
         from_email=from_email,
+        email_account_id=email_account_id,
         kind=kind,
         campaign_buttons_json=campaign_buttons_json,
         prerendered_html=prerendered_html,
@@ -924,6 +959,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
     from app.core.mailer import send_email, ResendNotConfiguredError
     from app.core.models import Tenant
     from app.modules.activity import service as activity_service
+    from app.modules.email_accounts.service import AccountRevokedError
 
     now = datetime.now(timezone.utc)
     # devsandbox and sandbox share one DB, so two containers run this loop
@@ -956,6 +992,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
             "contact_id": p.contact_id,
             "attachments_json": p.attachments_json,
             "from_email": p.from_email,
+            "email_account_id": p.email_account_id,
             "kind": p.kind,
             "campaign_buttons_json": p.campaign_buttons_json,
             "prerendered_html": p.prerendered_html,
@@ -1056,13 +1093,33 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                 import json as _json
                 _cc = _json.loads(c["cc_emails"]) if c.get("cc_emails") else None
                 _bcc = _json.loads(c["bcc_emails"]) if c.get("bcc_emails") else None
-                resend_id = await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body, cc=_cc, bcc=_bcc)
+                if c["email_account_id"]:
+                    # EML1: dispatch via the linked Gmail/Outlook account. No
+                    # Resend fallback — wrong From identity would fail SPF/DKIM.
+                    from app.modules.email_accounts.outbound import send_via_linked_account
+
+                    sent_id, sent_provider = await send_via_linked_account(
+                        db,
+                        account_id=c["email_account_id"],
+                        to_email=c["to_email"],
+                        subject=c["subject"],
+                        text=c["reply_text"],
+                        html=html_body,
+                        attachments=attachments,
+                        cc=_cc,
+                        bcc=_bcc,
+                        draft_id=c["draft_id"],
+                        kind=c["kind"],
+                    )
+                else:
+                    sent_id = await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body, cc=_cc, bcc=_bcc)
+                    sent_provider = "resend"
                 # Record outbound email for tracking
                 from app.modules.emailtracking.service import create_outbound_email
                 await create_outbound_email(
                     db,
                     tenant_id=c["tenant_id"],
-                    resend_email_id=resend_id,
+                    resend_email_id=sent_id,
                     to_email=c["to_email"],
                     subject=c["subject"],
                     body=c["reply_text"],
@@ -1070,6 +1127,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                     contact_id=c["contact_id"],
                     draft_id=c["draft_id"],
                     kind=c["kind"],
+                    provider=sent_provider,
                 )
             payload = {"subject": c["subject"], "to": c["to_email"], "preview": c["reply_text"][:120]}
             if suppressed:
@@ -1095,6 +1153,22 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                 "Resend not configured — pending send %s left queued for retry (attempt %d/%d)",
                 c["id"], c["attempts"] + 1, MAX_SEND_ATTEMPTS,
             )
+        except AccountRevokedError as exc:
+            # EML1: provider rejected the refresh token mid-send. Roll back the
+            # send transaction, then persist the revoked status in a clean one
+            # so the settings UI shows Reconnect. Row leases out → dead-letter.
+            await db.rollback()
+            from app.modules.email_accounts.models import EmailAccount as _EmailAccount
+
+            acct = await db.get(_EmailAccount, c["email_account_id"])
+            if acct is not None and acct.status != "revoked":
+                acct.status = "revoked"
+                acct.last_error = str(exc)
+                await db.commit()
+            log.error(
+                "Pending send %s: linked account %s revoked — reconnect required (attempt %d/%d)",
+                c["id"], c["email_account_id"], c["attempts"] + 1, MAX_SEND_ATTEMPTS,
+            )
         except Exception:
             await db.rollback()
             if c["attempts"] + 1 >= MAX_SEND_ATTEMPTS:
@@ -1112,6 +1186,25 @@ async def flush_pending_sends(db: AsyncSession) -> None:
 async def get_tenant_inbound_email(db: AsyncSession, tenant_id: uuid.UUID) -> str | None:
     tenant = await db.get(Tenant, tenant_id)
     return (tenant.inbound_email if tenant else None) or get_settings().inbound_email or None
+
+
+async def get_tenant_inbound_addresses(db: AsyncSession, tenant_id: uuid.UUID) -> list[str]:
+    """All shared-mailbox addresses: Tenant.inbound_email + tenant-level linked
+    Gmail/Outlook accounts (EML1)."""
+    from app.modules.email_accounts.service import get_linked_addresses
+
+    base = await get_tenant_inbound_email(db, tenant_id)
+    linked = await get_linked_addresses(db, tenant_id, user_id=None)
+    return [a for a in [base, *linked] if a]
+
+
+async def get_user_inbound_addresses(db: AsyncSession, tenant_id: uuid.UUID, user) -> list[str]:
+    """All personal-mailbox addresses for a user: User.inbound_email + their
+    linked Gmail/Outlook accounts (EML1)."""
+    from app.modules.email_accounts.service import get_linked_addresses
+
+    linked = await get_linked_addresses(db, tenant_id, user_id=user.id)
+    return [a for a in [user.inbound_email, *linked] if a]
 
 
 async def list_assignees(

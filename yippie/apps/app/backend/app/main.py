@@ -36,6 +36,10 @@ from app.modules.stripe_platform.webhooks import webhook_router as stripe_webhoo
 from app.modules.shipments.router import webhook_router as shipments_webhook_router
 from app.modules.jarvis.router import router as jarvis_router
 from app.modules.jarvis.scheduler import start_scheduler as start_jarvis_scheduler
+from app.modules.email_accounts.router import (
+    router as email_accounts_router,
+    callback_router as email_accounts_callback_router,
+)
 
 
 @asynccontextmanager
@@ -113,6 +117,11 @@ def create_app() -> FastAPI:
     app.include_router(chat_ws_router, prefix="/api/v1")
     # Chat inbound webhooks — no auth, Evolution API POSTs here
     app.include_router(chat_webhook_router, prefix="/api/v1")
+    # Linked Gmail/Outlook accounts (EML1) — authenticated routes gated on the
+    # inbox module; the OAuth callback is a bare browser redirect (identity
+    # comes from the signed state token, not the session cookie)
+    app.include_router(email_accounts_router, prefix="/api/v1")
+    app.include_router(email_accounts_callback_router, prefix="/api/v1")
 
     @app.api_route("/api/v1/health", methods=["GET", "HEAD"], tags=["health"], include_in_schema=False)
     async def health(db: Annotated[AsyncSession, Depends(get_db)]):

@@ -8,6 +8,7 @@ import { TemplatePicker, htmlToText } from './TemplatePicker'
 import { useAuth } from '../../../auth/useAuth'
 import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
 import { SignaturePicker } from './SignaturePicker'
+import { useLinkedEmailAccounts, PROVIDER_SHORT } from '../hooks/useLinkedEmailAccounts'
 
 interface Contact {
   id: string
@@ -291,6 +292,7 @@ export default function ComposeModal({
   initialState?: ComposeInitialState | null
 }) {
   const { user } = useAuth()
+  const linkedAccounts = useLinkedEmailAccounts()
   const { data: signatures } = useSignatures()
   const defaultSig = pickDefaultSignature(signatures)
   const [appliedSig, setAppliedSig] = useState<string | null>(defaultSig?.body ?? null)
@@ -602,7 +604,7 @@ export default function ComposeModal({
                 }}
               />
             </label>
-            {(user?.reply_from_email || (user?.send_from_aliases ?? []).length > 0) && (
+            {(user?.reply_from_email || (user?.send_from_aliases ?? []).length > 0 || linkedAccounts.length > 0) && (
               <div className="flex items-center gap-1 text-xs text-slate-500 flex-wrap">
                 <span className="text-slate-400">From:</span>
                 <button type="button" onClick={() => setFromEmail(null)}
@@ -619,6 +621,13 @@ export default function ComposeModal({
                   <button key={alias} type="button" onClick={() => setFromEmail(alias)}
                     className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === alias ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
                     {alias}
+                  </button>
+                ))}
+                {linkedAccounts.map(acct => (
+                  <button key={acct.id} type="button" onClick={() => setFromEmail(acct.email_address)}
+                    className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === acct.email_address ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
+                    {acct.email_address}
+                    <span className="ml-1 text-[10px] text-slate-400">via {PROVIDER_SHORT[acct.provider]}</span>
                   </button>
                 ))}
               </div>

@@ -32,7 +32,7 @@ const MODULE_CONFIG = [
   { key: "chat",        recName: "Live Chat",        icon: "💬", price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp. All conversations in one inbox." },
   { key: "calendar",    recName: "Calendar",         icon: "📅", price: MODULE_PRICES.calendar,    desc: "Booking links, availability grids, appointments" },
   { key: "kanban",      recName: "Pipeline",         icon: "📌", price: MODULE_PRICES.kanban,      desc: "Drag-and-drop Kanban to move leads through stages" },
-  { key: "marketing",   recName: "Marketing",        icon: "📣", price: MODULE_PRICES.marketing,   desc: "Email campaigns, drip sequences, open tracking" },
+  { key: "marketing",   recName: "Marketing",        icon: "📣", price: MODULE_PRICES.marketing,   desc: "Email campaigns, drip sequences, shared reply templates" },
   { key: "departments", recName: "Departments",      icon: "🏢", price: MODULE_PRICES.departments, desc: "Route tickets to the right team automatically" },
   { key: "billing",     recName: "Billing",          icon: "🧾", price: MODULE_PRICES.billing,     desc: "Invoices, payments, subscription management" },
   { key: "tracking",    recName: "Shipment Tracking",icon: "📦", price: MODULE_PRICES.tracking,   desc: "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts." },
@@ -64,11 +64,12 @@ export default function CustomForm() {
   // Step 1 state
   const [teamSize, setTeamSize] = useState("");
   const [industry, setIndustry] = useState("");
-  const [challenges, setChallenges] = useState<string[]>([]);
-  const [currentTool, setCurrentTool] = useState("");
+  const [painPoints, setPainPoints] = useState<string[]>([]);
+  const [currentTools, setCurrentTools] = useState<string[]>([]);
 
   // Step 2 state
   const [annual, setAnnual] = useState(false);
+  const [recommendedNames, setRecommendedNames] = useState<string[]>([]);
   const [recommendedKeys, setRecommendedKeys] = useState<ModuleKey[]>([]);
   const [selectedModules, setSelectedModules] = useState<ModuleKey[]>([]);
 
@@ -89,9 +90,10 @@ export default function CustomForm() {
   }, [teamSize]);
 
   const planLimits = useMemo(() => {
+    if (isFounder) return PLAN_LIMITS.founder;
     if (recommendedPlanKey === "enterprise") return null;
     return PLAN_LIMITS[recommendedPlanKey];
-  }, [recommendedPlanKey]);
+  }, [isFounder, recommendedPlanKey]);
 
   const planMonthlyDisplay = useMemo(() => {
     if (!planLimits) return null;
@@ -117,26 +119,34 @@ export default function CustomForm() {
 
   // Plan price already encodes the annual discount via priceAnnual/12;
   // apply 10% only to modules to avoid double-discounting the plan.
+  // Founders pay half module price; the annual 10% stacks on top of that.
+  const modulesBaseTotal = isFounder ? founderModulesTotal : modulesRawTotal;
+
   const displayMonthlyTotal = useMemo(
-    () => {
-      if (isFounder) return 9 + founderModulesTotal;
-      return annual
-        ? (planMonthlyDisplay ?? 0) + Math.round(modulesRawTotal * 0.9)
-        : (planMonthlyDisplay ?? 0) + modulesRawTotal;
-    },
-    [isFounder, founderModulesTotal, annual, planMonthlyDisplay, modulesRawTotal],
+    () => annual
+      ? (planMonthlyDisplay ?? 0) + Math.round(modulesBaseTotal * 0.9)
+      : (planMonthlyDisplay ?? 0) + modulesBaseTotal,
+    [annual, planMonthlyDisplay, modulesBaseTotal],
   );
 
   const modulesSaving = useMemo(
-    () => (annual && !isFounder) ? modulesRawTotal - Math.round(modulesRawTotal * 0.9) : 0,
-    [annual, isFounder, modulesRawTotal],
+    () => annual ? modulesBaseTotal - Math.round(modulesBaseTotal * 0.9) : 0,
+    [annual, modulesBaseTotal],
   );
 
-  function toggleChallenge(v: string) {
-    if (challenges.includes(v)) {
-      setChallenges(challenges.filter((c) => c !== v));
+  function togglePainPoint(v: string) {
+    if (painPoints.includes(v)) {
+      setPainPoints(painPoints.filter((p) => p !== v));
     } else {
-      setChallenges([...challenges, v]);
+      setPainPoints([...painPoints, v]);
+    }
+  }
+
+  function toggleTool(v: string) {
+    if (currentTools.includes(v)) {
+      setCurrentTools(currentTools.filter((t) => t !== v));
+    } else {
+      setCurrentTools([...currentTools, v]);
     }
   }
 
@@ -147,14 +157,11 @@ export default function CustomForm() {
   }
 
   function goToStep2() {
-    const recs = computeRecommendations(
-      industry,
-      currentTool ? [currentTool] : [],
-      challenges,
-    );
+    const recs = computeRecommendations(industry, currentTools, painPoints);
     const preSelected = recs
       .map((r) => REC_TO_KEY[r])
       .filter((k): k is ModuleKey => !!k);
+    setRecommendedNames(recs);
     setRecommendedKeys(preSelected);
     setSelectedModules(preSelected);
     setStep(2);
@@ -176,11 +183,12 @@ export default function CustomForm() {
           questionnaire: {
             team_size: teamSize || null,
             industry: industry || null,
-            challenges: challenges.length ? challenges : null,
-            current_tool: currentTool || null,
+            current_tools: currentTools.length ? currentTools : null,
+            pain_points: painPoints.length ? painPoints : null,
+            recommended_modules: recommendedNames.length ? recommendedNames : null,
             plan_selected: isFounder ? "founder" : recommendedPlanKey,
             modules_selected: selectedModules.length ? selectedModules : null,
-            monthly_total: recommendedPlanKey !== "enterprise" ? displayMonthlyTotal : null,
+            monthly_total: (isFounder || recommendedPlanKey !== "enterprise") ? displayMonthlyTotal : null,
             billing_cycle: annual ? "annual" : "monthly",
           },
         }),
@@ -279,16 +287,16 @@ export default function CustomForm() {
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>Biggest challenges?</span>
+          <span className={styles.qLabel}>Biggest pain points?</span>
           <div className={styles.chips}>
             {PAIN_POINTS.map((opt) => {
-              const selected = challenges.includes(opt);
+              const selected = painPoints.includes(opt);
               return (
                 <button
                   key={opt}
                   type="button"
                   className={`${styles.chip} ${selected ? styles.chipActive : ""}`}
-                  onClick={() => toggleChallenge(opt)}
+                  onClick={() => togglePainPoint(opt)}
                 >
                   {opt}
                 </button>
@@ -298,14 +306,14 @@ export default function CustomForm() {
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>What do you use today?</span>
+          <span className={styles.qLabel}>What tools do you use today?</span>
           <div className={styles.chips}>
             {TOOLS.map((opt) => (
               <button
                 key={opt}
                 type="button"
-                className={`${styles.chip} ${currentTool === opt ? styles.chipActive : ""}`}
-                onClick={() => setCurrentTool(currentTool === opt ? "" : opt)}
+                className={`${styles.chip} ${currentTools.includes(opt) ? styles.chipActive : ""}`}
+                onClick={() => toggleTool(opt)}
               >
                 {opt}
               </button>
@@ -324,7 +332,7 @@ export default function CustomForm() {
   if (step === 2) {
     const recMods = MODULE_CONFIG.filter((m) => recommendedKeys.includes(m.key as ModuleKey));
     const extraMods = MODULE_CONFIG.filter((m) => !recommendedKeys.includes(m.key as ModuleKey));
-    const isEnterprise = recommendedPlanKey === "enterprise";
+    const isEnterprise = !isFounder && recommendedPlanKey === "enterprise";
 
     return (
       <div className={styles.card}>
@@ -369,11 +377,13 @@ export default function CustomForm() {
               <div className={styles.planRow}>
                 <span className={styles.planName}>Founding Member</span>
                 <span>
-                  <span className={styles.planPrice}>€9</span>
+                  <span className={styles.planPrice}>€{planMonthlyDisplay}</span>
                   <span className={styles.planPricePer}>/mo</span>
                 </span>
               </div>
-              <p className={styles.planMeta}>Up to 10 users · 50% off all add-on modules</p>
+              <p className={styles.planMeta}>
+                Up to 10 users · 50% off all add-on modules{annual && " · billed annually"}
+              </p>
             </>
           ) : (
             <>
@@ -518,7 +528,7 @@ export default function CustomForm() {
   const selectedModuleDetails = MODULE_CONFIG.filter((m) =>
     selectedModules.includes(m.key as ModuleKey),
   );
-  const isEnterprise = recommendedPlanKey === "enterprise";
+  const isEnterprise = !isFounder && recommendedPlanKey === "enterprise";
 
   return (
     <form className={styles.card} onSubmit={handleSubmit} noValidate>

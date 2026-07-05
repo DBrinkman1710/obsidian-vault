@@ -21,6 +21,7 @@ import app.modules.calendar.models  # noqa
 import app.modules.pipeline.models  # noqa
 import app.modules.booking.models  # noqa
 import app.modules.shipments.models  # noqa
+import app.modules.email_accounts.models  # noqa
 
 config = context.config
 if config.config_file_name is not None:

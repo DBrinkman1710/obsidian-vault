@@ -13,6 +13,7 @@ import { Skeleton } from '../../../shell/Skeleton'
 import { useMobile } from '../../../shell/useMobile'
 import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
 import { SignaturePicker } from '../components/SignaturePicker'
+import { useLinkedEmailAccounts, PROVIDER_SHORT } from '../hooks/useLinkedEmailAccounts'
 
 interface PipelineStage { id: string; name: string; color: string }
 
@@ -306,6 +307,7 @@ export default function DraftReview() {
   const isPipelineEnabled = config?.enabled_modules?.includes('pipeline') ?? false
   const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? true
   const { user } = useAuth()
+  const linkedAccounts = useLinkedEmailAccounts()
   const { data: signatures } = useSignatures()
   const defaultSig = pickDefaultSignature(signatures)
   const [appliedSig, setAppliedSig] = useState<string | null>(null)
@@ -408,6 +410,16 @@ export default function DraftReview() {
     setFromEmail(mailbox === 'personal' ? (user?.reply_from_email ?? null) : null)
     if (undoIntervalRef.current) { clearInterval(undoIntervalRef.current); undoIntervalRef.current = null }
   }, [id, defaultSig?.body, mailbox, user?.reply_from_email])
+
+  // EML1: when the mail arrived via a linked Gmail/Outlook mailbox, preselect
+  // that account as the From address so the reply threads from the same identity.
+  const inboundTo = msg?.inbound_to?.toLowerCase() ?? null
+  useEffect(() => {
+    if (!inboundTo) return
+    const arrivedOn = linkedAccounts.find(a => a.email_address.toLowerCase() === inboundTo)
+    if (arrivedOn) setFromEmail(arrivedOn.email_address)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, inboundTo, linkedAccounts.length])
 
   const showContactModal = !isLoading && !!ctx && !ctx.contact && !modalDismissed && !isProcessed
 
@@ -1547,8 +1559,8 @@ export default function DraftReview() {
                     }}
                   />
                 </label>
-                {/* From selector — only shown when user has a personal reply address or aliases */}
-                {(user?.reply_from_email || (user?.send_from_aliases ?? []).length > 0) && (
+                {/* From selector — shown when user has a personal reply address, aliases or linked accounts */}
+                {(user?.reply_from_email || (user?.send_from_aliases ?? []).length > 0 || linkedAccounts.length > 0) && (
                   <div className="flex items-center gap-1 text-xs text-slate-500 flex-wrap">
                     <span className="text-slate-400">From:</span>
                     <button
@@ -1575,6 +1587,17 @@ export default function DraftReview() {
                         className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === alias ? 'bg-yippie/10 text-yippie font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
                       >
                         {alias}
+                      </button>
+                    ))}
+                    {linkedAccounts.map(acct => (
+                      <button
+                        key={acct.id}
+                        type="button"
+                        onClick={() => setFromEmail(acct.email_address)}
+                        className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === acct.email_address ? 'bg-yippie/10 text-yippie font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}
+                      >
+                        {acct.email_address}
+                        <span className="ml-1 text-[10px] text-slate-400">via {PROVIDER_SHORT[acct.provider]}</span>
                       </button>
                     ))}
                   </div>

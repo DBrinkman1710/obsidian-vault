@@ -48,6 +48,16 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     resend_from: str = ""
     resend_webhook_secret: str = ""
+    # OAuth email linking (Gmail/Outlook) — one central Yippie owned app per
+    # provider. Leave empty to hide the Connect buttons for that provider.
+    google_oauth_client_id: str = ""
+    google_oauth_client_secret: str = ""
+    ms_oauth_client_id: str = ""
+    ms_oauth_client_secret: str = ""
+    # Fernet key for encrypting linked account tokens at rest — generate once per
+    # environment with: python3 -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"
+    # Losing this key orphans stored tokens (users must reconnect their accounts).
+    email_token_encryption_key: str = ""
     owner_notification_email: str = "diederik1710@gmail.com"
     inbound_email: str = ""
     # Evolution API (WhatsApp) — self-hosted gateway, one instance per tenant slug.

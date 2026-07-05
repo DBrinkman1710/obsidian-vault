@@ -70,6 +70,20 @@ async def _validate_from_email(from_email: Optional[str], db: AsyncSession, tena
         return
     if not is_valid_email(from_email):
         raise HTTPException(status_code=400, detail="from_email is not a valid email address")
+    # EML1: an exact match on an active linked Gmail/Outlook account is always
+    # allowed — the mail goes out via that provider, not Resend's domains.
+    from app.modules.email_accounts.models import EmailAccount
+    from sqlalchemy import func as _func, select
+
+    linked = await db.scalar(
+        select(EmailAccount.id).where(
+            EmailAccount.tenant_id == tenant_id,
+            _func.lower(EmailAccount.email_address) == from_email.lower(),
+            EmailAccount.status == "active",
+        )
+    )
+    if linked is not None:
+        return
     allowed = _tenant_from_domains(await db.get(Tenant, tenant_id))
     if allowed and email_domain(from_email) not in allowed:
         raise HTTPException(status_code=403, detail="from_email domain is not permitted for this tenant")
@@ -140,22 +154,28 @@ async def list_drafts(
         )
         return _enrich_drafts(rows)
     if mailbox == "personal":
-        # Personal mailbox: only mail sent to this user's own inbound address.
-        if not current_user.inbound_email:
+        # Personal mailbox: mail sent to this user's own inbound address or any
+        # of their linked Gmail/Outlook accounts (EML1).
+        personal_addrs = await service.get_user_inbound_addresses(
+            db, current_user.tenant_id, current_user
+        )
+        if not personal_addrs:
             return []
         rows = await service.list_drafts(
-            db, current_user.tenant_id, status, current_user.inbound_email,
+            db, current_user.tenant_id, status, personal_addrs,
             include_legacy=False, search=q, contact_id=contact_id,
             department_id=department_id,
         )
         return _enrich_drafts(rows)
-    inbound_email = await service.get_tenant_inbound_email(db, current_user.tenant_id)
+    inbound_email = await service.get_tenant_inbound_addresses(db, current_user.tenant_id)
     # Personal Work Inbox mode: the shared mailbox is narrowed to mail assigned
-    # to this user (or sent to their personal inbound address).
+    # to this user (or sent to any of their personal inbound addresses).
     personal_only_user_id = current_user.id if current_user.shared_inbox_disabled else None
-    personal_only_inbound_email = (
-        current_user.inbound_email if current_user.shared_inbox_disabled else None
-    )
+    personal_only_inbound_email = None
+    if current_user.shared_inbox_disabled:
+        personal_only_inbound_email = await service.get_user_inbound_addresses(
+            db, current_user.tenant_id, current_user
+        ) or None
     rows = await service.list_drafts(
         db, current_user.tenant_id, status, inbound_email, search=q, contact_id=contact_id,
         department_id=department_id,
@@ -179,7 +199,10 @@ async def count_pending_drafts(
     db: DB,
     department_id: Optional[uuid.UUID] = Query(None),
 ):
-    if not current_user.inbound_email:
+    personal_addrs = await service.get_user_inbound_addresses(
+        db, current_user.tenant_id, current_user
+    )
+    if not personal_addrs:
         shared_count = await service.count_pending_drafts(
             db, current_user.tenant_id, department_id=department_id
         )
@@ -187,19 +210,19 @@ async def count_pending_drafts(
             db, current_user.tenant_id, department_id=department_id, unread_only=True
         )
         return {"pending": shared_count, "personal": 0, "unread": shared_unread, "unread_personal": 0}
-    inbound_email = await service.get_tenant_inbound_email(db, current_user.tenant_id)
+    inbound_email = await service.get_tenant_inbound_addresses(db, current_user.tenant_id)
     shared_count = await service.count_pending_drafts(
         db, current_user.tenant_id, inbound_email, department_id=department_id
     )
     personal_count = await service.count_pending_drafts(
-        db, current_user.tenant_id, current_user.inbound_email, include_legacy=False,
+        db, current_user.tenant_id, personal_addrs, include_legacy=False,
         department_id=department_id,
     )
     shared_unread = await service.count_pending_drafts(
         db, current_user.tenant_id, inbound_email, department_id=department_id, unread_only=True
     )
     personal_unread = await service.count_pending_drafts(
-        db, current_user.tenant_id, current_user.inbound_email, include_legacy=False,
+        db, current_user.tenant_id, personal_addrs, include_legacy=False,
         department_id=department_id, unread_only=True,
     )
     return {"pending": shared_count, "personal": personal_count, "unread": shared_unread, "unread_personal": personal_unread}

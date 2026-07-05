@@ -310,6 +310,18 @@ async def poll_inbound_emails() -> None:
         log.exception("email_poll failed")
 
 
+@scheduler.scheduled_job("interval", seconds=60, id="poll_oauth_inboxes", max_instances=1, coalesce=True)
+async def poll_oauth_inboxes_job() -> None:
+    """Pull new mail from linked Gmail/Outlook mailboxes (EML1) into the same
+    inbound → draft flow as the Resend poller. No-op when no accounts exist."""
+    from app.modules.email_accounts.sync import sync_all_accounts
+
+    try:
+        await sync_all_accounts()
+    except Exception:
+        log.exception("poll_oauth_inboxes failed")
+
+
 @scheduler.scheduled_job("interval", seconds=10 if _is_prod else 30, id="enrich_drafts", max_instances=1, coalesce=True)
 async def enrich_drafts_job() -> None:
     """AI-enrich drafts queued by ingest. Loops until the queue is drained so a

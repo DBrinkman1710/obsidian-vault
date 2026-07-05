@@ -5,6 +5,7 @@ import { Plus, Trash2, Star, ChevronUp, ChevronDown, Image as ImageIcon, Pencil,
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useSignatures, readSignatureImage, signatureImageTag, type Signature } from '../../../hooks/useSignatures'
+import { EmailAccountsCard } from '../../inbox/components/EmailAccountsCard'
 
 export default function ProfileSettingsPage() {
   const { user, refreshUser } = useAuth()
@@ -230,6 +231,11 @@ export default function ProfileSettingsPage() {
         <div className="w-96 flex-shrink-0">
           <ChangePasswordCard />
         </div>
+      </div>
+
+      {/* Linked personal mailbox (Gmail/Outlook OAuth) */}
+      <div className="mt-10 pt-6 border-t border-slate-200">
+        <EmailAccountsCard level="user" />
       </div>
 
       {/* Calendar integration */}

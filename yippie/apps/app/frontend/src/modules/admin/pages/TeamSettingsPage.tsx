@@ -5,6 +5,7 @@ import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { TemplatePicker } from '../../inbox/components/TemplatePicker'
 import { ModulePermissionsGrid } from '../../../components/ModulePermissionsGrid'
+import { EmailAccountsCard } from '../../inbox/components/EmailAccountsCard'
 import { useTenantConfig } from '../../../App'
 
 interface TeamUser {
@@ -918,6 +919,13 @@ export default function TeamSettingsPage() {
             {showInvite && <InviteModal onClose={() => setShowInvite(false)} />}
             {editingUser && <EditUserModal user={editingUser} onClose={() => setEditingUser(null)} />}
             {deletingUser && <DeleteUserModal user={deletingUser} onClose={() => setDeletingUser(null)} />}
+
+            {/* Shared mailbox (Gmail/Outlook OAuth) — admins only, EML1 */}
+            {(me?.role === 'admin' || me?.role === 'superadmin') && (
+              <div className="mt-8">
+                <EmailAccountsCard level="tenant" />
+              </div>
+            )}
           </>
         )}
 
