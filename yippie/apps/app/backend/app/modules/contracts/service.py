@@ -1,17 +1,26 @@
 from __future__ import annotations
 
+import re
 import uuid
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
 from app.modules.contacts.models import Company, Contact
-from app.modules.contracts.models import Contract
-from app.modules.contracts.schemas import ContractCreate, ContractUpdate
+from app.modules.contracts.models import Contract, ContractTemplate
+from app.modules.contracts.schemas import (
+    ContractCreate,
+    ContractUpdate,
+    RenewalsSummary,
+    TemplateCreate,
+    TemplateUpdate,
+)
 
 MAX_FILE_BYTES = 15 * 1024 * 1024  # 15 MB — a signed PDF is comfortably under this
+EXPIRING_SOON_DAYS = 60  # Renewals view window: deadline within this many days
 
 
 async def _attach_names(db: AsyncSession, tenant_id: uuid.UUID, contracts: list[Contract]) -> None:
@@ -110,7 +119,15 @@ async def update_contract(
     contract = await get_contract(db, tenant_id, contract_id)
     if not contract:
         return None
-    for field, value in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    # A new end_date starts a new cycle — re-arm the scheduler's one-shot nudges.
+    if "end_date" in changes and changes["end_date"] != contract.end_date:
+        contract.notice_reminder_sent_at = None
+        contract.expiry_reminder_sent_at = None
+    # A signed contract's text is frozen — it's what the counterparty signed.
+    if contract.signed_at:
+        changes.pop("body", None)
+    for field, value in changes.items():
         setattr(contract, field, value)
     await db.commit()
     await db.refresh(contract)
@@ -177,6 +194,55 @@ async def clear_file(
     return contract
 
 
+async def renewals_summary(db: AsyncSession, tenant_id: uuid.UUID) -> RenewalsSummary:
+    """Rollup of active contract value + renewal counts.
+
+    MRR sums active contracts at their monthly rate (yearly ÷ 12); ARR = MRR × 12.
+    One-off values are reported separately — they are not recurring revenue.
+    Mirrors the phase 3 Stripe shape: amount + interval + currency per contract.
+    """
+    result = await db.execute(select(Contract).where(Contract.tenant_id == tenant_id))
+    contracts = list(result.scalars().all())
+    today = date.today()
+    soon = today + timedelta(days=EXPIRING_SOON_DAYS)
+
+    mrr = 0.0
+    one_off_total = 0.0
+    active_count = expiring_soon_count = auto_renewing_count = expired_count = 0
+
+    for c in contracts:
+        if c.status == "expired":
+            expired_count += 1
+            continue
+        if c.status != "active":
+            continue
+        active_count += 1
+        if c.auto_renew:
+            auto_renewing_count += 1
+        deadline = c.notice_deadline or c.end_date
+        if deadline and today <= deadline <= soon:
+            expiring_soon_count += 1
+        if c.value_amount is not None:
+            amount = float(c.value_amount)
+            if c.value_interval == "monthly":
+                mrr += amount
+            elif c.value_interval == "yearly":
+                mrr += amount / 12
+            elif c.value_interval == "one_off":
+                one_off_total += amount
+
+    return RenewalsSummary(
+        mrr=round(mrr, 2),
+        arr=round(mrr * 12, 2),
+        one_off_total=round(one_off_total, 2),
+        currency="EUR",
+        active_count=active_count,
+        expiring_soon_count=expiring_soon_count,
+        auto_renewing_count=auto_renewing_count,
+        expired_count=expired_count,
+    )
+
+
 async def get_file(
     db: AsyncSession, tenant_id: uuid.UUID, contract_id: uuid.UUID
 ) -> Optional[Contract]:
@@ -187,3 +253,176 @@ async def get_file(
         .where(Contract.id == contract_id, Contract.tenant_id == tenant_id)
     )
     return result.scalar_one_or_none()
+
+
+# ── Templates + e-signing ([CONTRACT3]) ──────────────────────────────────────
+
+# Merge fields resolvable at generation time. Unknown fields render as "…" so a
+# typo is visible in the preview instead of leaking the raw placeholder.
+MERGE_FIELDS = (
+    "contract.title", "contract.type", "contract.start_date", "contract.end_date",
+    "contract.notice_period_days", "contract.value",
+    "company.name", "contact.name", "contact.email", "tenant.name", "date.today",
+)
+_FIELD_RE = re.compile(r"\{\{\s*([a-z_.]+)\s*\}\}")
+
+
+async def list_templates(db: AsyncSession, tenant_id: uuid.UUID) -> list[ContractTemplate]:
+    result = await db.execute(
+        select(ContractTemplate)
+        .where(ContractTemplate.tenant_id == tenant_id)
+        .order_by(ContractTemplate.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def create_template(
+    db: AsyncSession, tenant_id: uuid.UUID, created_by: uuid.UUID, body: TemplateCreate
+) -> ContractTemplate:
+    template = ContractTemplate(tenant_id=tenant_id, created_by=created_by, name=body.name, body=body.body)
+    db.add(template)
+    await db.commit()
+    await db.refresh(template)
+    return template
+
+
+async def update_template(
+    db: AsyncSession, tenant_id: uuid.UUID, template_id: uuid.UUID, body: TemplateUpdate
+) -> Optional[ContractTemplate]:
+    result = await db.execute(
+        select(ContractTemplate).where(
+            ContractTemplate.id == template_id, ContractTemplate.tenant_id == tenant_id
+        )
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        return None
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(template, field, value)
+    await db.commit()
+    await db.refresh(template)
+    return template
+
+
+async def delete_template(db: AsyncSession, tenant_id: uuid.UUID, template_id: uuid.UUID) -> bool:
+    result = await db.execute(
+        delete(ContractTemplate).where(
+            ContractTemplate.id == template_id, ContractTemplate.tenant_id == tenant_id
+        )
+    )
+    await db.commit()
+    return bool(result.rowcount)
+
+
+def _fmt_merge_date(d: date | None) -> str:
+    return d.strftime("%d-%m-%Y") if d else "…"
+
+
+def render_merge_fields(template_body: str, contract: Contract, tenant_name: str) -> str:
+    """Replace {{merge.fields}} with contract data. Names come pre-attached."""
+    if contract.value_amount is not None:
+        suffix = {"monthly": " per month", "yearly": " per year"}.get(contract.value_interval or "", "")
+        value = f"{contract.currency} {float(contract.value_amount):,.2f}{suffix}"
+    else:
+        value = "…"
+    values = {
+        "contract.title": contract.title,
+        "contract.type": contract.contract_type or "…",
+        "contract.start_date": _fmt_merge_date(contract.start_date),
+        "contract.end_date": _fmt_merge_date(contract.end_date),
+        "contract.notice_period_days": str(contract.notice_period_days) if contract.notice_period_days is not None else "…",
+        "contract.value": value,
+        "company.name": getattr(contract, "company_name", None) or contract.counterparty_name or "…",
+        "contact.name": getattr(contract, "contact_name", None) or contract.counterparty_name or "…",
+        "contact.email": getattr(contract, "contact_email", None) or "…",
+        "tenant.name": tenant_name,
+        "date.today": _fmt_merge_date(date.today()),
+    }
+    return _FIELD_RE.sub(lambda m: values.get(m.group(1), "…"), template_body)
+
+
+async def generate_body(
+    db: AsyncSession, tenant_id: uuid.UUID, contract_id: uuid.UUID, template_id: uuid.UUID, tenant_name: str
+) -> Optional[Contract]:
+    """Render a template into the contract's frozen body."""
+    contract = await get_contract(db, tenant_id, contract_id)
+    if not contract:
+        return None
+    result = await db.execute(
+        select(ContractTemplate).where(
+            ContractTemplate.id == template_id, ContractTemplate.tenant_id == tenant_id
+        )
+    )
+    template = result.scalar_one_or_none()
+    if not template:
+        return None
+    # Contact email for {{contact.email}} — attach alongside the names.
+    contract.contact_email = None
+    if contract.contact_id:
+        row = await db.execute(
+            select(Contact.email).where(Contact.id == contract.contact_id, Contact.tenant_id == tenant_id)
+        )
+        contract.contact_email = row.scalar_one_or_none()
+    contract.body = render_merge_fields(template.body, contract, tenant_name)
+    contract.template_id = template.id
+    await db.commit()
+    await db.refresh(contract)
+    await _attach_names(db, tenant_id, [contract])
+    return contract
+
+
+async def create_sign_link(
+    db: AsyncSession, tenant_id: uuid.UUID, contract_id: uuid.UUID, expires_days: int
+) -> Optional[Contract]:
+    contract = await get_contract(db, tenant_id, contract_id)
+    if not contract or not contract.body or contract.signed_at:
+        return None
+    contract.sign_token = uuid.uuid4()
+    contract.sign_token_expires_at = datetime.now(timezone.utc) + timedelta(days=expires_days)
+    if contract.status == "draft":
+        contract.status = "sent"
+    await db.commit()
+    await db.refresh(contract)
+    await _attach_names(db, tenant_id, [contract])
+    return contract
+
+
+async def get_for_pdf(
+    db: AsyncSession, tenant_id: uuid.UUID, contract_id: uuid.UUID
+) -> Optional[Contract]:
+    """Fetch with the deferred signature image loaded, for PDF rendering."""
+    result = await db.execute(
+        select(Contract)
+        .options(undefer(Contract.signature_image))
+        .where(Contract.id == contract_id, Contract.tenant_id == tenant_id)
+    )
+    return result.scalar_one_or_none()
+
+
+async def get_by_sign_token(db: AsyncSession, token: uuid.UUID) -> Optional[Contract]:
+    """Public lookup — runs before tenant context, mirroring booking tokens."""
+    await db.execute(text("SET LOCAL row_security = off"))
+    result = await db.execute(select(Contract).where(Contract.sign_token == token))
+    contract = result.scalar_one_or_none()
+    if not contract:
+        return None
+    expires = contract.sign_token_expires_at
+    if expires and expires < datetime.now(timezone.utc):
+        return None
+    return contract
+
+
+async def apply_signature(
+    db: AsyncSession, contract: Contract, *, signer_name: str, signer_ip: str, signature_image: str | None
+) -> Contract:
+    contract.signed_at = datetime.now(timezone.utc)
+    contract.signer_name = signer_name
+    contract.signer_ip = signer_ip
+    contract.signature_image = signature_image
+    contract.status = "active"
+    contract.sign_token = None  # single use
+    contract.sign_token_expires_at = None
+    # No refresh: it would SELECT under RLS with no tenant context (public path)
+    # and find nothing; expire_on_commit=False keeps the instance state valid.
+    await db.commit()
+    return contract

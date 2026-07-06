@@ -16,6 +16,13 @@ from app.modules.contracts.schemas import (
     ContractCreate,
     ContractOut,
     ContractUpdate,
+    GenerateRequest,
+    RenewalsSummary,
+    SignLinkOut,
+    SignLinkRequest,
+    TemplateCreate,
+    TemplateOut,
+    TemplateUpdate,
 )
 
 router = APIRouter(prefix="/contracts", tags=["contracts"])
@@ -54,7 +61,45 @@ async def create_contract(body: ContractCreate, current_user: CurrentUser, db: D
     return await service.create_contract(db, current_user.tenant_id, current_user.id, body)
 
 
-# Static path declared before "/{contract_id}" so FastAPI does not read "bulk" as a UUID.
+# Static paths declared before "/{contract_id}" so FastAPI does not read them as UUIDs.
+@router.get("/renewals/summary", response_model=RenewalsSummary)
+async def get_renewals_summary(current_user: CurrentUser, db: DB):
+    """MRR/ARR + renewal counts — also consumed by the Billing module."""
+    return await service.renewals_summary(db, current_user.tenant_id)
+
+
+@router.get("/templates", response_model=list[TemplateOut])
+async def list_templates(current_user: CurrentUser, db: DB):
+    return await service.list_templates(db, current_user.tenant_id)
+
+
+@router.get("/templates/fields")
+async def list_merge_fields():
+    """Merge fields the template editor can insert."""
+    return {"fields": list(service.MERGE_FIELDS)}
+
+
+@router.post("/templates", response_model=TemplateOut, status_code=status.HTTP_201_CREATED)
+async def create_template(body: TemplateCreate, current_user: CurrentUser, db: DB):
+    return await service.create_template(db, current_user.tenant_id, current_user.id, body)
+
+
+@router.patch("/templates/{template_id}", response_model=TemplateOut)
+async def update_template(template_id: uuid.UUID, body: TemplateUpdate, current_user: CurrentUser, db: DB):
+    template = await service.update_template(db, current_user.tenant_id, template_id, body)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
+
+
+@router.delete("/templates/{template_id}")
+async def delete_template(template_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    ok = await service.delete_template(db, current_user.tenant_id, template_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"deleted": True}
+
+
 @router.delete("/bulk")
 async def bulk_delete_contracts(body: BulkDeleteRequest, current_user: CurrentUser, db: DB):
     deleted = await service.bulk_delete(db, current_user.tenant_id, body.ids)
@@ -83,6 +128,57 @@ async def delete_contract(contract_id: uuid.UUID, current_user: CurrentUser, db:
     if not ok:
         raise HTTPException(status_code=404, detail="Contract not found")
     return {"deleted": True}
+
+
+@router.post("/{contract_id}/generate", response_model=ContractOut)
+async def generate_from_template(
+    contract_id: uuid.UUID, body: GenerateRequest, current_user: CurrentUser, db: DB
+):
+    """Render a template's merge fields into the contract's frozen body."""
+    from app.core.models import Tenant
+
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    contract = await service.generate_body(
+        db, current_user.tenant_id, contract_id, body.template_id,
+        tenant.name if tenant else "",
+    )
+    if not contract:
+        raise HTTPException(status_code=404, detail="Contract or template not found")
+    return contract
+
+
+@router.post("/{contract_id}/signing", response_model=SignLinkOut)
+async def create_signing_link(
+    contract_id: uuid.UUID, body: SignLinkRequest, current_user: CurrentUser, db: DB
+):
+    """Create the public /sign/:token link. Requires a generated body."""
+    contract = await service.create_sign_link(db, current_user.tenant_id, contract_id, body.expires_days)
+    if not contract:
+        raise HTTPException(
+            status_code=400,
+            detail="Generate the contract text first — and a signed contract cannot be re-sent",
+        )
+    return SignLinkOut(sign_token=contract.sign_token, sign_token_expires_at=contract.sign_token_expires_at)
+
+
+@router.get("/{contract_id}/pdf")
+async def download_pdf(contract_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    from app.core.models import Tenant
+    from app.modules.contracts.pdf import generate_contract_pdf
+
+    contract = await service.get_for_pdf(db, current_user.tenant_id, contract_id)
+    if not contract or not contract.body:
+        raise HTTPException(status_code=404, detail="No generated contract text to render")
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    data = generate_contract_pdf(
+        contract, tenant.name if tenant else "", getattr(tenant, "primary_color", None)
+    )
+    safe_name = re.sub(r'[^\w.]', '_', contract.title)[:60] or "contract"
+    return StreamingResponse(
+        iter([data]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}.pdf"'},
+    )
 
 
 @router.post("/{contract_id}/file", response_model=ContractOut)

@@ -18,6 +18,7 @@ from app.config import get_settings
 from app.core.rate_limit import get_client_ip, rl_hit, rl_is_blocked
 from app.database import get_db, set_tenant_context
 from app.modules.booking.schemas import BookingConfirm, CounterProposeRequest, ManageBookingOut, RescheduleRequest
+from app.modules.contracts.schemas import PublicContractOut, PublicSignRequest
 
 # Public, unauthenticated endpoints — consumed by the marketing site (getyippie.com).
 # Mounted in main.py WITHOUT auth dependencies. Never expose tenant-level data here;
@@ -1651,3 +1652,79 @@ async def signup(
         "login_url": login_url,
         "payment": payment_result,
     }
+
+
+# ── Contract e-signing ([CONTRACT3]) — booking-token pattern ──────────────────
+
+
+@router.get("/contracts/sign/{token}")
+async def public_get_contract(
+    token: uuid.UUID,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.core.models import Tenant
+    from app.modules.contracts import service as contracts_service
+
+    ip = get_client_ip(request)
+    await _public_rate_limit(ip, "contract_sign_view", 30)
+
+    contract = await contracts_service.get_by_sign_token(db, token)
+    if contract is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This signing link has expired or has already been used.",
+        )
+
+    # Scope the rest of the request to the contract's tenant (activates RLS).
+    await set_tenant_context(db, str(contract.tenant_id))
+    tenant = await db.get(Tenant, contract.tenant_id)
+
+    return PublicContractOut(
+        tenant_name=tenant.name if tenant else "Yippie",
+        title=contract.title,
+        body=contract.body or "",
+        counterparty_name=contract.counterparty_name,
+        value_amount=float(contract.value_amount) if contract.value_amount is not None else None,
+        value_interval=contract.value_interval,
+        currency=contract.currency,
+        start_date=contract.start_date,
+        end_date=contract.end_date,
+        signed_at=contract.signed_at,
+        signer_name=contract.signer_name,
+    )
+
+
+@router.post("/contracts/sign/{token}")
+async def public_sign_contract(
+    token: uuid.UUID,
+    body: PublicSignRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.modules.contracts import service as contracts_service
+
+    if not body.agree:
+        raise HTTPException(status_code=400, detail="You must agree to the contract terms to sign.")
+    if body.signature_image and not body.signature_image.startswith("data:image/png;base64,"):
+        raise HTTPException(status_code=400, detail="Invalid signature image.")
+
+    ip = get_client_ip(request)
+    await _public_rate_limit(ip, "contract_sign_submit", 10)
+
+    contract = await contracts_service.get_by_sign_token(db, token)
+    if contract is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This signing link has expired or has already been used.",
+        )
+    if contract.signed_at:
+        raise HTTPException(status_code=409, detail="This contract has already been signed.")
+
+    await contracts_service.apply_signature(
+        db, contract,
+        signer_name=body.signer_name.strip(),
+        signer_ip=ip,
+        signature_image=body.signature_image,
+    )
+    return {"signed": True, "signed_at": contract.signed_at}

@@ -49,6 +49,7 @@ const TrackConfirmPage = lazy(() => import('./pages/TrackConfirmPage'))
 const RequestDemoPage = lazy(() => import('./pages/RequestDemoPage'))
 const DemoEnterPage = lazy(() => import('./pages/DemoEnterPage'))
 const BookingPage = lazy(() => import('./pages/BookingPage'))
+const SignContractPage = lazy(() => import('./pages/SignContractPage'))
 const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
 const MeetPage = lazy(() => import('./pages/MeetPage'))
 const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage'))
@@ -132,6 +133,17 @@ export default function App() {
       <Suspense fallback={null}>
         <Routes>
           <Route path="/meet/:slug" element={<MeetPage />} />
+        </Routes>
+      </Suspense>
+    )
+  }
+
+  // Public contract signing — standalone, no shell or auth ([CONTRACT3]).
+  if (window.location.pathname.startsWith('/sign/')) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/sign/:token" element={<SignContractPage />} />
         </Routes>
       </Suspense>
     )

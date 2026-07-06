@@ -37,6 +37,7 @@ from app.modules.stripe_platform.webhooks import webhook_router as stripe_webhoo
 from app.modules.shipments.router import webhook_router as shipments_webhook_router
 from app.modules.jarvis.router import router as jarvis_router
 from app.modules.jarvis.scheduler import start_scheduler as start_jarvis_scheduler
+from app.modules.contracts.scheduler import start_scheduler as start_contracts_scheduler
 from app.modules.email_accounts.router import (
     router as email_accounts_router,
     callback_router as email_accounts_callback_router,
@@ -53,6 +54,7 @@ async def lifespan(app: FastAPI):
     start_marketing_scheduler()
     start_saas_scheduler()
     start_jarvis_scheduler()
+    start_contracts_scheduler()
     yield
 
 
