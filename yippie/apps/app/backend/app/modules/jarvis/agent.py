@@ -14,9 +14,11 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import litellm
+
 from app.core.models import AssistantMemory, Tenant, User, UserReminder
 from app.modules.activity import service as activity_service
-from app.modules.ai.client import ai_completion_tools
+from app.modules.ai.client import ai_stream_tools
 from app.modules.contacts.models import Contact
 from app.modules.jarvis import service
 from app.modules.tickets.models import Ticket, TicketComment, TicketPriority, TicketStatus
@@ -206,6 +208,61 @@ TOOL_DEFS: list[dict] = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    # [YIP4] Read tool expansion — workload/stats questions.
+    {
+        "type": "function",
+        "function": {
+            "name": "list_pending_drafts",
+            "description": "List incoming emails waiting for review in the inbox (pending draft tickets). Use for 'any new mail', 'anything in the inbox', 'pending drafts'.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_waiting_chats",
+            "description": "List live chat conversations waiting for an agent: unassigned sessions and sessions with unread visitor messages.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "check_email_engagement",
+            "description": "Check whether emails sent to a contact were delivered, opened or clicked. Use for 'did Jan open my email?'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "contact_name": {"type": "string", "description": "Recipient's name — defaults to the currently open contact"},
+                    "email": {"type": "string", "description": "Recipient's email address, when known"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_ticket_stats",
+            "description": "Ticket workload statistics: open counts per status plus how many tickets were resolved today and in the last 7 days.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "get_revenue_summary",
+            "description": "Recurring revenue rollup from the contracts module: MRR, ARR, one-off total and renewal counts. Use for questions about revenue or contract value.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_todays_bookings",
+            "description": "List today's meetings, bookings and ticket deadlines in the workspace's local timezone. Use for 'what is on today', 'my meetings today'.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
     # [YIP3] Write tools — these only PROPOSE a change; the popup shows a
     # Confirm/Cancel card and the write runs via POST /jarvis/confirm.
     {
@@ -324,6 +381,13 @@ TOOL_MODULES: dict[str, str | None] = {
     "draft_reply": None,  # fresh-email path needs only core inbox; ticket path degrades gracefully
     "get_platform_manual": None,
     "save_memory": None,
+    # [YIP4] read tools
+    "list_pending_drafts": None,  # inbox is core
+    "list_waiting_chats": "chat",
+    "check_email_engagement": None,  # emailtracking has no module key — core inbox plumbing
+    "get_ticket_stats": "tickets",
+    "get_revenue_summary": "contracts",
+    "list_todays_bookings": "calendar",
     # [YIP3] write tools
     "create_ticket": "tickets",
     "update_ticket": "tickets",
@@ -809,6 +873,208 @@ async def _tool_save_memory(ctx: AgentContext, args: dict) -> dict:
 
 
 # ---------------------------------------------------------------------------
+# [YIP4] Read tool expansion — workload/stats questions.
+# ---------------------------------------------------------------------------
+
+async def _tool_list_pending_drafts(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.inbox import service as inbox_service
+    from app.modules.inbox.models import DraftStatus, DraftTicket, InboundMessage
+
+    count = await inbox_service.count_pending_drafts(ctx.db, ctx.tenant.id)
+    now = datetime.now(timezone.utc)
+    # Same pending semantics as count_pending_drafts, plus sender for the summary.
+    result = await ctx.db.execute(
+        select(DraftTicket, InboundMessage.subject, InboundMessage.sender)
+        .join(InboundMessage, DraftTicket.inbound_message_id == InboundMessage.id)
+        .where(
+            DraftTicket.tenant_id == ctx.tenant.id,
+            (DraftTicket.status == DraftStatus.pending)
+            | (
+                (DraftTicket.status == DraftStatus.approved)
+                & DraftTicket.follow_up_at.isnot(None)
+                & (DraftTicket.follow_up_at <= now)
+            ),
+        )
+        .order_by(DraftTicket.created_at.desc())
+        .limit(5)
+    )
+    rows = result.all()
+    if count:
+        ctx.add_action("Open inbox", kind="navigate", path="/inbox")
+    return {
+        "pending_count": count,
+        "latest": [
+            {
+                "subject": d.final_subject or d.ai_suggested_subject or inbound_subject,
+                "sender": sender,
+                "unread": d.opened_at is None,
+                "age_hours": round((now - d.created_at).total_seconds() / 3600, 1) if d.created_at else None,
+            }
+            for d, inbound_subject, sender in rows
+        ],
+    }
+
+
+async def _tool_list_waiting_chats(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.chat.models import ChatSession
+
+    result = await ctx.db.execute(
+        select(ChatSession)
+        .where(
+            ChatSession.tenant_id == ctx.tenant.id,
+            ChatSession.status.in_(("open", "assigned")),
+            ChatSession.assigned_to.is_(None) | (ChatSession.unread_count > 0),
+        )
+        .order_by(ChatSession.started_at.desc())
+        .limit(10)
+    )
+    sessions = result.scalars().all()
+    if sessions:
+        ctx.add_action("Open live chat", kind="navigate", path="/chat")
+    return {
+        "waiting": [
+            {
+                "visitor": s.visitor_name or s.visitor_email or s.whatsapp_phone or "visitor",
+                "source": s.source,
+                "assigned": s.assigned_to is not None,
+                "unread_messages": s.unread_count,
+                "started_at": s.started_at.isoformat() if s.started_at else None,
+            }
+            for s in sessions
+        ],
+        "count": len(sessions),
+    }
+
+
+async def _tool_check_email_engagement(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.emailtracking.models import OutboundEmail
+
+    email = (args.get("email") or "").strip()
+    name = (args.get("contact_name") or "").strip()
+    if not email:
+        raw_id = ctx.context_id if ctx.context_type == "contact" and not name else None
+        contact = await service._resolve_contact(ctx.db, ctx.tenant.id, raw_id, name or None)
+        if not contact:
+            return {"error": "no contact found — ask for a contact name or email address"}
+        if not contact.email:
+            return {"error": f"{contact.full_name} has no email address on file"}
+        email = contact.email
+    result = await ctx.db.execute(
+        select(OutboundEmail)
+        .where(OutboundEmail.tenant_id == ctx.tenant.id, OutboundEmail.to_email.ilike(email))
+        .order_by(OutboundEmail.created_at.desc())
+        .limit(5)
+    )
+    emails = result.scalars().all()
+    if not emails:
+        return {"recipient": email, "emails": [], "note": "no tracked outbound emails to this address"}
+    return {
+        "recipient": email,
+        "emails": [
+            {
+                "subject": e.subject,
+                "sent_at": e.created_at.isoformat() if e.created_at else None,
+                "status": e.status,
+                "opened_at": e.opened_at.isoformat() if e.opened_at else None,
+                "clicks": e.clicked_count,
+                "bounced": e.bounce_type if e.bounced_at else None,
+            }
+            for e in emails
+        ],
+    }
+
+
+async def _tool_get_ticket_stats(ctx: AgentContext, args: dict) -> dict:
+    from sqlalchemy import func
+
+    from app.modules.tickets import service as tickets_service
+
+    stats = await tickets_service.get_ticket_stats(ctx.db, ctx.tenant.id)
+    now = datetime.now(timezone.utc)
+
+    async def _resolved_since(boundary: datetime) -> int:
+        return (
+            await ctx.db.scalar(
+                select(func.count())
+                .select_from(Ticket)
+                .where(
+                    Ticket.tenant_id == ctx.tenant.id,
+                    Ticket.deleted_at.is_(None),
+                    Ticket.resolved_at >= boundary,
+                )
+            )
+        ) or 0
+
+    stats["resolved_today"] = await _resolved_since(now.replace(hour=0, minute=0, second=0, microsecond=0))
+    stats["resolved_last_7_days"] = await _resolved_since(now - timedelta(days=7))
+    ctx.add_action("All tickets", kind="navigate", path="/tickets")
+    return stats
+
+
+async def _tool_get_revenue_summary(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.contracts import service as contracts_service
+
+    s = await contracts_service.renewals_summary(ctx.db, ctx.tenant.id)
+    ctx.add_action("Open contracts", kind="navigate", path="/contracts")
+    return {
+        "mrr": s.mrr,
+        "arr": s.arr,
+        "one_off_total": s.one_off_total,
+        "currency": s.currency,
+        "active_contracts": s.active_count,
+        "expiring_soon": s.expiring_soon_count,
+        "auto_renewing": s.auto_renewing_count,
+        "expired": s.expired_count,
+        "note": "figures are active contract values from the contracts module",
+    }
+
+
+async def _tool_list_todays_bookings(ctx: AgentContext, args: dict) -> dict:
+    from zoneinfo import ZoneInfo
+
+    from app.modules.booking.models import CalendarSettings
+    from app.modules.calendar import service as calendar_service
+
+    tz_name = (
+        await ctx.db.scalar(
+            select(CalendarSettings.timezone).where(CalendarSettings.tenant_id == ctx.tenant.id)
+        )
+    ) or "Europe/Amsterdam"
+    try:
+        tz = ZoneInfo(tz_name)
+    except Exception:
+        tz, tz_name = ZoneInfo("Europe/Amsterdam"), "Europe/Amsterdam"
+    day_start_local = datetime.now(tz).replace(hour=0, minute=0, second=0, microsecond=0)
+    start = day_start_local.astimezone(timezone.utc)
+    end = (day_start_local + timedelta(days=1)).astimezone(timezone.utc)
+
+    items = await calendar_service.list_calendar_items(ctx.db, ctx.tenant.id, start, end, None, ctx.user.id)
+    # Hide other users' personal events — same visibility as the calendar UI.
+    visible = [
+        i for i in items
+        if getattr(i, "calendar_type", None) != "personal" or getattr(i, "created_by", None) == ctx.user.id
+    ]
+    ctx.add_action("Open calendar", kind="navigate", path="/calendar")
+    return {
+        "timezone": tz_name,
+        "date": day_start_local.strftime("%Y-%m-%d"),
+        "items": [
+            {
+                "kind": i.kind,
+                "title": i.title,
+                "start_at": i.start_at.isoformat() if i.start_at else None,
+                "end_at": i.end_at.isoformat() if getattr(i, "end_at", None) else None,
+                "all_day": getattr(i, "all_day", False),
+                "contact": getattr(i, "contact_name", None),
+                "ticket": getattr(i, "ticket_subject", None),
+            }
+            for i in visible[:20]
+        ],
+        "count": len(visible),
+    }
+
+
+# ---------------------------------------------------------------------------
 # [YIP3] Write actions — the tool loop only PROPOSES (confirm_action + a
 # Confirm/Cancel card in the popup); the actual write runs through
 # execute_confirmed() when the user presses Confirm.
@@ -1217,6 +1483,13 @@ _EXECUTORS = {
     "compose_email": _tool_compose_email,
     "get_platform_manual": _tool_get_platform_manual,
     "save_memory": _tool_save_memory,
+    # [YIP4] read tools
+    "list_pending_drafts": _tool_list_pending_drafts,
+    "list_waiting_chats": _tool_list_waiting_chats,
+    "check_email_engagement": _tool_check_email_engagement,
+    "get_ticket_stats": _tool_get_ticket_stats,
+    "get_revenue_summary": _tool_get_revenue_summary,
+    "list_todays_bookings": _tool_list_todays_bookings,
     # [YIP3] proposal-only write tools
     "create_ticket": _tool_create_ticket,
     "update_ticket": _tool_update_ticket,
@@ -1246,7 +1519,7 @@ async def _execute_tool(ctx: AgentContext, name: str, args: dict) -> dict:
 # Agent loop
 # ---------------------------------------------------------------------------
 
-async def run_agent(
+async def run_agent_stream(
     db: AsyncSession,
     user: User,
     tenant: Tenant,
@@ -1255,12 +1528,23 @@ async def run_agent(
     context_id: str | None,
     route: str | None = None,
     history: list[dict] | None = None,
-) -> dict:
-    """Run the tool loop and return a CaptureResponse-shaped dict."""
+):
+    """[YIP-STREAM] The tool loop as an event stream.
+
+    Yields event dicts:
+      {"type": "status", "tool": <name>}   — a tool call is about to run
+      {"type": "delta",  "text": <token>}  — assistant text as it is generated
+      {"type": "result", "data": <CaptureResponse-shaped dict>} — terminal, always last
+
+    Providers may emit preamble text before deciding to call tools (Mistral does);
+    the frontend discards streamed text whenever a status event arrives, and the
+    terminal result's summary is always authoritative.
+    """
     # Fast path: plain arithmetic never needs the model.
     math_result = service._safe_eval(body)
     if math_result is not None:
-        return {"action_taken": "math", "summary": str(math_result)}
+        yield {"type": "result", "data": {"action_taken": "math", "summary": str(math_result)}}
+        return
 
     ctx = AgentContext(db, user, tenant, context_type, context_id)
     memories = await _load_memories(db, tenant.id, user.id)
@@ -1276,10 +1560,22 @@ async def run_agent(
     tools = _tools_for_tenant(tenant)
     final_text = ""
     for _ in range(MAX_ITERATIONS):
-        msg = await ai_completion_tools(messages, tools=tools)
-        tool_calls = getattr(msg, "tool_calls", None)
+        stream = await ai_stream_tools(messages, tools=tools)
+        chunks = []
+        async for chunk in stream:
+            chunks.append(chunk)
+            try:
+                delta = chunk.choices[0].delta
+            except (AttributeError, IndexError):
+                continue
+            text = getattr(delta, "content", None)
+            if text:
+                yield {"type": "delta", "text": text}
+        full = litellm.stream_chunk_builder(chunks)
+        msg = full.choices[0].message if full and full.choices else None
+        tool_calls = getattr(msg, "tool_calls", None) if msg is not None else None
         if not tool_calls:
-            final_text = (msg.content or "").strip()
+            final_text = ((msg.content if msg is not None else "") or "").strip()
             break
         messages.append({
             "role": "assistant",
@@ -1294,6 +1590,7 @@ async def run_agent(
             ],
         })
         for tc in tool_calls:
+            yield {"type": "status", "tool": tc.function.name}
             try:
                 args = json.loads(tc.function.arguments or "{}")
                 if not isinstance(args, dict):
@@ -1320,4 +1617,28 @@ async def run_agent(
         out["inline_data"] = ctx.inline_data
     if ctx.actions:
         out["actions"] = ctx.actions
-    return out
+    yield {"type": "result", "data": out}
+
+
+async def run_agent(
+    db: AsyncSession,
+    user: User,
+    tenant: Tenant,
+    body: str,
+    context_type: str,
+    context_id: str | None,
+    route: str | None = None,
+    history: list[dict] | None = None,
+) -> dict:
+    """Run the tool loop and return a CaptureResponse-shaped dict (JSON path).
+
+    Thin wrapper over run_agent_stream — consumes the events and returns only
+    the terminal result, so the non-streaming /capture endpoint is unchanged.
+    """
+    result: dict = {"action_taken": "answer", "summary": "Done."}
+    async for event in run_agent_stream(
+        db, user, tenant, body, context_type, context_id, route=route, history=history
+    ):
+        if event["type"] == "result":
+            result = event["data"]
+    return result

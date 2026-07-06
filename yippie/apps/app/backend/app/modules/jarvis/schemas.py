@@ -28,13 +28,16 @@ class CaptureRequest(BaseModel):
     context_type: ContextType = "none"
     context_id: Optional[str] = None
     route: Optional[str] = None
+    # Legacy client side history — ignored when thread_id is set ([YIP-STREAM])
     history: list[ChatTurn] = []
+    thread_id: Optional[uuid.UUID] = None
 
 
 class ConfirmRequest(BaseModel):
     # [YIP3] a proposed write action echoed back after the user pressed Confirm
     tool: str
     args: dict = {}
+    thread_id: Optional[uuid.UUID] = None
 
 
 class CaptureResponse(BaseModel):
@@ -44,6 +47,28 @@ class CaptureResponse(BaseModel):
     inline_data: Optional[dict] = None
     # CTA buttons under the reply: {label, kind: "navigate"|"compose", path?, email?, name?}
     actions: Optional[list[dict]] = None
+    thread_id: Optional[uuid.UUID] = None
+
+
+class ThreadOut(BaseModel):
+    id: uuid.UUID
+    title: Optional[str] = None
+    kind: str
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ThreadMessageOut(BaseModel):
+    id: uuid.UUID
+    role: str
+    content: str
+    action_taken: Optional[str] = None
+    inline_data: Optional[dict] = None
+    actions: Optional[list] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class ReminderOut(BaseModel):

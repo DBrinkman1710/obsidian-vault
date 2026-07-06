@@ -128,6 +128,19 @@ async def ai_completion_tools(
     return resp.choices[0].message
 
 
+async def ai_stream_tools(
+    messages: list[dict], *, tools: list[dict], max_tokens: int = 1024, workload: str = "agent"
+):
+    """[YIP-STREAM] Streaming tool-calling completion — returns the litellm chunk stream.
+
+    Callers iterate the chunks (forwarding content deltas) and reconstruct the
+    full message with litellm.stream_chunk_builder afterwards.
+    """
+    return await _acompletion(
+        messages, max_tokens=max_tokens, workload=workload, tools=tools, tool_choice="auto", stream=True
+    )
+
+
 def active_provider_label() -> str:
     """Human-readable label for the currently active AI provider (for status endpoints)."""
     s = get_settings()

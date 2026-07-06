@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
-import { ArrowRight, Loader2, Settings, User, Ticket, X, Check, BotMessageSquare } from 'lucide-react'
+import { ArrowRight, Check, History, Loader2, Plus, Settings, Ticket, User, X, BotMessageSquare } from 'lucide-react'
 import { api } from '../api/client'
+import { streamCapture } from '../api/jarvisStream'
 import { useAuth, type JarvisPrefs, type User as AuthUser } from '../auth/useAuth'
-import { useQuickCapture } from '../hooks/useQuickCapture'
+import { useQuickCapture, openQuickCapture } from '../hooks/useQuickCapture'
 import { useCompose } from '../hooks/useCompose'
 
 interface CtaAction {
@@ -21,12 +22,32 @@ interface CaptureResponse {
   navigate_to?: string | null
   inline_data?: Record<string, any> | null
   actions?: CtaAction[] | null
+  thread_id?: string | null
 }
 
 interface ChatMsg {
   role: 'user' | 'assistant'
   content: string
   data?: CaptureResponse | null
+  // [YIP-STREAM] the in-flight assistant bubble tokens stream into
+  streaming?: boolean
+  status?: string | null
+}
+
+interface ThreadSummary {
+  id: string
+  title?: string | null
+  kind: string
+  updated_at: string
+}
+
+interface ThreadMessage {
+  id: string
+  role: 'user' | 'assistant'
+  content: string
+  action_taken?: string | null
+  inline_data?: Record<string, any> | null
+  actions?: CtaAction[] | null
 }
 
 // [YIP3] a write action Yip proposed — executed via /jarvis/confirm on Confirm
@@ -48,7 +69,37 @@ const DEFAULT_HOTKEY = '⌘K / Ctrl+K'
 
 const REMINDER_WS_URL = '/api/v1/chat/ws/agent'
 
-function useReminderSocket(userId: string | undefined) {
+// [YIP-STREAM] friendly labels for status events while a tool runs
+const STATUS_LABELS: Record<string, string> = {
+  search_contacts: 'Searching contacts…',
+  get_contact_briefing: 'Pulling up the contact…',
+  search_tickets: 'Searching tickets…',
+  list_open_tickets: 'Checking open tickets…',
+  get_ticket_thread: 'Reading the ticket thread…',
+  draft_reply: 'Drafting a reply…',
+  track_shipments: 'Tracking shipments…',
+  list_calendar_events: 'Checking the calendar…',
+  create_reminder: 'Setting the reminder…',
+  add_contact_note: 'Saving the note…',
+  add_ticket_note: 'Saving the note…',
+  open_page: 'Navigating…',
+  compose_email: 'Opening compose…',
+  get_platform_manual: 'Consulting the manual…',
+  save_memory: 'Remembering that…',
+  list_pending_drafts: 'Checking the inbox…',
+  list_waiting_chats: 'Checking live chat…',
+  check_email_engagement: 'Checking email engagement…',
+  get_ticket_stats: 'Crunching ticket stats…',
+  get_revenue_summary: 'Calculating revenue…',
+  list_todays_bookings: "Checking today's agenda…",
+  create_ticket: 'Preparing the ticket…',
+  update_ticket: 'Preparing the change…',
+  create_contact: 'Preparing the contact…',
+  create_calendar_event: 'Preparing the event…',
+  move_pipeline_stage: 'Preparing the move…',
+}
+
+function useReminderSocket(userId: string | undefined, navigate: (path: string) => void) {
   useEffect(() => {
     if (!userId) return
     let ws: WebSocket | null = null
@@ -74,6 +125,23 @@ function useReminderSocket(userId: string | undefined) {
               },
             })
           }
+          // [YIP5] morning briefing ready — opening the popup lands on it
+          if (data.type === 'jarvis_briefing' && data.user_id === userId) {
+            toast.info(data.body || 'Your morning briefing is ready', {
+              duration: 15000,
+              action: { label: 'Open', onClick: () => openQuickCapture() },
+            })
+          }
+          // [YIP5] SLA near breach nudge — assigned user, or everyone when unassigned
+          if (data.type === 'jarvis_sla_nudge' && (data.user_id === userId || data.user_id == null)) {
+            const mins = data.due_in_minutes
+            toast.warning(`SLA deadline in ${mins} min: ${data.subject}`, {
+              duration: 15000,
+              action: data.ticket_id
+                ? { label: 'Open ticket', onClick: () => navigate(`/tickets/${data.ticket_id}`) }
+                : undefined,
+            })
+          }
         } catch { /* ignore malformed frames */ }
       }
 
@@ -89,6 +157,49 @@ function useReminderSocket(userId: string | undefined) {
   }, [userId])
 }
 
+// [YIP-STREAM] helpers for the single in-flight streaming bubble
+function updateStreaming(list: ChatMsg[], fn: (m: ChatMsg) => ChatMsg): ChatMsg[] {
+  const idx = list.findIndex(m => m.streaming)
+  if (idx === -1) return list
+  const next = [...list]
+  next[idx] = fn(next[idx])
+  return next
+}
+
+function replaceStreaming(list: ChatMsg[], msg: ChatMsg): ChatMsg[] {
+  const idx = list.findIndex(m => m.streaming)
+  if (idx === -1) return [...list, msg]
+  const next = [...list]
+  next[idx] = msg
+  return next
+}
+
+function removeStreaming(list: ChatMsg[]): ChatMsg[] {
+  return list.filter(m => !m.streaming)
+}
+
+function threadMessageToChatMsg(m: ThreadMessage): ChatMsg {
+  // Historical confirm cards must not offer Confirm again — show as plain text.
+  const action = m.action_taken === 'confirm_action' ? 'answer' : (m.action_taken ?? 'answer')
+  return {
+    role: m.role,
+    content: m.content,
+    data: m.role === 'assistant'
+      ? { action_taken: action, summary: m.content, inline_data: m.inline_data ?? null, actions: m.actions ?? null }
+      : null,
+  }
+}
+
+function relativeTime(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'now'
+  if (mins < 60) return `${mins}m`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h`
+  return `${Math.floor(hours / 24)}d`
+}
+
 export default function QuickCapturePopup() {
   const { isOpen, close, context, clearContext } = useQuickCapture()
   const { user, refreshUser } = useAuth()
@@ -96,21 +207,50 @@ export default function QuickCapturePopup() {
   const navigate = useNavigate()
   const inputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
+  const abortRef = useRef<AbortController | null>(null)
 
   const [body, setBody] = useState('')
   const [loading, setLoading] = useState(false)
   const [messages, setMessages] = useState<ChatMsg[]>([])
   const [showPrefs, setShowPrefs] = useState(false)
+  // [YIP-STREAM] server side threads — the conversation survives closing the popup
+  const [threadId, setThreadId] = useState<string | null>(null)
+  const [threads, setThreads] = useState<ThreadSummary[]>([])
+  const [showThreads, setShowThreads] = useState(false)
 
-  useReminderSocket(user?.id)
+  useReminderSocket(user?.id, navigate)
 
   useEffect(() => {
     if (!isOpen) {
       setBody('')
-      setMessages([])
       setShowPrefs(false)
+      setShowThreads(false)
+      // A stream in flight keeps running server side and lands in the thread.
+      abortRef.current?.abort()
+      abortRef.current = null
+      setMessages(prev => removeStreaming(prev))
       setLoading(false)
     }
+  }, [isOpen])
+
+  // [YIP-STREAM] first open: resume the most recent conversation
+  useEffect(() => {
+    if (!isOpen || threadId || messages.length) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const { data: ths } = await api.get<ThreadSummary[]>('/jarvis/threads')
+        if (cancelled) return
+        setThreads(ths)
+        const latest = ths[0]
+        if (!latest) return
+        const { data: msgs } = await api.get<ThreadMessage[]>(`/jarvis/threads/${latest.id}/messages`)
+        if (cancelled) return
+        setThreadId(latest.id)
+        setMessages(msgs.map(threadMessageToChatMsg))
+      } catch { /* start fresh */ }
+    })()
+    return () => { cancelled = true }
   }, [isOpen])
 
   useEffect(() => {
@@ -133,53 +273,132 @@ export default function QuickCapturePopup() {
     }
   }
 
+  function startNewThread() {
+    if (loading) return
+    setThreadId(null)
+    setMessages([])
+    setShowThreads(false)
+    inputRef.current?.focus()
+  }
+
+  async function openThread(id: string) {
+    if (loading) return
+    try {
+      const { data: msgs } = await api.get<ThreadMessage[]>(`/jarvis/threads/${id}/messages`)
+      setThreadId(id)
+      setMessages(msgs.map(threadMessageToChatMsg))
+      setShowThreads(false)
+    } catch {
+      toast.error('Could not load that conversation')
+    }
+  }
+
+  async function toggleThreads() {
+    const next = !showThreads
+    setShowThreads(next)
+    if (next) {
+      try {
+        const { data: ths } = await api.get<ThreadSummary[]>('/jarvis/threads')
+        setThreads(ths)
+      } catch { /* keep whatever we had */ }
+    }
+  }
+
+  function finishResponse(data: CaptureResponse) {
+    if (data.thread_id) setThreadId(data.thread_id)
+    if (data.action_taken === 'navigate' && data.navigate_to) {
+      setMessages(prev => removeStreaming(prev))
+      navigate(data.navigate_to)
+      close()
+      return
+    }
+    if (data.action_taken === 'compose_email' && data.inline_data?.email) {
+      setMessages(prev => removeStreaming(prev))
+      openCompose({ recipients: [{ email: data.inline_data.email, label: data.inline_data.name || data.inline_data.email }], subject: '', body: '', fromEmail: null })
+      close()
+      return
+    }
+    if (data.action_taken === 'draft_reply' && data.inline_data?.email) {
+      // [YIP2] Yip drafted a reply — open compose prefilled; human reviews and sends.
+      setMessages(prev => removeStreaming(prev))
+      openCompose({
+        recipients: [{ email: data.inline_data.email, label: data.inline_data.name || data.inline_data.email }],
+        subject: data.inline_data.subject || '',
+        body: data.inline_data.body || '',
+        fromEmail: null,
+      })
+      close()
+      return
+    }
+    setMessages(prev => replaceStreaming(prev, { role: 'assistant', content: data.summary, data }))
+  }
+
   async function submit() {
     const text = body.trim()
     if (!text || loading) return
-    // History = prior turns only; the backend appends the new message itself.
-    const history = messages.map(m => ({ role: m.role, content: m.content }))
-    setMessages(prev => [...prev, { role: 'user', content: text }])
+    // Legacy fallback history — the server derives history from the thread when
+    // thread_id is set ([YIP-STREAM]).
+    const history = threadId ? [] : messages.map(m => ({ role: m.role, content: m.content }))
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', content: text },
+      { role: 'assistant', content: '', streaming: true, status: 'Yip is thinking…' },
+    ])
     setBody('')
     setLoading(true)
+
+    const payload = {
+      body: text,
+      context_type: context.context_type,
+      context_id: context.context_id,
+      route: window.location.pathname,
+      history,
+      thread_id: threadId,
+    }
+    const abort = new AbortController()
+    abortRef.current = abort
+    let terminal = false
+
     try {
-      const { data } = await api.post<CaptureResponse>('/jarvis/capture', {
-        body: text,
-        context_type: context.context_type,
-        context_id: context.context_id,
-        route: window.location.pathname,
-        history,
-      })
-      if (data.action_taken === 'navigate' && data.navigate_to) {
-        navigate(data.navigate_to)
-        close()
-        return
+      await streamCapture(payload, {
+        onThread: id => setThreadId(id),
+        onStatus: tool => setMessages(prev => updateStreaming(prev, m => ({
+          // Providers may stream preamble text before calling tools — discard it;
+          // the terminal result is authoritative.
+          ...m, content: '', status: STATUS_LABELS[tool] ?? 'Working…',
+        }))),
+        onDelta: t => setMessages(prev => updateStreaming(prev, m => ({
+          ...m, status: null, content: m.content + t,
+        }))),
+        onResult: data => { terminal = true; finishResponse(data) },
+        onError: detail => {
+          terminal = true
+          setMessages(prev => replaceStreaming(prev, {
+            role: 'assistant', content: detail, data: { action_taken: 'error', summary: '' },
+          }))
+        },
+      }, abort.signal)
+    } catch {
+      if (abort.signal.aborted) return
+      if (!terminal) {
+        // Transport failed before the agent ran — safe to fall back to JSON.
+        try {
+          const { data } = await api.post<CaptureResponse>('/jarvis/capture', payload)
+          finishResponse(data)
+        } catch (e: any) {
+          setMessages(prev => replaceStreaming(prev, {
+            role: 'assistant',
+            content: e?.response?.data?.detail ?? 'Something went wrong.',
+            data: { action_taken: 'error', summary: '' },
+          }))
+        }
       }
-      if (data.action_taken === 'compose_email' && data.inline_data?.email) {
-        openCompose({ recipients: [{ email: data.inline_data.email, label: data.inline_data.name || data.inline_data.email }], subject: '', body: '', fromEmail: null })
-        close()
-        return
-      }
-      if (data.action_taken === 'draft_reply' && data.inline_data?.email) {
-        // [YIP2] Yip drafted a reply — open compose prefilled; human reviews and sends.
-        openCompose({
-          recipients: [{ email: data.inline_data.email, label: data.inline_data.name || data.inline_data.email }],
-          subject: data.inline_data.subject || '',
-          body: data.inline_data.body || '',
-          fromEmail: null,
-        })
-        close()
-        return
-      }
-      setMessages(prev => [...prev, { role: 'assistant', content: data.summary, data }])
-    } catch (e: any) {
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: e?.response?.data?.detail ?? 'Something went wrong.',
-        data: { action_taken: 'error', summary: '' },
-      }])
     } finally {
-      setLoading(false)
-      inputRef.current?.focus()
+      if (!abort.signal.aborted) {
+        setLoading(false)
+        abortRef.current = null
+        inputRef.current?.focus()
+      }
     }
   }
 
@@ -205,6 +424,14 @@ export default function QuickCapturePopup() {
           )}
         </div>
         <div className="flex items-center gap-1">
+          <button onClick={startNewThread} title="New conversation"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
+            <Plus size={15} />
+          </button>
+          <button onClick={toggleThreads} title="Recent conversations"
+            className={`p-1.5 rounded-lg transition-colors ${showThreads ? 'text-yippie bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}>
+            <History size={15} />
+          </button>
           <button onClick={() => setShowPrefs(s => !s)} title="Preferences"
             className={`p-1.5 rounded-lg transition-colors ${showPrefs ? 'text-yippie bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}>
             <Settings size={15} />
@@ -216,16 +443,28 @@ export default function QuickCapturePopup() {
         </div>
       </div>
 
-      {messages.length > 0 && !showPrefs && (
+      {showThreads && !showPrefs && (
+        <div className="px-4 pb-2 max-h-[240px] overflow-y-auto flex flex-col gap-1">
+          {threads.length === 0 && (
+            <p className="text-xs text-slate-400 px-1 py-2">No conversations yet.</p>
+          )}
+          {threads.map(t => (
+            <button key={t.id} onClick={() => openThread(t.id)}
+              className={`flex items-center justify-between gap-2 text-left px-2.5 py-2 rounded-lg text-sm transition-colors ${t.id === threadId ? 'bg-blue-50 text-blue-800' : 'hover:bg-slate-50 text-slate-700'}`}>
+              <span className="truncate">
+                {t.kind === 'briefing' ? '☀️ ' : ''}{t.title || 'New conversation'}
+              </span>
+              <span className="shrink-0 text-[11px] text-slate-400">{relativeTime(t.updated_at)}</span>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {messages.length > 0 && !showPrefs && !showThreads && (
         <div className="px-4 pb-2 max-h-[360px] overflow-y-auto flex flex-col gap-2">
           {messages.map((m, i) => (
-            <MessageBubble key={i} msg={m} onDone={close} onAction={handleAction} append={appendMessage} />
+            <MessageBubble key={i} msg={m} onDone={close} onAction={handleAction} append={appendMessage} threadId={threadId} />
           ))}
-          {loading && (
-            <div className="self-start inline-flex items-center gap-2 text-xs text-slate-400 px-3 py-2">
-              <Loader2 size={13} className="animate-spin" /> Yip is thinking…
-            </div>
-          )}
           <div ref={bottomRef} />
         </div>
       )}
@@ -272,14 +511,14 @@ function CtaRow({ actions, onAction }: { actions?: CtaAction[] | null; onAction:
 
 // [YIP3] Proposal card for a write action — the write only runs when the user
 // presses Confirm, which posts the staged payload to /jarvis/confirm.
-function ConfirmActionCard({ pending, append }: { pending: PendingAction; append: (m: ChatMsg) => void }) {
+function ConfirmActionCard({ pending, append, threadId }: { pending: PendingAction; append: (m: ChatMsg) => void; threadId: string | null }) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'cancelled'>('idle')
 
   async function confirm() {
     if (status !== 'idle') return
     setStatus('loading')
     try {
-      const { data } = await api.post<CaptureResponse>('/jarvis/confirm', { tool: pending.tool, args: pending.args })
+      const { data } = await api.post<CaptureResponse>('/jarvis/confirm', { tool: pending.tool, args: pending.args, thread_id: threadId })
       setStatus('done')
       append({ role: 'assistant', content: data.summary, data })
     } catch (e: any) {
@@ -332,13 +571,30 @@ function ConfirmActionCard({ pending, append }: { pending: PendingAction; append
   )
 }
 
-function MessageBubble({ msg, onDone, onAction, append }: {
-  msg: ChatMsg; onDone: () => void; onAction: (a: CtaAction) => void; append: (m: ChatMsg) => void
+function MessageBubble({ msg, onDone, onAction, append, threadId }: {
+  msg: ChatMsg; onDone: () => void; onAction: (a: CtaAction) => void; append: (m: ChatMsg) => void; threadId: string | null
 }) {
   if (msg.role === 'user') {
     return (
       <div className="self-end max-w-[85%] bg-yippie text-white text-sm rounded-2xl rounded-br-sm px-3 py-2">
         {msg.content}
+      </div>
+    )
+  }
+
+  // [YIP-STREAM] the in-flight bubble: status line, then tokens as they arrive
+  if (msg.streaming) {
+    if (!msg.content) {
+      return (
+        <div className="self-start inline-flex items-center gap-2 text-xs text-slate-400 px-3 py-2">
+          <Loader2 size={13} className="animate-spin" /> {msg.status || 'Yip is thinking…'}
+        </div>
+      )
+    }
+    return (
+      <div className="self-start max-w-[85%] bg-slate-100 text-slate-800 text-sm rounded-2xl rounded-bl-sm px-3 py-2 whitespace-pre-wrap">
+        {msg.content}
+        <span className="inline-block w-1.5 h-3.5 ml-0.5 align-middle bg-slate-400 animate-pulse rounded-sm" />
       </div>
     )
   }
@@ -375,7 +631,7 @@ function MessageBubble({ msg, onDone, onAction, append }: {
             {msg.content}
           </div>
         )}
-        <ConfirmActionCard pending={msg.data.inline_data as PendingAction} append={append} />
+        <ConfirmActionCard pending={msg.data.inline_data as PendingAction} append={append} threadId={threadId} />
       </div>
     )
   }
@@ -479,6 +735,9 @@ function PrefsPanel({ user, refreshUser, onClose }: {
   const [enabled, setEnabled] = useState<string[]>(
     prefs?.enabled_actions ?? ACTION_OPTIONS.map(a => a.key),
   )
+  // [YIP5] morning briefing preferences — enabled by default at 08:00 local
+  const [briefingEnabled, setBriefingEnabled] = useState(prefs?.briefing_enabled ?? true)
+  const [briefingTime, setBriefingTime] = useState(prefs?.briefing_time ?? '08:00')
   const [saving, setSaving] = useState(false)
 
   function toggle(key: string) {
@@ -488,7 +747,12 @@ function PrefsPanel({ user, refreshUser, onClose }: {
   async function save() {
     setSaving(true)
     try {
-      const payload: JarvisPrefs = { hotkey_display: hotkey, enabled_actions: enabled }
+      const payload: JarvisPrefs = {
+        hotkey_display: hotkey,
+        enabled_actions: enabled,
+        briefing_enabled: briefingEnabled,
+        briefing_time: briefingTime,
+      }
       await api.patch('/auth/me', { jarvis_prefs: payload })
       await refreshUser()
       onClose()
@@ -525,6 +789,27 @@ function PrefsPanel({ user, refreshUser, onClose }: {
               {opt.label}
             </label>
           ))}
+        </div>
+      </div>
+      <div>
+        <label className={labelCls}>Morning briefing</label>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={briefingEnabled}
+              onChange={() => setBriefingEnabled(v => !v)}
+              className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-yippie/30 cursor-pointer"
+            />
+            Daily digest at
+          </label>
+          <input
+            type="time"
+            value={briefingTime}
+            disabled={!briefingEnabled}
+            onChange={e => setBriefingTime(e.target.value)}
+            className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+          />
         </div>
       </div>
       <button onClick={save} disabled={saving}

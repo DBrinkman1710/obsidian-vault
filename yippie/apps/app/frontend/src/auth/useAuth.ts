@@ -27,6 +27,9 @@ export interface User {
 export interface JarvisPrefs {
   hotkey_display?: string
   enabled_actions?: string[]
+  // [YIP5] morning briefing
+  briefing_enabled?: boolean
+  briefing_time?: string // "HH:MM" tenant local time
 }
 
 export interface ContactColumnPref {
