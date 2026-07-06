@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 const posts = [
   {
-    slug: "whatsapp-customer-service-for-small-business",
+    slug: "whatsapp_customer_service_for_small_business",
     title: "Why Small Businesses Are Moving Customer Service to WhatsApp",
     date: "2026-07-03",
     dateLabel: "July 3, 2026",
@@ -27,7 +27,7 @@ const posts = [
       "WhatsApp has 2 billion users and message open rates above 90 percent. Here is why small businesses are adding it as a support channel — and how to set it up properly.",
   },
   {
-    slug: "cost-of-slow-customer-service-response",
+    slug: "cost_of_slow_customer_service_response",
     title: "What a Slow Customer Service Response Actually Costs You",
     date: "2026-06-26",
     dateLabel: "June 26, 2026",
@@ -35,7 +35,7 @@ const posts = [
       "Slow support is not just frustrating — it costs revenue, drives negative reviews, and creates more work internally. Here is what the numbers say.",
   },
   {
-    slug: "shared-inbox-vs-regular-email",
+    slug: "shared_inbox_vs_regular_email",
     title: "Shared Inbox vs. Regular Email: When to Make the Switch",
     date: "2026-06-19",
     dateLabel: "June 19, 2026",

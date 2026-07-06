@@ -9,13 +9,13 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
 const TITLE = "Why Small Businesses Are Moving Customer Service to WhatsApp";
 const DESCRIPTION =
   "WhatsApp has 2 billion users and message open rates above 90 percent. Here is why small businesses are adding it as a support channel — and how to set it up properly.";
-const URL = "https://getyippie.com/blog/whatsapp-customer-service-for-small-business";
+const URL = "https://getyippie.com/blog/whatsapp_customer_service_for_small_business";
 const DATE = "2026-07-03";
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "/blog/whatsapp-customer-service-for-small-business" },
+  alternates: { canonical: "/blog/whatsapp_customer_service_for_small_business" },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,

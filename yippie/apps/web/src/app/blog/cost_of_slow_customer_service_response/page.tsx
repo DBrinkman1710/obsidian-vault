@@ -9,13 +9,13 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
 const TITLE = "What a Slow Customer Service Response Actually Costs You";
 const DESCRIPTION =
   "Slow support is not just frustrating — it costs revenue, drives negative reviews, and creates more work internally. Here is what the numbers say.";
-const URL = "https://getyippie.com/blog/cost-of-slow-customer-service-response";
+const URL = "https://getyippie.com/blog/cost_of_slow_customer_service_response";
 const DATE = "2026-06-26";
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "/blog/cost-of-slow-customer-service-response" },
+  alternates: { canonical: "/blog/cost_of_slow_customer_service_response" },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,

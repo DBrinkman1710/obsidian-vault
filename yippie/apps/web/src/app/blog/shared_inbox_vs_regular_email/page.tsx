@@ -9,13 +9,13 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
 const TITLE = "Shared Inbox vs. Regular Email: When to Make the Switch";
 const DESCRIPTION =
   "Still running support from a regular inbox? Here is how to know when shared inbox software pays off — and what you actually gain when you make the switch.";
-const URL = "https://getyippie.com/blog/shared-inbox-vs-regular-email";
+const URL = "https://getyippie.com/blog/shared_inbox_vs_regular_email";
 const DATE = "2026-06-19";
 
 export const metadata: Metadata = {
   title: TITLE,
   description: DESCRIPTION,
-  alternates: { canonical: "/blog/shared-inbox-vs-regular-email" },
+  alternates: { canonical: "/blog/shared_inbox_vs_regular_email" },
   openGraph: {
     title: TITLE,
     description: DESCRIPTION,
