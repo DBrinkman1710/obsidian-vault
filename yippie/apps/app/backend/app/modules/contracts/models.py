@@ -46,6 +46,13 @@ class Contract(Base):
     tags: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # Uploaded document (CONTRACT1). Bytes are deferred so list/get queries
+    # never drag the blob across the wire — only the download endpoint undefers.
+    file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    file_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    file_data: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
+
     # Lifecycle ([CONTRACT2]). notice_deadline is derived, never stored.
     start_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
