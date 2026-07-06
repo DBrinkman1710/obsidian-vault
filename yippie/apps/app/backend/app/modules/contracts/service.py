@@ -105,6 +105,14 @@ async def create_contract(
         counterparty_name=body.counterparty_name,
         tags=body.tags,
         notes=body.notes,
+        start_date=body.start_date,
+        end_date=body.end_date,
+        notice_period_days=body.notice_period_days,
+        auto_renew=body.auto_renew,
+        renewal_term=body.renewal_term,
+        value_amount=body.value_amount,
+        value_interval=body.value_interval,
+        currency=body.currency,
     )
     db.add(contract)
     await db.commit()
