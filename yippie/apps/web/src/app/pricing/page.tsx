@@ -7,7 +7,7 @@ import styles from "./page.module.css";
 import contentStyles from "../components/content.module.css";
 import {
   AiIcon, CalendarIcon, KanbanIcon, ChatIcon, LayersIcon,
-  BillingIcon, MailTrackIcon, TeamIcon, TrackingIcon, SalesIcon, SaasIcon,
+  BillingIcon, ContractIcon, MailTrackIcon, TeamIcon, TrackingIcon, SalesIcon, SaasIcon,
 } from "../components/icons";
 import { PLAN_LIMITS, MODULE_PRICES } from "@/lib/config";
 import {
@@ -28,6 +28,7 @@ const MODULE_PRICE_MAP: Record<string, number> = {
   "Marketing":         MODULE_PRICES.marketing,
   "Departments":       MODULE_PRICES.departments,
   "Billing":           MODULE_PRICES.billing,
+  "Contracts":         MODULE_PRICES.contracts,
   "Shipment Tracking": MODULE_PRICES.tracking,
   "Sales":             MODULE_PRICES.sales,
   "SaaS Analytics":      MODULE_PRICES.saas,
@@ -131,6 +132,7 @@ const addOns = [
   { Icon: MailTrackIcon, name: "Marketing", desc: "Email campaigns, A/B testing, open tracking, and drip sequences.", price: MODULE_PRICES.marketing },
   { Icon: TeamIcon, name: "Departments", desc: "Route tickets and chats to the right team automatically.", price: MODULE_PRICES.departments },
   { Icon: BillingIcon, name: "Billing", desc: "Issue invoices, track payments, and manage subscriptions.", price: MODULE_PRICES.billing },
+  { Icon: ContractIcon, name: "Contracts", desc: "Store signed contracts, track renewals and notice periods, get reminded in time.", price: MODULE_PRICES.contracts },
   { Icon: TrackingIcon, name: "Shipment Tracking", desc: "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts.", price: MODULE_PRICES.tracking },
   { Icon: SalesIcon, name: "Sales", desc: "Track product views, add-to-cart, and purchases. Identify high-intent buyers.", price: MODULE_PRICES.sales },
   { Icon: SaasIcon, name: "SaaS Analytics", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts.", price: MODULE_PRICES.saas },

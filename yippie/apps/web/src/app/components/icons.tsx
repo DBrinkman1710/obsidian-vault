@@ -105,6 +105,14 @@ export const TemplateIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const ContractIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M7 3h7l4 4v14H7z" />
+    <path d="M14 3v4h4" />
+    <path d="M10 12h5M10 15h5M10 18h3" />
+  </Svg>
+);
+
 export const TeamIcon = (p: IconProps) => (
   <Svg {...p}>
     <circle cx="12" cy="8" r="3" />
