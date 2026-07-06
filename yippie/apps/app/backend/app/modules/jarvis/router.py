@@ -12,7 +12,13 @@ from app.auth.dependencies import CurrentUser
 from app.core.models import Tenant, UserReminder
 from app.database import get_db
 from app.modules.jarvis import agent, service
-from app.modules.jarvis.schemas import CaptureRequest, CaptureResponse, ReminderOut, TrainRequest
+from app.modules.jarvis.schemas import (
+    CaptureRequest,
+    CaptureResponse,
+    ConfirmRequest,
+    ReminderOut,
+    TrainRequest,
+)
 
 router = APIRouter(prefix="/jarvis", tags=["jarvis"])
 
@@ -33,6 +39,18 @@ async def capture(body: CaptureRequest, current_user: CurrentUser, db: DB):
         route=body.route,
         history=[t.model_dump() for t in body.history],
     )
+    return CaptureResponse(**result)
+
+
+@router.post("/confirm", response_model=CaptureResponse)
+async def confirm(body: ConfirmRequest, current_user: CurrentUser, db: DB):
+    """[YIP3] Execute a write action after the user pressed Confirm in the popup."""
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    result = await agent.execute_confirmed(db, current_user, tenant, body.tool, body.args)
+    if result.get("error"):
+        raise HTTPException(status_code=400, detail=result["error"])
     return CaptureResponse(**result)
 
 

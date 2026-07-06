@@ -31,6 +31,12 @@ class CaptureRequest(BaseModel):
     history: list[ChatTurn] = []
 
 
+class ConfirmRequest(BaseModel):
+    # [YIP3] a proposed write action echoed back after the user pressed Confirm
+    tool: str
+    args: dict = {}
+
+
 class CaptureResponse(BaseModel):
     action_taken: str
     summary: str

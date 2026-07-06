@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,7 +19,7 @@ from app.modules.activity import service as activity_service
 from app.modules.ai.client import ai_completion_tools
 from app.modules.contacts.models import Contact
 from app.modules.jarvis import service
-from app.modules.tickets.models import Ticket, TicketComment, TicketStatus
+from app.modules.tickets.models import Ticket, TicketComment, TicketPriority, TicketStatus
 
 MAX_ITERATIONS = 8
 MAX_MEMORIES = 30
@@ -206,6 +206,91 @@ TOOL_DEFS: list[dict] = [
             "parameters": {"type": "object", "properties": {}},
         },
     },
+    # [YIP3] Write tools — these only PROPOSE a change; the popup shows a
+    # Confirm/Cancel card and the write runs via POST /jarvis/confirm.
+    {
+        "type": "function",
+        "function": {
+            "name": "create_ticket",
+            "description": "Propose creating a new ticket. The user sees a confirmation card and must press Confirm before anything is created.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "subject": {"type": "string"},
+                    "description": {"type": "string", "description": "What the ticket is about, in one or two sentences"},
+                    "priority": {"type": "string", "enum": ["low", "medium", "high", "urgent"]},
+                    "contact_name": {"type": "string", "description": "Customer the ticket is about, when mentioned"},
+                },
+                "required": ["subject"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_ticket",
+            "description": "Propose changing a ticket: assign it to a team member, change its status (close, resolve, reopen) or its priority. Defaults to the currently open ticket. The user must press Confirm before anything changes.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "ticket_query": {"type": "string", "description": "Subject keyword, only when no ticket is open"},
+                    "status": {"type": "string", "enum": ["open", "in_progress", "waiting", "resolved", "closed"]},
+                    "priority": {"type": "string", "enum": ["low", "medium", "high", "urgent"]},
+                    "assign_to": {"type": "string", "description": "Team member name, or 'me' for the current user"},
+                },
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_contact",
+            "description": "Propose creating a new contact. The user must press Confirm before anything is created.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "full_name": {"type": "string"},
+                    "email": {"type": "string"},
+                    "phone": {"type": "string"},
+                    "company": {"type": "string", "description": "Company name, when mentioned"},
+                },
+                "required": ["full_name"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_calendar_event",
+            "description": "Propose creating a calendar event or meeting. Compute datetimes from the current UTC time in your instructions. The user must press Confirm before anything is created.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "title": {"type": "string"},
+                    "start_at": {"type": "string", "description": "ISO 8601 UTC datetime"},
+                    "end_at": {"type": "string", "description": "ISO 8601 UTC datetime; defaults to one hour after start"},
+                    "all_day": {"type": "boolean"},
+                    "contact_name": {"type": "string", "description": "Customer to link the event to, when mentioned"},
+                },
+                "required": ["title", "start_at"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "move_pipeline_stage",
+            "description": "Propose moving a contact to another pipeline (kanban) stage. Defaults to the currently open contact. The user must press Confirm before anything moves.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "stage_name": {"type": "string"},
+                    "contact_name": {"type": "string", "description": "Only when different from the open contact"},
+                },
+                "required": ["stage_name"],
+            },
+        },
+    },
     {
         "type": "function",
         "function": {
@@ -239,6 +324,12 @@ TOOL_MODULES: dict[str, str | None] = {
     "draft_reply": None,  # fresh-email path needs only core inbox; ticket path degrades gracefully
     "get_platform_manual": None,
     "save_memory": None,
+    # [YIP3] write tools
+    "create_ticket": "tickets",
+    "update_ticket": "tickets",
+    "create_contact": None,
+    "create_calendar_event": "calendar",
+    "move_pipeline_stage": "pipeline",
 }
 
 
@@ -310,6 +401,7 @@ def _build_system_prompt(ctx: AgentContext, route: str | None, memories: list[st
         "- Be brief: one to three sentences unless the user asks for detail. Lead with the answer, not with caveats.",
         "- When asked to draft, write or answer a reply or email, use draft_reply — the draft opens in the compose window for the user to review; it is never sent by you. Confirm in one sentence.",
         "- For 'brief me on this ticket', thread summaries or translating what a customer wrote, fetch the conversation with get_ticket_thread first, then summarise or translate it yourself.",
+        "- Write tools (create_ticket, update_ticket, create_contact, create_calendar_event, move_pipeline_stage) only PROPOSE the change: the user gets Confirm and Cancel buttons and nothing happens until they press Confirm. After proposing, say in one sentence what will happen once they confirm — never claim it is already done. Propose at most one write action per turn.",
         "- When the user states a lasting preference or says 'remember', use save_memory.",
         "- If a tool reports an error or no match, say what you found (or didn't) in one sentence and suggest the next step.",
     ]
@@ -716,6 +808,399 @@ async def _tool_save_memory(ctx: AgentContext, args: dict) -> dict:
     return {"ok": True, "remembered": fact}
 
 
+# ---------------------------------------------------------------------------
+# [YIP3] Write actions — the tool loop only PROPOSES (confirm_action + a
+# Confirm/Cancel card in the popup); the actual write runs through
+# execute_confirmed() when the user presses Confirm.
+# ---------------------------------------------------------------------------
+
+def _parse_uuid(raw) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(str(raw)) if raw else None
+    except (ValueError, TypeError):
+        return None
+
+
+async def _resolve_team_member(ctx: AgentContext, name: str) -> User | None:
+    """A workspace user by name; 'me' resolves to the current user."""
+    if name.strip().lower() in ("me", "myself"):
+        return ctx.user
+    result = await ctx.db.execute(
+        select(User)
+        .where(User.tenant_id == ctx.tenant.id, User.full_name.ilike(f"%{name.strip()}%"))
+        .limit(1)
+    )
+    return result.scalar_one_or_none()
+
+
+def _propose(ctx: AgentContext, tool: str, args: dict, title: str, details: list[dict]) -> dict:
+    """Stage a write action for user confirmation instead of executing it."""
+    if ctx.action_taken == "confirm_action":
+        return {"error": "an action is already awaiting the user's confirmation — wait for them to confirm or cancel it first"}
+    ctx.action_taken = "confirm_action"
+    ctx.inline_data = {"tool": tool, "args": args, "title": title, "details": details}
+    return {
+        "pending_confirmation": True,
+        "proposed": title,
+        "note": "the user now sees a Confirm/Cancel card — tell them in one sentence what will happen once they confirm",
+    }
+
+
+async def _tool_create_ticket(ctx: AgentContext, args: dict) -> dict:
+    subject = (args.get("subject") or "").strip()
+    if not subject:
+        return {"error": "subject is required"}
+    try:
+        priority = TicketPriority(args.get("priority") or "medium")
+    except ValueError:
+        priority = TicketPriority.medium
+    contact = None
+    raw_id = ctx.context_id if ctx.context_type == "contact" and not args.get("contact_name") else None
+    if raw_id or args.get("contact_name"):
+        contact = await service._resolve_contact(ctx.db, ctx.tenant.id, raw_id, args.get("contact_name"))
+        if args.get("contact_name") and not contact:
+            return {"error": f"no contact found matching '{args['contact_name']}' — ask whether to create the ticket without one"}
+    description = (args.get("description") or "").strip()
+    confirm_args = {
+        "subject": subject,
+        "description": description or None,
+        "priority": priority.value,
+        "contact_id": str(contact.id) if contact else None,
+    }
+    details = [
+        {"label": "Subject", "value": subject},
+        {"label": "Priority", "value": priority.value},
+    ]
+    if contact:
+        details.append({"label": "Contact", "value": contact.full_name})
+    if description:
+        details.append({"label": "Description", "value": description[:140]})
+    return _propose(ctx, "create_ticket", confirm_args, "Create ticket", details)
+
+
+async def _tool_update_ticket(ctx: AgentContext, args: dict) -> dict:
+    ticket = await _resolve_context_ticket(ctx, args.get("ticket_query"))
+    if not ticket:
+        return {"error": "no ticket is open and no ticket matched that query"}
+    changes: dict = {}
+    details: list[dict] = []
+    if args.get("status"):
+        try:
+            new_status = TicketStatus(args["status"])
+        except ValueError:
+            return {"error": f"invalid status '{args['status']}'"}
+        changes["status"] = new_status.value
+        details.append({"label": "Status", "value": f"{ticket.status.value} → {new_status.value}"})
+    if args.get("priority"):
+        try:
+            new_priority = TicketPriority(args["priority"])
+        except ValueError:
+            return {"error": f"invalid priority '{args['priority']}'"}
+        changes["priority"] = new_priority.value
+        details.append({"label": "Priority", "value": f"{ticket.priority.value} → {new_priority.value}"})
+    if args.get("assign_to"):
+        member = await _resolve_team_member(ctx, args["assign_to"])
+        if not member:
+            return {"error": f"no team member found matching '{args['assign_to']}'"}
+        changes["assigned_to"] = str(member.id)
+        details.append({"label": "Assign to", "value": member.full_name or member.email})
+    if not changes:
+        return {"error": "nothing to change — provide a status, priority or assignee"}
+    subject = ticket.subject if len(ticket.subject) <= 40 else ticket.subject[:37] + "…"
+    confirm_args = {"ticket_id": str(ticket.id), **changes}
+    return _propose(ctx, "update_ticket", confirm_args, f"Update “{subject}”", details)
+
+
+async def _tool_create_contact(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.contacts.models import Company
+
+    full_name = (args.get("full_name") or "").strip()
+    if not full_name:
+        return {"error": "full_name is required"}
+    email = (args.get("email") or "").strip() or None
+    phone = (args.get("phone") or "").strip() or None
+    company_name = (args.get("company") or "").strip() or None
+    confirm_args = {"full_name": full_name, "email": email, "phone": phone, "company_id": None, "company_name": None}
+    details = [{"label": "Name", "value": full_name}]
+    if email:
+        details.append({"label": "Email", "value": email})
+    if phone:
+        details.append({"label": "Phone", "value": phone})
+    if company_name:
+        existing = await ctx.db.scalar(
+            select(Company).where(Company.tenant_id == ctx.tenant.id, Company.name.ilike(company_name)).limit(1)
+        )
+        if existing:
+            confirm_args["company_id"] = str(existing.id)
+            details.append({"label": "Company", "value": existing.name})
+        else:
+            confirm_args["company_name"] = company_name
+            details.append({"label": "Company", "value": f"{company_name} (new)"})
+    # Surface likely duplicates on the card — the user decides, not Yip.
+    dup = await service._resolve_contact(ctx.db, ctx.tenant.id, None, full_name)
+    if dup:
+        details.append({"label": "Heads up", "value": f"a contact named {dup.full_name} already exists"})
+    return _propose(ctx, "create_contact", confirm_args, "Create contact", details)
+
+
+async def _tool_create_calendar_event(ctx: AgentContext, args: dict) -> dict:
+    title = (args.get("title") or "").strip()
+    if not title:
+        return {"error": "title is required"}
+    start = _parse_tool_date(args.get("start_at"))
+    if start is None:
+        return {"error": "invalid or missing start_at (use ISO 8601)"}
+    all_day = bool(args.get("all_day"))
+    end = _parse_tool_date(args.get("end_at"))
+    if end is None and not all_day:
+        end = start + timedelta(hours=1)
+    if end is not None and end <= start:
+        return {"error": "end_at must be after start_at"}
+    contact = None
+    raw_id = ctx.context_id if ctx.context_type == "contact" and not args.get("contact_name") else None
+    if raw_id or args.get("contact_name"):
+        contact = await service._resolve_contact(ctx.db, ctx.tenant.id, raw_id, args.get("contact_name"))
+        if args.get("contact_name") and not contact:
+            return {"error": f"no contact found matching '{args['contact_name']}'"}
+    confirm_args = {
+        "title": title,
+        "start_at": start.isoformat(),
+        "end_at": end.isoformat() if end else None,
+        "all_day": all_day,
+        "contact_id": str(contact.id) if contact else None,
+    }
+    when = start.strftime("%a %d %b %Y") if all_day else start.strftime("%a %d %b %Y %H:%M UTC")
+    details = [
+        {"label": "Title", "value": title},
+        {"label": "When", "value": when},
+    ]
+    if contact:
+        details.append({"label": "Contact", "value": contact.full_name})
+    return _propose(ctx, "create_calendar_event", confirm_args, "Create calendar event", details)
+
+
+async def _tool_move_pipeline_stage(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.pipeline import service as pipeline_service
+    from app.modules.pipeline.models import PipelineStage
+
+    stage_name = (args.get("stage_name") or "").strip()
+    if not stage_name:
+        return {"error": "stage_name is required"}
+    raw_id = ctx.context_id if ctx.context_type == "contact" and not args.get("contact_name") else None
+    contact = await service._resolve_contact(ctx.db, ctx.tenant.id, raw_id, args.get("contact_name"))
+    if not contact:
+        return {"error": "no contact in context or matching that name"}
+    stage = await pipeline_service.find_stage_by_name(ctx.db, ctx.tenant.id, stage_name)
+    if stage is None:
+        stage = await ctx.db.scalar(
+            select(PipelineStage)
+            .where(PipelineStage.tenant_id == ctx.tenant.id, PipelineStage.name.ilike(f"%{stage_name}%"))
+            .order_by(PipelineStage.display_order)
+            .limit(1)
+        )
+    if stage is None:
+        names = await ctx.db.execute(
+            select(PipelineStage.name)
+            .where(PipelineStage.tenant_id == ctx.tenant.id)
+            .order_by(PipelineStage.display_order)
+        )
+        return {"error": f"no stage matches '{stage_name}'", "available_stages": list(names.scalars().all())}
+    confirm_args = {"contact_id": str(contact.id), "stage_id": str(stage.id)}
+    details = [
+        {"label": "Contact", "value": contact.full_name},
+        {"label": "Stage", "value": stage.name},
+    ]
+    return _propose(ctx, "move_pipeline_stage", confirm_args, f"Move {contact.full_name} to {stage.name}", details)
+
+
+# --- Confirmed write executors — run only after the user presses Confirm. ---
+
+async def _confirm_create_ticket(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.tickets import service as tickets_service
+    from app.modules.tickets.schemas import TicketCreate
+
+    subject = str(args.get("subject") or "").strip()[:500]
+    if not subject:
+        return {"error": "subject is required"}
+    try:
+        priority = TicketPriority(args.get("priority") or "medium")
+    except ValueError:
+        priority = TicketPriority.medium
+    data = TicketCreate(
+        subject=subject,
+        description=(args.get("description") or None),
+        priority=priority,
+        contact_id=_parse_uuid(args.get("contact_id")),
+    )
+    try:
+        ticket = await tickets_service.create_ticket(ctx.db, ctx.tenant.id, ctx.user.id, data)
+    except tickets_service.TenantScopeError as e:
+        return {"error": str(e)}
+    await activity_service.log_event(
+        ctx.db, ctx.tenant.id,
+        module="tickets", event_type="ticket_created", entity_type="ticket",
+        entity_id=ticket.id, contact_id=ticket.contact_id, actor_id=ctx.user.id,
+        payload={"subject": ticket.subject, "priority": priority.value, "source": "jarvis"},
+    )
+    await ctx.db.commit()
+    ctx.add_action("Open ticket", kind="navigate", path=f"/tickets/{ticket.id}")
+    return {"ok": True, "summary": f"Ticket “{ticket.subject}” created."}
+
+
+async def _confirm_update_ticket(ctx: AgentContext, args: dict) -> dict:
+    ticket = await service._resolve_ticket(ctx.db, ctx.tenant.id, args.get("ticket_id"))
+    if not ticket:
+        return {"error": "ticket not found"}
+    changed: list[str] = []
+    if args.get("status"):
+        try:
+            new_status = TicketStatus(args["status"])
+        except ValueError:
+            return {"error": "invalid status"}
+        ticket.status = new_status
+        if new_status in (TicketStatus.resolved, TicketStatus.closed):
+            ticket.resolved_at = datetime.now(timezone.utc)
+        changed.append(f"status → {new_status.value}")
+    if args.get("priority"):
+        try:
+            ticket.priority = TicketPriority(args["priority"])
+        except ValueError:
+            return {"error": "invalid priority"}
+        changed.append(f"priority → {ticket.priority.value}")
+    assigned_id = _parse_uuid(args.get("assigned_to"))
+    if assigned_id:
+        member = await ctx.db.get(User, assigned_id)
+        if not member or member.tenant_id != ctx.tenant.id:
+            return {"error": "assignee not found in this workspace"}
+        ticket.assigned_to = member.id
+        changed.append(f"assigned to {member.full_name or member.email}")
+    if not changed:
+        return {"error": "nothing to change"}
+    await ctx.db.commit()
+    subject = ticket.subject if len(ticket.subject) <= 40 else ticket.subject[:37] + "…"
+    ctx.add_action("Open ticket", kind="navigate", path=f"/tickets/{ticket.id}")
+    return {"ok": True, "summary": f"Ticket “{subject}” updated: {', '.join(changed)}."}
+
+
+async def _confirm_create_contact(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.contacts import service as contacts_service
+    from app.modules.contacts.models import Company
+    from app.modules.contacts.schemas import ContactCreate
+
+    full_name = str(args.get("full_name") or "").strip()[:255]
+    if not full_name:
+        return {"error": "full_name is required"}
+    company_id = _parse_uuid(args.get("company_id"))
+    company_name = str(args.get("company_name") or "").strip()[:255]
+    if company_id is None and company_name:
+        # Get-or-create keeps a Confirm pressed twice from duplicating companies.
+        company = await ctx.db.scalar(
+            select(Company).where(Company.tenant_id == ctx.tenant.id, Company.name.ilike(company_name)).limit(1)
+        )
+        if company is None:
+            company = Company(tenant_id=ctx.tenant.id, name=company_name)
+            ctx.db.add(company)
+            await ctx.db.flush()
+        company_id = company.id
+    data = ContactCreate(
+        full_name=full_name,
+        email=(str(args.get("email") or "").strip()[:255] or None),
+        phone=(str(args.get("phone") or "").strip()[:50] or None),
+        company_id=company_id,
+    )
+    contact = await contacts_service.create_contact(ctx.db, ctx.tenant.id, ctx.user.id, data)
+    ctx.add_action(f"Open {contact.full_name}", kind="navigate", path=f"/contacts/{contact.id}")
+    return {"ok": True, "summary": f"Contact {contact.full_name} created."}
+
+
+async def _confirm_create_calendar_event(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.calendar.models import CalendarEvent
+    from app.modules.calendar.service import TenantScopeError, _validate_event_fks
+
+    title = str(args.get("title") or "").strip()[:255]
+    start = _parse_tool_date(args.get("start_at"))
+    if not title or start is None:
+        return {"error": "title and start_at are required"}
+    end = _parse_tool_date(args.get("end_at"))
+    if end is not None and end <= start:
+        return {"error": "end_at must be after start_at"}
+    contact_id = _parse_uuid(args.get("contact_id"))
+    try:
+        await _validate_event_fks(ctx.db, ctx.tenant.id, contact_id=contact_id)
+    except TenantScopeError as e:
+        return {"error": str(e)}
+    event = CalendarEvent(
+        tenant_id=ctx.tenant.id,
+        title=title,
+        start_at=start,
+        end_at=end,
+        all_day=bool(args.get("all_day")),
+        contact_id=contact_id,
+        created_by=ctx.user.id,
+    )
+    ctx.db.add(event)
+    await ctx.db.commit()
+    ctx.add_action("Open calendar", kind="navigate", path="/calendar")
+    when = start.strftime("%a %d %b") if event.all_day else start.strftime("%a %d %b %H:%M UTC")
+    return {"ok": True, "summary": f"Event “{title}” created for {when}."}
+
+
+async def _confirm_move_pipeline_stage(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.pipeline import service as pipeline_service
+
+    contact_id = _parse_uuid(args.get("contact_id"))
+    stage_id = _parse_uuid(args.get("stage_id"))
+    if not contact_id or not stage_id:
+        return {"error": "contact_id and stage_id are required"}
+    try:
+        await pipeline_service.move_contact_to_stage(ctx.db, ctx.tenant.id, contact_id, stage_id, actor_id=ctx.user.id)
+    except ValueError as e:
+        return {"error": str(e)}
+    contact = await ctx.db.get(Contact, contact_id)
+    stage = await pipeline_service.get_stage(ctx.db, ctx.tenant.id, stage_id)
+    ctx.add_action("Open kanban", kind="navigate", path="/pipeline")
+    return {"ok": True, "summary": f"{contact.full_name if contact else 'Contact'} moved to {stage.name if stage else 'the new stage'}."}
+
+
+_CONFIRM_EXECUTORS = {
+    "create_ticket": _confirm_create_ticket,
+    "update_ticket": _confirm_update_ticket,
+    "create_contact": _confirm_create_contact,
+    "create_calendar_event": _confirm_create_calendar_event,
+    "move_pipeline_stage": _confirm_move_pipeline_stage,
+}
+
+
+async def execute_confirmed(
+    db: AsyncSession, user: User, tenant: Tenant, tool: str, args: dict
+) -> dict:
+    """[YIP3] Run a write action the user confirmed in the popup.
+
+    The proposal turn already resolved every entity to tenant-scoped ids; this
+    executes the write when Confirm is pressed. The payload comes back from the
+    client, so the same module gate applies and every executor re-validates
+    tenant ownership — it is never trusted.
+    """
+    executor = _CONFIRM_EXECUTORS.get(tool)
+    if executor is None:
+        return {"error": f"unknown action '{tool}'"}
+    required = TOOL_MODULES.get(tool)
+    if required is not None and required not in (tenant.enabled_modules or []):
+        return {"error": f"the {required} module is not enabled for this workspace"}
+    ctx = AgentContext(db, user, tenant, "none", None)
+    try:
+        result = await executor(ctx, args or {})
+    except Exception:
+        await db.rollback()
+        return {"error": "the action failed. Nothing was changed"}
+    if result.get("error"):
+        return result
+    out: dict = {"action_taken": "write_done", "summary": result["summary"]}
+    if ctx.actions:
+        out["actions"] = ctx.actions
+    return out
+
+
 _EXECUTORS = {
     "search_contacts": _tool_search_contacts,
     "get_contact_briefing": _tool_get_contact_briefing,
@@ -732,6 +1217,12 @@ _EXECUTORS = {
     "compose_email": _tool_compose_email,
     "get_platform_manual": _tool_get_platform_manual,
     "save_memory": _tool_save_memory,
+    # [YIP3] proposal-only write tools
+    "create_ticket": _tool_create_ticket,
+    "update_ticket": _tool_update_ticket,
+    "create_contact": _tool_create_contact,
+    "create_calendar_event": _tool_create_calendar_event,
+    "move_pipeline_stage": _tool_move_pipeline_stage,
 }
 
 

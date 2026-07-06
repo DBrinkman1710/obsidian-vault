@@ -29,6 +29,14 @@ interface ChatMsg {
   data?: CaptureResponse | null
 }
 
+// [YIP3] a write action Yip proposed — executed via /jarvis/confirm on Confirm
+interface PendingAction {
+  tool: string
+  args: Record<string, any>
+  title: string
+  details: { label: string; value: string }[]
+}
+
 const ACTION_OPTIONS: { key: string; label: string }[] = [
   { key: 'reminder', label: 'Reminders' },
   { key: 'contact_note', label: 'Contact notes' },
@@ -110,6 +118,10 @@ export default function QuickCapturePopup() {
   }, [messages, loading])
 
   if (!isOpen) return null
+
+  function appendMessage(m: ChatMsg) {
+    setMessages(prev => [...prev, m])
+  }
 
   function handleAction(action: CtaAction) {
     if (action.kind === 'navigate' && action.path) {
@@ -207,7 +219,7 @@ export default function QuickCapturePopup() {
       {messages.length > 0 && !showPrefs && (
         <div className="px-4 pb-2 max-h-[360px] overflow-y-auto flex flex-col gap-2">
           {messages.map((m, i) => (
-            <MessageBubble key={i} msg={m} onDone={close} onAction={handleAction} />
+            <MessageBubble key={i} msg={m} onDone={close} onAction={handleAction} append={appendMessage} />
           ))}
           {loading && (
             <div className="self-start inline-flex items-center gap-2 text-xs text-slate-400 px-3 py-2">
@@ -258,8 +270,70 @@ function CtaRow({ actions, onAction }: { actions?: CtaAction[] | null; onAction:
   )
 }
 
-function MessageBubble({ msg, onDone, onAction }: {
-  msg: ChatMsg; onDone: () => void; onAction: (a: CtaAction) => void
+// [YIP3] Proposal card for a write action — the write only runs when the user
+// presses Confirm, which posts the staged payload to /jarvis/confirm.
+function ConfirmActionCard({ pending, append }: { pending: PendingAction; append: (m: ChatMsg) => void }) {
+  const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'cancelled'>('idle')
+
+  async function confirm() {
+    if (status !== 'idle') return
+    setStatus('loading')
+    try {
+      const { data } = await api.post<CaptureResponse>('/jarvis/confirm', { tool: pending.tool, args: pending.args })
+      setStatus('done')
+      append({ role: 'assistant', content: data.summary, data })
+    } catch (e: any) {
+      setStatus('idle')
+      append({
+        role: 'assistant',
+        content: e?.response?.data?.detail ?? 'That action failed. Nothing was changed.',
+        data: { action_taken: 'error', summary: '' },
+      })
+    }
+  }
+
+  function cancel() {
+    if (status !== 'idle') return
+    setStatus('cancelled')
+    append({ role: 'assistant', content: 'Cancelled. Nothing was changed.', data: { action_taken: 'answer', summary: '' } })
+  }
+
+  return (
+    <div className="bg-blue-50/60 border border-yippie/30 rounded-lg p-3 flex flex-col gap-2">
+      <p className="text-sm font-semibold text-slate-800">{pending.title}</p>
+      {pending.details?.length > 0 && (
+        <div className="flex flex-col gap-1">
+          {pending.details.map((d, i) => (
+            <div key={i} className="flex gap-2 text-sm">
+              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide w-20 shrink-0 pt-0.5">{d.label}</span>
+              <span className="text-slate-700 min-w-0 break-words">{d.value}</span>
+            </div>
+          ))}
+        </div>
+      )}
+      {status === 'done' ? (
+        <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700"><Check size={15} /> Confirmed</p>
+      ) : status === 'cancelled' ? (
+        <p className="text-sm font-semibold text-slate-400">Cancelled</p>
+      ) : (
+        <div className="flex gap-2">
+          <button onClick={confirm} disabled={status === 'loading'}
+            className="inline-flex items-center gap-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity">
+            {status === 'loading' ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+            Confirm
+          </button>
+          <button onClick={cancel} disabled={status === 'loading'}
+            className="bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors">
+            Cancel
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MessageBubble({ msg, onDone, onAction, append }: {
+  msg: ChatMsg; onDone: () => void; onAction: (a: CtaAction) => void; append: (m: ChatMsg) => void
 }) {
   if (msg.role === 'user') {
     return (
@@ -292,7 +366,20 @@ function MessageBubble({ msg, onDone, onAction }: {
       </div>
     )
   }
-  if (action && ['reminder', 'contact_note', 'ticket_note'].includes(action)) {
+  if (action === 'confirm_action' && msg.data?.inline_data) {
+    // [YIP3] Yip proposed a write action — nothing happens until Confirm.
+    return (
+      <div className="self-start w-full">
+        {msg.content && (
+          <div className="bg-slate-100 text-slate-800 text-sm rounded-2xl rounded-bl-sm px-3 py-2 whitespace-pre-wrap mb-1.5">
+            {msg.content}
+          </div>
+        )}
+        <ConfirmActionCard pending={msg.data.inline_data as PendingAction} append={append} />
+      </div>
+    )
+  }
+  if (action && ['reminder', 'contact_note', 'ticket_note', 'write_done'].includes(action)) {
     return (
       <div className="self-start max-w-[85%]">
         <div className="flex items-start gap-2 text-sm text-green-700 bg-green-50 border border-green-200 rounded-lg px-3 py-2">
