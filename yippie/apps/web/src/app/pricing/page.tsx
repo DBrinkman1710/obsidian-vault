@@ -56,7 +56,8 @@ type Plan = {
   enterprise?: boolean;
 };
 
-const CORE_FEATURES = ["Inbox", "Tickets"];
+// Modules included in every plan — everything else is a paid add on.
+const CORE_FEATURES = ["Inbox", "Contacts"];
 
 const plans: Plan[] = [
   {
