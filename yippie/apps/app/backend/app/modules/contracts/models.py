@@ -80,6 +80,12 @@ class Contract(Base):
     signer_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     signature_image: Mapped[str | None] = deferred(mapped_column(Text, nullable=True))  # PNG data URL
 
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
     @property
     def notice_deadline(self) -> date | None:
         """Last day to give notice: end_date − notice_period_days."""
@@ -97,20 +103,6 @@ class ContractTemplate(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False, default="")
-    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
-    )
-
-    # Uploaded document. Bytes live in the same row but are deferred so list/get
-    # queries never drag the blob across the wire — only the download endpoint
-    # undefers file_data.
-    file_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    file_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
-    file_size: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    file_data: Mapped[bytes | None] = deferred(mapped_column(LargeBinary, nullable=True))
-
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
