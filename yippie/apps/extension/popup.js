@@ -552,6 +552,12 @@ async function showResults(r) {
   setText('label-euros',       `Value at €${s.hourlyRate}/hr`);
   setText('stat-saved-euros',  `€${savings.savedEuros.toLocaleString()}/month`);
 
+  const ticketsPerMonth = Math.min(2000, Math.max(10, r.customer));
+  const ctaEl = document.getElementById('btn-cta');
+  if (ctaEl) {
+    ctaEl.href = `https://getyippie.com/?roi_tickets=${ticketsPerMonth}&utm_source=extension&utm_medium=analyser#calculator`;
+  }
+
   const age = Date.now() - r.analysedAt;
   const ageStr = age < 60_000       ? 'just now'
                : age < 3_600_000    ? `${Math.round(age / 60_000)}m ago`

@@ -12,7 +12,7 @@ import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 
-const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'contracts', 'chat', 'ai', 'departments', 'marketing', 'tracking', 'sales', 'saas']
+const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'contracts', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai']
 
 const MODULE_LABELS: Record<string, string> = { pipeline: 'Kanban', ai: 'AI', booking: 'Booking', departments: 'Departments', marketing: 'Marketing', tracking: 'Tracking', sales: 'Sales', saas: 'SaaS', contracts: 'Contracts' }
 const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod
@@ -23,7 +23,7 @@ const planLabel = (p: string) => p.charAt(0).toUpperCase() + p.slice(1)
 
 // AI scan limits per plan — mirrors PLAN_LIMITS in app/core/plans.py.
 const PLAN_AI_LIMITS: Record<string, number | null> = {
-  founder: 500, starter: 2_000, growth: 10_000, pro: null, enterprise: null,
+  founder: 500, starter: 2_000, growth: 5_000, pro: 10_000, enterprise: null,
 }
 
 // Per-plan badge color — distinct pill colors so plan distribution is visible at a glance.

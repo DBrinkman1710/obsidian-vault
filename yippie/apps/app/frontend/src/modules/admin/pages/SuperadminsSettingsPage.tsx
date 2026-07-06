@@ -4,7 +4,7 @@ import { ShieldCheck, UserPlus, X, ToggleLeft, ToggleRight, Trash2, Puzzle } fro
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 
-const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'contracts', 'chat', 'ai', 'departments', 'marketing', 'tracking', 'sales', 'saas'] as const
+const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'contracts', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai'] as const
 type ModuleName = typeof ALL_MODULES[number]
 const MODULE_LABELS: Record<ModuleName, string> = {
   inbox: 'Inbox', contacts: 'Contacts', tickets: 'Tickets', calendar: 'Calendar',

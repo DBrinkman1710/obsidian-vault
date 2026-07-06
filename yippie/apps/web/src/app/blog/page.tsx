@@ -19,6 +19,30 @@ export const metadata: Metadata = {
 
 const posts = [
   {
+    slug: "whatsapp-customer-service-for-small-business",
+    title: "Why Small Businesses Are Moving Customer Service to WhatsApp",
+    date: "2026-07-03",
+    dateLabel: "July 3, 2026",
+    excerpt:
+      "WhatsApp has 2 billion users and message open rates above 90 percent. Here is why small businesses are adding it as a support channel — and how to set it up properly.",
+  },
+  {
+    slug: "cost-of-slow-customer-service-response",
+    title: "What a Slow Customer Service Response Actually Costs You",
+    date: "2026-06-26",
+    dateLabel: "June 26, 2026",
+    excerpt:
+      "Slow support is not just frustrating — it costs revenue, drives negative reviews, and creates more work internally. Here is what the numbers say.",
+  },
+  {
+    slug: "shared-inbox-vs-regular-email",
+    title: "Shared Inbox vs. Regular Email: When to Make the Switch",
+    date: "2026-06-19",
+    dateLabel: "June 19, 2026",
+    excerpt:
+      "Still running support from a regular inbox? Here is how to know when shared inbox software pays off — and what you actually gain when you make the switch.",
+  },
+  {
     slug: "5-ways-ai-saves-smb-customer-service-time",
     title: "5 Ways AI Is Saving SMBs 10+ Hours a Week on Customer Service",
     date: "2026-06-12",

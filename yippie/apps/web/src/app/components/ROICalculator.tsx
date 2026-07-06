@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { CSSProperties, ChangeEvent, DragEvent } from "react";
 import styles from "./ROICalculator.module.css";
 
@@ -125,7 +125,11 @@ type ParsedScan = {
   emailCount: number;
   dateRangeMonths: number;
   ticketsPerMonth: number;
+  source?: "csv" | "extension";
 };
+
+const CHROME_STORE_URL =
+  "https://chromewebstore.google.com/detail/yippie-inbox-analyser/TODO_REPLACE_WITH_EXTENSION_ID";
 
 function parseEmailCsv(raw: string): ParsedScan | null {
   // Normalise Windows / old-Mac line endings and drop empty trailing lines.
@@ -215,6 +219,20 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
   const set = (key: InputKey, value: number) =>
     setValues((prev) => ({ ...prev, [key]: value }));
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roiTickets = params.get("roi_tickets");
+    if (roiTickets) {
+      const n = parseInt(roiTickets, 10);
+      if (!Number.isNaN(n)) {
+        const clamped = Math.min(TICKETS_MAX, Math.max(TICKETS_MIN, n));
+        setValues((prev) => ({ ...prev, tickets: clamped }));
+        setScan({ emailCount: n, dateRangeMonths: 1, ticketsPerMonth: clamped, source: "extension" });
+        setMode("inbox");
+      }
+    }
+  }, []);
+
   const handleFile = (file: File) => {
     setUploadError(null);
     const reader = new FileReader();
@@ -299,8 +317,9 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
           {scan ? (
             <div className={styles.scanResult}>
               <span className={styles.scanBadge}>
-                Estimated from {scan.emailCount.toLocaleString("en-US")} emails over{" "}
-                {scan.dateRangeMonths} {scan.dateRangeMonths === 1 ? "month" : "months"}
+                {scan.source === "extension"
+                  ? "Estimated from your inbox via the Chrome extension"
+                  : `Estimated from ${scan.emailCount.toLocaleString("en-US")} emails over ${scan.dateRangeMonths} ${scan.dateRangeMonths === 1 ? "month" : "months"}`}
               </span>
               <button type="button" className={styles.clearLink} onClick={clearScan}>
                 Clear / try again
@@ -308,6 +327,28 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
             </div>
           ) : (
             <>
+              <div className={styles.extCard}>
+                <p className={styles.extCardTitle}>Yippie Inbox Analyser</p>
+                <p className={styles.extCardSub}>Free Chrome extension · Gmail &amp; Outlook</p>
+                <p className={styles.extCardDesc}>
+                  Install the extension to connect your inbox directly. It reads email metadata
+                  only — never content — then opens this calculator with your real numbers pre-filled.
+                </p>
+                <a
+                  href={CHROME_STORE_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={styles.extInstallBtn}
+                >
+                  Add to Chrome →
+                </a>
+                <p className={styles.extNote}>
+                  Already installed? Click &ldquo;See your full ROI&rdquo; inside the extension.
+                </p>
+              </div>
+
+              <div className={styles.inboxOr}><span>or upload a CSV</span></div>
+
               <div
                 className={`${styles.dropzone} ${dragging ? styles.dropzoneActive : ""}`}
                 onDragOver={(e) => {
@@ -328,7 +369,7 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
               >
                 <p className={styles.dropTitle}>Drop your email CSV export here</p>
                 <p className={styles.dropHint}>
-                  or click to choose a file (Outlook, Gmail Takeout or generic CSV)
+                  Outlook export or Gmail Takeout CSV
                 </p>
                 <input
                   ref={fileInputRef}
