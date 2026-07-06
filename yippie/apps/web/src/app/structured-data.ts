@@ -4,6 +4,8 @@
 //
 // Absolute URLs are required in structured data, so we anchor on the canonical
 // production origin rather than the request host.
+import { PLAN_LIMITS } from "@/lib/config";
+
 const SITE = "https://getyippie.com";
 
 const ORG_ID = `${SITE}/#organization`;
@@ -53,8 +55,6 @@ export const websiteJsonLd = {
   publisher: { "@id": ORG_ID },
 };
 
-// Mirrors the live pricing tiers in src/app/pricing/PricingClient.tsx.
-// Keep these in sync if pricing changes.
 export const softwareApplicationJsonLd = {
   "@type": "SoftwareApplication",
   name: "Yippie",
@@ -64,10 +64,10 @@ export const softwareApplicationJsonLd = {
   description: DESCRIPTION,
   publisher: { "@id": ORG_ID },
   offers: [
-    { "@type": "Offer", name: "Founder", price: "9", priceCurrency: "EUR" },
-    { "@type": "Offer", name: "Starter", price: "29", priceCurrency: "EUR" },
-    { "@type": "Offer", name: "Growth", price: "69", priceCurrency: "EUR" },
-    { "@type": "Offer", name: "Pro", price: "99", priceCurrency: "EUR" },
+    { "@type": "Offer", name: "Founder", price: String(PLAN_LIMITS.founder.priceMonthly), priceCurrency: "EUR" },
+    { "@type": "Offer", name: "Starter", price: String(PLAN_LIMITS.starter.priceMonthly), priceCurrency: "EUR" },
+    { "@type": "Offer", name: "Growth",  price: String(PLAN_LIMITS.growth.priceMonthly),  priceCurrency: "EUR" },
+    { "@type": "Offer", name: "Pro",     price: String(PLAN_LIMITS.pro.priceMonthly),     priceCurrency: "EUR" },
   ],
 };
 
