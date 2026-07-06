@@ -1,5 +1,15 @@
 import { Component, ErrorInfo, ReactNode } from 'react'
 
+function isChunkLoadError(error: Error): boolean {
+  const msg = error.message ?? ''
+  return (
+    msg.includes('Importing a module script failed') ||
+    msg.includes('Failed to fetch dynamically imported module') ||
+    msg.includes('error loading dynamically imported module') ||
+    msg.includes('Unable to preload CSS')
+  )
+}
+
 interface Props {
   children: ReactNode
   fallback?: ReactNode
@@ -18,6 +28,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error('[ErrorBoundary]', error, info.componentStack)
+    // Stale-chunk error: a new deploy replaced the hashed JS files the old page
+    // was referencing. A full reload fetches the new HTML + new chunks.
+    if (isChunkLoadError(error)) {
+      window.location.reload()
+    }
   }
 
   render() {
