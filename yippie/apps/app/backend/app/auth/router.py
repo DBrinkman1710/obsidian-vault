@@ -135,7 +135,7 @@ async def logout(response: Response):
 
 
 @router.post("/refresh", include_in_schema=False)
-async def refresh_token(request: Request, response: Response):
+async def refresh_token(request: Request, response: Response, db: AsyncSession = Depends(get_db)):
     """Re-issue the access token cookie if the current token is still valid.
     Called by the frontend periodically to prevent mid-session expiry."""
     settings = get_settings()
@@ -152,6 +152,13 @@ async def refresh_token(request: Request, response: Response):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
     except jwt.PyJWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    user = await db.get(User, payload["sub"])
+    if user is None or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account deactivated")
+    if user.role != UserRole.superadmin:
+        tenant = await db.get(Tenant, user.tenant_id)
+        if tenant is None or not tenant.is_active:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This workspace is inactive")
     extra = {k: v for k, v in payload.items() if k not in ("sub", "exp", "iat", "nbf")}
     new_token = create_access_token(payload["sub"], settings, **extra)
     _set_auth_cookie(response, new_token, settings)

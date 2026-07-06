@@ -89,7 +89,7 @@ def _demo_cta_urls(company_name: str, questionnaire_json: str) -> tuple[str, str
     return book_url, signup_url
 
 
-async def _get_demo_tenant_admin_email(db, tenant_id) -> str | None:
+async def _get_demo_tenant_admin_email(db, tenant_id) -> tuple[str, str] | None:
     from app.core.models import User, UserRole
     row = await db.scalar(
         select(User).where(
@@ -98,7 +98,7 @@ async def _get_demo_tenant_admin_email(db, tenant_id) -> str | None:
             User.is_active.is_(True),
         ).order_by(User.created_at).limit(1)
     )
-    return row.email if row else None
+    return (row.email, row.full_name) if row else None
 
 
 async def _send_demo_prospect_email(
@@ -191,10 +191,11 @@ async def demo_nudge_check():
         )
         tenants = result.scalars().all()
         for tenant in tenants:
-            prospect_email = await _get_demo_tenant_admin_email(db, tenant.id)
-            if not prospect_email:
+            admin = await _get_demo_tenant_admin_email(db, tenant.id)
+            if not admin:
                 log.warning("No admin email found for demo tenant %s — skipping nudge", tenant.id)
                 continue
+            prospect_email, prospect_full_name = admin
             questionnaire_json = await _get_prospect_questionnaire(db, prospect_email)
             book_url, signup_url = _demo_cta_urls(tenant.name, questionnaire_json)
             intro = (
@@ -206,9 +207,9 @@ async def demo_nudge_check():
             try:
                 await _send_demo_prospect_email(
                     prospect_email=prospect_email,
-                    prospect_name=prospect_email.split("@")[0],
+                    prospect_name=prospect_full_name,
                     company_name=tenant.name,
-                    subject=f"Have you had time to explore Yippie, {tenant.name}?",
+                    subject=f"Have you had time to explore Yippie, {prospect_full_name.split()[0]}?",
                     intro_html=intro,
                     book_url=book_url,
                     signup_url=signup_url,
@@ -261,8 +262,9 @@ async def demo_expiry_check():
             except Exception:
                 log.exception("Failed to send demo-expiry admin email for %s", tenant.slug)
             # Email the prospect with Book a Call + Sign Up
-            prospect_email = await _get_demo_tenant_admin_email(db, tenant.id)
-            if prospect_email:
+            admin = await _get_demo_tenant_admin_email(db, tenant.id)
+            if admin:
+                prospect_email, prospect_full_name = admin
                 questionnaire_json = await _get_prospect_questionnaire(db, prospect_email)
                 book_url, signup_url = _demo_cta_urls(tenant.name, questionnaire_json)
                 intro = (
@@ -274,9 +276,9 @@ async def demo_expiry_check():
                 try:
                     await _send_demo_prospect_email(
                         prospect_email=prospect_email,
-                        prospect_name=prospect_email.split("@")[0],
+                        prospect_name=prospect_full_name,
                         company_name=tenant.name,
-                        subject=f"How was your Yippie trial, {tenant.name}?",
+                        subject=f"How was your Yippie trial, {prospect_full_name.split()[0]}?",
                         intro_html=intro,
                         book_url=book_url,
                         signup_url=signup_url,
