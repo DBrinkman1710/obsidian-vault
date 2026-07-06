@@ -12,6 +12,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import func, select, update
 
 from app.core.models import Tenant
+from app.core.scheduler_lock import skip_if_locked
 from app.database import db_session
 from app.modules.tickets.models import Ticket, TicketPriority, TicketStatus
 
@@ -21,6 +22,8 @@ scheduler = AsyncIOScheduler()
 
 @scheduler.scheduled_job("interval", minutes=5, id="sla_escalation", max_instances=1, coalesce=True)
 async def escalate_overdue_tickets():
+    if await skip_if_locked("sla_escalation", ttl=270):
+        return
     now = datetime.now(timezone.utc)
     async with db_session() as db:
         result = await db.execute(
@@ -43,6 +46,8 @@ async def escalate_overdue_tickets():
 
 @scheduler.scheduled_job("interval", hours=1, id="auto_close", max_instances=1, coalesce=True)
 async def auto_close_stale_tickets():
+    if await skip_if_locked("auto_close", ttl=3300):
+        return
     # Per-tenant: each ticket is closed once it has gone its OWN tenant's
     # auto_close_days without an update. This scheduler session never calls
     # set_tenant_context, so it runs as the connecting role and sees all tenants.
@@ -170,6 +175,8 @@ async def _get_prospect_questionnaire(db, prospect_email: str) -> str:
 @scheduler.scheduled_job("interval", hours=1, id="demo_nudge_check", max_instances=1, coalesce=True)
 async def demo_nudge_check():
     """Day-3 check-in email to prospects who haven't converted yet."""
+    if await skip_if_locked("demo_nudge_check", ttl=3300):
+        return
     from app.core.models import Tenant
     now = datetime.now(timezone.utc)
     nudge_cutoff = now - timedelta(days=3)
@@ -216,6 +223,8 @@ async def demo_nudge_check():
 @scheduler.scheduled_job("interval", hours=1, id="demo_expiry_check", max_instances=1, coalesce=True)
 async def demo_expiry_check():
     """Deactivate demo tenants past demo_expires_at and notify the platform owner."""
+    if await skip_if_locked("demo_expiry_check", ttl=3300):
+        return
     import os
 
     from app.core.mailer import send_email
@@ -281,6 +290,8 @@ async def demo_expiry_check():
 @scheduler.scheduled_job("interval", hours=1, id="subscription_expiry_check", max_instances=1, coalesce=True)
 async def subscription_expiry_check():
     """Deactivate paid tenants whose subscription_ends_at has passed."""
+    if await skip_if_locked("subscription_expiry_check", ttl=3300):
+        return
     import os
 
     from app.core.mailer import send_email
@@ -319,6 +330,8 @@ async def subscription_expiry_check():
 @scheduler.scheduled_job("interval", hours=1, id="contact_retention_purge", max_instances=1, coalesce=True)
 async def contact_retention_purge():
     """Hard-delete contacts that have been soft-deleted for more than 30 days."""
+    if await skip_if_locked("contact_retention_purge", ttl=3300):
+        return
     from app.modules.contacts import service as contacts_service
 
     async with db_session() as db:
@@ -330,6 +343,8 @@ async def contact_retention_purge():
 @scheduler.scheduled_job("interval", hours=24, id="onboarding_drip", max_instances=1, coalesce=True)
 async def onboarding_drip():
     """Send day-3 and day-7 onboarding emails to tenants that haven't completed setup."""
+    if await skip_if_locked("onboarding_drip", ttl=82800):
+        return
     from app.core.mailer import send_email
     from app.core.models import User, UserRole
 
@@ -450,6 +465,8 @@ async def onboarding_drip():
 @scheduler.scheduled_job("interval", hours=24, id="invoice_overdue_check", max_instances=1, coalesce=True)
 async def mark_overdue_invoices():
     """Flip sent invoices to overdue once their due_date has passed."""
+    if await skip_if_locked("invoice_overdue_check", ttl=82800):
+        return
     from app.modules.billing.models import Invoice, InvoiceStatus
 
     today = datetime.now(timezone.utc).date()
@@ -471,6 +488,8 @@ async def mark_overdue_invoices():
 @scheduler.scheduled_job("interval", minutes=5, id="external_calendar_sync", max_instances=1, coalesce=True)
 async def sync_external_calendars():
     """Refresh iCal feeds (Apple Calendar, Outlook) for all active users across all tenants."""
+    if await skip_if_locked("external_calendar_sync", ttl=270):
+        return
     from app.modules.external_calendar.service import sync_all_active_feeds
 
     async with db_session() as db:

@@ -134,6 +134,30 @@ async def logout(response: Response):
     return {"ok": True}
 
 
+@router.post("/refresh", include_in_schema=False)
+async def refresh_token(request: Request, response: Response):
+    """Re-issue the access token cookie if the current token is still valid.
+    Called by the frontend periodically to prevent mid-session expiry."""
+    settings = get_settings()
+    token = request.cookies.get("access_token")
+    if not token:
+        auth_header = request.headers.get("Authorization", "")
+        if auth_header.startswith("Bearer "):
+            token = auth_header[7:]
+    if not token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+    try:
+        payload = jwt.decode(token, settings.secret_key, algorithms=[settings.algorithm])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+    extra = {k: v for k, v in payload.items() if k not in ("sub", "exp", "iat", "nbf")}
+    new_token = create_access_token(payload["sub"], settings, **extra)
+    _set_auth_cookie(response, new_token, settings)
+    return {"ok": True}
+
+
 @router.get("/me", response_model=UserOut)
 async def me(current_user: CurrentUser):
     return UserOut.model_validate(current_user)

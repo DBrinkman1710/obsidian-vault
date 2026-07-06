@@ -1,10 +1,12 @@
 import WelcomeTour from './components/WelcomeTour'
 import SetupChecklist from './components/SetupChecklist'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
 import { ComposeProvider } from './hooks/useCompose'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { fetchTenantConfig, TenantConfig } from './api/tenant'
+import { api } from './api/client'
 import { useAuth } from './auth/useAuth'
 import { ModuleGate } from './shell/ModuleGate'
 import { PlanGate } from './shell/PlanGate'
@@ -157,6 +159,19 @@ export default function App() {
     return () => { cancelled = true }
   }, [user?.id])
 
+  // Silently re-issue the auth cookie every 4 hours so long sessions never hit
+  // the 8-hour JWT expiry while the agent is actively working.
+  useEffect(() => {
+    if (!user) return
+    const id = setInterval(() => {
+      api.post('/auth/refresh').catch(() => {
+        // 401 here means the token has already expired; the next real API call
+        // will trigger the global 401 interceptor and redirect to /login.
+      })
+    }, 4 * 60 * 60 * 1000)
+    return () => clearInterval(id)
+  }, [user?.id])
+
   // Inject saas.js once with the platform token so all tenant sessions post
   // feature-usage events into the product owner's analytics account.
   useEffect(() => {
@@ -254,6 +269,7 @@ export default function App() {
               {' '}to go live.
             </div>
           )}
+          <ErrorBoundary>
           <Suspense fallback={<div className="p-8 text-slate-400">Loading…</div>}>
             <Routes>
               <Route path="/" element={<Navigate to="/inbox" replace />} />
@@ -349,6 +365,7 @@ export default function App() {
               <Route path="/track/confirm" element={<TrackConfirmPage />} />
             </Routes>
           </Suspense>
+          </ErrorBoundary>
         </main>
         <BottomNav />
         <QuickCapturePopup />

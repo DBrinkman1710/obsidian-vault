@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import CurrentUser, check_module_access, require_feature, require_module
 from app.auth.router import router as auth_router
 from app.config import ALL_MODULES, get_settings
+from app.core.logging_config import RequestIDMiddleware, configure_logging
 from app.core.models import Tenant
 from app.core.plans import ADVANCED_FEATURES, features_for_plan, limits_for_plan, module_prices_for_plan
 from app.core.schemas import TenantConfigOut
@@ -40,6 +41,9 @@ from app.modules.email_accounts.router import (
     router as email_accounts_router,
     callback_router as email_accounts_callback_router,
 )
+
+
+configure_logging()
 
 
 @asynccontextmanager
@@ -76,6 +80,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
+    app.add_middleware(RequestIDMiddleware)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,

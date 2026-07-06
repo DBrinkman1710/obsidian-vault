@@ -21,6 +21,7 @@ from sqlalchemy import select
 
 from app.config import get_settings
 from app.core.email_html import render_email_html
+from app.core.scheduler_lock import skip_if_locked
 from app.database import db_session
 from app.modules.marketing import service
 from app.modules.marketing.models import (
@@ -38,6 +39,8 @@ AB_WINNER_DELAY = timedelta(hours=2)
 
 @scheduler.scheduled_job("interval", minutes=1, id="mktg_send_scheduled")
 async def send_scheduled_campaigns():
+    if await skip_if_locked("mktg_send_scheduled", ttl=50):
+        return
     now = datetime.now(timezone.utc)
     async with db_session() as db:
         result = await db.execute(
@@ -99,6 +102,8 @@ async def pick_ab_winners():
 
 @scheduler.scheduled_job("interval", hours=1, id="mktg_drip")
 async def send_drip_steps():
+    if await skip_if_locked("mktg_drip", ttl=3300):
+        return
     from app.core.mailer import send_email
 
     now = datetime.now(timezone.utc)
