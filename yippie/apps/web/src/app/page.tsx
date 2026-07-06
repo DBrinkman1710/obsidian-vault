@@ -440,13 +440,11 @@ export default function HomePage() {
         <Reveal className={styles.sectionHead}>
           <span className={styles.eyebrowPill}>
             <span className={styles.eyebrowDot} style={{ background: "#22c55e" }} />
-            Free Chrome extension
+            Free Chrome extension · Gmail &amp; Outlook
           </span>
           <h2 className={styles.sectionTitle}>See your inbox ROI in 60 seconds</h2>
           <p className={styles.sectionSub}>
-            Install the free Yippie Chrome extension, connect your Gmail or Outlook inbox,
-            and get a personalised breakdown of how much time you spend on manual triage —
-            and what Yippie saves you. No data leaves your browser.
+            Install the extension to connect your inbox directly. It reads email metadata only — never content — then opens this calculator with your real numbers pre-filled.
           </p>
           <a
             href="https://chromewebstore.google.com/detail/yippie-inbox-analyser/kcenfkplkjdgiaddkjdnomhalofhenbd"
