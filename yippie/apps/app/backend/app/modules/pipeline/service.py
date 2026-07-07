@@ -7,6 +7,7 @@ from typing import Optional
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.flow_events import emit_flow_event
 from app.modules.activity import service as activity_service
 from app.modules.contacts.models import Company, Contact
 from app.modules.pipeline.models import ContactPipelineEntry, PipelineStage
@@ -188,6 +189,7 @@ async def _assign_stage(
     contact_id: uuid.UUID,
     stage_id: uuid.UUID,
     actor_id: Optional[uuid.UUID] = None,
+    source: str = "app",
 ) -> None:
     """Write the stage assignment without committing. Caller must commit.
 
@@ -203,6 +205,7 @@ async def _assign_stage(
             ContactPipelineEntry.tenant_id == tenant_id,
         )
     )
+    from_stage_id = existing.stage_id if existing else None
     changed = False
     if existing is None:
         db.add(ContactPipelineEntry(
@@ -239,6 +242,18 @@ async def _assign_stage(
         actor_id=actor_id,
         payload={"stage_name": stage_name, "body": f"Moved to {stage_name}"},
     )
+    await emit_flow_event(
+        db, tenant_id, "pipeline_stage_changed",
+        entity_type="pipeline_stage", entity_id=stage_id,
+        contact_id=contact_id, actor_id=actor_id,
+        payload={
+            "stage_id": stage_id,
+            "stage_name": stage_name,
+            "from_stage_id": from_stage_id,
+            "contact_id": contact_id,
+        },
+        source=source,
+    )
 
 
 async def move_contact_to_stage(
@@ -247,6 +262,7 @@ async def move_contact_to_stage(
     contact_id: uuid.UUID,
     stage_id: uuid.UUID,
     actor_id: Optional[uuid.UUID] = None,
+    source: str = "app",
 ) -> None:
     exists = await db.scalar(
         select(Contact.id).where(Contact.tenant_id == tenant_id, Contact.id == contact_id)
@@ -262,7 +278,7 @@ async def move_contact_to_stage(
 
     # _assign_stage logs the pipeline_stage_changed activity event itself
     # (only when the stage actually changes), so we don't log again here.
-    await _assign_stage(db, tenant_id, contact_id, stage_id, actor_id=actor_id)
+    await _assign_stage(db, tenant_id, contact_id, stage_id, actor_id=actor_id, source=source)
     await db.commit()
 
 

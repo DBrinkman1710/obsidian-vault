@@ -10,6 +10,7 @@ from typing import Optional
 from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.flow_events import emit_flow_event
 from app.modules.contacts.models import Company, Contact, ContactLabel
 from app.modules.contacts.schemas import (
     CallActionItem,
@@ -150,7 +151,8 @@ async def _resolve_company_id(
 
 
 async def create_contact(
-    db: AsyncSession, tenant_id: uuid.UUID, created_by: uuid.UUID, data: ContactCreate
+    db: AsyncSession, tenant_id: uuid.UUID, created_by: uuid.UUID, data: ContactCreate,
+    source: str = "app",
 ) -> Contact:
     fields = data.model_dump(exclude={"label_ids", "company_id"})
     if "phone" in fields:
@@ -169,6 +171,18 @@ async def create_contact(
     # active.  Committing before re-fetching would revert SET LOCAL, making
     # the SELECT invisible to RLS.
     await db.flush()
+    await emit_flow_event(
+        db, tenant_id, "contact_created",
+        entity_type="contact", entity_id=contact.id,
+        contact_id=contact.id, actor_id=created_by,
+        payload={
+            "full_name": contact.full_name,
+            "email": contact.email,
+            "company_id": contact.company_id,
+            "tags": contact.tags or [],
+        },
+        source=source,
+    )
     fetched = await get_contact(db, tenant_id, contact.id)
     await db.commit()
     return fetched

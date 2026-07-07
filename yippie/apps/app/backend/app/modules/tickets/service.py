@@ -7,6 +7,7 @@ from typing import Optional
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.flow_events import emit_flow_event
 from app.modules.tickets.models import (
     MessageSource,
     ResponseTemplate,
@@ -236,7 +237,8 @@ async def get_ticket(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid.UUI
 
 
 async def create_ticket(
-    db: AsyncSession, tenant_id: uuid.UUID, created_by: Optional[uuid.UUID], data: TicketCreate
+    db: AsyncSession, tenant_id: uuid.UUID, created_by: Optional[uuid.UUID], data: TicketCreate,
+    source: str = "app",
 ) -> TicketOut:
     await _validate_ticket_fks(
         db, tenant_id,
@@ -251,13 +253,32 @@ async def create_ticket(
         **data.model_dump(),
     )
     db.add(ticket)
+    await db.flush()
+    # Service level so every path (router, inbox approval, Yip) emits exactly once.
+    await emit_flow_event(
+        db, tenant_id, "ticket_created",
+        entity_type="ticket", entity_id=ticket.id,
+        contact_id=ticket.contact_id, actor_id=created_by,
+        payload={
+            "subject": ticket.subject,
+            "priority": ticket.priority.value,
+            "status": ticket.status.value,
+            "channel": ticket.source.value,
+            "contact_id": ticket.contact_id,
+            "assigned_to": ticket.assigned_to,
+            "department_id": ticket.department_id,
+        },
+        source=source,
+    )
     await db.commit()
     await db.refresh(ticket)
     dept_names = await _fetch_dept_names(db, [ticket])
     return _enrich_tickets([ticket], dept_names, {})[0]
 
 
-async def update_ticket(db: AsyncSession, ticket: Ticket, data: TicketUpdate) -> TicketOut:
+async def update_ticket(
+    db: AsyncSession, ticket: Ticket, data: TicketUpdate, source: str = "app"
+) -> TicketOut:
     fields = data.model_dump(exclude_unset=True)
     await _validate_ticket_fks(
         db, ticket.tenant_id,
@@ -265,8 +286,11 @@ async def update_ticket(db: AsyncSession, ticket: Ticket, data: TicketUpdate) ->
         department_id=fields.get("department_id"),
         assigned_to=fields.get("assigned_to"),
     )
+    old_status = ticket.status
     for field, value in fields.items():
         setattr(ticket, field, value)
+    if "status" in fields and ticket.status != old_status:
+        await _emit_status_changed(db, ticket, old_status, source)
     await db.commit()
     await db.refresh(ticket)
     dept_names = await _fetch_dept_names(db, [ticket])
@@ -283,10 +307,34 @@ async def snooze_ticket(db: AsyncSession, ticket: Ticket) -> TicketOut:
     return _enrich_tickets([ticket], dept_names, last_comments)[0]
 
 
-async def change_status(db: AsyncSession, ticket: Ticket, new_status: TicketStatus) -> TicketOut:
+async def _emit_status_changed(
+    db: AsyncSession, ticket: Ticket, old_status: TicketStatus, source: str
+) -> None:
+    await emit_flow_event(
+        db, ticket.tenant_id, "ticket_status_changed",
+        entity_type="ticket", entity_id=ticket.id,
+        contact_id=ticket.contact_id,
+        payload={
+            "subject": ticket.subject,
+            "old_status": old_status.value,
+            "status": ticket.status.value,
+            "priority": ticket.priority.value,
+            "contact_id": ticket.contact_id,
+            "assigned_to": ticket.assigned_to,
+        },
+        source=source,
+    )
+
+
+async def change_status(
+    db: AsyncSession, ticket: Ticket, new_status: TicketStatus, source: str = "app"
+) -> TicketOut:
+    old_status = ticket.status
     ticket.status = new_status
     if new_status in (TicketStatus.resolved, TicketStatus.closed):
         ticket.resolved_at = datetime.now(timezone.utc)
+    if new_status != old_status:
+        await _emit_status_changed(db, ticket, old_status, source)
     await db.commit()
     await db.refresh(ticket)
     dept_names = await _fetch_dept_names(db, [ticket])

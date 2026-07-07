@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
 from app.core.customer_context import build_customer_context
+from app.core.flow_events import emit_flow_event
 from app.core.models import Tenant, User
 from app.core.plans import limits_for_plan
 from app.modules.contacts.models import Contact
@@ -659,6 +660,18 @@ async def review_draft(
         draft.approved_ticket_id = ticket.id
         if review.follow_up_days:
             draft.follow_up_at = datetime.now(timezone.utc) + timedelta(days=review.follow_up_days)
+        await emit_flow_event(
+            db, tenant_id, "draft_approved",
+            entity_type="draft_ticket", entity_id=draft.id,
+            contact_id=draft.contact_id, actor_id=reviewer_id,
+            payload={
+                "draft_id": draft.id,
+                "ticket_id": ticket.id,
+                "subject": ticket.subject,
+                "priority": ticket.priority.value if hasattr(ticket.priority, "value") else ticket.priority,
+                "contact_id": draft.contact_id,
+            },
+        )
     else:
         draft.status = DraftStatus.rejected
 

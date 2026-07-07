@@ -8,6 +8,7 @@ export const MODULE_IDS = [
   "pipeline",
   "booking",
   "activity",
+  "flows",
   "billing",
   "contracts",
   "chat",

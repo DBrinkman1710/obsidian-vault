@@ -38,6 +38,7 @@ from app.modules.shipments.router import webhook_router as shipments_webhook_rou
 from app.modules.jarvis.router import router as jarvis_router
 from app.modules.jarvis.scheduler import start_scheduler as start_jarvis_scheduler
 from app.modules.contracts.scheduler import start_scheduler as start_contracts_scheduler
+from app.modules.flows.engine import start_scheduler as start_flows_scheduler
 from app.modules.email_accounts.router import (
     router as email_accounts_router,
     callback_router as email_accounts_callback_router,
@@ -55,6 +56,7 @@ async def lifespan(app: FastAPI):
     start_saas_scheduler()
     start_jarvis_scheduler()
     start_contracts_scheduler()
+    start_flows_scheduler()
     yield
 
 
