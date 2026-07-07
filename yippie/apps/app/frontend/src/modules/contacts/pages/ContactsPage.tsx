@@ -583,8 +583,8 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         </div>
       </div>
 
-      {/* Tag filter chips */}
-      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+      {/* Tag filter chips — superadmin only (leadgen tool) */}
+      {user?.role === 'superadmin' && <div className="flex flex-wrap items-center gap-1.5 mb-4">
         {TIER_TAGS.map(({ tag, label, color }) => (
           <button
             key={tag}
@@ -614,7 +614,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
             {activeTag === tag && <X size={10} className="ml-0.5" />}
           </button>
         ))}
-      </div>
+      </div>}
 
       {companyFilter && companies && (
         <div className="flex items-center gap-1.5 mb-4">
