@@ -29,6 +29,9 @@ export interface TenantConfig {
   stripe_publishable_key: string
   ai_scans_used_this_period: number
   tracking_token: string | null
+  // Workspace shared support address — the tenant's receiving + send-from
+  // identity. Null means the workspace has no sender address configured yet.
+  inbound_email: string | null
   ai_profile: {
     business_description?: string
     tone?: string

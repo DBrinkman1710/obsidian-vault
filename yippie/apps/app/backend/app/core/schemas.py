@@ -96,5 +96,9 @@ class TenantConfigOut(BaseModel):
     # Tenant's tracking token — always present, used to auto-embed the saas.js
     # snippet in every Yippie environment for internal platform usage tracking.
     tracking_token: str | None = None
+    # Workspace shared support address (receives customer email; also the
+    # workspace-level send-from). Surfaced so the setup checklist can confirm
+    # the tenant's sender identity is configured.
+    inbound_email: str | None = None
     # AI profile — set via Yip training or Settings -> AI & Yip.
     ai_profile: dict | None = None

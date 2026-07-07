@@ -54,7 +54,7 @@ async def send_email(
             "RESEND_API_KEY must be set to send emails."
         )
 
-    from_addr = from_email or settings.resend_from or "diederik@getyippie.com"
+    from_addr = from_email or settings.resend_from or settings.platform_from_email
 
     payload: dict = {
         "from": from_addr,

@@ -19,6 +19,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.config import get_settings
 from app.core.models import Tenant
+from app.core.scheduler_lock import skip_if_locked
 from app.core.tenant import get_inbound_email_map, resolve_tenant_by_inbound_email
 from app.database import db_session
 from app.modules.inbox import service
@@ -126,6 +127,8 @@ async def _fetch_email_data(client: httpx.AsyncClient, auth: dict, email_id: str
 
 @scheduler.scheduled_job("interval", seconds=30, id="email_poll", max_instances=1, coalesce=True)
 async def poll_inbound_emails() -> None:
+    if await skip_if_locked("email_poll", ttl=25):
+        return
     settings = get_settings()
     if not settings.resend_api_key:
         return
@@ -316,6 +319,8 @@ async def poll_oauth_inboxes_job() -> None:
     inbound → draft flow as the Resend poller. No-op when no accounts exist."""
     from app.modules.email_accounts.sync import sync_all_accounts
 
+    if await skip_if_locked("poll_oauth_inboxes", ttl=50):
+        return
     try:
         await sync_all_accounts()
     except Exception:
@@ -326,6 +331,8 @@ async def poll_oauth_inboxes_job() -> None:
 async def enrich_drafts_job() -> None:
     """AI-enrich drafts queued by ingest. Loops until the queue is drained so a
     burst of mail doesn't wait multiple ticks, then sleeps until the next one."""
+    if await skip_if_locked("enrich_drafts", ttl=8 if _is_prod else 25):
+        return
     try:
         while True:
             async with db_session() as db:
@@ -339,6 +346,8 @@ async def enrich_drafts_job() -> None:
 @scheduler.scheduled_job("interval", seconds=5 if _is_prod else 30, id="flush_pending_sends", max_instances=1, coalesce=True)
 async def flush_pending_sends_job() -> None:
     """Dispatch queued emails whose undo window has expired."""
+    if await skip_if_locked("flush_pending_sends", ttl=4 if _is_prod else 25):
+        return
     async with db_session() as db:
         await service.flush_pending_sends(db)
 
@@ -346,6 +355,8 @@ async def flush_pending_sends_job() -> None:
 @scheduler.scheduled_job("interval", hours=1, id="retention", max_instances=1, coalesce=True)
 async def retention_job() -> None:
     """Spam → Bin after 10 working days; Bin emptied after 20 working days (item 42)."""
+    if await skip_if_locked("retention", ttl=3300):
+        return
     try:
         async with db_session() as db:
             await service.apply_retention(db)
@@ -360,6 +371,8 @@ async def go_live_job() -> None:
     be instantly reverted. Idempotent, so safe with two containers on one DB."""
     from sqlalchemy import func, update
 
+    if await skip_if_locked("go_live_check", ttl=50):
+        return
     async with db_session() as db:
         result = await db.execute(
             update(Tenant)
@@ -376,6 +389,8 @@ async def sync_email_delivery_job() -> None:
     """Poll Resend API for delivery/open status on recently sent emails."""
     from app.config import get_settings
     from app.modules.emailtracking.service import sync_status_from_resend
+    if await skip_if_locked("sync_email_delivery", ttl=270):
+        return
     settings = get_settings()
     if not settings.resend_api_key:
         return

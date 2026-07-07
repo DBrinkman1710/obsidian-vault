@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from typing import Annotated
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth.dependencies import CurrentUser, check_module_access, require_feature, require_module
 from app.auth.router import router as auth_router
 from app.config import ALL_MODULES, get_settings
+from app.core.alerts import install_owner_alert_log_handler
 from app.core.logging_config import RequestIDMiddleware, configure_logging
 from app.core.models import Tenant
 from app.core.plans import ADVANCED_FEATURES, features_for_plan, limits_for_plan, module_prices_for_plan
@@ -74,6 +77,13 @@ def create_app() -> FastAPI:
             traces_sample_rate=0.0,
         )
 
+    # Owner error alerts — in production every ERROR-level log record (scheduler
+    # job failures, webhook errors, the unhandled-500 handler below) emails the
+    # owner, rate-limited to one per context per hour. Zero-config counterpart
+    # to Sentry; both are platform-wide, tenants configure nothing.
+    if settings.environment == "production":
+        install_owner_alert_log_handler()
+
     app = FastAPI(
         title="Yippie | Customer Platform",
         version="1.0.0",
@@ -81,6 +91,16 @@ def create_app() -> FastAPI:
         redoc_url=None if hide_docs else "/api/redoc",
         lifespan=lifespan,
     )
+
+    # Unhandled exceptions → clean JSON 500 + ERROR log record. The log record
+    # is what feeds Sentry and the owner alert handler; the response never
+    # leaks a traceback to the client.
+    @app.exception_handler(Exception)
+    async def _unhandled_exception(request: Request, exc: Exception):
+        logging.getLogger("app.unhandled").error(
+            "Unhandled error on %s %s", request.method, request.url.path, exc_info=exc
+        )
+        return JSONResponse(status_code=500, content={"detail": "Internal server error"})
 
     app.add_middleware(RequestIDMiddleware)
     app.add_middleware(
@@ -167,6 +187,7 @@ def create_app() -> FastAPI:
             stripe_publishable_key=settings.stripe_publishable_key,
             ai_scans_used_this_period=tenant.ai_scans_used_this_period,
             tracking_token=str(tenant.tracking_token) if tenant.tracking_token else None,
+            inbound_email=tenant.inbound_email,
             ai_profile=tenant.ai_profile,
         )
 

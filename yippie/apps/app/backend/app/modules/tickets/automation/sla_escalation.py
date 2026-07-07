@@ -111,8 +111,12 @@ async def _send_demo_prospect_email(
     signup_url: str,
 ) -> None:
     import html as _html
+    from app.config import get_settings
     from app.core.email_html import render_email_html
     from app.core.mailer import send_email
+    settings = get_settings()
+    owner = settings.owner_name
+    safe_owner = _html.escape(owner)
     plain_name = prospect_name.split()[0] if prospect_name else company_name
     safe_name = _html.escape(plain_name)
     safe_book = _html.escape(book_url)
@@ -122,7 +126,7 @@ async def _send_demo_prospect_email(
     plain = (
         f"Hi {plain_name},\n\n{intro_plain}\n\n"
         f"Book a call: {book_url}\nStart your account: {signup_url}\n\n"
-        f"Best,\nDiederik\nFounder, Yippie"
+        f"Best,\n{owner}\nFounder, Yippie"
     )
     prerendered = (
         f'<p style="margin:0 0 16px;">Hi {safe_name},</p>'
@@ -135,7 +139,7 @@ async def _send_demo_prospect_email(
         f'text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:600;font-size:15px;">'
         f'Start your account</a>'
         f'</div>'
-        f'<p style="margin:16px 0 0;">Best,<br><strong>Diederik</strong><br>'
+        f'<p style="margin:16px 0 0;">Best,<br><strong>{safe_owner}</strong><br>'
         f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
     )
     await send_email(
@@ -143,8 +147,8 @@ async def _send_demo_prospect_email(
         subject=subject,
         body=plain,
         html=render_email_html(plain, prerendered_html=prerendered, tenant_name="Yippie"),
-        from_email="Diederik from Yippie <diederik@getyippie.com>",
-        reply_to="diederik@getyippie.com",
+        from_email=f"{owner} from Yippie <{settings.platform_from_email}>",
+        reply_to=settings.platform_from_email,
     )
 
 

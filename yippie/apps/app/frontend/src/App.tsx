@@ -109,59 +109,20 @@ function useGlobalHotkeys() {
   }, [user?.hotkeys_enabled, navigate])
 }
 
+// Public pages that render standalone — no app shell, auth, or analytics.
+// Keyed on the initial pathname (stable within a full page load).
+const STANDALONE_PREFIXES = ['/book/', '/meet/', '/sign/', '/unsubscribe/'] as const
+
 export default function App() {
   const { user, refreshUser, impersonating, exitImpersonation } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
   const [configError, setConfigError] = useState(false)
   useGlobalHotkeys()
 
-  // Public booking pages are standalone — render without the app shell or auth,
-  // regardless of whether someone is logged in.
-  if (window.location.pathname.startsWith('/book/')) {
-    return (
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
-          <Route path="/book/:token" element={<BookingPage />} />
-        </Routes>
-      </Suspense>
-    )
-  }
-
-  if (window.location.pathname.startsWith('/meet/')) {
-    return (
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/meet/:slug" element={<MeetPage />} />
-        </Routes>
-      </Suspense>
-    )
-  }
-
-  // Public contract signing — standalone, no shell or auth ([CONTRACT3]).
-  if (window.location.pathname.startsWith('/sign/')) {
-    return (
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/sign/:token" element={<SignContractPage />} />
-        </Routes>
-      </Suspense>
-    )
-  }
-
-  // Public unsubscribe — standalone, no shell or auth.
-  if (window.location.pathname.startsWith('/unsubscribe/')) {
-    return (
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/unsubscribe/:token" element={<UnsubscribePage />} />
-        </Routes>
-      </Suspense>
-    )
-  }
+  const isStandalone = STANDALONE_PREFIXES.some((p) => window.location.pathname.startsWith(p))
 
   useEffect(() => {
-    if (!user) return
+    if (isStandalone || !user) return
     let cancelled = false
     refreshUser()
     setConfigError(false)
@@ -174,7 +135,7 @@ export default function App() {
   // Silently re-issue the auth cookie every 4 hours so long sessions never hit
   // the 8-hour JWT expiry while the agent is actively working.
   useEffect(() => {
-    if (!user) return
+    if (isStandalone || !user) return
     const id = setInterval(() => {
       api.post('/auth/refresh').catch(() => {
         // 401 here means the token has already expired; the next real API call
@@ -187,7 +148,7 @@ export default function App() {
   // Inject saas.js once with the platform token so all tenant sessions post
   // feature-usage events into the product owner's analytics account.
   useEffect(() => {
-    if (!PLATFORM_TOKEN || document.getElementById('yippie-platform-saas')) return
+    if (isStandalone || !PLATFORM_TOKEN || document.getElementById('yippie-platform-saas')) return
     const s = document.createElement('script')
     s.id = 'yippie-platform-saas'
     s.src = 'https://getyippie.com/saas.js'
@@ -198,7 +159,7 @@ export default function App() {
 
   // Identify the logged-in user once we have both user and config loaded.
   useEffect(() => {
-    if (!user || !config || !PLATFORM_TOKEN) return
+    if (isStandalone || !user || !config || !PLATFORM_TOKEN) return
     whenYippie((y) => y.identify(user.id, {
       email:       user.email,
       name:        user.full_name,
@@ -212,11 +173,28 @@ export default function App() {
   // Track module navigation so feature adoption is visible per tenant.
   const location = useLocation()
   useEffect(() => {
-    if (!user || !PLATFORM_TOKEN) return
+    if (isStandalone || !user || !PLATFORM_TOKEN) return
     const module = location.pathname.split('/')[1]
     if (!module) return
     whenYippie((y) => y.track('module_visited', { module, path: location.pathname }))
   }, [location.pathname, user?.id])
+
+  // Standalone public pages — render without the app shell or auth, regardless
+  // of whether someone is logged in. Kept below every hook call so the hook
+  // order is identical on all render paths (Rules of Hooks).
+  if (isStandalone) {
+    return (
+      <Suspense fallback={null}>
+        <Routes>
+          <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
+          <Route path="/book/:token" element={<BookingPage />} />
+          <Route path="/meet/:slug" element={<MeetPage />} />
+          <Route path="/sign/:token" element={<SignContractPage />} />
+          <Route path="/unsubscribe/:token" element={<UnsubscribePage />} />
+        </Routes>
+      </Suspense>
+    )
+  }
 
   if (!user) {
     return (
@@ -370,9 +348,7 @@ export default function App() {
               <Route path="/settings/workspace" element={<PagePad><WorkspaceSettingsPage /></PagePad>} />
 <Route path="/settings/team" element={<PagePad><TeamSettingsPage /></PagePad>} />
               <Route path="/settings/templates" element={<PagePad><TemplatesPage /></PagePad>} />
-              {config?.environment === 'sandbox' && (
-                <Route path="/settings/subscription" element={<PagePad><SubscriptionPage /></PagePad>} />
-              )}
+              <Route path="/settings/subscription" element={<PagePad><SubscriptionPage /></PagePad>} />
               <Route path="/superadmin/clients" element={<PagePad><SuperAdminPage /></PagePad>} />
               <Route path="/track/confirm" element={<TrackConfirmPage />} />
             </Routes>

@@ -30,7 +30,7 @@ async def stripe_platform_webhook(request: Request):
             event = _stripe.Webhook.construct_event(
                 payload, sig_header, settings.stripe_webhook_secret_platform
             )
-        except _stripe.errors.SignatureVerificationError:
+        except _stripe.SignatureVerificationError:
             log.warning("Stripe webhook signature verification failed")
             return Response(status_code=400)
     else:

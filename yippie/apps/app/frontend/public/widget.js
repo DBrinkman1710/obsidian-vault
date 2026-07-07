@@ -123,8 +123,7 @@
     isOpen = !isOpen;
     panel.style.display = isOpen ? 'flex' : 'none';
     if (isOpen && !ws) {
-      connect();
-      addBubble('Hi! How can we help you today?', true);
+      connect(); // onopen restores history or shows the greeting — never both
     }
   });
   sendBtn.addEventListener('click', sendMessage);

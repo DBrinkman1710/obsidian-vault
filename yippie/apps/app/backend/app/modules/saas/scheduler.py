@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import func, select
 
+from app.core.scheduler_lock import skip_if_locked
 from app.database import db_session
 from app.modules.saas.models import SaasEvent, SaasHealth
 from app.modules.saas import service
@@ -18,6 +19,8 @@ scheduler = AsyncIOScheduler()
 @scheduler.scheduled_job("interval", hours=1, id="saas_compute_health", max_instances=1, coalesce=True)
 async def compute_saas_health():
     """Recompute health scores for all contacts that have new saas events since last compute."""
+    if await skip_if_locked("saas_compute_health", ttl=3300):
+        return
     async with db_session() as db:
         # Find (tenant_id, contact_id) pairs with events newer than their last_computed_at
         # or that have no health row yet.
@@ -65,6 +68,8 @@ async def saas_health_digest():
     from app.core.models import Tenant, User as TeamUser
     from sqlalchemy import and_
 
+    if await skip_if_locked("saas_health_digest", ttl=82800):
+        return
     async with db_session() as db:
         try:
             # Get all tenants with at-risk contacts

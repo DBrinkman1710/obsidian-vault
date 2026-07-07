@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     # Losing this key orphans stored tokens (users must reconnect their accounts).
     email_token_encryption_key: str = ""
     owner_notification_email: str = "diederik1710@gmail.com"
+    # Platform sender identity — the human name and address used on platform
+    # emails (invites, demo outreach, SLA escalations) and as the last-resort
+    # from address. Override via env (OWNER_NAME / PLATFORM_FROM_EMAIL) so a
+    # handover never requires a code change.
+    owner_name: str = "Diederik"
+    platform_from_email: str = "diederik@getyippie.com"
     inbound_email: str = ""
     # Evolution API (WhatsApp) — self-hosted gateway, one instance per tenant slug.
     evolution_api_url: str = ""

@@ -22,6 +22,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select, text
 
 from app.core.models import UserReminder
+from app.core.scheduler_lock import skip_if_locked
 from app.database import db_session
 from app.modules.contracts.models import Contract
 
@@ -67,6 +68,8 @@ async def _nudge(db, c: Contract, body: str) -> None:
 
 @scheduler.scheduled_job("interval", hours=6, id="contract_lifecycle", max_instances=1, coalesce=True)
 async def contract_lifecycle_job():
+    if await skip_if_locked("contract_lifecycle", ttl=21000):
+        return
     now = datetime.now(timezone.utc)
     today = now.date()
     try:

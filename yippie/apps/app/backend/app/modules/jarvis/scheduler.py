@@ -13,6 +13,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select, text
 
 from app.core.models import Tenant, User, UserReminder
+from app.core.scheduler_lock import skip_if_locked
 from app.database import db_session
 from app.modules.chat.manager import manager
 
@@ -25,6 +26,14 @@ SLA_NUDGE_WINDOW_MIN = 60
 # Reminders only carry dismissed_at, so a delivered-but-undismissed reminder would
 # re-fire every minute. Track what we've already pushed this process to fire once.
 _fired: set[str] = set()
+
+# NOTE on distributed locking: jarvis_reminders and yip_sla_nudge deliberately
+# do NOT use skip_if_locked. They deliver via the in-process WebSocket manager,
+# so with multiple instances each instance must run the job to reach the agents
+# connected to IT — a lock would silence agents on the other instances. Their
+# writes are delivery-conditional (only marked done when a toast actually
+# landed), which keeps them correct across instances. Jobs that write to the DB
+# unconditionally (yip_briefing, jarvis_thread_cleanup) ARE locked.
 
 
 @scheduler.scheduled_job("interval", minutes=1, id="jarvis_reminders", max_instances=1, coalesce=True)
@@ -96,6 +105,8 @@ async def yip_briefing_job(force_user_email: str | None = None):
     from app.modules.jarvis import briefing as briefing_mod
     from app.modules.jarvis.models import JarvisMessage, JarvisThread
 
+    if not force_user_email and await skip_if_locked("yip_briefing", ttl=870):
+        return
     sent = 0
     try:
         async with db_session() as db:
@@ -234,6 +245,8 @@ async def yip_sla_nudge_job():
 async def jarvis_thread_cleanup_job():
     from app.modules.jarvis import threads
 
+    if await skip_if_locked("jarvis_thread_cleanup", ttl=82800):
+        return
     try:
         async with db_session() as db:
             await db.execute(text("SET LOCAL row_security = off"))

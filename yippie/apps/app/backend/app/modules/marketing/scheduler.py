@@ -63,6 +63,8 @@ async def send_scheduled_campaigns():
 
 @scheduler.scheduled_job("interval", minutes=15, id="mktg_ab_winner")
 async def pick_ab_winners():
+    if await skip_if_locked("mktg_ab_winner", ttl=870):
+        return
     now = datetime.now(timezone.utc)
     async with db_session() as db:
         result = await db.execute(
@@ -221,6 +223,8 @@ async def send_drip_steps():
 async def decay_engagement_scores():
     """Monthly: decay all contact engagement scores by 10%."""
     from sqlalchemy import text
+    if await skip_if_locked("mktg_engagement_decay", ttl=82800):
+        return
     async with db_session() as db:
         try:
             await db.execute(

@@ -60,6 +60,15 @@ export default function SetupChecklist() {
       optional: true,
     },
     ...(isAdmin ? [{
+      id: 'workspace-sender',
+      label: 'Confirm your support address',
+      detail: config?.inbound_email
+        ? `Customer email to ${config.inbound_email} lands in your shared inbox.`
+        : 'Your workspace has no shared support address yet — reply to your welcome email or contact Yippie to get one connected.',
+      route: '/inbox',
+      done: !!config?.inbound_email,
+    }] : []),
+    ...(isAdmin ? [{
       id: 'yip-train',
       label: 'Train Yip',
       detail: 'Help Yip learn your business so AI replies fit your brand.',

@@ -54,9 +54,12 @@ async def send_invite_email(
 
 
 async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> None:
+    settings = get_settings()
+    owner = settings.owner_name
     first_name = full_name.split()[0] if full_name else full_name
     safe_name = _html.escape(first_name)
     safe_link = _html.escape(magic_link)
+    safe_owner = _html.escape(owner)
 
     plain_body = (
         f"Hi {first_name},\n\n"
@@ -64,7 +67,7 @@ async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> Non
         f"Your workspace is ready. Click the link below to get started (no password needed):\n{magic_link}\n\n"
         f"If you have any questions while exploring, just reply. I read everything.\n\n"
         f"Looking forward to hearing what you think,\n"
-        f"Diederik\n"
+        f"{owner}\n"
         f"Founder, Yippie"
     )
 
@@ -78,7 +81,7 @@ async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> Non
         f'Open your Yippie workspace</a>'
         f'</div>'
         f'<p style="margin:24px 0 16px;">If you have any questions while you\'re exploring, just reply. I read everything.</p>'
-        f'<p style="margin:0;">Looking forward to hearing what you think,<br><strong>Diederik</strong><br>'
+        f'<p style="margin:0;">Looking forward to hearing what you think,<br><strong>{safe_owner}</strong><br>'
         f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
     )
 
@@ -87,15 +90,18 @@ async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> Non
         subject="Your Yippie workspace is ready",
         body=plain_body,
         html=render_email_html(plain_body, prerendered_html=prerendered, tenant_name="Yippie"),
-        from_email="Diederik from Yippie <diederik@getyippie.com>",
-        reply_to="diederik@getyippie.com",
+        from_email=f"{owner} from Yippie <{settings.platform_from_email}>",
+        reply_to=settings.platform_from_email,
     )
 
 
 async def send_signup_welcome_email(to: str, full_name: str, login_url: str) -> None:
+    settings = get_settings()
+    owner = settings.owner_name
     first_name = full_name.split()[0] if full_name else full_name
     safe_name = _html.escape(first_name)
     safe_link = _html.escape(login_url)
+    safe_owner = _html.escape(owner)
 
     plain_body = (
         f"Hi {first_name},\n\n"
@@ -105,7 +111,7 @@ async def send_signup_welcome_email(to: str, full_name: str, login_url: str) -> 
         f"  - Train Yip: a quick 5-question chat that teaches Yip your brand\n"
         f"  - Invite your team: teammates each get their own login\n\n"
         f"If you have any questions, just reply. I read everything.\n\n"
-        f"Diederik\n"
+        f"{owner}\n"
         f"Founder, Yippie"
     )
 
@@ -124,7 +130,7 @@ async def send_signup_welcome_email(to: str, full_name: str, login_url: str) -> 
         f'<li>Invite your team: teammates each get their own login</li>'
         f'</ul>'
         f'<p style="margin:0 0 16px;">If you have any questions, just reply. I read everything.</p>'
-        f'<p style="margin:0;"><strong>Diederik</strong><br>'
+        f'<p style="margin:0;"><strong>{safe_owner}</strong><br>'
         f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
     )
 
@@ -133,8 +139,8 @@ async def send_signup_welcome_email(to: str, full_name: str, login_url: str) -> 
         subject="Your Yippie workspace is ready",
         body=plain_body,
         html=render_email_html(plain_body, prerendered_html=prerendered, tenant_name="Yippie"),
-        from_email="Diederik from Yippie <diederik@getyippie.com>",
-        reply_to="diederik@getyippie.com",
+        from_email=f"{owner} from Yippie <{settings.platform_from_email}>",
+        reply_to=settings.platform_from_email,
     )
 
 

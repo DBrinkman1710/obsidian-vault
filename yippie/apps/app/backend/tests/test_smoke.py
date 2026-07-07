@@ -62,14 +62,15 @@ def test_no_duplicate_routes(app):
 # --- Background schedulers (import only; calling them starts APScheduler / hits the DB) ---
 
 def test_scheduler_start_functions_importable():
-    """The 5 lifespan schedulers wired in main.py import without error."""
+    """The 6 lifespan schedulers wired in main.py import without error."""
+    from app.modules.contracts.scheduler import start_scheduler as _c  # noqa: F401
     from app.modules.inbox.email_poller import start_scheduler as _p  # noqa: F401
     from app.modules.jarvis.scheduler import start_scheduler as _j  # noqa: F401
     from app.modules.marketing.scheduler import start_scheduler as _m  # noqa: F401
     from app.modules.saas.scheduler import start_scheduler as _s  # noqa: F401
     from app.modules.tickets.automation.sla_escalation import start_scheduler as _e  # noqa: F401
 
-    for fn in (_p, _j, _m, _s, _e):
+    for fn in (_p, _j, _m, _s, _e, _c):
         assert callable(fn)
 
 
