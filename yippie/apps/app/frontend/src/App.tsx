@@ -119,44 +119,52 @@ export default function App() {
   // regardless of whether someone is logged in.
   if (window.location.pathname.startsWith('/book/')) {
     return (
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
-          <Route path="/book/:token" element={<BookingPage />} />
-        </Routes>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
+            <Route path="/book/:token" element={<BookingPage />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     )
   }
 
   if (window.location.pathname.startsWith('/meet/')) {
     return (
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/meet/:slug" element={<MeetPage />} />
-        </Routes>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/meet/:slug" element={<MeetPage />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     )
   }
 
   // Public contract signing — standalone, no shell or auth ([CONTRACT3]).
   if (window.location.pathname.startsWith('/sign/')) {
     return (
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/sign/:token" element={<SignContractPage />} />
-        </Routes>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/sign/:token" element={<SignContractPage />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     )
   }
 
   // Public unsubscribe — standalone, no shell or auth.
   if (window.location.pathname.startsWith('/unsubscribe/')) {
     return (
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/unsubscribe/:token" element={<UnsubscribePage />} />
-        </Routes>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/unsubscribe/:token" element={<UnsubscribePage />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     )
   }
 
@@ -220,20 +228,22 @@ export default function App() {
 
   if (!user) {
     return (
-      <Suspense fallback={null}>
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-          <Route path="/reset-password" element={<ResetPasswordPage />} />
-          <Route path="/track/confirm" element={<TrackConfirmPage />} />
-          <Route path="/request-demo" element={<RequestDemoPage />} />
-          <Route path="/demo-enter" element={<DemoEnterPage />} />
-          <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
-          <Route path="/book/:token" element={<BookingPage />} />
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
-      </Suspense>
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/login" element={<LoginPage />} />
+            <Route path="/register" element={<RegisterPage />} />
+            <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
+            <Route path="/track/confirm" element={<TrackConfirmPage />} />
+            <Route path="/request-demo" element={<RequestDemoPage />} />
+            <Route path="/demo-enter" element={<DemoEnterPage />} />
+            <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
+            <Route path="/book/:token" element={<BookingPage />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
     )
   }
 
