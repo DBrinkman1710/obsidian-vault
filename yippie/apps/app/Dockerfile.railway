@@ -5,6 +5,11 @@ RUN npm install -g pnpm
 COPY frontend/package.json ./
 RUN pnpm install
 COPY frontend/ .
+# Vite inlines import.meta.env.* at build time — Railway only exposes service
+# variables to Dockerfile builds when declared as ARG. Without this the platform
+# saas.js snippet is never injected and product analytics stays empty.
+ARG VITE_YIPPIE_PLATFORM_TOKEN
+ENV VITE_YIPPIE_PLATFORM_TOKEN=$VITE_YIPPIE_PLATFORM_TOKEN
 RUN pnpm run build
 
 ## Stage 2: build Python packages (needs gcc for C extensions)

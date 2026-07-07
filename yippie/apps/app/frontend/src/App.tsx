@@ -218,12 +218,14 @@ export default function App() {
   }, [user?.id, config?.tenant_id])
 
   // Track module navigation so feature adoption is visible per tenant.
+  // Emitted as feature_used because the saas dashboard and health score only
+  // aggregate feature_used / onboarding_step / error_encountered event types.
   const location = useLocation()
   useEffect(() => {
     if (!user || !PLATFORM_TOKEN) return
     const module = location.pathname.split('/')[1]
     if (!module) return
-    whenYippie((y) => y.track('module_visited', { module, path: location.pathname }))
+    whenYippie((y) => y.track('feature_used', { feature: module, path: location.pathname }))
   }, [location.pathname, user?.id])
 
   if (!user) {
