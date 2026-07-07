@@ -155,13 +155,16 @@ async def _process_event(event: dict) -> None:
                 error = str(exc)[:2000]
                 results.append({"type": action.get("type"), "ok": False, "skipped": False,
                                 "summary": f"Failed: {exc}"})
+        # Soft skips (module disabled, no contact on the event) read as
+        # "partial", never "failed" — failed is reserved for real errors.
         ok_count = sum(1 for r in results if r.get("ok"))
-        if ok_count == len(results):
+        hard_failures = sum(1 for r in results if not r.get("ok") and not r.get("skipped"))
+        if results and ok_count == len(results):
             run_status = "success"
-        elif ok_count > 0:
-            run_status = "partial"
-        else:
+        elif ok_count == 0 and hard_failures == len(results):
             run_status = "failed"
+        else:
+            run_status = "partial"
         await _record_run(tenant.id, flow["id"], event, run_status, results, error)
 
 
