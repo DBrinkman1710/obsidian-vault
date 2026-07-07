@@ -454,6 +454,19 @@ function EditContactModal({ contact, companies, onClose }: {
   )
 }
 
+const TIER_TAGS = [
+  { tag: 'hot',       label: 'HOT',       color: 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200' },
+  { tag: 'warm',      label: 'WARM',      color: 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200' },
+  { tag: 'cold_lead', label: 'Cold lead', color: 'bg-blue-50 text-blue-600 border-blue-200 hover:bg-blue-100' },
+]
+
+const SECTOR_TAGS = [
+  'installatiebedrijf', 'kledingwinkel', 'meubelwinkel', 'webshop',
+  'fietsenwinkel', 'elektronica winkel', 'garagebedrijf', 'rijschool',
+  'tandarts', 'makelaar', 'schoonmaakbedrijf', 'fysiotherapie',
+  'drukkerij', 'groothandel', 'kapper', 'hovenier',
+]
+
 function ContactsTab({ companyFilter, setCompanyFilter }: {
   companyFilter: string | null
   setCompanyFilter: (id: string | null) => void
@@ -464,6 +477,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   const { user, refreshUser } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [search, setSearch] = useState('')
+  const [activeTag, setActiveTag] = useState<string | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [editingContact, setEditingContact] = useState<Contact | null>(null)
   const [showMoveStage, setShowMoveStage] = useState(false)
@@ -484,11 +498,12 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
     queryFn: () => api.get<PipelineStage[]>('/pipeline/stages').then((r: any) => r.data),
   })
   const { data, isLoading } = useQuery({
-    queryKey: ['contacts', search, companyFilter],
+    queryKey: ['contacts', search, companyFilter, activeTag],
     queryFn: () => api.get<{ items: Contact[]; total: number }>('/contacts', {
       params: {
         search: search || undefined,
         company_id: companyFilter || undefined,
+        tag: activeTag || undefined,
       },
     }).then((r: any) => r.data),
   })
@@ -554,7 +569,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
 
   return (
     <div>
-      <div className="flex items-center gap-2 mb-5">
+      <div className="flex items-center gap-2 mb-3">
         <div className="relative flex-1 max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
@@ -566,6 +581,39 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         <div className="ml-auto">
           <ColumnPicker value={columns} onChange={prefs => prefsMutation.mutate(prefs)} saving={prefsMutation.isPending} />
         </div>
+      </div>
+
+      {/* Tag filter chips */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        {TIER_TAGS.map(({ tag, label, color }) => (
+          <button
+            key={tag}
+            onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-colors ${
+              activeTag === tag
+                ? color.replace('hover:', '') + ' ring-2 ring-offset-1 ring-current'
+                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {label}
+            {activeTag === tag && <X size={10} className="ml-0.5" />}
+          </button>
+        ))}
+        <span className="text-slate-300 text-xs px-1">|</span>
+        {SECTOR_TAGS.map(tag => (
+          <button
+            key={tag}
+            onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-colors ${
+              activeTag === tag
+                ? 'bg-slate-700 text-white border-slate-700 ring-2 ring-offset-1 ring-slate-500'
+                : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'
+            }`}
+          >
+            {tag}
+            {activeTag === tag && <X size={10} className="ml-0.5" />}
+          </button>
+        ))}
       </div>
 
       {companyFilter && companies && (

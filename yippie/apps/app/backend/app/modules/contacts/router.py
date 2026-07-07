@@ -104,9 +104,10 @@ async def list_contacts(
     label_id: Optional[uuid.UUID] = Query(None),
     company_id: Optional[uuid.UUID] = Query(None),
     include_deleted: bool = Query(False),
+    tag: Optional[str] = Query(None),
 ):
     items, total = await service.list_contacts(
-        db, current_user.tenant_id, search, skip, limit, label_id, company_id, include_deleted
+        db, current_user.tenant_id, search, skip, limit, label_id, company_id, include_deleted, tag
     )
     return ContactList(items=items, total=total)
 

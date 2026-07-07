@@ -75,6 +75,7 @@ async def list_contacts(
     label_id: Optional[uuid.UUID] = None,
     company_id: Optional[uuid.UUID] = None,
     include_deleted: bool = False,
+    tag: Optional[str] = None,
 ) -> tuple[list[Contact], int]:
     q = select(Contact).where(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
     if search:
@@ -89,6 +90,8 @@ async def list_contacts(
         q = q.where(Contact.labels.any(ContactLabel.id == label_id))
     if company_id:
         q = q.where(Contact.company_id == company_id)
+    if tag:
+        q = q.where(Contact.tags.contains([tag]))
     total = await db.scalar(select(func.count()).select_from(q.subquery()))
     result = await db.execute(q.order_by(Contact.created_at.desc()).offset(skip).limit(limit))
     items = list(result.scalars().all())
