@@ -7,7 +7,7 @@ import {
   Inbox, Users, ClipboardList, Activity, CreditCard, Calendar,
   MessageSquare, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
   ChevronLeft, ChevronRight, Megaphone, GripVertical, Package,
-  TrendingUp, BarChart3, Settings, UsersRound, FileText,
+  TrendingUp, BarChart3, Settings, UsersRound, FileText, Zap,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -44,6 +44,7 @@ const MODULE_MAP: Record<string, { labelKey: TKey; Icon: LucideIcon; path: strin
   tracking:  { labelKey: 'tracking',  Icon: Package,     path: '/tracking' },
   sales:     { labelKey: 'sales',     Icon: TrendingUp,  path: '/sales' },
   saas:      { labelKey: 'saas',      Icon: BarChart3,   path: '/saas' },
+  flows:     { labelKey: 'flows',     Icon: Zap,         path: '/flows' },
 }
 
 const STORAGE_KEY = 'yippie:sidebarCollapsed'

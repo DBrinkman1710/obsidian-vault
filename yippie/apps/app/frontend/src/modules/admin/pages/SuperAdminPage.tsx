@@ -12,9 +12,9 @@ import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 
-const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'contracts', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai']
+const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'flows', 'billing', 'contracts', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai']
 
-const MODULE_LABELS: Record<string, string> = { pipeline: 'Kanban', ai: 'AI', booking: 'Booking', departments: 'Departments', marketing: 'Marketing', tracking: 'Tracking', sales: 'Sales', saas: 'SaaS', contracts: 'Contracts' }
+const MODULE_LABELS: Record<string, string> = { pipeline: 'Kanban', ai: 'AI', booking: 'Booking', departments: 'Departments', marketing: 'Marketing', tracking: 'Tracking', sales: 'Sales', saas: 'SaaS', contracts: 'Contracts', flows: 'Flows' }
 const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod
 
 // SaaS plan tiers — mirrors PlanTier on the backend (app/core/plans.py).

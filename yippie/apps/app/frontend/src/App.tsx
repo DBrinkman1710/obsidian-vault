@@ -29,6 +29,7 @@ const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const InvoiceDetail = lazy(() => import('./modules/billing/pages/InvoiceDetail'))
 const ContractList  = lazy(() => import('./modules/contracts/pages/ContractList'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
+const FlowsPage     = lazy(() => import('./modules/flows/pages/FlowsPage'))
 const LoginPage          = lazy(() => import('./auth/LoginPage'))
 const RegisterPage       = lazy(() => import('./auth/RegisterPage'))
 const ForgotPasswordPage = lazy(() => import('./auth/ForgotPasswordPage'))
@@ -354,6 +355,10 @@ export default function App() {
 
               <Route path="/activity" element={
                 <ModuleGate module="activity"><PagePad><ActivityFeed /></PagePad></ModuleGate>
+              } />
+
+              <Route path="/flows" element={
+                <ModuleGate module="flows"><PagePad><FlowsPage /></PagePad></ModuleGate>
               } />
 
               {/* MarketingPage manages its own two-panel layout — no PagePad wrapper */}

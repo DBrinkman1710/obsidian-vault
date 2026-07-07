@@ -32,6 +32,7 @@ export const MODULE_LIST = [
   { id: "pipeline", label: "Pipeline", icon: "📌", desc: "Drag-and-drop Kanban to move leads and clients through custom stages.", core: false, price: 7, recName: "Pipeline" },
   { id: "booking", label: "Booking", icon: "🗓", desc: "Public booking pages and appointment scheduling (included with Calendar).", core: false, price: null, recName: null },
   { id: "activity", label: "Activity", icon: "📊", desc: "Unified timeline of emails, tickets, and pipeline moves.", core: true, price: null, recName: null },
+  { id: "flows", label: "Flows", icon: "⚡", desc: "Automations that connect your modules: when something happens, Yippie moves stages, notifies your team, or sends an email.", core: true, price: null, recName: null },
   { id: "billing", label: "Billing", icon: "🧾", desc: "Issue invoices, track payments, and manage subscriptions.", core: false, price: 7, recName: "Billing" },
   { id: "contracts", label: "Contracts", icon: "📄", desc: "Store signed contracts, track renewals and notice periods, and get reminded before they expire.", core: false, price: 9, recName: "Contracts" },
   { id: "chat", label: "Live Chat", icon: "💬", desc: "Web chat widget + WhatsApp. All conversations in one inbox.", core: false, price: 9, recName: "Live Chat" },

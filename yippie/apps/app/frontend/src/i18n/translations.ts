@@ -17,6 +17,7 @@ export const translations = {
     tracking:    'Tracking',
     sales:       'Sales',
     saas:        'Product Analytics',
+    flows:       'Flows',
     // Sidebar settings nav
     profile:  'Profile',
     team:     'Team',
@@ -57,6 +58,7 @@ export const translations = {
     tracking:    'Tracking',
     sales:       'Sales',
     saas:        'Product Analytics',
+    flows:       'Flows',
     // Sidebar settings nav
     profile:  'Profiel',
     team:     'Team',
