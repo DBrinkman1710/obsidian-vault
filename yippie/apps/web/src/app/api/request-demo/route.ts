@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
     typeof company_name !== "string" || !company_name.trim() ||
     typeof email !== "string" || !email.trim()
   ) {
-    return NextResponse.json({ error: "name, company_name, and email are required." }, { status: 400 });
+    return NextResponse.json({ error: "Your name, company, and work email are required." }, { status: 400 });
   }
 
   const payload: Record<string, unknown> = {

@@ -261,7 +261,7 @@ async def reply_to_session(
 
     text = payload.body.strip()
     if not text:
-        raise HTTPException(status_code=400, detail="body must not be empty")
+        raise HTTPException(status_code=400, detail="Message must not be empty")
 
     msg = ChatMessage(
         tenant_id=current_user.tenant_id,
@@ -699,7 +699,7 @@ class BulkSessionBody(BaseModel):
 async def bulk_session_action(body: BulkSessionBody, current_user: CurrentUser, db: DB):
     """Perform a bulk action (close / reopen / delete) on multiple sessions."""
     if body.action not in ("close", "reopen", "delete"):
-        raise HTTPException(status_code=400, detail="action must be close, reopen, or delete")
+        raise HTTPException(status_code=400, detail="Invalid action, must be 'close', 'reopen', or 'delete'")
     if not body.session_ids:
         return {"updated": 0}
 
@@ -838,7 +838,7 @@ async def add_note(session_id: uuid.UUID, payload: NoteBody, current_user: Curre
 
     text = payload.body.strip()
     if not text:
-        raise HTTPException(status_code=400, detail="body must not be empty")
+        raise HTTPException(status_code=400, detail="Message must not be empty")
 
     msg = ChatMessage(
         tenant_id=current_user.tenant_id,

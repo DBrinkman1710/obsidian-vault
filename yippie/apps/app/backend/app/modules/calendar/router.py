@@ -132,7 +132,7 @@ async def respond_to_invitation(
 ):
     if body.status == "counter_proposed" and not body.counter_proposed_slots:
         raise HTTPException(
-            status_code=400, detail="counter_proposed_slots required when counter-proposing"
+            status_code=400, detail="Proposed time slots are required when counter-proposing"
         )
     try:
         inv = await service.respond_to_invitation(

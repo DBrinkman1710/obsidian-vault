@@ -343,7 +343,7 @@ async def update_me(
         if addr:
             import re as _re
             if not _re.match(r"^[^@]+@[^@]+\.[^@]+$", addr):
-                raise HTTPException(status_code=400, detail="reply_from_email must be a valid email address")
+                raise HTTPException(status_code=400, detail="Reply-from address must be a valid email address")
             current_user.reply_from_email = addr.lower()
         else:
             current_user.reply_from_email = None

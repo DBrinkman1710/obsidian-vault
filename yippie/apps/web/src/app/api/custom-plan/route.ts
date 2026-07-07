@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     typeof email !== "string" || !email.trim()
   ) {
     return NextResponse.json(
-      { error: "name, company_name, and email are required." },
+      { error: "Your name, company, and work email are required." },
       { status: 400 },
     );
   }

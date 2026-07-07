@@ -38,7 +38,7 @@ async def ai_test(body: AITestRequest, _: User = Depends(require_admin)):
     provider works before switching production traffic.
     """
     if not body.text or not body.text.strip():
-        raise HTTPException(status_code=422, detail="text must not be empty")
+        raise HTTPException(status_code=422, detail="Message text must not be empty")
 
     from app.modules.inbox.ai_scanner import scan_message
 

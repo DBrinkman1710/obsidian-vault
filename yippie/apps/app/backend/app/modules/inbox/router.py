@@ -69,7 +69,7 @@ async def _validate_from_email(from_email: Optional[str], db: AsyncSession, tena
     if not from_email:
         return
     if not is_valid_email(from_email):
-        raise HTTPException(status_code=400, detail="from_email is not a valid email address")
+        raise HTTPException(status_code=400, detail="Sender address is not a valid email address")
     # EML1: an exact match on an active linked Gmail/Outlook account is always
     # allowed — the mail goes out via that provider, not Resend's domains.
     from app.modules.email_accounts.models import EmailAccount
@@ -86,7 +86,7 @@ async def _validate_from_email(from_email: Optional[str], db: AsyncSession, tena
         return
     allowed = _tenant_from_domains(await db.get(Tenant, tenant_id))
     if allowed and email_domain(from_email) not in allowed:
-        raise HTTPException(status_code=403, detail="from_email domain is not permitted for this tenant")
+        raise HTTPException(status_code=403, detail="Sender domain is not permitted for this workspace")
 
 
 async def _encode_attachments(attachments: list[UploadFile]) -> list[dict]:
@@ -274,7 +274,7 @@ async def route_draft_to_department(draft_id: uuid.UUID, body: dict, current_use
 @router.post("/drafts/{draft_id}/review", response_model=DraftTicketOut)
 async def review_draft(draft_id: uuid.UUID, body: DraftReview, current_user: CurrentUser, db: DB):
     if body.action not in ("approve", "reject"):
-        raise HTTPException(status_code=400, detail="action must be 'approve' or 'reject'")
+        raise HTTPException(status_code=400, detail="Invalid action, must be 'approve' or 'reject'")
     draft = await service.get_draft(db, current_user.tenant_id, draft_id)
     if not draft:
         raise HTTPException(status_code=404, detail="Draft not found")
@@ -583,9 +583,9 @@ async def clear_followup(draft_id: uuid.UUID, current_user: CurrentUser, db: DB)
 async def bulk_action_drafts(body: BulkActionRequest, current_user: CurrentUser, db: DB):
     """Move multiple drafts to bin or spam."""
     if body.action not in ("bin", "spam"):
-        raise HTTPException(status_code=400, detail="action must be 'bin' or 'spam'")
+        raise HTTPException(status_code=400, detail="Invalid action, must be 'bin' or 'spam'")
     if not body.ids:
-        raise HTTPException(status_code=400, detail="ids must not be empty")
+        raise HTTPException(status_code=400, detail="No messages selected")
     new_status = DraftStatus.bin if body.action == "bin" else DraftStatus.spam
     count = await service.bulk_update_drafts(db, current_user.tenant_id, body.ids, new_status)
     return {"updated": count}
@@ -602,7 +602,7 @@ async def list_draft_assignees(current_user: CurrentUser, db: DB):
 async def bulk_assign_drafts(body: BulkAssignRequest, current_user: CurrentUser, db: DB):
     """Bulk assign drafts to a user and/or forward to a department."""
     if not body.ids:
-        raise HTTPException(status_code=400, detail="ids must not be empty")
+        raise HTTPException(status_code=400, detail="No messages selected")
     update_fields: dict = {}
     if "assigned_to_user_id" in body.model_fields_set:
         update_fields["assigned_to"] = body.assigned_to_user_id
@@ -635,14 +635,14 @@ async def compose_send(
     try:
         recipients = json.loads(to)
     except (json.JSONDecodeError, TypeError):
-        raise HTTPException(status_code=400, detail="'to' must be a JSON array of email addresses")
+        raise HTTPException(status_code=400, detail="Recipients must be a list of email addresses")
     if not isinstance(recipients, list) or not recipients:
         raise HTTPException(status_code=400, detail="At least one recipient is required")
     invalid = [r for r in recipients if not is_valid_email(str(r))]
     if invalid:
         raise HTTPException(status_code=400, detail=f"Invalid recipient address(es): {', '.join(map(str, invalid))}")
     if not subject.strip() or not body.strip():
-        raise HTTPException(status_code=400, detail="Subject and body are required")
+        raise HTTPException(status_code=400, detail="Subject and message body are required")
 
     if await service.tenant_is_demo(db, current_user.tenant_id):
         return {"sent": 0, "failed": [], "demo": True}

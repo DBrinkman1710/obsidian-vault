@@ -157,7 +157,7 @@ async def schedule_campaign(
     if body.scheduled_at is None:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="scheduled_at is required.",
+            detail="A scheduled date and time are required.",
         )
     campaign.scheduled_at = body.scheduled_at
     campaign.status = "scheduled"

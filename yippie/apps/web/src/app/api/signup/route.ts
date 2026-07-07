@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     typeof b.password !== "string" || b.password.length < 8
   ) {
     return NextResponse.json(
-      { error: "name, company_name, email, and password (min 8 chars) are required." },
+      { error: "Your name, company, email, and a password of at least 8 characters are required." },
       { status: 400 }
     );
   }

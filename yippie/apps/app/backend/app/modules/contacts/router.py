@@ -250,9 +250,9 @@ async def import_contacts(
         try:
             mapping = json.loads(column_mapping)
         except json.JSONDecodeError:
-            raise HTTPException(status_code=400, detail="Invalid column_mapping JSON")
+            raise HTTPException(status_code=400, detail="Invalid column mapping, must be valid JSON")
         if not isinstance(mapping, dict):
-            raise HTTPException(status_code=400, detail="column_mapping must be an object")
+            raise HTTPException(status_code=400, detail="Column mapping must be a JSON object")
         # incoming_col -> yippie_field; only known target fields are applied.
         pairs = [
             (str(src), dst)
