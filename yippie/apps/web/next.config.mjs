@@ -36,6 +36,7 @@ const nextConfig = {
       [
         "connect-src 'self'",
         "https://www.googletagmanager.com",
+        "https://app.getyippie.com",
         "https://sandbox.getyippie.com",
         "https://www.google-analytics.com",
         "https://analytics.google.com",
