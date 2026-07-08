@@ -129,7 +129,7 @@ type ParsedScan = {
 };
 
 const CHROME_STORE_URL =
-  "https://chromewebstore.google.com/detail/yippie-inbox-analyser/kcenfkplkjdgiaddkjdnomhalofhenbd";
+  "https://chromewebstore.google.com/detail/yippie-inbox-analyser/fhfdjapipgidbknncajebhglembhaick";
 
 function parseEmailCsv(raw: string): ParsedScan | null {
   // Normalise Windows / old-Mac line endings and drop empty trailing lines.

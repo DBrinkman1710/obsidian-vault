@@ -447,7 +447,7 @@ export default function HomePage() {
             Install the extension to connect your inbox directly. It reads email metadata only — never content — then opens this calculator with your real numbers pre-filled.
           </p>
           <a
-            href="https://chromewebstore.google.com/detail/yippie-inbox-analyser/kcenfkplkjdgiaddkjdnomhalofhenbd"
+            href="https://chromewebstore.google.com/detail/yippie-inbox-analyser/fhfdjapipgidbknncajebhglembhaick"
             target="_blank"
             rel="noopener noreferrer"
             className={styles.btnPrimary}
