@@ -1,4 +1,4 @@
-import { Building2, Globe, Users, X } from 'lucide-react'
+import { Building2, Globe, Plus, Users, X } from 'lucide-react'
 import { useEffect } from 'react'
 
 export interface CompanyPeekData {
@@ -13,10 +13,12 @@ export default function CompanyPeekModal({
   company,
   onClose,
   onViewContacts,
+  onAddContact,
 }: {
   company: CompanyPeekData | null
   onClose: () => void
   onViewContacts?: (companyId: string) => void
+  onAddContact?: (companyId: string) => void
 }) {
   useEffect(() => {
     if (!company) return
@@ -73,7 +75,7 @@ export default function CompanyPeekModal({
           )}
         </div>
 
-        <div className="border-t border-slate-100 px-5 py-4">
+        <div className="border-t border-slate-100 px-5 py-4 space-y-2">
           <button
             onClick={() => { onViewContacts?.(company.id); onClose() }}
             className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold text-white bg-yippie hover:opacity-90 rounded-xl transition-opacity"
@@ -81,6 +83,15 @@ export default function CompanyPeekModal({
             <Users size={13} />
             View contacts
           </button>
+          {onAddContact && (
+            <button
+              onClick={() => { onAddContact(company.id); onClose() }}
+              className="w-full inline-flex items-center justify-center gap-1.5 py-2.5 text-sm font-semibold text-slate-700 border border-slate-200 hover:bg-slate-50 rounded-xl transition-colors"
+            >
+              <Plus size={13} />
+              Add contact to {company.name}
+            </button>
+          )}
         </div>
       </div>
     </div>

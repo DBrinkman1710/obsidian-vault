@@ -78,6 +78,9 @@ class TenantConfigOut(BaseModel):
     environment: str = "production"
     is_demo: bool = False
     is_active: bool = True
+    # For demo tenants: when the demo expires, so the banner can show a concrete
+    # deadline ("Your demo ends Friday") instead of a vague warning.
+    demo_expires_at: Optional[datetime] = None
     # [TRIAL30] When set, the tenant is on a free trial — the frontend renders
     # the trial countdown banner with an upgrade CTA. ISO datetime string.
     trial_ends_at: Optional[datetime] = None

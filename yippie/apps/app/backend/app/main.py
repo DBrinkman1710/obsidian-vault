@@ -168,6 +168,7 @@ def create_app() -> FastAPI:
             environment=settings.environment,
             is_demo=tenant.is_demo,
             is_active=tenant.is_active,
+            demo_expires_at=tenant.demo_expires_at,
             trial_ends_at=tenant.trial_ends_at,
             plan=tenant.plan,
             allowed_features=allowed_features,

@@ -8,6 +8,8 @@ export interface TenantConfig {
   environment: string
   is_demo: boolean
   is_active: boolean
+  // For demo tenants: ISO datetime the demo expires, for a concrete deadline.
+  demo_expires_at: string | null
   // [TRIAL30] ISO datetime when the free trial ends; null once converted.
   trial_ends_at: string | null
   // Tenant's SaaS plan tier and the features it unlocks. A feature is usable

@@ -4,7 +4,7 @@ import { ErrorBoundary } from './components/ErrorBoundary'
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
 import { ComposeProvider } from './hooks/useCompose'
 import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom'
-import { Toaster } from 'sonner'
+import { Toaster, toast } from 'sonner'
 import { fetchTenantConfig, TenantConfig } from './api/tenant'
 import { api } from './api/client'
 import { useAuth } from './auth/useAuth'
@@ -113,6 +113,34 @@ function TrialBanner({ endsAt }: { endsAt: string }) {
       >
         Upgrade now
       </button>
+    </div>
+  )
+}
+
+function DemoBanner({ expiresAt }: { expiresAt: string | null }) {
+  // Loss aversion: a concrete deadline ("ends Friday") beats a vague "may be
+  // reset". Falls back to the old copy when no expiry is set.
+  if (!expiresAt) {
+    return (
+      <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4">
+        Demo environment. Data may be reset at any time.{' '}
+        <a href="mailto:hello@getyippie.com" className="underline hover:text-amber-100">Contact support</a>
+        {' '}to go live.
+      </div>
+    )
+  }
+  const end = new Date(expiresAt)
+  const daysLeft = Math.ceil((end.getTime() - Date.now()) / 86_400_000)
+  const deadline = daysLeft >= 0 && daysLeft <= 6
+    ? end.toLocaleDateString(undefined, { weekday: 'long' })
+    : end.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+  return (
+    <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4">
+      {daysLeft <= 0
+        ? 'Your demo has ended. Your setup is still here.'
+        : `Your demo ends ${deadline}. Everything you build stays when you go live.`}{' '}
+      <a href="mailto:hello@getyippie.com" className="underline hover:text-amber-100">Contact us</a>
+      {' '}to keep it.
     </div>
   )
 }
@@ -269,6 +297,32 @@ export default function App() {
     }))
   }, [user?.id, config?.tenant_id])
 
+  // Loss aversion: warn once per session when AI scans are nearly used up, so
+  // the tenant can upgrade before auto-drafting silently stops.
+  useEffect(() => {
+    if (!config) return
+    const limit = config.plan_limits?.ai_scans
+    if (!limit) return
+    const pct = Math.round((config.ai_scans_used_this_period / limit) * 100)
+    if (pct < 90) return
+    if (sessionStorage.getItem('ai_usage_warned')) return
+    sessionStorage.setItem('ai_usage_warned', '1')
+    toast.warning(`You’ve used ${Math.min(100, pct)}% of your AI scans this month`, {
+      description: 'When they run out, incoming messages stop getting auto-drafted until next month.',
+      duration: 8000,
+      action: {
+        label: 'Upgrade',
+        onClick: () => { window.location.href = '/settings/subscription' },
+      },
+      // Loss-aversion dismissal: acknowledge the choice rather than a soft
+      // "maybe later" out.
+      cancel: {
+        label: "I'll risk it",
+        onClick: () => {},
+      },
+    })
+  }, [config?.tenant_id, config?.ai_scans_used_this_period])
+
   // Track module navigation so feature adoption is visible per tenant.
   // Emitted as feature_used because the saas dashboard and health score only
   // aggregate feature_used / onboarding_step / error_encountered event types.
@@ -356,13 +410,7 @@ export default function App() {
               </button>
             </div>
           )}
-          {config?.is_demo && (
-            <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4">
-              Demo environment. Data may be reset at any time.{' '}
-              <a href="mailto:hello@getyippie.com" className="underline hover:text-amber-100">Contact support</a>
-              {' '}to go live.
-            </div>
-          )}
+          {config?.is_demo && <DemoBanner expiresAt={config.demo_expires_at} />}
           {config && !config.is_demo && config.trial_ends_at && <TrialBanner endsAt={config.trial_ends_at} />}
           <ErrorBoundary>
           <Suspense fallback={<div className="p-8 text-slate-400">Loading…</div>}>

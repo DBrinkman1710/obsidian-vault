@@ -112,6 +112,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
   const { openCompose } = useCompose()
   const { user } = useAuth()
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [showCreate, setShowCreate] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -372,6 +373,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
         company={peekCompany}
         onClose={() => setPeekCompany(null)}
         onViewContacts={onCompanyClick}
+        onAddContact={id => navigate(`/contacts/new?company=${id}`)}
       />
       <ContextMenu state={ctx.state} onClose={ctx.close} />
     </div>

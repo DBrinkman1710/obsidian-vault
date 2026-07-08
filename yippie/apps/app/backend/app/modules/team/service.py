@@ -130,11 +130,20 @@ async def update_user(
     return user
 
 
-async def update_branding(db: AsyncSession, tenant_id: uuid.UUID, primary_color: str) -> None:
+async def update_branding(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    primary_color: str,
+    logo_url: str | None = None,
+) -> None:
     tenant = await db.get(Tenant, tenant_id)
     if tenant is None:
         raise LookupError("Tenant not found")
     tenant.primary_color = primary_color
+    # None = leave the current logo untouched; an explicit (possibly empty)
+    # string sets or clears it.
+    if logo_url is not None:
+        tenant.logo_url = logo_url.strip() or None
     await db.commit()
 
 

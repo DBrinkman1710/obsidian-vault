@@ -182,6 +182,7 @@ export default function CompaniesPage() {
         company={peekCompany}
         onClose={() => setPeekCompany(null)}
         onViewContacts={id => navigate(`/contacts/list/${id}`)}
+        onAddContact={id => navigate(`/contacts/new?company=${id}`)}
       />
     </div>
   )

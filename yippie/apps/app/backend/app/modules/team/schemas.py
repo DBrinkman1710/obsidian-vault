@@ -43,6 +43,9 @@ class TeamUserUpdate(BaseModel):
 
 class BrandingUpdate(BaseModel):
     primary_color: str
+    # Optional logo URL. Omitted (None) leaves the current logo untouched;
+    # pass an empty string to clear it.
+    logo_url: Optional[str] = None
 
 
 class OrgSettingsUpdate(BaseModel):

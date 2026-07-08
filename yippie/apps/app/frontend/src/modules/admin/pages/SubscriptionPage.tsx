@@ -114,6 +114,13 @@ export default function SubscriptionPage() {
         </div>
       )}
 
+      {aiLimit != null && usagePct >= 90 && (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+          <span className="font-semibold">You’ve used {usagePct}% of your AI scans this month.</span>{' '}
+          When you run out, incoming messages stop getting auto-drafted until next month. Upgrade now to keep the AI working.
+        </div>
+      )}
+
       {/* Current plan card */}
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between gap-4">

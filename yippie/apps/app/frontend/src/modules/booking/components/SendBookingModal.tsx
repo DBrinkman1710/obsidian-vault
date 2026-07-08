@@ -41,6 +41,30 @@ function fmtSlot(start: Date, end: Date): string {
   return `${day} ${t(start)}–${t(end)}`
 }
 
+/** Smart default for "Propose times": the next `count` upcoming working-hour
+ * slots from now, so the sender starts with sensible options already filled in
+ * rather than a blank calendar. ISO strings match the calendar chips exactly so
+ * the prefilled slots render as selected. */
+function computeNextSlots(settings: CalendarSettings, count: number): SlotProposal[] {
+  const now = Date.now()
+  const step = settings.slot_minutes
+  const out: SlotProposal[] = []
+  const cursorDay = new Date()
+  for (let d = 0; d < 21 && out.length < count; d++) {
+    const day = new Date(cursorDay.getFullYear(), cursorDay.getMonth(), cursorDay.getDate() + d)
+    let cursor = new Date(day.getFullYear(), day.getMonth(), day.getDate(), settings.work_start_hour, 0, 0)
+    const end = new Date(day.getFullYear(), day.getMonth(), day.getDate(), settings.work_end_hour, 0, 0)
+    while (cursor.getTime() + step * 60000 <= end.getTime() && out.length < count) {
+      const slotEnd = new Date(cursor.getTime() + step * 60000)
+      if (cursor.getTime() > now) {
+        out.push({ start: cursor.toISOString(), end: slotEnd.toISOString() })
+      }
+      cursor = slotEnd
+    }
+  }
+  return out
+}
+
 export default function SendBookingModal({ contacts = [], bulk = false, open, onClose }: Props) {
   const today = new Date()
   const user = useAuth((s: any) => s.user)
@@ -107,6 +131,22 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
   function shiftMonth(delta: number) {
     const dt = new Date(year, month + delta, 1)
     setYear(dt.getFullYear()); setMonth(dt.getMonth())
+  }
+
+  function enterProposeMode() {
+    setMode('propose')
+    // Prefill the next 3 free slots the first time the user opens propose mode,
+    // and focus the calendar on that day so they show as selected.
+    if (slots.length === 0 && settings) {
+      const suggested = computeNextSlots(settings, 3)
+      if (suggested.length > 0) {
+        setSlots(suggested)
+        const first = new Date(suggested[0].start)
+        setActiveDay(dateKey(first))
+        setYear(first.getFullYear())
+        setMonth(first.getMonth())
+      }
+    }
   }
 
   function toggleSlot(slot: SlotProposal) {
@@ -242,7 +282,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                 Customer picks time
               </button>
               <button
-                onClick={() => setMode('propose')}
+                onClick={enterProposeMode}
                 className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${
                   mode === 'propose'
                     ? 'bg-blue-600 text-white border-blue-600'

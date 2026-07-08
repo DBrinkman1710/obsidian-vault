@@ -59,7 +59,7 @@ async def update_team_user(current_user: AdminUser, db: DB, user_id: uuid.UUID, 
 @router.patch("/branding")
 async def update_branding(current_user: AdminUser, db: DB, data: schemas.BrandingUpdate):
     try:
-        await service.update_branding(db, current_user.tenant_id, data.primary_color)
+        await service.update_branding(db, current_user.tenant_id, data.primary_color, data.logo_url)
     except LookupError as e:
         raise HTTPException(status_code=404, detail=str(e))
     return {"ok": True}

@@ -3,6 +3,7 @@ import SiteNav from "./components/SiteNav";
 import SiteFooter from "./components/SiteFooter";
 import Reveal from "./components/Reveal";
 import ROICalculator from "./components/ROICalculator";
+import PricingTeaser from "./components/PricingTeaser";
 import { PLAN_LIMITS } from "@/lib/config";
 // import HourCounter from "./components/HourCounter";
 import {
@@ -21,7 +22,6 @@ import {
   SalesIcon,
   SaasIcon,
   ArrowRightIcon,
-  CheckIcon,
 } from "./components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
@@ -120,37 +120,6 @@ const steps = [
     n: "03",
     title: "You approve in one click",
     desc: "Edit if you want, then approve. It becomes a real ticket instantly.",
-  },
-];
-
-const plans = [
-  {
-    tier: "Starter",
-    price: `€${PLAN_LIMITS.starter.priceMonthly}`,
-    desc: "For small teams getting started",
-    features: ["Inbox + Contacts", `${PLAN_LIMITS.starter.users} users`, "Unlimited contacts", "2,000 AI scans/mo", "Add-ons à la carte"],
-    featured: false,
-  },
-  {
-    tier: "Growth",
-    price: `€${PLAN_LIMITS.growth.priceMonthly}`,
-    desc: "For growing teams handling real volume",
-    features: ["Inbox + Contacts", `${PLAN_LIMITS.growth.users} users`, "Unlimited contacts", "5,000 AI scans/mo", "Add-ons à la carte"],
-    featured: false,
-  },
-  {
-    tier: "Pro",
-    price: `€${PLAN_LIMITS.pro.priceMonthly}`,
-    desc: "For established support operations",
-    features: ["Inbox + Contacts", `${PLAN_LIMITS.pro.users} users`, "Unlimited contacts", "10,000 AI scans/mo", "Add-ons à la carte"],
-    featured: true,
-  },
-  {
-    tier: "Enterprise",
-    price: "Custom",
-    desc: "Dedicated growth partnership",
-    features: ["All modules included", "Unlimited users + contacts", "Unlimited AI scans", "Dedicated support + SLA"],
-    featured: false,
   },
 ];
 
@@ -403,31 +372,7 @@ export default function HomePage() {
           <a href="/custom?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
         </div>
 
-        <div className={styles.pricingGrid}>
-          {plans.map((plan, i) => (
-            <Reveal
-              key={plan.tier}
-              className={`${styles.priceCard} ${plan.featured ? styles.priceFeatured : ""}`}
-              delay={i * 60}
-            >
-              {plan.featured && <span className={styles.priceBadge}>Most popular</span>}
-              <p className={styles.priceTier}>{plan.tier}</p>
-              <p className={styles.priceAmount}>
-                {plan.price}
-                {plan.price !== "Custom" && <sub>/mo</sub>}
-              </p>
-              <p className={styles.priceDesc}>{plan.desc}</p>
-              <ul className={styles.priceFeatures}>
-                {plan.features.map((f) => (
-                  <li key={f}><CheckIcon size={15} className={styles.priceCheck} />{f}</li>
-                ))}
-              </ul>
-              <a href="/pricing" className={`${styles.priceBtn} ${plan.featured ? styles.priceBtnFeatured : ""}`}>
-                {plan.tier === "Enterprise" ? "Contact us" : "View plan"}
-              </a>
-            </Reveal>
-          ))}
-        </div>
+        <PricingTeaser />
         <div className={styles.pricingMore}>
           <a href="/pricing" className={styles.textLink}>
             Compare all plans &amp; add-ons <ArrowRightIcon size={15} />

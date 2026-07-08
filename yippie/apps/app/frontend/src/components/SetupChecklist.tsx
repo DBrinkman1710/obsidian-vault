@@ -6,6 +6,9 @@ import { api } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { useTenantConfig } from '../App'
 import YipTrainModal from './YipTrainModal'
+import MakeItYoursModal from './MakeItYoursModal'
+
+const DEFAULT_BRAND_COLOR = '#5BA4F5'
 
 interface Gate {
   id: string
@@ -26,8 +29,15 @@ export default function SetupChecklist() {
   const prevTourActive = useRef(tourActive)
   const [showYipTrain, setShowYipTrain] = useState(false)
   const [yipTrainDone, setYipTrainDone] = useState(false)
+  const [showMakeItYours, setShowMakeItYours] = useState(false)
 
   const isAdmin = user?.role === 'admin'
+
+  // Branding is "made yours" once the colour differs from the platform default
+  // or a logo has been set.
+  const brandingCustomised =
+    (!!config?.branding?.primary_color && config.branding.primary_color.toLowerCase() !== DEFAULT_BRAND_COLOR.toLowerCase())
+    || !!config?.branding?.logo_url
 
   const teamQuery = useQuery({
     queryKey: ['setup-team-count'],
@@ -44,6 +54,14 @@ export default function SetupChecklist() {
   })
 
   const gates: Gate[] = [
+    {
+      // Endowed-progress gate: always complete so the checklist never opens at
+      // 0%. Users are far likelier to finish a bar that already shows momentum.
+      id: 'account',
+      label: 'Account created',
+      detail: '',
+      done: true,
+    },
     {
       id: 'profile',
       label: 'Set up your profile',
@@ -65,6 +83,13 @@ export default function SetupChecklist() {
       detail: 'Help Yip learn your business so AI replies fit your brand.',
       action: () => setShowYipTrain(true),
       done: yipTrainDone || !!(config?.ai_profile),
+    }] : []),
+    ...(isAdmin ? [{
+      id: 'make-it-yours',
+      label: 'Make it yours',
+      detail: 'Add your brand colour and logo so the workspace feels like home.',
+      action: () => setShowMakeItYours(true),
+      done: brandingCustomised,
     }] : []),
     ...(isAdmin ? [{
       id: 'team',
@@ -185,6 +210,15 @@ export default function SetupChecklist() {
           setYipTrainDone(true)
         }}
         onDismiss={() => setShowYipTrain(false)}
+      />
+    )}
+
+    {showMakeItYours && (
+      <MakeItYoursModal
+        initialColor={config?.branding?.primary_color}
+        initialLogoUrl={config?.branding?.logo_url}
+        onComplete={() => setShowMakeItYours(false)}
+        onDismiss={() => setShowMakeItYours(false)}
       />
     )}
     </>

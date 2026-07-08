@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { useNavigate, useSearchParams, Link } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { api } from '../../../api/client'
@@ -20,8 +20,11 @@ const EMPTY: FormState = {
 export default function ContactNew() {
   const navigate = useNavigate()
   const qc = useQueryClient()
+  const [searchParams] = useSearchParams()
   const [form, setForm] = useState<FormState>(EMPTY)
-  const [companyId, setCompanyId] = useState<string | null>(null)
+  // Smart default: when opened from a company context (?company=<id>), pre-fill
+  // the company so the user doesn't re-pick what they already knew.
+  const [companyId, setCompanyId] = useState<string | null>(searchParams.get('company'))
   const [labelIds, setLabelIds] = useState<string[]>([])
   const [errors, setErrors] = useState<Partial<FormState>>({})
 

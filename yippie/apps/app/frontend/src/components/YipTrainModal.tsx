@@ -21,6 +21,16 @@ const QUESTIONS = (tenantName: string): string[] => [
   "Any product names, abbreviations, or terms I should know? You can skip this by typing 'skip'.",
 ]
 
+// Sensible defaults per question so users can skip decision fatigue and still
+// end up with a usable profile. Index matches QUESTIONS above.
+const DEFAULTS = [
+  'A small business',
+  'A mix of consumers and businesses',
+  'Friendly',
+  'English',
+  'skip',
+]
+
 export default function YipTrainModal({ onComplete, onDismiss, tenantName }: Props) {
   const [messages, setMessages] = useState<TrainMessage[]>([])
   const [input, setInput] = useState('')
@@ -47,8 +57,8 @@ export default function YipTrainModal({ onComplete, onDismiss, tenantName }: Pro
     if (!loading && !done) inputRef.current?.focus()
   }, [messages, loading, done])
 
-  async function send() {
-    const text = input.trim()
+  async function send(rawText?: string) {
+    const text = (rawText ?? input).trim()
     if (!text || loading || done) return
 
     const userMsg: TrainMessage = { role: 'user', content: text }
@@ -156,7 +166,15 @@ export default function YipTrainModal({ onComplete, onDismiss, tenantName }: Pro
                 className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50"
               />
               <button
-                onClick={send}
+                onClick={() => send(DEFAULTS[questionIndex])}
+                disabled={loading}
+                className="shrink-0 px-2.5 h-9 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors"
+                title="Use a sensible default and continue"
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => send()}
                 disabled={loading || !input.trim()}
                 className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl bg-yippie text-white hover:opacity-90 disabled:opacity-40 transition-opacity"
               >

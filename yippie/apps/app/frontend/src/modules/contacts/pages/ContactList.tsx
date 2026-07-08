@@ -52,6 +52,9 @@ export default function ContactList() {
   const [search, setSearch] = useState('')
   const [labelFilter, setLabelFilter] = useState<string | null>(null)
   const [companyFilter, setCompanyFilter] = useState<string | null>(companyId ?? null)
+  // Smart default: carry the active company into the new-contact form so it's
+  // pre-filled when the user is already looking at one company's contacts.
+  const newContactHref = companyFilter ? `/contacts/new?company=${companyFilter}` : '/contacts/new'
   const [showImport, setShowImport] = useState(false)
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [importError, setImportError] = useState<string | null>(null)
@@ -160,7 +163,7 @@ export default function ContactList() {
               </button>
             )}
             <Link
-              to="/contacts/new"
+              to={newContactHref}
               className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               <Plus size={15} strokeWidth={2.5} />
@@ -349,7 +352,7 @@ export default function ContactList() {
             <User size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-sm text-slate-400 font-medium mb-4">No contacts yet</p>
             <Link
-              to="/contacts/new"
+              to={newContactHref}
               className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               <Plus size={14} strokeWidth={2.5} />
