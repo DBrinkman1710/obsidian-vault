@@ -776,6 +776,16 @@ export default function FlowsPage() {
       toast.success('Recipe installed — finish setting it up, then enable it')
     },
   })
+  const newCanvasMut = useMutation({
+    mutationFn: () => api.post('/flows', {
+      name: 'Untitled flow',
+      trigger_type: meta!.triggers[0].key,
+      actions: [],
+      enabled: false,
+    }).then((r: any) => r.data),
+    onSuccess: (flow: Flow) => { invalidate(); navigate(`/flows/${flow.id}`) },
+    onError: (err: any) => toast.error(apiError(err)),
+  })
 
   function openEdit(flow: Flow) {
     // [FLOW4] the modal only edits linear flows — branched ones live on the canvas
@@ -796,12 +806,21 @@ export default function FlowsPage() {
           <p className="text-sm text-slate-500">Automations that connect your modules: when something happens, Yippie acts.</p>
         </div>
         {isAdmin && (
-          <button
-            onClick={openNew}
-            className="ml-auto flex items-center gap-1.5 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-lg hover:opacity-90"
-          >
-            <Plus size={14} /> New flow
-          </button>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => newCanvasMut.mutate()}
+              disabled={!meta || newCanvasMut.isPending}
+              className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-50 disabled:opacity-50"
+            >
+              <Workflow size={14} /> New on canvas
+            </button>
+            <button
+              onClick={openNew}
+              className="flex items-center gap-1.5 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-lg hover:opacity-90"
+            >
+              <Plus size={14} /> New flow
+            </button>
+          </div>
         )}
       </div>
 
