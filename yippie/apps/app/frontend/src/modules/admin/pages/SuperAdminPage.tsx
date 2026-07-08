@@ -1448,12 +1448,22 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
   const [error, setError] = useState('')
 
   const mutation = useMutation({
-    mutationFn: () =>
-      Promise.all(tenants.map(t => api.post(`/admin/tenants/${t.id}/delete`, { current_password: password }))),
+    mutationFn: async () => {
+      const results = await Promise.allSettled(
+        tenants.map(t => api.post(`/admin/tenants/${t.id}/delete`, { current_password: password }))
+      )
+      const failures = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
+      if (failures.length > 0) {
+        const first = (failures[0].reason as any)?.response?.data?.detail
+        const msg = typeof first === 'string' ? first : 'Delete failed'
+        throw new Error(failures.length === tenants.length
+          ? msg
+          : `${tenants.length - failures.length} of ${tenants.length} deleted. Errors: ${msg}`)
+      }
+    },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
     onError: (err: any) => {
-      const detail = err.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Failed to delete. Check your password.')
+      setError(err.message ?? 'Failed to delete. Check your password.')
     },
   })
 
