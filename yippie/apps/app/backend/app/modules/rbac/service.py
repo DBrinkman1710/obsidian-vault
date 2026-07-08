@@ -44,6 +44,11 @@ async def resolve_module_access(db: AsyncSession, user: User, module_key: str) -
     if user.role in (UserRole.admin, UserRole.superadmin):
         return AccessLevel.full
 
+    # Contract workers are restricted from every module — they can only reach the
+    # availability screen (mounted outside the module gate in main.py).
+    if user.role == UserRole.worker:
+        return AccessLevel.restricted
+
     tid = user.tenant_id
 
     # 1. User-level override

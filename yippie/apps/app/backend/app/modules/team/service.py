@@ -11,7 +11,7 @@ from app.core.models import Tenant, User, UserRole
 from app.core.plans import limits_for_plan
 from app.modules.departments.models import Department, DepartmentMember
 
-INVITABLE_ROLES = {UserRole.admin, UserRole.agent, UserRole.viewer}
+INVITABLE_ROLES = {UserRole.admin, UserRole.agent, UserRole.viewer, UserRole.worker}
 
 
 async def list_users(db: AsyncSession, tenant_id: uuid.UUID) -> list[User]:

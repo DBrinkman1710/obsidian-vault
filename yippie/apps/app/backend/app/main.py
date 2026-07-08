@@ -43,6 +43,7 @@ from app.modules.email_accounts.router import (
     router as email_accounts_router,
     callback_router as email_accounts_callback_router,
 )
+from app.modules.booking.worker_router import router as worker_router
 
 
 configure_logging()
@@ -131,6 +132,10 @@ def create_app() -> FastAPI:
     # comes from the signed state token, not the session cookie)
     app.include_router(email_accounts_router, prefix="/api/v1")
     app.include_router(email_accounts_callback_router, prefix="/api/v1")
+
+    # Worker self-service availability — mounted outside the module gate loop so
+    # restricted contract-worker accounts can reach their own availability.
+    app.include_router(worker_router, prefix="/api/v1")
 
     @app.api_route("/api/v1/health", methods=["GET", "HEAD"], tags=["health"], include_in_schema=False)
     async def health(db: Annotated[AsyncSession, Depends(get_db)]):

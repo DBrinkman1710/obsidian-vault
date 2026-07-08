@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { UserPlus, X, Plus, Pencil, Trash2, Building, ChevronDown, ChevronRight, Shield, UserMinus } from 'lucide-react'
 import { api } from '../../../api/client'
@@ -7,6 +7,8 @@ import { TemplatePicker } from '../../inbox/components/TemplatePicker'
 import { ModulePermissionsGrid } from '../../../components/ModulePermissionsGrid'
 import { EmailAccountsCard } from '../../inbox/components/EmailAccountsCard'
 import { useTenantConfig } from '../../../App'
+import { toast } from 'sonner'
+import { WeekAvailabilityEditor, type SlotEntry } from '../../booking/components/WeekAvailabilityEditor'
 
 interface TeamUser {
   id: string
@@ -26,6 +28,7 @@ const ROLE_PILL: Record<string, string> = {
   admin: 'bg-blue-100 text-blue-700',
   agent: 'bg-emerald-100 text-emerald-700',
   viewer: 'bg-slate-100 text-slate-500',
+  worker: 'bg-amber-100 text-amber-700',
 }
 
 const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
@@ -367,6 +370,7 @@ function InviteModal({ onClose }: { onClose: () => void }) {
               <option value="agent">Agent: handles tickets and inbox</option>
               <option value="admin">Admin: can manage settings and team</option>
               <option value="viewer">Viewer: read-only</option>
+              <option value="worker">Worker: only sets their availability</option>
             </select>
           </div>
           {availableRoles.length > 0 && (
@@ -537,6 +541,7 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
                 <option value="agent">Agent: handles tickets and inbox</option>
                 <option value="admin">Admin: can manage settings and team</option>
                 <option value="viewer">Viewer: read-only</option>
+                <option value="worker">Worker: only sets their availability</option>
               </select>
             </div>
             {allDepts.length > 0 && (
@@ -870,6 +875,7 @@ export default function TeamSettingsPage() {
                                   <option value="agent">agent</option>
                                   <option value="admin">admin</option>
                                   <option value="viewer">viewer</option>
+                                  <option value="worker">worker</option>
                                 </select>
                               )}
                             </td>
@@ -926,6 +932,13 @@ export default function TeamSettingsPage() {
                 <EmailAccountsCard level="tenant" />
               </div>
             )}
+
+            {/* Contract workers — availability + booking assignment mode */}
+            {(me?.role === 'admin' || me?.role === 'superadmin') && (
+              <div className="mt-8">
+                <WorkersCard />
+              </div>
+            )}
           </>
         )}
 
@@ -934,6 +947,188 @@ export default function TeamSettingsPage() {
 
       {/* Departments panel */}
       <DepartmentsPanel />
+    </div>
+  )
+}
+
+
+// --------------------------------------------------------------------------- //
+// Contract workers — availability + booking assignment mode
+// --------------------------------------------------------------------------- //
+interface WorkerSummary {
+  user_id: string
+  full_name: string | null
+  email: string | null
+  is_active_user: boolean
+  availability_active: boolean
+  slot_count: number
+  timezone: string | null
+}
+
+interface BookingSettings {
+  assignment_mode: 'pooled' | 'auto_assign'
+}
+
+function WorkersCard() {
+  const qc = useQueryClient()
+  const [editing, setEditing] = useState<WorkerSummary | null>(null)
+
+  const { data: workers = [] } = useQuery<WorkerSummary[]>({
+    queryKey: ['booking-workers'],
+    queryFn: () => api.get('/booking/workers').then((r: any) => r.data),
+  })
+  const { data: settings } = useQuery<BookingSettings>({
+    queryKey: ['booking-settings'],
+    queryFn: () => api.get('/booking/settings').then((r: any) => r.data),
+  })
+
+  const modeMut = useMutation({
+    mutationFn: (assignment_mode: string) => api.patch('/booking/settings', { assignment_mode }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking-settings'] }); toast.success('Saved') },
+    onError: () => toast.error('Could not save'),
+  })
+
+  const mode = settings?.assignment_mode ?? 'pooled'
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+      <h3 className="text-sm font-bold text-slate-900">Contract workers</h3>
+      <p className="text-xs text-slate-500 mt-0.5">
+        Workers set their own availability; the times they open become bookable slots for customers.
+      </p>
+
+      {/* Assignment mode */}
+      <div className="mt-4">
+        <label className={labelCls}>When a customer books a slot</label>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {([
+            ['pooled', 'Pooled capacity', 'Slot is free if any worker is free; decide who goes later.'],
+            ['auto_assign', 'Auto assign a worker', 'Lock one available worker to the job at booking time.'],
+          ] as const).map(([val, title, desc]) => (
+            <button
+              key={val}
+              onClick={() => modeMut.mutate(val)}
+              disabled={modeMut.isPending}
+              className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${
+                mode === val ? 'border-yippie bg-brand-50' : 'border-slate-200 hover:border-slate-300'
+              }`}
+            >
+              <div className="text-sm font-semibold text-slate-900">{title}</div>
+              <div className="text-xs text-slate-500 mt-0.5">{desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Worker list */}
+      <div className="mt-5">
+        {workers.length === 0 ? (
+          <p className="text-xs text-slate-400">
+            No workers yet. Invite a team member with the <span className="font-semibold">Worker</span> role above,
+            then set their availability here.
+          </p>
+        ) : (
+          <div className="divide-y divide-slate-100 border border-slate-200 rounded-xl overflow-hidden">
+            {workers.map(w => (
+              <div key={w.user_id} className="flex items-center justify-between px-4 py-3">
+                <div className="min-w-0">
+                  <div className="text-sm font-semibold text-slate-900 truncate">
+                    {w.full_name || w.email}
+                    {!w.availability_active && (
+                      <span className="ml-2 text-xs font-normal text-amber-600">(paused)</span>
+                    )}
+                  </div>
+                  <div className="text-xs text-slate-400">
+                    {w.slot_count} weekly slot{w.slot_count === 1 ? '' : 's'}
+                    {!w.is_active_user && ' · deactivated'}
+                  </div>
+                </div>
+                <button
+                  onClick={() => setEditing(w)}
+                  className="shrink-0 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                >
+                  Edit availability
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {editing && (
+        <WorkerAvailabilityModal worker={editing} onClose={() => setEditing(null)} />
+      )}
+    </div>
+  )
+}
+
+function WorkerAvailabilityModal({ worker, onClose }: { worker: WorkerSummary; onClose: () => void }) {
+  const qc = useQueryClient()
+  const { data } = useQuery<{ weekly_slots: Record<string, SlotEntry[]> | null; timezone: string | null; is_active: boolean }>({
+    queryKey: ['worker-availability', worker.user_id],
+    queryFn: () => api.get(`/booking/workers/${worker.user_id}/availability`).then((r: any) => r.data),
+  })
+
+  const [slots, setSlots] = useState<Record<string, SlotEntry[]>>({})
+  const [isActive, setIsActive] = useState(true)
+
+  useEffect(() => {
+    if (!data) return
+    setSlots((data.weekly_slots as Record<string, SlotEntry[]>) ?? {})
+    setIsActive(data.is_active)
+  }, [data])
+
+  const saveMut = useMutation({
+    mutationFn: () =>
+      api.put(`/booking/workers/${worker.user_id}/availability`, {
+        weekly_slots: slots,
+        is_active: isActive,
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['booking-workers'] })
+      qc.invalidateQueries({ queryKey: ['worker-availability', worker.user_id] })
+      toast.success('Availability saved')
+      onClose()
+    },
+    onError: () => toast.error('Could not save'),
+  })
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-center justify-center p-4" onClick={onClose}>
+      <div
+        className="bg-white rounded-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto p-5"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-900">{worker.full_name || worker.email}</h2>
+          <button onClick={onClose} className="p-1 text-slate-400 hover:text-slate-700"><X size={18} /></button>
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 mb-4">
+          <span className="text-sm font-semibold text-slate-900">Available for bookings</span>
+          <button
+            role="switch"
+            aria-checked={isActive}
+            onClick={() => setIsActive(v => !v)}
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${isActive ? 'bg-yippie' : 'bg-slate-200'}`}
+          >
+            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${isActive ? 'translate-x-5' : 'translate-x-0.5'}`} />
+          </button>
+        </div>
+
+        <WeekAvailabilityEditor slots={slots} onChange={setSlots} />
+
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">Cancel</button>
+          <button
+            onClick={() => saveMut.mutate()}
+            disabled={saveMut.isPending}
+            className="px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {saveMut.isPending ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }

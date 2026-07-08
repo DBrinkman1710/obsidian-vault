@@ -28,6 +28,12 @@ class CalendarEvent(Base):
         UUID(as_uuid=True), ForeignKey("tickets.id", ondelete="SET NULL"), nullable=True
     )
     created_by: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    # Set when a booking is attached to a specific contract worker (auto_assign
+    # mode). NULL for ordinary events and for pooled bookings (assignment decided
+    # later by a dispatcher).
+    assigned_worker_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     calendar_type: Mapped[str] = mapped_column(String(10), nullable=False, server_default="shared")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 

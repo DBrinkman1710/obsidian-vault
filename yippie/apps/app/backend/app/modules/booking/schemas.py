@@ -27,6 +27,7 @@ class CalendarSettingsOut(BaseModel):
     cancel_edit_hours_before: int = 24
     min_notice_days: int = 0
     timezone: str = "Europe/Amsterdam"
+    assignment_mode: Literal["pooled", "auto_assign"] = "pooled"
 
     model_config = {"from_attributes": True}
 
@@ -43,6 +44,7 @@ class CalendarSettingsUpdate(BaseModel):
     cancel_edit_hours_before: Optional[int] = Field(default=None, ge=1, le=720)
     min_notice_days: Optional[int] = Field(default=None, ge=0, le=30)
     timezone: Optional[str] = None
+    assignment_mode: Optional[Literal["pooled", "auto_assign"]] = None
 
 
 class SlotProposal(BaseModel):
@@ -123,3 +125,32 @@ class RescheduleRequest(BaseModel):
 class BookingConfirm(BaseModel):
     slot_start: datetime
     slot_end: datetime
+
+
+# --------------------------------------------------------------------------- #
+# Worker availability
+# --------------------------------------------------------------------------- #
+class WorkerAvailabilityOut(BaseModel):
+    # weekly_slots is keyed "0"–"6" (Mon–Sun), each value a list of WeeklySlotEntry.
+    weekly_slots: Optional[dict[str, list[WeeklySlotEntry]]] = None
+    timezone: Optional[str] = None
+    is_active: bool = True
+
+    model_config = {"from_attributes": True}
+
+
+class WorkerAvailabilityUpdate(BaseModel):
+    weekly_slots: Optional[dict[str, list[WeeklySlotEntry]]] = None
+    timezone: Optional[str] = None
+    is_active: Optional[bool] = None
+
+
+class WorkerSummary(BaseModel):
+    """Admin-facing overview row for one worker on the Teams page."""
+    user_id: uuid.UUID
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    is_active_user: bool = True
+    availability_active: bool = False
+    slot_count: int = 0
+    timezone: Optional[str] = None

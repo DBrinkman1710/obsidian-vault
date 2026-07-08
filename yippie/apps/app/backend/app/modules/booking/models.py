@@ -3,7 +3,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -45,6 +45,72 @@ class CalendarSettings(Base):
     timezone: Mapped[str] = mapped_column(
         String(64), nullable=False, default="Europe/Amsterdam", server_default="Europe/Amsterdam"
     )
+    # How a worker is attached when a customer books a slot.
+    #   'pooled'      — slot is bookable if any worker is free; who goes is decided later.
+    #   'auto_assign' — booking locks one available worker and consumes their availability.
+    # Plain VARCHAR (validated at the app layer) so new modes never need ALTER TYPE.
+    assignment_mode: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="pooled", server_default="pooled"
+    )
+
+
+class WorkerAvailability(Base):
+    """Per worker recurring availability. The union of all active workers'
+    weekly_slots drives the bookable slots customers see. Kept separate from
+    CalendarEvent (which get_available_slots treats as *busy* time) so declaring
+    availability never collides with the busy-time overlap checks.
+
+    Future skill matching hangs off user_id: a worker_service_types(worker_user_id,
+    service_type_id) join would let get_available_slots filter workers by the
+    service a customer requests. Not built yet — the user_id key makes it additive.
+    """
+
+    __tablename__ = "worker_availability"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # Same shape as CalendarSettings.weekly_slots: keyed "0"–"6" (Mon–Sun), each
+    # value a list of {time, end_time, capacity} dicts. capacity is normally 1 per
+    # worker but kept so a worker can self-declare higher capacity.
+    weekly_slots: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    # Falls back to the tenant CalendarSettings.timezone when null.
+    timezone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    is_active: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=True, server_default="true"
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (UniqueConstraint("tenant_id", "user_id"),)
+
+
+class WorkerAvailabilityException(Base):
+    """One off date overrides for a worker. An empty `slots` list means the
+    worker is off that whole day; a populated list replaces that weekday's
+    recurring entries for that date.
+    """
+
+    __tablename__ = "worker_availability_exceptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    slots: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("tenant_id", "user_id", "date"),)
 
 
 class BookingToken(Base):

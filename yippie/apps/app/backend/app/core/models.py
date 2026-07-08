@@ -18,6 +18,9 @@ class UserRole(str, enum.Enum):
     admin = "admin"
     agent = "agent"
     viewer = "viewer"
+    # Contract worker (installation firms etc.): invited user who can only reach
+    # the availability screen — restricted from every module (see rbac.service).
+    worker = "worker"
 
 
 class AccessLevel(str, enum.Enum):

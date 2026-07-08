@@ -54,6 +54,7 @@ const BookingPage = lazy(() => import('./pages/BookingPage'))
 const SignContractPage = lazy(() => import('./pages/SignContractPage'))
 const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
 const MeetPage = lazy(() => import('./pages/MeetPage'))
+const WorkerAvailabilityPage = lazy(() => import('./modules/booking/pages/WorkerAvailabilityPage'))
 const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage'))
 const MarketingPage = lazy(() => import('./modules/marketing/pages/MarketingPage'))
 const SalesPage     = lazy(() => import('./modules/sales/pages/SalesPage'))
@@ -245,6 +246,22 @@ export default function App() {
             <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
             <Route path="/book/:token" element={<BookingPage />} />
             <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
+    )
+  }
+
+  // Contract workers get a stripped-down standalone shell — no sidebar, no
+  // modules, just their availability screen. This role branch is the single
+  // enforcement point for "workers see only /availability".
+  if (user.role === 'worker') {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/availability" element={<WorkerAvailabilityPage />} />
+            <Route path="*" element={<Navigate to="/availability" replace />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

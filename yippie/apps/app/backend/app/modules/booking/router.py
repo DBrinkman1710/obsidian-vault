@@ -14,6 +14,9 @@ from app.modules.booking.schemas import (
     BookingTokenOut,
     CalendarSettingsOut,
     CalendarSettingsUpdate,
+    WorkerAvailabilityOut,
+    WorkerAvailabilityUpdate,
+    WorkerSummary,
 )
 
 from app.modules.external_calendar.router import router as _ext_cal_router
@@ -55,3 +58,27 @@ async def revoke_token(token_id: uuid.UUID, current_user: CurrentUser, db: DB):
     ok = await service.revoke_token(db, current_user.tenant_id, token_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Booking token not found")
+
+
+# --------------------------------------------------------------------------- #
+# Worker availability — admin management (Teams page)
+# --------------------------------------------------------------------------- #
+@router.get("/workers", response_model=list[WorkerSummary])
+async def list_workers(current_user: AdminUser, db: DB):
+    return await service.list_workers(db, current_user.tenant_id)
+
+
+@router.get("/workers/{user_id}/availability", response_model=WorkerAvailabilityOut)
+async def get_worker_availability(user_id: uuid.UUID, current_user: AdminUser, db: DB):
+    return await service.get_or_create_worker_availability(
+        db, current_user.tenant_id, user_id
+    )
+
+
+@router.put("/workers/{user_id}/availability", response_model=WorkerAvailabilityOut)
+async def update_worker_availability(
+    user_id: uuid.UUID, body: WorkerAvailabilityUpdate, current_user: AdminUser, db: DB
+):
+    return await service.update_worker_availability(
+        db, current_user.tenant_id, user_id, body
+    )

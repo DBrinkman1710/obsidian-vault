@@ -776,18 +776,39 @@ async def meet_book(
     if slot_end <= slot_start:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid time slot.")
 
-    conflict = await db.scalar(
-        select(CalendarEvent.id).where(
-            CalendarEvent.tenant_id == tenant.id,
-            CalendarEvent.start_at < slot_end,
-            CalendarEvent.end_at > slot_start,
+    settings = await booking_service.get_or_create_settings(db, tenant.id)
+    use_workers = await booking_service._has_active_workers(db, tenant.id)
+    assigned_worker_id = None
+    assigned_worker = None
+
+    if use_workers:
+        # Serialise concurrent bookings of the same slot so worker capacity can't
+        # be oversubscribed (this direct flow previously had no lock at all).
+        await db.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:tenant), hashtext(:slot))"),
+            {"tenant": str(tenant.id), "slot": slot_start.isoformat()},
         )
-    )
-    if conflict is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="That time is no longer available. Please pick another slot.",
+        try:
+            _used, assigned_worker_id, assigned_worker = (
+                await booking_service.resolve_booking_assignment(
+                    db, tenant.id, settings, slot_start, slot_end
+                )
+            )
+        except ValueError as e:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    else:
+        conflict = await db.scalar(
+            select(CalendarEvent.id).where(
+                CalendarEvent.tenant_id == tenant.id,
+                CalendarEvent.start_at < slot_end,
+                CalendarEvent.end_at > slot_start,
+            )
         )
+        if conflict is not None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="That time is no longer available. Please pick another slot.",
+            )
 
     contact = await db.scalar(
         select(Contact).where(
@@ -825,11 +846,11 @@ async def meet_book(
         end_at=slot_end,
         contact_id=contact.id,
         created_by=admin.id,
+        assigned_worker_id=assigned_worker_id,
         description=body.message or None,
     )
     db.add(event)
 
-    settings = await booking_service.get_or_create_settings(db, tenant.id)
     if settings.post_booking_stage_id is not None:
         await _assign_stage(db, tenant.id, contact.id, settings.post_booking_stage_id)
 
@@ -843,6 +864,10 @@ async def meet_book(
         asyncio.create_task(
             booking_service._notify_agent_confirmed(event, contact, admin)
         )
+        if assigned_worker is not None and assigned_worker.id != admin.id:
+            asyncio.create_task(
+                booking_service._notify_agent_confirmed(event, contact, assigned_worker)
+            )
     except Exception:
         pass
 
