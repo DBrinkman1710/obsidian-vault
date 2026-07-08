@@ -54,7 +54,10 @@ const BookingPage = lazy(() => import('./pages/BookingPage'))
 const SignContractPage = lazy(() => import('./pages/SignContractPage'))
 const BookingManagePage = lazy(() => import('./pages/BookingManagePage'))
 const MeetPage = lazy(() => import('./pages/MeetPage'))
+const RequestPage = lazy(() => import('./pages/RequestPage'))
 const WorkerAvailabilityPage = lazy(() => import('./modules/booking/pages/WorkerAvailabilityPage'))
+const WorkerRequestsPage = lazy(() => import('./modules/booking/pages/WorkerRequestsPage'))
+const WorkerHome = lazy(() => import('./modules/booking/pages/WorkerHome'))
 const UnsubscribePage = lazy(() => import('./pages/UnsubscribePage'))
 const MarketingPage = lazy(() => import('./modules/marketing/pages/MarketingPage'))
 const SalesPage     = lazy(() => import('./modules/sales/pages/SalesPage'))
@@ -139,6 +142,19 @@ export default function App() {
         <Suspense fallback={null}>
           <Routes>
             <Route path="/meet/:slug" element={<MeetPage />} />
+          </Routes>
+        </Suspense>
+      </ErrorBoundary>
+    )
+  }
+
+  // Public "request a time" page — standalone, no shell or auth (reverse booking).
+  if (window.location.pathname.startsWith('/request/')) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={null}>
+          <Routes>
+            <Route path="/request/:slug" element={<RequestPage />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>
@@ -253,15 +269,17 @@ export default function App() {
   }
 
   // Contract workers get a stripped-down standalone shell — no sidebar, no
-  // modules, just their availability screen. This role branch is the single
-  // enforcement point for "workers see only /availability".
+  // modules. This role branch is the single enforcement point for what a worker
+  // can see. WorkerHome picks the availability screen or the open-requests
+  // screen based on the tenant's booking direction.
   if (user.role === 'worker') {
     return (
       <ErrorBoundary>
         <Suspense fallback={null}>
           <Routes>
             <Route path="/availability" element={<WorkerAvailabilityPage />} />
-            <Route path="*" element={<Navigate to="/availability" replace />} />
+            <Route path="/requests" element={<WorkerRequestsPage />} />
+            <Route path="*" element={<WorkerHome />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>

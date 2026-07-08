@@ -17,6 +17,7 @@ from app.core.email_html import render_email_html
 from app.core.mailer import is_valid_email, send_email
 from app.core.models import Tenant, User, UserRole
 from app.modules.booking.models import (
+    BookingRequest,
     BookingToken,
     CalendarSettings,
     WorkerAvailability,
@@ -633,6 +634,217 @@ async def resolve_booking_assignment(
     if mode == "auto_assign":
         return (True, free_users[0].id, free_users[0])
     return (True, None, None)
+
+
+# --------------------------------------------------------------------------- #
+# Customer requested bookings (reverse direction)
+# --------------------------------------------------------------------------- #
+async def create_request(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    requested_slots: list[dict],
+    message: Optional[str],
+) -> BookingRequest:
+    req = BookingRequest(
+        tenant_id=tenant_id,
+        contact_id=contact_id,
+        requested_slots=requested_slots,
+        message=message,
+        status="open",
+    )
+    db.add(req)
+    await db.commit()
+    await db.refresh(req)
+    return req
+
+
+async def _worker_busy_at(
+    db: AsyncSession, tenant_id: uuid.UUID, worker_id: uuid.UUID,
+    slot_start: datetime, slot_end: datetime,
+) -> bool:
+    """True if the worker has an assigned event or external calendar event
+    overlapping the slot."""
+    ev = await db.scalar(
+        select(CalendarEvent.id).where(
+            CalendarEvent.tenant_id == tenant_id,
+            CalendarEvent.assigned_worker_id == worker_id,
+            CalendarEvent.start_at < slot_end,
+            CalendarEvent.end_at > slot_start,
+        )
+    )
+    if ev is not None:
+        return True
+    from app.modules.external_calendar.models import ExternalCalendarEvent
+    ext = await db.scalar(
+        select(ExternalCalendarEvent.id).where(
+            ExternalCalendarEvent.tenant_id == tenant_id,
+            ExternalCalendarEvent.user_id == worker_id,
+            ExternalCalendarEvent.start_at < slot_end,
+            ExternalCalendarEvent.end_at > slot_start,
+        )
+    )
+    return ext is not None
+
+
+async def list_open_requests(db: AsyncSession, tenant_id: uuid.UUID) -> list[BookingRequest]:
+    result = await db.execute(
+        select(BookingRequest)
+        .where(BookingRequest.tenant_id == tenant_id, BookingRequest.status == "open")
+        .order_by(BookingRequest.created_at)
+    )
+    return list(result.scalars().all())
+
+
+async def list_requests_admin(db: AsyncSession, tenant_id: uuid.UUID) -> list[dict]:
+    """Open + recently fulfilled requests with contact and worker names."""
+    result = await db.execute(
+        select(BookingRequest)
+        .where(BookingRequest.tenant_id == tenant_id)
+        .order_by(BookingRequest.created_at.desc())
+        .limit(200)
+    )
+    reqs = list(result.scalars().all())
+    contact_ids = {r.contact_id for r in reqs}
+    worker_ids = {r.assigned_worker_id for r in reqs if r.assigned_worker_id}
+    contact_names: dict[uuid.UUID, str] = {}
+    worker_names: dict[uuid.UUID, str] = {}
+    if contact_ids:
+        rows = await db.execute(select(Contact.id, Contact.full_name).where(Contact.id.in_(contact_ids)))
+        contact_names = {r.id: r.full_name for r in rows}
+    if worker_ids:
+        rows = await db.execute(select(User.id, User.full_name).where(User.id.in_(worker_ids)))
+        worker_names = {r.id: r.full_name for r in rows}
+    out = []
+    for r in reqs:
+        out.append({
+            "id": r.id,
+            "contact_id": r.contact_id,
+            "contact_name": contact_names.get(r.contact_id),
+            "requested_slots": r.requested_slots,
+            "message": r.message,
+            "status": r.status,
+            "assigned_worker_id": r.assigned_worker_id,
+            "assigned_worker_name": worker_names.get(r.assigned_worker_id) if r.assigned_worker_id else None,
+            "event_id": r.event_id,
+            "chosen_slot_start": r.chosen_slot_start,
+            "chosen_slot_end": r.chosen_slot_end,
+            "created_at": r.created_at,
+        })
+    return out
+
+
+async def fulfil_request(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    request_id: uuid.UUID,
+    worker_user_id: uuid.UUID,
+    slot_start: datetime,
+    slot_end: datetime,
+    actor_id: uuid.UUID,
+) -> CalendarEvent:
+    """Shared core for claim (worker) and assign (dispatcher): turn an open
+    request into a confirmed CalendarEvent assigned to the worker.
+
+    Raises ValueError when the request is already taken, the slot is invalid,
+    or the worker is busy.
+    """
+    if slot_start.tzinfo is None:
+        slot_start = slot_start.replace(tzinfo=timezone.utc)
+    if slot_end.tzinfo is None:
+        slot_end = slot_end.replace(tzinfo=timezone.utc)
+    if slot_end <= slot_start:
+        raise ValueError("Invalid time slot.")
+
+    # Serialise fulfilment of this request so two claims can't both win.
+    await db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:t), hashtext(:r))"),
+        {"t": str(tenant_id), "r": str(request_id)},
+    )
+
+    req = await db.scalar(
+        select(BookingRequest).where(
+            BookingRequest.id == request_id, BookingRequest.tenant_id == tenant_id
+        )
+    )
+    if req is None:
+        raise ValueError("This request no longer exists.")
+    if req.status != "open":
+        raise ValueError("This request has already been taken.")
+
+    if await _worker_busy_at(db, tenant_id, worker_user_id, slot_start, slot_end):
+        raise ValueError("That worker is not free at that time. Please pick another slot.")
+
+    contact = await db.get(Contact, req.contact_id)
+    if contact is None:
+        raise ValueError("Contact not found.")
+
+    event = CalendarEvent(
+        tenant_id=tenant_id,
+        title=f"Meeting with {contact.full_name}",
+        start_at=slot_start,
+        end_at=slot_end,
+        contact_id=req.contact_id,
+        created_by=actor_id,
+        assigned_worker_id=worker_user_id,
+    )
+    db.add(event)
+    await db.flush()
+
+    req.status = "fulfilled"
+    req.assigned_worker_id = worker_user_id
+    req.fulfilled_by = actor_id
+    req.event_id = event.id
+    req.chosen_slot_start = slot_start
+    req.chosen_slot_end = slot_end
+
+    settings = await get_or_create_settings(db, tenant_id)
+    if settings.post_booking_stage_id is not None:
+        from app.modules.pipeline.service import _assign_stage
+        await _assign_stage(db, tenant_id, req.contact_id, settings.post_booking_stage_id)
+
+    await db.commit()
+    await db.refresh(event)
+
+    tenant = await db.get(Tenant, tenant_id)
+    worker = await db.get(User, worker_user_id)
+    asyncio.create_task(_notify_customer_confirmed(event, contact, tenant, None))
+    if worker is not None:
+        asyncio.create_task(_notify_agent_confirmed(event, contact, worker))
+    return event
+
+
+async def claim_request(
+    db: AsyncSession, tenant_id: uuid.UUID, request_id: uuid.UUID,
+    worker_user_id: uuid.UUID, slot_start: datetime, slot_end: datetime,
+) -> CalendarEvent:
+    return await fulfil_request(
+        db, tenant_id, request_id, worker_user_id, slot_start, slot_end, actor_id=worker_user_id
+    )
+
+
+async def assign_request(
+    db: AsyncSession, tenant_id: uuid.UUID, request_id: uuid.UUID,
+    worker_user_id: uuid.UUID, slot_start: datetime, slot_end: datetime, actor_id: uuid.UUID,
+) -> CalendarEvent:
+    return await fulfil_request(
+        db, tenant_id, request_id, worker_user_id, slot_start, slot_end, actor_id=actor_id
+    )
+
+
+async def decline_request(
+    db: AsyncSession, tenant_id: uuid.UUID, request_id: uuid.UUID
+) -> bool:
+    req = await db.scalar(
+        select(BookingRequest).where(
+            BookingRequest.id == request_id, BookingRequest.tenant_id == tenant_id
+        )
+    )
+    if req is None:
+        return False
+    req.status = "cancelled"
+    await db.commit()
+    return True
 
 
 # --------------------------------------------------------------------------- #

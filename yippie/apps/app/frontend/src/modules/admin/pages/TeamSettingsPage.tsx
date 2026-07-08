@@ -967,6 +967,33 @@ interface WorkerSummary {
 
 interface BookingSettings {
   assignment_mode: 'pooled' | 'auto_assign'
+  booking_direction: 'availability' | 'requests'
+  request_fulfillment: 'dispatcher' | 'self_claim'
+}
+
+function ModeToggle({ value, options, onPick, disabled }: {
+  value: string
+  options: readonly (readonly [string, string, string])[]
+  onPick: (v: string) => void
+  disabled?: boolean
+}) {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+      {options.map(([val, title, desc]) => (
+        <button
+          key={val}
+          onClick={() => onPick(val)}
+          disabled={disabled}
+          className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${
+            value === val ? 'border-yippie bg-brand-50' : 'border-slate-200 hover:border-slate-300'
+          }`}
+        >
+          <div className="text-sm font-semibold text-slate-900">{title}</div>
+          <div className="text-xs text-slate-500 mt-0.5">{desc}</div>
+        </button>
+      ))}
+    </div>
+  )
 }
 
 function WorkersCard() {
@@ -982,43 +1009,73 @@ function WorkersCard() {
     queryFn: () => api.get('/booking/settings').then((r: any) => r.data),
   })
 
-  const modeMut = useMutation({
-    mutationFn: (assignment_mode: string) => api.patch('/booking/settings', { assignment_mode }),
+  const patchMut = useMutation({
+    mutationFn: (patch: Partial<BookingSettings>) => api.patch('/booking/settings', patch),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['booking-settings'] }); toast.success('Saved') },
     onError: () => toast.error('Could not save'),
   })
 
   const mode = settings?.assignment_mode ?? 'pooled'
+  const direction = settings?.booking_direction ?? 'availability'
+  const fulfillment = settings?.request_fulfillment ?? 'dispatcher'
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-5">
       <h3 className="text-sm font-bold text-slate-900">Contract workers</h3>
       <p className="text-xs text-slate-500 mt-0.5">
-        Workers set their own availability; the times they open become bookable slots for customers.
+        {direction === 'availability'
+          ? 'Workers set their own availability; the times they open become bookable slots for customers.'
+          : 'Customers request a time; a worker or dispatcher turns each request into an appointment.'}
       </p>
 
-      {/* Assignment mode */}
+      {/* Booking direction */}
       <div className="mt-4">
-        <label className={labelCls}>When a customer books a slot</label>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          {([
-            ['pooled', 'Pooled capacity', 'Slot is free if any worker is free; decide who goes later.'],
-            ['auto_assign', 'Auto assign a worker', 'Lock one available worker to the job at booking time.'],
-          ] as const).map(([val, title, desc]) => (
-            <button
-              key={val}
-              onClick={() => modeMut.mutate(val)}
-              disabled={modeMut.isPending}
-              className={`text-left rounded-xl border px-3 py-2.5 transition-colors ${
-                mode === val ? 'border-yippie bg-brand-50' : 'border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              <div className="text-sm font-semibold text-slate-900">{title}</div>
-              <div className="text-xs text-slate-500 mt-0.5">{desc}</div>
-            </button>
-          ))}
-        </div>
+        <label className={labelCls}>How booking works</label>
+        <ModeToggle
+          value={direction}
+          disabled={patchMut.isPending}
+          onPick={v => patchMut.mutate({ booking_direction: v as any })}
+          options={[
+            ['availability', 'Workers post availability', 'Customers book into the hours workers open.'],
+            ['requests', 'Customers request a time', 'Customers ask for a time; a worker or dispatcher confirms it.'],
+          ] as const}
+        />
       </div>
+
+      {/* Availability-mode sub-setting */}
+      {direction === 'availability' && (
+        <div className="mt-4">
+          <label className={labelCls}>When a customer books a slot</label>
+          <ModeToggle
+            value={mode}
+            disabled={patchMut.isPending}
+            onPick={v => patchMut.mutate({ assignment_mode: v as any })}
+            options={[
+              ['pooled', 'Pooled capacity', 'Slot is free if any worker is free; decide who goes later.'],
+              ['auto_assign', 'Auto assign a worker', 'Lock one available worker to the job at booking time.'],
+            ] as const}
+          />
+        </div>
+      )}
+
+      {/* Requests-mode sub-setting */}
+      {direction === 'requests' && (
+        <div className="mt-4">
+          <label className={labelCls}>Who fulfils a request</label>
+          <ModeToggle
+            value={fulfillment}
+            disabled={patchMut.isPending}
+            onPick={v => patchMut.mutate({ request_fulfillment: v as any })}
+            options={[
+              ['dispatcher', 'Dispatcher assigns', 'An admin assigns each request from the Calendar page.'],
+              ['self_claim', 'Workers self-claim', 'Workers claim open requests themselves; first wins.'],
+            ] as const}
+          />
+          <p className="text-xs text-slate-400 mt-2">
+            Your public request link: <span className="font-mono">/request/&lt;your-slug&gt;</span>
+          </p>
+        </div>
+      )}
 
       {/* Worker list */}
       <div className="mt-5">

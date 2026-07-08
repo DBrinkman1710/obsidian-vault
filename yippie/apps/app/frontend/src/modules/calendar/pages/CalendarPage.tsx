@@ -922,6 +922,12 @@ function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () 
     queryFn: () => api.get('/booking/tokens').then((r: any) => r.data),
   })
 
+  const { data: bSettings } = useQuery<{ booking_direction?: string }>({
+    queryKey: ['booking-settings'],
+    queryFn: () => api.get('/booking/settings').then((r: any) => r.data),
+  })
+  const requestsMode = bSettings?.booking_direction === 'requests'
+
   const revokeMut = useMutation({
     mutationFn: (id: string) => api.delete(`/booking/tokens/${id}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['booking-tokens'] }),
@@ -984,6 +990,8 @@ function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () 
           ))}
         </div>
 
+        {requestsMode && <RequestsSection />}
+
         <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
           {filtered.length === 0 && (
             <p className="px-5 py-8 text-sm text-slate-400 text-center">No {tabLabel(tab).toLowerCase()} booking links.</p>
@@ -1045,6 +1053,98 @@ function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () 
             </div>
           ))}
         </div>
+      </div>
+    </div>
+  )
+}
+
+interface OpenRequest {
+  id: string
+  contact_name: string | null
+  requested_slots: { start: string; end: string }[] | null
+  message: string | null
+  status: string
+  assigned_worker_name: string | null
+  chosen_slot_start: string | null
+}
+interface WorkerLite { user_id: string; full_name: string | null; email: string | null }
+
+function RequestsSection() {
+  const qc = useQueryClient()
+  const { data: requests = [] } = useQuery<OpenRequest[]>({
+    queryKey: ['booking-requests'],
+    queryFn: () => api.get('/booking/requests').then((r: any) => r.data),
+    refetchInterval: 20000,
+  })
+  const { data: workers = [] } = useQuery<WorkerLite[]>({
+    queryKey: ['booking-workers'],
+    queryFn: () => api.get('/booking/workers').then((r: any) => r.data),
+  })
+
+  const open = requests.filter(r => r.status === 'open')
+
+  return (
+    <div className="border-b border-slate-100 bg-slate-50/50">
+      <div className="px-5 pt-3 pb-1 flex items-center justify-between">
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Open requests ({open.length})</p>
+      </div>
+      {open.length === 0 ? (
+        <p className="px-5 pb-4 pt-1 text-xs text-slate-400">No open requests right now.</p>
+      ) : (
+        <div className="pb-2">
+          {open.map(r => <RequestRow key={r.id} req={r} workers={workers} onDone={() => {
+            qc.invalidateQueries({ queryKey: ['booking-requests'] })
+            qc.invalidateQueries({ queryKey: ['calendar-items'] })
+          }} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function RequestRow({ req, workers, onDone }: { req: OpenRequest; workers: WorkerLite[]; onDone: () => void }) {
+  const [workerId, setWorkerId] = useState('')
+  const assignMut = useMutation({
+    mutationFn: (slot: { start: string; end: string }) =>
+      api.post(`/booking/requests/${req.id}/assign`, {
+        worker_user_id: workerId, slot_start: slot.start, slot_end: slot.end,
+      }),
+    onSuccess: onDone,
+    onError: (e: any) => alert(e?.response?.data?.detail ?? 'Could not assign'),
+  })
+  const declineMut = useMutation({
+    mutationFn: () => api.post(`/booking/requests/${req.id}/decline`),
+    onSuccess: onDone,
+  })
+
+  return (
+    <div className="px-5 py-3">
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold text-slate-800 truncate">{req.contact_name ?? 'Unknown'}</p>
+        <button onClick={() => { if (confirm('Decline this request?')) declineMut.mutate() }}
+          className="shrink-0 text-xs font-semibold text-red-500 hover:text-red-600">Decline</button>
+      </div>
+      {req.message && <p className="text-xs text-slate-500 mt-0.5">{req.message}</p>}
+      <select
+        value={workerId}
+        onChange={e => setWorkerId(e.target.value)}
+        className="mt-2 w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yippie/30"
+      >
+        <option value="">Assign to worker…</option>
+        {workers.map(w => <option key={w.user_id} value={w.user_id}>{w.full_name || w.email}</option>)}
+      </select>
+      <div className="mt-2 flex flex-col gap-1.5">
+        {(req.requested_slots ?? []).map((slot, idx) => (
+          <button
+            key={idx}
+            disabled={!workerId || assignMut.isPending}
+            onClick={() => assignMut.mutate(slot)}
+            className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-white border border-slate-200 rounded-lg hover:border-yippie hover:bg-brand-50 transition-colors text-left disabled:opacity-40"
+          >
+            <span className="text-xs font-semibold text-slate-700">{fmtSlotShort(slot.start, slot.end)}</span>
+            <span className="text-[10px] font-bold text-yippie shrink-0">Assign</span>
+          </button>
+        ))}
       </div>
     </div>
   )

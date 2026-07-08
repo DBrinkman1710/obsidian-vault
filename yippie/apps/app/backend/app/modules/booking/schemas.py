@@ -28,6 +28,8 @@ class CalendarSettingsOut(BaseModel):
     min_notice_days: int = 0
     timezone: str = "Europe/Amsterdam"
     assignment_mode: Literal["pooled", "auto_assign"] = "pooled"
+    booking_direction: Literal["availability", "requests"] = "availability"
+    request_fulfillment: Literal["dispatcher", "self_claim"] = "dispatcher"
 
     model_config = {"from_attributes": True}
 
@@ -45,6 +47,8 @@ class CalendarSettingsUpdate(BaseModel):
     min_notice_days: Optional[int] = Field(default=None, ge=0, le=30)
     timezone: Optional[str] = None
     assignment_mode: Optional[Literal["pooled", "auto_assign"]] = None
+    booking_direction: Optional[Literal["availability", "requests"]] = None
+    request_fulfillment: Optional[Literal["dispatcher", "self_claim"]] = None
 
 
 class SlotProposal(BaseModel):
@@ -154,3 +158,60 @@ class WorkerSummary(BaseModel):
     availability_active: bool = False
     slot_count: int = 0
     timezone: Optional[str] = None
+
+
+# --------------------------------------------------------------------------- #
+# Customer requested bookings (reverse direction)
+# --------------------------------------------------------------------------- #
+class PublicRequestCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=200)
+    email: str = Field(min_length=3, max_length=255)
+    message: Optional[str] = Field(default=None, max_length=2000)
+    requested_slots: list[SlotProposal] = Field(min_length=1, max_length=5)
+
+
+class PublicRequestOut(BaseModel):
+    """What the public /request/{slug} page needs to render its form."""
+    tenant_name: str
+    min_notice_days: int = 0
+    booking_window_days: int = 60
+
+
+class BookingRequestOut(BaseModel):
+    id: uuid.UUID
+    contact_id: uuid.UUID
+    contact_name: Optional[str] = None
+    requested_slots: Optional[list[SlotProposal]] = None
+    message: Optional[str] = None
+    status: str
+    assigned_worker_id: Optional[uuid.UUID] = None
+    assigned_worker_name: Optional[str] = None
+    event_id: Optional[uuid.UUID] = None
+    chosen_slot_start: Optional[datetime] = None
+    chosen_slot_end: Optional[datetime] = None
+    created_at: datetime
+
+
+class WorkerRequestOut(BaseModel):
+    """Open request as shown to a worker for self-claim (minimal customer detail)."""
+    id: uuid.UUID
+    contact_first_name: Optional[str] = None
+    requested_slots: list[SlotProposal] = []
+    message: Optional[str] = None
+    created_at: datetime
+
+
+class ClaimRequest(BaseModel):
+    slot_start: datetime
+    slot_end: datetime
+
+
+class AssignRequest(BaseModel):
+    worker_user_id: uuid.UUID
+    slot_start: datetime
+    slot_end: datetime
+
+
+class WorkerContextOut(BaseModel):
+    booking_direction: str
+    request_fulfillment: str

@@ -17,7 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config import get_settings
 from app.core.rate_limit import get_client_ip, rl_hit, rl_is_blocked
 from app.database import get_db, set_tenant_context
-from app.modules.booking.schemas import BookingConfirm, CounterProposeRequest, ManageBookingOut, RescheduleRequest
+from app.modules.booking.schemas import BookingConfirm, CounterProposeRequest, ManageBookingOut, PublicRequestCreate, RescheduleRequest
 from app.modules.contracts.schemas import PublicContractOut, PublicSignRequest
 
 # Public, unauthenticated endpoints — consumed by the marketing site (getyippie.com).
@@ -731,6 +731,11 @@ async def meet_get(
 
     await set_tenant_context(db, str(tenant.id))
     settings = await booking_service.get_or_create_settings(db, tenant.id)
+    if getattr(settings, "booking_direction", "availability") != "availability":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This organisation isn't offering slot booking right now.",
+        )
     days_ahead = max(getattr(settings, "booking_window_days", 60) or 60, 14)
     slots = await booking_service.get_available_slots(db, tenant.id, settings, days_ahead)
     return {
@@ -777,6 +782,11 @@ async def meet_book(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid time slot.")
 
     settings = await booking_service.get_or_create_settings(db, tenant.id)
+    if getattr(settings, "booking_direction", "availability") != "availability":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This organisation isn't offering slot booking right now.",
+        )
     use_workers = await booking_service._has_active_workers(db, tenant.id)
     assigned_worker_id = None
     assigned_worker = None
@@ -885,6 +895,108 @@ async def meet_book(
         "start_at": event.start_at.isoformat(),
         "end_at": event.end_at.isoformat(),
     }
+
+
+# --------------------------------------------------------------------------- #
+# Customer requested bookings — public /request/{slug} (reverse direction)
+# --------------------------------------------------------------------------- #
+@router.get("/request/{slug}")
+async def request_get(
+    slug: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Info for the public 'request a time' page — no auth. Only served when the
+    tenant is in the 'requests' booking direction."""
+    from app.core.models import Tenant
+    from app.modules.booking import service as booking_service
+
+    tenant = await db.scalar(
+        select(Tenant).where(Tenant.slug == slug, Tenant.is_active == True)  # noqa: E712
+    )
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+
+    await set_tenant_context(db, str(tenant.id))
+    settings = await booking_service.get_or_create_settings(db, tenant.id)
+    if getattr(settings, "booking_direction", "availability") != "requests":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This organisation isn't accepting appointment requests right now.",
+        )
+    return {
+        "tenant_name": tenant.name,
+        "min_notice_days": getattr(settings, "min_notice_days", 0),
+        "booking_window_days": getattr(settings, "booking_window_days", 60),
+    }
+
+
+@router.post("/request/{slug}", status_code=201)
+async def request_create(
+    slug: str,
+    body: PublicRequestCreate,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Create a customer appointment request — no auth, no pre-existing token."""
+    import asyncio
+
+    from app.core.mailer import notify_owner
+    from app.core.models import Tenant
+    from app.modules.booking import service as booking_service
+    from app.modules.contacts.models import Contact
+
+    ip = get_client_ip(request)
+    await _public_rate_limit(ip, "request_create", 10)
+
+    tenant = await db.scalar(
+        select(Tenant).where(Tenant.slug == slug, Tenant.is_active == True)  # noqa: E712
+    )
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+
+    await set_tenant_context(db, str(tenant.id))
+    settings = await booking_service.get_or_create_settings(db, tenant.id)
+    if getattr(settings, "booking_direction", "availability") != "requests":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="This organisation isn't accepting appointment requests right now.",
+        )
+
+    email = body.email.lower().strip()
+    slots = []
+    for s in body.requested_slots:
+        st = s.start.replace(tzinfo=timezone.utc) if s.start.tzinfo is None else s.start
+        en = s.end.replace(tzinfo=timezone.utc) if s.end.tzinfo is None else s.end
+        if en <= st:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid time slot.")
+        slots.append({"start": st.isoformat(), "end": en.isoformat()})
+
+    contact = await db.scalar(
+        select(Contact).where(
+            Contact.tenant_id == tenant.id,
+            func.lower(Contact.email) == email,
+            Contact.deleted_at == None,  # noqa: E711
+        )
+    )
+    if contact is None:
+        contact = Contact(tenant_id=tenant.id, full_name=body.name.strip(), email=email)
+        db.add(contact)
+        await db.flush()
+
+    req = await booking_service.create_request(
+        db, tenant.id, contact.id, slots, body.message or None
+    )
+
+    first = slots[0]
+    asyncio.create_task(notify_owner(
+        subject=f"{contact.full_name} requested an appointment",
+        body=(
+            f"{contact.full_name} ({contact.email or 'no email'}) requested an appointment.\n\n"
+            f"Preferred: {first['start']}\n"
+            f"{('Note: ' + body.message) if body.message else ''}"
+        ),
+    ))
+    return {"request_id": str(req.id)}
 
 
 class AIDemoRequest(BaseModel):

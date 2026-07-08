@@ -52,6 +52,57 @@ class CalendarSettings(Base):
     assignment_mode: Mapped[str] = mapped_column(
         String(20), nullable=False, default="pooled", server_default="pooled"
     )
+    # Which direction the booking flow runs (mutually exclusive for now):
+    #   'availability' — workers post hours, customers book into them (default).
+    #   'requests'     — customers request a time, a worker/dispatcher fulfils it.
+    booking_direction: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="availability", server_default="availability"
+    )
+    # In 'requests' mode, who turns an open request into an appointment:
+    #   'dispatcher' — an admin assigns each request to a worker (default).
+    #   'self_claim' — workers claim open requests themselves (first wins).
+    request_fulfillment: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="dispatcher", server_default="dispatcher"
+    )
+
+
+class BookingRequest(Base):
+    """A customer-initiated appointment request (reverse of availability booking).
+
+    The customer proposes one or more times; a worker (self_claim) or an admin
+    (dispatcher) turns it into a confirmed CalendarEvent. Kept separate from
+    BookingToken, which is agent-first and single-use.
+    """
+
+    __tablename__ = "booking_requests"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    contact_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    # List of {start, end} ISO strings the customer proposed.
+    requested_slots: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 'open' | 'fulfilled' | 'cancelled'
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="open", server_default="open")
+    assigned_worker_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    fulfilled_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    event_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("calendar_events.id", ondelete="SET NULL"), nullable=True
+    )
+    chosen_slot_start: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    chosen_slot_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class WorkerAvailability(Base):

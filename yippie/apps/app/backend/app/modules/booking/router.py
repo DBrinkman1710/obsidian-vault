@@ -10,6 +10,8 @@ from app.auth.dependencies import AdminUser, CurrentUser
 from app.database import get_db
 from app.modules.booking import service
 from app.modules.booking.schemas import (
+    AssignRequest,
+    BookingRequestOut,
     BookingTokenCreate,
     BookingTokenOut,
     CalendarSettingsOut,
@@ -82,3 +84,30 @@ async def update_worker_availability(
     return await service.update_worker_availability(
         db, current_user.tenant_id, user_id, body
     )
+
+
+# --------------------------------------------------------------------------- #
+# Customer requested bookings — admin dispatcher (Calendar page Requests tab)
+# --------------------------------------------------------------------------- #
+@router.get("/requests", response_model=list[BookingRequestOut])
+async def list_requests(current_user: AdminUser, db: DB):
+    return await service.list_requests_admin(db, current_user.tenant_id)
+
+
+@router.post("/requests/{request_id}/assign", status_code=201)
+async def assign_request(request_id: uuid.UUID, body: AssignRequest, current_user: AdminUser, db: DB):
+    try:
+        event = await service.assign_request(
+            db, current_user.tenant_id, request_id, body.worker_user_id,
+            body.slot_start, body.slot_end, actor_id=current_user.id,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    return {"event_id": str(event.id)}
+
+
+@router.post("/requests/{request_id}/decline", status_code=status.HTTP_204_NO_CONTENT)
+async def decline_request(request_id: uuid.UUID, current_user: AdminUser, db: DB):
+    ok = await service.decline_request(db, current_user.tenant_id, request_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Request not found")
