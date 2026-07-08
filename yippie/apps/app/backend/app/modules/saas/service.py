@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.flow_events import emit_flow_event
 from app.modules.saas.models import SaasEvent, SaasHealth
 from app.modules.saas.schemas import HealthSummaryOut, SaasHealthOut
 
@@ -127,6 +128,7 @@ async def compute_health_for_contact(
         )
     )
     row = existing.scalar_one_or_none()
+    old_score = row.score if row else None
     if row is None:
         row = SaasHealth(tenant_id=tenant_id, contact_id=contact_id)
         db.add(row)
@@ -135,6 +137,19 @@ async def compute_health_for_contact(
     row.breadth_score = round(breadth, 2)
     row.error_penalty = round(penalty, 2)
     row.last_computed_at = now
+
+    # Emit flow event if score dropped
+    if old_score is not None and score < old_score:
+        drop = old_score - score
+        await emit_flow_event(
+            db,
+            tenant_id,
+            "saas_health_dropped",
+            entity_type="contact",
+            entity_id=contact_id,
+            contact_id=contact_id,
+            payload={"score": score, "previous_score": old_score, "drop": drop},
+        )
 
     return score
 

@@ -83,6 +83,15 @@ TRIGGER_META: dict[str, dict] = {
             {"key": "subject", "label": "Subject", "type": "text"},
         ],
     },
+    "saas_health_dropped": {
+        "label": "SaaS health score dropped",
+        "module": "saas",
+        "fields": [
+            {"key": "score", "label": "Current score", "type": "number"},
+            {"key": "previous_score", "label": "Previous score", "type": "number"},
+            {"key": "drop", "label": "Points dropped", "type": "number"},
+        ],
+    },
 }
 
 
