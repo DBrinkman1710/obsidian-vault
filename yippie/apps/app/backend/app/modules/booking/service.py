@@ -626,14 +626,12 @@ async def resolve_booking_assignment(
     free_users, pooled_consumed = resolved
     mode = getattr(settings, "assignment_mode", "pooled") or "pooled"
     unavailable = "That time is no longer available. Please pick another slot."
-    if mode == "auto_assign":
-        if not free_users:
-            raise ValueError(unavailable)
-        worker = free_users[0]
-        return (True, worker.id, worker)
-    # pooled: slot stays open while free workers outnumber existing pooled bookings
+    # In both modes the slot is bookable only while free workers outnumber the
+    # bookings already consuming it (pooled bookings aren't tied to a worker).
     if len(free_users) - pooled_consumed <= 0:
         raise ValueError(unavailable)
+    if mode == "auto_assign":
+        return (True, free_users[0].id, free_users[0])
     return (True, None, None)
 
 
