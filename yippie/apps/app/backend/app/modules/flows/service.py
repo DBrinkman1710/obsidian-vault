@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from typing import Optional
 
+from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -12,12 +13,30 @@ from app.modules.flows.actions import ACTION_META, ACTION_MODULES
 from app.modules.flows.conditions import TRIGGER_META
 from app.modules.flows.models import Flow, FlowRun
 from app.modules.flows.recipes import RECIPES, RECIPES_BY_KEY
-from app.modules.flows.schemas import FlowCreate, FlowUpdate
+from app.modules.flows.schemas import FlowCreate, FlowUpdate, ScheduleConfigSpec
 
 
 class FlowValidationError(ValueError):
     """Raised when a flow can't be enabled (incomplete config, dangling ids,
     module not available). Draft (disabled) flows may be incomplete."""
+
+
+def _normalize_trigger_config(trigger_type: str, raw: Optional[dict], *, enabled: bool) -> dict:
+    """The stored trigger_config: {} for every trigger except `schedule`, whose
+    config is validated (and its weekday normalized) through ScheduleConfigSpec.
+    A disabled schedule flow may still be saved with an empty config (draft);
+    enabling one requires a valid schedule."""
+    if trigger_type != "schedule":
+        return {}
+    raw = raw or {}
+    if not enabled and not raw:
+        return {}
+    try:
+        return ScheduleConfigSpec(**raw).model_dump()
+    except ValidationError:
+        raise FlowValidationError(
+            "This schedule needs a valid time (HH:MM); a weekly schedule also needs a weekday"
+        )
 
 
 async def list_flows(db: AsyncSession, tenant_id: uuid.UUID) -> list[Flow]:
@@ -108,6 +127,9 @@ async def create_flow(
 ) -> Flow:
     conditions = [[c.model_dump() for c in group] for group in data.conditions]
     actions = [a.model_dump() for a in data.actions]
+    trigger_config = _normalize_trigger_config(
+        data.trigger_type, data.trigger_config, enabled=data.enabled
+    )
     if data.enabled:
         await _validate_enabled(db, tenant, data.trigger_type, actions)
     flow = Flow(
@@ -115,7 +137,7 @@ async def create_flow(
         name=data.name,
         enabled=data.enabled,
         trigger_type=data.trigger_type,
-        trigger_config=data.trigger_config,
+        trigger_config=trigger_config,
         conditions=conditions,
         actions=actions,
         created_by=created_by,
@@ -140,6 +162,12 @@ async def update_flow(db: AsyncSession, tenant: Tenant, flow: Flow, data: FlowUp
         flow.trigger_config = data.trigger_config
     if "enabled" in provided:
         flow.enabled = data.enabled
+    # Re-normalize against the FINAL trigger_type/config/enabled (any of which
+    # this update may have changed): non-schedule triggers drop config, an
+    # enabled schedule flow must carry a valid one.
+    flow.trigger_config = _normalize_trigger_config(
+        flow.trigger_type, flow.trigger_config, enabled=flow.enabled
+    )
     if flow.enabled:
         await _validate_enabled(db, tenant, flow.trigger_type, flow.actions)
     await db.commit()

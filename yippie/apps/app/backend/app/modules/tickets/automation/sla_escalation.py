@@ -44,6 +44,53 @@ async def escalate_overdue_tickets():
             await db.commit()
 
 
+# [FLOW2C] emit a ticket_sla_due_soon flow event once per ticket when its SLA
+# lands within the next hour. sla_flow_emitted_at is the one-per-ticket dedup
+# (own column, mirrors [YIP5]'s sla_nudged_at). Fixed 60 min window; flows that
+# want a tighter cutoff add a `due_in_minutes lte N` condition.
+FLOW_SLA_WINDOW_MIN = 60
+
+
+@scheduler.scheduled_job("interval", minutes=5, id="flow_sla_emit", max_instances=1, coalesce=True)
+async def emit_sla_due_soon_flow_events():
+    if await skip_if_locked("sla_flow_emit", ttl=270):
+        return
+    from app.core.flow_events import emit_flow_event
+
+    now = datetime.now(timezone.utc)
+    async with db_session() as db:
+        result = await db.execute(
+            select(Ticket).where(
+                Ticket.sla_due_at > now,
+                Ticket.sla_due_at <= now + timedelta(minutes=FLOW_SLA_WINDOW_MIN),
+                Ticket.status.in_((TicketStatus.open, TicketStatus.in_progress)),
+                Ticket.deleted_at.is_(None),
+                Ticket.sla_flow_emitted_at.is_(None),
+            )
+        )
+        tickets = result.scalars().all()
+        for t in tickets:
+            due_in = max(1, int((t.sla_due_at - now).total_seconds() // 60))
+            await emit_flow_event(
+                db, t.tenant_id, "ticket_sla_due_soon",
+                entity_type="ticket",
+                entity_id=t.id,
+                contact_id=t.contact_id,
+                payload={
+                    "subject": t.subject,
+                    "priority": t.priority.value,
+                    "status": t.status.value,
+                    "due_in_minutes": due_in,
+                    "assigned_to": str(t.assigned_to) if t.assigned_to else None,
+                    "sla_due_at": t.sla_due_at.isoformat(),
+                },
+            )
+            t.sla_flow_emitted_at = now
+        if tickets:
+            await db.commit()
+            log.info("[flow_sla_emit] emitted %d SLA due soon event(s)", len(tickets))
+
+
 @scheduler.scheduled_job("interval", hours=1, id="auto_close", max_instances=1, coalesce=True)
 async def auto_close_stale_tickets():
     if await skip_if_locked("auto_close", ttl=3300):

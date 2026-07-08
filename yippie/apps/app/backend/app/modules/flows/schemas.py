@@ -16,6 +16,8 @@ TriggerType = Literal[
     "contact_created",
     "pipeline_stage_changed",
     "draft_approved",
+    "schedule",
+    "ticket_sla_due_soon",
 ]
 
 ActionType = Literal[
@@ -65,6 +67,23 @@ def _normalize_condition_groups(raw: Any) -> list:
             if isinstance(condition, list):
                 raise ValueError("Conditions may only be nested two levels deep")
     return groups
+
+
+class ScheduleConfigSpec(BaseModel):
+    """trigger_config for the `schedule` trigger. daily needs only a time;
+    weekly also needs a weekday (0=Mon … 6=Sun). Validated on write; the engine's
+    schedule tick reads it back through steps.schedule_is_due."""
+    frequency: Literal["daily", "weekly"]
+    time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
+    weekday: Optional[int] = Field(default=None, ge=0, le=6)
+
+    @model_validator(mode="after")
+    def _weekly_needs_weekday(self) -> "ScheduleConfigSpec":
+        if self.frequency == "weekly" and self.weekday is None:
+            raise ValueError("A weekly schedule needs a weekday")
+        if self.frequency == "daily":
+            self.weekday = None  # a daily schedule ignores any weekday
+        return self
 
 
 class ConditionSpec(BaseModel):

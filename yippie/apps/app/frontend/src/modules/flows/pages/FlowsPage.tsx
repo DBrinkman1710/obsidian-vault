@@ -75,6 +75,7 @@ const RUN_BADGE: Record<string, string> = {
 }
 
 const WAIT_UNITS = ['minutes', 'hours', 'days']
+const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
 
 function apiError(err: any): string {
   const detail = err?.response?.data?.detail
@@ -202,6 +203,11 @@ function BuilderModal({
   const [name, setName] = useState(flow?.name ?? '')
   const [triggerType, setTriggerType] = useState(flow?.trigger_type ?? meta.triggers[0]?.key ?? '')
   const [groups, setGroups] = useState<Condition[][]>(toGroups(flow?.conditions ?? []))
+  const [triggerConfig, setTriggerConfig] = useState<Record<string, any>>(
+    flow?.trigger_config && Object.keys(flow.trigger_config).length
+      ? flow.trigger_config
+      : { frequency: 'daily', time: '09:00' }
+  )
   const [actions, setActions] = useState<Action[]>(flow?.actions ?? [])
   const [enabled, setEnabled] = useState(flow?.enabled ?? true)
   const [error, setError] = useState('')
@@ -231,6 +237,7 @@ function BuilderModal({
     const body = {
       name: name.trim(),
       trigger_type: triggerType,
+      trigger_config: triggerType === 'schedule' ? triggerConfig : {},
       conditions,
       actions,
       enabled,
@@ -337,6 +344,39 @@ function BuilderModal({
             >
               {meta.triggers.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
             </select>
+            {triggerType === 'schedule' && (
+              <div className="flex items-center gap-2 flex-wrap pt-1">
+                <select
+                  value={triggerConfig.frequency ?? 'daily'}
+                  onChange={e => {
+                    const frequency = e.target.value
+                    setTriggerConfig(c => frequency === 'weekly'
+                      ? { ...c, frequency, weekday: c.weekday ?? 0 }
+                      : { frequency, time: c.time ?? '09:00' })
+                  }}
+                  className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                >
+                  <option value="daily">Every day</option>
+                  <option value="weekly">Every week</option>
+                </select>
+                {triggerConfig.frequency === 'weekly' && (
+                  <select
+                    value={String(triggerConfig.weekday ?? 0)}
+                    onChange={e => setTriggerConfig(c => ({ ...c, weekday: Number(e.target.value) }))}
+                    className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  >
+                    {WEEKDAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                  </select>
+                )}
+                <span className="text-sm text-slate-500">at</span>
+                <input
+                  type="time"
+                  value={triggerConfig.time ?? '09:00'}
+                  onChange={e => setTriggerConfig(c => ({ ...c, time: e.target.value }))}
+                  className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+            )}
           </div>
 
           {/* If */}

@@ -64,6 +64,25 @@ TRIGGER_META: dict[str, dict] = {
             {"key": "subject", "label": "Subject", "type": "text"},
         ],
     },
+    "schedule": {
+        "label": "On a schedule",
+        "module": None,  # time trigger — fires from the scheduler, not a mutation
+        "fields": [
+            {"key": "weekday", "label": "Weekday (0=Mon…6=Sun)", "type": "select",
+             "options": ["0", "1", "2", "3", "4", "5", "6"]},
+        ],
+    },
+    "ticket_sla_due_soon": {
+        "label": "Ticket SLA due soon",
+        "module": "tickets",
+        "fields": [
+            {"key": "due_in_minutes", "label": "Due within (minutes)", "type": "number"},
+            {"key": "priority", "label": "Priority", "type": "select", "options": _PRIORITIES},
+            {"key": "status", "label": "Status", "type": "select",
+             "options": ["open", "in_progress"]},
+            {"key": "subject", "label": "Subject", "type": "text"},
+        ],
+    },
 }
 
 

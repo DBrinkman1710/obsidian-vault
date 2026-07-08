@@ -10,7 +10,8 @@ from app.modules.flows import steps
 from app.modules.flows.actions import ACTION_EXECUTORS, ACTION_META, ACTION_MODULES, render_placeholders
 from app.modules.flows.conditions import TRIGGER_META, evaluate_condition, evaluate_conditions
 from app.modules.flows.recipes import RECIPES, RECIPES_BY_KEY
-from app.modules.flows.schemas import ActionSpec, ConditionSpec, FlowCreate
+from app.modules.flows.schemas import ActionSpec, ConditionSpec, FlowCreate, ScheduleConfigSpec
+from app.modules.flows.service import FlowValidationError, _normalize_trigger_config
 
 
 # --------------------------------------------------------------- conditions
@@ -363,3 +364,50 @@ def test_schedule_is_due_rejects_bad_config():
     assert not steps.schedule_is_due({}, _dt(0, 9, 0), None)
     assert not steps.schedule_is_due({"frequency": "hourly", "time": "09:00"}, _dt(0, 9, 0), None)
     assert not steps.schedule_is_due({"frequency": "daily", "time": "nope"}, _dt(0, 9, 0), None)
+
+
+# --------------------------------------------- [FLOW2C] schedule config schema
+
+def test_schedule_config_daily_drops_weekday():
+    cfg = ScheduleConfigSpec(frequency="daily", time="09:00", weekday=3)
+    assert cfg.model_dump() == {"frequency": "daily", "time": "09:00", "weekday": None}
+
+
+def test_schedule_config_weekly_needs_weekday():
+    assert ScheduleConfigSpec(frequency="weekly", time="09:00", weekday=0).weekday == 0
+    with pytest.raises(Exception):  # weekly with no weekday
+        ScheduleConfigSpec(frequency="weekly", time="09:00")
+
+
+def test_schedule_config_rejects_bad_time():
+    for bad in ("9:00", "24:00", "09:60", "nope", ""):
+        with pytest.raises(Exception):
+            ScheduleConfigSpec(frequency="daily", time=bad)
+
+
+def test_normalize_trigger_config_non_schedule_drops_config():
+    # any trigger that isn't `schedule` stores an empty config, always
+    assert _normalize_trigger_config("ticket_created", {"frequency": "daily"}, enabled=True) == {}
+    assert _normalize_trigger_config("ticket_sla_due_soon", {"x": 1}, enabled=False) == {}
+
+
+def test_normalize_trigger_config_schedule_validates_and_normalizes():
+    out = _normalize_trigger_config("schedule", {"frequency": "daily", "time": "08:30"}, enabled=True)
+    assert out == {"frequency": "daily", "time": "08:30", "weekday": None}
+
+
+def test_normalize_trigger_config_draft_schedule_may_be_empty():
+    assert _normalize_trigger_config("schedule", {}, enabled=False) == {}
+    assert _normalize_trigger_config("schedule", None, enabled=False) == {}
+
+
+def test_normalize_trigger_config_enabled_schedule_requires_valid():
+    with pytest.raises(FlowValidationError):
+        _normalize_trigger_config("schedule", {}, enabled=True)
+    with pytest.raises(FlowValidationError):  # weekly missing weekday
+        _normalize_trigger_config("schedule", {"frequency": "weekly", "time": "09:00"}, enabled=True)
+
+
+def test_schedule_and_sla_triggers_registered():
+    assert "schedule" in TRIGGER_META and TRIGGER_META["schedule"]["module"] is None
+    assert TRIGGER_META["ticket_sla_due_soon"]["module"] == "tickets"

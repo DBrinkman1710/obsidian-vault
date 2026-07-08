@@ -27,11 +27,13 @@ import logging
 import uuid
 from datetime import datetime, timezone
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.flow_events import emit_flow_event
 from app.core.models import Tenant
 from app.core.scheduler_lock import skip_if_locked
 from app.database import db_session, set_tenant_context
@@ -380,6 +382,62 @@ async def flow_engine_tick():
             await _resume_step(step)
         except Exception:
             log.exception("flow engine: resuming step %s failed", step["id"])
+
+
+@scheduler.scheduled_job("interval", minutes=1, id="flow_schedule", max_instances=1, coalesce=True)
+async def flow_schedule_tick():
+    """Fire `schedule`-trigger flows at their configured local time. Each due flow
+    emits one `schedule` outbox event (payload carries its own id so the engine
+    fires only the addressed flow) and stamps `last_scheduled_on` in the SAME
+    transaction — the outbox guarantee — so a missed minute self-heals the same
+    local day and a flow never fires twice in a day."""
+    if await skip_if_locked("flow_schedule", ttl=55):
+        return
+    from app.modules.booking.models import CalendarSettings
+
+    try:
+        async with db_session() as db:
+            await db.execute(text("SET LOCAL row_security = off"))
+            tenants = {t.id: t for t in (await db.execute(select(Tenant))).scalars().all()}
+            tz_by_tenant = dict(
+                (await db.execute(
+                    select(CalendarSettings.tenant_id, CalendarSettings.timezone)
+                )).all()
+            )
+            flows = (await db.execute(
+                select(Flow).where(Flow.trigger_type == "schedule", Flow.enabled.is_(True))
+            )).scalars().all()
+
+            emitted = 0
+            for flow in flows:
+                tenant = tenants.get(flow.tenant_id)
+                if tenant is None or "flows" not in (tenant.enabled_modules or []):
+                    continue
+                try:
+                    tz = ZoneInfo(tz_by_tenant.get(tenant.id) or "Europe/Amsterdam")
+                except Exception:
+                    tz = ZoneInfo("Europe/Amsterdam")
+                local_now = datetime.now(tz)
+                if not steps.schedule_is_due(flow.trigger_config or {}, local_now, flow.last_scheduled_on):
+                    continue
+                today_str = local_now.date().isoformat()
+                await emit_flow_event(
+                    db, tenant.id, "schedule",
+                    entity_type="schedule",
+                    payload={
+                        "flow_id": str(flow.id),
+                        "date": today_str,
+                        "weekday": str(local_now.weekday()),
+                        "time": (flow.trigger_config or {}).get("time"),
+                    },
+                )
+                flow.last_scheduled_on = today_str
+                emitted += 1
+            if emitted:
+                await db.commit()
+                log.info("flow schedule tick: emitted %d scheduled event(s)", emitted)
+    except Exception:
+        log.exception("flow engine: schedule tick failed")
 
 
 def start_scheduler():
