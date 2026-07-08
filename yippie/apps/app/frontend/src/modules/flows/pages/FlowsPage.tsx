@@ -1,13 +1,15 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
-  Check, ChevronDown, ChevronRight, Copy, FlaskConical, Pencil, Plus,
+  Check, ChevronDown, ChevronRight, Copy, FlaskConical, GitBranch, Pencil, Plus,
   Sparkles, Trash2, Workflow, X, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+// [FLOW4] branched flows store a graph; the modal only edits the linear shape.
+import { FlowActions, actionNodes, isGraph } from '../lib'
 
 interface MetaField {
   key: string
@@ -35,7 +37,7 @@ interface Flow {
   trigger_type: string
   trigger_config: Record<string, any>
   conditions: Condition[] | Condition[][]  // flat (legacy) or grouped OR-of-AND
-  actions: Action[]
+  actions: FlowActions // linear list, or the [FLOW4] graph once branched
   run_count: number
   success_count: number
   fail_count: number
@@ -119,8 +121,10 @@ function flowSummary(meta: FlowsMeta | undefined, flow: Flow): string {
   const ifPart = count
     ? `, if ${count} condition${count !== 1 ? 's' : ''} match`
     : ''
-  const thenPart = flow.actions.length
-    ? ` → ${flow.actions.map(a => actionLabel(meta, a.type).toLowerCase()).join(', ')}`
+  const acts = actionNodes(flow.actions)
+  const branched = isGraph(flow.actions)
+  const thenPart = acts.length
+    ? ` → ${acts.map(a => actionLabel(meta, a.type).toLowerCase()).join(', ')}${branched ? ' (branching)' : ''}`
     : ' → (no actions yet)'
   return when + ifPart + thenPart
 }
@@ -223,7 +227,12 @@ function BuilderModal({
       ? flow.trigger_config
       : { frequency: 'daily', time: '09:00' }
   )
-  const [actions, setActions] = useState<Action[]>(flow?.actions ?? [])
+  // [FLOW4] a branched flow's graph can't be edited here — openEdit routes those
+  // to the canvas; this fallback guards direct paths (duplicate, install).
+  const branched = flow ? isGraph(flow.actions) : false
+  const [actions, setActions] = useState<Action[]>(
+    flow && !isGraph(flow.actions) ? flow.actions : []
+  )
   const [enabled, setEnabled] = useState(flow?.enabled ?? true)
   const [error, setError] = useState('')
 
@@ -327,6 +336,35 @@ function BuilderModal({
         placeholder="value"
         className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
       />
+    )
+  }
+
+  if (branched && flow) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-start justify-center overflow-y-auto py-10 px-4">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl">
+          <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
+            <Zap size={16} className="text-slate-400" />
+            <h2 className="text-base font-semibold text-slate-900">Edit flow</h2>
+            <button onClick={onClose} className="ml-auto p-1.5 text-slate-400 hover:text-slate-600 rounded-lg" title="Close">
+              <X size={16} />
+            </button>
+          </div>
+          <div className="px-6 py-10 text-center space-y-3">
+            <GitBranch size={24} className="mx-auto text-violet-400" />
+            <p className="text-sm text-slate-600">
+              This flow has branching paths — it's edited on the canvas.
+            </p>
+            <Link
+              to={`/flows/${flow.id}`}
+              onClick={onClose}
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-lg hover:opacity-90"
+            >
+              <Workflow size={14} /> Open canvas
+            </Link>
+          </div>
+        </div>
+      </div>
     )
   }
 
@@ -680,6 +718,7 @@ function TestFireModal({
 
 export default function FlowsPage() {
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [builderOpen, setBuilderOpen] = useState(false)
@@ -717,9 +756,14 @@ export default function FlowsPage() {
     mutationFn: (id: string) => api.post(`/flows/${id}/duplicate`).then((r: any) => r.data),
     onSuccess: (flow: Flow) => {
       invalidate()
+      toast.success('Flow duplicated — review and enable the copy')
+      // [FLOW4] a branched copy is edited on the canvas, not the modal
+      if (isGraph(flow.actions)) {
+        navigate(`/flows/${flow.id}`)
+        return
+      }
       setEditingFlow(flow)
       setBuilderOpen(true)
-      toast.success('Flow duplicated — review and enable the copy')
     },
     onError: (err: any) => toast.error(apiError(err)),
   })
@@ -733,7 +777,15 @@ export default function FlowsPage() {
     },
   })
 
-  function openEdit(flow: Flow) { setEditingFlow(flow); setBuilderOpen(true) }
+  function openEdit(flow: Flow) {
+    // [FLOW4] the modal only edits linear flows — branched ones live on the canvas
+    if (isGraph(flow.actions)) {
+      navigate(`/flows/${flow.id}`)
+      return
+    }
+    setEditingFlow(flow)
+    setBuilderOpen(true)
+  }
   function openNew() { setEditingFlow(null); setBuilderOpen(true) }
 
   return (

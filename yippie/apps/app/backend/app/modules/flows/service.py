@@ -8,12 +8,14 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant, User
-from app.modules.flows import preview, steps
+from app.modules.flows import graph, preview, steps
 from app.modules.flows.actions import ACTION_META, ACTION_MODULES
 from app.modules.flows.conditions import TRIGGER_META
 from app.modules.flows.models import Flow, FlowRun
 from app.modules.flows.recipes import RECIPES, RECIPES_BY_KEY
-from app.modules.flows.schemas import FlowCreate, FlowUpdate, ScheduleConfigSpec
+from app.modules.flows.schemas import (
+    FlowCreate, FlowUpdate, ScheduleConfigSpec, dump_actions,
+)
 
 # Run statuses that count toward the "fail" tally on a list row. A partial run
 # (some actions failed) is a health signal too, so it sits on the fail side;
@@ -92,9 +94,11 @@ def _required_config_keys(action_type: str) -> list[str]:
 
 
 async def _validate_enabled(
-    db: AsyncSession, tenant: Tenant, trigger_type: str, actions: list[dict]
+    db: AsyncSession, tenant: Tenant, trigger_type: str, actions
 ) -> None:
-    """A flow must be fully wired before it may be enabled."""
+    """A flow must be fully wired before it may be enabled. `actions` is either
+    the linear list or the [FLOW4] graph — completeness checks iterate the
+    executable nodes of either shape."""
     enabled_modules = tenant.enabled_modules or []
 
     trigger_module = TRIGGER_META[trigger_type]["module"]
@@ -102,16 +106,17 @@ async def _validate_enabled(
         raise FlowValidationError(
             f"The '{trigger_module}' module is required for this trigger"
         )
-    if not actions:
+    action_nodes = graph.iter_action_nodes(actions)
+    if not action_nodes:
         raise FlowValidationError("An enabled flow needs at least one action")
-    # Waits may not trail the flow and their total is capped (each config was
-    # already shape-validated by ActionSpec).
+    # Waits may not trail the flow (on any path) and the longest wait path is
+    # capped (each config was already shape-validated by ActionSpec).
     try:
         steps.validate_wait_placement(actions)
     except ValueError as exc:
         raise FlowValidationError(str(exc))
 
-    for action in actions:
+    for action in action_nodes:
         action_type = action["type"]
         config = action.get("config") or {}
         module = ACTION_MODULES[action_type]
@@ -159,7 +164,7 @@ async def create_flow(
     db: AsyncSession, tenant: Tenant, created_by: uuid.UUID, data: FlowCreate
 ) -> Flow:
     conditions = [[c.model_dump() for c in group] for group in data.conditions]
-    actions = [a.model_dump() for a in data.actions]
+    actions = dump_actions(data.actions)
     trigger_config = _normalize_trigger_config(
         data.trigger_type, data.trigger_config, enabled=data.enabled
     )
@@ -190,7 +195,7 @@ async def update_flow(db: AsyncSession, tenant: Tenant, flow: Flow, data: FlowUp
     if "conditions" in provided:
         flow.conditions = [[c.model_dump() for c in group] for group in data.conditions]
     if "actions" in provided:
-        flow.actions = [a.model_dump() for a in data.actions]
+        flow.actions = dump_actions(data.actions)
     if "trigger_config" in provided:
         flow.trigger_config = data.trigger_config
     if "enabled" in provided:

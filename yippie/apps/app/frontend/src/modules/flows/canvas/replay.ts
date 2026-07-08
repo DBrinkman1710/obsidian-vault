@@ -3,8 +3,9 @@
 // recorded before ids existed fall back to list position (safe while flows are
 // linear). Condition groups are re-evaluated client-side against the run's
 // frozen event fields — mirroring backend conditions.py semantics — so the
-// canvas can show which OR group let the run through.
-import { Action, Condition, FlowRun, RunResult } from '../lib'
+// canvas can show which OR group let the run through. [FLOW4] keys badges by
+// step id (the tree can branch, so positions stopped being stable).
+import { Condition, FlowRun, RunResult, Step, flattenSteps, treeHasBranch } from '../lib'
 
 export type BadgeTone = 'ok' | 'fail' | 'skip' | 'retry'
 export interface NodeBadge { tone: BadgeTone; label: string }
@@ -13,8 +14,10 @@ export interface ReplayState {
   run: FlowRun
   /** Per OR-group: true=matched, false=missed, null=unknown (no fields). */
   groupMatch: (boolean | null)[]
-  /** Per current action: badge from the run's results, null = never reached. */
-  actionBadges: (NodeBadge | null)[]
+  /** Per step id: badge from the run's results; absent = never reached. */
+  badges: Record<string, NodeBadge>
+  /** Per branch step id: which edge the run took. */
+  branchTaken: Record<string, boolean>
 }
 
 function norm(value: any): any {
@@ -57,6 +60,11 @@ export function evaluateCondition(c: Condition, fields: Record<string, any>): bo
 }
 
 function badgeFor(r: RunResult): NodeBadge {
+  if (r.type === 'branch') {
+    return r.matched
+      ? { tone: 'ok', label: 'matched' }
+      : { tone: 'skip', label: 'no match' }
+  }
   if (r.pending_retry) {
     return { tone: 'retry', label: `retrying (attempt ${r.attempts ?? 1})` }
   }
@@ -70,7 +78,7 @@ function badgeFor(r: RunResult): NodeBadge {
 }
 
 export function computeReplay(
-  run: FlowRun, groups: Condition[][], actions: Action[],
+  run: FlowRun, groups: Condition[][], steps: Step[],
 ): ReplayState {
   // --- condition groups
   const fields = run.event?.fields
@@ -83,23 +91,30 @@ export function computeReplay(
     groupMatch = groups.map(() => null)
   }
 
-  // --- actions
+  // --- steps
   const results = run.results ?? []
   const byId = new Map<string, RunResult>()
   for (const r of results) {
     if (r.action_id) byId.set(r.action_id, r)
   }
-  const actionBadges = actions.map((a, i) => {
-    const matched = a.id ? byId.get(a.id) : undefined
-    if (matched) return badgeFor(matched)
-    // Positional fallback for pre-id runs: only trust it when the type lines up
-    // and the stored result carries no id of its own (else it's a different action).
-    const positional = results[i]
-    if (positional && !positional.action_id && positional.type === a.type) {
-      return badgeFor(positional)
+  const flat = flattenSteps(steps)
+  const linear = !treeHasBranch(steps) // positional fallback only makes sense linearly
+  const badges: Record<string, NodeBadge> = {}
+  const branchTaken: Record<string, boolean> = {}
+  flat.forEach((step, i) => {
+    let result = byId.get(step.id)
+    if (!result && linear) {
+      // Positional fallback for pre-id runs: only trust it when the type lines
+      // up and the stored result carries no id of its own.
+      const positional = results[i]
+      if (positional && !positional.action_id && positional.type === step.type) {
+        result = positional
+      }
     }
-    return null
+    if (!result) return
+    badges[step.id] = badgeFor(result)
+    if (step.type === 'branch') branchTaken[step.id] = result.matched === true
   })
 
-  return { run, groupMatch, actionBadges }
+  return { run, groupMatch, badges, branchTaken }
 }

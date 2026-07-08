@@ -548,3 +548,239 @@ def test_flow_create_round_trips_client_ids():
                   "config": {"user_id": "u", "message": "m"}}],
     )
     assert [a.model_dump()["id"] for a in flow.actions] == ["client_id_1", "client_id_2"]
+
+
+# ------------------------------------------------- [FLOW4] branching graphs
+
+from app.modules.flows import graph
+from app.modules.flows.schemas import GraphSpec, dump_actions
+
+
+def _n(node_id, node_type="notify_user", **config):
+    return {"id": node_id, "type": node_type, "config": config}
+
+
+def _b(node_id, conditions):
+    return {"id": node_id, "type": "branch", "config": {"conditions": conditions}}
+
+
+def _e(source, target, when=None):
+    return {"from": source, "to": target, "when": when}
+
+
+# A well-formed branch graph: notify → branch → (match: escalate | else: close).
+def _branch_graph():
+    return {
+        "nodes": [
+            _n("start", "notify_user", user_id="u", message="new"),
+            _b("check", [[_cond("status", "equals", "open")]]),
+            _n("escalate", "update_ticket", priority="urgent"),
+            _n("close", "update_ticket", status="closed"),
+        ],
+        "edges": [
+            _e("start", "check"),
+            _e("check", "escalate", "match"),
+            _e("check", "close", "else"),
+        ],
+    }
+
+
+def test_as_graph_normalizes_a_list_to_one_chain():
+    actions = [
+        {"id": "a1", "type": "notify_user", "config": {}},
+        {"type": "wait", "config": {"days": 1}},  # legacy: no id
+        {"id": "a3", "type": "send_email", "config": {}},
+    ]
+    g = graph.as_graph(actions)
+    ids = [n["id"] for n in g["nodes"]]
+    assert ids == ["a1", "pos:1", "a3"]
+    assert g["edges"] == [
+        {"from": "a1", "to": "pos:1", "when": None},
+        {"from": "pos:1", "to": "a3", "when": None},
+    ]
+    # synthetic chain ids are never stamped into run results
+    assert graph.result_action_id(g["nodes"][0]) == "a1"
+    assert graph.result_action_id(g["nodes"][1]) is None
+    # a graph passes through untouched
+    assert graph.as_graph(_branch_graph()) == _branch_graph()
+
+
+def test_graph_root_and_next_id_routing():
+    g = _branch_graph()
+    assert graph.root_id(g) == "start"
+    assert graph.next_id(g, "start") == "check"
+    assert graph.next_id(g, "check", matched=True) == "escalate"
+    assert graph.next_id(g, "check", matched=False) == "close"
+    assert graph.next_id(g, "escalate") is None
+
+
+def test_validate_graph_accepts_a_branch_shape():
+    graph.validate_graph(_branch_graph())  # must not raise
+    # a branch may omit its else path (no match → the flow just ends)
+    g = _branch_graph()
+    g["nodes"] = g["nodes"][:3]
+    g["edges"] = g["edges"][:2]
+    graph.validate_graph(g)
+
+
+def test_validate_graph_rejects_bad_structures():
+    cases = [
+        # two roots (b disconnected from the chain)
+        {"nodes": [_n("a"), _n("b")], "edges": []},
+        # cycle (no root left)
+        {"nodes": [_n("a"), _n("b")], "edges": [_e("a", "b"), _e("b", "a")]},
+        # cycle behind a valid root (exercises the Kahn check, not the root rule)
+        {"nodes": [_n("a"), _n("b"), _n("c")],
+         "edges": [_e("a", "b"), _e("b", "c"), _e("c", "b")]},
+        # self loop
+        {"nodes": [_n("a")], "edges": [_e("a", "a")]},
+        # dangling edge target
+        {"nodes": [_n("a")], "edges": [_e("a", "ghost")]},
+        # duplicate ids
+        {"nodes": [_n("a"), _n("a")], "edges": []},
+        # non-branch node with two outgoing edges
+        {"nodes": [_n("a"), _n("b"), _n("c")], "edges": [_e("a", "b"), _e("a", "c")]},
+        # non-branch edge carrying a branch label
+        {"nodes": [_n("a"), _n("b")], "edges": [_e("a", "b", "match")]},
+        # branch edge without a label
+        {"nodes": [_b("a", []), _n("b")], "edges": [_e("a", "b")]},
+        # branch with two match edges
+        {"nodes": [_b("a", []), _n("b"), _n("c")],
+         "edges": [_e("a", "b", "match"), _e("a", "c", "match")]},
+        # branch with no outgoing path at all
+        {"nodes": [_n("a"), _b("check", [])], "edges": [_e("a", "check")]},
+        # empty graph
+        {"nodes": [], "edges": []},
+    ]
+    for bad in cases:
+        with pytest.raises(ValueError):
+            graph.validate_graph(bad)
+    with pytest.raises(ValueError):  # over the node cap
+        graph.validate_graph(graph.as_graph(
+            [{"id": f"n{i}", "type": "notify_user", "config": {}} for i in range(26)]
+        ))
+
+
+def test_total_wait_days_takes_the_longest_path():
+    g = {
+        "nodes": [
+            _b("check", []),
+            _n("short_wait", "wait", days=5),
+            _n("long_wait", "wait", days=20),
+            _n("after_short"),
+            _n("after_long"),
+        ],
+        "edges": [
+            _e("check", "short_wait", "match"),
+            _e("check", "long_wait", "else"),
+            _e("short_wait", "after_short"),
+            _e("long_wait", "after_long"),
+        ],
+    }
+    assert graph.total_wait_days(g) == pytest.approx(20)
+    # a linear list is its own longest path — phase 2 behaviour unchanged
+    assert steps.total_wait_days([
+        {"type": "wait", "config": {"days": 5}},
+        {"type": "notify_user", "config": {}},
+        {"type": "wait", "config": {"hours": 12}},
+    ]) == pytest.approx(5.5)
+
+
+def test_validate_wait_placement_is_graph_aware():
+    # a wait may not END any path
+    with pytest.raises(ValueError):
+        graph.validate_wait_placement({
+            "nodes": [_b("check", []), _n("w", "wait", days=1), _n("done")],
+            "edges": [_e("check", "w", "match"), _e("check", "done", "else")],
+        })
+    # 16 + 15 days on the SAME path breaches the cap …
+    with pytest.raises(ValueError):
+        graph.validate_wait_placement(graph.as_graph([
+            _n("w1", "wait", days=16), _n("w2", "wait", days=15), _n("done"),
+        ]))
+    # … but split across two legs each path stays under it
+    graph.validate_wait_placement({
+        "nodes": [_b("check", []), _n("w1", "wait", days=16), _n("w2", "wait", days=15),
+                  _n("a"), _n("b")],
+        "edges": [_e("check", "w1", "match"), _e("check", "w2", "else"),
+                  _e("w1", "a"), _e("w2", "b")],
+    })
+
+
+def test_flow_create_accepts_a_graph_and_normalizes_branch_conditions():
+    flow = FlowCreate(
+        name="branching",
+        trigger_type="ticket_created",
+        actions=_branch_graph(),
+        enabled=False,
+    )
+    assert isinstance(flow.actions, GraphSpec)
+    stored = dump_actions(flow.actions)
+    # edges keep the stored "from" key (Python-keyword alias round-trips)
+    assert stored["edges"][0]["from"] == "start"
+    # branch conditions are normalized to grouped OR-of-AND, like flow conditions
+    check = next(n for n in stored["nodes"] if n["id"] == "check")
+    assert check["config"]["conditions"] == [[_cond("status", "equals", "open")]]
+
+
+def test_flow_create_rejects_a_cyclic_graph():
+    g = _branch_graph()
+    g["edges"].append(_e("escalate", "start"))
+    with pytest.raises(Exception):
+        FlowCreate(name="x", trigger_type="ticket_created", actions=g, enabled=False)
+
+
+def test_branch_spec_rejects_a_bad_condition_op():
+    bad = _branch_graph()
+    bad["nodes"][1] = _b("check", [[{"field": "status", "op": "regex", "value": ".*"}]])
+    with pytest.raises(Exception):
+        FlowCreate(name="x", trigger_type="ticket_created", actions=bad, enabled=False)
+
+
+def test_dump_actions_keeps_the_linear_list_shape():
+    flow = FlowCreate(
+        name="linear", trigger_type="contact_created",
+        actions=[{"id": "a1", "type": "notify_user", "config": {"user_id": "u", "message": "m"}}],
+        enabled=False,
+    )
+    stored = dump_actions(flow.actions)
+    assert isinstance(stored, list)
+    assert stored[0]["id"] == "a1"
+
+
+def test_preview_graph_walks_the_sample_path():
+    # flow-level condition biases the sample to priority=high → branch matches → escalate leg
+    result = preview.dry_run(
+        "ticket_created",
+        [[_cond("priority", "equals", "high")]],
+        {
+            "nodes": [
+                _b("check", [[_cond("priority", "equals", "high")]]),
+                _n("escalate", "update_ticket", priority="urgent"),
+                _n("close", "update_ticket", status="closed"),
+            ],
+            "edges": [_e("check", "escalate", "match"), _e("check", "close", "else")],
+        },
+        ["tickets"],
+    )
+    types = [a["type"] for a in result["actions"]]
+    assert types == ["branch", "update_ticket"]
+    assert "match path" in result["actions"][0]["detail"]
+    assert result["actions"][1]["would_run"] is True
+
+    # flip the condition so the sample takes the else leg instead
+    result = preview.dry_run(
+        "ticket_created",
+        [[_cond("priority", "equals", "low")]],
+        {
+            "nodes": [
+                _b("check", [[_cond("priority", "equals", "high")]]),
+                _n("escalate", "update_ticket", priority="urgent"),
+                _n("close", "update_ticket", status="closed"),
+            ],
+            "edges": [_e("check", "escalate", "match"), _e("check", "close", "else")],
+        },
+        ["tickets"],
+    )
+    assert [a["type"] for a in result["actions"]] == ["branch", "update_ticket"]
+    assert "else path" in result["actions"][0]["detail"]

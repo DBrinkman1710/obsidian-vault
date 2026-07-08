@@ -15,7 +15,9 @@ class Flow(Base):
     """A tenant-configured automation rule: when <trigger>, if <conditions>, then <actions>.
 
     conditions: list of {"field", "op", "value"} evaluated with AND semantics.
-    actions:    ordered list of {"type", "config"} executed by the flow engine.
+    actions:    ordered list of {"id", "type", "config"} executed by the flow
+                engine — or, since [FLOW4], a graph {"nodes", "edges"} with
+                branch nodes (a linear list is one chain via graph.as_graph).
     Both are validated at the app layer (schemas.py) so new ops/actions never
     need a migration.
     """
@@ -31,7 +33,7 @@ class Flow(Base):
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     trigger_type: Mapped[str] = mapped_column(String(50), nullable=False)
     conditions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
-    actions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    actions: Mapped[list | dict] = mapped_column(JSONB, nullable=False, default=list)
     # Phase 2: trigger-specific settings (e.g. schedule frequency/time). Defaults
     # to {} for the mutation-driven triggers. last_scheduled_on is the local date
     # string the schedule trigger last fired on (once-a-day dedup).
@@ -75,8 +77,13 @@ class FlowPendingStep(Base):
     the frozen results-so-far here, then drains due rows on the same 10s tick.
 
     kind='wait'  — resume_at = now + the delay; attempt is 0.
-    kind='retry' — resume_at = now + backoff; attempt = prior failures of
-                   actions[0] (the failed action, kept at the head of `actions`).
+    kind='retry' — resume_at = now + backoff; attempt = prior failures of the
+                   step the run resumes at.
+
+    `actions` holds the REMAINING work: a legacy list of remaining actions
+    (pre-[FLOW4] rows), or since [FLOW4] {"graph": <full graph>, "next": <node
+    id to resume at>} — the graph is snapshotted so an edit mid-wait never
+    reroutes an in-flight run.
 
     Row is deleted (claim-first) when picked up, so a crash mid-resume loses at
     most one step — never double-runs the actions already frozen in `results`."""
@@ -96,7 +103,7 @@ class FlowPendingStep(Base):
     )
     kind: Mapped[str] = mapped_column(String(10), nullable=False, default="wait")  # wait|retry
     event: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
-    actions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)  # remaining
+    actions: Mapped[list | dict] = mapped_column(JSONB, nullable=False, default=list)  # remaining
     results: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)  # completed so far
     attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     resume_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)

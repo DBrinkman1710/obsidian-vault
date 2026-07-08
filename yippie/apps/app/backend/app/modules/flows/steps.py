@@ -42,24 +42,23 @@ def wait_delta(config: dict) -> timedelta:
     return delta
 
 
-def total_wait_days(actions: list[dict]) -> float:
-    """Sum of every wait step in a flow, in days."""
-    total = timedelta()
-    for action in actions or []:
-        if action.get("type") == "wait":
-            total += wait_delta(action.get("config") or {})
-    return total.total_seconds() / 86400
+def total_wait_days(actions) -> float:
+    """The wait total counted against the 30-day cap. [FLOW4] made this graph
+    aware: waits are summed along the longest path (a linear list IS its own
+    longest path, so phase 2 behaviour is unchanged). Deferred import — graph.py
+    imports this module for wait_delta."""
+    from app.modules.flows import graph
+
+    return graph.total_wait_days(actions)
 
 
-def validate_wait_placement(actions: list[dict]) -> None:
+def validate_wait_placement(actions) -> None:
     """A flow may not end on a wait (nothing left to do afterwards) and its total
-    wait may not exceed 30 days. Raises ValueError (each wait_delta also validates
-    its own config)."""
-    acts = actions or []
-    if acts and acts[-1].get("type") == "wait":
-        raise ValueError("A flow can't end on a wait — add an action after it")
-    if total_wait_days(acts) > 30:
-        raise ValueError("The total wait across a flow may not exceed 30 days")
+    wait may not exceed 30 days — on any path, for [FLOW4] graphs. Raises
+    ValueError (each wait_delta also validates its own config)."""
+    from app.modules.flows import graph
+
+    graph.validate_wait_placement(actions)
 
 
 def derive_run_status(results: list[dict]) -> str:

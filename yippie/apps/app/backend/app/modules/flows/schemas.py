@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any, Literal, Optional
+from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.modules.flows import steps
+from app.modules.flows import graph, steps
 from app.modules.flows.actions import ACTION_META
 from app.modules.flows.conditions import CONDITION_OPS, TRIGGER_META
 
@@ -98,6 +98,9 @@ class ConditionSpec(BaseModel):
         return v
 
 
+_NODE_ID_PATTERN = r"^[A-Za-z0-9_]{1,36}$"
+
+
 class ActionSpec(BaseModel):
     # [FLOW3] Stable per-action identity, stamped into flow_runs.results so run
     # replay on the canvas survives reorders (and [FLOW4]'s DAG keeps working
@@ -106,7 +109,7 @@ class ActionSpec(BaseModel):
     # the engine stamps None and the canvas falls back to list position.
     id: str = Field(
         default_factory=lambda: uuid.uuid4().hex,
-        pattern=r"^[A-Za-z0-9_]{1,36}$",
+        pattern=_NODE_ID_PATTERN,
     )
     type: ActionType
     config: dict = Field(default_factory=dict)
@@ -126,12 +129,77 @@ class ActionSpec(BaseModel):
         return self
 
 
+class BranchSpec(BaseModel):
+    """[FLOW4] A branch node: OR-of-AND condition groups in config["conditions"]
+    (identical shape to flow-level conditions). At run time the engine merges
+    FRESH entity fields over the frozen event snapshot before evaluating, so
+    "wait 2 days → if STILL open" works."""
+
+    id: str = Field(default_factory=lambda: uuid.uuid4().hex, pattern=_NODE_ID_PATTERN)
+    type: Literal["branch"]
+    config: dict = Field(default_factory=dict)
+
+    @field_validator("config")
+    @classmethod
+    def _validate_conditions(cls, v: dict) -> dict:
+        groups = _normalize_condition_groups((v or {}).get("conditions"))
+        validated = [[ConditionSpec(**c) for c in group] for group in groups]
+        return {"conditions": [[c.model_dump() for c in group] for group in validated]}
+
+
+GraphNode = Annotated[Union[BranchSpec, ActionSpec], Field(discriminator="type")]
+
+
+class EdgeSpec(BaseModel):
+    """A directed edge. `when` is null on ordinary edges; a branch node's
+    outgoing edges carry "match" or "else"."""
+
+    from_: str = Field(alias="from", pattern=_NODE_ID_PATTERN)
+    to: str = Field(pattern=_NODE_ID_PATTERN)
+    when: Optional[Literal["match", "else"]] = None
+
+    model_config = {"populate_by_name": True}
+
+
+class GraphSpec(BaseModel):
+    """[FLOW4] The branched shape of `actions`. Structure (single root, acyclic,
+    ≤ 25 nodes, branch edge discipline) is validated on write; wait placement
+    and module/config completeness stay enable-time checks, like linear flows."""
+
+    nodes: list[GraphNode] = Field(min_length=1, max_length=graph.MAX_NODES)
+    edges: list[EdgeSpec] = Field(default_factory=list)
+
+    def dump(self) -> dict:
+        return {
+            "nodes": [n.model_dump() for n in self.nodes],
+            "edges": [e.model_dump(by_alias=True) for e in self.edges],
+        }
+
+    @model_validator(mode="after")
+    def _validate_structure(self) -> "GraphSpec":
+        graph.validate_graph(self.dump())  # raises ValueError → 422
+        return self
+
+
+# What FlowCreate/FlowUpdate accept for `actions`: the legacy/linear list (the
+# modal builder, capped at 10) or the [FLOW4] graph (the canvas, capped at 25
+# nodes). Stored as-is — the engine normalizes with graph.as_graph.
+ActionsField = Union[GraphSpec, Annotated[list[ActionSpec], Field(max_length=10)]]
+
+
+def dump_actions(actions: Union[GraphSpec, list[ActionSpec]]) -> Any:
+    """The JSONB value the service stores for either accepted shape."""
+    if isinstance(actions, GraphSpec):
+        return actions.dump()
+    return [a.model_dump() for a in actions]
+
+
 class FlowCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     trigger_type: TriggerType
     # Accepts a flat list or grouped OR-of-AND; always stored grouped.
     conditions: list[list[ConditionSpec]] = Field(default_factory=list)
-    actions: list[ActionSpec] = Field(default_factory=list, max_length=10)
+    actions: ActionsField = Field(default_factory=list)
     enabled: bool = True
     trigger_config: dict = Field(default_factory=dict)
 
@@ -151,7 +219,7 @@ class FlowUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     trigger_type: Optional[TriggerType] = None
     conditions: Optional[list[list[ConditionSpec]]] = None
-    actions: Optional[list[ActionSpec]] = Field(default=None, max_length=10)
+    actions: Optional[ActionsField] = None
     enabled: Optional[bool] = None
     trigger_config: Optional[dict] = None
 
@@ -170,7 +238,7 @@ class FlowOut(BaseModel):
     trigger_type: str
     trigger_config: dict
     conditions: list
-    actions: list
+    actions: Any  # linear list or [FLOW4] graph {"nodes", "edges"}
     run_count: int
     # From flow_runs (attached by the service): total success runs, and failed +
     # partial runs. Default 0 so a lone FlowOut (e.g. duplicate) stays valid.

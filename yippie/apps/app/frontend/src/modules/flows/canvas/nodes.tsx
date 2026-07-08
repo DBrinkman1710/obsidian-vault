@@ -1,7 +1,7 @@
 // [FLOW3] Custom React Flow nodes for the flow canvas. Pure presentational —
 // layout.ts decides positions, FlowCanvasPage owns state and selection.
 import { Handle, Position } from '@xyflow/react'
-import { CalendarClock, CheckCircle2, Filter, Timer, XCircle, Zap } from 'lucide-react'
+import { CalendarClock, CheckCircle2, Filter, GitBranch, Timer, XCircle, Zap } from 'lucide-react'
 import { NodeBadge } from './replay'
 
 export const NODE_WIDTH = 260
@@ -114,8 +114,52 @@ export function ActionNode({ data }: { data: ActionNodeData }) {
   )
 }
 
+// [FLOW4] A branch node: shows its condition lines and exposes two labelled
+// source handles — match (bottom-left) and else (bottom-right).
+export interface BranchNodeData {
+  lines: string[]
+  badge: NodeBadge | null
+  selected: boolean
+  dimmed: boolean
+}
+
+export function BranchNode({ data }: { data: BranchNodeData }) {
+  return (
+    <div style={{ width: NODE_WIDTH }} className={card(data.selected, data.dimmed)}>
+      <div className="flex items-center gap-1.5">
+        <p className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
+          <GitBranch size={10} /> Branch
+        </p>
+        <Badge badge={data.badge} />
+      </div>
+      {data.lines.length === 0 && <p className="text-xs text-slate-400">Always takes the yes path</p>}
+      {data.lines.map((line, i) => (
+        <p key={i} className="text-xs text-slate-600">{line}</p>
+      ))}
+      <Handle type="target" position={Position.Top} className="!bg-slate-300" />
+      <Handle id="match" type="source" position={Position.Bottom} style={{ left: '30%' }} className="!bg-violet-400" />
+      <Handle id="else" type="source" position={Position.Bottom} style={{ left: '70%' }} className="!bg-slate-300" />
+    </div>
+  )
+}
+
+// [FLOW4] Placeholder for an empty branch leg — shows the flow ends there.
+export function GhostNode({ data }: { data: { dimmed: boolean } }) {
+  return (
+    <div
+      style={{ width: NODE_WIDTH }}
+      className={`rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-3 transition-opacity ${data.dimmed ? 'opacity-40' : ''}`}
+    >
+      <p className="text-xs text-slate-400 text-center">Flow ends here</p>
+      <Handle type="target" position={Position.Top} className="!bg-slate-300" />
+    </div>
+  )
+}
+
 export const nodeTypes = {
   trigger: TriggerNode,
   group: GroupNode,
   action: ActionNode,
+  branch: BranchNode,
+  ghost: GhostNode,
 } as any

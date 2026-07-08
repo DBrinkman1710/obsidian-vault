@@ -37,7 +37,7 @@ from app.core.flow_events import emit_flow_event
 from app.core.models import Tenant
 from app.core.scheduler_lock import skip_if_locked
 from app.database import db_session, set_tenant_context
-from app.modules.flows import steps
+from app.modules.flows import graph, steps
 from app.modules.flows.actions import ACTION_EXECUTORS, ACTION_MODULES
 from app.modules.flows.conditions import evaluate_conditions
 from app.modules.flows.models import Flow, FlowEvent, FlowPendingStep, FlowRun
@@ -175,17 +175,69 @@ async def _upsert_run(
 
 async def _persist_pending(
     tenant_id: uuid.UUID, flow_id: uuid.UUID, run_id: uuid.UUID, event: dict,
-    remaining: list[dict], results: list[dict], kind: str,
+    flow_graph: dict, next_id: str, results: list[dict], kind: str,
     resume_at: datetime, attempt: int,
 ) -> None:
+    """Persist a paused run: the full graph snapshot + the node id to resume at
+    ([FLOW4] — an edit mid-wait never reroutes an in-flight run). Pre-[FLOW4]
+    rows still carry a remaining-actions list; _resume_step handles both."""
     async with db_session() as db:
         await db.execute(text("SET LOCAL row_security = off"))
         db.add(FlowPendingStep(
             tenant_id=tenant_id, flow_id=flow_id, run_id=run_id, kind=kind,
-            event=_event_snapshot(event), actions=remaining, results=results,
-            attempt=attempt, resume_at=resume_at,
+            event=_event_snapshot(event),
+            actions={"graph": flow_graph, "next": next_id},
+            results=results, attempt=attempt, resume_at=resume_at,
         ))
         await db.commit()
+
+
+async def _fresh_entity_fields(tenant: Tenant, event: dict) -> dict:
+    """[FLOW4] Branch nodes evaluate against CURRENT entity state, not the
+    frozen event snapshot — the flagship case ("ticket created → wait 2 days →
+    if STILL open → escalate") is impossible on frozen fields. Re-fetch the
+    entity's live fields; they're merged OVER the snapshot (snapshot-only keys
+    like old_status survive). None values are dropped so a cleared field falls
+    back to the snapshot rather than never-matching every condition."""
+    fields: dict = {}
+    async with db_session() as db:
+        await set_tenant_context(db, str(tenant.id))
+        if event.get("entity_type") == "ticket" and event.get("entity_id"):
+            from app.modules.tickets.models import Ticket
+
+            ticket = await db.get(Ticket, uuid.UUID(str(event["entity_id"])))
+            if ticket is not None and ticket.tenant_id == tenant.id and ticket.deleted_at is None:
+                fields.update({
+                    "status": getattr(ticket.status, "value", ticket.status),
+                    "priority": getattr(ticket.priority, "value", ticket.priority),
+                    "assigned_to": str(ticket.assigned_to) if ticket.assigned_to else None,
+                    "subject": ticket.subject,
+                })
+        if event.get("contact_id"):
+            contact_id = uuid.UUID(str(event["contact_id"]))
+            from app.modules.contacts.models import Contact
+
+            contact = await db.get(Contact, contact_id)
+            if contact is not None and contact.tenant_id == tenant.id and contact.deleted_at is None:
+                fields.update({
+                    "email": contact.email,
+                    "full_name": contact.full_name,
+                    "tags": contact.tags or [],
+                })
+            if "pipeline" in (tenant.enabled_modules or []):
+                from app.modules.pipeline.models import ContactPipelineEntry, PipelineStage
+
+                row = (await db.execute(
+                    select(PipelineStage.id, PipelineStage.name)
+                    .join(ContactPipelineEntry, ContactPipelineEntry.stage_id == PipelineStage.id)
+                    .where(
+                        ContactPipelineEntry.contact_id == contact_id,
+                        ContactPipelineEntry.tenant_id == tenant.id,
+                    )
+                )).first()
+                if row is not None:
+                    fields.update({"stage_id": str(row.id), "stage_name": row.name})
+    return {k: v for k, v in fields.items() if v is not None}
 
 
 def _wait_summary(config: dict) -> str:
@@ -206,35 +258,70 @@ def _derive_error(results: list[dict]) -> Optional[str]:
 
 
 async def _execute_flow(
-    tenant: Tenant, event: dict, flow_id: uuid.UUID, actions: list[dict],
+    tenant: Tenant, event: dict, flow_id: uuid.UUID, actions,
     results: list[dict], run_id: Optional[uuid.UUID], attempt: int,
+    start_id: Optional[str] = None,
 ) -> None:
-    """Walk the remaining actions. Pauses (persisting a pending step and
-    returning) on a wait or on a retryable failure; otherwise finalises the run.
+    """Walk the flow graph from `start_id` (the root when None). `actions` is
+    either stored shape — a linear list is one chain via graph.as_graph, so
+    phase 1–3 flows walk exactly as before. Pauses (persisting a pending step
+    and returning) on a wait or on a retryable failure; a branch node picks its
+    match/else edge against fresh entity state; otherwise finalises the run.
 
-    `attempt` is the number of failures already recorded for actions[0] — only
-    the resumed head of a retry carries a non-zero value.
+    `attempt` is the number of failures already recorded for the starting node —
+    only the resumed head of a retry carries a non-zero value.
     """
+    flow_graph = graph.as_graph(actions)
+    nodes = graph.node_map(flow_graph)
+    node_id = start_id if start_id is not None else graph.root_id(flow_graph)
     now = datetime.now(timezone.utc)
-    for idx, action in enumerate(actions):
-        action_type = action.get("type")
-        prior_attempts = attempt if idx == 0 else 0
+    first = True
 
-        if action_type == "wait":
-            config = action.get("config") or {}
+    while node_id is not None:
+        node = nodes.get(node_id)
+        if node is None:
+            log.error("flow %s: node %s missing from graph — ending run", flow_id, node_id)
+            break
+        node_type = node.get("type")
+        prior_attempts = attempt if first else 0
+        first = False
+        # [FLOW3] stable identity for run replay (None for legacy pre-id
+        # actions — their synthetic chain ids are never stamped).
+        result_id = graph.result_action_id(node)
+
+        if node_type == "branch":
+            # [FLOW4] amendment: evaluate against CURRENT entity fields merged
+            # over the frozen snapshot, so post-wait branches see reality.
+            fresh = await _fresh_entity_fields(tenant, event)
+            merged = {**event.get("fields", {}), **fresh}
+            conditions = (node.get("config") or {}).get("conditions") or []
+            matched = evaluate_conditions(conditions, merged)
+            node_id = graph.next_id(flow_graph, node["id"], matched=matched)
+            outcome = "Conditions matched" if matched else "No match"
+            summary = f"{outcome} → {'continued' if node_id is not None else 'flow ended'}"
+            results.append({"type": "branch", "action_id": result_id,
+                            "ok": True, "skipped": False, "matched": matched,
+                            "summary": summary, "attempts": 1})
+            continue
+
+        if node_type == "wait":
+            config = node.get("config") or {}
             delta = steps.wait_delta(config)
-            results.append({"type": "wait", "action_id": action.get("id"),
+            results.append({"type": "wait", "action_id": result_id,
                             "ok": True, "skipped": False,
                             "summary": _wait_summary(config), "attempts": 1})
+            next_node = graph.next_id(flow_graph, node["id"])
+            if next_node is None:
+                break  # terminal wait (blocked at enable time) — nothing to wait for
             run_id = await _upsert_run(tenant.id, flow_id, event, "waiting", results, None, run_id)
             await _persist_pending(
-                tenant.id, flow_id, run_id, event, actions[idx + 1:], results,
+                tenant.id, flow_id, run_id, event, flow_graph, next_node, results,
                 kind="wait", resume_at=now + delta, attempt=0,
             )
             return
 
         try:
-            result = await _run_action(tenant, event, action)
+            result = await _run_action(tenant, event, node)
         except Exception as exc:  # noqa: BLE001 — recorded, not raised
             made = prior_attempts + 1
             delay = steps.retry_delay(made)
@@ -242,29 +329,29 @@ async def _execute_flow(
                 # Show a transient pending-retry row on the run, but freeze the
                 # step's results WITHOUT it (the real result is appended on resume).
                 run_results = results + [{
-                    "type": action_type, "action_id": action.get("id"),
+                    "type": node_type, "action_id": result_id,
                     "ok": False, "skipped": False,
                     "summary": f"Retry {made} scheduled: {exc}"[:2000],
                     "attempts": made, "pending_retry": True,
                 }]
                 run_id = await _upsert_run(tenant.id, flow_id, event, "waiting", run_results, None, run_id)
                 await _persist_pending(
-                    tenant.id, flow_id, run_id, event, actions[idx:], results,
+                    tenant.id, flow_id, run_id, event, flow_graph, node["id"], results,
                     kind="retry", resume_at=now + delay, attempt=made,
                 )
                 return
-            log.exception("flow %s action %s failed after retries", flow_id, action_type)
-            results.append({"type": action_type, "action_id": action.get("id"),
+            log.exception("flow %s action %s failed after retries", flow_id, node_type)
+            results.append({"type": node_type, "action_id": result_id,
                             "ok": False, "skipped": False,
                             "summary": f"Failed after {made} attempts: {exc}"[:2000],
                             "attempts": made})
+            node_id = graph.next_id(flow_graph, node["id"])
             continue  # phase 1 semantics: keep running the remaining actions
 
         result["attempts"] = prior_attempts + 1
-        # [FLOW3] stable per-action identity for run replay on the canvas
-        # (None for legacy actions saved before ids existed).
-        result["action_id"] = action.get("id")
+        result["action_id"] = result_id
         results.append(result)
+        node_id = graph.next_id(flow_graph, node["id"])
 
     await _upsert_run(
         tenant.id, flow_id, event, steps.derive_run_status(results),
@@ -356,10 +443,21 @@ async def _resume_step(step: dict) -> None:
     if tenant is None:
         await _abandon_run(step["tenant_id"], step["run_id"], step["results"])
         return
-    await _execute_flow(
-        tenant, step["event"], step["flow_id"], step["actions"],
-        step["results"], step["run_id"], step["attempt"],
-    )
+    actions = step["actions"]
+    if isinstance(actions, dict):
+        # [FLOW4] shape: full graph snapshot + the node id to resume at.
+        await _execute_flow(
+            tenant, step["event"], step["flow_id"], actions.get("graph") or {},
+            step["results"], step["run_id"], step["attempt"],
+            start_id=actions.get("next"),
+        )
+    else:
+        # Pre-[FLOW4] row: a remaining-actions list — one chain via as_graph,
+        # resumed from its head (same semantics as the old list walk).
+        await _execute_flow(
+            tenant, step["event"], step["flow_id"], actions,
+            step["results"], step["run_id"], step["attempt"],
+        )
 
 
 @scheduler.scheduled_job("interval", seconds=10, id="flow_engine", max_instances=1, coalesce=True)

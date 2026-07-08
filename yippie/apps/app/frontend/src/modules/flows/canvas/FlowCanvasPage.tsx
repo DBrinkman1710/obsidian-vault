@@ -1,25 +1,33 @@
 // [FLOW3] Visual flow canvas at /flows/:id — the node view of one flow, with an
 // inspector for edit parity (writes the exact same flows JSON as the modal
 // builder) and run replay (highlights the path a historical run took).
+// [FLOW4] the canvas is the editing surface for branches: the draft holds a
+// step TREE (branch steps carry their match/else legs inline) that serializes
+// to the graph shape — or back to the plain linear list while branch-free, so
+// the modal builder stays usable until a branch is added.
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Background, Controls, ReactFlow } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
-import { ArrowLeft, History, Plus, SlidersHorizontal, Trash2, X, Zap } from 'lucide-react'
+import {
+  ArrowLeft, GitBranch, History, Plus, SlidersHorizontal, Trash2, X, Zap,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import {
-  Action, Condition, Flow, FlowRun, FlowsMeta, RUN_BADGE, WEEKDAYS, apiError,
-  newActionId, toGroups,
+  Condition, Flow, FlowRun, FlowsMeta, RUN_BADGE, Step, WEEKDAYS, apiError,
+  canAppend, findStep, graphToTree, newActionId, toGroups, treeToActions,
 } from '../lib'
 import { ConditionRow, ConfigField, WaitConfig } from '../components/FieldInputs'
 import { nodeTypes } from './nodes'
 import { FlowDraft, Selection, buildGraph } from './layout'
 import { ReplayState, computeReplay } from './replay'
 
-function draftFrom(flow: Flow): FlowDraft {
+function draftFrom(flow: Flow): FlowDraft | null {
+  const steps = graphToTree(flow.actions)
+  if (steps === null) return null // non-tree DAG — only possible via the raw API
   return {
     name: flow.name,
     trigger_type: flow.trigger_type,
@@ -28,14 +36,13 @@ function draftFrom(flow: Flow): FlowDraft {
         ? flow.trigger_config
         : { frequency: 'daily', time: '09:00' },
     groups: toGroups(flow.conditions).map(g => g.map(c => ({ ...c }))),
-    actions: flow.actions.map(a => ({ ...a, config: { ...(a.config ?? {}) } })),
+    steps,
     enabled: flow.enabled,
   }
 }
 
-// The exact same request body the modal builder sends (edit parity).
-function saveBody(draft: FlowDraft): object {
-  const conditions = draft.groups
+function cleanGroups(groups: Condition[][]): Condition[][] {
+  return groups
     .map(g => g
       .filter(c => c.field && c.op)
       .map(c => ({
@@ -45,12 +52,28 @@ function saveBody(draft: FlowDraft): object {
           : c.value,
       })))
     .filter(g => g.length > 0)
+}
+
+function cleanSteps(steps: Step[]): Step[] {
+  return steps.map(s => (s.type === 'branch'
+    ? {
+        ...s,
+        config: { conditions: cleanGroups((s.config?.conditions as Condition[][]) ?? []) },
+        match: cleanSteps(s.match ?? []),
+        else: cleanSteps(s.else ?? []),
+      }
+    : s))
+}
+
+// The exact same request body the modal builder sends (edit parity) — except
+// `actions` becomes the graph shape once the tree contains a branch.
+function saveBody(draft: FlowDraft): object {
   return {
     name: draft.name.trim(),
     trigger_type: draft.trigger_type,
     trigger_config: draft.trigger_type === 'schedule' ? draft.trigger_config : {},
-    conditions,
-    actions: draft.actions,
+    conditions: cleanGroups(draft.groups),
+    actions: treeToActions(cleanSteps(draft.steps)),
     enabled: draft.enabled,
   }
 }
@@ -79,6 +102,7 @@ export default function FlowCanvasPage() {
   })
 
   const [draft, setDraft] = useState<FlowDraft | null>(null)
+  const [unsupported, setUnsupported] = useState(false)
   const [selection, setSelection] = useState<Selection | null>(null)
   const [replayRunId, setReplayRunId] = useState<string | null>(null)
   const [panel, setPanel] = useState<'inspect' | 'runs'>('inspect')
@@ -86,8 +110,12 @@ export default function FlowCanvasPage() {
 
   // Initialize the draft once the flow arrives; never clobber unsaved edits.
   useEffect(() => {
-    if (flow && draft === null) setDraft(draftFrom(flow))
-  }, [flow, draft])
+    if (flow && draft === null && !unsupported) {
+      const d = draftFrom(flow)
+      if (d) setDraft(d)
+      else setUnsupported(true)
+    }
+  }, [flow, draft, unsupported])
 
   const dirty = useMemo(
     () => !!flow && !!draft && JSON.stringify(draft) !== JSON.stringify(draftFrom(flow)),
@@ -96,7 +124,7 @@ export default function FlowCanvasPage() {
 
   const replayRun = runs.find(r => r.id === replayRunId) ?? null
   const replay: ReplayState | null = useMemo(
-    () => (replayRun && draft ? computeReplay(replayRun, draft.groups, draft.actions) : null),
+    () => (replayRun && draft ? computeReplay(replayRun, draft.groups, draft.steps) : null),
     [replayRun, draft],
   )
 
@@ -120,7 +148,7 @@ export default function FlowCanvasPage() {
     setDraft(d => (d ? { ...d, ...patch } : d))
   }
 
-  // --- inspector mutations (all pure draft-state edits)
+  // --- flow-level condition group edits (unchanged from [FLOW3])
   function setCondition(gi: number, ci: number, patch: Partial<Condition>) {
     patchDraft({
       groups: draft!.groups.map((g, gIdx) =>
@@ -148,27 +176,72 @@ export default function FlowCanvasPage() {
     patchDraft({ groups: draft!.groups.filter((_, i) => i !== gi) })
     setSelection(null)
   }
-  function addAction() {
-    const action: Action = { id: newActionId(), type: meta?.actions[0]?.key ?? 'notify_user', config: {} }
-    patchDraft({ actions: [...draft!.actions, action] })
-    setSelection({ kind: 'action', index: draft!.actions.length })
+
+  // --- step tree edits ([FLOW4] — all on a cloned tree, then patched in)
+  type LegTarget = { branchId: string; leg: 'match' | 'else' } | null
+
+  function listFor(steps: Step[], target: LegTarget): Step[] | null {
+    if (!target) return steps
+    const loc = findStep(steps, target.branchId)
+    if (!loc) return null
+    const branch = loc.list[loc.index]
+    if (!branch[target.leg]) branch[target.leg] = []
+    return branch[target.leg]!
   }
-  function updateAction(ai: number, patch: Partial<Action>) {
-    patchDraft({
-      actions: draft!.actions.map((a, i) => (i === ai ? { ...a, ...patch } : a)),
-    })
+
+  function addStep(target: LegTarget, kind: 'action' | 'branch') {
+    const step: Step = kind === 'branch'
+      ? {
+          id: newActionId(), type: 'branch',
+          config: { conditions: [[{ field: '', op: 'equals', value: '' }]] },
+          match: [], else: [],
+        }
+      : { id: newActionId(), type: meta?.actions[0]?.key ?? 'notify_user', config: {} }
+    const steps = structuredClone(draft!.steps)
+    const list = listFor(steps, target)
+    if (!list || !canAppend(list)) return
+    list.push(step)
+    patchDraft({ steps })
+    setSelection({ kind: 'step', id: step.id })
   }
-  function removeAction(ai: number) {
-    patchDraft({ actions: draft!.actions.filter((_, i) => i !== ai) })
+
+  function updateStep(stepId: string, patch: Partial<Step>) {
+    const steps = structuredClone(draft!.steps)
+    const loc = findStep(steps, stepId)
+    if (!loc) return
+    loc.list[loc.index] = { ...loc.list[loc.index], ...patch }
+    patchDraft({ steps })
+  }
+
+  function removeStep(stepId: string) {
+    const steps = structuredClone(draft!.steps)
+    const loc = findStep(steps, stepId)
+    if (!loc) return
+    loc.list.splice(loc.index, 1)
+    patchDraft({ steps })
     setSelection(null)
   }
-  function moveAction(ai: number, dir: -1 | 1) {
-    const to = ai + dir
-    if (to < 0 || to >= draft!.actions.length) return
-    const actions = [...draft!.actions]
-    ;[actions[ai], actions[to]] = [actions[to], actions[ai]]
-    patchDraft({ actions })
-    setSelection({ kind: 'action', index: to })
+
+  function moveStep(stepId: string, dir: -1 | 1) {
+    const steps = structuredClone(draft!.steps)
+    const loc = findStep(steps, stepId)
+    if (!loc) return
+    const to = loc.index + dir
+    if (to < 0 || to >= loc.list.length) return
+    ;[loc.list[loc.index], loc.list[to]] = [loc.list[to], loc.list[loc.index]]
+    // a branch always ends its chain — block moves that would bury one
+    if (loc.list.some((s, i) => s.type === 'branch' && i !== loc.list.length - 1)) return
+    patchDraft({ steps })
+  }
+
+  function mutateBranchGroups(stepId: string, fn: (groups: Condition[][]) => Condition[][]) {
+    const steps = structuredClone(draft!.steps)
+    const loc = findStep(steps, stepId)
+    if (!loc) return
+    const step = loc.list[loc.index]
+    const groups = fn(((step.config?.conditions as Condition[][]) ?? []).map(g => [...g]))
+    step.config = { ...step.config, conditions: groups }
+    patchDraft({ steps })
   }
 
   if (isLoading || (!flow && flows.length === 0)) {
@@ -184,9 +257,61 @@ export default function FlowCanvasPage() {
       </div>
     )
   }
+  if (unsupported) {
+    return (
+      <div className="p-8">
+        <p className="text-sm text-slate-500">
+          This flow's graph was created outside the builder in a shape the canvas can't display.
+        </p>
+        <button onClick={() => navigate('/flows')} className="mt-2 text-sm font-semibold text-blue-600">
+          Back to flows
+        </button>
+      </div>
+    )
+  }
   if (!draft) return null
 
   const trigger = meta?.triggers.find(t => t.key === draft.trigger_type)
+  const selectedLoc = selection?.kind === 'step' ? findStep(draft.steps, selection.id) : null
+  const selectedStep = selectedLoc ? selectedLoc.list[selectedLoc.index] : null
+
+  function legSection(step: Step, leg: 'match' | 'else') {
+    const list = (leg === 'match' ? step.match : step.else) ?? []
+    const label = leg === 'match' ? 'Yes path (conditions match)' : 'No path (otherwise)'
+    return (
+      <div className="space-y-1.5 pt-1">
+        <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">{label}</p>
+        {list.length === 0 && <p className="text-xs text-slate-400">Flow ends here.</p>}
+        {list.map(s => (
+          <button
+            key={s.id}
+            onClick={() => setSelection({ kind: 'step', id: s.id })}
+            className="block w-full text-left text-xs text-slate-600 border border-slate-200 rounded-lg px-2 py-1.5 hover:bg-slate-50 truncate"
+          >
+            {s.type === 'branch' ? 'Branch' : (meta?.actions.find(a => a.key === s.type)?.label ?? s.type)}
+          </button>
+        ))}
+        {canAppend(list) ? (
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => addStep({ branchId: step.id, leg }, 'action')}
+              className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+            >
+              <Plus size={12} /> Action
+            </button>
+            <button
+              onClick={() => addStep({ branchId: step.id, leg }, 'branch')}
+              className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700"
+            >
+              <GitBranch size={12} /> Branch
+            </button>
+          </div>
+        ) : (
+          <p className="text-[11px] text-slate-400">Select the nested branch to extend this path.</p>
+        )}
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -250,11 +375,13 @@ export default function FlowCanvasPage() {
             nodesConnectable={false}
             deleteKeyCode={null}
             onNodeClick={(_, node) => {
+              if (node.id.startsWith('ghost-')) return
               setPanel('inspect')
               if (node.id === 'trigger') setSelection({ kind: 'trigger' })
-              else {
-                const [kind, index] = node.id.split('-')
-                setSelection({ kind: kind as 'group' | 'action', index: Number(index) })
+              else if (node.id.startsWith('group-')) {
+                setSelection({ kind: 'group', index: Number(node.id.split('-')[1]) })
+              } else if (node.id.startsWith('step:')) {
+                setSelection({ kind: 'step', id: node.id.slice('step:'.length) })
               }
             }}
             onPaneClick={() => setSelection(null)}
@@ -314,9 +441,20 @@ export default function FlowCanvasPage() {
             {panel === 'inspect' && isAdmin && selection === null && (
               <>
                 <p className="text-xs text-slate-400">Select a node to edit it, or add a step:</p>
-                <button onClick={addAction} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700">
-                  <Plus size={13} /> Add action
-                </button>
+                {canAppend(draft.steps) ? (
+                  <>
+                    <button onClick={() => addStep(null, 'action')} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700">
+                      <Plus size={13} /> Add action
+                    </button>
+                    <button onClick={() => addStep(null, 'branch')} className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700">
+                      <GitBranch size={13} /> Add branch (if/else)
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-[11px] text-slate-400">
+                    This flow ends in a branch — select it to extend its paths.
+                  </p>
+                )}
                 <button onClick={addGroup} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700">
                   <Plus size={13} /> Add {draft.groups.length === 0 ? 'condition' : 'OR group'}
                 </button>
@@ -403,30 +541,89 @@ export default function FlowCanvasPage() {
               </div>
             )}
 
-            {panel === 'inspect' && isAdmin && selection?.kind === 'action' && meta && draft.actions[selection.index] && (
+            {/* [FLOW4] branch step inspector */}
+            {panel === 'inspect' && isAdmin && meta && selectedStep?.type === 'branch' && (
+              <div className="space-y-2">
+                <div className="flex items-center">
+                  <p className="text-xs font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
+                    <GitBranch size={11} /> Branch
+                  </p>
+                  <button
+                    onClick={() => removeStep(selectedStep.id)}
+                    className="ml-auto p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                    title="Delete branch (and both paths)"
+                  >
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+                <p className="text-[11px] text-slate-400">
+                  Checked against the record's current data when the run gets here — after a wait,
+                  "status is open" means still open.
+                </p>
+                {(((selectedStep.config?.conditions as Condition[][]) ?? [])).map((group, gi) => (
+                  <div key={gi} className="space-y-1.5">
+                    {gi > 0 && <p className="text-[10px] font-bold text-slate-400 text-center uppercase">or</p>}
+                    {group.map((c, ci) => (
+                      <ConditionRow
+                        key={ci}
+                        condition={c}
+                        trigger={trigger}
+                        meta={meta}
+                        onChange={patch => mutateBranchGroups(selectedStep.id, gs => gs.map((g, gIdx) =>
+                          gIdx === gi ? g.map((cc, cIdx) => (cIdx === ci ? { ...cc, ...patch } : cc)) : g))}
+                        onRemove={() => mutateBranchGroups(selectedStep.id, gs => gs
+                          .map((g, gIdx) => (gIdx === gi ? g.filter((_, cIdx) => cIdx !== ci) : g))
+                          .filter(g => g.length > 0))}
+                      />
+                    ))}
+                    <button
+                      onClick={() => mutateBranchGroups(selectedStep.id, gs => gs.map((g, gIdx) =>
+                        gIdx === gi ? [...g, { field: '', op: 'equals', value: '' }] : g))}
+                      className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                    >
+                      <Plus size={12} /> Add condition
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={() => mutateBranchGroups(selectedStep.id, gs =>
+                    [...gs, [{ field: '', op: 'equals', value: '' }]])}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                >
+                  <Plus size={13} /> Add OR group
+                </button>
+                {legSection(selectedStep, 'match')}
+                {legSection(selectedStep, 'else')}
+              </div>
+            )}
+
+            {/* action / wait step inspector */}
+            {panel === 'inspect' && isAdmin && meta && selectedStep && selectedStep.type !== 'branch' && selectedLoc && (
               <div className="space-y-2">
                 <div className="flex items-center gap-1">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                    Step {selection.index + 1} of {draft.actions.length}
+                    Step {selectedLoc.index + 1} of {selectedLoc.list.length}
+                    {selectedLoc.parent ? ' (in branch)' : ''}
                   </p>
                   <button
-                    onClick={() => moveAction(selection.index, -1)}
-                    disabled={selection.index === 0}
+                    onClick={() => moveStep(selectedStep.id, -1)}
+                    disabled={selectedLoc.index === 0}
                     className="ml-auto px-1.5 py-0.5 text-slate-400 hover:text-slate-600 disabled:opacity-30 text-xs"
                     title="Move up"
                   >
                     ↑
                   </button>
                   <button
-                    onClick={() => moveAction(selection.index, 1)}
-                    disabled={selection.index === draft.actions.length - 1}
+                    onClick={() => moveStep(selectedStep.id, 1)}
+                    disabled={selectedLoc.index >= selectedLoc.list.length - 1 ||
+                      selectedLoc.list[selectedLoc.index + 1]?.type === 'branch'}
                     className="px-1.5 py-0.5 text-slate-400 hover:text-slate-600 disabled:opacity-30 text-xs"
                     title="Move down"
                   >
                     ↓
                   </button>
                   <button
-                    onClick={() => removeAction(selection.index)}
+                    onClick={() => removeStep(selectedStep.id)}
                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
                     title="Delete action"
                   >
@@ -434,27 +631,27 @@ export default function FlowCanvasPage() {
                   </button>
                 </div>
                 <select
-                  value={draft.actions[selection.index].type}
-                  onChange={e => updateAction(selection.index, { type: e.target.value, config: {} })}
+                  value={selectedStep.type}
+                  onChange={e => updateStep(selectedStep.id, { type: e.target.value, config: {} })}
                   className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
                   {meta.actions.map(m => <option key={m.key} value={m.key}>{m.label}</option>)}
                 </select>
-                {draft.actions[selection.index].type === 'wait' ? (
+                {selectedStep.type === 'wait' ? (
                   <WaitConfig
-                    config={draft.actions[selection.index].config}
-                    onChange={c => updateAction(selection.index, { config: c })}
+                    config={selectedStep.config}
+                    onChange={c => updateStep(selectedStep.id, { config: c })}
                   />
                 ) : (
                   <div className="space-y-2">
-                    {(meta.actions.find(m => m.key === draft.actions[selection.index].type)?.config_fields ?? []).map(f => (
+                    {(meta.actions.find(m => m.key === selectedStep.type)?.config_fields ?? []).map(f => (
                       <ConfigField
                         key={f.key}
                         field={f}
-                        value={draft.actions[selection.index].config[f.key]}
+                        value={selectedStep.config[f.key]}
                         meta={meta}
-                        onChange={v => updateAction(selection.index, {
-                          config: { ...draft.actions[selection.index].config, [f.key]: v },
+                        onChange={v => updateStep(selectedStep.id, {
+                          config: { ...selectedStep.config, [f.key]: v },
                         })}
                       />
                     ))}

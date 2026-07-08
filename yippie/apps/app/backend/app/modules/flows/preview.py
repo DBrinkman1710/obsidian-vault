@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from typing import Any, Optional
 
+from app.modules.flows import graph
 from app.modules.flows.actions import ACTION_META, ACTION_MODULES, render_placeholders
 from app.modules.flows.conditions import TRIGGER_META, _as_groups, evaluate_conditions
 
@@ -96,30 +97,66 @@ def _action_detail(action_type: str, config: dict, fields: dict) -> str:
     return ACTION_META.get(action_type, {}).get("label", action_type)
 
 
+def _preview_one(action: dict, fields: dict, matched: bool, enabled_modules: list[str]) -> dict:
+    action_type = action.get("type")
+    config = action.get("config") or {}
+    module = ACTION_MODULES.get(action_type)
+    if not matched:
+        would_run, reason = False, "conditions did not match the sample event"
+    elif module and module not in (enabled_modules or []):
+        would_run, reason = False, f"the '{module}' module is disabled"
+    else:
+        would_run, reason = True, None
+    return {
+        "type": action_type,
+        "label": ACTION_META.get(action_type, {}).get("label", action_type),
+        "detail": _action_detail(action_type, config, fields),
+        "would_run": would_run,
+        "reason": reason,
+    }
+
+
 def preview_actions(
     actions: list, fields: dict, matched: bool, enabled_modules: list[str]
 ) -> list[dict]:
     """Describe each action and whether it would actually run. Nothing runs if
     the conditions didn't match; an action whose module is disabled is skipped
     exactly as the live engine would skip it."""
-    previews = []
-    for action in actions or []:
-        action_type = action.get("type")
-        config = action.get("config") or {}
-        module = ACTION_MODULES.get(action_type)
-        if not matched:
-            would_run, reason = False, "conditions did not match the sample event"
-        elif module and module not in (enabled_modules or []):
-            would_run, reason = False, f"the '{module}' module is disabled"
-        else:
-            would_run, reason = True, None
-        previews.append({
-            "type": action_type,
-            "label": ACTION_META.get(action_type, {}).get("label", action_type),
-            "detail": _action_detail(action_type, config, fields),
-            "would_run": would_run,
-            "reason": reason,
-        })
+    return [_preview_one(a, fields, matched, enabled_modules) for a in actions or []]
+
+
+def preview_graph(
+    actions: dict, fields: dict, matched: bool, enabled_modules: list[str]
+) -> list[dict]:
+    """[FLOW4] The graph equivalent: walk the path the sample event would take,
+    evaluating each branch node against the sample fields (a LIVE run re-checks
+    fresh entity state — the preview can only reason about the sample)."""
+    flow_graph = graph.as_graph(actions)
+    by_id = graph.node_map(flow_graph)
+    previews: list[dict] = []
+    node_id = graph.root_id(flow_graph)
+    seen = 0
+    while node_id is not None and seen <= graph.MAX_NODES:
+        seen += 1
+        node = by_id.get(node_id)
+        if node is None:
+            break
+        if node.get("type") == "branch":
+            conditions = (node.get("config") or {}).get("conditions") or []
+            branch_match = evaluate_conditions(conditions, fields)
+            node_id = graph.next_id(flow_graph, node["id"], matched=branch_match)
+            outcome = "match path" if branch_match else "else path"
+            tail = "" if node_id is not None else " — the flow would end here"
+            previews.append({
+                "type": "branch",
+                "label": "Branch",
+                "detail": f"The sample event takes the {outcome}{tail} (live runs re-check current data)",
+                "would_run": matched,
+                "reason": None if matched else "conditions did not match the sample event",
+            })
+            continue
+        previews.append(_preview_one(node, fields, matched, enabled_modules))
+        node_id = graph.next_id(flow_graph, node["id"])
     return previews
 
 
@@ -131,9 +168,10 @@ def dry_run(
     fields = build_sample_event(trigger_type, conditions)
     matched = evaluate_conditions(conditions or [], fields)
     sample_event = {k: v for k, v in fields.items() if k != "event_type"}
+    previewer = preview_graph if graph.is_graph(actions) else preview_actions
     return {
         "trigger_type": trigger_type,
         "sample_event": sample_event,
         "matched": matched,
-        "actions": preview_actions(actions, fields, matched, enabled_modules),
+        "actions": previewer(actions, fields, matched, enabled_modules),
     }
