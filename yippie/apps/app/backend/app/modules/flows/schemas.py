@@ -163,6 +163,10 @@ class FlowOut(BaseModel):
     conditions: list
     actions: list
     run_count: int
+    # From flow_runs (attached by the service): total success runs, and failed +
+    # partial runs. Default 0 so a lone FlowOut (e.g. duplicate) stays valid.
+    success_count: int = 0
+    fail_count: int = 0
     last_run_at: Optional[datetime]
     created_at: datetime
 

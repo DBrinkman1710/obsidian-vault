@@ -8,12 +8,17 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant, User
-from app.modules.flows import steps
+from app.modules.flows import preview, steps
 from app.modules.flows.actions import ACTION_META, ACTION_MODULES
 from app.modules.flows.conditions import TRIGGER_META
 from app.modules.flows.models import Flow, FlowRun
 from app.modules.flows.recipes import RECIPES, RECIPES_BY_KEY
 from app.modules.flows.schemas import FlowCreate, FlowUpdate, ScheduleConfigSpec
+
+# Run statuses that count toward the "fail" tally on a list row. A partial run
+# (some actions failed) is a health signal too, so it sits on the fail side;
+# waiting/skipped are neither a success nor a failure and are not counted.
+_FAIL_STATUSES = ("failed", "partial")
 
 
 class FlowValidationError(ValueError):
@@ -43,7 +48,35 @@ async def list_flows(db: AsyncSession, tenant_id: uuid.UUID) -> list[Flow]:
     result = await db.execute(
         select(Flow).where(Flow.tenant_id == tenant_id).order_by(Flow.created_at.desc())
     )
-    return list(result.scalars().all())
+    flows = list(result.scalars().all())
+    await _attach_run_stats(db, tenant_id, flows)
+    return flows
+
+
+async def _attach_run_stats(
+    db: AsyncSession, tenant_id: uuid.UUID, flows: list[Flow]
+) -> None:
+    """Decorate each flow with success_count/fail_count from flow_runs in one
+    grouped query (transient attributes read by FlowOut, never persisted)."""
+    for flow in flows:
+        flow.success_count = 0
+        flow.fail_count = 0
+    if not flows:
+        return
+    rows = await db.execute(
+        select(FlowRun.flow_id, FlowRun.status, func.count())
+        .where(FlowRun.tenant_id == tenant_id)
+        .group_by(FlowRun.flow_id, FlowRun.status)
+    )
+    by_id = {flow.id: flow for flow in flows}
+    for flow_id, run_status, count in rows.all():
+        flow = by_id.get(flow_id)
+        if flow is None:
+            continue
+        if run_status == "success":
+            flow.success_count += count
+        elif run_status in _FAIL_STATUSES:
+            flow.fail_count += count
 
 
 async def get_flow(db: AsyncSession, tenant_id: uuid.UUID, flow_id: uuid.UUID) -> Optional[Flow]:
@@ -180,14 +213,49 @@ async def delete_flow(db: AsyncSession, flow: Flow) -> None:
     await db.commit()
 
 
+async def duplicate_flow(
+    db: AsyncSession, tenant: Tenant, created_by: uuid.UUID, flow: Flow
+) -> Flow:
+    """Clone a flow's wiring into a fresh, disabled copy (run counters reset).
+    Disabled so the operator reviews/renames before it starts firing — no
+    completeness validation needed."""
+    copy = Flow(
+        tenant_id=tenant.id,
+        name=f"{flow.name} (copy)"[:255],
+        enabled=False,
+        trigger_type=flow.trigger_type,
+        trigger_config=flow.trigger_config or {},
+        conditions=flow.conditions or [],
+        actions=flow.actions or [],
+        created_by=created_by,
+    )
+    db.add(copy)
+    await db.commit()
+    await db.refresh(copy)
+    copy.success_count = 0
+    copy.fail_count = 0
+    return copy
+
+
+def test_fire(tenant: Tenant, flow: Flow) -> dict:
+    """Dry-run a flow against a synthesized sample event — evaluate its
+    conditions and report which actions would run, executing nothing."""
+    return preview.dry_run(
+        flow.trigger_type, flow.conditions, flow.actions, tenant.enabled_modules or []
+    )
+
+
 async def list_runs(
-    db: AsyncSession, tenant_id: uuid.UUID, flow_id: uuid.UUID, limit: int = 25
+    db: AsyncSession, tenant_id: uuid.UUID, flow_id: uuid.UUID,
+    limit: int = 25, status: Optional[str] = None,
 ) -> list[FlowRun]:
+    query = select(FlowRun).where(
+        FlowRun.tenant_id == tenant_id, FlowRun.flow_id == flow_id
+    )
+    if status:
+        query = query.where(FlowRun.status == status)
     result = await db.execute(
-        select(FlowRun)
-        .where(FlowRun.tenant_id == tenant_id, FlowRun.flow_id == flow_id)
-        .order_by(FlowRun.created_at.desc())
-        .limit(min(limit, 100))
+        query.order_by(FlowRun.created_at.desc()).limit(min(limit, 100))
     )
     return list(result.scalars().all())
 

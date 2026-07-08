@@ -73,11 +73,30 @@ async def list_flow_runs(
     current_user: CurrentUser,
     db: DB,
     limit: int = Query(25, ge=1, le=100),
+    run_status: str | None = Query(None, alias="status"),
 ):
     flow = await service.get_flow(db, current_user.tenant_id, flow_id)
     if flow is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found")
-    return await service.list_runs(db, current_user.tenant_id, flow_id, limit)
+    return await service.list_runs(db, current_user.tenant_id, flow_id, limit, run_status)
+
+
+@router.post("/{flow_id}/duplicate", response_model=FlowOut, status_code=status.HTTP_201_CREATED)
+async def duplicate_flow(flow_id: uuid.UUID, current_user: AdminUser, db: DB):
+    flow = await service.get_flow(db, current_user.tenant_id, flow_id)
+    if flow is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found")
+    tenant = await _load_tenant(db, current_user.tenant_id)
+    return await service.duplicate_flow(db, tenant, current_user.id, flow)
+
+
+@router.post("/{flow_id}/test")
+async def test_fire_flow(flow_id: uuid.UUID, current_user: AdminUser, db: DB):
+    flow = await service.get_flow(db, current_user.tenant_id, flow_id)
+    if flow is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found")
+    tenant = await _load_tenant(db, current_user.tenant_id)
+    return service.test_fire(tenant, flow)
 
 
 @router.patch("/{flow_id}", response_model=FlowOut)

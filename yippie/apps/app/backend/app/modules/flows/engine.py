@@ -25,12 +25,12 @@ from __future__ import annotations
 
 import logging
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from zoneinfo import ZoneInfo
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import delete, func, select, text, update
+from sqlalchemy import delete, exists, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.flow_events import emit_flow_event
@@ -47,6 +47,11 @@ scheduler = AsyncIOScheduler()
 
 BATCH_SIZE = 200
 PENDING_BATCH_SIZE = 100
+
+# A run can't legitimately wait longer than the max total wait; give it a day of
+# slack before the sweeper treats a still-"waiting" run with no pending step as
+# orphaned (a crash between claiming a pending step and finishing the resume).
+STALE_WAITING_SLACK = timedelta(days=1)
 
 
 async def _claim_events(db: AsyncSession) -> list[dict]:
@@ -438,6 +443,39 @@ async def flow_schedule_tick():
                 log.info("flow schedule tick: emitted %d scheduled event(s)", emitted)
     except Exception:
         log.exception("flow engine: schedule tick failed")
+
+
+@scheduler.scheduled_job("interval", hours=1, id="flow_waiting_sweeper", max_instances=1, coalesce=True)
+async def flow_waiting_sweeper_tick():
+    """Close orphaned `waiting` runs. Claim-first resume ([FLOW2A]) means a crash
+    between claiming a pending step and finishing its resume can leave a run row
+    stuck at `waiting` with no pending step behind it. A run can legitimately wait
+    at most the max total wait, so any `waiting` run older than that (plus a day of
+    slack) with no matching flow_pending_steps row is dead — mark it failed."""
+    if await skip_if_locked("flow_waiting_sweeper", ttl=3300):
+        return
+    cutoff = datetime.now(timezone.utc) - (steps.MAX_WAIT + STALE_WAITING_SLACK)
+    has_pending = exists().where(FlowPendingStep.run_id == FlowRun.id)
+    try:
+        async with db_session() as db:
+            await db.execute(text("SET LOCAL row_security = off"))
+            result = await db.execute(
+                update(FlowRun)
+                .where(
+                    FlowRun.status == "waiting",
+                    FlowRun.created_at < cutoff,
+                    ~has_pending,
+                )
+                .values(
+                    status="failed",
+                    error="Swept: waiting run had no pending step (engine likely crashed mid-resume)",
+                )
+            )
+            await db.commit()
+            if result.rowcount:
+                log.info("flow waiting sweeper: closed %d stale waiting run(s)", result.rowcount)
+    except Exception:
+        log.exception("flow engine: waiting sweeper failed")
 
 
 def start_scheduler():

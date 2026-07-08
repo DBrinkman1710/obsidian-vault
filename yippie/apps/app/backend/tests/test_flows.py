@@ -411,3 +411,95 @@ def test_normalize_trigger_config_enabled_schedule_requires_valid():
 def test_schedule_and_sla_triggers_registered():
     assert "schedule" in TRIGGER_META and TRIGGER_META["schedule"]["module"] is None
     assert TRIGGER_META["ticket_sla_due_soon"]["module"] == "tickets"
+
+
+# ------------------------------------------------ [FLOW-POLISH] test fire (dry run)
+
+from app.modules.flows import preview
+
+
+def test_build_sample_event_uses_condition_values_and_defaults():
+    fields = preview.build_sample_event(
+        "ticket_created",
+        [[_cond("priority", "equals", "urgent")]],
+    )
+    # condition value wins for its field
+    assert fields["priority"] == "urgent"
+    # uncovered trigger fields get a default (first option / marker text)
+    assert fields["channel"] == "manual"     # first option of the select
+    assert fields["subject"] == "sample"     # text marker
+    assert fields["event_type"] == "ticket_created"
+
+
+def test_build_sample_event_satisfies_in_and_not_equals():
+    fields = preview.build_sample_event(
+        "ticket_status_changed",
+        [[_cond("status", "in", ["resolved", "closed"]),
+          _cond("priority", "not_equals", "low")]],
+    )
+    assert fields["status"] == "resolved"          # first of the `in` list
+    assert fields["priority"] != "low"             # not_equals is satisfied
+
+
+def test_dry_run_happy_path_matches_and_runs_actions():
+    result = preview.dry_run(
+        "ticket_created",
+        [[_cond("priority", "equals", "high")]],
+        [{"type": "create_ticket", "config": {"subject": "Re: {subject}"}}],
+        ["tickets"],
+    )
+    assert result["matched"] is True
+    assert "event_type" not in result["sample_event"]
+    action = result["actions"][0]
+    assert action["would_run"] is True and action["reason"] is None
+    assert action["detail"] == "Create a ticket “Re: sample”"
+
+
+def test_dry_run_contradictory_conditions_do_not_match():
+    # equals high AND equals low on the same field can't both hold in one group
+    result = preview.dry_run(
+        "ticket_created",
+        [[_cond("priority", "equals", "high"), _cond("priority", "equals", "low")]],
+        [{"type": "notify_user", "config": {"user_id": "u", "message": "hi"}}],
+        [],
+    )
+    assert result["matched"] is False
+    action = result["actions"][0]
+    assert action["would_run"] is False
+    assert "did not match" in action["reason"]
+
+
+def test_dry_run_marks_disabled_module_action_as_skipped():
+    # conditions match, but the action's module isn't enabled → would not run
+    result = preview.dry_run(
+        "contact_created",
+        [],
+        [{"type": "send_email", "config": {"subject": "Hi"}}],
+        [],  # inbox not enabled
+    )
+    assert result["matched"] is True
+    action = result["actions"][0]
+    assert action["would_run"] is False
+    assert "inbox" in action["reason"]
+
+
+def test_dry_run_or_group_matches_when_any_group_satisfied():
+    result = preview.dry_run(
+        "ticket_created",
+        [[_cond("priority", "equals", "high")], [_cond("channel", "equals", "email")]],
+        [{"type": "notify_user", "config": {"user_id": "u", "message": "go"}}],
+        [],
+    )
+    # both groups' fields are synthesized to satisfy them → matches
+    assert result["matched"] is True
+
+
+def test_preview_wait_detail():
+    result = preview.dry_run(
+        "contact_created", [],
+        [{"type": "wait", "config": {"hours": 2}},
+         {"type": "notify_user", "config": {"user_id": "u", "message": "later"}}],
+        [],
+    )
+    assert result["actions"][0]["detail"] == "Pause the flow for 2 hours"
+    assert result["actions"][1]["detail"] == "Notify a team member: “later”"

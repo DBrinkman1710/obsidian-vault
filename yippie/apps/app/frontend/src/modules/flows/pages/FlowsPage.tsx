@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
-  ChevronDown, ChevronRight, Pencil, Plus, Sparkles, Trash2, X, Zap,
+  Check, ChevronDown, ChevronRight, Copy, FlaskConical, Pencil, Plus,
+  Sparkles, Trash2, X, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
@@ -35,8 +36,19 @@ interface Flow {
   conditions: Condition[] | Condition[][]  // flat (legacy) or grouped OR-of-AND
   actions: Action[]
   run_count: number
+  success_count: number
+  fail_count: number
   last_run_at: string | null
   created_at: string
+}
+interface TestFireResult {
+  trigger_type: string
+  sample_event: Record<string, any>
+  matched: boolean
+  actions: {
+    type: string; label: string; detail: string
+    would_run: boolean; reason: string | null
+  }[]
 }
 interface FlowRun {
   id: string
@@ -73,6 +85,8 @@ const RUN_BADGE: Record<string, string> = {
   waiting: 'bg-blue-100 text-blue-700',
   skipped: 'bg-slate-100 text-slate-500',
 }
+
+const RUN_STATUS_FILTERS = ['success', 'partial', 'failed', 'waiting', 'skipped']
 
 const WAIT_UNITS = ['minutes', 'hours', 'days']
 const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
@@ -524,14 +538,38 @@ function BuilderModal({
 /* -------------------------------------------------------------- run drawer */
 
 function RunsDrawer({ flowId }: { flowId: string }) {
+  const [statusFilter, setStatusFilter] = useState<string>('')
   const { data: runs = [], isLoading } = useQuery<FlowRun[]>({
-    queryKey: ['flow-runs', flowId],
-    queryFn: () => api.get(`/flows/${flowId}/runs`).then((r: any) => r.data),
+    queryKey: ['flow-runs', flowId, statusFilter],
+    queryFn: () => api
+      .get(`/flows/${flowId}/runs`, { params: statusFilter ? { status: statusFilter } : {} })
+      .then((r: any) => r.data),
   })
-  if (isLoading) return <p className="px-6 py-4 text-xs text-slate-400">Loading runs…</p>
-  if (runs.length === 0) return <p className="px-6 py-4 text-xs text-slate-400">No runs yet — the flow hasn't been triggered.</p>
   return (
-    <div className="divide-y divide-slate-50 border-t border-slate-100 bg-slate-50/50">
+    <div className="border-t border-slate-100 bg-slate-50/50">
+      <div className="flex items-center gap-1.5 px-6 py-2 flex-wrap">
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mr-1">Filter</span>
+        {['', ...RUN_STATUS_FILTERS].map(s => (
+          <button
+            key={s || 'all'}
+            onClick={() => setStatusFilter(s)}
+            className={`px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize transition-colors ${
+              statusFilter === s
+                ? 'bg-slate-800 text-white'
+                : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
+            }`}
+          >
+            {s || 'all'}
+          </button>
+        ))}
+      </div>
+      {isLoading && <p className="px-6 pb-4 text-xs text-slate-400">Loading runs…</p>}
+      {!isLoading && runs.length === 0 && (
+        <p className="px-6 pb-4 text-xs text-slate-400">
+          {statusFilter ? `No ${statusFilter} runs.` : "No runs yet — the flow hasn't been triggered."}
+        </p>
+      )}
+      <div className="divide-y divide-slate-50">
       {runs.map(run => (
         <div key={run.id} className="px-6 py-2.5 flex items-start gap-3 text-xs">
           <span className={`px-2 py-0.5 rounded-full font-semibold shrink-0 ${RUN_BADGE[run.status] ?? RUN_BADGE.skipped}`}>
@@ -553,6 +591,86 @@ function RunsDrawer({ flowId }: { flowId: string }) {
           <span className="text-slate-400 shrink-0">{new Date(run.created_at).toLocaleString()}</span>
         </div>
       ))}
+      </div>
+    </div>
+  )
+}
+
+/* --------------------------------------------------------------- test fire */
+
+function TestFireModal({
+  meta, flow, onClose,
+}: { meta: FlowsMeta; flow: Flow; onClose: () => void }) {
+  const { data, isLoading, isError } = useQuery<TestFireResult>({
+    queryKey: ['flow-test', flow.id],
+    queryFn: () => api.post(`/flows/${flow.id}/test`).then((r: any) => r.data),
+  })
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/40 flex items-start justify-center overflow-y-auto py-10 px-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
+          <FlaskConical size={16} className="text-slate-400" />
+          <h2 className="text-base font-semibold text-slate-900">Test fire — {flow.name}</h2>
+          <button onClick={onClose} className="ml-auto p-1.5 text-slate-400 hover:text-slate-600 rounded-lg" title="Close">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="px-6 py-5 space-y-4">
+          <p className="text-xs text-slate-500">
+            A dry run against a synthesized sample event. Nothing is created, sent or changed.
+          </p>
+          {isLoading && <p className="text-sm text-slate-400">Running…</p>}
+          {isError && <p className="text-sm text-red-500">Could not run the test.</p>}
+          {data && (
+            <>
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Sample {triggerLabel(meta, data.trigger_type).toLowerCase()}
+                </p>
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-0.5">
+                  {Object.keys(data.sample_event).length === 0 && (
+                    <p className="text-slate-400">No fields for this trigger.</p>
+                  )}
+                  {Object.entries(data.sample_event).map(([k, v]) => (
+                    <p key={k} className="text-slate-600">
+                      <span className="text-slate-400">{k}:</span> {String(v)}
+                    </p>
+                  ))}
+                </div>
+              </div>
+              <div className={`flex items-center gap-2 text-sm font-semibold ${data.matched ? 'text-emerald-600' : 'text-amber-600'}`}>
+                {data.matched
+                  ? <><Check size={15} /> Conditions match — the flow would run</>
+                  : <><X size={15} /> Conditions don’t match this sample — the flow would be skipped</>}
+              </div>
+              <div>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
+                  Then {data.matched ? 'these actions run' : '(nothing runs)'}
+                </p>
+                {data.actions.length === 0 && <p className="text-xs text-slate-400">No actions configured.</p>}
+                <div className="space-y-1.5">
+                  {data.actions.map((a, i) => (
+                    <div key={i} className="flex items-start gap-2 text-sm">
+                      <span className={`mt-0.5 shrink-0 ${a.would_run ? 'text-emerald-500' : 'text-slate-300'}`}>
+                        {a.would_run ? <Check size={14} /> : <X size={14} />}
+                      </span>
+                      <div className="min-w-0">
+                        <p className={a.would_run ? 'text-slate-700' : 'text-slate-400'}>{a.detail}</p>
+                        {a.reason && <p className="text-xs text-slate-400">Skipped: {a.reason}</p>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+        <div className="flex px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
+          <button onClick={onClose} className="ml-auto px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -566,6 +684,7 @@ export default function FlowsPage() {
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editingFlow, setEditingFlow] = useState<Flow | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [testingFlow, setTestingFlow] = useState<Flow | null>(null)
 
   const { data: meta } = useQuery<FlowsMeta>({
     queryKey: ['flows-meta'],
@@ -592,6 +711,16 @@ export default function FlowsPage() {
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/flows/${id}`),
     onSuccess: invalidate,
+  })
+  const duplicateMut = useMutation({
+    mutationFn: (id: string) => api.post(`/flows/${id}/duplicate`).then((r: any) => r.data),
+    onSuccess: (flow: Flow) => {
+      invalidate()
+      setEditingFlow(flow)
+      setBuilderOpen(true)
+      toast.success('Flow duplicated — review and enable the copy')
+    },
+    onError: (err: any) => toast.error(apiError(err)),
   })
   const installMut = useMutation({
     mutationFn: (key: string) => api.post(`/flows/recipes/${key}/install`).then((r: any) => r.data),
@@ -677,11 +806,26 @@ export default function FlowsPage() {
                   <p className="text-sm font-semibold text-slate-800 truncate">{flow.name}</p>
                   <p className="text-xs text-slate-400 truncate">{flowSummary(meta, flow)}</p>
                 </div>
-                <span className="text-xs text-slate-400 shrink-0" title="Total runs">
-                  {flow.run_count} run{flow.run_count !== 1 ? 's' : ''}
-                </span>
+                <div className="flex items-center gap-2 shrink-0 text-xs" title={`${flow.run_count} total run${flow.run_count !== 1 ? 's' : ''}`}>
+                  {flow.success_count > 0 && (
+                    <span className="text-emerald-600 font-semibold">{flow.success_count} ✓</span>
+                  )}
+                  {flow.fail_count > 0 && (
+                    <span className="text-red-500 font-semibold">{flow.fail_count} ✗</span>
+                  )}
+                  {flow.success_count === 0 && flow.fail_count === 0 && (
+                    <span className="text-slate-400">{flow.run_count} run{flow.run_count !== 1 ? 's' : ''}</span>
+                  )}
+                </div>
                 {isAdmin && (
                   <>
+                    <button
+                      onClick={() => setTestingFlow(flow)}
+                      className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                      title="Test fire (dry run)"
+                    >
+                      <FlaskConical size={13} />
+                    </button>
                     <button
                       onClick={() => toggleMut.mutate({ id: flow.id, enabled: !flow.enabled })}
                       className={`shrink-0 w-9 h-5 rounded-full transition-colors relative ${flow.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
@@ -695,6 +839,14 @@ export default function FlowsPage() {
                       title="Edit"
                     >
                       <Pencil size={13} />
+                    </button>
+                    <button
+                      onClick={() => duplicateMut.mutate(flow.id)}
+                      disabled={duplicateMut.isPending}
+                      className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
+                      title="Duplicate"
+                    >
+                      <Copy size={13} />
                     </button>
                     <button
                       onClick={() => { if (confirm(`Delete "${flow.name}"?`)) deleteMut.mutate(flow.id) }}
@@ -719,6 +871,10 @@ export default function FlowsPage() {
           onClose={() => { setBuilderOpen(false); setEditingFlow(null) }}
           onSaved={invalidate}
         />
+      )}
+
+      {testingFlow && meta && (
+        <TestFireModal meta={meta} flow={testingFlow} onClose={() => setTestingFlow(null)} />
       )}
     </div>
   )
