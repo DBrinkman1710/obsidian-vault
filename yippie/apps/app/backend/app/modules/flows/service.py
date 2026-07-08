@@ -7,6 +7,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant, User
+from app.modules.flows import steps
 from app.modules.flows.actions import ACTION_META, ACTION_MODULES
 from app.modules.flows.conditions import TRIGGER_META
 from app.modules.flows.models import Flow, FlowRun
@@ -51,6 +52,12 @@ async def _validate_enabled(
         )
     if not actions:
         raise FlowValidationError("An enabled flow needs at least one action")
+    # Waits may not trail the flow and their total is capped (each config was
+    # already shape-validated by ActionSpec).
+    try:
+        steps.validate_wait_placement(actions)
+    except ValueError as exc:
+        raise FlowValidationError(str(exc))
 
     for action in actions:
         action_type = action["type"]
@@ -108,6 +115,7 @@ async def create_flow(
         name=data.name,
         enabled=data.enabled,
         trigger_type=data.trigger_type,
+        trigger_config=data.trigger_config,
         conditions=conditions,
         actions=actions,
         created_by=created_by,
@@ -128,6 +136,8 @@ async def update_flow(db: AsyncSession, tenant: Tenant, flow: Flow, data: FlowUp
         flow.conditions = [c.model_dump() for c in data.conditions]
     if "actions" in provided:
         flow.actions = [a.model_dump() for a in data.actions]
+    if "trigger_config" in provided:
+        flow.trigger_config = data.trigger_config
     if "enabled" in provided:
         flow.enabled = data.enabled
     if flow.enabled:

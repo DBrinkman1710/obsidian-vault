@@ -32,6 +32,11 @@ class Flow(Base):
     trigger_type: Mapped[str] = mapped_column(String(50), nullable=False)
     conditions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     actions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    # Phase 2: trigger-specific settings (e.g. schedule frequency/time). Defaults
+    # to {} for the mutation-driven triggers. last_scheduled_on is the local date
+    # string the schedule trigger last fired on (once-a-day dedup).
+    trigger_config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    last_scheduled_on: Mapped[str | None] = mapped_column(String(10), nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
@@ -61,6 +66,40 @@ class FlowRun(Base):
     status: Mapped[str] = mapped_column(String(20), nullable=False)  # success|partial|failed|skipped
     results: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class FlowPendingStep(Base):
+    """A paused flow run waiting to resume — either a delay ("wait") step or a
+    failed action queued for retry. The engine persists the REMAINING actions +
+    the frozen results-so-far here, then drains due rows on the same 10s tick.
+
+    kind='wait'  — resume_at = now + the delay; attempt is 0.
+    kind='retry' — resume_at = now + backoff; attempt = prior failures of
+                   actions[0] (the failed action, kept at the head of `actions`).
+
+    Row is deleted (claim-first) when picked up, so a crash mid-resume loses at
+    most one step — never double-runs the actions already frozen in `results`."""
+
+    __tablename__ = "flow_pending_steps"
+    __table_args__ = (
+        Index("ix_flow_pending_steps_resume", "resume_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    flow_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("flows.id", ondelete="CASCADE"), nullable=False
+    )
+    run_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("flow_runs.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(10), nullable=False, default="wait")  # wait|retry
+    event: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    actions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)  # remaining
+    results: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)  # completed so far
+    attempt: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    resume_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

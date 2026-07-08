@@ -55,6 +55,8 @@ class Ticket(Base):
     sla_due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # [YIP5] set once when the near breach nudge toast fired — one nudge per ticket
     sla_nudged_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # [FLOW2] set once when the ticket_sla_due_soon flow event was emitted — one event per ticket
+    sla_flow_emitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Soft delete — deleted tickets keep their history but vanish from all views
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

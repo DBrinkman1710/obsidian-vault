@@ -7,6 +7,15 @@ tenant-scoped session (RLS enforced via app_user, same as a request) and every
 matched flow gets a flow_runs audit row — including skipped condition misses so
 tenants can self-serve "why didn't my flow fire".
 
+Phase 2 makes flows time-aware. Two step kinds pause a run and resume later,
+both persisted in flow_pending_steps and drained on the same 10s tick:
+  - wait  — a delay step; the remaining actions resume once resume_at passes.
+  - retry — a raised action; it re-runs after a backoff (steps.retry_delay),
+            up to steps.MAX_ATTEMPTS, before the failure is recorded and the
+            rest of the flow continues (phase 1 "keep going" semantics).
+Frozen results (already-run actions) are stored on the pending step and never
+re-run — claim-first deletion means a crash loses at most one resume.
+
 Loop protection (phase 1): events with source='flow' are claimed but never
 evaluated, so flow actions cannot trigger further flows.
 
@@ -16,28 +25,31 @@ from __future__ import annotations
 
 import logging
 import uuid
+from datetime import datetime, timezone
 from typing import Optional
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from sqlalchemy import func, select, text, update
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant
 from app.core.scheduler_lock import skip_if_locked
 from app.database import db_session, set_tenant_context
+from app.modules.flows import steps
 from app.modules.flows.actions import ACTION_EXECUTORS, ACTION_MODULES
 from app.modules.flows.conditions import evaluate_conditions
-from app.modules.flows.models import Flow, FlowEvent, FlowRun
+from app.modules.flows.models import Flow, FlowEvent, FlowPendingStep, FlowRun
 
 log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 BATCH_SIZE = 200
+PENDING_BATCH_SIZE = 100
 
 
 async def _claim_events(db: AsyncSession) -> list[dict]:
     """Mark a batch processed and return snapshots. Claim-first means a crash
-    loses at most one batch — it never replays actions (no-retry, phase 1)."""
+    loses at most one batch — it never replays actions."""
     await db.execute(text("SET LOCAL row_security = off"))
     result = await db.execute(
         update(FlowEvent)
@@ -114,70 +126,240 @@ async def _run_action(tenant: Tenant, event: dict, action: dict) -> dict:
     return {"type": action_type, **result}
 
 
-async def _record_run(
+def _event_snapshot(event: dict) -> dict:
+    """The event as persisted on a run / pending step (drop the transient outbox id)."""
+    return {k: v for k, v in event.items() if k != "id"}
+
+
+async def _upsert_run(
     tenant_id: uuid.UUID, flow_id: uuid.UUID, event: dict,
     run_status: str, results: list[dict], error: Optional[str],
+    run_id: Optional[uuid.UUID],
+) -> uuid.UUID:
+    """Insert a fresh run (bumping run_count/last_run_at unless it's a skipped
+    condition miss) or update an existing paused run to its next status. The
+    counter bump happens exactly once — at the first non-skipped insert — so a
+    run that pauses and resumes still counts as a single run."""
+    async with db_session() as db:
+        await db.execute(text("SET LOCAL row_security = off"))
+        if run_id is None:
+            run = FlowRun(
+                tenant_id=tenant_id, flow_id=flow_id, event=_event_snapshot(event),
+                status=run_status, results=results, error=error,
+            )
+            db.add(run)
+            await db.flush()
+            run_id = run.id
+            if run_status != "skipped":
+                await db.execute(
+                    update(Flow)
+                    .where(Flow.id == flow_id, Flow.tenant_id == tenant_id)
+                    .values(run_count=Flow.run_count + 1, last_run_at=func.now())
+                )
+        else:
+            await db.execute(
+                update(FlowRun)
+                .where(FlowRun.id == run_id, FlowRun.tenant_id == tenant_id)
+                .values(status=run_status, results=results, error=error)
+            )
+        await db.commit()
+    return run_id
+
+
+async def _persist_pending(
+    tenant_id: uuid.UUID, flow_id: uuid.UUID, run_id: uuid.UUID, event: dict,
+    remaining: list[dict], results: list[dict], kind: str,
+    resume_at: datetime, attempt: int,
 ) -> None:
     async with db_session() as db:
         await db.execute(text("SET LOCAL row_security = off"))
-        db.add(FlowRun(
-            tenant_id=tenant_id,
-            flow_id=flow_id,
-            event={k: v for k, v in event.items() if k != "id"},
-            status=run_status,
-            results=results,
-            error=error,
+        db.add(FlowPendingStep(
+            tenant_id=tenant_id, flow_id=flow_id, run_id=run_id, kind=kind,
+            event=_event_snapshot(event), actions=remaining, results=results,
+            attempt=attempt, resume_at=resume_at,
         ))
-        if run_status != "skipped":
-            await db.execute(
-                update(Flow)
-                .where(Flow.id == flow_id, Flow.tenant_id == tenant_id)
-                .values(run_count=Flow.run_count + 1, last_run_at=func.now())
-            )
         await db.commit()
+
+
+def _wait_summary(config: dict) -> str:
+    for unit in ("days", "hours", "minutes"):
+        if unit in config:
+            amount = config[unit]
+            label = unit[:-1] if amount == 1 else unit
+            return f"Waited {amount} {label}"
+    return "Waited"
+
+
+def _derive_error(results: list[dict]) -> Optional[str]:
+    """The most recent hard failure's summary — surfaced on the run row."""
+    for result in reversed(results):
+        if not result.get("ok") and not result.get("skipped"):
+            return result.get("summary")
+    return None
+
+
+async def _execute_flow(
+    tenant: Tenant, event: dict, flow_id: uuid.UUID, actions: list[dict],
+    results: list[dict], run_id: Optional[uuid.UUID], attempt: int,
+) -> None:
+    """Walk the remaining actions. Pauses (persisting a pending step and
+    returning) on a wait or on a retryable failure; otherwise finalises the run.
+
+    `attempt` is the number of failures already recorded for actions[0] — only
+    the resumed head of a retry carries a non-zero value.
+    """
+    now = datetime.now(timezone.utc)
+    for idx, action in enumerate(actions):
+        action_type = action.get("type")
+        prior_attempts = attempt if idx == 0 else 0
+
+        if action_type == "wait":
+            config = action.get("config") or {}
+            delta = steps.wait_delta(config)
+            results.append({"type": "wait", "ok": True, "skipped": False,
+                            "summary": _wait_summary(config), "attempts": 1})
+            run_id = await _upsert_run(tenant.id, flow_id, event, "waiting", results, None, run_id)
+            await _persist_pending(
+                tenant.id, flow_id, run_id, event, actions[idx + 1:], results,
+                kind="wait", resume_at=now + delta, attempt=0,
+            )
+            return
+
+        try:
+            result = await _run_action(tenant, event, action)
+        except Exception as exc:  # noqa: BLE001 — recorded, not raised
+            made = prior_attempts + 1
+            delay = steps.retry_delay(made)
+            if delay is not None:
+                # Show a transient pending-retry row on the run, but freeze the
+                # step's results WITHOUT it (the real result is appended on resume).
+                run_results = results + [{
+                    "type": action_type, "ok": False, "skipped": False,
+                    "summary": f"Retry {made} scheduled: {exc}"[:2000],
+                    "attempts": made, "pending_retry": True,
+                }]
+                run_id = await _upsert_run(tenant.id, flow_id, event, "waiting", run_results, None, run_id)
+                await _persist_pending(
+                    tenant.id, flow_id, run_id, event, actions[idx:], results,
+                    kind="retry", resume_at=now + delay, attempt=made,
+                )
+                return
+            log.exception("flow %s action %s failed after retries", flow_id, action_type)
+            results.append({"type": action_type, "ok": False, "skipped": False,
+                            "summary": f"Failed after {made} attempts: {exc}"[:2000],
+                            "attempts": made})
+            continue  # phase 1 semantics: keep running the remaining actions
+
+        result["attempts"] = prior_attempts + 1
+        results.append(result)
+
+    await _upsert_run(
+        tenant.id, flow_id, event, steps.derive_run_status(results),
+        results, _derive_error(results), run_id,
+    )
 
 
 async def _process_event(event: dict) -> None:
     tenant, flows = await _load_flows(event["tenant_id"], event["event_type"])
     if tenant is None:
         return
+    # A schedule event is addressed to a single flow (payload carries its id) so
+    # sibling schedule flows don't each record a skipped run for it.
+    target_flow_id = event["fields"].get("flow_id") if event["event_type"] == "schedule" else None
     for flow in flows:
-        if not evaluate_conditions(flow["conditions"], event["fields"]):
-            await _record_run(tenant.id, flow["id"], event, "skipped", [], None)
+        if target_flow_id is not None and str(flow["id"]) != str(target_flow_id):
             continue
-        results: list[dict] = []
-        error: Optional[str] = None
-        for action in flow["actions"]:
-            try:
-                results.append(await _run_action(tenant, event, action))
-            except Exception as exc:  # keep executing the remaining actions
-                log.exception("flow %s action %s failed", flow["id"], action.get("type"))
-                error = str(exc)[:2000]
-                results.append({"type": action.get("type"), "ok": False, "skipped": False,
-                                "summary": f"Failed: {exc}"})
-        # Soft skips (module disabled, no contact on the event) read as
-        # "partial", never "failed" — failed is reserved for real errors.
-        ok_count = sum(1 for r in results if r.get("ok"))
-        hard_failures = sum(1 for r in results if not r.get("ok") and not r.get("skipped"))
-        if results and ok_count == len(results):
-            run_status = "success"
-        elif ok_count == 0 and hard_failures == len(results):
-            run_status = "failed"
-        else:
-            run_status = "partial"
-        await _record_run(tenant.id, flow["id"], event, run_status, results, error)
+        if not evaluate_conditions(flow["conditions"], event["fields"]):
+            await _upsert_run(tenant.id, flow["id"], event, "skipped", [], None, None)
+            continue
+        await _execute_flow(tenant, event, flow["id"], flow["actions"], [], None, 0)
+
+
+async def _claim_pending(db: AsyncSession) -> list[dict]:
+    """Claim due pending steps (delete-and-return, same crash philosophy as
+    _claim_events) so a resumed step can never run twice."""
+    await db.execute(text("SET LOCAL row_security = off"))
+    result = await db.execute(
+        delete(FlowPendingStep)
+        .where(FlowPendingStep.id.in_(
+            select(FlowPendingStep.id)
+            .where(FlowPendingStep.resume_at <= func.now())
+            .order_by(FlowPendingStep.resume_at)
+            .limit(PENDING_BATCH_SIZE)
+        ))
+        .returning(
+            FlowPendingStep.id, FlowPendingStep.tenant_id, FlowPendingStep.flow_id,
+            FlowPendingStep.run_id, FlowPendingStep.event, FlowPendingStep.actions,
+            FlowPendingStep.results, FlowPendingStep.attempt,
+        )
+    )
+    rows = result.all()
+    await db.commit()
+    return [
+        {
+            "id": row.id,
+            "tenant_id": row.tenant_id,
+            "flow_id": row.flow_id,
+            "run_id": row.run_id,
+            "event": row.event or {},
+            "actions": row.actions or [],
+            "results": row.results or [],
+            "attempt": row.attempt or 0,
+        }
+        for row in rows
+    ]
+
+
+async def _load_tenant_if_flow_live(tenant_id: uuid.UUID, flow_id: uuid.UUID) -> Optional[Tenant]:
+    """Re-check the tenant/module/flow before resuming — anything torn down
+    while the step waited means the tail is abandoned (returns None)."""
+    async with db_session() as db:
+        await db.execute(text("SET LOCAL row_security = off"))
+        tenant = await db.get(Tenant, tenant_id)
+        if tenant is None or "flows" not in (tenant.enabled_modules or []):
+            return None
+        flow = await db.get(Flow, flow_id)
+        if flow is None or not flow.enabled or flow.tenant_id != tenant_id:
+            return None
+        return tenant
+
+
+async def _abandon_run(tenant_id: uuid.UUID, run_id: uuid.UUID, results: list[dict]) -> None:
+    """Close a paused run whose flow was disabled/deleted mid-wait. The flow_runs
+    row may itself have cascaded away, so the update is guarded (no-op if gone)."""
+    status = steps.derive_run_status(results) if results else "skipped"
+    async with db_session() as db:
+        await db.execute(text("SET LOCAL row_security = off"))
+        await db.execute(
+            update(FlowRun)
+            .where(FlowRun.id == run_id, FlowRun.tenant_id == tenant_id)
+            .values(status=status, error=_derive_error(results))
+        )
+        await db.commit()
+
+
+async def _resume_step(step: dict) -> None:
+    tenant = await _load_tenant_if_flow_live(step["tenant_id"], step["flow_id"])
+    if tenant is None:
+        await _abandon_run(step["tenant_id"], step["run_id"], step["results"])
+        return
+    await _execute_flow(
+        tenant, step["event"], step["flow_id"], step["actions"],
+        step["results"], step["run_id"], step["attempt"],
+    )
 
 
 @scheduler.scheduled_job("interval", seconds=10, id="flow_engine", max_instances=1, coalesce=True)
 async def flow_engine_tick():
     if await skip_if_locked("flow_engine", ttl=9):
         return
+
     try:
         async with db_session() as db:
             events = await _claim_events(db)
     except Exception:
         log.exception("flow engine: claiming events failed")
-        return
+        events = []
     for event in events:
         if event["source"] == "flow":
             continue  # loop protection: flow output never triggers flows
@@ -185,6 +367,19 @@ async def flow_engine_tick():
             await _process_event(event)
         except Exception:
             log.exception("flow engine: processing event %s failed", event["id"])
+
+    # Resume waits + retries that have come due (folded into the same tick/lock).
+    try:
+        async with db_session() as db:
+            pending = await _claim_pending(db)
+    except Exception:
+        log.exception("flow engine: claiming pending steps failed")
+        pending = []
+    for step in pending:
+        try:
+            await _resume_step(step)
+        except Exception:
+            log.exception("flow engine: resuming step %s failed", step["id"])
 
 
 def start_scheduler():

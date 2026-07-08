@@ -4,8 +4,9 @@ import uuid
 from datetime import datetime
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
+from app.modules.flows import steps
 from app.modules.flows.actions import ACTION_META
 from app.modules.flows.conditions import CONDITION_OPS, TRIGGER_META
 
@@ -23,6 +24,7 @@ ActionType = Literal[
     "move_pipeline_stage",
     "notify_user",
     "send_email",
+    "wait",
 ]
 
 # Keys the API accepts inside an action config — anything else is dropped so a
@@ -56,13 +58,21 @@ class ActionSpec(BaseModel):
         allowed = _ACTION_CONFIG_KEYS.get(action, set())
         return {k: val for k, val in v.items() if k in allowed and val not in (None, "")}
 
+    @model_validator(mode="after")
+    def _validate_wait(self) -> "ActionSpec":
+        # A wait's config must describe exactly one valid, capped duration.
+        if self.type == "wait":
+            steps.wait_delta(self.config)  # raises ValueError → 422
+        return self
+
 
 class FlowCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     trigger_type: TriggerType
     conditions: list[ConditionSpec] = Field(default_factory=list, max_length=10)
-    actions: list[ActionSpec] = Field(default_factory=list, max_length=5)
+    actions: list[ActionSpec] = Field(default_factory=list, max_length=10)
     enabled: bool = True
+    trigger_config: dict = Field(default_factory=dict)
 
     @field_validator("trigger_type")
     @classmethod
@@ -75,8 +85,9 @@ class FlowUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     trigger_type: Optional[TriggerType] = None
     conditions: Optional[list[ConditionSpec]] = Field(default=None, max_length=10)
-    actions: Optional[list[ActionSpec]] = Field(default=None, max_length=5)
+    actions: Optional[list[ActionSpec]] = Field(default=None, max_length=10)
     enabled: Optional[bool] = None
+    trigger_config: Optional[dict] = None
 
 
 class FlowOut(BaseModel):
@@ -84,6 +95,7 @@ class FlowOut(BaseModel):
     name: str
     enabled: bool
     trigger_type: str
+    trigger_config: dict
     conditions: list
     actions: list
     run_count: int

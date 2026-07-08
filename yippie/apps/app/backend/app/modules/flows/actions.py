@@ -32,6 +32,7 @@ ACTION_MODULES: dict[str, Optional[str]] = {
     "move_pipeline_stage": "pipeline",
     "notify_user": None,
     "send_email": "inbox",
+    "wait": None,  # [FLOW2] engine-special-cased pseudo action (no executor)
 }
 
 # Action catalogue for the builder UI (config fields per action).
@@ -80,6 +81,19 @@ ACTION_META: dict[str, dict] = {
             {"key": "subject", "label": "Subject", "type": "text", "required": True},
             {"key": "body", "label": "Body", "type": "textarea"},
             {"key": "template_id", "label": "Or use a template", "type": "template_select"},
+        ],
+    },
+    # [FLOW2] Pause the flow before the next action. The builder renders this
+    # with a bespoke "number + unit" control (frontend), but the three keys are
+    # listed so the config whitelist (schemas._ACTION_CONFIG_KEYS) accepts them.
+    # Deliberately NOT in ACTION_EXECUTORS — the engine special-cases it.
+    "wait": {
+        "label": "Wait",
+        "module": None,
+        "config_fields": [
+            {"key": "minutes", "label": "Minutes", "type": "number"},
+            {"key": "hours", "label": "Hours", "type": "number"},
+            {"key": "days", "label": "Days", "type": "number"},
         ],
     },
 }

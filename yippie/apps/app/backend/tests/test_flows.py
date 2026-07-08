@@ -2,8 +2,11 @@
 
 DB-free (same pattern as test_smoke.py): everything here is pure logic.
 """
+from datetime import datetime, timedelta
+
 import pytest
 
+from app.modules.flows import steps
 from app.modules.flows.actions import ACTION_EXECUTORS, ACTION_META, ACTION_MODULES, render_placeholders
 from app.modules.flows.conditions import TRIGGER_META, evaluate_condition, evaluate_conditions
 from app.modules.flows.recipes import RECIPES, RECIPES_BY_KEY
@@ -82,7 +85,10 @@ def test_render_placeholders():
 # ------------------------------------------------------ registry invariants
 
 def test_every_action_has_executor_meta_and_module_entry():
-    assert set(ACTION_EXECUTORS) == set(ACTION_META) == set(ACTION_MODULES)
+    # "wait" is a pseudo action: it has meta + a module entry but no executor
+    # (the engine special-cases it).
+    assert set(ACTION_MODULES) == set(ACTION_META)
+    assert set(ACTION_EXECUTORS) == set(ACTION_META) - {"wait"}
 
 
 def test_every_trigger_has_label_module_and_fields():
@@ -127,3 +133,136 @@ def test_flow_create_rejects_unknown_trigger_and_action():
         FlowCreate(name="x", trigger_type="nope", actions=[])
     with pytest.raises(Exception):
         ActionSpec(type="rm_rf", config={})
+
+
+# ------------------------------------------------------ [FLOW2] wait steps
+
+def test_wait_delta_accepts_one_valid_unit():
+    assert steps.wait_delta({"minutes": 30}) == timedelta(minutes=30)
+    assert steps.wait_delta({"hours": 2}) == timedelta(hours=2)
+    assert steps.wait_delta({"days": 30}) == timedelta(days=30)
+    # string amounts (the config round-trips through JSON) coerce cleanly
+    assert steps.wait_delta({"hours": "3"}) == timedelta(hours=3)
+
+
+def test_wait_delta_rejects_bad_configs():
+    for bad in ({}, {"hours": 0}, {"hours": -1}, {"minutes": 1, "hours": 1},
+                {"weeks": 1}, {"hours": True}, {"hours": "soon"}, {"days": 31}):
+        with pytest.raises(ValueError):
+            steps.wait_delta(bad)
+
+
+def test_total_wait_days_sums_only_waits():
+    actions = [
+        {"type": "wait", "config": {"days": 5}},
+        {"type": "notify_user", "config": {}},
+        {"type": "wait", "config": {"hours": 12}},
+    ]
+    assert steps.total_wait_days(actions) == pytest.approx(5.5)
+
+
+def test_validate_wait_placement():
+    steps.validate_wait_placement([
+        {"type": "wait", "config": {"hours": 1}},
+        {"type": "notify_user", "config": {}},
+    ])  # ok: wait not trailing, under cap
+    with pytest.raises(ValueError):  # trailing wait
+        steps.validate_wait_placement([
+            {"type": "notify_user", "config": {}},
+            {"type": "wait", "config": {"hours": 1}},
+        ])
+    with pytest.raises(ValueError):  # total over 30 days
+        steps.validate_wait_placement([
+            {"type": "wait", "config": {"days": 20}},
+            {"type": "wait", "config": {"days": 15}},
+            {"type": "notify_user", "config": {}},
+        ])
+
+
+def test_action_spec_validates_wait_config():
+    ok = ActionSpec(type="wait", config={"hours": 2, "evil": "x"})
+    assert ok.config == {"hours": 2}  # whitelist drops unknown keys
+    with pytest.raises(Exception):  # no unit
+        ActionSpec(type="wait", config={})
+    with pytest.raises(Exception):  # two units
+        ActionSpec(type="wait", config={"hours": 1, "days": 1})
+
+
+def test_flow_create_accepts_wait_and_higher_action_cap():
+    flow = FlowCreate(
+        name="drip",
+        trigger_type="contact_created",
+        actions=[
+            ActionSpec(type="notify_user", config={"user_id": "u", "message": "hi"}),
+            ActionSpec(type="wait", config={"days": 1}),
+            ActionSpec(type="notify_user", config={"user_id": "u", "message": "still here"}),
+        ],
+        enabled=False,
+    )
+    assert [a.type for a in flow.actions] == ["notify_user", "wait", "notify_user"]
+    # cap raised from 5 to 10
+    with pytest.raises(Exception):
+        FlowCreate(name="x", trigger_type="contact_created",
+                   actions=[ActionSpec(type="notify_user", config={}) for _ in range(11)],
+                   enabled=False)
+
+
+def test_wait_is_meta_only_no_executor():
+    assert "wait" in ACTION_META
+    assert ACTION_MODULES["wait"] is None
+    assert "wait" not in ACTION_EXECUTORS
+
+
+# ------------------------------------------------------ [FLOW2] run status
+
+def test_derive_run_status_matrix():
+    ok = {"ok": True, "skipped": False}
+    skip = {"ok": False, "skipped": True}
+    fail = {"ok": False, "skipped": False}
+    assert steps.derive_run_status([ok, ok]) == "success"
+    assert steps.derive_run_status([fail, fail]) == "failed"
+    assert steps.derive_run_status([ok, fail]) == "partial"
+    assert steps.derive_run_status([ok, skip]) == "partial"
+    assert steps.derive_run_status([skip, skip]) == "partial"
+
+
+# ---------------------------------------------------------- [FLOW2] retries
+
+def test_retry_delay_ladder():
+    assert steps.retry_delay(1) == timedelta(seconds=60)
+    assert steps.retry_delay(2) == timedelta(seconds=300)
+    assert steps.retry_delay(3) is None
+    assert steps.retry_delay(0) is None
+    assert steps.MAX_ATTEMPTS == 3
+
+
+# -------------------------------------------------------- [FLOW2] schedule
+
+def _dt(day, hour, minute=0):
+    # 2026-07-06 is a Monday (weekday 0)
+    return datetime(2026, 7, 6 + day, hour, minute)
+
+
+def test_schedule_is_due_daily():
+    cfg = {"frequency": "daily", "time": "09:00"}
+    assert not steps.schedule_is_due(cfg, _dt(0, 8, 59), None)  # before time
+    assert steps.schedule_is_due(cfg, _dt(0, 9, 0), None)       # at time
+    assert steps.schedule_is_due(cfg, _dt(0, 18, 0), None)      # missed tick, same day self-heal
+    # already fired today
+    assert not steps.schedule_is_due(cfg, _dt(0, 18, 0), "2026-07-06")
+    # fired yesterday → due again today
+    assert steps.schedule_is_due(cfg, _dt(1, 9, 0), "2026-07-06")
+
+
+def test_schedule_is_due_weekly_needs_weekday():
+    cfg = {"frequency": "weekly", "time": "09:00", "weekday": 0}  # Monday
+    assert steps.schedule_is_due(cfg, _dt(0, 9, 0), None)   # Monday
+    assert not steps.schedule_is_due(cfg, _dt(1, 9, 0), None)  # Tuesday
+    # weekly without a weekday never fires
+    assert not steps.schedule_is_due({"frequency": "weekly", "time": "09:00"}, _dt(0, 9, 0), None)
+
+
+def test_schedule_is_due_rejects_bad_config():
+    assert not steps.schedule_is_due({}, _dt(0, 9, 0), None)
+    assert not steps.schedule_is_due({"frequency": "hourly", "time": "09:00"}, _dt(0, 9, 0), None)
+    assert not steps.schedule_is_due({"frequency": "daily", "time": "nope"}, _dt(0, 9, 0), None)

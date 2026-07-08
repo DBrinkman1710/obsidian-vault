@@ -31,6 +31,7 @@ interface Flow {
   name: string
   enabled: boolean
   trigger_type: string
+  trigger_config: Record<string, any>
   conditions: Condition[]
   actions: Action[]
   run_count: number
@@ -40,7 +41,10 @@ interface Flow {
 interface FlowRun {
   id: string
   status: string
-  results: { type: string; ok: boolean; skipped: boolean; summary: string }[]
+  results: {
+    type: string; ok: boolean; skipped: boolean; summary: string
+    attempts?: number; pending_retry?: boolean
+  }[]
   error: string | null
   created_at: string
 }
@@ -66,8 +70,11 @@ const RUN_BADGE: Record<string, string> = {
   success: 'bg-emerald-100 text-emerald-700',
   partial: 'bg-amber-100 text-amber-700',
   failed: 'bg-red-100 text-red-700',
+  waiting: 'bg-blue-100 text-blue-700',
   skipped: 'bg-slate-100 text-slate-500',
 }
+
+const WAIT_UNITS = ['minutes', 'hours', 'days']
 
 function apiError(err: any): string {
   const detail = err?.response?.data?.detail
@@ -152,6 +159,34 @@ function ConfigField({
   )
 }
 
+function WaitConfig({
+  config, onChange,
+}: { config: Record<string, any>; onChange: (c: Record<string, any>) => void }) {
+  const unit = WAIT_UNITS.find(u => u in config) ?? 'hours'
+  const amount = config[unit] ?? ''
+  return (
+    <div className="flex items-center gap-2 flex-wrap">
+      <span className="text-sm text-slate-600">Wait for</span>
+      <input
+        type="number"
+        min={1}
+        value={amount}
+        onChange={e => onChange(e.target.value === '' ? {} : { [unit]: Number(e.target.value) })}
+        placeholder="0"
+        className="w-20 px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+      />
+      <select
+        value={unit}
+        onChange={e => onChange(amount === '' ? {} : { [e.target.value]: Number(amount) })}
+        className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+      >
+        {WAIT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+      </select>
+      <span className="text-sm text-slate-500">before the next step</span>
+    </div>
+  )
+}
+
 function BuilderModal({
   meta, flow, onClose, onSaved,
 }: { meta: FlowsMeta; flow: Flow | null; onClose: () => void; onSaved: () => void }) {
@@ -196,6 +231,9 @@ function BuilderModal({
   }
   function setActionConfig(i: number, key: string, value: any) {
     setActions(as => as.map((a, idx) => (idx === i ? { ...a, config: { ...a.config, [key]: value } } : a)))
+  }
+  function setWholeConfig(i: number, config: Record<string, any>) {
+    setActions(as => as.map((a, idx) => (idx === i ? { ...a, config } : a)))
   }
 
   function conditionValueInput(c: Condition, i: number) {
@@ -337,18 +375,22 @@ function BuilderModal({
                       <Trash2 size={13} />
                     </button>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    {(actionMeta?.config_fields ?? []).map(f => (
-                      <div key={f.key} className={f.type === 'textarea' ? 'col-span-2' : ''}>
-                        <ConfigField
-                          field={f}
-                          value={a.config[f.key]}
-                          meta={meta}
-                          onChange={v => setActionConfig(i, f.key, v)}
-                        />
-                      </div>
-                    ))}
-                  </div>
+                  {a.type === 'wait' ? (
+                    <WaitConfig config={a.config} onChange={c => setWholeConfig(i, c)} />
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {(actionMeta?.config_fields ?? []).map(f => (
+                        <div key={f.key} className={f.type === 'textarea' ? 'col-span-2' : ''}>
+                          <ConfigField
+                            field={f}
+                            value={a.config[f.key]}
+                            meta={meta}
+                            onChange={v => setActionConfig(i, f.key, v)}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
@@ -409,7 +451,13 @@ function RunsDrawer({ flowId }: { flowId: string }) {
           <div className="flex-1 min-w-0 space-y-0.5">
             {run.results.length === 0 && <p className="text-slate-400">Conditions did not match</p>}
             {run.results.map((r, i) => (
-              <p key={i} className={r.ok ? 'text-slate-600' : 'text-slate-400'}>{r.summary}</p>
+              <p
+                key={i}
+                className={r.pending_retry ? 'text-amber-600' : r.ok ? 'text-slate-600' : 'text-slate-400'}
+              >
+                {r.summary}
+                {typeof r.attempts === 'number' && r.attempts > 1 ? ` (attempt ${r.attempts})` : ''}
+              </p>
             ))}
             {run.error && <p className="text-red-500 truncate">{run.error}</p>}
           </div>
