@@ -32,7 +32,7 @@ interface Flow {
   enabled: boolean
   trigger_type: string
   trigger_config: Record<string, any>
-  conditions: Condition[]
+  conditions: Condition[] | Condition[][]  // flat (legacy) or grouped OR-of-AND
   actions: Action[]
   run_count: number
   last_run_at: string | null
@@ -89,10 +89,19 @@ function actionLabel(meta: FlowsMeta | undefined, key: string): string {
   return meta?.actions.find(a => a.key === key)?.label ?? key
 }
 
+// Conditions are stored as OR-of-AND groups [[A,B],[C]]; a legacy flat list
+// [A,B] is one group. Normalize either shape to grouped for rendering/counting.
+function toGroups(raw: any[]): Condition[][] {
+  if (!raw || raw.length === 0) return []
+  return Array.isArray(raw[0]) ? (raw as Condition[][]) : [raw as Condition[]]
+}
+
 function flowSummary(meta: FlowsMeta | undefined, flow: Flow): string {
   const when = `When ${triggerLabel(meta, flow.trigger_type).toLowerCase()}`
-  const ifPart = flow.conditions.length
-    ? `, if ${flow.conditions.length} condition${flow.conditions.length !== 1 ? 's' : ''} match`
+  const groups = toGroups(flow.conditions)
+  const count = groups.reduce((n, g) => n + g.length, 0)
+  const ifPart = count
+    ? `, if ${count} condition${count !== 1 ? 's' : ''} match`
     : ''
   const thenPart = flow.actions.length
     ? ` → ${flow.actions.map(a => actionLabel(meta, a.type).toLowerCase()).join(', ')}`
@@ -192,7 +201,7 @@ function BuilderModal({
 }: { meta: FlowsMeta; flow: Flow | null; onClose: () => void; onSaved: () => void }) {
   const [name, setName] = useState(flow?.name ?? '')
   const [triggerType, setTriggerType] = useState(flow?.trigger_type ?? meta.triggers[0]?.key ?? '')
-  const [conditions, setConditions] = useState<Condition[]>(flow?.conditions ?? [])
+  const [groups, setGroups] = useState<Condition[][]>(toGroups(flow?.conditions ?? []))
   const [actions, setActions] = useState<Action[]>(flow?.actions ?? [])
   const [enabled, setEnabled] = useState(flow?.enabled ?? true)
   const [error, setError] = useState('')
@@ -209,25 +218,41 @@ function BuilderModal({
   function handleSave() {
     if (!name.trim()) { setError('Give the flow a name'); return }
     setError('')
-    const body = {
-      name: name.trim(),
-      trigger_type: triggerType,
-      conditions: conditions
+    const conditions = groups
+      .map(g => g
         .filter(c => c.field && c.op)
         .map(c => ({
           ...c,
           value: c.op === 'in' && typeof c.value === 'string'
             ? c.value.split(',').map(v => v.trim()).filter(Boolean)
             : c.value,
-        })),
+        })))
+      .filter(g => g.length > 0)  // drop empty groups (backend rejects them)
+    const body = {
+      name: name.trim(),
+      trigger_type: triggerType,
+      conditions,
       actions,
       enabled,
     }
     saveMut.mutate(body)
   }
 
-  function setCondition(i: number, patch: Partial<Condition>) {
-    setConditions(cs => cs.map((c, idx) => (idx === i ? { ...c, ...patch } : c)))
+  function setCondition(gi: number, ci: number, patch: Partial<Condition>) {
+    setGroups(gs => gs.map((g, gIdx) =>
+      gIdx === gi ? g.map((c, cIdx) => (cIdx === ci ? { ...c, ...patch } : c)) : g))
+  }
+  function addCondition(gi: number) {
+    setGroups(gs => gs.map((g, gIdx) =>
+      gIdx === gi ? [...g, { field: '', op: 'equals', value: '' }] : g))
+  }
+  function removeCondition(gi: number, ci: number) {
+    setGroups(gs => gs
+      .map((g, gIdx) => (gIdx === gi ? g.filter((_, cIdx) => cIdx !== ci) : g))
+      .filter(g => g.length > 0))
+  }
+  function addGroup() {
+    setGroups(gs => [...gs, [{ field: '', op: 'equals', value: '' }]])
   }
   function setActionConfig(i: number, key: string, value: any) {
     setActions(as => as.map((a, idx) => (idx === i ? { ...a, config: { ...a.config, [key]: value } } : a)))
@@ -236,14 +261,14 @@ function BuilderModal({
     setActions(as => as.map((a, idx) => (idx === i ? { ...a, config } : a)))
   }
 
-  function conditionValueInput(c: Condition, i: number) {
+  function conditionValueInput(c: Condition, gi: number, ci: number) {
     const fieldMeta = trigger?.fields.find(f => f.key === c.field)
     if (c.op === 'in') {
       const display = Array.isArray(c.value) ? c.value.join(', ') : (c.value ?? '')
       return (
         <input
           value={display}
-          onChange={e => setCondition(i, { value: e.target.value })}
+          onChange={e => setCondition(gi, ci, { value: e.target.value })}
           placeholder="value1, value2, …"
           className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
         />
@@ -253,7 +278,7 @@ function BuilderModal({
       return (
         <select
           value={c.value ?? ''}
-          onChange={e => setCondition(i, { value: e.target.value })}
+          onChange={e => setCondition(gi, ci, { value: e.target.value })}
           className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
         >
           <option value="">value…</option>
@@ -266,7 +291,7 @@ function BuilderModal({
         <div className="flex-1">
           <OptionSelect
             value={c.value ?? ''}
-            onChange={v => setCondition(i, { value: v })}
+            onChange={v => setCondition(gi, ci, { value: v })}
             options={meta.stages}
             placeholder="stage…"
           />
@@ -276,7 +301,7 @@ function BuilderModal({
     return (
       <input
         value={c.value ?? ''}
-        onChange={e => setCondition(i, { value: e.target.value })}
+        onChange={e => setCondition(gi, ci, { value: e.target.value })}
         placeholder="value"
         className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
       />
@@ -307,7 +332,7 @@ function BuilderModal({
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">When</p>
             <select
               value={triggerType}
-              onChange={e => { setTriggerType(e.target.value); setConditions([]) }}
+              onChange={e => { setTriggerType(e.target.value); setGroups([]) }}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {meta.triggers.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
@@ -316,39 +341,63 @@ function BuilderModal({
 
           {/* If */}
           <div className="space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">If (all must match)</p>
-            {conditions.map((c, i) => (
-              <div key={i} className="flex items-center gap-2">
-                <select
-                  value={c.field}
-                  onChange={e => setCondition(i, { field: e.target.value, value: '' })}
-                  className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                >
-                  <option value="">field…</option>
-                  {(trigger?.fields ?? []).map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
-                </select>
-                <select
-                  value={c.op}
-                  onChange={e => setCondition(i, { op: e.target.value })}
-                  className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                >
-                  {Object.entries(OP_LABELS).map(([op, label]) => <option key={op} value={op}>{label}</option>)}
-                </select>
-                {conditionValueInput(c, i)}
-                <button
-                  onClick={() => setConditions(cs => cs.filter((_, idx) => idx !== i))}
-                  className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                  title="Remove condition"
-                >
-                  <Trash2 size={13} />
-                </button>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
+              If {groups.length > 1 ? '(any group matches)' : '(all must match)'}
+            </p>
+            {groups.length === 0 && (
+              <p className="text-xs text-slate-400">No conditions — the flow runs on every trigger.</p>
+            )}
+            {groups.map((group, gi) => (
+              <div key={gi}>
+                {gi > 0 && (
+                  <div className="flex items-center gap-2 my-2">
+                    <div className="flex-1 h-px bg-slate-200" />
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">or</span>
+                    <div className="flex-1 h-px bg-slate-200" />
+                  </div>
+                )}
+                <div className="border border-slate-200 rounded-xl p-3 space-y-2 bg-slate-50">
+                  {group.map((c, ci) => (
+                    <div key={ci} className="flex items-center gap-2">
+                      <select
+                        value={c.field}
+                        onChange={e => setCondition(gi, ci, { field: e.target.value, value: '' })}
+                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      >
+                        <option value="">field…</option>
+                        {(trigger?.fields ?? []).map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+                      </select>
+                      <select
+                        value={c.op}
+                        onChange={e => setCondition(gi, ci, { op: e.target.value })}
+                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      >
+                        {Object.entries(OP_LABELS).map(([op, label]) => <option key={op} value={op}>{label}</option>)}
+                      </select>
+                      {conditionValueInput(c, gi, ci)}
+                      <button
+                        onClick={() => removeCondition(gi, ci)}
+                        className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
+                        title="Remove condition"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  ))}
+                  <button
+                    onClick={() => addCondition(gi)}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
+                  >
+                    <Plus size={13} /> Add condition
+                  </button>
+                </div>
               </div>
             ))}
             <button
-              onClick={() => setConditions(cs => [...cs, { field: '', op: 'equals', value: '' }])}
+              onClick={addGroup}
               className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
             >
-              <Plus size={13} /> Add condition
+              <Plus size={13} /> Add {groups.length === 0 ? 'condition' : 'OR group'}
             </button>
           </div>
 

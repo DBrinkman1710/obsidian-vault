@@ -106,7 +106,7 @@ async def _validate_enabled(
 async def create_flow(
     db: AsyncSession, tenant: Tenant, created_by: uuid.UUID, data: FlowCreate
 ) -> Flow:
-    conditions = [c.model_dump() for c in data.conditions]
+    conditions = [[c.model_dump() for c in group] for group in data.conditions]
     actions = [a.model_dump() for a in data.actions]
     if data.enabled:
         await _validate_enabled(db, tenant, data.trigger_type, actions)
@@ -133,7 +133,7 @@ async def update_flow(db: AsyncSession, tenant: Tenant, flow: Flow, data: FlowUp
     if "trigger_type" in provided:
         flow.trigger_type = data.trigger_type
     if "conditions" in provided:
-        flow.conditions = [c.model_dump() for c in data.conditions]
+        flow.conditions = [[c.model_dump() for c in group] for group in data.conditions]
     if "actions" in provided:
         flow.actions = [a.model_dump() for a in data.actions]
     if "trigger_config" in provided:

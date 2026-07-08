@@ -1,8 +1,10 @@
 """Condition evaluation + the trigger catalogue served to the builder UI.
 
-A condition is {"field", "op", "value"}; a flow's condition list uses AND
-semantics. Missing fields never match (also for not_equals — a flow should
-only fire on data it can actually see).
+A condition is {"field", "op", "value"}. Conditions are grouped as OR-of-AND:
+the stored shape is a list of groups [[A, B], [C]] meaning (A AND B) OR C. A
+legacy flat list [A, B] is treated as a single AND group (backward compatible,
+no data migration). Missing fields never match (also for not_equals — a flow
+should only fire on data it can actually see).
 """
 from __future__ import annotations
 
@@ -106,6 +108,24 @@ def evaluate_condition(condition: dict, fields: dict) -> bool:
     return False
 
 
-def evaluate_conditions(conditions: list[dict], fields: dict) -> bool:
-    """AND over all conditions; an empty list always matches."""
-    return all(evaluate_condition(c, fields) for c in conditions or [])
+def _as_groups(conditions: list) -> list[list[dict]]:
+    """Normalize a condition list into OR-of-AND groups. A legacy flat list of
+    conditions [{...}, {...}] becomes a single group [[{...}, {...}]]; an already
+    grouped list is returned unchanged; empty input → no groups."""
+    if not conditions:
+        return []
+    if isinstance(conditions[0], list):
+        return conditions
+    return [conditions]
+
+
+def evaluate_conditions(conditions: list, fields: dict) -> bool:
+    """OR across groups, AND within each group. A flat list is one AND group
+    (backward compatible). No conditions at all → always matches."""
+    groups = _as_groups(conditions)
+    if not groups:
+        return True
+    return any(
+        all(evaluate_condition(c, fields) for c in group)
+        for group in groups
+    )

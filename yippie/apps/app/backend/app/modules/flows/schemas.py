@@ -35,6 +35,38 @@ _ACTION_CONFIG_KEYS: dict[str, set[str]] = {
 }
 
 
+MAX_GROUPS = 5
+MAX_CONDITIONS_PER_GROUP = 10
+
+
+def _normalize_condition_groups(raw: Any) -> list:
+    """Coerce incoming conditions — a flat list [A, B] or a list of OR groups
+    [[A, B], [C]] — into the grouped form, enforcing structure: at most 5 groups,
+    1–10 conditions per group, nesting depth exactly 2, no empty groups. Returns
+    the grouped list for per-condition ConditionSpec validation."""
+    if not raw:
+        return []
+    if not isinstance(raw, list):
+        raise ValueError("conditions must be a list")
+    grouped = isinstance(raw[0], list)
+    groups = raw if grouped else [raw]
+    if len(groups) > MAX_GROUPS:
+        raise ValueError(f"A flow may have at most {MAX_GROUPS} OR groups")
+    for group in groups:
+        if not isinstance(group, list):
+            raise ValueError("Mixed flat and grouped conditions are not allowed")
+        if not group:
+            raise ValueError("Condition groups can't be empty")
+        if len(group) > MAX_CONDITIONS_PER_GROUP:
+            raise ValueError(
+                f"A condition group may have at most {MAX_CONDITIONS_PER_GROUP} conditions"
+            )
+        for condition in group:
+            if isinstance(condition, list):
+                raise ValueError("Conditions may only be nested two levels deep")
+    return groups
+
+
 class ConditionSpec(BaseModel):
     field: str = Field(min_length=1, max_length=100)
     op: Literal["equals", "not_equals", "contains", "in", "gte", "lte"]
@@ -69,7 +101,8 @@ class ActionSpec(BaseModel):
 class FlowCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     trigger_type: TriggerType
-    conditions: list[ConditionSpec] = Field(default_factory=list, max_length=10)
+    # Accepts a flat list or grouped OR-of-AND; always stored grouped.
+    conditions: list[list[ConditionSpec]] = Field(default_factory=list)
     actions: list[ActionSpec] = Field(default_factory=list, max_length=10)
     enabled: bool = True
     trigger_config: dict = Field(default_factory=dict)
@@ -80,14 +113,26 @@ class FlowCreate(BaseModel):
         assert v in TRIGGER_META
         return v
 
+    @field_validator("conditions", mode="before")
+    @classmethod
+    def _group_conditions(cls, v: Any) -> list:
+        return _normalize_condition_groups(v)
+
 
 class FlowUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
     trigger_type: Optional[TriggerType] = None
-    conditions: Optional[list[ConditionSpec]] = Field(default=None, max_length=10)
+    conditions: Optional[list[list[ConditionSpec]]] = None
     actions: Optional[list[ActionSpec]] = Field(default=None, max_length=10)
     enabled: Optional[bool] = None
     trigger_config: Optional[dict] = None
+
+    @field_validator("conditions", mode="before")
+    @classmethod
+    def _group_conditions(cls, v: Any) -> Optional[list]:
+        if v is None:
+            return None
+        return _normalize_condition_groups(v)
 
 
 class FlowOut(BaseModel):

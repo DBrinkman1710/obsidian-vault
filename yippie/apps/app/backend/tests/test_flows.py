@@ -71,6 +71,35 @@ def test_and_semantics_and_empty_list():
     )
 
 
+# ------------------------------------------------------- [FLOW2] OR groups
+
+def test_or_groups_semantics():
+    fields = {"priority": "high", "status": "closed"}
+    # (priority=high AND status=open) OR (priority=high) → second group matches
+    assert evaluate_conditions(
+        [[_cond("priority", "equals", "high"), _cond("status", "equals", "open")],
+         [_cond("priority", "equals", "high")]],
+        fields,
+    )
+    # (status=open) OR (priority=low) → neither group matches
+    assert not evaluate_conditions(
+        [[_cond("status", "equals", "open")], [_cond("priority", "equals", "low")]],
+        fields,
+    )
+    # single group behaves like AND
+    assert not evaluate_conditions(
+        [[_cond("priority", "equals", "high"), _cond("status", "equals", "open")]],
+        fields,
+    )
+
+
+def test_flat_list_is_backward_compatible():
+    """A legacy flat list evaluates identically to a single-group nested list."""
+    fields = {"priority": "high", "status": "open"}
+    flat = [_cond("priority", "equals", "high"), _cond("status", "equals", "open")]
+    assert evaluate_conditions(flat, fields) == evaluate_conditions([flat], fields)
+
+
 # ------------------------------------------------------------- placeholders
 
 def test_render_placeholders():
@@ -133,6 +162,74 @@ def test_flow_create_rejects_unknown_trigger_and_action():
         FlowCreate(name="x", trigger_type="nope", actions=[])
     with pytest.raises(Exception):
         ActionSpec(type="rm_rf", config={})
+
+
+# ------------------------------------------- [FLOW2] condition group schemas
+
+def test_flow_create_normalizes_flat_conditions_to_one_group():
+    flow = FlowCreate(
+        name="x",
+        trigger_type="ticket_created",
+        conditions=[_cond("priority", "equals", "high")],
+        enabled=False,
+    )
+    # stored grouped: [[{...}]]
+    assert len(flow.conditions) == 1
+    assert len(flow.conditions[0]) == 1
+    assert flow.conditions[0][0].field == "priority"
+
+
+def test_flow_create_accepts_grouped_conditions():
+    flow = FlowCreate(
+        name="x",
+        trigger_type="ticket_created",
+        conditions=[[_cond("priority", "equals", "high")],
+                    [_cond("channel", "equals", "email")]],
+        enabled=False,
+    )
+    assert len(flow.conditions) == 2
+
+
+def test_flow_create_empty_conditions_stay_empty():
+    flow = FlowCreate(name="x", trigger_type="ticket_created", conditions=[], enabled=False)
+    assert flow.conditions == []
+
+
+def test_flow_create_rejects_depth_three():
+    with pytest.raises(Exception):
+        FlowCreate(
+            name="x", trigger_type="ticket_created",
+            conditions=[[[_cond("priority", "equals", "high")]]],
+            enabled=False,
+        )
+
+
+def test_flow_create_rejects_empty_group():
+    with pytest.raises(Exception):
+        FlowCreate(
+            name="x", trigger_type="ticket_created",
+            conditions=[[_cond("priority", "equals", "high")], []],
+            enabled=False,
+        )
+
+
+def test_flow_create_rejects_too_many_groups():
+    with pytest.raises(Exception):
+        FlowCreate(
+            name="x", trigger_type="ticket_created",
+            conditions=[[_cond("priority", "equals", "high")] for _ in range(6)],
+            enabled=False,
+        )
+
+
+def test_flow_create_rejects_mixed_flat_and_grouped():
+    with pytest.raises(Exception):
+        FlowCreate(
+            name="x", trigger_type="ticket_created",
+            conditions=[_cond("priority", "equals", "high"),
+                        [_cond("channel", "equals", "email")]],
+            enabled=False,
+        )
 
 
 # ------------------------------------------------------ [FLOW2] wait steps
