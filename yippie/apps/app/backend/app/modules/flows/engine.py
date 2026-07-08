@@ -363,9 +363,14 @@ async def _process_event(event: dict) -> None:
     tenant, flows = await _load_flows(event["tenant_id"], event["event_type"])
     if tenant is None:
         return
-    # A schedule event is addressed to a single flow (payload carries its id) so
-    # sibling schedule flows don't each record a skipped run for it.
-    target_flow_id = event["fields"].get("flow_id") if event["event_type"] == "schedule" else None
+    # A schedule/webhook event is addressed to a single flow (the payload carries
+    # its id — a schedule tick names its flow, a webhook token maps to exactly
+    # one) so sibling flows on the same trigger don't each record a skipped run.
+    target_flow_id = (
+        event["fields"].get("flow_id")
+        if event["event_type"] in ("schedule", "webhook")
+        else None
+    )
     for flow in flows:
         if target_flow_id is not None and str(flow["id"]) != str(target_flow_id):
             continue

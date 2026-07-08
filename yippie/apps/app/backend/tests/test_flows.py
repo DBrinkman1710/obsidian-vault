@@ -125,7 +125,10 @@ def test_every_trigger_has_label_module_and_fields():
     for key, meta in TRIGGER_META.items():
         assert meta["label"]
         assert "module" in meta
-        assert isinstance(meta["fields"], list) and meta["fields"]
+        assert isinstance(meta["fields"], list)
+        # every trigger declares fields EXCEPT free-field triggers ([FLOW5]
+        # webhook), whose payload keys are unknown until data arrives
+        assert meta["fields"] or meta.get("free_fields")
 
 
 # ------------------------------------------------------------------ recipes
@@ -784,3 +787,116 @@ def test_preview_graph_walks_the_sample_path():
     )
     assert [a["type"] for a in result["actions"]] == ["branch", "update_ticket"]
     assert "else path" in result["actions"][0]["detail"]
+
+
+# ------------------------------------------------------------- [FLOW5] webhooks
+
+from app.modules.flows import webhooks
+from app.modules.flows.webhooks import WebhookError
+
+
+def test_flatten_payload_keeps_scalars_and_flat_lists():
+    body = {
+        "name": "Ada",
+        "count": 3,
+        "flag": True,
+        "empty": None,
+        "tags": ["vip", "eu"],
+        "nested": {"a": 1},          # dropped — not a flat value
+        "matrix": [[1, 2], [3]],     # dropped — list of lists
+        7: "int key",                # dropped — non-string key
+    }
+    fields = webhooks.flatten_payload(body)
+    assert fields == {"name": "Ada", "count": 3, "flag": True, "empty": None, "tags": ["vip", "eu"]}
+
+
+def test_flatten_payload_non_dict_and_cap():
+    assert webhooks.flatten_payload([1, 2, 3]) == {}
+    assert webhooks.flatten_payload("nope") == {}
+    big = {f"k{i}": i for i in range(100)}
+    assert len(webhooks.flatten_payload(big, cap=10)) == 10
+
+
+def test_sign_payload_is_deterministic_hmac():
+    sig = webhooks.sign_payload("s3cret", b'{"a":1}')
+    assert sig.startswith("sha256=")
+    # same input → same signature; different secret → different
+    assert sig == webhooks.sign_payload("s3cret", b'{"a":1}')
+    assert sig != webhooks.sign_payload("other", b'{"a":1}')
+
+
+def test_is_blocked_ip():
+    for blocked in ("127.0.0.1", "10.0.0.1", "192.168.1.1", "169.254.169.254", "::1", "0.0.0.0", "not-an-ip"):
+        assert webhooks._is_blocked_ip(blocked), blocked
+    for ok in ("93.184.216.34", "1.1.1.1", "2606:4700:4700::1111"):
+        assert not webhooks._is_blocked_ip(ok), ok
+
+
+def test_validate_target_rejects_bad_scheme_and_private():
+    with pytest.raises(WebhookError):
+        webhooks.validate_target("ftp://example.com/hook")
+    with pytest.raises(WebhookError):
+        webhooks.validate_target("file:///etc/passwd")
+    # IP literals resolve without network — a private/metadata target is blocked
+    with pytest.raises(WebhookError):
+        webhooks.validate_target("http://127.0.0.1/hook")
+    with pytest.raises(WebhookError):
+        webhooks.validate_target("http://169.254.169.254/latest/meta-data")
+
+
+def test_validate_target_allows_public_ip_literal():
+    url, host, ip = webhooks.validate_target("https://93.184.216.34/hook")
+    assert host == "93.184.216.34"
+    assert ip == "93.184.216.34"
+    assert url.scheme == "https"
+
+
+# ---------------------------------------------- webhook trigger + send_webhook
+
+def test_webhook_trigger_registered_with_free_fields():
+    meta = TRIGGER_META["webhook"]
+    assert meta["module"] is None
+    assert meta["free_fields"] is True
+    assert meta["fields"] == []
+
+
+def test_send_webhook_action_registered():
+    assert "send_webhook" in ACTION_META
+    assert ACTION_MODULES["send_webhook"] is None       # no internal module gate
+    assert "send_webhook" in ACTION_EXECUTORS
+    keys = {f["key"] for f in ACTION_META["send_webhook"]["config_fields"]}
+    assert keys == {"url"}
+
+
+def test_flow_create_accepts_webhook_trigger_and_send_webhook():
+    flow = FlowCreate(
+        name="ERP bridge",
+        trigger_type="webhook",
+        conditions=[[_cond("order_status", "equals", "shipped")]],
+        actions=[{"type": "send_webhook", "config": {"url": "https://example.com/hook"}}],
+        enabled=False,
+    )
+    assert flow.trigger_type == "webhook"
+    assert flow.actions[0].type == "send_webhook"
+    assert flow.actions[0].config == {"url": "https://example.com/hook"}
+
+
+def test_webhook_trigger_config_is_dropped():
+    # webhook, like the mutation triggers, carries no trigger_config
+    assert _normalize_trigger_config("webhook", {"anything": 1}, enabled=True) == {}
+
+
+def test_dry_run_webhook_uses_free_condition_fields():
+    from app.modules.flows import preview
+
+    result = preview.dry_run(
+        "webhook",
+        [[_cond("order_status", "equals", "shipped")]],
+        [{"type": "send_webhook", "config": {"url": "https://example.com/{order_status}"}}],
+        [],
+    )
+    # the sample is biased to satisfy the condition, so the flow matches
+    assert result["sample_event"]["order_status"] == "shipped"
+    assert result["matched"] is True
+    assert result["actions"][0]["would_run"] is True
+    assert "example.com/shipped" in result["actions"][0]["detail"]

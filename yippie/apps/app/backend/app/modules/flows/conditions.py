@@ -83,6 +83,14 @@ TRIGGER_META: dict[str, dict] = {
             {"key": "subject", "label": "Subject", "type": "text"},
         ],
     },
+    "webhook": {
+        "label": "Webhook received",
+        "module": None,  # inbound — fires from a tokened public URL, not a mutation
+        # The payload's keys aren't known until data arrives, so the builder lets
+        # you type a field name freely rather than pick from a fixed list.
+        "free_fields": True,
+        "fields": [],
+    },
     "saas_health_dropped": {
         "label": "SaaS health score dropped",
         "module": "saas",

@@ -94,6 +94,9 @@ def _action_detail(action_type: str, config: dict, fields: dict) -> str:
     if action_type == "send_email":
         subject = rendered("subject")
         return f"Email the contact “{subject}”" if subject else "Email the contact"
+    if action_type == "send_webhook":
+        url = rendered("url")
+        return f"Send a signed webhook to {url}" if url else "Send a webhook"
     return ACTION_META.get(action_type, {}).get("label", action_type)
 
 

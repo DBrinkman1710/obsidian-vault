@@ -32,6 +32,7 @@ ACTION_MODULES: dict[str, Optional[str]] = {
     "move_pipeline_stage": "pipeline",
     "notify_user": None,
     "send_email": "inbox",
+    "send_webhook": None,  # [FLOW5] posts to an external URL — no internal module
     "wait": None,  # [FLOW2] engine-special-cased pseudo action (no executor)
 }
 
@@ -81,6 +82,15 @@ ACTION_META: dict[str, dict] = {
             {"key": "subject", "label": "Subject", "type": "text", "required": True},
             {"key": "body", "label": "Body", "type": "textarea"},
             {"key": "template_id", "label": "Or use a template", "type": "template_select"},
+        ],
+    },
+    # [FLOW5] POST event data to an external URL, signed with the tenant's
+    # webhook secret. SSRF-guarded; delivery failures ride the retry ladder.
+    "send_webhook": {
+        "label": "Send a webhook",
+        "module": None,
+        "config_fields": [
+            {"key": "url", "label": "Destination URL", "type": "text", "required": True},
         ],
     },
     # [FLOW2] Pause the flow before the next action. The builder renders this
@@ -253,10 +263,58 @@ async def _act_send_email(db: AsyncSession, tenant: Tenant, event: dict, config:
     return _ok(f"Emailed {contact.email}")
 
 
+async def _ensure_webhook_secret(db: AsyncSession, tenant: Tenant) -> str:
+    """The tenant's outbound signing secret, minted on first use. Persisted so a
+    receiver's configured secret stays stable across sends."""
+    if tenant.flow_webhook_secret:
+        return tenant.flow_webhook_secret
+    import secrets as _secrets
+    from sqlalchemy import update as _update
+
+    secret = _secrets.token_urlsafe(32)
+    await db.execute(
+        _update(Tenant).where(Tenant.id == tenant.id).values(flow_webhook_secret=secret)
+    )
+    await db.commit()
+    tenant.flow_webhook_secret = secret
+    return secret
+
+
+async def _act_send_webhook(db: AsyncSession, tenant: Tenant, event: dict, config: dict) -> dict:
+    import httpx
+
+    from app.modules.flows import webhooks
+
+    url = render_placeholders(config.get("url") or "", event["fields"]).strip()
+    if not url:
+        return _skip("No destination URL set")
+    secret = await _ensure_webhook_secret(db, tenant)
+    payload = {
+        "flow": {"tenant": str(tenant.id)},
+        "event": {
+            "type": event.get("event_type"),
+            "entity_type": event.get("entity_type"),
+            "entity_id": event.get("entity_id"),
+            "contact_id": event.get("contact_id"),
+            "fields": event.get("fields") or {},
+        },
+    }
+    try:
+        code = await webhooks.deliver(url, payload, secret)
+    except webhooks.WebhookError as exc:
+        # Permanent (bad/blocked URL) — a hard failure, not worth retrying.
+        return {"ok": False, "skipped": False, "summary": str(exc)}
+    except httpx.HTTPError as exc:
+        # Transient (receiver down/slow/non-2xx) — raise into the retry ladder.
+        raise RuntimeError(f"Webhook delivery failed: {exc}") from exc
+    return _ok(f"Delivered webhook to {url} ({code})")
+
+
 ACTION_EXECUTORS = {
     "create_ticket": _act_create_ticket,
     "update_ticket": _act_update_ticket,
     "move_pipeline_stage": _act_move_pipeline_stage,
     "notify_user": _act_notify_user,
     "send_email": _act_send_email,
+    "send_webhook": _act_send_webhook,
 }

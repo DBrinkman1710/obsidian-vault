@@ -39,6 +39,11 @@ class Flow(Base):
     # string the schedule trigger last fired on (once-a-day dedup).
     trigger_config: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     last_scheduled_on: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    # [FLOW5] The per-flow secret in the public inbound webhook URL
+    # (POST /flows/hook/{token}). Set only on webhook-trigger flows; a partial
+    # unique index (see migration flows5_webhooks) enforces uniqueness while
+    # allowing NULL on every other flow.
+    webhook_token: Mapped[str | None] = mapped_column(String(64), nullable=True, unique=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )

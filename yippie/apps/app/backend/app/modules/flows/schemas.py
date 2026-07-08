@@ -18,6 +18,8 @@ TriggerType = Literal[
     "draft_approved",
     "schedule",
     "ticket_sla_due_soon",
+    "saas_health_dropped",
+    "webhook",
 ]
 
 ActionType = Literal[
@@ -26,6 +28,7 @@ ActionType = Literal[
     "move_pipeline_stage",
     "notify_user",
     "send_email",
+    "send_webhook",
     "wait",
 ]
 

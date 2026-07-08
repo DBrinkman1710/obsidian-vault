@@ -35,6 +35,7 @@ from app.modules.saas.scheduler import start_scheduler as start_saas_scheduler
 from app.modules.stripe_platform.router import router as stripe_router
 from app.modules.stripe_platform.webhooks import webhook_router as stripe_webhook_router
 from app.modules.shipments.router import webhook_router as shipments_webhook_router
+from app.modules.flows.router import webhook_router as flows_webhook_router
 from app.modules.jarvis.router import router as jarvis_router
 from app.modules.jarvis.scheduler import start_scheduler as start_jarvis_scheduler
 from app.modules.contracts.scheduler import start_scheduler as start_contracts_scheduler
@@ -116,6 +117,8 @@ def create_app() -> FastAPI:
     app.include_router(stripe_webhook_router, prefix="/api/v1")
     # Public Sendcloud shipment webhook — no auth, Sendcloud POSTs here
     app.include_router(shipments_webhook_router, prefix="/api/v1")
+    # Public Flows inbound webhook — no auth, resolved by per-flow token ([FLOW5])
+    app.include_router(flows_webhook_router, prefix="/api/v1")
     # Legacy emailtracking outbound endpoint (MODULE-RENAME) — folded into the
     # marketing module as GET /marketing/outbound. Kept mounted (auth-gated, no
     # module gate) for backwards compatibility while the frontend transitions to

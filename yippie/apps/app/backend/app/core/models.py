@@ -116,6 +116,10 @@ class Tenant(Base):
     # Generic ERP order webhook — ERPs push order/tracking updates to /webhooks/orders/{slug}.
     # If set, the X-Api-Key header must match; if unset, all requests are accepted (easy onboarding).
     orders_webhook_secret: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    # [FLOW5] HMAC-SHA256 key the send_webhook flow action signs outbound
+    # requests with (X-Yippie-Signature header). Minted lazily, rotatable from
+    # the Flows builder.
+    flow_webhook_secret: Mapped[str | None] = mapped_column(String(100), nullable=True)
     whatsapp_webhook_secret: Mapped[str] = mapped_column(String(100), nullable=False, server_default="")
     # JS snippet auth token for SALES-MOD1 / SAAS-MOD1 ingest. Stable per tenant;
     # rotatable via POST /sales/token/rotate if compromised.

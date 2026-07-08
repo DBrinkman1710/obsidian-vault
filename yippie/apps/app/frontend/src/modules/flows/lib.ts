@@ -7,7 +7,9 @@ export interface MetaField {
   options?: string[]
   required?: boolean
 }
-export interface MetaTrigger { key: string; label: string; fields: MetaField[] }
+// free_fields ([FLOW5] webhook trigger): payload keys are unknown at build
+// time, so the builder offers a free-text field-name input instead of a select.
+export interface MetaTrigger { key: string; label: string; fields: MetaField[]; free_fields?: boolean }
 export interface MetaAction { key: string; label: string; config_fields: MetaField[] }
 export interface MetaOption { id: string; name: string }
 export interface FlowsMeta {

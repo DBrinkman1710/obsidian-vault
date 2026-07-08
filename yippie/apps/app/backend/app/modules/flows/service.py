@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import secrets
 import uuid
 from typing import Optional
 
@@ -26,6 +27,11 @@ _FAIL_STATUSES = ("failed", "partial")
 class FlowValidationError(ValueError):
     """Raised when a flow can't be enabled (incomplete config, dangling ids,
     module not available). Draft (disabled) flows may be incomplete."""
+
+
+def _new_token() -> str:
+    """A URL-safe secret for the inbound webhook path / the tenant signing key."""
+    return secrets.token_urlsafe(32)
 
 
 def _normalize_trigger_config(trigger_type: str, raw: Optional[dict], *, enabled: bool) -> dict:
@@ -180,6 +186,10 @@ async def create_flow(
         actions=actions,
         created_by=created_by,
     )
+    # [FLOW5] a webhook-trigger flow needs its inbound token from the start so
+    # the builder can show the URL immediately.
+    if data.trigger_type == "webhook":
+        flow.webhook_token = _new_token()
     db.add(flow)
     await db.commit()
     await db.refresh(flow)
@@ -206,6 +216,10 @@ async def update_flow(db: AsyncSession, tenant: Tenant, flow: Flow, data: FlowUp
     flow.trigger_config = _normalize_trigger_config(
         flow.trigger_type, flow.trigger_config, enabled=flow.enabled
     )
+    # [FLOW5] mint the inbound token if this update turned the flow into a
+    # webhook flow (switching away leaves the old token dormant — harmless).
+    if flow.trigger_type == "webhook" and not flow.webhook_token:
+        flow.webhook_token = _new_token()
     if flow.enabled:
         await _validate_enabled(db, tenant, flow.trigger_type, flow.actions)
     await db.commit()
@@ -250,6 +264,48 @@ def test_fire(tenant: Tenant, flow: Flow) -> dict:
     )
 
 
+def _inbound_url(base_url: str, token: Optional[str]) -> Optional[str]:
+    return f"{base_url}/api/v1/flows/hook/{token}" if token else None
+
+
+async def webhook_config(db: AsyncSession, tenant: Tenant, flow: Flow, base_url: str) -> dict:
+    """[FLOW5] The inbound URL + outbound signing secret for a webhook flow.
+    Mints the flow's token and the tenant's signing secret if either is missing
+    (the panel is only shown for webhook flows)."""
+    if not flow.webhook_token:
+        flow.webhook_token = _new_token()
+    if not tenant.flow_webhook_secret:
+        tenant.flow_webhook_secret = _new_token()
+    await db.commit()
+    return {
+        "inbound_url": _inbound_url(base_url, flow.webhook_token),
+        "signing_secret": tenant.flow_webhook_secret,
+    }
+
+
+async def rotate_webhook_token(db: AsyncSession, flow: Flow, base_url: str) -> dict:
+    """Regenerate the inbound token — the old URL stops working immediately."""
+    flow.webhook_token = _new_token()
+    await db.commit()
+    return {"inbound_url": _inbound_url(base_url, flow.webhook_token)}
+
+
+async def rotate_signing_secret(db: AsyncSession, tenant: Tenant) -> dict:
+    """Regenerate the tenant's outbound signing secret — receivers must update."""
+    tenant.flow_webhook_secret = _new_token()
+    await db.commit()
+    return {"signing_secret": tenant.flow_webhook_secret}
+
+
+async def get_flow_by_token(db: AsyncSession, token: str) -> Optional[Flow]:
+    """Resolve a webhook flow by its inbound token, RLS-bypassed (the public
+    handler has no tenant context yet). Only enabled webhook flows fire."""
+    from sqlalchemy import text
+
+    await db.execute(text("SET LOCAL row_security = off"))
+    return await db.scalar(select(Flow).where(Flow.webhook_token == token))
+
+
 async def list_runs(
     db: AsyncSession, tenant_id: uuid.UUID, flow_id: uuid.UUID,
     limit: int = 25, status: Optional[str] = None,
@@ -271,7 +327,14 @@ async def build_meta(db: AsyncSession, tenant: Tenant) -> dict:
     enabled_modules = tenant.enabled_modules or []
 
     triggers = [
-        {"key": key, "label": meta["label"], "fields": meta["fields"]}
+        {
+            "key": key,
+            "label": meta["label"],
+            "fields": meta["fields"],
+            # [FLOW5] webhook payload keys are unknown at build time — the builder
+            # renders a free-text field name input when this is set.
+            "free_fields": meta.get("free_fields", False),
+        }
         for key, meta in TRIGGER_META.items()
         if not meta["module"] or meta["module"] in enabled_modules
     ]

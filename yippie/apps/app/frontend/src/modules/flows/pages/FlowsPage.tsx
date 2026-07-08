@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Check, ChevronDown, ChevronRight, Copy, FlaskConical, GitBranch, Pencil, Plus,
-  Sparkles, Trash2, Workflow, X, Zap,
+  RefreshCw, Sparkles, Trash2, Workflow, X, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
@@ -18,7 +18,7 @@ interface MetaField {
   options?: string[]
   required?: boolean
 }
-interface MetaTrigger { key: string; label: string; fields: MetaField[] }
+interface MetaTrigger { key: string; label: string; fields: MetaField[]; free_fields?: boolean }
 interface MetaAction { key: string; label: string; config_fields: MetaField[] }
 interface MetaOption { id: string; name: string }
 interface FlowsMeta {
@@ -212,6 +212,64 @@ function WaitConfig({
         {WAIT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
       </select>
       <span className="text-sm text-slate-500">before the next step</span>
+    </div>
+  )
+}
+
+// [FLOW5] The inbound URL + outbound signing secret for a webhook-trigger flow.
+// Only meaningful once the flow exists (the token is minted on save).
+function WebhookPanel({ flowId }: { flowId: string | undefined }) {
+  const qc = useQueryClient()
+  const { data, isLoading } = useQuery<{ inbound_url: string; signing_secret: string }>({
+    queryKey: ['flow-webhook', flowId],
+    queryFn: () => api.get(`/flows/${flowId}/webhook`).then((r: any) => r.data),
+    enabled: !!flowId,
+  })
+  const rotateToken = useMutation({
+    mutationFn: () => api.post(`/flows/${flowId}/webhook/rotate`).then((r: any) => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['flow-webhook', flowId] }); toast.success('New inbound URL — the old one no longer works') },
+    onError: (err: any) => toast.error(apiError(err)),
+  })
+  const rotateSecret = useMutation({
+    mutationFn: () => api.post('/flows/webhook_secret/rotate').then((r: any) => r.data),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['flow-webhook', flowId] }); toast.success('New signing secret — update your receivers') },
+    onError: (err: any) => toast.error(apiError(err)),
+  })
+  const copy = (text: string, label: string) => {
+    navigator.clipboard?.writeText(text).then(() => toast.success(`${label} copied`))
+  }
+  if (!flowId) {
+    return (
+      <p className="text-xs text-slate-400 pt-1">
+        Save the flow to get its inbound URL — then POST JSON to it to trigger this flow.
+      </p>
+    )
+  }
+  return (
+    <div className="pt-1 space-y-2">
+      {isLoading && <p className="text-xs text-slate-400">Loading webhook details…</p>}
+      {data && (
+        <>
+          <div>
+            <p className="text-[11px] font-semibold text-slate-500 mb-1">Inbound URL — POST JSON here</p>
+            <div className="flex items-center gap-1.5">
+              <input readOnly value={data.inbound_url} className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-slate-50 text-slate-600 focus:outline-none" />
+              <button onClick={() => copy(data.inbound_url, 'URL')} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Copy URL"><Copy size={13} /></button>
+              <button onClick={() => rotateToken.mutate()} disabled={rotateToken.isPending} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-50" title="Regenerate URL"><RefreshCw size={13} /></button>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">Top-level JSON keys become fields you can match on above.</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold text-slate-500 mb-1">Outbound signing secret (for “Send a webhook” actions)</p>
+            <div className="flex items-center gap-1.5">
+              <input readOnly value={data.signing_secret} className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-slate-50 text-slate-600 focus:outline-none" />
+              <button onClick={() => copy(data.signing_secret, 'Secret')} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Copy secret"><Copy size={13} /></button>
+              <button onClick={() => { if (confirm('Rotate the signing secret? Receivers verifying signatures must be updated.')) rotateSecret.mutate() }} disabled={rotateSecret.isPending} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-50" title="Rotate secret"><RefreshCw size={13} /></button>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1">Outbound requests are signed <span className="font-mono">X-Yippie-Signature: sha256=…</span> over the raw body.</p>
+          </div>
+        </>
+      )}
     </div>
   )
 }
@@ -430,6 +488,7 @@ function BuilderModal({
                 />
               </div>
             )}
+            {triggerType === 'webhook' && <WebhookPanel flowId={flow?.id} />}
           </div>
 
           {/* If */}
@@ -452,14 +511,23 @@ function BuilderModal({
                 <div className="border border-slate-200 rounded-xl p-3 space-y-2 bg-slate-50">
                   {group.map((c, ci) => (
                     <div key={ci} className="flex items-center gap-2">
-                      <select
-                        value={c.field}
-                        onChange={e => setCondition(gi, ci, { field: e.target.value, value: '' })}
-                        className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      >
-                        <option value="">field…</option>
-                        {(trigger?.fields ?? []).map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
-                      </select>
+                      {trigger?.free_fields ? (
+                        <input
+                          value={c.field}
+                          onChange={e => setCondition(gi, ci, { field: e.target.value })}
+                          placeholder="payload field…"
+                          className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        />
+                      ) : (
+                        <select
+                          value={c.field}
+                          onChange={e => setCondition(gi, ci, { field: e.target.value, value: '' })}
+                          className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+                        >
+                          <option value="">field…</option>
+                          {(trigger?.fields ?? []).map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+                        </select>
+                      )}
                       <select
                         value={c.op}
                         onChange={e => setCondition(gi, ci, { op: e.target.value })}

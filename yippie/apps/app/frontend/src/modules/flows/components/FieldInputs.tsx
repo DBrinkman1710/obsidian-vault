@@ -148,14 +148,23 @@ export function ConditionRow({
   return (
     <div className="space-y-1.5 border border-slate-200 rounded-lg p-2 bg-white">
       <div className="flex items-center gap-1.5">
-        <select
-          value={condition.field}
-          onChange={e => onChange({ field: e.target.value, value: '' })}
-          className={`${base} bg-white flex-1 min-w-0`}
-        >
-          <option value="">field…</option>
-          {(trigger?.fields ?? []).map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
-        </select>
+        {trigger?.free_fields ? (
+          <input
+            value={condition.field}
+            onChange={e => onChange({ field: e.target.value })}
+            placeholder="payload field…"
+            className={`${base} flex-1 min-w-0`}
+          />
+        ) : (
+          <select
+            value={condition.field}
+            onChange={e => onChange({ field: e.target.value, value: '' })}
+            className={`${base} bg-white flex-1 min-w-0`}
+          >
+            <option value="">field…</option>
+            {(trigger?.fields ?? []).map(f => <option key={f.key} value={f.key}>{f.label}</option>)}
+          </select>
+        )}
         <select
           value={condition.op}
           onChange={e => onChange({ op: e.target.value })}
