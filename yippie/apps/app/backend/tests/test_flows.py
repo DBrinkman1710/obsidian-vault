@@ -503,3 +503,48 @@ def test_preview_wait_detail():
     )
     assert result["actions"][0]["detail"] == "Pause the flow for 2 hours"
     assert result["actions"][1]["detail"] == "Notify a team member: “later”"
+
+
+# ------------------------------------------------------- [FLOW3] action ids
+
+def test_action_spec_mints_an_id_when_missing():
+    spec = ActionSpec(type="notify_user", config={"user_id": "u1", "message": "hi"})
+    assert spec.id
+    assert len(spec.id) <= 36
+    assert spec.model_dump()["id"] == spec.id
+
+
+def test_action_spec_preserves_a_provided_id():
+    spec = ActionSpec(id="abc_123", type="wait", config={"hours": 2})
+    assert spec.id == "abc_123"
+
+
+def test_action_spec_rejects_a_malformed_id():
+    for bad in ("", "has space", "x" * 37, "semi;colon"):
+        with pytest.raises(Exception):
+            ActionSpec(id=bad, type="wait", config={"hours": 1})
+
+
+def test_flow_create_actions_each_get_a_unique_id():
+    flow = FlowCreate(
+        name="f",
+        trigger_type="ticket_created",
+        actions=[
+            {"type": "notify_user", "config": {"user_id": "u", "message": "a"}},
+            {"type": "notify_user", "config": {"user_id": "u", "message": "b"}},
+        ],
+    )
+    ids = [a.id for a in flow.actions]
+    assert all(ids)
+    assert len(set(ids)) == 2
+
+
+def test_flow_create_round_trips_client_ids():
+    flow = FlowCreate(
+        name="f",
+        trigger_type="ticket_created",
+        actions=[{"id": "client_id_1", "type": "wait", "config": {"minutes": 5}},
+                 {"id": "client_id_2", "type": "notify_user",
+                  "config": {"user_id": "u", "message": "m"}}],
+    )
+    assert [a.model_dump()["id"] for a in flow.actions] == ["client_id_1", "client_id_2"]
