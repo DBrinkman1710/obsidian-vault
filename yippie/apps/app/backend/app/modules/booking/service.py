@@ -386,14 +386,15 @@ async def get_available_slots(
 
     Only availability (a boolean) is exposed — never event details.
     """
-    # Worker-driven availability takes precedence when any worker has opted in.
-    # agent_user_id (single-agent reschedule) still uses the tenant-wide path.
-    if agent_user_id is None:
-        worker_rows = await _active_worker_rows(db, tenant_id)
-        if worker_rows:
-            return await _worker_available_slots(
-                db, tenant_id, settings, days_ahead, worker_rows
-            )
+    # Worker-driven availability takes precedence on every booking surface when
+    # any worker has opted in. agent_user_id only matters for the legacy
+    # single-calendar path below (its external-calendar filtering); in worker
+    # mode each worker's external calendar is handled inside the aggregation.
+    worker_rows = await _active_worker_rows(db, tenant_id)
+    if worker_rows:
+        return await _worker_available_slots(
+            db, tenant_id, settings, days_ahead, worker_rows
+        )
 
     now = _now()
     today = now.date()
