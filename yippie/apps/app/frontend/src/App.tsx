@@ -84,6 +84,39 @@ function PagePad({ children }: { children: React.ReactNode }) {
   return <div className="flex-1 min-h-0 overflow-auto p-4 md:p-8">{children}</div>
 }
 
+// [TRIAL30] Persistent free trial countdown. Calm brand blue for most of the
+// trial; switches to amber loss aversion framing in the final 5 days. The
+// deadline comes from tenant config (trial_ends_at); cleared on conversion.
+function TrialBanner({ endsAt }: { endsAt: string }) {
+  const navigate = useNavigate()
+  const msLeft = new Date(endsAt).getTime() - Date.now()
+  const daysLeft = Math.max(0, Math.ceil(msLeft / 86_400_000))
+  const urgent = daysLeft <= 5
+  return (
+    <div
+      className={`shrink-0 text-white text-xs font-semibold text-center py-1.5 px-4 ${
+        urgent ? 'bg-amber-500' : 'bg-[#5BA4F5]'
+      }`}
+    >
+      {urgent ? (
+        <>
+          Your free trial ends in {daysLeft} {daysLeft === 1 ? 'day' : 'days'}. Your contacts, tickets and settings stay when you upgrade.{' '}
+        </>
+      ) : (
+        <>
+          Free trial: {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left.{' '}
+        </>
+      )}
+      <button
+        onClick={() => navigate('/settings/subscription')}
+        className={`underline underline-offset-2 ${urgent ? 'hover:text-amber-100' : 'hover:text-blue-100'}`}
+      >
+        Upgrade now
+      </button>
+    </div>
+  )
+}
+
 function useGlobalHotkeys() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -330,6 +363,7 @@ export default function App() {
               {' '}to go live.
             </div>
           )}
+          {config && !config.is_demo && config.trial_ends_at && <TrialBanner endsAt={config.trial_ends_at} />}
           <ErrorBoundary>
           <Suspense fallback={<div className="p-8 text-slate-400">Loading…</div>}>
             <Routes>

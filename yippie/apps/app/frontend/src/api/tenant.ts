@@ -8,6 +8,8 @@ export interface TenantConfig {
   environment: string
   is_demo: boolean
   is_active: boolean
+  // [TRIAL30] ISO datetime when the free trial ends; null once converted.
+  trial_ends_at: string | null
   // Tenant's SaaS plan tier and the features it unlocks. A feature is usable
   // only when it is in BOTH enabled_modules AND allowed_features.
   plan: string

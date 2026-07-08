@@ -76,6 +76,11 @@ async def sync_subscription_to_tenant(
         merged = list(dict.fromkeys(CORE_MODULES + current_modules + paid_modules))
         updates["enabled_modules"] = merged
 
+    # [TRIAL30] An active (or trialing-in-Stripe) subscription converts a trial
+    # tenant — clear the trial deadline so trial_expiry_check leaves it alone.
+    if new_status in ("active", "trialing") and tenant.trial_ends_at is not None:
+        updates["trial_ends_at"] = None
+
     await db.execute(update(Tenant).where(Tenant.id == tenant.id).values(**updates))
     await db.commit()
     log.info("Synced Stripe subscription %s to tenant %s (plan=%s status=%s)", subscription.get("id"), tenant.slug, new_plan, new_status)

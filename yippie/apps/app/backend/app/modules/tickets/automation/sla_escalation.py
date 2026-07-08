@@ -336,6 +336,231 @@ async def demo_expiry_check():
             await db.commit()
 
 
+async def _tenant_workspace_counts(db, tenant_id) -> tuple[int, int]:
+    """Contact + ticket counts for a tenant — used in trial loss aversion copy."""
+    from app.modules.contacts.models import Contact
+    from app.modules.tickets.models import Ticket
+    contacts = await db.scalar(
+        select(func.count()).select_from(Contact).where(
+            Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None)
+        )
+    ) or 0
+    tickets = await db.scalar(
+        select(func.count()).select_from(Ticket).where(
+            Ticket.tenant_id == tenant_id, Ticket.deleted_at.is_(None)
+        )
+    ) or 0
+    return contacts, tickets
+
+
+def _trial_upgrade_url() -> str:
+    from app.config import get_settings
+    settings = get_settings()
+    base = settings.client_base_url or settings.effective_base_url
+    return f"{base}/settings/subscription"
+
+
+async def _send_trial_email(
+    prospect_email: str,
+    prospect_name: str,
+    subject: str,
+    intro_html: str,
+) -> None:
+    """[TRIAL30] Trial lifecycle email — Book a call + Upgrade CTAs."""
+    import html as _html
+    from app.core.email_html import render_email_html
+    from app.core.mailer import send_email
+    from app.config import get_settings
+    settings = get_settings()
+    owner_slug = settings.owner_slug or "yippie"
+    app_base = settings.client_base_url or settings.effective_base_url
+    book_url = f"{app_base}/meet/{owner_slug}"
+    upgrade_url = _trial_upgrade_url()
+    plain_name = prospect_name.split()[0] if prospect_name else "there"
+    safe_name = _html.escape(plain_name)
+    safe_book = _html.escape(book_url)
+    safe_upgrade = _html.escape(upgrade_url)
+    intro_plain = re.sub(r"<[^>]+>", "", intro_html)
+    intro_plain = re.sub(r"[ \t]+", " ", intro_plain).strip()
+    plain = (
+        f"Hi {plain_name},\n\n{intro_plain}\n\n"
+        f"Book a call: {book_url}\nUpgrade your workspace: {upgrade_url}\n\n"
+        f"Best,\nDiederik\nFounder, Yippie"
+    )
+    prerendered = (
+        f'<p style="margin:0 0 16px;">Hi {safe_name},</p>'
+        f'{intro_html}'
+        f'<div style="text-align:center;margin:32px 0;">'
+        f'<a href="{safe_book}" style="display:inline-block;background:#5BA4F5;color:#fff;'
+        f'text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:600;font-size:15px;margin-right:12px;">'
+        f'Book a call</a>'
+        f'<a href="{safe_upgrade}" style="display:inline-block;background:#22c55e;color:#fff;'
+        f'text-decoration:none;padding:13px 28px;border-radius:8px;font-weight:600;font-size:15px;">'
+        f'Upgrade now</a>'
+        f'</div>'
+        f'<p style="margin:16px 0 0;">Best,<br><strong>Diederik</strong><br>'
+        f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
+    )
+    await send_email(
+        to=prospect_email,
+        subject=subject,
+        body=plain,
+        html=render_email_html(plain, prerendered_html=prerendered, tenant_name="Yippie"),
+        from_email="Diederik from Yippie <diederik@getyippie.com>",
+        reply_to="diederik@getyippie.com",
+    )
+
+
+@scheduler.scheduled_job("interval", hours=1, id="trial_nudge_check", max_instances=1, coalesce=True)
+async def trial_nudge_check():
+    """[TRIAL30] Trial lifecycle nudges.
+
+    Day 23 (7 days left): reciprocity tone — what they've built so far.
+    Day 28 (2 days left): loss aversion tone — name the concrete data at stake.
+    Converted tenants (active Stripe subscription) are skipped and healed.
+    """
+    if await skip_if_locked("trial_nudge_check", ttl=3300):
+        return
+    from app.core.models import Tenant
+    now = datetime.now(timezone.utc)
+    async with db_session() as db:
+        result = await db.execute(
+            select(Tenant).where(
+                Tenant.is_demo.is_(False),
+                Tenant.is_active.is_(True),
+                Tenant.trial_ends_at.isnot(None),
+                Tenant.trial_ends_at > now,
+                Tenant.trial_ends_at < now + timedelta(days=7),
+            )
+        )
+        tenants = result.scalars().all()
+        dirty = False
+        for tenant in tenants:
+            # Self heal: a converted tenant should not carry a trial deadline.
+            if tenant.stripe_subscription_status == "active":
+                tenant.trial_ends_at = None
+                dirty = True
+                continue
+            days_left = max(0, (tenant.trial_ends_at - now).days)
+            is_final_window = tenant.trial_ends_at < now + timedelta(days=3)
+            if is_final_window and tenant.trial_final_nudge_sent_at is None:
+                marker = "final"
+            elif not is_final_window and tenant.trial_nudge_sent_at is None:
+                marker = "first"
+            else:
+                continue
+            admin = await _get_demo_tenant_admin_email(db, tenant.id)
+            if not admin:
+                log.warning("No admin email for trial tenant %s — skipping nudge", tenant.id)
+                continue
+            prospect_email, prospect_full_name = admin
+            contacts, tickets = await _tenant_workspace_counts(db, tenant.id)
+            if marker == "first":
+                subject = f"One week left on your Yippie trial, {prospect_full_name.split()[0]}"
+                intro = (
+                    f'<p style="margin:0 0 16px;">Your free trial has one week left, and your workspace '
+                    f'is already doing real work: {contacts} contacts and {tickets} tickets live in it today.</p>'
+                    '<p style="margin:0 0 16px;">If anything is unclear or you want a hand setting something up, '
+                    "I'm happy to jump on a call. Otherwise you can upgrade in a minute from your settings and "
+                    'nothing changes on your side.</p>'
+                )
+            else:
+                subject = f"Your Yippie trial ends in {max(days_left, 1)} day{'s' if days_left != 1 else ''}"
+                intro = (
+                    f'<p style="margin:0 0 16px;">Your free trial is almost over. Your {contacts} contacts, '
+                    f'{tickets} tickets and all your settings stay exactly as they are when you upgrade. '
+                    'If the trial expires, your workspace is deactivated and your team loses access.</p>'
+                    '<p style="margin:0 0 16px;">Upgrading takes about a minute. If something held you back, '
+                    'reply to this email and tell me what it was. I read every reply.</p>'
+                )
+            try:
+                await _send_trial_email(
+                    prospect_email=prospect_email,
+                    prospect_name=prospect_full_name,
+                    subject=subject,
+                    intro_html=intro,
+                )
+                if marker == "first":
+                    tenant.trial_nudge_sent_at = now
+                else:
+                    tenant.trial_final_nudge_sent_at = now
+                dirty = True
+            except Exception:
+                log.exception("Failed to send trial nudge to %s", prospect_email)
+        if dirty:
+            await db.commit()
+
+
+@scheduler.scheduled_job("interval", hours=1, id="trial_expiry_check", max_instances=1, coalesce=True)
+async def trial_expiry_check():
+    """[TRIAL30] Deactivate trial tenants past trial_ends_at.
+
+    A tenant whose Stripe subscription became active is healed (trial cleared)
+    instead of deactivated — belt and braces for the window where the Stripe
+    webhook is not yet configured in production and conversion is recorded
+    manually (superadmin sets go_live_at, which also clears the trial).
+    """
+    if await skip_if_locked("trial_expiry_check", ttl=3300):
+        return
+    import os
+
+    from app.core.mailer import send_email
+    from app.core.models import Tenant
+
+    admin_email = os.getenv("ADMIN_EMAIL", "")
+    now = datetime.now(timezone.utc)
+    async with db_session() as db:
+        result = await db.execute(
+            select(Tenant).where(
+                Tenant.is_demo.is_(False),
+                Tenant.is_active.is_(True),
+                Tenant.trial_ends_at.isnot(None),
+                Tenant.trial_ends_at < now,
+            )
+        )
+        tenants = result.scalars().all()
+        for tenant in tenants:
+            if tenant.stripe_subscription_status == "active" or tenant.go_live_at is not None:
+                tenant.trial_ends_at = None
+                log.info("Trial tenant %s converted — cleared trial deadline", tenant.slug)
+                continue
+            tenant.is_active = False
+            log.info("Expired trial tenant %s (%s)", tenant.name, tenant.slug)
+            try:
+                await send_email(
+                    to=admin_email,
+                    subject=f"Trial expired: {tenant.name}",
+                    body=(
+                        f"30 day trial expired: {tenant.name} ({tenant.slug}), "
+                        f"created {tenant.created_at}. Tenant deactivated."
+                    ),
+                )
+            except Exception:
+                log.exception("Failed to send trial-expiry admin email for %s", tenant.slug)
+            admin = await _get_demo_tenant_admin_email(db, tenant.id)
+            if admin:
+                prospect_email, prospect_full_name = admin
+                contacts, tickets = await _tenant_workspace_counts(db, tenant.id)
+                intro = (
+                    '<p style="margin:0 0 16px;">Your 30 day Yippie trial has ended and your workspace '
+                    'is now paused. Nothing is deleted: your '
+                    f'{contacts} contacts, {tickets} tickets and settings are all kept safe.</p>'
+                    '<p style="margin:0 0 16px;">Upgrade and everything is back exactly where you left it. '
+                    'If Yippie was not the right fit, I would genuinely value a one line reply about why.</p>'
+                )
+                try:
+                    await _send_trial_email(
+                        prospect_email=prospect_email,
+                        prospect_name=prospect_full_name,
+                        subject=f"Your Yippie trial has ended, {prospect_full_name.split()[0]}",
+                        intro_html=intro,
+                    )
+                except Exception:
+                    log.exception("Failed to send trial-expiry prospect email to %s", prospect_email)
+        if tenants:
+            await db.commit()
+
+
 @scheduler.scheduled_job("interval", hours=1, id="subscription_expiry_check", max_instances=1, coalesce=True)
 async def subscription_expiry_check():
     """Deactivate paid tenants whose subscription_ends_at has passed."""

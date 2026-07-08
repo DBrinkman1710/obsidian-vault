@@ -28,7 +28,7 @@ DEFAULT_DEMO_DAYS = 7
 
 TENANT_SAFE_FIELDS = {
     "name", "enabled_modules", "plan", "primary_color", "logo_url",
-    "is_active", "is_demo", "demo_expires_at", "go_live_at", "inbound_email",
+    "is_active", "is_demo", "demo_expires_at", "go_live_at", "trial_ends_at", "inbound_email",
     "kvk_nummer", "btw_nummer",
     "street_address", "postal_code", "city", "country", "iban", "phone",
     "whatsapp_phone_number_id", "whatsapp_access_token", "whatsapp_verify_token",
@@ -167,6 +167,11 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
         if field == "plan" and isinstance(value, PlanTier):
             value = value.value
         setattr(tenant, field, value)
+    # [TRIAL30] Marking a tenant live is the manual conversion path while the
+    # Stripe webhook is not yet configured — it also ends the free trial.
+    # (TenantUpdate uses exclude_none, so trial_ends_at can't be nulled directly.)
+    if data.go_live_at is not None:
+        tenant.trial_ends_at = None
     await db.commit()
     await db.refresh(tenant)
     user_count = await db.scalar(select(func.count(User.id)).where(User.tenant_id == tenant.id))

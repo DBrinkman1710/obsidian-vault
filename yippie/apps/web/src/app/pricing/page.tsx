@@ -156,7 +156,7 @@ const faqs = [
   },
   {
     q: "Is there a free trial?",
-    a: "We don't offer a free trial. Instead, we run a guided demo so you can see Yippie working with your real inbox before you commit. Feel free to book a call to discuss your options, or request a demo to get started.",
+    a: "Yes. Every new account starts with a 30 day free trial of the full product. No credit card needed, and everything you set up stays when you upgrade. Prefer a walkthrough first? You can also request a guided demo or book a call.",
   },
 ];
 
@@ -280,10 +280,10 @@ export default function PricingPage() {
                 ))}
               </ul>
               <a
-                href={plan.enterprise ? TALK_PATH : "/custom"}
+                href={plan.enterprise ? TALK_PATH : "/signup"}
                 className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}
               >
-                {plan.enterprise ? "Book a call" : "Build your plan"}
+                {plan.enterprise ? "Book a call" : "Start free trial"}
               </a>
             </div>
           ))}

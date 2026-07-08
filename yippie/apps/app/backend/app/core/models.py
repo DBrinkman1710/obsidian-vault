@@ -57,6 +57,14 @@ class Tenant(Base):
     demo_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     demo_nudge_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     go_live_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # [TRIAL30] 30 day free trial — set on self serve signup. When set, the hourly
+    # trial_expiry_check job deactivates the tenant after this time. Cleared on
+    # Stripe conversion (checkout.session.completed / invoice.paid webhooks) or
+    # manually by a superadmin setting go_live_at (see admin.service.update_tenant).
+    trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Trial nudge dedup: day 23 reciprocity email, day 28 loss aversion email.
+    trial_nudge_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    trial_final_nudge_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     inbound_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Dutch legal registration numbers — shown on invoices/exports.
     # KvK = Chamber of Commerce number; Btw = VAT number.

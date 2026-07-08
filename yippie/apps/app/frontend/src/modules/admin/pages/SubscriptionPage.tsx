@@ -61,7 +61,11 @@ export default function SubscriptionPage() {
 
   if (!config) return null
 
-  const { plan, plan_limits, module_prices, enabled_modules, ai_scans_used_this_period, stripe_subscription_status } = config
+  const { plan, plan_limits, module_prices, enabled_modules, ai_scans_used_this_period, stripe_subscription_status, trial_ends_at, is_demo } = config
+  // [TRIAL30] Days left on the free trial; null when converted or not a trial.
+  const trialDaysLeft = trial_ends_at && !is_demo
+    ? Math.max(0, Math.ceil((new Date(trial_ends_at).getTime() - Date.now()) / 86_400_000))
+    : null
   const aiLimit = plan_limits?.ai_scans ?? null
   const usagePct = aiLimit ? Math.min(100, Math.round((ai_scans_used_this_period / aiLimit) * 100)) : 0
 
@@ -116,6 +120,13 @@ export default function SubscriptionPage() {
           <div>
             <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Current plan</p>
             <p className="text-2xl font-bold text-slate-900 mt-1">{PLAN_LABELS[plan] ?? plan}</p>
+            {trialDaysLeft != null && (
+              <span className={`inline-block mt-2 mr-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                trialDaysLeft <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
+              }`}>
+                Free trial · {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} left
+              </span>
+            )}
             {stripe_subscription_status && (
               <span className={`inline-block mt-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
                 stripe_subscription_status === 'active' ? 'bg-green-100 text-green-700' :

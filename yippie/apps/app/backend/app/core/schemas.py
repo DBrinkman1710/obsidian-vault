@@ -78,6 +78,9 @@ class TenantConfigOut(BaseModel):
     environment: str = "production"
     is_demo: bool = False
     is_active: bool = True
+    # [TRIAL30] When set, the tenant is on a free trial — the frontend renders
+    # the trial countdown banner with an upgrade CTA. ISO datetime string.
+    trial_ends_at: Optional[datetime] = None
     # Tenant's SaaS plan tier and the feature set it unlocks. The frontend gates
     # a feature only when it is in BOTH enabled_modules AND allowed_features.
     plan: str = "pro"

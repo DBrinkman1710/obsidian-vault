@@ -1602,6 +1602,10 @@ async def questionnaire_lead(
 
 # ── Self-serve signup ─────────────────────────────────────────────────────────
 
+# [TRIAL30] Length of the free trial every self serve signup starts on.
+TRIAL_DAYS = 30
+
+
 class SignupRequest(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     company_name: str = Field(min_length=1, max_length=200)
@@ -1621,9 +1625,10 @@ async def signup(
 ) -> dict:
     """Self-serve account creation — no auth required.
 
-    Creates a real (non-demo) tenant immediately, auto-provisions an invoice
-    in root-tenant billing, and moves the contact to the 'Live' Kanban stage.
-    Stripe-ready: swap payment_service.handle_signup_payment when keys are set.
+    [TRIAL30] Creates a real (non-demo) tenant immediately on a 30 day free
+    trial (trial_ends_at stamped, no payment collected), and moves the contact
+    to the 'Live' Kanban stage in the root tenant. Conversion happens later via
+    Stripe checkout from Settings → Subscription.
     """
     import secrets as _secrets
 
@@ -1635,7 +1640,6 @@ async def signup(
     from app.modules.admin.service import create_tenant
     from app.modules.contacts.models import Contact
     from app.modules.pipeline.service import _assign_stage
-    from app.public.payment_service import handle_signup_payment
     from app.config import ALL_MODULES
     from app.core._modules_gen import CORE_MODULES
 
@@ -1672,8 +1676,9 @@ async def signup(
                 pass
 
     # Core modules (inbox/contacts/activity) are always on; the buyer explicitly
-    # picks paid add-ons on the signup form. Only the selected add-ons are billed
-    # (see handle_signup_payment). Booking ships bundled with Calendar.
+    # picks paid add-ons on the signup form. [TRIAL30] Nothing is billed at
+    # signup — the selection is billed at conversion via Stripe checkout.
+    # Booking ships bundled with Calendar.
     _all = set(ALL_MODULES)
     selected = [m for m in body.enabled_modules if m in _all]
     enabled_modules = list(dict.fromkeys([*CORE_MODULES, *selected]))
@@ -1710,9 +1715,23 @@ async def signup(
 
     # Load the new tenant now, while the session is still on the connecting
     # (RLS-bypassing) role — once we switch into root-tenant context below the
-    # tenants RLS policy (id = app_tenant_id()) would hide it. Stripe checkout
-    # needs this object (id/slug/customer id) to build the session.
+    # tenants RLS policy (id = app_tenant_id()) would hide it.
     signup_tenant = await db.get(Tenant, tenant_id)
+
+    # [TRIAL30] Every self serve signup starts a 30 day free trial — no payment
+    # at signup (reciprocity: full product first, ask later). Conversion happens
+    # from Settings → Subscription via Stripe checkout; the platform webhook
+    # (checkout.session.completed / invoice.paid) clears trial_ends_at. Until the
+    # Stripe webhook is configured in production, a superadmin setting go_live_at
+    # also clears the trial (admin.service.update_tenant). The hourly
+    # trial_expiry_check job deactivates unconverted tenants after expiry.
+    # Stamp + flush HERE, before set_tenant_context switches to the RLS enforced
+    # role — the tenants policy (id = app_tenant_id()) would block this UPDATE
+    # from root-tenant context.
+    trial_ends_at = datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS)
+    if signup_tenant is not None:
+        signup_tenant.trial_ends_at = trial_ends_at
+        await db.flush()
 
     await set_tenant_context(db, str(root_tenant_id))
 
@@ -1753,30 +1772,22 @@ async def signup(
 
     await db.flush()
 
+    # Persist the trial stamp + root tenant contact/stage work. Without this the
+    # session rollback on close silently discarded the Kanban 'Live' assignment
+    # (create_tenant committed the account itself, which is why signup appeared
+    # to work) — latent bug found while adding [TRIAL30].
+    await db.commit()
+
     base = _demo_client_base_url()
     login_url = f"{base}/login"
 
-    # Stripe Checkout (when configured) or a manual invoice fallback. On a
-    # successful Stripe session the frontend redirects to checkout_url; on
-    # cancel the buyer lands back on /login (their account already exists and
-    # they can pay later from Settings → Subscription).
-    try:
-        payment_result = await handle_signup_payment(
-            db=db,
-            root_tenant_id=root_tenant_id,
-            contact_id=contact.id,
-            plan=body.plan,
-            modules=enabled_modules,
-            company_name=body.company_name.strip(),
-            tenant=signup_tenant,
-            success_url=f"{base}/login?checkout=success",
-            cancel_url=f"{base}/login?checkout=cancelled",
-        )
-    except NotImplementedError:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Payment processing is not configured. Contact support.",
-        )
+    # handle_signup_payment (Stripe checkout at signup / invoice fallback) is
+    # deliberately no longer called — the trial replaces payment at signup.
+    payment_result = {
+        "type": "trial",
+        "trial_days": TRIAL_DAYS,
+        "trial_ends_at": trial_ends_at.isoformat(),
+    }
 
     try:
         from app.auth.invite import send_signup_welcome_email

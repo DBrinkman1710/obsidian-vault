@@ -203,9 +203,9 @@ export default function SignupForm() {
       <div className={styles.card}>
         <div className={styles.success}>
           <div className={styles.successIcon}><CheckIcon size={24} /></div>
-          <h2 className={styles.successTitle}>Account created!</h2>
+          <h2 className={styles.successTitle}>Your 30 day free trial has started!</h2>
           <p className={styles.successSub}>
-            Your Yippie workspace is ready.{" "}
+            Your Yippie workspace is ready. Full product, no payment details needed.{" "}
             {loginUrl ? (
               <a href={loginUrl} style={{ color: "#5BA4F5", fontWeight: 600 }}>
                 Log in now →
@@ -461,7 +461,7 @@ export default function SignupForm() {
       </div>
 
       <button className={styles.submit} type="submit" disabled={busy}>
-        {busy ? "Creating account…" : "Create account →"}
+        {busy ? "Creating your workspace…" : "Start 30 day free trial →"}
       </button>
 
       {state === "error" && errorMsg && (
@@ -469,7 +469,7 @@ export default function SignupForm() {
       )}
 
       <p className={styles.finePrint}>
-        No credit card required · Cancel any time
+        30 days free · No credit card required · Cancel any time
       </p>
     </form>
   );

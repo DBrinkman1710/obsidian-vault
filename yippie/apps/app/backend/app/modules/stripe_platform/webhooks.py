@@ -100,6 +100,13 @@ async def _handle_checkout_completed(db, session: dict) -> None:
         updates["stripe_customer_id"] = customer_id
     if subscription_id and not tenant.stripe_subscription_id:
         updates["stripe_subscription_id"] = subscription_id
+    # [TRIAL30] A completed checkout converts a trial tenant — clear the trial
+    # deadline so trial_expiry_check never deactivates a paying customer.
+    # NOTE: this webhook endpoint is not yet configured in the Stripe dashboard
+    # (as of 2026-07-08); until then conversion is recorded manually by a
+    # superadmin setting go_live_at. This path goes live with the webhook.
+    if tenant.trial_ends_at is not None:
+        updates["trial_ends_at"] = None
 
     if updates:
         await db.execute(update(Tenant).where(Tenant.id == tenant.id).values(**updates))
@@ -166,6 +173,8 @@ async def _handle_invoice_paid(db, invoice: dict) -> None:
         .values(
             ai_scans_used_this_period=0,
             ai_scans_period_start=datetime.now(timezone.utc),
+            # [TRIAL30] Any paid invoice confirms conversion — clear the trial.
+            trial_ends_at=None,
         )
     )
     await db.commit()

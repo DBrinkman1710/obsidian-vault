@@ -245,12 +245,12 @@ export default function HomePage() {
               alongside your business. Review, approve, done.
             </p>
             <div className={styles.heroActions}>
-              <a href="/custom" className={styles.btnPrimary}>
-                Start growing with us <ArrowRightIcon size={17} />
+              <a href="/signup" className={styles.btnPrimary}>
+                Start your free 30 day trial <ArrowRightIcon size={17} />
               </a>
-              <a href="/modules" className={styles.btnGhost}>See the product</a>
+              <a href={DEMO_URL} className={styles.btnGhost}>Request demo</a>
             </div>
-            <p className={styles.heroMeta}>No credit card · Unlimited contacts · Cancel anytime</p>
+            <p className={styles.heroMeta}>30 days free · No credit card · Cancel anytime</p>
           </Reveal>
 
           <Reveal className={styles.heroVisual} delay={120}>
@@ -500,11 +500,16 @@ export default function HomePage() {
           <h2 className={styles.ctaTitle}>Ready to win back your time?</h2>
           <p className={styles.ctaSub}>
             Join businesses that handle customer support in half the time with Yippie.
-            No credit card required.
+            30 days free, no credit card required.
           </p>
-          <a href={DEMO_URL} className={styles.btnPrimaryLg}>
-            Request demo <ArrowRightIcon size={18} />
+          <a href="/signup" className={styles.btnPrimaryLg}>
+            Start your free 30 day trial <ArrowRightIcon size={18} />
           </a>
+          <p className={styles.ctaSub} style={{ marginTop: 14 }}>
+            <a href={DEMO_URL} style={{ color: "inherit", textDecoration: "underline" }}>
+              Or request a guided demo
+            </a>
+          </p>
         </Reveal>
       </section>
 
