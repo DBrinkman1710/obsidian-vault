@@ -223,7 +223,8 @@ async def _execute_flow(
         if action_type == "wait":
             config = action.get("config") or {}
             delta = steps.wait_delta(config)
-            results.append({"type": "wait", "ok": True, "skipped": False,
+            results.append({"type": "wait", "action_id": action.get("id"),
+                            "ok": True, "skipped": False,
                             "summary": _wait_summary(config), "attempts": 1})
             run_id = await _upsert_run(tenant.id, flow_id, event, "waiting", results, None, run_id)
             await _persist_pending(
@@ -241,7 +242,8 @@ async def _execute_flow(
                 # Show a transient pending-retry row on the run, but freeze the
                 # step's results WITHOUT it (the real result is appended on resume).
                 run_results = results + [{
-                    "type": action_type, "ok": False, "skipped": False,
+                    "type": action_type, "action_id": action.get("id"),
+                    "ok": False, "skipped": False,
                     "summary": f"Retry {made} scheduled: {exc}"[:2000],
                     "attempts": made, "pending_retry": True,
                 }]
@@ -252,12 +254,16 @@ async def _execute_flow(
                 )
                 return
             log.exception("flow %s action %s failed after retries", flow_id, action_type)
-            results.append({"type": action_type, "ok": False, "skipped": False,
+            results.append({"type": action_type, "action_id": action.get("id"),
+                            "ok": False, "skipped": False,
                             "summary": f"Failed after {made} attempts: {exc}"[:2000],
                             "attempts": made})
             continue  # phase 1 semantics: keep running the remaining actions
 
         result["attempts"] = prior_attempts + 1
+        # [FLOW3] stable per-action identity for run replay on the canvas
+        # (None for legacy actions saved before ids existed).
+        result["action_id"] = action.get("id")
         results.append(result)
 
     await _upsert_run(

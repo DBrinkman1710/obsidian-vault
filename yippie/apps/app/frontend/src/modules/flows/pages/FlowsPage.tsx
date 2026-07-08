@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Link } from 'react-router-dom'
 import {
   Check, ChevronDown, ChevronRight, Copy, FlaskConical, Pencil, Plus,
-  Sparkles, Trash2, X, Zap,
+  Sparkles, Trash2, Workflow, X, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
@@ -817,6 +818,14 @@ export default function FlowsPage() {
                     <span className="text-slate-400">{flow.run_count} run{flow.run_count !== 1 ? 's' : ''}</span>
                   )}
                 </div>
+                {/* [FLOW3] canvas view — read-only for non-admins, so not gated */}
+                <Link
+                  to={`/flows/${flow.id}`}
+                  className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                  title="Open canvas"
+                >
+                  <Workflow size={13} />
+                </Link>
                 {isAdmin && (
                   <>
                     <button

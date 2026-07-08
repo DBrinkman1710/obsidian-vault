@@ -99,6 +99,15 @@ class ConditionSpec(BaseModel):
 
 
 class ActionSpec(BaseModel):
+    # [FLOW3] Stable per-action identity, stamped into flow_runs.results so run
+    # replay on the canvas survives reorders (and [FLOW4]'s DAG keeps working
+    # against history). Client-generated ids round-trip; missing ids are minted
+    # server-side on write. Legacy stored actions without an id stay valid —
+    # the engine stamps None and the canvas falls back to list position.
+    id: str = Field(
+        default_factory=lambda: uuid.uuid4().hex,
+        pattern=r"^[A-Za-z0-9_]{1,36}$",
+    )
     type: ActionType
     config: dict = Field(default_factory=dict)
 
