@@ -20,22 +20,15 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    op.execute("ALTER TABLE flows ADD COLUMN IF NOT EXISTS webhook_token VARCHAR(64)")
     op.execute(
-        """
-        ALTER TABLE flows ADD COLUMN IF NOT EXISTS webhook_token VARCHAR(64);
-        CREATE UNIQUE INDEX IF NOT EXISTS ix_flows_webhook_token
-            ON flows (webhook_token) WHERE webhook_token IS NOT NULL;
-
-        ALTER TABLE tenants ADD COLUMN IF NOT EXISTS flow_webhook_secret VARCHAR(100);
-        """
+        "CREATE UNIQUE INDEX IF NOT EXISTS ix_flows_webhook_token"
+        " ON flows (webhook_token) WHERE webhook_token IS NOT NULL"
     )
+    op.execute("ALTER TABLE tenants ADD COLUMN IF NOT EXISTS flow_webhook_secret VARCHAR(100)")
 
 
 def downgrade() -> None:
-    op.execute(
-        """
-        DROP INDEX IF EXISTS ix_flows_webhook_token;
-        ALTER TABLE flows DROP COLUMN IF EXISTS webhook_token;
-        ALTER TABLE tenants DROP COLUMN IF EXISTS flow_webhook_secret;
-        """
-    )
+    op.execute("DROP INDEX IF EXISTS ix_flows_webhook_token")
+    op.execute("ALTER TABLE flows DROP COLUMN IF EXISTS webhook_token")
+    op.execute("ALTER TABLE tenants DROP COLUMN IF EXISTS flow_webhook_secret")
