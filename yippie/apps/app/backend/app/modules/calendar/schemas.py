@@ -67,6 +67,7 @@ class CalendarEventOut(BaseModel):
     ticket_id: Optional[uuid.UUID] = None
     ticket_subject: Optional[str] = None
     created_by: uuid.UUID
+    assigned_worker_id: Optional[uuid.UUID] = None
     calendar_type: str = "shared"
     created_at: datetime
     invitations: List[InvitationOut] = []
