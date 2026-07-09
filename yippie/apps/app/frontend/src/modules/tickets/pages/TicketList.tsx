@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Ticket, Trash2, UserPlus, Check, Archive, GitMerge, User } from 'lucide-react'
+import { Plus, Ticket, Trash2, UserPlus, Check, Archive, GitMerge, User, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { CardListSkeleton } from '../../../shell/Skeleton'
@@ -292,7 +292,7 @@ export default function TicketList() {
                         className="font-semibold"
                         style={{ color: overdue ? 'var(--status-urgent)' : urgent ? 'var(--status-high)' : 'var(--text-muted)' }}
                       >
-                        · {overdue ? '⚠ Overdue' : urgent ? `⚠ SLA due ${due.toLocaleString()}` : `SLA: ${due.toLocaleString()}`}
+                        · {overdue ? <><AlertTriangle size={11} className="inline-block align-text-bottom mr-0.5" />Overdue</> : urgent ? <><AlertTriangle size={11} className="inline-block align-text-bottom mr-0.5" />SLA due {due.toLocaleString()}</> : `SLA: ${due.toLocaleString()}`}
                       </span>
                     )
                   })()}

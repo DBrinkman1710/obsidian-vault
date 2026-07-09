@@ -85,7 +85,7 @@ export function ColumnPicker({ value, onChange, saving }: {
                   className={`flex items-center gap-2 px-2 py-1.5 rounded-lg ${locked ? 'opacity-70' : 'hover:bg-slate-50 cursor-grab'}`}>
                   <GripVertical size={13} className={locked ? 'text-transparent' : 'text-slate-300'} />
                   <input type="checkbox" checked={col.visible} disabled={locked} onChange={() => toggle(col.key)}
-                    className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 disabled:opacity-50 cursor-pointer" />
+                    className="h-4 w-4 rounded border-slate-300 text-yippie focus:ring-yippie/30 disabled:opacity-50 cursor-pointer" />
                   <span className="text-sm text-slate-700">{col.label}</span>
                   {locked && <span className="ml-auto text-[10px] text-slate-400 uppercase">always</span>}
                 </li>

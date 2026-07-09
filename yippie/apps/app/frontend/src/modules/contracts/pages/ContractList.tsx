@@ -5,6 +5,8 @@ import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
+import { ListRowSkeleton } from '../../../shell/Skeleton'
+import { CloseButton } from '../../../shell/CloseButton'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -448,7 +450,7 @@ function TemplatesModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Contract templates</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="flex flex-1 min-h-0">
           {/* Template list */}
@@ -547,7 +549,7 @@ function AddContractModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">New Contract</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={submit} className="p-6 flex flex-col gap-5">
           <ContractFields form={form} set={set} />
@@ -646,7 +648,7 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Contract</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         {!form ? <p className="p-6 text-sm text-slate-400">Loading…</p> : (
           <div className="p-6 flex flex-col gap-5">
@@ -844,7 +846,7 @@ function DeleteModal({ ids, onClose }: { ids: string[]; onClose: () => void }) {
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Delete contracts</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 flex flex-col gap-4">
           <p className="text-sm text-slate-600">
@@ -1045,7 +1047,7 @@ export default function ContractList() {
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input value={search} onChange={e => setSearch(e.target.value)}
             placeholder="Search by title, counterparty, or type…"
-            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+            className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie" />
         </div>
         <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
           {(['all', 'issued', 'received'] as const).map(d => (
@@ -1063,7 +1065,7 @@ export default function ContractList() {
 
       {/* Table */}
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        {isLoading && <p className="text-sm text-slate-400 p-6">Loading…</p>}
+        {isLoading && <ListRowSkeleton rows={6} />}
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">

@@ -440,7 +440,7 @@ function ContactCard({
             onChange={onToggleSelect}
             draggable={false}
             onClick={e => e.stopPropagation()}
-            className={`mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-blue-600 focus:ring-blue-500 shrink-0 cursor-pointer transition-opacity ${
+            className={`mt-0.5 h-3.5 w-3.5 rounded border-slate-300 text-yippie focus:ring-yippie/30 shrink-0 cursor-pointer transition-opacity ${
               selected ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
           />
         )}

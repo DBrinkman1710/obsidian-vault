@@ -126,18 +126,18 @@ function CounterProposeForm({ onSuccess }: { onSuccess: () => void }) {
               type="date"
               value={row.date}
               onChange={e => updateRow(idx, { date: e.target.value })}
-              className="flex-1 min-w-[130px] px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="flex-1 min-w-[130px] px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
             <input
               type="time"
               value={row.time}
               onChange={e => updateRow(idx, { time: e.target.value })}
-              className="w-28 px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-28 px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
             <select
               value={row.duration}
               onChange={e => updateRow(idx, { duration: Number(e.target.value) })}
-              className="w-24 px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-24 px-2.5 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             >
               <option value={30}>30 min</option>
               <option value={60}>60 min</option>

@@ -278,7 +278,7 @@ export default function TemplatesPage() {
       <div className="flex-1 min-w-0 flex flex-col bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="flex items-center gap-3 px-5 py-3.5 border-b border-slate-100 shrink-0">
           <input
-            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-yippie/30"
             value={name}
             onChange={e => setName(e.target.value)}
             placeholder="Template name…"

@@ -111,7 +111,7 @@ export default function BroadcastModal({ open, onClose }: Props) {
               <select
                 value={labelFilter}
                 onChange={e => handleLabelFilterChange(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               >
                 <option value="">Select a label to bulk-select…</option>
                 {labels.map((l: any) => (
@@ -152,7 +152,7 @@ export default function BroadcastModal({ open, onClose }: Props) {
                 onChange={e => setMessage(e.target.value)}
                 placeholder="Write your broadcast message…"
                 rows={8}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-vertical focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-vertical focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               />
               <label className="flex items-center gap-2 mt-3 text-sm text-slate-700 cursor-pointer">
                 <input
