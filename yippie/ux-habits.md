@@ -1,6 +1,6 @@
 # UX Habits — uxpeak video reference
 
-Three uxpeak videos analysed 2026-07-08/09 for UX improvements. Used as input for [UX-PSYCH], [UX-CONV], and [UX-CRAFT] in ROADMAP.md.
+Three uxpeak videos analysed 2026-07-08/09 for UX improvements. Used as input for [UX-PSYCH], [UX-CONV], and [UX-CRAFT] in ROADMAP.md. A three agent Opus codebase audit against these principles (2026-07-09) produced three further items: [UX-CONV2] (Tier 3), [UX-CRAFT] Batch 1.5, and [UX-DASH] (Tier 2).
 
 ---
 
