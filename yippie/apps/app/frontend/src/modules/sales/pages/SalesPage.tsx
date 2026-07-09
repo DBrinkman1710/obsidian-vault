@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../../api/client'
-import { Clock, Eye, Settings, ShoppingCart, TrendingUp } from 'lucide-react'
+import { Clock, Eye, Percent, Settings, ShoppingCart, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../../auth/useAuth'
 import { SalesSettingsModal } from './SalesSettingsModal'
 
@@ -11,6 +11,10 @@ interface SalesStats {
   purchases: number
   last_event_at: string | null
   top_pages: { url: string; count: number }[]
+}
+
+function cleanUrl(url: string): string {
+  try { return new URL(url).pathname || '/' } catch { return url }
 }
 
 function formatRelative(iso: string | null): string {
@@ -36,7 +40,7 @@ export default function SalesPage() {
   })
 
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="space-y-8">
       <div className="flex items-start justify-between">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Sales Tracking</h1>
@@ -74,15 +78,16 @@ export default function SalesPage() {
 
       {/* Stats strip */}
       {!isError && (
-        <div className="grid grid-cols-3 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
           {[
-            { label: 'Total events', value: isLoading ? '—' : (stats?.total_events ?? 0), Icon: TrendingUp },
-            { label: 'Page views',   value: isLoading ? '—' : (stats?.pageviews     ?? 0), Icon: Eye },
-            { label: 'Purchases',    value: isLoading ? '—' : (stats?.purchases     ?? 0), Icon: ShoppingCart },
-          ].map(({ label, value, Icon }) => (
+            { label: 'Total events',    value: isLoading ? '—' : (stats?.total_events ?? 0),                                                                                   Icon: TrendingUp,  color: 'text-yippie',      bg: 'bg-blue-50'    },
+            { label: 'Page views',      value: isLoading ? '—' : (stats?.pageviews    ?? 0),                                                                                   Icon: Eye,         color: 'text-blue-600',    bg: 'bg-blue-50'    },
+            { label: 'Purchases',       value: isLoading ? '—' : (stats?.purchases    ?? 0),                                                                                   Icon: ShoppingCart,color: 'text-emerald-600', bg: 'bg-emerald-50' },
+            { label: 'Conversion rate', value: isLoading ? '—' : (!stats || stats.pageviews === 0 ? '—' : `${((stats.purchases / stats.pageviews) * 100).toFixed(1)}%`),      Icon: Percent,     color: 'text-amber-600',   bg: 'bg-amber-50'   },
+          ].map(({ label, value, Icon, color, bg }) => (
             <div key={label} className="bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-3">
-              <div className="p-2 bg-slate-100 rounded-xl">
-                <Icon className="w-4 h-4 text-slate-600" />
+              <div className={`p-2 rounded-xl ${bg}`}>
+                <Icon className={`w-4 h-4 ${color}`} />
               </div>
               <div>
                 <p className="text-xs text-slate-500">{label}</p>
@@ -104,17 +109,27 @@ export default function SalesPage() {
           <table className="w-full text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-5 py-2 text-left text-xs font-medium text-slate-500">URL</th>
+                <th className="px-5 py-2 text-left text-xs font-medium text-slate-500">Page</th>
                 <th className="px-5 py-2 text-right text-xs font-medium text-slate-500">Views</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {stats.top_pages.map((p: any) => (
-                <tr key={p.url} className="hover:bg-slate-50">
-                  <td className="px-5 py-2.5 text-slate-700 font-mono text-xs truncate max-w-xs">{p.url}</td>
-                  <td className="px-5 py-2.5 text-right text-slate-600">{p.count}</td>
-                </tr>
-              ))}
+              {stats.top_pages.map((p: any) => {
+                const maxViews = stats.top_pages[0]?.count || 1
+                const pct = Math.round((p.count / maxViews) * 100)
+                const path = cleanUrl(p.url)
+                return (
+                  <tr key={p.url} className="hover:bg-slate-50">
+                    <td className="px-5 py-2.5 max-w-xs">
+                      <div className="text-slate-700 font-mono text-xs truncate mb-1" title={p.url}>{path}</div>
+                      <div className="w-full bg-slate-100 rounded-full h-1">
+                        <div className="h-1 rounded-full bg-yippie" style={{ width: `${pct}%` }} />
+                      </div>
+                    </td>
+                    <td className="px-5 py-2.5 text-right text-slate-600 font-medium tabular-nums">{p.count.toLocaleString()}</td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>

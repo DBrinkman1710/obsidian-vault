@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Activity, Calendar, CreditCard, FileText, GitBranch, Mail, MessageSquare, Package, Tag, Users, Zap } from 'lucide-react'
 import { api } from '../../../api/client'
 
 interface PipelineStage {
@@ -60,7 +61,7 @@ interface Kpis {
 
 const CARD = 'bg-white rounded-xl border border-slate-200 shadow-sm p-6'
 const SECTION_HEADER = 'text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4'
-const BIG = 'text-3xl font-extrabold text-slate-900'
+const BIG = 'text-2xl font-extrabold text-slate-900'
 const SUB = 'text-sm text-slate-500'
 
 function fmt(value: number | null | undefined): string {
@@ -106,14 +107,38 @@ function LoadingState() {
   )
 }
 
-function KpiRow({ label, value }: { label: string; value: string }) {
+function KpiRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
     <div className="flex items-baseline justify-between">
       <span className={SUB}>{label}</span>
-      <span className="text-2xl font-extrabold text-slate-900 tabular-nums">{value}</span>
+      <span className={`text-2xl font-extrabold tabular-nums ${valueColor ?? 'text-slate-900'}`}>{value}</span>
     </div>
   )
 }
+
+function formatRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'Just now'
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.floor(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.floor(hours / 24)}d ago`
+}
+
+const MODULE_ICON: Record<string, { Icon: any; color: string; bg: string }> = {
+  inbox:     { Icon: Mail,          color: 'text-blue-500',    bg: 'bg-blue-50'    },
+  tickets:   { Icon: Tag,           color: 'text-violet-500',  bg: 'bg-violet-50'  },
+  contacts:  { Icon: Users,         color: 'text-emerald-500', bg: 'bg-emerald-50' },
+  pipeline:  { Icon: GitBranch,     color: 'text-amber-500',   bg: 'bg-amber-50'   },
+  chat:      { Icon: MessageSquare, color: 'text-teal-500',    bg: 'bg-teal-50'    },
+  billing:   { Icon: CreditCard,    color: 'text-purple-500',  bg: 'bg-purple-50'  },
+  bookings:  { Icon: Calendar,      color: 'text-rose-500',    bg: 'bg-rose-50'    },
+  contracts: { Icon: FileText,      color: 'text-slate-500',   bg: 'bg-slate-100'  },
+  flows:     { Icon: Zap,           color: 'text-yippie',      bg: 'bg-blue-50'    },
+  shipments: { Icon: Package,       color: 'text-orange-500',  bg: 'bg-orange-50'  },
+}
+const DEFAULT_MOD_ICON = { Icon: Activity, color: 'text-slate-400', bg: 'bg-slate-100' }
 
 const EVENTS_PER_PAGE = 10
 
@@ -178,6 +203,12 @@ export default function ActivityFeed() {
         .then((r: any) => r.data),
   })
 
+  const openRateVal = kpis && kpis.email.sent_total > 0 ? Math.round(kpis.email.open_rate * 1000) / 10 : null
+  const openRateColor = openRateVal === null ? undefined : openRateVal >= 40 ? 'text-emerald-600' : openRateVal >= 20 ? 'text-amber-500' : 'text-red-600'
+  const bouncedColor = kpis && kpis.email.bounced > 0 ? 'text-red-600' : 'text-emerald-600'
+  const avgHoursColor = !kpis?.tickets.avg_resolution_hours ? undefined : kpis.tickets.avg_resolution_hours <= 4 ? 'text-emerald-600' : kpis.tickets.avg_resolution_hours <= 24 ? 'text-amber-500' : 'text-red-600'
+  const resolvedColor = kpis && kpis.tickets.resolved_this_week > 0 ? 'text-emerald-600' : undefined
+
   const allEvents = events ?? []
   const eventPageCount = Math.max(1, Math.ceil(allEvents.length / EVENTS_PER_PAGE))
   const safePage = Math.min(eventsPage, eventPageCount - 1)
@@ -236,13 +267,10 @@ export default function ActivityFeed() {
                 <KpiRow label="Sent this week" value={fmt(kpis.email.sent_this_week)} />
                 <KpiRow
                   label="Open rate"
-                  value={
-                    kpis.email.sent_total === 0
-                      ? '—'
-                      : `${Math.round(kpis.email.open_rate * 1000) / 10}%`
-                  }
+                  value={openRateVal === null ? '—' : `${openRateVal}%`}
+                  valueColor={openRateColor}
                 />
-                <KpiRow label="Bounced" value={fmt(kpis.email.bounced)} />
+                <KpiRow label="Bounced" value={fmt(kpis.email.bounced)} valueColor={bouncedColor} />
               </div>
             </div>
 
@@ -251,10 +279,11 @@ export default function ActivityFeed() {
               <div className="space-y-4">
                 <KpiRow label="Open" value={fmt(kpis.tickets.open)} />
                 <KpiRow label="In progress" value={fmt(kpis.tickets.in_progress)} />
-                <KpiRow label="Resolved this week" value={fmt(kpis.tickets.resolved_this_week)} />
+                <KpiRow label="Resolved this week" value={fmt(kpis.tickets.resolved_this_week)} valueColor={resolvedColor} />
                 <KpiRow
                   label="Avg resolution (hours)"
                   value={fmt(kpis.tickets.avg_resolution_hours)}
+                  valueColor={avgHoursColor}
                 />
               </div>
             </div>
@@ -346,18 +375,26 @@ export default function ActivityFeed() {
               ) : (
                 <>
                   <ul className="divide-y divide-slate-100">
-                    {pageEvents.map((event: any) => (
-                      <li key={event.id} className="flex items-baseline justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
-                        <span className="text-sm text-slate-700 truncate">
-                          <span className="font-semibold text-slate-900">{event.actor_name ?? 'System'}</span>
-                          {' '}
-                          <span className="text-slate-500">{event.event_type.replace(/[._]/g, ' ')}</span>
-                        </span>
-                        <span className="text-xs text-slate-400 shrink-0 tabular-nums">
-                          {new Date(event.created_at).toLocaleString()}
-                        </span>
-                      </li>
-                    ))}
+                    {pageEvents.map((event: any) => {
+                      const mod = MODULE_ICON[event.module] ?? DEFAULT_MOD_ICON
+                      return (
+                        <li key={event.id} className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
+                          <div className="flex items-center gap-2.5 min-w-0 truncate">
+                            <div className={`shrink-0 w-6 h-6 rounded-md flex items-center justify-center ${mod.bg}`}>
+                              <mod.Icon size={12} className={mod.color} />
+                            </div>
+                            <span className="text-sm text-slate-700 truncate">
+                              <span className="font-semibold text-slate-900">{event.actor_name ?? 'System'}</span>
+                              {' '}
+                              <span className="text-slate-500">{event.event_type.replace(/[._]/g, ' ')}</span>
+                            </span>
+                          </div>
+                          <span className="text-xs text-slate-400 shrink-0 tabular-nums">
+                            {formatRelative(event.created_at)}
+                          </span>
+                        </li>
+                      )
+                    })}
                   </ul>
                   {eventPageCount > 1 && (
                     <div className="flex items-center justify-center gap-4 mt-4 pt-4 border-t border-slate-100">
