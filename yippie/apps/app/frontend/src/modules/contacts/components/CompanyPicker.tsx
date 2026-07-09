@@ -31,7 +31,7 @@ export function CompanyPicker({ value, onChange }: {
     <select
       value={value ?? ''}
       onChange={e => onChange(e.target.value || null)}
-      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+      className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
     >
       <option value="">No company</option>
       {companies.map((c: any) => (

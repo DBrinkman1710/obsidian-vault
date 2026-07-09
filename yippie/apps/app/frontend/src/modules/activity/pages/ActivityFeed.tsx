@@ -305,7 +305,7 @@ export default function ActivityFeed() {
                 <select
                   value={selectedAgentId}
                   onChange={e => setSelectedAgentId(e.target.value)}
-                  className="text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-yippie/30"
                 >
                   <option value="all">All agents</option>
                   {agentKpis.map((a: AgentKpi) => (

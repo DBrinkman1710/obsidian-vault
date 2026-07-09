@@ -70,13 +70,13 @@ export default function SaasPage() {
             { label: 'Onboarding completion', value: isLoading ? '—' : `${summary?.onboarding_completion_pct ?? 0}%`, Icon: Zap,           color: 'text-green-600', bg: 'bg-green-50', sub: !isLoading && summary != null ? <HealthBar pct={summary.onboarding_completion_pct} /> : null },
             { label: 'At-risk customers',     value: isLoading ? '—' : String(summary?.at_risk_count ?? 0),           Icon: AlertTriangle, color: 'text-red-600',   bg: 'bg-red-50',   sub: null },
           ].map(({ label, value, Icon, color, bg, sub }) => (
-            <div key={label} className="bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-3">
+            <div key={label} className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center gap-3">
               <div className={`p-2 rounded-xl ${bg}`}>
                 <Icon className={`w-4 h-4 ${color}`} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs text-slate-500">{label}</p>
-                <p className="text-xl font-semibold text-slate-900">{value}</p>
+                <p className="text-xl font-bold text-slate-900">{value}</p>
                 {sub && <div className="mt-1.5 w-24">{sub}</div>}
               </div>
             </div>
@@ -88,7 +88,7 @@ export default function SaasPage() {
       {!isError && summary && (summary.top_features.length > 0 || summary.common_errors.length > 0) && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {summary.top_features.length > 0 && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-5 space-y-3">
+            <div className="bg-white border border-slate-200 rounded-xl p-5 space-y-3">
               <h2 className="text-sm font-semibold text-slate-700">Top features this month</h2>
               <div className="space-y-2">
                 {summary.top_features.map((f: any, i: number) => {

@@ -187,7 +187,7 @@ function useSlugCheckError(slug: string): string | null {
   return null
 }
 
-const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function statusOf(t: Tenant): 'active' | 'demo' | 'inactive' {
@@ -1869,7 +1869,7 @@ function ProvisionDomainModal({ tenant, onClose, onSuccess }: {
               value={domain}
               onChange={e => { setDomain(e.target.value); setError(null) }}
               placeholder="acme.com"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30"
               onKeyDown={e => e.key === 'Enter' && !mutation.isPending && domain.trim() && mutation.mutate()}
             />
           </div>

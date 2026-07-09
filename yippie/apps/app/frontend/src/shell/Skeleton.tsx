@@ -23,6 +23,22 @@ export function CardListSkeleton({ rows = 4 }: { rows?: number }) {
   )
 }
 
+/** Flat row placeholders for billing/contract table-shell lists. */
+export function ListRowSkeleton({ rows = 6 }: { rows?: number }) {
+  return (
+    <div aria-hidden="true">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-slate-50 last:border-0">
+          <Skeleton className="h-4 w-24" />
+          <Skeleton className="h-4 flex-1" />
+          <Skeleton className="h-4 w-16 rounded-full" />
+          <Skeleton className="h-4 w-20" />
+        </div>
+      ))}
+    </div>
+  )
+}
+
 /** Row placeholders for table-style lists (contacts). */
 export function TableSkeleton({ rows = 6, cols = 4 }: { rows?: number; cols?: number }) {
   return (

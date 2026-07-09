@@ -74,7 +74,7 @@ type CalendarTypeFilter = 'shared' | 'personal'
 interface PickerOption { id: string; label: string }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -517,7 +517,7 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
 
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                className="h-4 w-4 rounded border-slate-300 text-yippie focus:ring-yippie/30 cursor-pointer" />
               <span className="text-sm text-slate-700 font-medium">All day</span>
             </label>
 
@@ -692,7 +692,7 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
             {(user as any)?.reply_from_email && (
               <label className="flex items-center gap-2 cursor-pointer select-none">
                 <input type="checkbox" checked={bFromPersonal} onChange={e => setBFromPersonal(e.target.checked)}
-                  className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer" />
+                  className="h-4 w-4 rounded border-slate-300 text-yippie focus:ring-yippie/30 cursor-pointer" />
                 <span className="text-sm text-slate-700 font-medium">
                   Send from <span className="text-slate-500 font-normal">{(user as any).reply_from_email}</span>
                 </span>
@@ -828,22 +828,22 @@ function InvitationsPanel({ onClose }: { onClose: () => void }) {
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Start date</label>
                       <input type="date" value={counterStart} onChange={e => setCounterStart(e.target.value)}
-                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yippie/30" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Start time</label>
                       <input type="time" value={counterStartTime} onChange={e => setCounterStartTime(e.target.value)}
-                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yippie/30" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">End date</label>
                       <input type="date" value={counterEnd} onChange={e => setCounterEnd(e.target.value)}
-                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yippie/30" />
                     </div>
                     <div>
                       <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">End time</label>
                       <input type="time" value={counterEndTime} onChange={e => setCounterEndTime(e.target.value)}
-                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yippie/30" />
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -1238,7 +1238,7 @@ function WeeklyGrid({
                   type="time"
                   value={addState.time}
                   onChange={e => setAdding(prev => ({ ...prev, [dayKey]: { ...prev[dayKey], time: e.target.value } }))}
-                  className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-28"
+                  className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie w-28"
                   title="Start time"
                 />
                 <span className="text-xs text-slate-400">to</span>
@@ -1246,7 +1246,7 @@ function WeeklyGrid({
                   type="time"
                   value={addState.end_time}
                   onChange={e => setAdding(prev => ({ ...prev, [dayKey]: { ...prev[dayKey], end_time: e.target.value } }))}
-                  className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-28"
+                  className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie w-28"
                   title="End time"
                 />
                 <input
@@ -1255,7 +1255,7 @@ function WeeklyGrid({
                   max={20}
                   value={addState.capacity}
                   onChange={e => setAdding(prev => ({ ...prev, [dayKey]: { ...prev[dayKey], capacity: Math.max(1, Number(e.target.value)) } }))}
-                  className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-16"
+                  className="px-2 py-1 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie w-16"
                   title="Max bookings for this slot"
                 />
                 <span className="text-xs text-slate-400">cap</span>

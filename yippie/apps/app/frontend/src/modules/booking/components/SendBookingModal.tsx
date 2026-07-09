@@ -232,7 +232,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                 </div>
               ) : (
                 <input
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
                   placeholder="Search contacts…"
                   value={contactQuery}
                   onChange={e => { setContactQuery(e.target.value); setContactDropOpen(true) }}
@@ -392,7 +392,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
               <select
                 value={stageIdOverride}
                 onChange={e => setStageIdOverride(e.target.value)}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               >
                 <option value="">— Use default —</option>
                 {stages.map((s: any) => (
@@ -408,7 +408,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                 type="checkbox"
                 checked={sendFromPersonal}
                 onChange={e => setSendFromPersonal(e.target.checked)}
-                className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+                className="h-4 w-4 rounded border-slate-300 text-yippie focus:ring-yippie/30 cursor-pointer"
               />
               <span className="text-sm text-slate-700 font-medium">
                 Send from <span className="text-slate-500 font-normal">{user.reply_from_email}</span>
@@ -424,7 +424,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
               value={message}
               onChange={e => setMessage(e.target.value)}
               placeholder="Add a short note for the customer…"
-              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-vertical min-h-[70px] focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-vertical min-h-[70px] focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
           </div>
         </div>

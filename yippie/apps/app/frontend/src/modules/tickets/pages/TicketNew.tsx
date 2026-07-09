@@ -54,7 +54,7 @@ function ContactPicker({ value, onChange }: {
   return (
     <div ref={ref} className="relative">
       <input
-        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
         value={search}
         onChange={e => { setSearch(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
@@ -158,7 +158,7 @@ export default function TicketNew() {
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Subject *</label>
           <input
-            className={`w-full px-3 py-2 border rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent ${errors.subject ? 'border-red-400' : 'border-slate-300'}`}
+            className={`w-full px-3 py-2 border rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie ${errors.subject ? 'border-red-400' : 'border-slate-300'}`}
             value={subject} onChange={e => setSubject(e.target.value)}
             placeholder="Short description of the issue" autoFocus
           />
@@ -194,7 +194,7 @@ export default function TicketNew() {
           <select
             value={departmentId}
             onChange={e => setDepartmentId(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30"
           >
             <option value="">No department</option>
             {departments?.map((d: any) => (
@@ -206,7 +206,7 @@ export default function TicketNew() {
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Description</label>
           <textarea
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-vertical min-h-[120px] font-[inherit]"
+            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 resize-vertical min-h-[120px] font-[inherit]"
             value={description} onChange={e => setDescription(e.target.value)}
             placeholder="What happened? Any relevant details, error messages, or steps to reproduce…"
           />

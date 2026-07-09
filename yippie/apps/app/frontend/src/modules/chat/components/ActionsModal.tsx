@@ -67,7 +67,7 @@ function ContactPicker({ value, onChange }: {
   return (
     <div className="relative">
       <input
-        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
         value={search}
         onChange={e => { setSearch(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
@@ -111,7 +111,7 @@ interface Props {
   onTicketLinked: () => void
 }
 
-const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 export default function ActionsModal({ session, defaultPane = 'ticket', onClose, onTicketLinked }: Props) {
@@ -523,7 +523,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                 onChange={e => setPromptEmail(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && promptEmail.trim()) handleEmailPromptConfirm() }}
                 placeholder="Email address"
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               />
               <div className="flex gap-2">
                 <button

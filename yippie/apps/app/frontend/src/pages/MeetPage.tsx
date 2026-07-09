@@ -185,7 +185,7 @@ export default function MeetPage() {
               onChange={e => setName(e.target.value)}
               disabled={submitting}
               placeholder="Jane Smith"
-              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50"
             />
           </div>
           <div>
@@ -201,7 +201,7 @@ export default function MeetPage() {
               onChange={e => setEmail(e.target.value)}
               disabled={submitting}
               placeholder="jane@acme.com"
-              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50"
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50"
             />
           </div>
           <div>
@@ -215,7 +215,7 @@ export default function MeetPage() {
               onChange={e => setMessage(e.target.value)}
               disabled={submitting}
               placeholder="Anything you'd like to discuss…"
-              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 resize-none"
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50 resize-none"
             />
           </div>
 

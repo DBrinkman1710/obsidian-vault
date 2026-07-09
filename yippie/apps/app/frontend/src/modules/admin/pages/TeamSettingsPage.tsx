@@ -563,7 +563,7 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
                           type="checkbox"
                           checked={checked}
                           onChange={() => toggleDept(dept.id)}
-                          className="rounded border-slate-300 text-blue-600 focus:ring-blue-500"
+                          className="rounded border-slate-300 text-yippie focus:ring-yippie/30"
                         />
                         <span className="text-sm font-medium">{dept.name}</span>
                         <span className="ml-auto text-xs text-slate-400">{dept.email}</span>

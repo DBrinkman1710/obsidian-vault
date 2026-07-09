@@ -85,13 +85,13 @@ export default function SalesPage() {
             { label: 'Purchases',       value: isLoading ? '—' : (stats?.purchases    ?? 0),                                                                                   Icon: ShoppingCart,color: 'text-emerald-600', bg: 'bg-emerald-50' },
             { label: 'Conversion rate', value: isLoading ? '—' : (!stats || stats.pageviews === 0 ? '—' : `${((stats.purchases / stats.pageviews) * 100).toFixed(1)}%`),      Icon: Percent,     color: 'text-amber-600',   bg: 'bg-amber-50'   },
           ].map(({ label, value, Icon, color, bg }) => (
-            <div key={label} className="bg-white border border-slate-200 rounded-2xl px-5 py-4 flex items-center gap-3">
+            <div key={label} className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center gap-3">
               <div className={`p-2 rounded-xl ${bg}`}>
                 <Icon className={`w-4 h-4 ${color}`} />
               </div>
               <div>
                 <p className="text-xs text-slate-500">{label}</p>
-                <p className="text-xl font-semibold text-slate-900">
+                <p className="text-xl font-bold text-slate-900">
                   {typeof value === 'number' ? value.toLocaleString() : value}
                 </p>
               </div>
