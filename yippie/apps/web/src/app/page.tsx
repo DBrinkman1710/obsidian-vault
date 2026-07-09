@@ -1,4 +1,9 @@
+import type { Metadata } from "next";
 import styles from "./page.module.css";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 import SiteNav from "./components/SiteNav";
 import SiteFooter from "./components/SiteFooter";
 import Reveal from "./components/Reveal";

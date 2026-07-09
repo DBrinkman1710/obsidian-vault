@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import ConsentDefaults from "./components/ConsentDefaults";
 import CookieBanner from "./components/CookieBanner";
+import { siteJsonLd } from "./structured-data";
 import "./globals.css";
 
 const YIPPIE_TRACKING_TOKEN = process.env.NEXT_PUBLIC_YIPPIE_TRACKING_TOKEN;
@@ -60,8 +61,10 @@ export const metadata: Metadata = {
     siteName: "Yippie",
     images: [
       {
-        url: "/logo.svg",
-        alt: "Yippie",
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "Yippie — AI-powered customer service platform",
       },
     ],
   },
@@ -70,19 +73,10 @@ export const metadata: Metadata = {
     title: "Yippie | Your growth partner in customer service",
     description:
       "Unlimited contacts on every plan. AI inbox triage, tickets, and bookings in one platform that scales with you.",
-    images: ["/logo.svg"],
+    images: ["/og.png"],
   },
 };
 
-const organizationJsonLd = {
-  "@context": "https://schema.org",
-  "@type": "Organization",
-  name: "Yippie",
-  url: "https://getyippie.com",
-  logo: "https://getyippie.com/logo.svg",
-  description:
-    "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.",
-};
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -113,7 +107,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
         </noscript>
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
         />
         {children}
         <CookieBanner />
