@@ -234,18 +234,25 @@ export default function SubscriptionPage() {
                 <div>
                   <div className="flex items-center justify-between">
                     <p className="font-bold text-slate-900">{card.label}</p>
-                    {isCurrent && (
+                    {isCurrent ? (
                       <span className="text-xs font-semibold text-yippie bg-yippie/10 px-2 py-0.5 rounded-full">Current</span>
-                    )}
+                    ) : card.id === 'growth' ? (
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Most popular</span>
+                    ) : null}
                   </div>
                   <p className="text-sm text-slate-500 mt-1">{card.description}</p>
                 </div>
                 <div>
                   {displayPrice != null ? (
-                    <p className="text-2xl font-bold text-slate-900">
-                      €{displayPrice}
-                      <span className="text-sm font-normal text-slate-500">/{interval === 'annual' ? 'yr' : 'mo'}</span>
-                    </p>
+                    <>
+                      <p className="text-2xl font-bold text-slate-900">
+                        €{displayPrice}
+                        <span className="text-sm font-normal text-slate-500">/{interval === 'annual' ? 'yr' : 'mo'}</span>
+                      </p>
+                      {interval === 'annual' && card.price && (
+                        <p className="text-xs text-slate-400 mt-0.5">≈ €{Math.round(card.price * 0.9)}/mo</p>
+                      )}
+                    </>
                   ) : (
                     <p className="text-2xl font-bold text-slate-900">Custom</p>
                   )}
@@ -269,7 +276,7 @@ export default function SubscriptionPage() {
                       : 'bg-yippie text-white hover:bg-yippie/90'
                   }`}
                 >
-                  {loading === card.id ? 'Opening…' : isCurrent ? 'Current plan' : card.price == null ? 'Contact us' : 'Upgrade'}
+                  {loading === card.id ? 'Opening…' : isCurrent ? 'Current plan' : card.price == null ? 'Contact us' : usagePct >= 90 ? 'Upgrade — keep AI running' : trialDaysLeft != null && trialDaysLeft <= 5 ? `Upgrade before trial ends in ${trialDaysLeft}d` : 'Upgrade'}
                 </button>
               </div>
             )

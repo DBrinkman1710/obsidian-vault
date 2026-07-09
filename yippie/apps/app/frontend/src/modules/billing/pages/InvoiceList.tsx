@@ -149,8 +149,10 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
   const [contactName, setContactName] = useState('')
   const [items, setItems] = useState<LineItemForm[]>([{ ...EMPTY_ITEM }])
   const [currency, setCurrency] = useState('EUR')
-  const [invoiceDate, setInvoiceDate] = useState('')
-  const [dueDate, setDueDate] = useState('')
+  const [invoiceDate, setInvoiceDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [dueDate, setDueDate] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split('T')[0]
+  })
   const [notes, setNotes] = useState('')
   const [status, setStatus] = useState('pending')
   const [error, setError] = useState('')
@@ -571,7 +573,10 @@ export default function InvoiceList() {
     <div>
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Invoices</h1>
+        <div className="flex items-center gap-3">
+          <h1 className="text-2xl font-bold text-slate-900">Invoices</h1>
+          {(() => { const n = (invoices ?? []).filter(i => i.status === 'overdue').length; return n > 0 ? <span className="text-xs font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{n} overdue</span> : null })()}
+        </div>
         <div className="flex items-center gap-2">
           {/* Export dropdown */}
           <div className="relative">

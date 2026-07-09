@@ -964,7 +964,7 @@ export default function FlowsPage() {
 
       {/* Recipes */}
       {isAdmin && recipes.length > 0 && (
-        <div className="mb-8">
+        <div className="mb-8" data-recipes-section>
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
             <Sparkles size={12} /> Ready-made recipes
           </p>
@@ -996,9 +996,29 @@ export default function FlowsPage() {
 
         {isLoading && <p className="px-6 py-8 text-sm text-slate-400 text-center">Loading…</p>}
         {!isLoading && flows.length === 0 && (
-          <p className="px-6 py-8 text-sm text-slate-400 text-center">
-            No flows yet. {isAdmin ? 'Install a recipe or create one from scratch.' : 'Ask an admin to set one up.'}
-          </p>
+          <div className="px-6 py-8 text-center">
+            <p className="text-sm text-slate-400 mb-4">
+              {isAdmin ? 'No flows yet.' : 'Ask an admin to set one up.'}
+            </p>
+            {isAdmin && (
+              <div className="flex items-center justify-center gap-2">
+                {recipes.length > 0 && (
+                  <button
+                    onClick={() => document.querySelector<HTMLElement>('[data-recipes-section]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
+                    className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+                  >
+                    <Sparkles size={14} /> Browse recipes
+                  </button>
+                )}
+                <button
+                  onClick={openNew}
+                  className="flex items-center gap-1.5 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+                >
+                  <Plus size={14} /> New flow
+                </button>
+              </div>
+            )}
+          </div>
         )}
 
         <div className="divide-y divide-slate-50">
