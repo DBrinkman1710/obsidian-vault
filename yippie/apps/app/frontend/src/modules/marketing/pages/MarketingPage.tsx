@@ -25,6 +25,7 @@ export function StatusBadge({ status }: { status: CampaignStatus }) {
 function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreated: (c: Campaign) => void }) {
   const [name, setName] = useState('')
   const [subject, setSubject] = useState('')
+  const [subjectEdited, setSubjectEdited] = useState(false)
   const [channel, setChannel] = useState<Channel>('email')
 
   const create = useMutation({
@@ -51,14 +52,14 @@ function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreat
         <input
           autoFocus
           value={name}
-          onChange={(e) => setName(e.target.value)}
+          onChange={(e) => { setName(e.target.value); if (!subjectEdited) setSubject(e.target.value) }}
           placeholder="Spring re-engagement"
           className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
         />
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Subject line</label>
         <input
           value={subject}
-          onChange={(e) => setSubject(e.target.value)}
+          onChange={(e) => { setSubject(e.target.value); setSubjectEdited(true) }}
           placeholder="We've missed you. Here's 25% off."
           className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
         />

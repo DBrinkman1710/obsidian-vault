@@ -306,8 +306,12 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
   const [title, setTitle] = useState(event?.title ?? '')
   const [date, setDate] = useState(start ? toDateInput(start) : defaultDate ? toDateInput(defaultDate) : toDateInput(new Date()))
   const [time, setTime] = useState(start && !event?.all_day ? toTimeInput(start) : defaultDate ? '12:00' : '09:00')
-  const [endDate, setEndDate] = useState(end ? toDateInput(end) : '')
-  const [endTime, setEndTime] = useState(end && !event?.all_day ? toTimeInput(end) : '')
+  const [endDate, setEndDate] = useState(end ? toDateInput(end) : (start ? toDateInput(start) : defaultDate ? toDateInput(defaultDate) : toDateInput(new Date())))
+  const [endTime, setEndTime] = useState(end && !event?.all_day ? toTimeInput(end) : (() => {
+    const base = defaultDate ? '12:00' : '09:00'
+    const h = parseInt(base) + 1
+    return `${String(h).padStart(2, '0')}:00`
+  })())
   const [allDay, setAllDay] = useState(event?.all_day ?? false)
   const [description, setDescription] = useState(event?.description ?? '')
   const [calendarType, setCalendarType] = useState<'shared' | 'personal'>(

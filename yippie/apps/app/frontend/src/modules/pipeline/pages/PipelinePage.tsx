@@ -531,6 +531,26 @@ export default function PipelinePage() {
     onError: () => toast.error('Could not launch campaign'),
   })
 
+  const seedPipelineMut = useMutation({
+    mutationFn: async () => {
+      const defaults = [
+        { name: 'Lead', color: '#94a3b8' },
+        { name: 'Contacted', color: '#60a5fa' },
+        { name: 'Demo scheduled', color: '#818cf8' },
+        { name: 'Proposal sent', color: '#f59e0b' },
+        { name: 'Won', color: '#22c55e' },
+        { name: 'Lost', color: '#ef4444' },
+      ]
+      for (const stage of defaults) await api.post('/pipeline/stages', stage)
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['pipeline-stages'] })
+      qc.invalidateQueries({ queryKey: ['pipeline-board'] })
+      toast.success('Standard pipeline created')
+    },
+    onError: () => toast.error('Could not create pipeline'),
+  })
+
   function toggleContact(id: string) {
     setSelectedContacts(prev => {
       const n = new Set(prev)
@@ -752,13 +772,23 @@ export default function PipelinePage() {
             {isAdmin ? 'Create stages to start tracking contacts through your kanban.' : 'Ask an admin to set up kanban stages.'}
           </p>
           {isAdmin && (
-            <button
-              onClick={() => setShowManage(true)}
-              className="flex items-center gap-1.5 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
-            >
-              <Plus size={14} />
-              Create first stage
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => seedPipelineMut.mutate()}
+                disabled={seedPipelineMut.isPending}
+                className="flex items-center gap-1.5 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity disabled:opacity-50"
+              >
+                <Loader2 size={14} className={seedPipelineMut.isPending ? 'animate-spin' : 'hidden'} />
+                {seedPipelineMut.isPending ? 'Creating…' : 'Start with standard pipeline'}
+              </button>
+              <button
+                onClick={() => setShowManage(true)}
+                className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
+              >
+                <Plus size={14} />
+                Custom stage
+              </button>
+            </div>
           )}
         </div>
       ) : isMobile ? (

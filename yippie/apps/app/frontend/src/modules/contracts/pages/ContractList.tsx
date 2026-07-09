@@ -512,7 +512,7 @@ function TemplatesModal({ onClose }: { onClose: () => void }) {
 
 function AddContractModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
-  const [form, setForm] = useState<FormState>({ ...EMPTY_FORM })
+  const [form, setForm] = useState<FormState>({ ...EMPTY_FORM, start_date: new Date().toISOString().split('T')[0] })
   const [file, setFile] = useState<File | null>(null)
   const [error, setError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
