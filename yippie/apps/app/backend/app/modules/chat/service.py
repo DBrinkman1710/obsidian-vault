@@ -14,6 +14,7 @@ from fastapi import HTTPException
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.flow_events import emit_flow_event
 from app.core.models import Tenant, User
 from app.database import db_session, set_tenant_context
 from app.modules.booking import service as booking_service
@@ -24,6 +25,35 @@ from app.modules.chat.models import ChatMessage, ChatSession
 from app.modules.contacts.models import Contact
 
 logger = logging.getLogger(__name__)
+
+
+async def emit_conversation_started(db: AsyncSession, session: ChatSession) -> None:
+    """[FLOW7] Flow event for a freshly created live chat conversation (emitted at
+    every new-session site, in the same transaction as the insert)."""
+    await emit_flow_event(
+        db, session.tenant_id, "conversation_started",
+        entity_type="conversation", entity_id=session.id,
+        contact_id=session.contact_id,
+        payload={
+            "source": session.source,
+            "visitor_name": session.visitor_name,
+            "contact_id": session.contact_id,
+        },
+    )
+
+
+async def emit_conversation_solved(db: AsyncSession, session: ChatSession) -> None:
+    """[FLOW7] Flow event for a conversation being marked solved/closed."""
+    await emit_flow_event(
+        db, session.tenant_id, "conversation_solved",
+        entity_type="conversation", entity_id=session.id,
+        contact_id=session.contact_id,
+        payload={
+            "source": session.source,
+            "assigned_to": str(session.assigned_to) if session.assigned_to else None,
+            "contact_id": session.contact_id,
+        },
+    )
 
 
 async def get_session(
@@ -85,6 +115,7 @@ async def find_or_create_open_session(
         )
         db.add(session)
         await db.flush()
+        await emit_conversation_started(db, session)
     else:
         if contact_id and not session.contact_id:
             session.contact_id = contact_id
@@ -427,6 +458,7 @@ async def set_session_status(
     session.status = new_status
     if new_status == "solved":
         session.solved_at = datetime.now(timezone.utc)
+        await emit_conversation_solved(db, session)
     elif new_status == "open":
         session.solved_at = None
         session.assigned_to = None
@@ -459,6 +491,7 @@ async def bulk_session_action(
             s.status = "solved"
             s.is_open = False
             s.solved_at = now
+            await emit_conversation_solved(db, s)
             count += 1
     elif action == "reopen":
         for s in sessions:
