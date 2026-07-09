@@ -16,8 +16,14 @@ both persisted in flow_pending_steps and drained on the same 10s tick:
 Frozen results (already-run actions) are stored on the pending step and never
 re-run — claim-first deletion means a crash loses at most one resume.
 
-Loop protection (phase 1): events with source='flow' are claimed but never
-evaluated, so flow actions cannot trigger further flows.
+Loop protection ([FLOW6] chaining): events with source='flow' only fire flows
+that opted in (trigger_config {"chainable": true} — phase 1 "never" stays the
+default), and only while the chain is short enough. Each executor runs inside a
+chain_scope, so every event a flow action causes carries chain_depth + the
+chain_path of flow ids walked so far; the engine drops chained events at depth
+>= steps.MAX_CHAIN_DEPTH and never re-fires a flow already on the path (cycle
+guard). An outbound webhook → external system → inbound webhook loop bypasses
+these fields entirely — the per-token inbound rate limit is that backstop.
 
 Start it from the main.py lifespan alongside the other schedulers.
 """
@@ -33,13 +39,13 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import delete, exists, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.core.flow_events import emit_flow_event
+from app.core.flow_events import chain_scope, emit_flow_event
 from app.core.models import Tenant
 from app.core.scheduler_lock import skip_if_locked
 from app.database import db_session, set_tenant_context
 from app.modules.flows import graph, steps
 from app.modules.flows.actions import ACTION_EXECUTORS, ACTION_MODULES
-from app.modules.flows.conditions import evaluate_conditions
+from app.modules.flows.conditions import TRIGGER_META, evaluate_conditions
 from app.modules.flows.models import Flow, FlowEvent, FlowPendingStep, FlowRun
 
 log = logging.getLogger(__name__)
@@ -95,27 +101,36 @@ async def _claim_events(db: AsyncSession) -> list[dict]:
     ]
 
 
-async def _load_flows(tenant_id: uuid.UUID, trigger_type: str) -> tuple[Optional[Tenant], list[dict]]:
+async def _load_flows(
+    tenant_id: uuid.UUID, trigger_type: str, *, chained_only: bool = False
+) -> tuple[Optional[Tenant], list[dict]]:
     async with db_session() as db:
         await db.execute(text("SET LOCAL row_security = off"))
         tenant = await db.get(Tenant, tenant_id)
         if tenant is None or "flows" not in (tenant.enabled_modules or []):
             return None, []
-        result = await db.execute(
-            select(Flow).where(
-                Flow.tenant_id == tenant_id,
-                Flow.trigger_type == trigger_type,
-                Flow.enabled.is_(True),
-            )
-        )
+        where = [
+            Flow.tenant_id == tenant_id,
+            Flow.trigger_type == trigger_type,
+            Flow.enabled.is_(True),
+        ]
+        # [FLOW6] A flow-caused event can only ever fire flows that opted into
+        # chaining, so filter them in SQL — a tenant with no chainable flows
+        # returns nothing and skips the per-flow gating entirely.
+        if chained_only:
+            where.append(Flow.trigger_config["chainable"].astext == "true")
+        result = await db.execute(select(Flow).where(*where))
         flows = [
-            {"id": f.id, "name": f.name, "conditions": f.conditions or [], "actions": f.actions or []}
+            {
+                "id": f.id, "name": f.name, "conditions": f.conditions or [],
+                "actions": f.actions or [], "trigger_config": f.trigger_config or {},
+            }
             for f in result.scalars().all()
         ]
         return tenant, flows
 
 
-async def _run_action(tenant: Tenant, event: dict, action: dict) -> dict:
+async def _run_action(tenant: Tenant, event: dict, action: dict, flow_id: uuid.UUID) -> dict:
     action_type = action.get("type")
     executor = ACTION_EXECUTORS.get(action_type)
     if executor is None:
@@ -127,9 +142,12 @@ async def _run_action(tenant: Tenant, event: dict, action: dict) -> dict:
                 "summary": f"Module '{required_module}' is disabled"}
     # Fresh session per action: services commit internally, and SET LOCAL
     # tenant context does not survive a commit — same lifecycle as a request.
+    # [FLOW6] chain_scope stamps chain identity onto every event this action's
+    # mutations emit (one link deeper, this flow appended to the path).
     async with db_session() as db:
         await set_tenant_context(db, str(tenant.id))
-        result = await executor(db, tenant, event, action.get("config") or {})
+        with chain_scope(steps.next_chain(event.get("fields") or {}, flow_id)):
+            result = await executor(db, tenant, event, action.get("config") or {})
     return {"type": action_type, **result}
 
 
@@ -195,48 +213,18 @@ async def _persist_pending(
 async def _fresh_entity_fields(tenant: Tenant, event: dict) -> dict:
     """[FLOW4] Branch nodes evaluate against CURRENT entity state, not the
     frozen event snapshot — the flagship case ("ticket created → wait 2 days →
-    if STILL open → escalate") is impossible on frozen fields. Re-fetch the
-    entity's live fields; they're merged OVER the snapshot (snapshot-only keys
-    like old_status survive). None values are dropped so a cleared field falls
-    back to the snapshot rather than never-matching every condition."""
-    fields: dict = {}
+    if STILL open → escalate") is impossible on frozen fields. [FLOW7] dispatches
+    to the trigger's registered fetch_fields loader (owned by the emitting
+    module); the live fields are merged OVER the snapshot by the caller
+    (snapshot-only keys like old_status survive). None values are dropped so a
+    cleared field falls back to the snapshot rather than never-matching."""
+    meta = TRIGGER_META.get(event.get("event_type")) or {}
+    loader = meta.get("fetch_fields")
+    if loader is None:
+        return {}
     async with db_session() as db:
         await set_tenant_context(db, str(tenant.id))
-        if event.get("entity_type") == "ticket" and event.get("entity_id"):
-            from app.modules.tickets.models import Ticket
-
-            ticket = await db.get(Ticket, uuid.UUID(str(event["entity_id"])))
-            if ticket is not None and ticket.tenant_id == tenant.id and ticket.deleted_at is None:
-                fields.update({
-                    "status": getattr(ticket.status, "value", ticket.status),
-                    "priority": getattr(ticket.priority, "value", ticket.priority),
-                    "assigned_to": str(ticket.assigned_to) if ticket.assigned_to else None,
-                    "subject": ticket.subject,
-                })
-        if event.get("contact_id"):
-            contact_id = uuid.UUID(str(event["contact_id"]))
-            from app.modules.contacts.models import Contact
-
-            contact = await db.get(Contact, contact_id)
-            if contact is not None and contact.tenant_id == tenant.id and contact.deleted_at is None:
-                fields.update({
-                    "email": contact.email,
-                    "full_name": contact.full_name,
-                    "tags": contact.tags or [],
-                })
-            if "pipeline" in (tenant.enabled_modules or []):
-                from app.modules.pipeline.models import ContactPipelineEntry, PipelineStage
-
-                row = (await db.execute(
-                    select(PipelineStage.id, PipelineStage.name)
-                    .join(ContactPipelineEntry, ContactPipelineEntry.stage_id == PipelineStage.id)
-                    .where(
-                        ContactPipelineEntry.contact_id == contact_id,
-                        ContactPipelineEntry.tenant_id == tenant.id,
-                    )
-                )).first()
-                if row is not None:
-                    fields.update({"stage_id": str(row.id), "stage_name": row.name})
+        fields = await loader(db, tenant, event)
     return {k: v for k, v in fields.items() if v is not None}
 
 
@@ -321,7 +309,7 @@ async def _execute_flow(
             return
 
         try:
-            result = await _run_action(tenant, event, node)
+            result = await _run_action(tenant, event, node, flow_id)
         except Exception as exc:  # noqa: BLE001 — recorded, not raised
             made = prior_attempts + 1
             delay = steps.retry_delay(made)
@@ -360,7 +348,14 @@ async def _execute_flow(
 
 
 async def _process_event(event: dict) -> None:
-    tenant, flows = await _load_flows(event["tenant_id"], event["event_type"])
+    # [FLOW6] a flow-caused event only fires flows that opted into chaining, and
+    # only while the chain is under the depth cap and cycle-free. Non-chainable
+    # flows never see it — not even as a skipped run (phase 1 default) — so load
+    # only the chainable ones for these events.
+    chained = event["source"] == "flow"
+    tenant, flows = await _load_flows(
+        event["tenant_id"], event["event_type"], chained_only=chained
+    )
     if tenant is None:
         return
     # A schedule/webhook event is addressed to a single flow (the payload carries
@@ -373,6 +368,12 @@ async def _process_event(event: dict) -> None:
     )
     for flow in flows:
         if target_flow_id is not None and str(flow["id"]) != str(target_flow_id):
+            continue
+        # Depth cap + cycle guard still apply per flow (SQL only filtered the
+        # chainable opt-in).
+        if chained and not steps.chain_allows(
+            flow["trigger_config"], event["fields"], flow["id"]
+        ):
             continue
         if not evaluate_conditions(flow["conditions"], event["fields"]):
             await _upsert_run(tenant.id, flow["id"], event, "skipped", [], None, None)
@@ -477,9 +478,9 @@ async def flow_engine_tick():
         log.exception("flow engine: claiming events failed")
         events = []
     for event in events:
-        if event["source"] == "flow":
-            continue  # loop protection: flow output never triggers flows
         try:
+            # [FLOW6] flow-caused events are evaluated too — _process_event
+            # gates them to chainable flows within depth/cycle limits.
             await _process_event(event)
         except Exception:
             log.exception("flow engine: processing event %s failed", event["id"])

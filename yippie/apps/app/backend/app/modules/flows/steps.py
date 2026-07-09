@@ -18,6 +18,10 @@ WAIT_UNITS = ("minutes", "hours", "days")
 RETRY_LADDER = (timedelta(seconds=60), timedelta(seconds=300))
 MAX_ATTEMPTS = 1 + len(RETRY_LADDER)
 
+# [FLOW6] A chain of flows triggering flows ends after this many links: an event
+# at depth MAX_CHAIN_DEPTH is claimed but fires nothing.
+MAX_CHAIN_DEPTH = 3
+
 
 def wait_delta(config: dict) -> timedelta:
     """The duration of one wait step. Exactly one of minutes/hours/days, a
@@ -80,6 +84,41 @@ def retry_delay(attempt: int) -> timedelta | None:
     if 1 <= attempt <= len(RETRY_LADDER):
         return RETRY_LADDER[attempt - 1]
     return None
+
+
+def chain_of(fields: dict) -> tuple[int, list[str]]:
+    """[FLOW6] The chain a flow-caused event sits on, read from its payload
+    fields: (depth, path of flow ids walked so far). Absent/garbled values read
+    as a fresh chain — payloads round-trip through JSONB and, for webhook
+    triggers, through external callers."""
+    fields = fields or {}
+    try:
+        depth = int(fields.get("chain_depth") or 0)
+    except (TypeError, ValueError):
+        depth = 0
+    raw_path = fields.get("chain_path")
+    path = [str(p) for p in raw_path] if isinstance(raw_path, (list, tuple)) else []
+    return depth, path
+
+
+def next_chain(fields: dict, flow_id) -> dict:
+    """The chain identity stamped onto events caused by `flow_id`'s actions:
+    one link deeper, with this flow appended to the path."""
+    depth, path = chain_of(fields)
+    return {"depth": depth + 1, "path": path + [str(flow_id)]}
+
+
+def chain_allows(trigger_config: dict | None, fields: dict, flow_id) -> bool:
+    """May this flow fire on a flow-caused event? Three gates: the flow opted in
+    (trigger_config {"chainable": true} — phase 1 behaviour is the default), the
+    chain hasn't hit the depth cap, and this flow isn't already on the chain
+    path (cycle guard)."""
+    if not (trigger_config or {}).get("chainable"):
+        return False
+    depth, path = chain_of(fields)
+    if depth >= MAX_CHAIN_DEPTH:
+        return False
+    return str(flow_id) not in path
 
 
 def schedule_is_due(config: dict, local_now: datetime, last_scheduled_on: str | None) -> bool:
