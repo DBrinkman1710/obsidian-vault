@@ -4,6 +4,7 @@ import { api } from '../../../api/client'
 import { Clock, Eye, Percent, Settings, ShoppingCart, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../../auth/useAuth'
 import { SalesSettingsModal } from './SalesSettingsModal'
+import { Sparkline } from '../../../shell/Sparkline'
 
 interface SalesStats {
   total_events: number
@@ -28,15 +29,28 @@ function formatRelative(iso: string | null): string {
   return `${Math.floor(hours / 24)}d ago`
 }
 
+const PERIOD_OPTIONS = [
+  { label: '7d', days: 7 },
+  { label: '30d', days: 30 },
+  { label: '90d', days: 90 },
+]
+
 export default function SalesPage() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [showSettings, setShowSettings] = useState(false)
+  const [period, setPeriod] = useState(30)
 
   const { data: stats, isError, isLoading } = useQuery<SalesStats>({
     queryKey: ['sales-summary'],
     queryFn: () => api.get('/sales/summary').then((r: any) => r.data),
     refetchInterval: 30_000,
+  })
+
+  const { data: sparklines } = useQuery<{ pageviews: number[]; purchases: number[] }>({
+    queryKey: ['sales-sparklines', period],
+    queryFn: () => api.get('/sales/sparklines', { params: { days: period } }).then((r: any) => r.data),
+    refetchInterval: 60_000,
   })
 
   return (
@@ -55,6 +69,17 @@ export default function SalesPage() {
               Last event: {formatRelative(stats.last_event_at)}
             </span>
           )}
+          <div className="flex items-center bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
+            {PERIOD_OPTIONS.map(o => (
+              <button
+                key={o.days}
+                onClick={() => setPeriod(o.days)}
+                className={`px-2.5 py-1 rounded-md transition-all ${period === o.days ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
           {isAdmin && (
             <button
               onClick={() => setShowSettings(true)}
@@ -78,23 +103,20 @@ export default function SalesPage() {
 
       {/* Stats strip */}
       {!isError && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {[
-            { label: 'Total events',    value: isLoading ? '—' : (stats?.total_events ?? 0),                                                                                   Icon: TrendingUp,  color: 'text-yippie',      bg: 'bg-blue-50'    },
-            { label: 'Page views',      value: isLoading ? '—' : (stats?.pageviews    ?? 0),                                                                                   Icon: Eye,         color: 'text-blue-600',    bg: 'bg-blue-50'    },
-            { label: 'Purchases',       value: isLoading ? '—' : (stats?.purchases    ?? 0),                                                                                   Icon: ShoppingCart,color: 'text-emerald-600', bg: 'bg-emerald-50' },
-            { label: 'Conversion rate', value: isLoading ? '—' : (!stats || stats.pageviews === 0 ? '—' : `${((stats.purchases / stats.pageviews) * 100).toFixed(1)}%`),      Icon: Percent,     color: 'text-amber-600',   bg: 'bg-amber-50'   },
-          ].map(({ label, value, Icon, color, bg }) => (
-            <div key={label} className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center gap-3">
-              <div className={`p-2 rounded-xl ${bg}`}>
-                <Icon className={`w-4 h-4 ${color}`} />
-              </div>
+            { label: 'Page views',      value: isLoading ? '—' : (stats?.pageviews    ?? 0), sparkData: sparklines?.pageviews,  color: '#5BA4F5' },
+            { label: 'Purchases',       value: isLoading ? '—' : (stats?.purchases    ?? 0), sparkData: sparklines?.purchases,  color: '#22c55e' },
+            { label: 'Conversion rate', value: isLoading ? '—' : (!stats || stats.pageviews === 0 ? '—' : `${((stats.purchases / stats.pageviews) * 100).toFixed(1)}%`), sparkData: undefined, color: '#f59e0b' },
+          ].map(({ label, value, sparkData, color }) => (
+            <div key={label} className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-3">
               <div>
                 <p className="text-xs text-slate-500">{label}</p>
                 <p className="text-xl font-bold text-slate-900">
                   {typeof value === 'number' ? value.toLocaleString() : value}
                 </p>
               </div>
+              {sparkData && <Sparkline data={sparkData} color={color} />}
             </div>
           ))}
         </div>

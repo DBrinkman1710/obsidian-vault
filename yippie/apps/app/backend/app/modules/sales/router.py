@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Annotated
@@ -35,6 +35,15 @@ async def get_contact_events(
 @router.get("/summary", response_model=SalesStatsOut)
 async def get_summary(current_user: CurrentUser, db: DB):
     return await service.get_stats(db, current_user.tenant_id)
+
+
+@router.get("/sparklines")
+async def get_sparklines(
+    current_user: CurrentUser,
+    db: DB,
+    days: int = Query(7, ge=7, le=90),
+) -> dict:
+    return await service.get_sparklines(db, current_user.tenant_id, days=days)
 
 
 @router.get("/token")

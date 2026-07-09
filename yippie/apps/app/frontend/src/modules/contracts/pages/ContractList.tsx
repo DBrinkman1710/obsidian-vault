@@ -261,6 +261,7 @@ interface FormState {
 }
 
 function ContractFields({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
+  const [showAdvanced, setShowAdvanced] = useState(false)
   return (
     <>
       <div>
@@ -306,7 +307,14 @@ function ContractFields({ form, set }: { form: FormState; set: (patch: Partial<F
       </div>
       {/* Lifecycle & value ([CONTRACT2]) */}
       <div className="border-t border-slate-100 pt-4">
-        <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Term & value</p>
+        <button
+          type="button"
+          onClick={() => setShowAdvanced(v => !v)}
+          className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 hover:text-slate-700 transition-colors"
+        >
+          {showAdvanced ? '▾' : '▸'} Term & value
+        </button>
+      {showAdvanced && <>
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className={labelCls}>Start date</label>
@@ -353,6 +361,7 @@ function ContractFields({ form, set }: { form: FormState; set: (patch: Partial<F
             </select>
           </div>
         </div>
+      </>}
       </div>
       <div>
         <label className={labelCls}>Notes</label>
