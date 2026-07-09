@@ -95,11 +95,20 @@ def upgrade() -> None:
 
     rows: list[dict] = []
 
+    # Check which ERP stage columns actually exist on this DB (sandbox may have
+    # missed the s3t4u5v6w7x8 migration if it was offline during that deploy).
+    existing_cols = {
+        r[0] for r in bind.execute(sa.text(
+            "SELECT column_name FROM information_schema.columns "
+            "WHERE table_name = 'tenants' "
+            "AND column_name IN ('order_placed_stage_id','order_shipped_stage_id','order_delivered_stage_id')"
+        )).fetchall()
+    }
+    erp_cols = [c for c in ("order_placed_stage_id", "order_shipped_stage_id", "order_delivered_stage_id") if c in existing_cols]
+    tenant_select = "SELECT id" + (", " + ", ".join(erp_cols) if erp_cols else "") + " FROM tenants"
+
     # --- B1 + B2: two universal flows for every tenant (skip if name exists) ---
-    tenants = bind.execute(sa.text(
-        "SELECT id, order_placed_stage_id, order_shipped_stage_id, "
-        "order_delivered_stage_id FROM tenants"
-    )).fetchall()
+    tenants = bind.execute(sa.text(tenant_select)).fetchall()
 
     existing_names = {
         (r[0], r[1])
@@ -118,7 +127,10 @@ def upgrade() -> None:
             ))
 
         # --- B4: ERP order-status → pipeline stage flows (one per set column) ---
-        placed, shipped, delivered = t[1], t[2], t[3]
+        t_dict = dict(zip(["id"] + erp_cols, t))
+        placed = t_dict.get("order_placed_stage_id")
+        shipped = t_dict.get("order_shipped_stage_id")
+        delivered = t_dict.get("order_delivered_stage_id")
         if placed is not None:
             rows.append(_row(
                 tenant_id, "Order placed → pipeline stage", "order_received",
@@ -155,11 +167,16 @@ def upgrade() -> None:
     if rows:
         op.bulk_insert(_flows, rows)
 
-    # --- drop the now-unused source columns ---
-    op.drop_column("calendar_settings", "post_booking_stage_id")
-    op.drop_column("tenants", "order_placed_stage_id")
-    op.drop_column("tenants", "order_shipped_stage_id")
-    op.drop_column("tenants", "order_delivered_stage_id")
+    # --- drop the now-unused source columns (only if they exist) ---
+    cal_cols = {r[0] for r in bind.execute(sa.text(
+        "SELECT column_name FROM information_schema.columns "
+        "WHERE table_name = 'calendar_settings' AND column_name = 'post_booking_stage_id'"
+    )).fetchall()}
+    if "post_booking_stage_id" in cal_cols:
+        op.drop_column("calendar_settings", "post_booking_stage_id")
+    for col in ("order_placed_stage_id", "order_shipped_stage_id", "order_delivered_stage_id"):
+        if col in existing_cols:
+            op.drop_column("tenants", col)
 
 
 def downgrade() -> None:
