@@ -117,6 +117,19 @@ async def _handle_bounce(db: AsyncSession, resend_id: str, data: dict[str, Any])
         contact_id=contact.id if contact else None,
         bounce_type=bounce_type,
     )
+    # [FLOW7] campaign email bounced — the resend_webhook caller commits.
+    from app.core.flow_events import emit_flow_event
+
+    await emit_flow_event(
+        db, tenant_id, "campaign_email_bounced",
+        entity_type="email", entity_id=outbound.id,
+        contact_id=contact.id if contact else None,
+        payload={
+            "bounce_type": bounce_type,
+            "to_email": to_email,
+            "contact_id": contact.id if contact else None,
+        },
+    )
 
 
 def _extract_sender(data: dict[str, Any]) -> str | None:

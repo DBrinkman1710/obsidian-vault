@@ -415,6 +415,10 @@ async def handle_incoming_webhook(
         db.add(session)
         await db.flush()
         is_new_session = True
+        # [FLOW7] deferred import — chat.service imports this module, so importing
+        # it at module load would cycle.
+        from app.modules.chat.service import emit_conversation_started
+        await emit_conversation_started(db, session)
     else:
         if visitor_name and not session.visitor_name:
             session.visitor_name = visitor_name

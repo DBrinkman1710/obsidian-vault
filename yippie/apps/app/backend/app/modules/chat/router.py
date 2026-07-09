@@ -27,7 +27,7 @@ from app.core.tenant import resolve_tenant_by_slug
 from app.database import db_session, get_db, set_tenant_context
 from app.modules.booking import service as booking_service
 from app.modules.booking.schemas import BookingTokenCreate
-from app.modules.chat import whatsapp_service
+from app.modules.chat import service as chat_service, whatsapp_service
 from app.modules.chat.manager import manager
 from app.modules.chat.models import ChatMessage, ChatSession
 from app.modules.contacts.models import Contact
@@ -159,6 +159,7 @@ async def _find_or_create_open_session(
         )
         db.add(session)
         await db.flush()
+        await chat_service.emit_conversation_started(db, session)
     else:
         if contact_id and not session.contact_id:
             session.contact_id = contact_id
@@ -1264,6 +1265,8 @@ async def chat_ws(websocket: WebSocket, tenant_slug: str, session_id: str):
                 is_open=True,
             )
             db.add(session)
+            await db.flush()
+            await chat_service.emit_conversation_started(db, session)
             await db.commit()
             await db.refresh(session)
             await manager.broadcast_to_agents(

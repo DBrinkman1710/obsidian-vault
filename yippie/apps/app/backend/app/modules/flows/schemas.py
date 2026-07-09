@@ -10,18 +10,8 @@ from app.modules.flows import graph, steps
 from app.modules.flows.actions import ACTION_META
 from app.modules.flows.conditions import CONDITION_OPS, TRIGGER_META
 
-TriggerType = Literal[
-    "ticket_created",
-    "ticket_status_changed",
-    "contact_created",
-    "pipeline_stage_changed",
-    "draft_approved",
-    "schedule",
-    "ticket_sla_due_soon",
-    "saas_health_dropped",
-    "webhook",
-]
-
+# [FLOW7] trigger_type is a free str validated against the registry (TRIGGER_META)
+# — the fixed Literal is gone so a new module's trigger needs no schema edit.
 ActionType = Literal[
     "create_ticket",
     "update_ticket",
@@ -199,7 +189,7 @@ def dump_actions(actions: Union[GraphSpec, list[ActionSpec]]) -> Any:
 
 class FlowCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
-    trigger_type: TriggerType
+    trigger_type: str
     # Accepts a flat list or grouped OR-of-AND; always stored grouped.
     conditions: list[list[ConditionSpec]] = Field(default_factory=list)
     actions: ActionsField = Field(default_factory=list)
@@ -220,11 +210,18 @@ class FlowCreate(BaseModel):
 
 class FlowUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=255)
-    trigger_type: Optional[TriggerType] = None
+    trigger_type: Optional[str] = None
     conditions: Optional[list[list[ConditionSpec]]] = None
     actions: Optional[ActionsField] = None
     enabled: Optional[bool] = None
     trigger_config: Optional[dict] = None
+
+    @field_validator("trigger_type")
+    @classmethod
+    def _known_trigger(cls, v: Optional[str]) -> Optional[str]:
+        if v is not None:
+            assert v in TRIGGER_META
+        return v
 
     @field_validator("conditions", mode="before")
     @classmethod

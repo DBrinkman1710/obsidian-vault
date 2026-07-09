@@ -51,6 +51,22 @@ async def track_click(token: uuid.UUID, db: DB):
             .on_conflict_do_nothing()
         )
 
+    # [FLOW7] campaign button click — tenant context already set above.
+    from app.core.flow_events import emit_flow_event
+
+    await emit_flow_event(
+        db, row.tenant_id, "campaign_button_clicked",
+        entity_type="campaign_button", entity_id=row.token,
+        contact_id=row.contact_id,
+        payload={
+            "action_type": row.action_type,
+            "button_id": row.button_id,
+            "stage_id": row.stage_id,
+            "label_id": row.label_id,
+            "contact_id": row.contact_id,
+        },
+    )
+
     await db.commit()
     dest = row.redirect_url or "/track/confirm"
     # Reject redirects to external domains — only allow relative paths or same origin.

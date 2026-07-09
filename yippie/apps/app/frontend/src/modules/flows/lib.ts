@@ -9,15 +9,28 @@ export interface MetaField {
 }
 // free_fields ([FLOW5] webhook trigger): payload keys are unknown at build
 // time, so the builder offers a free-text field-name input instead of a select.
-export interface MetaTrigger { key: string; label: string; fields: MetaField[]; free_fields?: boolean }
+// [FLOW7] `module` is the emitting module id (null for schedule/webhook) — the
+// builder picker groups triggers by it via groupTriggers.
+export interface MetaTrigger { key: string; label: string; fields: MetaField[]; free_fields?: boolean; module?: string | null }
 export interface MetaAction { key: string; label: string; config_fields: MetaField[] }
 export interface MetaOption { id: string; name: string }
+// [FLOW8] a built-in platform automation — always-on, read-only. Surfaced on the
+// Flows page so tenants can see what Yippie already does automatically.
+export interface Builtin {
+  key: string
+  name: string
+  description: string
+  module: string | null
+  cadence: string
+  settings_path?: string
+}
 export interface FlowsMeta {
   triggers: MetaTrigger[]
   actions: MetaAction[]
   users: MetaOption[]
   stages: MetaOption[]
   templates: MetaOption[]
+  builtins: Builtin[]
 }
 export interface Condition { field: string; op: string; value: any }
 // id is the stable per action identity stamped into flow_runs.results ([FLOW3])
@@ -87,6 +100,37 @@ export function apiError(err: any): string {
 
 export function triggerLabel(meta: FlowsMeta | undefined, key: string): string {
   return meta?.triggers.find(t => t.key === key)?.label ?? key
+}
+
+// [FLOW7] Human labels for the trigger picker's optgroups, keyed by module id.
+export const MODULE_LABELS: Record<string, string> = {
+  tickets: 'Tickets',
+  contacts: 'Contacts',
+  pipeline: 'Pipeline',
+  inbox: 'Inbox',
+  chat: 'Live chat',
+  booking: 'Bookings',
+  marketing: 'Marketing',
+  contracts: 'Contracts',
+  billing: 'Billing',
+  tracking: 'Orders',
+  saas: 'SaaS',
+}
+
+// Group triggers by their emitting module, preserving each module's first
+// appearance order; module null/undefined (schedule, webhook) → 'General'.
+export function groupTriggers(triggers: MetaTrigger[]): [string, MetaTrigger[]][] {
+  const order: string[] = []
+  const byGroup = new Map<string, MetaTrigger[]>()
+  for (const t of triggers) {
+    const group = t.module ? (MODULE_LABELS[t.module] ?? t.module) : 'General'
+    if (!byGroup.has(group)) {
+      byGroup.set(group, [])
+      order.push(group)
+    }
+    byGroup.get(group)!.push(t)
+  }
+  return order.map(g => [g, byGroup.get(g)!])
 }
 
 export function actionLabel(meta: FlowsMeta | undefined, key: string): string {

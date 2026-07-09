@@ -10,77 +10,26 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.modules.flows import trigger_registry
+
 CONDITION_OPS = ("equals", "not_equals", "contains", "in", "gte", "lte")
 
-_PRIORITIES = ["low", "medium", "high", "urgent"]
-_STATUSES = ["open", "in_progress", "waiting", "resolved", "closed"]
-_CHANNELS = ["manual", "email", "whatsapp", "chat", "portal"]
-
-# Trigger catalogue: label + condition fields for the builder, and the module
-# whose code emits the event (a flow on that trigger is pointless without it).
-TRIGGER_META: dict[str, dict] = {
-    "ticket_created": {
-        "label": "Ticket created",
-        "module": "tickets",
-        "fields": [
-            {"key": "priority", "label": "Priority", "type": "select", "options": _PRIORITIES},
-            {"key": "channel", "label": "Channel", "type": "select", "options": _CHANNELS},
-            {"key": "subject", "label": "Subject", "type": "text"},
-        ],
-    },
-    "ticket_status_changed": {
-        "label": "Ticket status changed",
-        "module": "tickets",
-        "fields": [
-            {"key": "status", "label": "New status", "type": "select", "options": _STATUSES},
-            {"key": "old_status", "label": "Previous status", "type": "select", "options": _STATUSES},
-            {"key": "priority", "label": "Priority", "type": "select", "options": _PRIORITIES},
-            {"key": "subject", "label": "Subject", "type": "text"},
-        ],
-    },
-    "contact_created": {
-        "label": "Contact created",
-        "module": "contacts",
-        "fields": [
-            {"key": "email", "label": "Email", "type": "text"},
-            {"key": "full_name", "label": "Name", "type": "text"},
-            {"key": "tags", "label": "Tags", "type": "text"},
-        ],
-    },
-    "pipeline_stage_changed": {
-        "label": "Pipeline stage changed",
-        "module": "pipeline",
-        "fields": [
-            {"key": "stage_id", "label": "New stage", "type": "stage_select"},
-            {"key": "from_stage_id", "label": "Previous stage", "type": "stage_select"},
-            {"key": "stage_name", "label": "New stage name", "type": "text"},
-        ],
-    },
-    "draft_approved": {
-        "label": "Inbox draft approved",
-        "module": "inbox",
-        "fields": [
-            {"key": "priority", "label": "Priority", "type": "select", "options": _PRIORITIES},
-            {"key": "subject", "label": "Subject", "type": "text"},
-        ],
-    },
+# [FLOW7] Trigger catalogue: label + condition fields for the builder, the module
+# whose code emits the event (a flow on that trigger is pointless without it), and
+# — for most triggers — a fetch_fields loader ([FLOW4] fresh-state) + an
+# example_payload (the drift guard test's contract). Per-module declarations live
+# in each module's flow_triggers.py and are merged here by trigger_registry. Only
+# the two flows-owned triggers (schedule + webhook, module None) are declared
+# locally: neither is emitted by a module mutation. Every consumer keeps importing
+# TRIGGER_META from here — same name, same shape.
+TRIGGER_META: dict[str, dict] = trigger_registry.assemble_trigger_meta()
+TRIGGER_META.update({
     "schedule": {
         "label": "On a schedule",
         "module": None,  # time trigger — fires from the scheduler, not a mutation
         "fields": [
             {"key": "weekday", "label": "Weekday (0=Mon…6=Sun)", "type": "select",
              "options": ["0", "1", "2", "3", "4", "5", "6"]},
-        ],
-    },
-    "ticket_sla_due_soon": {
-        "label": "Ticket SLA due soon",
-        "module": "tickets",
-        "fields": [
-            {"key": "due_in_minutes", "label": "Due within (minutes)", "type": "number"},
-            {"key": "priority", "label": "Priority", "type": "select", "options": _PRIORITIES},
-            {"key": "status", "label": "Status", "type": "select",
-             "options": ["open", "in_progress"]},
-            {"key": "subject", "label": "Subject", "type": "text"},
         ],
     },
     "webhook": {
@@ -91,16 +40,7 @@ TRIGGER_META: dict[str, dict] = {
         "free_fields": True,
         "fields": [],
     },
-    "saas_health_dropped": {
-        "label": "SaaS health score dropped",
-        "module": "saas",
-        "fields": [
-            {"key": "score", "label": "Current score", "type": "number"},
-            {"key": "previous_score", "label": "Previous score", "type": "number"},
-            {"key": "drop", "label": "Points dropped", "type": "number"},
-        ],
-    },
-}
+})
 
 
 def _norm(value: Any) -> Any:
