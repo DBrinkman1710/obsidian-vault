@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,3 +93,39 @@ async def get_stats(db: AsyncSession, tenant_id: uuid.UUID) -> SalesStatsOut:
         last_event_at=last_event_at,
         top_pages=top_pages,
     )
+
+
+async def get_sparklines(db: AsyncSession, tenant_id: uuid.UUID, days: int = 7) -> dict:
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    result = await db.execute(
+        select(
+            func.date(SaasEvent.created_at).label("day"),
+            SaasEvent.event_type,
+            func.count().label("cnt"),
+        )
+        .where(
+            SaasEvent.tenant_id == tenant_id,
+            SaasEvent.event_domain == "commerce",
+            SaasEvent.created_at >= cutoff,
+        )
+        .group_by(text("1"), SaasEvent.event_type)
+        .order_by(text("1"))
+    )
+    rows = result.all()
+
+    today = date.today()
+    dates = [(today - timedelta(days=days - 1 - i)) for i in range(days)]
+    pageviews: dict[date, int] = {d: 0 for d in dates}
+    purchases: dict[date, int] = {d: 0 for d in dates}
+    for row in rows:
+        d = row.day if isinstance(row.day, date) else date.fromisoformat(str(row.day))
+        if d in pageviews:
+            if row.event_type == "pageview":
+                pageviews[d] += row.cnt
+            elif row.event_type == "purchase":
+                purchases[d] += row.cnt
+
+    return {
+        "pageviews": [pageviews[d] for d in dates],
+        "purchases": [purchases[d] for d in dates],
+    }

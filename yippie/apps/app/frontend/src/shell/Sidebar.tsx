@@ -86,6 +86,18 @@ export function Sidebar() {
   const navigate = useNavigate()
   const t = useT()
 
+  const [accountOpen, setAccountOpen] = useState(false)
+  const accountRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!accountOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (accountRef.current && !accountRef.current.contains(e.target as Node)) setAccountOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [accountOpen])
+
   const [collapsed, setCollapsed] = useState<boolean>(() => {
     try { return localStorage.getItem(STORAGE_KEY) === 'true' } catch { return false }
   })
@@ -333,85 +345,68 @@ export function Sidebar() {
           )}
         </nav>
 
-        {/* Settings nav — scrolls independently */}
-        <div className="border-t border-white/15 px-2 pt-2 pb-1 shrink-0 overflow-y-auto sidebar-scroll space-y-0.5" style={{ maxHeight: '13rem' }}>
-          {user?.role === 'superadmin' && (
-            <NavLink
-              to="/superadmin/clients"
-              title={collapsed ? 'Clients' : undefined}
-              className={({ isActive }: any) => navCls(isActive)}
-            >
-              <Building2 size={16} strokeWidth={2} />
-              {!collapsed && <span>Clients</span>}
-            </NavLink>
-          )}
-
-          <NavLink
-            to="/settings/profile"
-            title={collapsed ? t('profile') : undefined}
-            className={({ isActive }: any) => navCls(isActive)}
-          >
-            <UserCircle size={16} strokeWidth={2} />
-            {!collapsed && <span>{t('profile')}</span>}
-          </NavLink>
-
-          {(user?.role === 'admin' || user?.role === 'superadmin') && (
-            <>
-              <NavLink
-                to="/settings/workspace"
-                title={collapsed ? t('settings') : undefined}
-                className={({ isActive }: any) => navCls(isActive)}
-              >
-                <Settings size={16} strokeWidth={2} />
-                {!collapsed && <span>{t('settings')}</span>}
-              </NavLink>
-              <NavLink
-                to="/settings/team"
-                title={collapsed ? 'Team' : undefined}
-                className={({ isActive }: any) => navCls(isActive)}
-              >
-                <UsersRound size={16} strokeWidth={2} />
-                {!collapsed && <span>Team</span>}
-              </NavLink>
-            </>
-          )}
-
-          {user?.role === 'superadmin' && (
-            <NavLink
-              to="/settings/superadmins"
-              title={collapsed ? 'Superadmins' : undefined}
-              className={({ isActive }: any) => navCls(isActive)}
-            >
-              <ShieldCheck size={16} strokeWidth={2} />
-              {!collapsed && <span>Superadmins</span>}
-            </NavLink>
-          )}
-        </div>
-
-        {/* Footer — pinned: email, sign out, collapse */}
-        <div className="border-t border-white/15 px-2 py-2 shrink-0">
-          {!collapsed && (
-            <div className="px-3 pt-1 pb-1">
-              <p className="text-white/50 text-[11px] truncate mb-2">{user?.email}</p>
-              <button
-                onClick={logout}
-                className="flex items-center gap-2 w-full text-white/70 hover:text-white text-sm font-medium transition-colors cursor-pointer"
-              >
-                <LogOut size={14} strokeWidth={2} />
-                {t('sign_out')}
-              </button>
-            </div>
-          )}
-
-          {collapsed && (
+        {/* Account card footer — replaces flat settings links + bare email/sign-out */}
+        <div className="border-t border-white/15 px-2 py-2 shrink-0" ref={accountRef}>
+          <div className="relative">
             <button
-              onClick={logout}
-              title="Sign out"
-              className="flex items-center justify-center w-full py-2.5 text-white/70 hover:text-white transition-colors cursor-pointer"
+              onClick={() => setAccountOpen(v => !v)}
+              title={collapsed ? (user?.full_name || user?.email || 'Account') : undefined}
+              className={`flex items-center gap-2.5 w-full px-2 py-2 rounded-lg text-left transition-colors hover:bg-white/10 ${accountOpen ? 'bg-white/10' : ''}`}
             >
-              <LogOut size={14} strokeWidth={2} />
+              {/* Gradient-letter avatar */}
+              <div
+                className="w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-white text-xs font-bold"
+                style={{ background: `linear-gradient(135deg, ${config?.branding?.primary_color ?? '#5BA4F5'}, #818cf8)` }}
+              >
+                {(user?.full_name || user?.email || '?')[0].toUpperCase()}
+              </div>
+              {!collapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-white text-xs font-semibold truncate leading-tight">{user?.full_name || 'Account'}</p>
+                  <p className="text-white/50 text-[10px] truncate leading-tight">{user?.email}</p>
+                </div>
+              )}
             </button>
-          )}
+
+            {/* Popover */}
+            {accountOpen && (
+              <div className="absolute bottom-full left-0 right-0 mb-1 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50 min-w-[180px]">
+                <button onClick={() => { navigate('/settings/profile'); setAccountOpen(false) }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                  <UserCircle size={14} className="text-slate-400" /> {t('profile')}
+                </button>
+                {(user?.role === 'admin' || user?.role === 'superadmin') && (
+                  <>
+                    <button onClick={() => { navigate('/settings/workspace'); setAccountOpen(false) }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                      <Settings size={14} className="text-slate-400" /> {t('settings')}
+                    </button>
+                    <button onClick={() => { navigate('/settings/team'); setAccountOpen(false) }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                      <UsersRound size={14} className="text-slate-400" /> Team
+                    </button>
+                  </>
+                )}
+                {user?.role === 'superadmin' && (
+                  <>
+                    <button onClick={() => { navigate('/superadmin/clients'); setAccountOpen(false) }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                      <Building2 size={14} className="text-slate-400" /> Clients
+                    </button>
+                    <button onClick={() => { navigate('/settings/superadmins'); setAccountOpen(false) }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                      <ShieldCheck size={14} className="text-slate-400" /> Superadmins
+                    </button>
+                  </>
+                )}
+                <div className="h-px bg-slate-100 my-1" />
+                <button onClick={() => { setAccountOpen(false); logout() }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                  <LogOut size={14} className="text-slate-400" /> {t('sign_out')}
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Collapse toggle */}
           <div className="flex justify-end pt-1">
