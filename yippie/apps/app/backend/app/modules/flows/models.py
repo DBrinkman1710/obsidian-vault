@@ -31,6 +31,10 @@ class Flow(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # [FLOW9] Yippie-installed showcase flow: viewable on the canvas but not
+    # editable (duplicate it to customise), deletable, and never counted against
+    # the plan's active-flow cap.
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     trigger_type: Mapped[str] = mapped_column(String(50), nullable=False)
     conditions: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     actions: Mapped[list | dict] = mapped_column(JSONB, nullable=False, default=list)

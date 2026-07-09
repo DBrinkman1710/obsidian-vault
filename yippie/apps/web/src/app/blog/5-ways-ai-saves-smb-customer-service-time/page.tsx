@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import SiteNav from "../../components/SiteNav";
 import SiteFooter from "../../components/SiteFooter";
 import styles from "../../components/content.module.css";
+import { breadcrumbJsonLd } from "../jsonld";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
@@ -49,6 +50,10 @@ export default function Post() {
       <script
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(TITLE, URL)) }}
       />
 
       <article className={styles.article}>

@@ -54,6 +54,12 @@ export default function VsZendeskPage() {
           simpler, faster to set up, and flat workspace pricing instead of
           per-agent fees that climb as you grow.
         </p>
+        <p className={styles.heroSub}>
+          In short: Yippie is a Zendesk alternative for small teams with flat
+          workspace pricing from €19 per month, unlimited contacts on every plan,
+          AI drafted tickets, and booking built in — while Zendesk charges roughly
+          €55 per agent per month and is designed for enterprise support teams.
+        </p>
         <div className={styles.heroActions}>
           <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
           <a href="/modules" className={styles.btnGhost}>See all features</a>

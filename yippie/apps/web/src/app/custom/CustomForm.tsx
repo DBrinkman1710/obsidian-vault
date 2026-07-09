@@ -11,6 +11,21 @@ import {
   computeRecommendations,
 } from "../../lib/recommendations";
 import { PLAN_LIMITS, MODULE_PRICES } from "../../lib/config";
+import MiniYippie from "../components/MiniYippie";
+import {
+  AiIcon,
+  TicketIcon,
+  ChatIcon,
+  CalendarIcon,
+  KanbanIcon,
+  MailTrackIcon,
+  TeamIcon,
+  BillingIcon,
+  ContractIcon,
+  TrackingIcon,
+  SalesIcon,
+  SaasIcon,
+} from "../components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
 const TALK_PATH = `${APP_URL}/meet/default`;
@@ -27,18 +42,30 @@ const PLAN_NAMES: Record<PlanKey, string> = {
 };
 
 const MODULE_CONFIG = [
-  { key: "ai",          recName: "AI",               icon: "✦",  price: MODULE_PRICES.ai,          desc: "AI scans every message and drafts the ticket. One click to approve." },
-  { key: "tickets",     recName: "Tickets",          icon: "🎫", price: MODULE_PRICES.tickets,     desc: "Track, assign, and close requests with SLA alerts" },
-  { key: "chat",        recName: "Live Chat",        icon: "💬", price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp. All conversations in one inbox." },
-  { key: "calendar",    recName: "Calendar",         icon: "📅", price: MODULE_PRICES.calendar,    desc: "Booking links, availability grids, appointments" },
-  { key: "pipeline",    recName: "Pipeline",         icon: "📌", price: MODULE_PRICES.pipeline,    desc: "Drag-and-drop Kanban to move leads through stages" },
-  { key: "marketing",   recName: "Marketing",        icon: "📣", price: MODULE_PRICES.marketing,   desc: "Email campaigns, drip sequences, shared reply templates" },
-  { key: "departments", recName: "Departments",      icon: "🏢", price: MODULE_PRICES.departments, desc: "Route tickets to the right team automatically" },
-  { key: "billing",     recName: "Billing",          icon: "🧾", price: MODULE_PRICES.billing,     desc: "Invoices, payments, subscription management" },
-  { key: "contracts",   recName: "Contracts",        icon: "📄", price: MODULE_PRICES.contracts,   desc: "Store signed contracts, track renewals and notice periods, get reminded in time" },
-  { key: "tracking",    recName: "Shipment Tracking",icon: "📦", price: MODULE_PRICES.tracking,   desc: "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts." },
-  { key: "sales",       recName: "Sales",            icon: "📈", price: MODULE_PRICES.sales,       desc: "Track product views, add-to-cart, and purchases. Spot high-intent buyers." },
-  { key: "saas",        recName: "SaaS Analytics",     icon: "🔁", price: MODULE_PRICES.saas,        desc: "Recurring subscriptions, MRR and churn tracking, linked to contacts" },
+  { key: "ai",          recName: "AI",               Icon: AiIcon,        price: MODULE_PRICES.ai,          desc: "AI scans every message and drafts the ticket. One click to approve." },
+  { key: "tickets",     recName: "Tickets",          Icon: TicketIcon,    price: MODULE_PRICES.tickets,     desc: "Track, assign, and close requests with SLA alerts" },
+  { key: "chat",        recName: "Live Chat",        Icon: ChatIcon,      price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp. All conversations in one inbox." },
+  { key: "calendar",    recName: "Calendar",         Icon: CalendarIcon,  price: MODULE_PRICES.calendar,    desc: "Booking links, availability grids, appointments" },
+  { key: "pipeline",    recName: "Pipeline",         Icon: KanbanIcon,    price: MODULE_PRICES.pipeline,    desc: "Drag-and-drop Kanban to move leads through stages" },
+  { key: "marketing",   recName: "Marketing",        Icon: MailTrackIcon, price: MODULE_PRICES.marketing,   desc: "Email campaigns, drip sequences, shared reply templates" },
+  { key: "departments", recName: "Departments",      Icon: TeamIcon,      price: MODULE_PRICES.departments, desc: "Route tickets to the right team automatically" },
+  { key: "billing",     recName: "Billing",          Icon: BillingIcon,   price: MODULE_PRICES.billing,     desc: "Invoices, payments, subscription management" },
+  { key: "contracts",   recName: "Contracts",        Icon: ContractIcon,  price: MODULE_PRICES.contracts,   desc: "Store signed contracts, track renewals and notice periods, get reminded in time" },
+  { key: "tracking",    recName: "Shipment Tracking",Icon: TrackingIcon,  price: MODULE_PRICES.tracking,   desc: "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts." },
+  { key: "sales",       recName: "Sales",            Icon: SalesIcon,     price: MODULE_PRICES.sales,       desc: "Track product views, add-to-cart, and purchases. Spot high-intent buyers." },
+  { key: "saas",        recName: "SaaS Analytics",   Icon: SaasIcon,      price: MODULE_PRICES.saas,        desc: "Recurring subscriptions, MRR and churn tracking, linked to contacts" },
+] as const;
+
+/* Sidebar colour swatches for the mini workspace — Yippie blue first (smart default). */
+const BRAND_COLORS = [
+  "#5BA4F5", // Yippie blue
+  "#0F766E", // teal
+  "#7C3AED", // violet
+  "#DB2777", // pink
+  "#DC2626", // red
+  "#EA580C", // orange
+  "#16A34A", // green
+  "#0F172A", // ink
 ] as const;
 
 type ModuleKey = (typeof MODULE_CONFIG)[number]["key"];
@@ -62,6 +89,10 @@ type FormState = "idle" | "submitting" | "success" | "error";
 
 export default function CustomForm() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  // Personalisation state — drives the live mini workspace preview
+  const [brandColor, setBrandColor] = useState<string>(BRAND_COLORS[0]);
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   // Step 1 state
   const [teamSize, setTeamSize] = useState("");
@@ -158,6 +189,19 @@ export default function CustomForm() {
     );
   }
 
+  function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (logoUrl) URL.revokeObjectURL(logoUrl);
+    setLogoUrl(URL.createObjectURL(file));
+    e.target.value = ""; // allow re-uploading the same file
+  }
+
+  function removeLogo() {
+    if (logoUrl) URL.revokeObjectURL(logoUrl);
+    setLogoUrl(null);
+  }
+
   function goToStep2() {
     const recs = computeRecommendations(industry, currentTools, painPoints);
     const preSelected = recs
@@ -192,6 +236,7 @@ export default function CustomForm() {
             modules_selected: selectedModules.length ? selectedModules : null,
             monthly_total: (isFounder || recommendedPlanKey !== "enterprise") ? displayMonthlyTotal : null,
             billing_cycle: annual ? "annual" : "monthly",
+            branding_color: brandColor,
           },
         }),
       });
@@ -214,21 +259,41 @@ export default function CustomForm() {
     }
   }
 
+  // Live preview panel — shown next to every step so the visitor
+  // watches their own workspace take shape while they build it.
+  const preview = (
+    <aside className={styles.previewCol}>
+      <p className={styles.previewLabel}>Your workspace — live preview</p>
+      <MiniYippie
+        brandColor={brandColor}
+        logoUrl={logoUrl}
+        companyName={company}
+        modules={selectedModules}
+      />
+      <p className={styles.previewHint}>
+        Every module you add appears in your sidebar.
+      </p>
+    </aside>
+  );
+
   // ── Success ──────────────────────────────────────────────
   if (formState === "success") {
     return (
-      <div className={styles.card}>
-        <div className={styles.success}>
-          <div className={styles.successIcon}>✓</div>
-          <h2 className={styles.successTitle}>Quote request sent</h2>
-          <p className={styles.successSub}>
-            We&apos;ll be in touch within 1 business day with your personalised
-            package proposal. Want to talk sooner?
-          </p>
-          <a href={TALK_PATH} target="_blank" rel="noopener noreferrer" className={styles.successBookCall}>
-            Book a call →
-          </a>
+      <div className={styles.layout}>
+        <div className={styles.card}>
+          <div className={styles.success}>
+            <div className={styles.successIcon}>✓</div>
+            <h2 className={styles.successTitle}>Quote request sent</h2>
+            <p className={styles.successSub}>
+              Your workspace is ready to go. We&apos;ll be in touch within 1 business
+              day with your personalised package proposal. Want to talk sooner?
+            </p>
+            <a href={TALK_PATH} target="_blank" rel="noopener noreferrer" className={styles.successBookCall}>
+              Book a call →
+            </a>
+          </div>
         </div>
+        {preview}
       </div>
     );
   }
@@ -238,6 +303,7 @@ export default function CustomForm() {
   // ── Step 1 — Team profile ────────────────────────────────
   if (step === 1) {
     return (
+      <div className={styles.layout}>
       <div className={styles.card}>
         <div className={styles.steps}>
           <span className={`${styles.stepDot} ${styles.stepDotActive}`}>1</span>
@@ -255,6 +321,37 @@ export default function CustomForm() {
         <p className={styles.stepHint}>
           A few quick questions so we can build the right package for you.
         </p>
+
+        <div className={styles.question}>
+          <span className={styles.qLabel}>
+            Make it yours <span className={styles.qHint}>optional</span>
+          </span>
+          <div className={styles.personalise}>
+            <div className={styles.swatches}>
+              {BRAND_COLORS.map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-label={`Sidebar colour ${c}`}
+                  className={`${styles.swatch} ${brandColor === c ? styles.swatchActive : ""}`}
+                  style={{ background: c }}
+                  onClick={() => setBrandColor(c)}
+                />
+              ))}
+            </div>
+            <div className={styles.logoRow}>
+              <label className={styles.logoUpload}>
+                <input type="file" accept="image/*" hidden onChange={handleLogoUpload} />
+                {logoUrl ? "Change logo" : "Upload your logo"}
+              </label>
+              {logoUrl && (
+                <button type="button" className={styles.logoRemove} onClick={removeLogo}>
+                  Remove
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
 
         <div className={styles.question}>
           <span className={styles.qLabel}>How big is your team?</span>
@@ -327,6 +424,8 @@ export default function CustomForm() {
           Build my package →
         </button>
       </div>
+      {preview}
+      </div>
     );
   }
 
@@ -337,6 +436,7 @@ export default function CustomForm() {
     const isEnterprise = !isFounder && recommendedPlanKey === "enterprise";
 
     return (
+      <div className={styles.layout}>
       <div className={styles.card}>
         <div className={styles.steps}>
           <button
@@ -431,7 +531,7 @@ export default function CustomForm() {
                   onClick={() => toggleModule(mod.key as ModuleKey)}
                 >
                   <div className={styles.moduleRowLeft}>
-                    <span className={styles.moduleRowIcon}>{mod.icon}</span>
+                    <span className={styles.moduleRowIcon}><mod.Icon size={15} /></span>
                     <span className={styles.moduleRowInfo}>
                       <span className={styles.moduleRowName}>{mod.recName}</span>
                       <span className={styles.moduleRowDesc}>{mod.desc}</span>
@@ -466,7 +566,7 @@ export default function CustomForm() {
                     onClick={() => toggleModule(mod.key as ModuleKey)}
                   >
                     <div className={styles.moduleRowLeft}>
-                      <span className={styles.moduleRowIcon}>{mod.icon}</span>
+                      <span className={styles.moduleRowIcon}><mod.Icon size={15} /></span>
                       <span className={styles.moduleRowInfo}>
                         <span className={styles.moduleRowName}>{mod.recName}</span>
                         <span className={styles.moduleRowDesc}>{mod.desc}</span>
@@ -519,9 +619,11 @@ export default function CustomForm() {
             onClick={() => setStep(3)}
             style={{ flex: 1 }}
           >
-            Get my quote →
+            Continue →
           </button>
         </div>
+      </div>
+      {preview}
       </div>
     );
   }
@@ -533,6 +635,7 @@ export default function CustomForm() {
   const isEnterprise = !isFounder && recommendedPlanKey === "enterprise";
 
   return (
+    <div className={styles.layout}>
     <form className={styles.card} onSubmit={handleSubmit} noValidate>
       <div className={styles.steps}>
         <button
@@ -571,7 +674,7 @@ export default function CustomForm() {
           {selectedModuleDetails.map((m) => (
             <div key={m.key} className={styles.summaryLine}>
               <span className={styles.summaryLineName}>
-                <span className={styles.summaryLineIcon}>{m.icon}</span>
+                <span className={styles.summaryLineIcon}><m.Icon size={13} /></span>
                 {m.recName}
               </span>
               <span className={styles.summaryLinePrice}>€{isFounder ? Math.round(m.price * 0.5) : m.price}/mo</span>
@@ -665,5 +768,7 @@ export default function CustomForm() {
         No credit card required · We reply within 1 business day
       </p>
     </form>
+    {preview}
+    </div>
   );
 }

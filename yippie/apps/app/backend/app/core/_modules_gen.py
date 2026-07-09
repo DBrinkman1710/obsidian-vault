@@ -41,11 +41,11 @@ MODULE_STRIPE_KEYS: dict[str, str] = {
 PLAN_ORDER: list[str] = ["founder","starter","growth","pro","enterprise"]
 
 PLAN_LIMITS: dict[str, dict] = {
-    "founder": {"users": 10, "contacts": None, "ai_scans": 500, "price_monthly": 9, "price_annual": 97, "module_discount": 0.5},
-    "starter": {"users": 3, "contacts": None, "ai_scans": 2000, "price_monthly": 19, "price_annual": 205, "module_discount": 0},
-    "growth": {"users": 10, "contacts": None, "ai_scans": 5000, "price_monthly": 39, "price_annual": 421, "module_discount": 0},
-    "pro": {"users": 25, "contacts": None, "ai_scans": 10000, "price_monthly": 69, "price_annual": 745, "module_discount": 0},
-    "enterprise": {"users": None, "contacts": None, "ai_scans": None, "price_monthly": None, "price_annual": None, "module_discount": 0},
+    "founder": {"users": 10, "contacts": None, "ai_scans": 500, "flows": 10, "price_monthly": 9, "price_annual": 97, "module_discount": 0.5},
+    "starter": {"users": 3, "contacts": None, "ai_scans": 2000, "flows": 3, "price_monthly": 19, "price_annual": 205, "module_discount": 0},
+    "growth": {"users": 10, "contacts": None, "ai_scans": 5000, "flows": 10, "price_monthly": 39, "price_annual": 421, "module_discount": 0},
+    "pro": {"users": 25, "contacts": None, "ai_scans": 10000, "flows": 25, "price_monthly": 69, "price_annual": 745, "module_discount": 0},
+    "enterprise": {"users": None, "contacts": None, "ai_scans": None, "flows": None, "price_monthly": None, "price_annual": None, "module_discount": 0},
 }
 
 # Display metadata for pickers/pricing UIs.

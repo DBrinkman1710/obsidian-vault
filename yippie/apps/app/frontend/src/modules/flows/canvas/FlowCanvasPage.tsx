@@ -275,6 +275,9 @@ export default function FlowCanvasPage() {
   }
   if (!draft) return null
 
+  // [FLOW9] default flows are showcases: anyone may view them on the canvas,
+  // nobody edits them — duplicate one (from the Flows page) to customise it.
+  const canEdit = isAdmin && !flow.is_default
   const trigger = meta?.triggers.find(t => t.key === draft.trigger_type)
   const selectedLoc = selection?.kind === 'step' ? findStep(draft.steps, selection.id) : null
   const selectedStep = selectedLoc ? selectedLoc.list[selectedLoc.index] : null
@@ -325,7 +328,7 @@ export default function FlowCanvasPage() {
           <ArrowLeft size={16} />
         </Link>
         <Zap size={16} className="text-slate-400 shrink-0" />
-        {isAdmin ? (
+        {canEdit ? (
           <input
             value={draft.name}
             onChange={e => patchDraft({ name: e.target.value })}
@@ -333,6 +336,14 @@ export default function FlowCanvasPage() {
           />
         ) : (
           <p className="text-sm font-semibold text-slate-900 truncate">{draft.name}</p>
+        )}
+        {flow.is_default && (
+          <span
+            className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full"
+            title="Included with Yippie — view only. Duplicate it from the Flows page to customise."
+          >
+            Default · view only
+          </span>
         )}
         {replayRun && (
           <span className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">
@@ -344,7 +355,7 @@ export default function FlowCanvasPage() {
         )}
         <div className="ml-auto flex items-center gap-3">
           {error && <p className="text-xs text-red-500 max-w-xs truncate" title={error}>{error}</p>}
-          {isAdmin && (
+          {canEdit && (
             <>
               <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
                 <input
@@ -438,11 +449,15 @@ export default function FlowCanvasPage() {
               </>
             )}
 
-            {panel === 'inspect' && !isAdmin && (
-              <p className="text-xs text-slate-400">Only admins can edit flows. Pick a run under Runs to replay it.</p>
+            {panel === 'inspect' && !canEdit && (
+              <p className="text-xs text-slate-400">
+                {flow.is_default
+                  ? 'This default flow comes with Yippie and is view only — duplicate it from the Flows page to make your own editable version.'
+                  : 'Only admins can edit flows. Pick a run under Runs to replay it.'}
+              </p>
             )}
 
-            {panel === 'inspect' && isAdmin && selection === null && (
+            {panel === 'inspect' && canEdit && selection === null && (
               <>
                 <p className="text-xs text-slate-400">Select a node to edit it, or add a step:</p>
                 {canAppend(draft.steps) ? (
@@ -465,7 +480,7 @@ export default function FlowCanvasPage() {
               </>
             )}
 
-            {panel === 'inspect' && isAdmin && selection?.kind === 'trigger' && meta && (
+            {panel === 'inspect' && canEdit && selection?.kind === 'trigger' && meta && (
               <div className="space-y-2">
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">When</p>
                 <select
@@ -533,7 +548,7 @@ export default function FlowCanvasPage() {
               </div>
             )}
 
-            {panel === 'inspect' && isAdmin && selection?.kind === 'group' && meta && draft.groups[selection.index] && (
+            {panel === 'inspect' && canEdit && selection?.kind === 'group' && meta && draft.groups[selection.index] && (
               <div className="space-y-2">
                 <div className="flex items-center">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
@@ -567,7 +582,7 @@ export default function FlowCanvasPage() {
             )}
 
             {/* [FLOW4] branch step inspector */}
-            {panel === 'inspect' && isAdmin && meta && selectedStep?.type === 'branch' && (
+            {panel === 'inspect' && canEdit && meta && selectedStep?.type === 'branch' && (
               <div className="space-y-2">
                 <div className="flex items-center">
                   <p className="text-xs font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
@@ -623,7 +638,7 @@ export default function FlowCanvasPage() {
             )}
 
             {/* action / wait step inspector */}
-            {panel === 'inspect' && isAdmin && meta && selectedStep && selectedStep.type !== 'branch' && selectedLoc && (
+            {panel === 'inspect' && canEdit && meta && selectedStep && selectedStep.type !== 'branch' && selectedLoc && (
               <div className="space-y-2">
                 <div className="flex items-center gap-1">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">

@@ -52,6 +52,26 @@ RECIPES: list[dict] = [
         ],
     },
     {
+        "key": "review_request",
+        "name": "Ask for a review",
+        "description": "When a ticket is resolved, thank the customer and ask them to leave a review. Adjust the email text or pick one of your own templates before enabling.",
+        "trigger_type": "ticket_status_changed",
+        "conditions": [{"field": "status", "op": "equals", "value": "resolved"}],
+        "actions": [
+            {"type": "send_email", "config": {
+                "subject": "How did we do, {full_name}?",
+                "body": (
+                    "Hi {full_name},\n\n"
+                    "We just wrapped up your request \"{subject}\" and hope everything "
+                    "is taken care of.\n\n"
+                    "Would you take a minute to share your experience? It really helps "
+                    "us out:\n[add your review link here]\n\n"
+                    "Thanks!"
+                ),
+            }},
+        ],
+    },
+    {
         "key": "new_contact_follow_up",
         "name": "Follow up on new contacts",
         "description": "Create a follow-up ticket whenever a new contact is added.",

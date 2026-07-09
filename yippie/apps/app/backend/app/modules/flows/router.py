@@ -148,6 +148,13 @@ async def update_flow(flow_id: uuid.UUID, body: FlowUpdate, current_user: AdminU
     flow = await service.get_flow(db, current_user.tenant_id, flow_id)
     if flow is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Flow not found")
+    # [FLOW9] Default flows are view only showcases: they may be switched on/off
+    # or deleted, but their wiring can't change — duplicate one to customise it.
+    if flow.is_default and set(body.model_dump(exclude_unset=True)) - {"enabled"}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This default flow is view only — duplicate it to make an editable copy.",
+        )
     tenant = await _load_tenant(db, current_user.tenant_id)
     try:
         return await service.update_flow(db, tenant, flow, body)

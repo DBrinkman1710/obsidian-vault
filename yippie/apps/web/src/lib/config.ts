@@ -1,11 +1,11 @@
 // DO NOT EDIT — generated from packages/config/modules.json by packages/config/sync.mjs.
 // Run `pnpm sync:config` after editing modules.json.
 export const PLAN_LIMITS = {
-  founder:    { users: 10, contacts: null, aiScans: 500, priceMonthly: 9, priceAnnual: 97, moduleDiscount: 0.5 },
-  starter:    { users: 3, contacts: null, aiScans: 2000, priceMonthly: 19, priceAnnual: 205, moduleDiscount: 0 },
-  growth:     { users: 10, contacts: null, aiScans: 5000, priceMonthly: 39, priceAnnual: 421, moduleDiscount: 0 },
-  pro:        { users: 25, contacts: null, aiScans: 10000, priceMonthly: 69, priceAnnual: 745, moduleDiscount: 0 },
-  enterprise: { users: null, contacts: null, aiScans: null, priceMonthly: null, priceAnnual: null, moduleDiscount: 0 },
+  founder:    { users: 10, contacts: null, aiScans: 500, flows: 10, priceMonthly: 9, priceAnnual: 97, moduleDiscount: 0.5 },
+  starter:    { users: 3, contacts: null, aiScans: 2000, flows: 3, priceMonthly: 19, priceAnnual: 205, moduleDiscount: 0 },
+  growth:     { users: 10, contacts: null, aiScans: 5000, flows: 10, priceMonthly: 39, priceAnnual: 421, moduleDiscount: 0 },
+  pro:        { users: 25, contacts: null, aiScans: 10000, flows: 25, priceMonthly: 69, priceAnnual: 745, moduleDiscount: 0 },
+  enterprise: { users: null, contacts: null, aiScans: null, flows: null, priceMonthly: null, priceAnnual: null, moduleDiscount: 0 },
 } as const;
 
 export const MODULE_PRICES = {

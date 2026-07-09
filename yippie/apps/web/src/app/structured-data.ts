@@ -55,6 +55,21 @@ export const websiteJsonLd = {
   publisher: { "@id": ORG_ID },
 };
 
+const planOffer = (name: string, priceMonthly: number) => ({
+  "@type": "Offer",
+  name,
+  price: String(priceMonthly),
+  priceCurrency: "EUR",
+  url: `${SITE}/pricing`,
+  priceSpecification: {
+    "@type": "UnitPriceSpecification",
+    price: String(priceMonthly),
+    priceCurrency: "EUR",
+    billingIncrement: 1,
+    unitText: "month",
+  },
+});
+
 export const softwareApplicationJsonLd = {
   "@type": "SoftwareApplication",
   name: "Yippie",
@@ -63,11 +78,14 @@ export const softwareApplicationJsonLd = {
   url: SITE,
   description: DESCRIPTION,
   publisher: { "@id": ORG_ID },
+  inLanguage: "en",
+  // Dutch/EU SMBs are the core market; the product itself is available anywhere.
+  areaServed: ["NL", "EU"],
   offers: [
-    { "@type": "Offer", name: "Founder", price: String(PLAN_LIMITS.founder.priceMonthly), priceCurrency: "EUR" },
-    { "@type": "Offer", name: "Starter", price: String(PLAN_LIMITS.starter.priceMonthly), priceCurrency: "EUR" },
-    { "@type": "Offer", name: "Growth",  price: String(PLAN_LIMITS.growth.priceMonthly),  priceCurrency: "EUR" },
-    { "@type": "Offer", name: "Pro",     price: String(PLAN_LIMITS.pro.priceMonthly),     priceCurrency: "EUR" },
+    planOffer("Founder", PLAN_LIMITS.founder.priceMonthly),
+    planOffer("Starter", PLAN_LIMITS.starter.priceMonthly),
+    planOffer("Growth", PLAN_LIMITS.growth.priceMonthly),
+    planOffer("Pro", PLAN_LIMITS.pro.priceMonthly),
   ],
 };
 

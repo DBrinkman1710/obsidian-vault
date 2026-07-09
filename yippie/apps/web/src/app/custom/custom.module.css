@@ -6,15 +6,125 @@
   padding: 0 var(--gutter) 96px;
 }
 
+/* ── Two column layout: form + live mini workspace ─ */
+.layout {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 40px;
+  width: 100%;
+  max-width: 960px;
+}
+
+.previewCol {
+  position: sticky;
+  top: 96px;
+  width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.previewLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-700);
+}
+
+.previewHint {
+  font-size: 12.5px;
+  color: var(--faint);
+  text-align: center;
+  line-height: 1.5;
+}
+
 /* ── Form card ───────────────────────────────────── */
 .card {
   width: 100%;
   max-width: 560px;
+  min-width: 0;
   background: #fff;
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-md);
   padding: 44px 40px;
+}
+
+/* ── Personalisation (colour + logo) ─────────────── */
+.personalise {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.14s, box-shadow 0.14s;
+}
+
+.swatch:hover {
+  transform: scale(1.12);
+}
+
+.swatchActive {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--ink);
+  transform: scale(1.12);
+}
+
+.logoRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logoUpload {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  background: var(--off-white);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.16s, background 0.16s;
+  line-height: 1;
+}
+
+.logoUpload:hover {
+  border-color: var(--brand-ring);
+  background: var(--brand-soft);
+}
+
+.logoRemove {
+  border: none;
+  background: none;
+  color: var(--faint);
+  font-size: 12.5px;
+  cursor: pointer;
+  padding: 4px;
+}
+
+.logoRemove:hover {
+  color: #dc2626;
 }
 
 /* ── Step indicator (3 steps) ────────────────────── */
@@ -799,6 +909,21 @@
 }
 
 /* ── Responsive ──────────────────────────────────── */
+@media (max-width: 940px) {
+  .layout {
+    flex-direction: column;
+    align-items: center;
+    gap: 28px;
+  }
+  /* Preview follows the form on small screens so it never blocks the flow */
+  .previewCol {
+    position: static;
+    order: 2;
+    width: 100%;
+    max-width: 420px;
+  }
+}
+
 @media (max-width: 600px) {
   .card { padding: 32px 22px; }
   .moduleGrid { grid-template-columns: 1fr; }

@@ -20,6 +20,8 @@ export interface TenantConfig {
     users: number | null
     contacts: number | null
     ai_scans: number | null
+    // Max ENABLED, non default flows (null == unlimited). Default flows are free.
+    flows: number | null
     price_monthly: number | null
     price_annual: number | null
     module_discount: number

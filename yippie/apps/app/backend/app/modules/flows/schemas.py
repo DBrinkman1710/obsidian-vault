@@ -235,6 +235,9 @@ class FlowOut(BaseModel):
     id: uuid.UUID
     name: str
     enabled: bool
+    # [FLOW9] Yippie installed showcase flow: view only (duplicate to customise),
+    # deletable, exempt from the plan's active flow cap.
+    is_default: bool = False
     trigger_type: str
     trigger_config: dict
     conditions: list

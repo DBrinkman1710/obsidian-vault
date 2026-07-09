@@ -9,6 +9,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant, User
+from app.core.plans import limits_for_plan
 from app.modules.flows import graph, preview, steps
 from app.modules.flows.actions import ACTION_META, ACTION_MODULES
 from app.modules.flows.conditions import TRIGGER_META
@@ -71,6 +72,7 @@ async def install_default_flows(db: AsyncSession, tenant_id: uuid.UUID) -> int:
             tenant_id=tenant_id,
             name=spec["name"],
             enabled=True,
+            is_default=True,
             trigger_type=spec["trigger_type"],
             conditions=spec["conditions"],
             actions=[ActionSpec(**a).model_dump() for a in spec["actions"]],
@@ -241,6 +243,33 @@ async def _validate_enabled(
                 raise FlowValidationError("The selected template no longer exists")
 
 
+async def _validate_flow_capacity(
+    db: AsyncSession, tenant: Tenant, exclude_flow_id: uuid.UUID | None = None
+) -> None:
+    """The plan's active-flow cap (PLAN_LIMITS["flows"], None == unlimited),
+    checked whenever a flow is about to become enabled. Only ENABLED, non
+    default flows count — drafts are free, and the Yippie installed default
+    flows never occupy a slot (deleting one frees nothing either)."""
+    limit = limits_for_plan(tenant.plan).get("flows")
+    if limit is None:
+        return
+    query = (
+        select(func.count()).select_from(Flow).where(
+            Flow.tenant_id == tenant.id,
+            Flow.enabled.is_(True),
+            Flow.is_default.is_(False),
+        )
+    )
+    if exclude_flow_id is not None:
+        query = query.where(Flow.id != exclude_flow_id)
+    current = await db.scalar(query)
+    if (current or 0) >= limit:
+        raise FlowValidationError(
+            f"Your {(tenant.plan or 'current').title()} plan is limited to {limit} "
+            "active flows. Disable another flow or upgrade to enable more."
+        )
+
+
 async def create_flow(
     db: AsyncSession, tenant: Tenant, created_by: uuid.UUID, data: FlowCreate
 ) -> Flow:
@@ -250,6 +279,7 @@ async def create_flow(
         data.trigger_type, data.trigger_config, enabled=data.enabled
     )
     if data.enabled:
+        await _validate_flow_capacity(db, tenant)
         await _validate_enabled(db, tenant, data.trigger_type, actions)
     flow = Flow(
         tenant_id=tenant.id,
@@ -273,6 +303,7 @@ async def create_flow(
 
 async def update_flow(db: AsyncSession, tenant: Tenant, flow: Flow, data: FlowUpdate) -> Flow:
     provided = data.model_dump(exclude_unset=True)
+    was_enabled = flow.enabled
     if "name" in provided:
         flow.name = data.name
     if "trigger_type" in provided:
@@ -296,6 +327,11 @@ async def update_flow(db: AsyncSession, tenant: Tenant, flow: Flow, data: FlowUp
     if flow.trigger_type == "webhook" and not flow.webhook_token:
         flow.webhook_token = _new_token()
     if flow.enabled:
+        # The cap is a turn-ON gate only (default flows are exempt): an already
+        # enabled flow stays editable even when a downgrade left the tenant
+        # over their limit.
+        if not was_enabled and not flow.is_default:
+            await _validate_flow_capacity(db, tenant, exclude_flow_id=flow.id)
         await _validate_enabled(db, tenant, flow.trigger_type, flow.actions)
     await db.commit()
     await db.refresh(flow)

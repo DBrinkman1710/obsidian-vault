@@ -60,6 +60,7 @@ function buildPython() {
         users: p.users,
         contacts: p.contacts,
         ai_scans: p.aiScans,
+        flows: p.flows,
         price_monthly: p.priceMonthly,
         price_annual: p.priceAnnual,
         module_discount: p.moduleDiscount,
@@ -93,7 +94,7 @@ function buildPython() {
 function tsPlanLimits() {
   const rows = Object.entries(plans).map(([name, p]) => {
     const pad = " ".repeat(Math.max(1, 11 - name.length));
-    return `  ${name}:${pad}{ users: ${p.users ?? "null"}, contacts: ${p.contacts ?? "null"}, aiScans: ${p.aiScans ?? "null"}, priceMonthly: ${p.priceMonthly ?? "null"}, priceAnnual: ${p.priceAnnual ?? "null"}, moduleDiscount: ${p.moduleDiscount} },`;
+    return `  ${name}:${pad}{ users: ${p.users ?? "null"}, contacts: ${p.contacts ?? "null"}, aiScans: ${p.aiScans ?? "null"}, flows: ${p.flows ?? "null"}, priceMonthly: ${p.priceMonthly ?? "null"}, priceAnnual: ${p.priceAnnual ?? "null"}, moduleDiscount: ${p.moduleDiscount} },`;
   });
   return `{\n${rows.join("\n")}\n} as const`;
 }

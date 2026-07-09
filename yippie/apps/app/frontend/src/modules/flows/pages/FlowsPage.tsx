@@ -8,6 +8,7 @@ import {
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+import { useTenantConfig } from '../../../App'
 // [FLOW4] branched flows store a graph; the modal only edits the linear shape.
 import { FlowActions, actionNodes, groupTriggers, isGraph } from '../lib'
 
@@ -44,6 +45,9 @@ interface Flow {
   id: string
   name: string
   enabled: boolean
+  // [FLOW9] Yippie installed showcase flow: view only (duplicate to customise),
+  // deletable, exempt from the plan's active flow cap.
+  is_default: boolean
   trigger_type: string
   trigger_config: Record<string, any>
   conditions: Condition[] | Condition[][]  // flat (legacy) or grouped OR-of-AND
@@ -858,7 +862,11 @@ export default function FlowsPage() {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { user } = useAuth()
+  const config = useTenantConfig()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+  // [FLOW9] plan cap on ENABLED, non default flows (null == unlimited). The
+  // backend enforces it on enable; this is the visible counter + hint.
+  const flowLimit = config?.plan_limits?.flows ?? null
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editingFlow, setEditingFlow] = useState<Flow | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
@@ -936,6 +944,10 @@ export default function FlowsPage() {
   }
   function openNew() { setEditingFlow(null); setBuilderOpen(true) }
 
+  // [FLOW9] enabled, non default flows count against the plan cap
+  const activeCount = flows.filter(f => f.enabled && !f.is_default).length
+  const atCap = flowLimit != null && activeCount >= flowLimit
+
   return (
     <div className="max-w-4xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
@@ -991,8 +1003,19 @@ export default function FlowsPage() {
         <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-100">
           <Zap size={16} className="text-slate-400" />
           <h2 className="text-base font-semibold text-slate-900">Your flows</h2>
-          <span className="ml-auto text-xs text-slate-400">{flows.length} flow{flows.length !== 1 ? 's' : ''}</span>
+          <span className="ml-auto text-xs text-slate-400">
+            {flowLimit != null
+              ? `${activeCount} of ${flowLimit} active`
+              : `${flows.length} flow${flows.length !== 1 ? 's' : ''}`}
+          </span>
         </div>
+        {atCap && isAdmin && (
+          <p className="px-6 py-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
+            You've reached your plan's limit of {flowLimit} active flows — disable one, or{' '}
+            <Link to="/settings/subscription" className="font-semibold underline">upgrade your plan</Link> to enable more.
+            Drafts and the built in default flows don't count.
+          </p>
+        )}
 
         {isLoading && <p className="px-6 py-8 text-sm text-slate-400 text-center">Loading…</p>}
         {!isLoading && flows.length === 0 && (
@@ -1033,7 +1056,17 @@ export default function FlowsPage() {
                   {expandedId === flow.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-slate-800 truncate">{flow.name}</p>
+                  <p className="text-sm font-semibold text-slate-800 truncate">
+                    {flow.name}
+                    {flow.is_default && (
+                      <span
+                        className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full"
+                        title="Included with Yippie — view it on the canvas, duplicate it to customise. Doesn't count toward your plan's flow limit."
+                      >
+                        Default
+                      </span>
+                    )}
+                  </p>
                   <p className="text-xs text-slate-400 truncate">{flowSummary(meta, flow)}</p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0 text-xs" title={`${flow.run_count} total run${flow.run_count !== 1 ? 's' : ''}`}>
@@ -1071,13 +1104,17 @@ export default function FlowsPage() {
                     >
                       <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${flow.enabled ? 'left-[18px]' : 'left-0.5'}`} />
                     </button>
-                    <button
-                      onClick={() => openEdit(flow)}
-                      className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Edit"
-                    >
-                      <Pencil size={13} />
-                    </button>
+                    {/* [FLOW9] default flows are view only — the canvas link above
+                        shows them; duplicating makes an editable copy */}
+                    {!flow.is_default && (
+                      <button
+                        onClick={() => openEdit(flow)}
+                        className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                        title="Edit"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
                     <button
                       onClick={() => duplicateMut.mutate(flow.id)}
                       disabled={duplicateMut.isPending}

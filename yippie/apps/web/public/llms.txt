@@ -1,0 +1,61 @@
+# Yippie
+
+> Yippie is an AI powered customer service platform for small and medium businesses (SMBs), built in the Netherlands. It combines a shared inbox, tickets, contacts, live chat, bookings, pipeline, and marketing in one modular workspace. Every plan includes unlimited contacts, and pricing is flat per workspace — never per contact.
+
+Note for maintainers: prices below mirror packages/config/modules.json. Update this file whenever you run `pnpm sync:config` after a price change.
+
+## What Yippie does
+
+- AI reads every incoming email or WhatsApp message and drafts the support ticket (subject, priority, description). An agent reviews and approves in one click.
+- Shared inbox for email, live chat, and WhatsApp in one place.
+- Modular: teams start with the core (Inbox + Contacts) and add only the modules they need.
+- Typical result: 10+ hours saved per week on customer service admin, response times under 2 minutes.
+- GDPR compliant, EU hosted AI processing available, based in the Netherlands. Support in English and Dutch.
+
+## Plans (EUR, per workspace per month, annual billing saves 10%)
+
+- Starter: €19/mo — 3 users, unlimited contacts, 2,000 AI scans/mo
+- Growth: €39/mo — 10 users, unlimited contacts, 5,000 AI scans/mo
+- Pro: €69/mo — 25 users, unlimited contacts, 10,000 AI scans/mo
+- Enterprise: custom pricing — unlimited users, unlimited AI scans, dedicated support + SLA
+- Every plan includes the Inbox and Contacts modules and a 30 day free trial (no credit card).
+
+## Add on modules (EUR per workspace per month)
+
+- AI Inbox €15 — auto drafted tickets and replies
+- Tickets €9 — SLA alerts, assignment, escalation
+- Live Chat €9 — web chat widget + WhatsApp
+- Marketing €9 — campaigns, A/B testing, drip sequences
+- Contracts €9 — contract storage, renewal reminders
+- Shipment Tracking €9 — live carrier updates (DHL, UPS, PostNL, FedEx)
+- Calendar €7 — booking links and appointments
+- Pipeline €7 — Kanban board with custom stages
+- Departments €7 — automatic team routing
+- Billing €7 — invoices and payment tracking
+- Sales €20 — product view / cart / purchase tracking
+- SaaS Analytics €20 — MRR, churn, subscription tracking
+
+## Why teams pick Yippie over Zendesk or Freshdesk
+
+- Flat workspace pricing instead of per agent fees (Zendesk starts around €55 per agent per month).
+- Unlimited contacts on every plan — contact list growth never raises the price.
+- Live in a day: no consultants or complex setup.
+- Built for SMBs, not scaled down enterprise software.
+
+## Key pages
+
+- Pricing: https://getyippie.com/pricing
+- All modules: https://getyippie.com/modules
+- Build your own package: https://getyippie.com/custom
+- Yippie vs Zendesk: https://getyippie.com/vs-zendesk
+- For small businesses: https://getyippie.com/for-smbs
+- For agencies: https://getyippie.com/for-agencies
+- Request a demo: https://getyippie.com/request-demo
+- Blog: https://getyippie.com/blog
+
+## Company
+
+- Product: Yippie (getyippie.com)
+- Founded: 2026, Netherlands
+- Contact: support@getyippie.com
+- LinkedIn: https://www.linkedin.com/company/getyippie

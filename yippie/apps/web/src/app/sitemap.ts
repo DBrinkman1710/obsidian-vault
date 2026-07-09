@@ -2,6 +2,15 @@ import type { MetadataRoute } from "next";
 
 const SITE = "https://getyippie.com";
 
+/* Blog posts carry their real publish dates; product pages use build time. */
+const BLOG_DATES: Record<string, string> = {
+  "/blog/how-to-reduce-customer-service-response-time": "2026-06-05",
+  "/blog/5-ways-ai-saves-smb-customer-service-time": "2026-06-12",
+  "/blog/shared_inbox_vs_regular_email": "2026-06-19",
+  "/blog/cost_of_slow_customer_service_response": "2026-06-26",
+  "/blog/whatsapp_customer_service_for_small_business": "2026-07-03",
+};
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const lastModified = new Date();
 
@@ -28,7 +37,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   return staticRoutes.map((r) => ({
     url: `${SITE}${r.path}`,
-    lastModified,
+    lastModified: BLOG_DATES[r.path] ? new Date(BLOG_DATES[r.path] as string) : lastModified,
     changeFrequency: r.changeFrequency,
     priority: r.priority,
   }));

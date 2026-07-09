@@ -162,6 +162,10 @@ export default function SubscriptionPage() {
             <Users size={14} className="text-slate-400" />
             <span>{plan_limits?.users == null ? 'Unlimited' : plan_limits.users} seats</span>
           </div>
+          <div className="flex items-center gap-2 text-sm text-slate-600">
+            <Zap size={14} className="text-slate-400" />
+            <span>{plan_limits?.flows == null ? 'Unlimited' : plan_limits.flows} active flows</span>
+          </div>
           {aiLimit != null && (
             <div className="flex items-center gap-2 text-sm text-slate-600">
               <Cpu size={14} className="text-slate-400" />

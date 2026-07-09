@@ -27,6 +27,7 @@ import {
   SalesIcon,
   SaasIcon,
   ArrowRightIcon,
+  LockIcon,
 } from "./components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
@@ -438,7 +439,7 @@ export default function HomePage() {
               <strong>~15 hrs/month</strong>
             </div>
             <div className={styles.extensionBadge}>
-              <span>🔒</span> Headers only · nothing leaves your browser
+              <LockIcon size={13} /> Headers only · nothing leaves your browser
             </div>
           </div>
         </div>

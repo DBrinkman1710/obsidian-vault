@@ -189,6 +189,14 @@ export const SaasIcon = (p: IconProps) => (
   </Svg>
 );
 
+export const LockIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="5" y="11" width="14" height="9" rx="2" />
+    <path d="M8 11V8a4 4 0 0 1 8 0v3" />
+    <path d="M12 15v2" />
+  </Svg>
+);
+
 export const MegaphoneIcon = (p: IconProps) => (
   <Svg {...p}>
     <path d="M3 11v2a6 6 0 0 0 6 6h1" />

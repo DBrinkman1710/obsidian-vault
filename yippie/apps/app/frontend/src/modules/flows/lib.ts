@@ -46,6 +46,9 @@ export interface Flow {
   id: string
   name: string
   enabled: boolean
+  // [FLOW9] Yippie installed showcase flow: view only on the canvas (duplicate
+  // to customise), deletable, exempt from the plan's active flow cap.
+  is_default: boolean
   trigger_type: string
   trigger_config: Record<string, any>
   conditions: Condition[] | Condition[][] // flat (legacy) or grouped OR-of-AND

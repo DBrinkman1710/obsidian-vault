@@ -109,6 +109,7 @@ class CustomPlanQuestionnaire(BaseModel):
     modules_selected: Optional[list[str]] = None
     monthly_total: Optional[int] = None
     billing_cycle: Optional[str] = None  # "monthly" | "annual"
+    branding_color: Optional[str] = None  # sidebar colour picked in the mini workspace preview
 
 
 class CustomPlanRequest(BaseModel):
@@ -414,6 +415,7 @@ async def custom_plan_request(
             "modules_selected": q.modules_selected,
             "monthly_total": q.monthly_total,
             "billing_cycle": q.billing_cycle,
+            "branding_color": q.branding_color,
         }
 
     q_lines: list[str] = []
@@ -435,6 +437,8 @@ async def custom_plan_request(
         if q.monthly_total is not None:
             cycle = q.billing_cycle or "monthly"
             q_lines.append(f"Estimated total: €{q.monthly_total}/mo ({cycle})")
+        if q.branding_color:
+            q_lines.append(f"Branding colour: {q.branding_color}")
 
     plan_label = q.plan_selected.capitalize() if q and q.plan_selected else "Custom"
     description = (
