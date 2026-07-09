@@ -895,7 +895,6 @@ interface CalendarSettings {
   slot_minutes: number
   booking_expiry_days: number
   booking_window_days: number
-  post_booking_stage_id: string | null
   use_weekly_slots: boolean
   weekly_slots: Record<string, WeeklySlotEntry[]> | null
   cancel_edit_hours_before: number
@@ -1285,10 +1284,6 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
     queryKey: ['booking-settings'],
     queryFn: () => api.get('/booking/settings').then((r: any) => r.data),
   })
-  const { data: stages = [] } = useQuery<{ id: string; name: string }[]>({
-    queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
-  })
 
   const [form, setForm] = useState<CalendarSettings | null>(null)
   const current = form ?? settings ?? null
@@ -1401,14 +1396,6 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
             )}
 
             <div>
-              <label className={labelCls}>Move to stage after booking</label>
-              <select className={inputCls} value={current.post_booking_stage_id ?? ''}
-                onChange={e => update({ post_booking_stage_id: e.target.value || null })}>
-                <option value="">— None —</option>
-                {stages.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
-              </select>
-            </div>
-            <div>
               <label className={labelCls}>Lock changes X hours before appointment</label>
               <input
                 type="number"
@@ -1468,7 +1455,6 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
                   slot_minutes: current.slot_minutes,
                   booking_expiry_days: current.booking_expiry_days,
                   booking_window_days: current.booking_window_days,
-                  post_booking_stage_id: current.post_booking_stage_id,
                   use_weekly_slots: current.use_weekly_slots,
                   weekly_slots: current.weekly_slots,
                   cancel_edit_hours_before: current.cancel_edit_hours_before,

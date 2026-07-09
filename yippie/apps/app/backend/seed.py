@@ -230,6 +230,11 @@ async def main():
         await db.flush()
         await provision_default_rbac_roles(db, tenant.id)
 
+        # [FLOW8] install the two universal default flows (SLA notify + escalate).
+        # Idempotent — a re-run only adds a flow whose name is missing.
+        from app.modules.flows.service import install_default_flows
+        await install_default_flows(db, tenant.id)
+
         # Seed standard response templates so every fresh tenant starts with a
         # useful set of customer-service email templates out of the box.
         for tpl in _STANDARD_TEMPLATES:

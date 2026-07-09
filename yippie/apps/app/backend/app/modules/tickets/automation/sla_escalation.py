@@ -14,34 +14,18 @@ from sqlalchemy import func, select, update
 from app.core.models import Tenant
 from app.core.scheduler_lock import skip_if_locked
 from app.database import db_session
-from app.modules.tickets.models import Ticket, TicketPriority, TicketStatus
+from app.modules.tickets.models import Ticket, TicketStatus
 
 log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
-@scheduler.scheduled_job("interval", minutes=5, id="sla_escalation", max_instances=1, coalesce=True)
-async def escalate_overdue_tickets():
-    if await skip_if_locked("sla_escalation", ttl=270):
-        return
-    now = datetime.now(timezone.utc)
-    async with db_session() as db:
-        result = await db.execute(
-            select(Ticket).where(
-                Ticket.sla_due_at < now,
-                Ticket.status.in_([TicketStatus.open, TicketStatus.in_progress]),
-                Ticket.priority != TicketPriority.urgent,
-                Ticket.deleted_at.is_(None),
-            )
-        )
-        tickets = result.scalars().all()
-        for ticket in tickets:
-            priority_order = [TicketPriority.low, TicketPriority.medium, TicketPriority.high, TicketPriority.urgent]
-            idx = priority_order.index(ticket.priority)
-            ticket.priority = priority_order[min(idx + 1, len(priority_order) - 1)]
-            log.info("Escalated ticket %s to %s", ticket.id, ticket.priority)
-        if tickets:
-            await db.commit()
+# [FLOW8] the stepwise "escalate overdue tickets every 5 min" job was retired: the
+# default flow "Escalate tickets before SLA breach" (trigger ticket_sla_due_soon,
+# action update_ticket → priority urgent) now owns escalation. Deliberate behaviour
+# change: escalation happens ONCE, straight to urgent, just BEFORE the SLA breach,
+# instead of one-notch-per-tick AFTER it. The emit_sla_due_soon_flow_events job
+# below feeds that flow.
 
 
 # [FLOW2C] emit a ticket_sla_due_soon flow event once per ticket when its SLA
@@ -752,8 +736,23 @@ async def mark_overdue_invoices():
             )
         )
         invoices = result.scalars().all()
+        from app.core.flow_events import emit_flow_event
+
         for inv in invoices:
             inv.status = InvoiceStatus.overdue
+            # [FLOW7] invoice became overdue — same transaction as the status flip.
+            await emit_flow_event(
+                db, inv.tenant_id, "invoice_overdue",
+                entity_type="invoice", entity_id=inv.id,
+                contact_id=inv.contact_id,
+                payload={
+                    "invoice_number": inv.invoice_number,
+                    "total": inv.total_cents / 100,
+                    "currency": inv.currency,
+                    "due_date": inv.due_date.isoformat() if inv.due_date else None,
+                    "contact_id": inv.contact_id,
+                },
+            )
             log.info("Marked invoice %s (%s) as overdue", inv.invoice_number, inv.id)
         if invoices:
             await db.commit()

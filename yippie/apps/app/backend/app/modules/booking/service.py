@@ -14,6 +14,7 @@ from sqlalchemy import func as sa_func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.email_html import render_email_html
+from app.core.flow_events import emit_flow_event
 from app.core.mailer import is_valid_email, send_email
 from app.core.models import Tenant, User, UserRole
 from app.modules.booking.models import (
@@ -798,10 +799,9 @@ async def fulfil_request(
     req.chosen_slot_start = slot_start
     req.chosen_slot_end = slot_end
 
-    settings = await get_or_create_settings(db, tenant_id)
-    if settings.post_booking_stage_id is not None:
-        from app.modules.pipeline.service import _assign_stage
-        await _assign_stage(db, tenant_id, req.contact_id, settings.post_booking_stage_id)
+    # [FLOW8] the global post-booking stage move was retired here — see
+    # confirm_booking. (This request-fulfilment path predates the booking_created
+    # flow event and does not emit one, so it no longer moves the stage globally.)
 
     await db.commit()
     await db.refresh(event)
@@ -1069,20 +1069,31 @@ async def confirm_booking(
     token.event_id = event.id
     token.manage_token = uuid.uuid4()
 
-    # Move contact to the configured post-booking pipeline stage, if any.
-    # Per-send override (stage_id_override) takes precedence over the global setting.
-    settings = await db.scalar(
-        select(CalendarSettings).where(CalendarSettings.tenant_id == token.tenant_id)
-    )
-    effective_stage_id = token.stage_id_override or (
-        settings.post_booking_stage_id if settings is not None else None
-    )
-    if effective_stage_id is not None:
+    # Move contact to this booking link's per-send pipeline stage override, if
+    # any. [FLOW8] retired the global post_booking_stage_id fallback — the global
+    # move is now a flow on the booking_created trigger (emitted below), which a
+    # tenant can edit or disable. The per-send override stays hardcoded: a flow
+    # can't express a per-link stage.
+    if token.stage_id_override is not None:
         from app.modules.pipeline.service import _assign_stage
 
         await _assign_stage(
-            db, token.tenant_id, token.contact_id, effective_stage_id
+            db, token.tenant_id, token.contact_id, token.stage_id_override
         )
+
+    # [FLOW7] booking confirmed — same transaction as the booking write.
+    await emit_flow_event(
+        db, token.tenant_id, "booking_created",
+        entity_type="booking", entity_id=event.id,
+        contact_id=token.contact_id, actor_id=token.created_by,
+        payload={
+            "title": event.title,
+            "start_at": slot_start.isoformat(),
+            "end_at": slot_end.isoformat(),
+            "assigned_to": str(assigned_worker_id or token.created_by),
+            "contact_id": token.contact_id,
+        },
+    )
 
     await db.commit()
     await db.refresh(event)
@@ -1414,6 +1425,11 @@ async def cancel_booking(db: AsyncSession, token: BookingToken) -> None:
     contact = await db.get(Contact, token.contact_id)
     agent = await db.get(User, token.created_by)
 
+    # [FLOW7] snapshot the event's fields before the delete clears them.
+    cancelled_event_id = event.id
+    cancelled_title = event.title
+    cancelled_start_at = event.start_at
+
     # Delete the event — FK on booking_tokens.event_id is SET NULL, so the token survives.
     await db.delete(event)
 
@@ -1421,6 +1437,18 @@ async def cancel_booking(db: AsyncSession, token: BookingToken) -> None:
     token.booked_at = None
     token.manage_token = None
     token.event_id = None
+
+    # [FLOW7] booking cancelled — same transaction as the delete.
+    await emit_flow_event(
+        db, token.tenant_id, "booking_cancelled",
+        entity_type="booking", entity_id=cancelled_event_id,
+        contact_id=token.contact_id,
+        payload={
+            "title": cancelled_title,
+            "start_at": cancelled_start_at.isoformat(),
+            "contact_id": token.contact_id,
+        },
+    )
 
     await db.commit()
 

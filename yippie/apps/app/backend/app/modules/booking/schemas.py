@@ -21,7 +21,6 @@ class CalendarSettingsOut(BaseModel):
     slot_minutes: int
     booking_expiry_days: int
     booking_window_days: int = 60
-    post_booking_stage_id: Optional[uuid.UUID] = None
     weekly_slots: Optional[list] = None
     use_weekly_slots: bool = False
     cancel_edit_hours_before: int = 24
@@ -40,7 +39,6 @@ class CalendarSettingsUpdate(BaseModel):
     slot_minutes: Optional[int] = Field(default=None, ge=5, le=240)
     booking_expiry_days: Optional[int] = Field(default=None, ge=1, le=60)
     booking_window_days: Optional[int] = Field(default=None, ge=7, le=365)
-    post_booking_stage_id: Optional[uuid.UUID] = None
     weekly_slots: Optional[list] = None
     use_weekly_slots: Optional[bool] = None
     cancel_edit_hours_before: Optional[int] = Field(default=None, ge=1, le=720)

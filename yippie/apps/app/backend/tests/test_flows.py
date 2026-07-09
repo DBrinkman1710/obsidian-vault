@@ -900,3 +900,291 @@ def test_dry_run_webhook_uses_free_condition_fields():
     assert result["matched"] is True
     assert result["actions"][0]["would_run"] is True
     assert "example.com/shipped" in result["actions"][0]["detail"]
+
+
+# ------------------------------------------------------------ [FLOW6] chaining
+
+def test_chain_of_reads_fresh_and_garbled_fields_as_a_new_chain():
+    assert steps.chain_of({}) == (0, [])
+    assert steps.chain_of(None) == (0, [])
+    # payloads round-trip through JSONB and external webhook callers — garbage
+    # must never crash the engine, it just reads as depth 0
+    assert steps.chain_of({"chain_depth": "nope", "chain_path": "not-a-list"}) == (0, [])
+    assert steps.chain_of({"chain_depth": None, "chain_path": None}) == (0, [])
+
+
+def test_chain_of_reads_a_real_chain():
+    depth, path = steps.chain_of({"chain_depth": 2, "chain_path": ["a", "b"]})
+    assert depth == 2
+    assert path == ["a", "b"]
+
+
+def test_next_chain_goes_one_link_deeper_and_appends_the_flow():
+    chain = steps.next_chain({}, "flow-1")
+    assert chain == {"depth": 1, "path": ["flow-1"]}
+    chain = steps.next_chain({"chain_depth": 1, "chain_path": ["flow-1"]}, "flow-2")
+    assert chain == {"depth": 2, "path": ["flow-1", "flow-2"]}
+
+
+def test_chain_allows_requires_the_opt_in():
+    # phase 1 behaviour is the default: no chainable flag → never fires on
+    # flow-caused events
+    assert not steps.chain_allows({}, {}, "flow-2")
+    assert not steps.chain_allows(None, {}, "flow-2")
+    assert not steps.chain_allows({"chainable": False}, {}, "flow-2")
+    assert steps.chain_allows(
+        {"chainable": True}, {"chain_depth": 1, "chain_path": ["flow-1"]}, "flow-2"
+    )
+
+
+def test_chain_allows_enforces_the_depth_cap():
+    config = {"chainable": True}
+    at_cap = {"chain_depth": steps.MAX_CHAIN_DEPTH, "chain_path": ["a", "b", "c"]}
+    below_cap = {"chain_depth": steps.MAX_CHAIN_DEPTH - 1, "chain_path": ["a", "b"]}
+    assert not steps.chain_allows(config, at_cap, "flow-9")
+    assert steps.chain_allows(config, below_cap, "flow-9")
+
+
+def test_chain_allows_cycle_guard():
+    config = {"chainable": True}
+    fields = {"chain_depth": 1, "chain_path": ["flow-1"]}
+    assert not steps.chain_allows(config, fields, "flow-1")  # already on the path
+    assert steps.chain_allows(config, fields, "flow-2")
+
+
+def test_normalize_trigger_config_preserves_chainable():
+    # mutation trigger: chainable survives, everything else is dropped
+    out = _normalize_trigger_config("ticket_created", {"chainable": True, "junk": 1}, enabled=True)
+    assert out == {"chainable": True}
+    # falsy chainable is dropped, keeping the phase 1 {} shape
+    assert _normalize_trigger_config("ticket_created", {"chainable": False}, enabled=True) == {}
+    # schedule: chainable rides along with the validated schedule config
+    out = _normalize_trigger_config(
+        "schedule", {"frequency": "daily", "time": "08:30", "chainable": True}, enabled=True
+    )
+    assert out == {"frequency": "daily", "time": "08:30", "weekday": None, "chainable": True}
+
+
+def test_flow_create_accepts_chainable_trigger_config():
+    flow = FlowCreate(
+        name="Chained",
+        trigger_type="ticket_created",
+        actions=[{"type": "notify_user", "config": {"user_id": "u", "message": "hi"}}],
+        trigger_config={"chainable": True},
+        enabled=False,
+    )
+    assert flow.trigger_config == {"chainable": True}
+
+
+async def test_emit_flow_event_stamps_chain_inside_chain_scope():
+    import uuid as _uuid
+
+    from app.core.flow_events import chain_scope, emit_flow_event
+
+    class _FakeDB:
+        def __init__(self):
+            self.added = []
+
+        def add(self, obj):
+            self.added.append(obj)
+
+        async def flush(self):
+            pass
+
+    db = _FakeDB()
+    tenant_id = _uuid.uuid4()
+    with chain_scope({"depth": 2, "path": ["flow-1", "flow-2"]}):
+        await emit_flow_event(
+            db, tenant_id, "ticket_created",
+            entity_type="ticket", payload={"subject": "chained"}, source="flow",
+        )
+    event = db.added[0]
+    assert event.payload["subject"] == "chained"
+    assert event.payload["chain_depth"] == 2
+    assert event.payload["chain_path"] == ["flow-1", "flow-2"]
+
+    # outside the scope nothing is stamped — app mutations stay chain-free
+    await emit_flow_event(
+        db, tenant_id, "ticket_created", entity_type="ticket", payload={"subject": "plain"},
+    )
+    assert "chain_depth" not in db.added[1].payload
+    assert "chain_path" not in db.added[1].payload
+
+
+# ------------------------------------------------------- [FLOW7] trigger registry
+
+import re
+from pathlib import Path
+
+from app.config import ALL_MODULES
+from app.modules.flows.schemas import FlowUpdate
+
+# The full set the registry + the two flows-own triggers must cover.
+_EXPECTED_TRIGGERS = [
+    "ticket_created", "ticket_status_changed", "ticket_sla_due_soon",
+    "contact_created", "pipeline_stage_changed", "draft_approved",
+    "saas_health_dropped", "saas_signup", "conversation_started",
+    "conversation_solved", "booking_created", "booking_cancelled",
+    "campaign_button_clicked", "campaign_email_bounced", "contract_expiring",
+    "invoice_overdue", "order_received", "schedule", "webhook",
+]
+
+_BACKEND_ROOT = Path(__file__).resolve().parent.parent / "app"
+
+
+def test_registry_assembles_every_trigger():
+    for key in _EXPECTED_TRIGGERS:
+        assert key in TRIGGER_META, f"missing trigger {key}"
+    # ticket_created must stay first — the picker + "New on canvas" default to it.
+    assert next(iter(TRIGGER_META)) == "ticket_created"
+    # every module gating value is either None or a real module id
+    for key, meta in TRIGGER_META.items():
+        module = meta["module"]
+        assert module is None or module in ALL_MODULES, f"{key}: bad module {module}"
+
+
+def test_registry_no_duplicate_keys_and_flows_own_are_module_none():
+    assert TRIGGER_META["schedule"]["module"] is None
+    assert TRIGGER_META["webhook"]["module"] is None
+
+
+# First string literal after an emit_flow_event( open — the event_type in every
+# callsite. re.S so multiline calls (kwargs on later lines) still match.
+_EMIT_RE = re.compile(r"emit_flow_event\((?:[^\"')]|\n)*?[\"']([a-z_]+)[\"']", re.S)
+
+
+def test_drift_guard_every_module_trigger_is_emitted_somewhere():
+    emitted: set[str] = set()
+    for path in _BACKEND_ROOT.rglob("*.py"):
+        if "__pycache__" in path.parts:
+            continue
+        emitted.update(_EMIT_RE.findall(path.read_text(encoding="utf-8")))
+    for key, meta in TRIGGER_META.items():
+        if meta["module"] is None:
+            continue  # schedule/webhook aren't emitted by a module mutation
+        assert key in emitted, f"trigger {key} declared but never emitted"
+
+
+def test_payload_discipline_condition_fields_subset_of_example_payload():
+    for key, meta in TRIGGER_META.items():
+        example = meta.get("example_payload")
+        if example is None:
+            continue
+        field_keys = {f["key"] for f in meta["fields"]}
+        assert field_keys <= set(example), (
+            f"{key}: condition fields {field_keys - set(example)} missing from example_payload"
+        )
+
+
+def test_every_module_trigger_has_a_callable_fetch_fields():
+    for key, meta in TRIGGER_META.items():
+        if key in ("schedule", "webhook"):
+            continue
+        loader = meta.get("fetch_fields")
+        assert callable(loader), f"{key}: fetch_fields must be callable"
+
+
+def test_flow_update_rejects_unknown_trigger_and_accepts_known():
+    import pytest as _pytest
+    from pydantic import ValidationError
+
+    with _pytest.raises(ValidationError):
+        FlowUpdate(trigger_type="not_a_real_trigger")
+    # a known one round-trips, and None (unset) stays allowed
+    assert FlowUpdate(trigger_type="ticket_created").trigger_type == "ticket_created"
+    assert FlowUpdate().trigger_type is None
+
+
+# ------------------------------------------------ [FLOW8] builtins catalogue
+
+from app.modules.flows.builtins import BUILTINS, builtins_for
+
+
+def test_builtins_catalogue_is_well_formed():
+    keys = [b["key"] for b in BUILTINS]
+    assert len(keys) == len(set(keys)), "builtin keys must be unique"
+    for b in BUILTINS:
+        assert b["name"] and isinstance(b["name"], str)
+        assert b["description"] and isinstance(b["description"], str)
+        assert "module" in b
+        assert b["module"] is None or b["module"] in ALL_MODULES, f"bad module {b['module']}"
+        assert b["cadence"] and isinstance(b["cadence"], str)
+
+
+def test_builtins_never_list_platform_internal_jobs():
+    joined = " ".join(b["key"] for b in BUILTINS)
+    for forbidden in ("demo", "trial", "retention", "onboarding", "engine"):
+        assert forbidden not in joined, f"platform-internal '{forbidden}' leaked into builtins"
+
+
+def test_builtins_for_filters_by_enabled_modules():
+    # module None is always shown; module-scoped entries need the module enabled.
+    always = [b["key"] for b in BUILTINS if b["module"] is None]
+    result = builtins_for([])
+    assert set(b["key"] for b in result) == set(always)
+    # enabling a module reveals its entries
+    inbox_entries = [b["key"] for b in BUILTINS if b["module"] == "inbox"]
+    result_keys = {b["key"] for b in builtins_for(["inbox"])}
+    assert set(inbox_entries) <= result_keys
+    assert set(always) <= result_keys
+
+
+# ------------------------------------------- [FLOW8] notify_user "assigned agent"
+
+def test_notify_user_meta_has_recipient_with_both_options():
+    fields = {f["key"]: f for f in ACTION_META["notify_user"]["config_fields"]}
+    assert "recipient" in fields
+    assert fields["recipient"]["options"] == ["specific user", "assigned agent"]
+
+
+def test_action_config_whitelist_accepts_recipient():
+    spec = ActionSpec(type="notify_user", config={
+        "recipient": "assigned agent",
+        "message": "Ticket {subject} due soon",
+    })
+    # recipient is auto-whitelisted from ACTION_META; user_id is optional here
+    assert spec.config == {"recipient": "assigned agent", "message": "Ticket {subject} due soon"}
+
+
+def test_flow_create_notify_assigned_agent_needs_no_user_id():
+    flow = FlowCreate(
+        name="SLA notify",
+        trigger_type="ticket_sla_due_soon",
+        actions=[{"type": "notify_user", "config": {
+            "recipient": "assigned agent", "message": "due in {due_in_minutes}m",
+        }}],
+        enabled=False,
+    )
+    assert flow.actions[0].config == {
+        "recipient": "assigned agent", "message": "due in {due_in_minutes}m",
+    }
+
+
+# ------------------------------------------- [FLOW8] default flow shapes validate
+
+from app.modules.flows.service import DEFAULT_FLOWS
+
+
+def test_default_flows_validate_through_flow_create():
+    for spec in DEFAULT_FLOWS:
+        flow = FlowCreate(
+            name=spec["name"],
+            trigger_type=spec["trigger_type"],
+            conditions=[ConditionSpec(**c) for group in spec["conditions"] for c in group]
+            if spec["conditions"] else [],
+            actions=[ActionSpec(**a) for a in spec["actions"]],
+            enabled=False,  # skip DB-backed enable-time validation
+        )
+        assert flow.trigger_type in TRIGGER_META
+        for action in flow.actions:
+            assert action.type in ACTION_EXECUTORS
+
+
+def test_default_flows_are_the_two_sla_flows():
+    names = {f["name"] for f in DEFAULT_FLOWS}
+    assert names == {
+        "Notify the assigned agent before SLA breach",
+        "Escalate tickets before SLA breach",
+    }
+    for spec in DEFAULT_FLOWS:
+        assert spec["trigger_type"] == "ticket_sla_due_soon"

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Check, Copy, GitBranch, Package, RefreshCw, Truck, Webhook, X, Zap } from 'lucide-react'
+import { Check, Copy, Package, RefreshCw, Truck, Webhook, X, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 
@@ -8,13 +8,7 @@ interface Props {
   onClose: () => void
 }
 
-type Tab = 'overview' | 'erp' | 'sendcloud' | 'pipeline'
-
-interface StageOption {
-  id: string
-  name: string
-  color: string
-}
+type Tab = 'overview' | 'erp' | 'sendcloud'
 
 function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
@@ -291,102 +285,8 @@ function SendcloudTab() {
   )
 }
 
-function StageSelect({
-  value,
-  stages,
-  onChange,
-}: {
-  value: string | null
-  stages: StageOption[]
-  onChange: (id: string | null) => void
-}) {
-  return (
-    <select
-      value={value ?? ''}
-      onChange={e => onChange(e.target.value || null)}
-      className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie bg-white"
-    >
-      <option value="">— No stage —</option>
-      {stages.map(s => (
-        <option key={s.id} value={s.id}>{s.name}</option>
-      ))}
-    </select>
-  )
-}
-
-function PipelineTab() {
-  const qc = useQueryClient()
-
-  const { data, isLoading } = useQuery({
-    queryKey: ['shipments-stage-settings'],
-    queryFn: () => api.get('/shipments/settings/stages').then((r: any) => r.data),
-  })
-
-  const [placed, setPlaced] = useState<string | null>(null)
-  const [shipped, setShipped] = useState<string | null>(null)
-  const [delivered, setDelivered] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (data) {
-      setPlaced(data.order_placed_stage_id ?? null)
-      setShipped(data.order_shipped_stage_id ?? null)
-      setDelivered(data.order_delivered_stage_id ?? null)
-    }
-  }, [data])
-
-  const save = useMutation({
-    mutationFn: () =>
-      api.patch('/shipments/settings/stages', {
-        order_placed_stage_id: placed,
-        order_shipped_stage_id: shipped,
-        order_delivered_stage_id: delivered,
-      }),
-    onSuccess: () => {
-      toast.success('Pipeline stages saved')
-      qc.invalidateQueries({ queryKey: ['shipments-stage-settings'] })
-    },
-    onError: () => toast.error('Failed to save pipeline stages'),
-  })
-
-  const stages: StageOption[] = data?.stages ?? []
-
-  if (isLoading) {
-    return <p className="text-sm text-slate-400">Loading…</p>
-  }
-
-  const events = [
-    { label: 'Order placed', key: 'placed', value: placed, set: setPlaced },
-    { label: 'Order shipped / in transit', key: 'shipped', value: shipped, set: setShipped },
-    { label: 'Order delivered', key: 'delivered', value: delivered, set: setDelivered },
-  ]
-
-  return (
-    <div className="space-y-5">
-      <p className="text-sm text-slate-500">
-        When your ERP pushes an order event, Yippie can automatically move the customer's kanban
-        card to a pipeline stage. Configure which stage maps to each order event below.
-        Stages are managed in the <strong>Kanban</strong> board.
-      </p>
-
-      <div className="space-y-4">
-        {events.map(ev => (
-          <div key={ev.key}>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">{ev.label}</label>
-            <StageSelect value={ev.value} stages={stages} onChange={ev.set} />
-          </div>
-        ))}
-      </div>
-
-      <button
-        onClick={() => save.mutate()}
-        disabled={save.isPending}
-        className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
-      >
-        {save.isPending ? 'Saving…' : 'Save'}
-      </button>
-    </div>
-  )
-}
+// [FLOW8] The Pipeline tab (order status → stage mapping) was removed: those
+// moves are now configured as flows on the order_received trigger.
 
 export function ShipmentSettingsModal({ onClose }: Props) {
   const [tab, setTab] = useState<Tab>('overview')
@@ -403,7 +303,6 @@ export function ShipmentSettingsModal({ onClose }: Props) {
     { id: 'overview',  label: 'How it works', icon: <Zap size={13} /> },
     { id: 'erp',       label: 'ERP webhook',  icon: <Webhook size={13} /> },
     { id: 'sendcloud', label: 'Sendcloud',     icon: <Truck size={13} /> },
-    { id: 'pipeline',  label: 'Pipeline',      icon: <GitBranch size={13} /> },
   ]
 
   return (
@@ -437,7 +336,6 @@ export function ShipmentSettingsModal({ onClose }: Props) {
           {tab === 'overview'  && <OverviewTab />}
           {tab === 'erp'       && <ErpTab />}
           {tab === 'sendcloud' && <SendcloudTab />}
-          {tab === 'pipeline'  && <PipelineTab />}
         </div>
 
         <div className="px-6 pb-5 pt-2 border-t border-slate-100">

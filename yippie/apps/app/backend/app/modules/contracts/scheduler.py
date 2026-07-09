@@ -126,6 +126,22 @@ async def contract_lifecycle_job():
                         f"Contract \"{c.title}\" with {_counterparty(c)} expires {when} "
                         f"({c.end_date.strftime('%d-%m-%Y')}) and does not auto renew.",
                     )
+                    # [FLOW7] one-shot flow event: expiry_reminder_sent_at IS the
+                    # dedup, stamped in this same transaction (outbox guarantee).
+                    from app.core.flow_events import emit_flow_event
+
+                    await emit_flow_event(
+                        db, c.tenant_id, "contract_expiring",
+                        entity_type="contract", entity_id=c.id,
+                        contact_id=c.contact_id,
+                        payload={
+                            "title": c.title,
+                            "counterparty": _counterparty(c),
+                            "days_left": days_left,
+                            "end_date": c.end_date.isoformat(),
+                            "contact_id": c.contact_id,
+                        },
+                    )
                     c.expiry_reminder_sent_at = now
                     nudged += 1
 

@@ -18,7 +18,7 @@ import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import {
   Condition, Flow, FlowRun, FlowsMeta, RUN_BADGE, Step, WEEKDAYS, apiError,
-  canAppend, findStep, graphToTree, newActionId, toGroups, treeToActions,
+  canAppend, findStep, graphToTree, groupTriggers, newActionId, toGroups, treeToActions,
 } from '../lib'
 import { ConditionRow, ConfigField, WaitConfig } from '../components/FieldInputs'
 import { nodeTypes } from './nodes'
@@ -71,7 +71,11 @@ function saveBody(draft: FlowDraft): object {
   return {
     name: draft.name.trim(),
     trigger_type: draft.trigger_type,
-    trigger_config: draft.trigger_type === 'schedule' ? draft.trigger_config : {},
+    trigger_config: {
+      ...(draft.trigger_type === 'schedule' ? draft.trigger_config : {}),
+      // [FLOW6] the chaining opt-in rides along for every trigger type
+      ...(draft.trigger_config.chainable ? { chainable: true } : {}),
+    },
     conditions: cleanGroups(draft.groups),
     actions: treeToActions(cleanSteps(draft.steps)),
     enabled: draft.enabled,
@@ -469,7 +473,11 @@ export default function FlowCanvasPage() {
                   onChange={e => { patchDraft({ trigger_type: e.target.value, groups: [] }) }}
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
-                  {meta.triggers.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                  {groupTriggers(meta.triggers).map(([group, triggers]) => (
+                    <optgroup key={group} label={group}>
+                      {triggers.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                    </optgroup>
+                  ))}
                 </select>
                 {draft.trigger_type === 'schedule' && (
                   <div className="space-y-2 pt-1">
@@ -504,6 +512,23 @@ export default function FlowCanvasPage() {
                       className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                     />
                   </div>
+                )}
+                {/* [FLOW6] schedule/webhook events are never flow-caused, so the
+                    opt-in only makes sense for mutation triggers */}
+                {draft.trigger_type !== 'schedule' && draft.trigger_type !== 'webhook' && (
+                  <label className="flex items-start gap-2 text-xs text-slate-500 cursor-pointer pt-1">
+                    <input
+                      type="checkbox"
+                      checked={!!draft.trigger_config.chainable}
+                      onChange={e => patchDraft({
+                        trigger_config: e.target.checked
+                          ? { ...draft.trigger_config, chainable: true }
+                          : Object.fromEntries(Object.entries(draft.trigger_config).filter(([k]) => k !== 'chainable')),
+                      })}
+                      className="accent-blue-600 mt-0.5"
+                    />
+                    Other flows may trigger this one (when their actions cause this event)
+                  </label>
                 )}
               </div>
             )}

@@ -3,13 +3,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   Check, ChevronDown, ChevronRight, Copy, FlaskConical, GitBranch, Pencil, Plus,
-  RefreshCw, Sparkles, Trash2, Workflow, X, Zap,
+  RefreshCw, Settings2, ShieldCheck, Sparkles, Trash2, Workflow, X, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 // [FLOW4] branched flows store a graph; the modal only edits the linear shape.
-import { FlowActions, actionNodes, isGraph } from '../lib'
+import { FlowActions, actionNodes, groupTriggers, isGraph } from '../lib'
 
 interface MetaField {
   key: string
@@ -18,15 +18,25 @@ interface MetaField {
   options?: string[]
   required?: boolean
 }
-interface MetaTrigger { key: string; label: string; fields: MetaField[]; free_fields?: boolean }
+interface MetaTrigger { key: string; label: string; fields: MetaField[]; free_fields?: boolean; module?: string | null }
 interface MetaAction { key: string; label: string; config_fields: MetaField[] }
 interface MetaOption { id: string; name: string }
+// [FLOW8] a built-in platform automation surfaced on the Flows page (read-only).
+interface Builtin {
+  key: string
+  name: string
+  description: string
+  module: string | null
+  cadence: string
+  settings_path?: string
+}
 interface FlowsMeta {
   triggers: MetaTrigger[]
   actions: MetaAction[]
   users: MetaOption[]
   stages: MetaOption[]
   templates: MetaOption[]
+  builtins: Builtin[]
 }
 interface Condition { field: string; op: string; value: any }
 interface Action { type: string; config: Record<string, any> }
@@ -285,6 +295,8 @@ function BuilderModal({
       ? flow.trigger_config
       : { frequency: 'daily', time: '09:00' }
   )
+  // [FLOW6] per-flow opt-in: may flow-caused events trigger this flow?
+  const [chainable, setChainable] = useState(!!flow?.trigger_config?.chainable)
   // [FLOW4] a branched flow's graph can't be edited here — openEdit routes those
   // to the canvas; this fallback guards direct paths (duplicate, install).
   const branched = flow ? isGraph(flow.actions) : false
@@ -319,7 +331,10 @@ function BuilderModal({
     const body = {
       name: name.trim(),
       trigger_type: triggerType,
-      trigger_config: triggerType === 'schedule' ? triggerConfig : {},
+      trigger_config: {
+        ...(triggerType === 'schedule' ? triggerConfig : {}),
+        ...(chainable ? { chainable: true } : {}),
+      },
       conditions,
       actions,
       enabled,
@@ -453,7 +468,11 @@ function BuilderModal({
               onChange={e => { setTriggerType(e.target.value); setGroups([]) }}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              {meta.triggers.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+              {groupTriggers(meta.triggers).map(([group, triggers]) => (
+                <optgroup key={group} label={group}>
+                  {triggers.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                </optgroup>
+              ))}
             </select>
             {triggerType === 'schedule' && (
               <div className="flex items-center gap-2 flex-wrap pt-1">
@@ -489,6 +508,19 @@ function BuilderModal({
               </div>
             )}
             {triggerType === 'webhook' && <WebhookPanel flowId={flow?.id} />}
+            {/* [FLOW6] schedule/webhook events are never flow-caused, so the
+                opt-in only makes sense for mutation triggers */}
+            {triggerType !== 'schedule' && triggerType !== 'webhook' && (
+              <label className="flex items-center gap-2 text-xs text-slate-500 cursor-pointer pt-1">
+                <input
+                  type="checkbox"
+                  checked={chainable}
+                  onChange={e => setChainable(e.target.checked)}
+                  className="accent-blue-600"
+                />
+                Other flows may trigger this one (when their actions cause this event)
+              </label>
+            )}
           </div>
 
           {/* If */}
@@ -782,6 +814,44 @@ function TestFireModal({
   )
 }
 
+/* ------------------------------------------------ [FLOW8] platform automations */
+
+// Read-only grid of the always-on automations Yippie runs for the tenant. Shown
+// to admins AND members — it's informational, nothing here is editable.
+function PlatformAutomations({ builtins }: { builtins: Builtin[] }) {
+  if (!builtins || builtins.length === 0) return null
+  return (
+    <div className="mt-8">
+      <div className="flex items-center gap-2 mb-1">
+        <ShieldCheck size={15} className="text-slate-400" />
+        <h2 className="text-base font-semibold text-slate-900">Platform automations</h2>
+      </div>
+      <p className="text-sm text-slate-500 mb-3">What Yippie already does for you automatically.</p>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        {builtins.map(b => (
+          <div key={b.key} className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold text-slate-800">{b.name}</p>
+              <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">
+                {b.cadence}
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 mt-1 flex-1">{b.description}</p>
+            {b.settings_path && (
+              <Link
+                to={b.settings_path}
+                className="mt-3 self-start inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
+              >
+                <Settings2 size={12} /> Configure
+              </Link>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 /* -------------------------------------------------------------------- page */
 
 export default function FlowsPage() {
@@ -1011,6 +1081,8 @@ export default function FlowsPage() {
           ))}
         </div>
       </div>
+
+      {meta && <PlatformAutomations builtins={meta.builtins} />}
 
       {builderOpen && meta && (
         <BuilderModal

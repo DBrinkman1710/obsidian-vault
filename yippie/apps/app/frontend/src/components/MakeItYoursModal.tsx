@@ -6,30 +6,36 @@ import { api } from '../api/client'
 const DEFAULT_COLOR = '#5BA4F5'
 
 interface Props {
+  tenantId?: string | null
   initialColor?: string | null
   initialLogoUrl?: string | null
-  onComplete: () => void
   onDismiss: () => void
 }
 
 /** Endowment / IKEA-effect onboarding gate: the more of themselves a user puts
  * into the workspace, the more they value it. Picks a brand colour and an
  * optional logo, reusing the existing PATCH /team/branding endpoint. */
-export default function MakeItYoursModal({ initialColor, initialLogoUrl, onComplete, onDismiss }: Props) {
+export default function MakeItYoursModal({ tenantId, initialColor, initialLogoUrl, onDismiss }: Props) {
   const [color, setColor] = useState(initialColor || DEFAULT_COLOR)
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl || '')
+  // Track the load failure in state (not by mutating the img's style) so the
+  // preview reappears the moment a broken URL is corrected.
+  const [logoError, setLogoError] = useState(false)
 
   const mutation = useMutation({
     mutationFn: () => api.patch('/team/branding', { primary_color: color, logo_url: logoUrl.trim() }),
     onSuccess: () => {
+      // Mark the checklist gate done even when the tenant deliberately keeps the
+      // default colour and no logo — saving is the completion signal. Survives
+      // the reload below (which tears the SPA down, so nothing runs after it).
+      if (tenantId) localStorage.setItem(`made_it_yours_${tenantId}`, '1')
       // Reload so the new brand colour and logo apply across the shell, and the
-      // checklist re-reads the tenant config to mark this gate complete.
+      // checklist re-reads the tenant config.
       window.location.reload()
-      onComplete()
     },
   })
 
-  const previewOk = logoUrl.trim().length > 0
+  const previewOk = logoUrl.trim().length > 0 && !logoError
 
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
@@ -78,7 +84,7 @@ export default function MakeItYoursModal({ initialColor, initialLogoUrl, onCompl
             <div className="flex items-center gap-3">
               <input
                 value={logoUrl}
-                onChange={e => setLogoUrl(e.target.value)}
+                onChange={e => { setLogoUrl(e.target.value); setLogoError(false) }}
                 placeholder="https://yourbrand.com/logo.png"
                 className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               />
@@ -87,7 +93,7 @@ export default function MakeItYoursModal({ initialColor, initialLogoUrl, onCompl
                   src={logoUrl.trim()}
                   alt="Logo preview"
                   className="h-10 w-10 rounded-lg object-contain border border-slate-200 bg-slate-50 shrink-0"
-                  onError={e => { (e.currentTarget as HTMLImageElement).style.visibility = 'hidden' }}
+                  onError={() => setLogoError(true)}
                 />
               )}
             </div>

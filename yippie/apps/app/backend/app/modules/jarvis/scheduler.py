@@ -20,7 +20,6 @@ log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 DEFAULT_BRIEFING_TIME = "08:00"
-SLA_NUDGE_WINDOW_MIN = 60
 
 # Reminders only carry dismissed_at, so a delivered-but-undismissed reminder would
 # re-fire every minute. Track what we've already pushed this process to fire once.
@@ -177,53 +176,10 @@ async def yip_briefing_job(force_user_email: str | None = None):
         log.exception("[yip_briefing] job failed")
 
 
-# ---------------------------------------------------------------------------
-# [YIP5] SLA near breach nudge — toast when a ticket's SLA lands within the
-# next hour. sla_nudged_at makes it one nudge per ticket, restart proof; it is
-# only set once the toast actually reached an online agent (same retry
-# semantics as the reminder job).
-# ---------------------------------------------------------------------------
-
-@scheduler.scheduled_job("interval", minutes=10, id="yip_sla_nudge", max_instances=1, coalesce=True)
-async def yip_sla_nudge_job():
-    from app.modules.tickets.models import Ticket, TicketStatus
-
-    now = datetime.now(timezone.utc)
-    try:
-        async with db_session() as db:
-            await db.execute(text("SET LOCAL row_security = off"))
-            result = await db.execute(
-                select(Ticket).where(
-                    Ticket.sla_due_at > now,
-                    Ticket.sla_due_at <= now + timedelta(minutes=SLA_NUDGE_WINDOW_MIN),
-                    Ticket.status.in_((TicketStatus.open, TicketStatus.in_progress)),
-                    Ticket.deleted_at.is_(None),
-                    Ticket.sla_nudged_at.is_(None),
-                )
-            )
-            tickets = result.scalars().all()
-            nudged = 0
-            for t in tickets:
-                due_in = max(1, int((t.sla_due_at - now).total_seconds() // 60))
-                delivered = await manager.broadcast_to_agents(
-                    str(t.tenant_id),
-                    {
-                        "event": "jarvis_sla_nudge",
-                        "type": "jarvis_sla_nudge",
-                        "ticket_id": str(t.id),
-                        "user_id": str(t.assigned_to) if t.assigned_to else None,
-                        "subject": t.subject,
-                        "due_in_minutes": due_in,
-                    },
-                )
-                if delivered:
-                    t.sla_nudged_at = now
-                    nudged += 1
-            await db.commit()
-        if nudged:
-            log.info("[yip_sla_nudge] nudged %d ticket(s)", nudged)
-    except Exception:
-        log.exception("[yip_sla_nudge] job failed")
+# [YIP5]'s SLA near breach nudge job was retired in [FLOW8]: the notification is
+# now the default flow "Notify the assigned agent before SLA breach" (trigger
+# ticket_sla_due_soon), so tenants can edit or disable it. The sla_nudged_at
+# column is left in place (no DDL) — harmless, and dropping it is out of scope.
 
 
 # ---------------------------------------------------------------------------

@@ -27,11 +27,9 @@ class CalendarSettings(Base):
     booking_window_days: Mapped[int] = mapped_column(
         Integer, nullable=False, default=60, server_default="60"
     )
-    post_booking_stage_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
-        ForeignKey("pipeline_stages.id", ondelete="SET NULL"),
-        nullable=True,
-    )
+    # [FLOW8] post_booking_stage_id removed — the global post-booking stage move
+    # is now a flow on the booking_created trigger. Column dropped by migration
+    # flows8_builtin_migration.
     weekly_slots: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     use_weekly_slots: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"

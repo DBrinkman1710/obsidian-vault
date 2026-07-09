@@ -20,9 +20,6 @@ from app.modules.shipments.schemas import (
     ShipmentDetail,
     ShipmentOut,
     ShipmentUpdate,
-    StageOption,
-    StageSettingsOut,
-    StageSettingsUpdate,
     WebhookSettingsOut,
 )
 
@@ -307,65 +304,14 @@ async def get_sendcloud_settings(
     )
 
 
-def _resolve_order_stage(tenant, status: ShipmentStatus) -> uuid.UUID | None:
-    """Map an order status to the tenant's configured pipeline stage ID, or None."""
-    if status == ShipmentStatus.registered:
-        return tenant.order_placed_stage_id
-    if status in (ShipmentStatus.in_transit, ShipmentStatus.out_for_delivery):
-        return tenant.order_shipped_stage_id
-    if status == ShipmentStatus.delivered:
-        return tenant.order_delivered_stage_id
-    return None
-
-
-async def get_stage_settings(db: AsyncSession, tenant_id: uuid.UUID) -> StageSettingsOut:
-    from app.core.models import Tenant
-    from app.modules.pipeline.models import PipelineStage
-    from sqlalchemy import select
-
-    tenant = await db.get(Tenant, tenant_id)
-    stages_result = await db.scalars(
-        select(PipelineStage)
-        .where(PipelineStage.tenant_id == tenant_id)
-        .order_by(PipelineStage.display_order)
-    )
-    stages = [StageOption(id=s.id, name=s.name, color=s.color) for s in stages_result]
-    return StageSettingsOut(
-        order_placed_stage_id=tenant.order_placed_stage_id if tenant else None,
-        order_shipped_stage_id=tenant.order_shipped_stage_id if tenant else None,
-        order_delivered_stage_id=tenant.order_delivered_stage_id if tenant else None,
-        stages=stages,
-    )
-
-
-async def update_stage_settings(
-    db: AsyncSession, tenant_id: uuid.UUID, body: StageSettingsUpdate
-) -> StageSettingsOut:
-    from app.core.models import Tenant
-
-    tenant = await db.get(Tenant, tenant_id)
-    if not tenant:
-        raise LookupError("Tenant not found")
-
-    fields = body.model_dump(exclude_unset=True)
-    for key, value in fields.items():
-        setattr(tenant, key, value)
-    await db.flush()
-    await db.commit()
-
-    return await get_stage_settings(db, tenant_id)
-
-
 async def handle_erp_order_webhook(
     db: AsyncSession,
     tenant_id: uuid.UUID,
     payload: ErpOrderPayload,
 ) -> None:
-    from app.core.models import Tenant
     from app.database import set_tenant_context
     from app.modules.contacts.models import Contact
     from app.modules.contacts.service import _normalize_phone
-    from app.modules.pipeline import service as pipeline_service
 
     await set_tenant_context(db, str(tenant_id))
 
@@ -440,24 +386,28 @@ async def handle_erp_order_webhook(
 
     await db.flush()
 
-    # Move contact's pipeline card to the configured stage for this order status.
-    # Skipped when a human explicitly placed the contact in a stage — their intent takes priority.
-    if contact_id:
-        tenant = await db.get(Tenant, tenant_id)
-        stage_id = _resolve_order_stage(tenant, payload.status)
-        if stage_id:
-            try:
-                from app.modules.pipeline.models import ContactPipelineEntry
-                existing_entry = await db.scalar(
-                    select(ContactPipelineEntry).where(
-                        ContactPipelineEntry.contact_id == contact_id,
-                        ContactPipelineEntry.tenant_id == tenant_id,
-                    )
-                )
-                if existing_entry is None or not existing_entry.moved_by_human:
-                    await pipeline_service._assign_stage(db, tenant_id, contact_id, stage_id)
-            except Exception:
-                log.exception("Pipeline stage move failed for contact %s", contact_id)
+    # [FLOW7] order received from the ERP — same transaction as the shipment write.
+    from app.core.flow_events import emit_flow_event
+
+    await emit_flow_event(
+        db, tenant_id, "order_received",
+        entity_type="shipment", entity_id=shipment.id,
+        contact_id=contact_id,
+        payload={
+            "order_number": payload.order_number,
+            "status": payload.status.value if hasattr(payload.status, "value") else payload.status,
+            "carrier": payload.carrier,
+            "tracking_number": payload.tracking_number,
+            "contact_id": contact_id,
+        },
+    )
+
+    # [FLOW8] the hardcoded order-status → pipeline stage move (and its
+    # moved_by_human guard) was retired. Tenants now wire this via flows on the
+    # order_received trigger with a status condition + move contact to stage. The
+    # migration backfilled one such flow per previously-configured stage column.
+    # NOTE: flows semantics apply now — a flow-driven move has no moved_by_human
+    # guard, so it will move the contact even if a human placed them in a stage.
 
 
 async def get_erp_webhook_settings(

@@ -761,7 +761,6 @@ async def meet_book(
     from app.modules.booking import service as booking_service
     from app.modules.calendar.models import CalendarEvent
     from app.modules.contacts.models import Contact
-    from app.modules.pipeline.service import _assign_stage
 
     ip = get_client_ip(request)
     await _public_rate_limit(ip, "meet_book", 10)
@@ -861,8 +860,9 @@ async def meet_book(
     )
     db.add(event)
 
-    if settings.post_booking_stage_id is not None:
-        await _assign_stage(db, tenant.id, contact.id, settings.post_booking_stage_id)
+    # [FLOW8] the global post-booking stage move was retired here — it's now a
+    # flow on the booking_created trigger. This public booking path does not emit
+    # that event, so it no longer moves the contact's pipeline stage.
 
     await db.commit()
     await db.refresh(event)
@@ -1520,6 +1520,8 @@ async def track_events(
 
     # Write events
     await set_tenant_context(db, str(tenant.id))
+    from app.core.flow_events import emit_flow_event
+
     for ev in body.events:
         db.add(SaasEvent(
             tenant_id=tenant.id,
@@ -1531,6 +1533,18 @@ async def track_events(
             session_id=ev.session_id,
             sdk_version=ev.sdk_version,
         ))
+        # [FLOW7] a tracked signup fires the saas_signup flow trigger.
+        if ev.event_type == "signup":
+            await emit_flow_event(
+                db, tenant.id, "saas_signup",
+                entity_type="saas_event",
+                contact_id=contact_id,
+                payload={
+                    "anonymous_id": body.anonymous_id,
+                    "email": body.contact_email,
+                    "contact_id": contact_id,
+                },
+            )
 
     await db.commit()
     return {"ok": True, "ingested": len(body.events)}

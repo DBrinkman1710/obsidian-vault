@@ -33,11 +33,14 @@ export default function SetupChecklist() {
 
   const isAdmin = user?.role === 'admin'
 
-  // Branding is "made yours" once the colour differs from the platform default
-  // or a logo has been set.
+  // Branding is "made yours" once the colour differs from the platform default,
+  // a logo has been set, or the user explicitly saved their branding at least
+  // once (marked in localStorage on save so a tenant who deliberately keeps the
+  // default blue with no logo can still complete the gate).
   const brandingCustomised =
     (!!config?.branding?.primary_color && config.branding.primary_color.toLowerCase() !== DEFAULT_BRAND_COLOR.toLowerCase())
     || !!config?.branding?.logo_url
+    || (!!config?.tenant_id && localStorage.getItem(`made_it_yours_${config.tenant_id}`) === '1')
 
   const teamQuery = useQuery({
     queryKey: ['setup-team-count'],
@@ -215,9 +218,9 @@ export default function SetupChecklist() {
 
     {showMakeItYours && (
       <MakeItYoursModal
+        tenantId={config?.tenant_id ?? null}
         initialColor={config?.branding?.primary_color}
         initialLogoUrl={config?.branding?.logo_url}
-        onComplete={() => setShowMakeItYours(false)}
         onDismiss={() => setShowMakeItYours(false)}
       />
     )}

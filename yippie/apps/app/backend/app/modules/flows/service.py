@@ -24,6 +24,65 @@ from app.modules.flows.schemas import (
 _FAIL_STATUSES = ("failed", "partial")
 
 
+# [FLOW8] The two universal default flows every tenant gets — replacements for the
+# retired Yip SLA nudge (B1) and the SLA escalation job (B2). Installed for every
+# existing tenant by the FLOW8 migration and for every new tenant by seed.py /
+# create_tenant. Kept as plain dicts so the migration (raw SQL) and the tests can
+# reuse the exact same shapes. tickets is a paid add-on, but a tenant without it
+# simply never receives ticket_sla_due_soon events — the flow stays inert, so it's
+# safe to install unconditionally.
+DEFAULT_FLOWS: list[dict] = [
+    {
+        "name": "Notify the assigned agent before SLA breach",
+        "trigger_type": "ticket_sla_due_soon",
+        "conditions": [],
+        "actions": [
+            {"type": "notify_user", "config": {
+                "recipient": "assigned agent",
+                "message": 'Ticket "{subject}" SLA is due in {due_in_minutes} minutes.',
+            }},
+        ],
+    },
+    {
+        "name": "Escalate tickets before SLA breach",
+        "trigger_type": "ticket_sla_due_soon",
+        "conditions": [],
+        "actions": [
+            {"type": "update_ticket", "config": {"priority": "urgent"}},
+        ],
+    },
+]
+
+
+async def install_default_flows(db: AsyncSession, tenant_id: uuid.UUID) -> int:
+    """Idempotently install the two universal default flows for a tenant. A flow
+    is created only when the tenant has no flow of that name yet, so re-running is
+    safe. Returns how many were newly created."""
+    from app.modules.flows.schemas import ActionSpec
+
+    existing = set((await db.scalars(
+        select(Flow.name).where(Flow.tenant_id == tenant_id)
+    )).all())
+    created = 0
+    for spec in DEFAULT_FLOWS:
+        if spec["name"] in existing:
+            continue
+        db.add(Flow(
+            tenant_id=tenant_id,
+            name=spec["name"],
+            enabled=True,
+            trigger_type=spec["trigger_type"],
+            conditions=spec["conditions"],
+            actions=[ActionSpec(**a).model_dump() for a in spec["actions"]],
+            trigger_config={},
+            created_by=None,
+        ))
+        created += 1
+    if created:
+        await db.commit()
+    return created
+
+
 class FlowValidationError(ValueError):
     """Raised when a flow can't be enabled (incomplete config, dangling ids,
     module not available). Draft (disabled) flows may be incomplete."""
@@ -38,18 +97,25 @@ def _normalize_trigger_config(trigger_type: str, raw: Optional[dict], *, enabled
     """The stored trigger_config: {} for every trigger except `schedule`, whose
     config is validated (and its weekday normalized) through ScheduleConfigSpec.
     A disabled schedule flow may still be saved with an empty config (draft);
-    enabling one requires a valid schedule."""
-    if trigger_type != "schedule":
-        return {}
+    enabling one requires a valid schedule.
+
+    [FLOW6] `chainable: true` survives normalization for every trigger type —
+    it's the per-flow opt-in that lets flow-caused events fire this flow."""
     raw = raw or {}
-    if not enabled and not raw:
-        return {}
-    try:
-        return ScheduleConfigSpec(**raw).model_dump()
-    except ValidationError:
-        raise FlowValidationError(
-            "This schedule needs a valid time (HH:MM); a weekly schedule also needs a weekday"
-        )
+    chainable = bool(raw.get("chainable"))
+    out: dict = {}
+    if trigger_type == "schedule":
+        schedule_raw = {k: v for k, v in raw.items() if k != "chainable"}
+        if enabled or schedule_raw:
+            try:
+                out = ScheduleConfigSpec(**schedule_raw).model_dump()
+            except ValidationError:
+                raise FlowValidationError(
+                    "This schedule needs a valid time (HH:MM); a weekly schedule also needs a weekday"
+                )
+    if chainable:
+        out["chainable"] = True
+    return out
 
 
 async def list_flows(db: AsyncSession, tenant_id: uuid.UUID) -> list[Flow]:
@@ -132,6 +198,15 @@ async def _validate_enabled(
             if not config.get(key):
                 # send_email accepts a template instead of a literal body/subject pair
                 if action_type == "send_email" and key == "subject" and config.get("template_id"):
+                    continue
+                # [FLOW8] notify_user to the "assigned agent" resolves its target
+                # from the event, so no user_id needs to be picked (mirrors the
+                # send_email template exception above).
+                if (
+                    action_type == "notify_user"
+                    and key == "user_id"
+                    and config.get("recipient") == "assigned agent"
+                ):
                     continue
                 raise FlowValidationError(
                     f"'{ACTION_META[action_type]['label']}' is missing its '{key}' setting"
@@ -330,6 +405,10 @@ async def build_meta(db: AsyncSession, tenant: Tenant) -> dict:
         {
             "key": key,
             "label": meta["label"],
+            # [FLOW7] the emitting module — the picker groups triggers by it. The
+            # explicit key construction keeps fetch_fields/example_payload out of
+            # the API response.
+            "module": meta["module"],
             "fields": meta["fields"],
             # [FLOW5] webhook payload keys are unknown at build time — the builder
             # renders a free-text field name input when this is set.
@@ -373,12 +452,16 @@ async def build_meta(db: AsyncSession, tenant: Tenant) -> dict:
         )
         templates = [{"id": str(tid), "name": name} for tid, name in templates_result.all()]
 
+    # [FLOW8] the always-on platform automations, filtered to the tenant's modules.
+    from app.modules.flows.builtins import builtins_for
+
     return {
         "triggers": triggers,
         "actions": actions,
         "users": users,
         "stages": stages,
         "templates": templates,
+        "builtins": builtins_for(enabled_modules),
     }
 
 

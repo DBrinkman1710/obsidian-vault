@@ -119,6 +119,12 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
     from app.modules.rbac.service import provision_default_rbac_roles
     await provision_default_rbac_roles(db, tenant.id)
 
+    # [FLOW8] install the two universal default flows (SLA notify + escalate)
+    # so every tenant starts with the SLA automations the platform used to run
+    # as hardcoded jobs. Idempotent.
+    from app.modules.flows.service import install_default_flows
+    await install_default_flows(db, tenant.id)
+
     for email in invites:
         full_name = data.admin_full_name if email == data.admin_email else "Admin"
         try:

@@ -71,6 +71,12 @@ ACTION_META: dict[str, dict] = {
         "label": "Notify a team member",
         "module": None,
         "config_fields": [
+            # [FLOW8] recipient picks WHO gets the reminder. "assigned agent"
+            # resolves the target from the event's assigned_to at run time (so a
+            # single flow notifies whoever owns the ticket); "specific user"
+            # falls back to the user_id below.
+            {"key": "recipient", "label": "Send to", "type": "select",
+             "options": ["specific user", "assigned agent"]},
             {"key": "user_id", "label": "Team member", "type": "user_select", "required": True},
             {"key": "message", "label": "Message", "type": "textarea", "required": True},
         ],
@@ -200,7 +206,15 @@ async def _act_move_pipeline_stage(db: AsyncSession, tenant: Tenant, event: dict
 
 
 async def _act_notify_user(db: AsyncSession, tenant: Tenant, event: dict, config: dict) -> dict:
-    user_id = uuid.UUID(config["user_id"])
+    # [FLOW8] "assigned agent" resolves the recipient from the event's
+    # assigned_to at run time; otherwise the configured user_id is used.
+    if config.get("recipient") == "assigned agent":
+        assignee = event.get("fields", {}).get("assigned_to")
+        if not assignee:
+            return _skip("Ticket has no assigned agent")
+        user_id = uuid.UUID(str(assignee))
+    else:
+        user_id = uuid.UUID(config["user_id"])
     exists = await db.scalar(
         select(User.id).where(User.id == user_id, User.tenant_id == tenant.id)
     )

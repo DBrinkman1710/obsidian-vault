@@ -305,8 +305,11 @@ export default function App() {
     if (!limit) return
     const pct = Math.round((config.ai_scans_used_this_period / limit) * 100)
     if (pct < 90) return
-    if (sessionStorage.getItem('ai_usage_warned')) return
-    sessionStorage.setItem('ai_usage_warned', '1')
+    // Scope the once-per-session flag to the tenant so a superadmin switching
+    // tenants still gets the warning for each one.
+    const warnedKey = `ai_usage_warned_${config.tenant_id}`
+    if (sessionStorage.getItem(warnedKey)) return
+    sessionStorage.setItem(warnedKey, '1')
     toast.warning(`You’ve used ${Math.min(100, pct)}% of your AI scans this month`, {
       description: 'When they run out, incoming messages stop getting auto-drafted until next month.',
       duration: 8000,

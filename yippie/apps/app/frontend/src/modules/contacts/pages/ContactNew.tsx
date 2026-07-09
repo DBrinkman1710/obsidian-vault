@@ -1,10 +1,11 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams, Link } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft } from 'lucide-react'
 import { api } from '../../../api/client'
 import { LabelPicker } from '../components/LabelChip'
 import { CompanyPicker } from '../components/CompanyPicker'
+import { fetchCompanies } from '../components/CompanyBadge'
 
 interface FormState {
   full_name: string
@@ -27,6 +28,16 @@ export default function ContactNew() {
   const [companyId, setCompanyId] = useState<string | null>(searchParams.get('company'))
   const [labelIds, setLabelIds] = useState<string[]>([])
   const [errors, setErrors] = useState<Partial<FormState>>({})
+
+  // The ?company= param is untrusted (hand-editable URL). Once the tenant's
+  // companies load, drop a seeded id that isn't one of them so we never submit
+  // a company that doesn't belong to this tenant. Shares CompanyPicker's query.
+  const { data: companies } = useQuery({ queryKey: ['companies'], queryFn: fetchCompanies })
+  useEffect(() => {
+    if (companyId && companies && !companies.some((c: any) => c.id === companyId)) {
+      setCompanyId(null)
+    }
+  }, [companies, companyId])
 
   const set = (field: keyof FormState) => (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
