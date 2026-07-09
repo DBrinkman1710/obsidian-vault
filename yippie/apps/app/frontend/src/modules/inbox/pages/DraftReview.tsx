@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { X, Paperclip, Sparkles, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react'
+import { X, Paperclip, Sparkles, ArrowLeft, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
@@ -1693,24 +1693,31 @@ export default function DraftReview() {
 
       {/* Undo send floating bar */}
       {undoUntil && (
-        <div className="fixed bottom-5 right-5 z-50 bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 w-72">
-          <div className="flex items-center justify-between mb-3">
-            <div>
-              <p className="font-bold text-slate-900 text-sm">Yippie</p>
-              <p className="text-xs text-slate-400">email sent</p>
+        <div className="fixed bottom-5 right-5 z-50 w-72 animate-slide-up">
+          <div className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden">
+            <div className="flex items-center gap-3 px-4 pt-4 pb-3">
+              <div className="shrink-0 animate-pop-in">
+                <div className="w-9 h-9 rounded-full bg-emerald-50 flex items-center justify-center">
+                  <CheckCircle size={18} className="text-emerald-500" />
+                </div>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-slate-900 leading-tight">Email sent</p>
+                <p className="text-xs text-slate-400 truncate mt-0.5">Sending to your customer…</p>
+              </div>
+              <button
+                onClick={handleUndoSend}
+                className="shrink-0 px-3 py-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
+              >
+                Undo
+              </button>
             </div>
-            <button
-              onClick={handleUndoSend}
-              className="px-3 py-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
-            >
-              Undo
-            </button>
-          </div>
-          <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-yippie rounded-full"
-              style={{ width: `${undoProgress}%`, transition: 'width 0.1s linear' }}
-            />
+            <div className="w-full h-1 bg-slate-100">
+              <div
+                className="h-full bg-emerald-400 rounded-full transition-all"
+                style={{ width: `${undoProgress}%`, transition: 'width 0.1s linear' }}
+              />
+            </div>
           </div>
         </div>
       )}

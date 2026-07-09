@@ -35,6 +35,8 @@ export default {
       animation: {
         'msg-enter': 'msg-enter 0.15s ease-out',
         'slide-in-right': 'slide-in-right 0.22s cubic-bezier(0.22,1,0.36,1)',
+        'slide-up': 'slide-up 0.3s cubic-bezier(0.22,1,0.36,1)',
+        'pop-in': 'pop-in 0.35s cubic-bezier(0.34,1.56,0.64,1)',
       },
       keyframes: {
         'msg-enter': {
@@ -44,6 +46,14 @@ export default {
         'slide-in-right': {
           '0%': { transform: 'translateX(100%)' },
           '100%': { transform: 'translateX(0)' },
+        },
+        'slide-up': {
+          '0%': { opacity: '0', transform: 'translateY(16px) scale(0.97)' },
+          '100%': { opacity: '1', transform: 'translateY(0) scale(1)' },
+        },
+        'pop-in': {
+          '0%': { opacity: '0', transform: 'scale(0.6)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
         },
       },
       boxShadow: {

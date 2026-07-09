@@ -54,7 +54,7 @@ const MODULE_LABELS: Record<string, string> = {
 export default function SubscriptionPage() {
   const config = useTenantConfig()
   const location = useLocation()
-  const [interval, setInterval] = useState<'monthly' | 'annual'>('monthly')
+  const [interval, setInterval] = useState<'monthly' | 'annual'>('annual')
   const [loading, setLoading] = useState<string | null>(null)
 
   const checkoutSuccess = new URLSearchParams(location.search).get('checkout') === 'success'
