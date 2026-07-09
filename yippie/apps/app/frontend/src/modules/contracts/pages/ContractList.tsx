@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, FileSignature, FileText, LayoutTemplate, Link2, PenLine, Plus, RefreshCw, Search, Trash2, X, Upload, Download, ChevronDown, Paperclip } from 'lucide-react'
+import { CalendarClock, FileSignature, FileText, LayoutTemplate, Link2, PenLine, Plus, RefreshCw, Search, Trash2, Upload, Download, ChevronDown, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'

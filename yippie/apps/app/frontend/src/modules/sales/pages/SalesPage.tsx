@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '../../../api/client'
-import { Clock, Eye, Percent, Settings, ShoppingCart, TrendingUp } from 'lucide-react'
+import { Clock, Settings, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../../auth/useAuth'
 import { SalesSettingsModal } from './SalesSettingsModal'
 import { Sparkline } from '../../../shell/Sparkline'
