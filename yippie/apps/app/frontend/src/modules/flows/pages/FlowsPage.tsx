@@ -2,62 +2,22 @@ import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link, useNavigate } from 'react-router-dom'
 import {
-  Check, ChevronDown, ChevronRight, Copy, FlaskConical, GitBranch, Pencil, Plus,
+  Check, ChevronDown, ChevronRight, Copy, FlaskConical, GitBranch, MoreVertical, Pencil, Plus,
   RefreshCw, Settings2, ShieldCheck, Sparkles, Trash2, Workflow, X, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
+import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 // [FLOW4] branched flows store a graph; the modal only edits the linear shape.
-import { FlowActions, actionNodes, groupTriggers, isGraph } from '../lib'
+// Types + shared helpers live in ../lib (single source, also used by the canvas).
+import {
+  Action, Builtin, Condition, Flow, FlowRun, FlowsMeta, MetaField, MetaOption,
+  OP_LABELS, RUN_BADGE, WAIT_UNITS, WEEKDAYS,
+  actionLabel, actionNodes, apiError, groupTriggers, isGraph, toGroups, triggerLabel,
+} from '../lib'
 
-interface MetaField {
-  key: string
-  label: string
-  type: string
-  options?: string[]
-  required?: boolean
-}
-interface MetaTrigger { key: string; label: string; fields: MetaField[]; free_fields?: boolean; module?: string | null }
-interface MetaAction { key: string; label: string; config_fields: MetaField[] }
-interface MetaOption { id: string; name: string }
-// [FLOW8] a built-in platform automation surfaced on the Flows page (read-only).
-interface Builtin {
-  key: string
-  name: string
-  description: string
-  module: string | null
-  cadence: string
-  settings_path?: string
-}
-interface FlowsMeta {
-  triggers: MetaTrigger[]
-  actions: MetaAction[]
-  users: MetaOption[]
-  stages: MetaOption[]
-  templates: MetaOption[]
-  builtins: Builtin[]
-}
-interface Condition { field: string; op: string; value: any }
-interface Action { type: string; config: Record<string, any> }
-interface Flow {
-  id: string
-  name: string
-  enabled: boolean
-  // [FLOW9] Yippie installed showcase flow: view only (duplicate to customise),
-  // deletable, exempt from the plan's active flow cap.
-  is_default: boolean
-  trigger_type: string
-  trigger_config: Record<string, any>
-  conditions: Condition[] | Condition[][]  // flat (legacy) or grouped OR-of-AND
-  actions: FlowActions // linear list, or the [FLOW4] graph once branched
-  run_count: number
-  success_count: number
-  fail_count: number
-  last_run_at: string | null
-  created_at: string
-}
 interface TestFireResult {
   trigger_type: string
   sample_event: Record<string, any>
@@ -66,16 +26,6 @@ interface TestFireResult {
     type: string; label: string; detail: string
     would_run: boolean; reason: string | null
   }[]
-}
-interface FlowRun {
-  id: string
-  status: string
-  results: {
-    type: string; ok: boolean; skipped: boolean; summary: string
-    attempts?: number; pending_retry?: boolean
-  }[]
-  error: string | null
-  created_at: string
 }
 interface Recipe {
   key: string
@@ -86,47 +36,7 @@ interface Recipe {
   actions: Action[]
 }
 
-const OP_LABELS: Record<string, string> = {
-  equals: 'is',
-  not_equals: 'is not',
-  contains: 'contains',
-  in: 'is any of',
-  gte: 'is at least',
-  lte: 'is at most',
-}
-
-const RUN_BADGE: Record<string, string> = {
-  success: 'bg-emerald-100 text-emerald-700',
-  partial: 'bg-amber-100 text-amber-700',
-  failed: 'bg-red-100 text-red-700',
-  waiting: 'bg-blue-100 text-blue-700',
-  skipped: 'bg-slate-100 text-slate-500',
-}
-
 const RUN_STATUS_FILTERS = ['success', 'partial', 'failed', 'waiting', 'skipped']
-
-const WAIT_UNITS = ['minutes', 'hours', 'days']
-const WEEKDAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
-
-function apiError(err: any): string {
-  const detail = err?.response?.data?.detail
-  return typeof detail === 'string' ? detail : 'Save failed'
-}
-
-function triggerLabel(meta: FlowsMeta | undefined, key: string): string {
-  return meta?.triggers.find(t => t.key === key)?.label ?? key
-}
-
-function actionLabel(meta: FlowsMeta | undefined, key: string): string {
-  return meta?.actions.find(a => a.key === key)?.label ?? key
-}
-
-// Conditions are stored as OR-of-AND groups [[A,B],[C]]; a legacy flat list
-// [A,B] is one group. Normalize either shape to grouped for rendering/counting.
-function toGroups(raw: any[]): Condition[][] {
-  if (!raw || raw.length === 0) return []
-  return Array.isArray(raw[0]) ? (raw as Condition[][]) : [raw as Condition[]]
-}
 
 function flowSummary(meta: FlowsMeta | undefined, flow: Flow): string {
   const when = `When ${triggerLabel(meta, flow.trigger_type).toLowerCase()}`
@@ -944,15 +854,30 @@ export default function FlowsPage() {
   }
   function openNew() { setEditingFlow(null); setBuilderOpen(true) }
 
+  const ctx = useContextMenu()
+
+  function rowMenuItems(flow: Flow) {
+    return [
+      { label: 'Open canvas', icon: <Workflow size={13} />, onClick: () => navigate(`/flows/${flow.id}`) },
+      ...(isAdmin ? [
+        { label: 'Test fire (dry run)', icon: <FlaskConical size={13} />, onClick: () => setTestingFlow(flow) },
+        ...(!flow.is_default ? [{ label: 'Edit', icon: <Pencil size={13} />, onClick: () => openEdit(flow) }] : []),
+        { label: 'Duplicate', icon: <Copy size={13} />, onClick: () => duplicateMut.mutate(flow.id) },
+        { separator: true as const },
+        { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${flow.name}"?`)) deleteMut.mutate(flow.id) } },
+      ] : []),
+    ]
+  }
+
   // [FLOW9] enabled, non default flows count against the plan cap
   const activeCount = flows.filter(f => f.enabled && !f.is_default).length
   const atCap = flowLimit != null && activeCount >= flowLimit
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Flows</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Flows</h1>
           <p className="text-sm text-slate-500">Automations that connect your modules: when something happens, Yippie acts.</p>
         </div>
         {isAdmin && (
@@ -982,7 +907,7 @@ export default function FlowsPage() {
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {recipes.map(r => (
-              <div key={r.key} className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col">
+              <div key={r.key} className="bg-white border border-slate-200 rounded-xl shadow-sm p-4 flex flex-col">
                 <p className="text-sm font-semibold text-slate-800">{r.name}</p>
                 <p className="text-xs text-slate-500 mt-1 flex-1">{r.description}</p>
                 <button
@@ -999,7 +924,7 @@ export default function FlowsPage() {
       )}
 
       {/* Flow list */}
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+      <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-100">
           <Zap size={16} className="text-slate-400" />
           <h2 className="text-base font-semibold text-slate-900">Your flows</h2>
@@ -1080,58 +1005,23 @@ export default function FlowsPage() {
                     <span className="text-slate-400">{flow.run_count} run{flow.run_count !== 1 ? 's' : ''}</span>
                   )}
                 </div>
-                {/* [FLOW3] canvas view — read-only for non-admins, so not gated */}
-                <Link
-                  to={`/flows/${flow.id}`}
-                  className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                  title="Open canvas"
-                >
-                  <Workflow size={13} />
-                </Link>
+                {/* Row controls kept minimal: enable/disable + everything else behind the 3-dot menu */}
                 {isAdmin && (
-                  <>
-                    <button
-                      onClick={() => setTestingFlow(flow)}
-                      className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                      title="Test fire (dry run)"
-                    >
-                      <FlaskConical size={13} />
-                    </button>
-                    <button
-                      onClick={() => toggleMut.mutate({ id: flow.id, enabled: !flow.enabled })}
-                      className={`shrink-0 w-9 h-5 rounded-full transition-colors relative ${flow.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                      title={flow.enabled ? 'Disable' : 'Enable'}
-                    >
-                      <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${flow.enabled ? 'left-[18px]' : 'left-0.5'}`} />
-                    </button>
-                    {/* [FLOW9] default flows are view only — the canvas link above
-                        shows them; duplicating makes an editable copy */}
-                    {!flow.is_default && (
-                      <button
-                        onClick={() => openEdit(flow)}
-                        className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                        title="Edit"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                    <button
-                      onClick={() => duplicateMut.mutate(flow.id)}
-                      disabled={duplicateMut.isPending}
-                      className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50"
-                      title="Duplicate"
-                    >
-                      <Copy size={13} />
-                    </button>
-                    <button
-                      onClick={() => { if (confirm(`Delete "${flow.name}"?`)) deleteMut.mutate(flow.id) }}
-                      className="shrink-0 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                      title="Delete"
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </>
+                  <button
+                    onClick={() => toggleMut.mutate({ id: flow.id, enabled: !flow.enabled })}
+                    className={`shrink-0 w-9 h-5 rounded-full transition-colors relative ${flow.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                    title={flow.enabled ? 'Disable' : 'Enable'}
+                  >
+                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${flow.enabled ? 'left-[18px]' : 'left-0.5'}`} />
+                  </button>
                 )}
+                <button
+                  onClick={e => ctx.open(e, rowMenuItems(flow))}
+                  className="shrink-0 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
+                  title="More options"
+                >
+                  <MoreVertical size={14} />
+                </button>
               </div>
               {expandedId === flow.id && <RunsDrawer flowId={flow.id} />}
             </div>
@@ -1153,6 +1043,8 @@ export default function FlowsPage() {
       {testingFlow && meta && (
         <TestFireModal meta={meta} flow={testingFlow} onClose={() => setTestingFlow(null)} />
       )}
+
+      <ContextMenu state={ctx.state} onClose={ctx.close} />
     </div>
   )
 }

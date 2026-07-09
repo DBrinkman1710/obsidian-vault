@@ -119,6 +119,14 @@ def upgrade() -> None:
         tenant_id = t[0]
         for spec in _UNIVERSAL:
             if (tenant_id, spec["name"]) in existing_names:
+                # A same named flow blocks seeding while this release also retires
+                # the hardcoded automation it replaces — surface that in the deploy
+                # log so a tenant losing the behaviour is visible, not silent.
+                print(
+                    f"[flows8] tenant {tenant_id}: a flow named "
+                    f"'{spec['name']}' already exists — builtin flow NOT seeded; "
+                    "verify it covers the retired automation"
+                )
                 continue
             rows.append(_row(
                 tenant_id, spec["name"], spec["trigger_type"],

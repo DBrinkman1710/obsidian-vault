@@ -8,6 +8,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core._modules_gen import MODULE_META
 from app.core.models import Tenant, User
 from app.core.plans import limits_for_plan
 from app.modules.flows import graph, preview, steps
@@ -445,6 +446,12 @@ async def build_meta(db: AsyncSession, tenant: Tenant) -> dict:
             # explicit key construction keeps fetch_fields/example_payload out of
             # the API response.
             "module": meta["module"],
+            # Canonical display label from packages/config/modules.json, so the
+            # frontend never needs its own module → label map for the picker.
+            "module_label": (
+                MODULE_META.get(meta["module"], {}).get("label")
+                if meta["module"] else None
+            ),
             "fields": meta["fields"],
             # [FLOW5] webhook payload keys are unknown at build time — the builder
             # renders a free-text field name input when this is set.

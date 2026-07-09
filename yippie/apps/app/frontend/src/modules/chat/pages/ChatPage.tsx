@@ -180,7 +180,6 @@ export default function ChatPage() {
   const [replyText, setReplyText] = useState('')
   const [activeTab, setActiveTab] = useState<'messages' | 'notes'>('messages')
   const [noteText, setNoteText] = useState('')
-  const [sidebarMode, setSidebarMode] = useState<'sessions' | 'search'>('sessions')
   const [filter, setFilter] = useState<Filter>('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
@@ -196,6 +195,7 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const sessionListContainerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const [sessionListHeight, setSessionListHeight] = useState(600)
   const [attachedFile, setAttachedFile] = useState<File | null>(null)
   const [attachPreviewUrl, setAttachPreviewUrl] = useState<string | null>(null)
@@ -262,7 +262,7 @@ export default function ChatPage() {
   const { data: contactResults = [], isLoading: contactsLoading } = useQuery({
     queryKey: ['contact-search', debouncedQuery],
     queryFn: () => api.get('/contacts', { params: { search: debouncedQuery, limit: 20 } }).then((r: any) => r.data.items ?? r.data),
-    enabled: sidebarMode === 'search' && debouncedQuery.length > 0,
+    enabled: debouncedQuery.trim().length > 0,
   })
 
   const createSessionMutation = useMutation({
@@ -270,7 +270,6 @@ export default function ChatPage() {
     onSuccess: (session: any) => {
       setSelectedId(session.id)
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
-      setSidebarMode('sessions')
       setSearchQuery('')
       if (isMobile) setShowConversation(true)
     },
@@ -609,84 +608,87 @@ export default function ChatPage() {
   const sessionList = (
     <div className="flex flex-col bg-white h-full">
       <div className="px-5 py-4 border-b border-slate-200">
-        {sidebarMode === 'search' ? (
-          <div className="flex items-center gap-2">
-            <input
-              type="search"
-              autoFocus
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="Search contacts..."
-              className="flex-1 px-3 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
-            />
-            <button
-              onClick={() => { setSidebarMode('sessions'); setSearchQuery('') }}
-              className="p-1.5 text-slate-400 hover:text-slate-600 transition-colors"
-            >
-              <X size={16} />
-            </button>
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-base font-bold text-slate-900">Live Chat</h1>
+            <p className="text-xs text-slate-400 mt-0.5">WhatsApp conversations</p>
           </div>
-        ) : (
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-base font-bold text-slate-900">Live Chat</h1>
-              <p className="text-xs text-slate-400 mt-0.5">WhatsApp conversations</p>
-            </div>
-            <div className="flex items-center gap-1">
-              {!isConnected && (
-                <button
-                  onClick={() => setShowQrModal(true)}
-                  title="Connect WhatsApp"
-                  className="p-1.5 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
-                >
-                  <QrCode size={16} />
-                </button>
-              )}
+          <div className="flex items-center gap-1">
+            {!isConnected && (
               <button
-                onClick={() => setSidebarMode('search')}
-                title="New conversation"
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                onClick={() => setShowQrModal(true)}
+                title="Connect WhatsApp"
+                className="p-1.5 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
               >
-                <SquarePen size={16} />
+                <QrCode size={16} />
               </button>
-              <button
-                onClick={() => setShowBroadcastModal(true)}
-                title="New broadcast"
-                className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
-              >
-                <Megaphone size={16} />
-              </button>
+            )}
+            <button
+              onClick={() => searchInputRef.current?.focus()}
+              title="New conversation"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              <SquarePen size={16} />
+            </button>
+            <button
+              onClick={() => setShowBroadcastModal(true)}
+              title="New broadcast"
+              className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              <Megaphone size={16} />
+            </button>
+            <button
+              onClick={() => {
+                if (window.confirm('Disconnect WhatsApp and delete ALL chat sessions and messages? This cannot be undone.')) {
+                  resetMutation.mutate()
+                }
+              }}
+              disabled={resetMutation.isPending}
+              title="Disconnect WhatsApp & remove all chats"
+              className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+            >
+              {resetMutation.isPending ? <span className="text-xs">…</span> : <Power size={16} />}
+            </button>
+            {isDevEnv && (
               <button
                 onClick={() => {
-                  if (window.confirm('Disconnect WhatsApp and delete ALL chat sessions and messages? This cannot be undone.')) {
-                    resetMutation.mutate()
+                  if (window.confirm('Delete ALL chat sessions and messages? (dev only)')) {
+                    clearAllMutation.mutate()
                   }
                 }}
-                disabled={resetMutation.isPending}
-                title="Disconnect WhatsApp & remove all chats"
-                className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
+                disabled={clearAllMutation.isPending}
+                title="Clear all sessions (dev only)"
+                className="px-2 py-1 rounded text-xs font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
               >
-                {resetMutation.isPending ? <span className="text-xs">…</span> : <Power size={16} />}
+                {clearAllMutation.isPending ? '…' : 'Clear'}
               </button>
-              {isDevEnv && (
-                <button
-                  onClick={() => {
-                    if (window.confirm('Delete ALL chat sessions and messages? (dev only)')) {
-                      clearAllMutation.mutate()
-                    }
-                  }}
-                  disabled={clearAllMutation.isPending}
-                  title="Clear all sessions (dev only)"
-                  className="px-2 py-1 rounded text-xs font-semibold bg-red-50 text-red-500 hover:bg-red-100 transition-colors disabled:opacity-50"
-                >
-                  {clearAllMutation.isPending ? '…' : 'Clear'}
-                </button>
-              )}
-            </div>
+            )}
           </div>
-        )}
+        </div>
+
+        {/* Contact search — always visible; typing shows contacts, picking one starts a new chat */}
+        <div className="relative mt-3">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            ref={searchInputRef}
+            type="search"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Search contacts to start a chat…"
+            className="w-full pl-9 pr-8 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+              aria-label="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
       </div>
-      {sidebarMode === 'sessions' && filterTabs}
+      {!searchQuery.trim() && filterTabs}
       {showQrModal && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowQrModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
@@ -726,7 +728,7 @@ export default function ChatPage() {
         </div>
       )}
       <div className="flex-1 overflow-hidden relative flex flex-col" ref={sessionListContainerRef}>
-        {sidebarMode === 'search' ? (
+        {searchQuery.trim().length > 0 ? (
           <div className="flex-1 overflow-y-auto">
             {contactsLoading && <p className="p-5 text-sm text-slate-400">Searching…</p>}
             {!contactsLoading && debouncedQuery.length > 0 && contactResults.length === 0 && (
@@ -1112,7 +1114,7 @@ export default function ChatPage() {
     <div className="flex-1 flex items-center justify-center bg-slate-50 p-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-w-2xl w-full">
         <button
-          onClick={() => setSidebarMode('search')}
+          onClick={() => searchInputRef.current?.focus()}
           className="text-left border border-slate-200 rounded-xl p-6 bg-white hover:border-blue-300 hover:shadow-sm transition-all"
         >
           <SquarePen size={20} className="text-blue-600 mb-3" />
