@@ -53,6 +53,15 @@ class OrgSettingsUpdate(BaseModel):
     btw_nummer: Optional[str] = None
 
 
+class WorkspacePrefsUpdate(BaseModel):
+    # Pipeline staleness sidebar dot ([UX-PSYCH] nudge). None leaves it untouched.
+    pipeline_nudge_enabled: Optional[bool] = None
+
+
+class WorkspacePrefsOut(BaseModel):
+    pipeline_nudge_enabled: bool
+
+
 class OrgSettingsOut(BaseModel):
     kvk_nummer: Optional[str] = None
     btw_nummer: Optional[str] = None

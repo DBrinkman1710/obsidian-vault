@@ -187,14 +187,16 @@ export function Sidebar() {
   // /pipeline/board endpoint (shares the ['pipeline-board'] cache with the
   // kanban page); entered_at updates on every stage move, so it doubles as the
   // board's activity timestamp.
+  // Admins can switch the nudge off workspace wide (Team settings → Notifications).
+  const pipelineNudgeOn = config?.pipeline_nudge_enabled !== false
   const { data: pipelineBoard } = useQuery<Array<{ contacts: Array<{ entered_at: string }> }>>({
     queryKey: ['pipeline-board'],
     queryFn: () => api.get('/pipeline/board').then((r: any) => r.data),
     refetchInterval: 5 * 60_000,
     staleTime: 5 * 60_000,
-    enabled: !!config && (config.enabled_modules ?? []).includes('pipeline'),
+    enabled: !!config && (config.enabled_modules ?? []).includes('pipeline') && pipelineNudgeOn,
   })
-  const pipelineStale = (() => {
+  const pipelineStale = pipelineNudgeOn && (() => {
     const entries = (pipelineBoard ?? []).flatMap(col => col.contacts ?? [])
     if (entries.length === 0) return false
     const newest = Math.max(...entries.map(c => new Date(c.entered_at).getTime()))

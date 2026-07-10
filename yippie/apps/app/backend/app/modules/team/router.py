@@ -65,6 +65,30 @@ async def update_branding(current_user: AdminUser, db: DB, data: schemas.Brandin
     return {"ok": True}
 
 
+@router.get("/workspace-prefs", response_model=schemas.WorkspacePrefsOut)
+async def get_workspace_prefs(current_user: AdminUser, db: DB):
+    from app.core.models import Tenant
+
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    return schemas.WorkspacePrefsOut(pipeline_nudge_enabled=tenant.pipeline_nudge_enabled)
+
+
+@router.patch("/workspace-prefs", response_model=schemas.WorkspacePrefsOut)
+async def update_workspace_prefs(current_user: AdminUser, db: DB, data: schemas.WorkspacePrefsUpdate):
+    from app.core.models import Tenant
+
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    if data.pipeline_nudge_enabled is not None:
+        tenant.pipeline_nudge_enabled = data.pipeline_nudge_enabled
+    await db.commit()
+    await db.refresh(tenant)
+    return schemas.WorkspacePrefsOut(pipeline_nudge_enabled=tenant.pipeline_nudge_enabled)
+
+
 @router.get("/org-settings", response_model=schemas.OrgSettingsOut)
 async def get_org_settings(current_user: AdminUser, db: DB):
     tenant = await service.get_org_settings(db, current_user.tenant_id)

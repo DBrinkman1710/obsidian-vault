@@ -939,6 +939,13 @@ export default function TeamSettingsPage() {
                 <WorkersCard />
               </div>
             )}
+
+            {/* Workspace notifications — pipeline staleness nudge toggle */}
+            {(me?.role === 'admin' || me?.role === 'superadmin') && (
+              <div className="mt-8">
+                <WorkspacePrefsCard />
+              </div>
+            )}
           </>
         )}
 
@@ -992,6 +999,52 @@ function ModeToggle({ value, options, onPick, disabled }: {
           <div className="text-xs text-slate-500 mt-0.5">{desc}</div>
         </button>
       ))}
+    </div>
+  )
+}
+
+interface WorkspacePrefs { pipeline_nudge_enabled: boolean }
+
+function WorkspacePrefsCard() {
+  const qc = useQueryClient()
+
+  const { data: prefs } = useQuery<WorkspacePrefs>({
+    queryKey: ['workspace-prefs'],
+    queryFn: () => api.get('/team/workspace-prefs').then((r: any) => r.data),
+  })
+
+  const patchMut = useMutation({
+    mutationFn: (patch: Partial<WorkspacePrefs>) => api.patch('/team/workspace-prefs', patch),
+    onSuccess: () => {
+      // Sidebar reads the flag from /tenant/config (fetched once at app load),
+      // so the dot follows on next reload for everyone.
+      qc.invalidateQueries({ queryKey: ['workspace-prefs'] })
+      toast.success('Saved')
+    },
+    onError: () => toast.error('Could not save'),
+  })
+
+  const nudge = prefs?.pipeline_nudge_enabled ?? true
+
+  return (
+    <div className="bg-white rounded-2xl border border-slate-200 p-5">
+      <h3 className="text-sm font-bold text-slate-900">Notifications</h3>
+      <p className="text-xs text-slate-500 mt-0.5">
+        Workspace wide indicators shown to everyone. Only admins can change these.
+      </p>
+
+      <div className="mt-4">
+        <label className={labelCls}>Kanban activity nudge</label>
+        <ModeToggle
+          value={nudge ? 'on' : 'off'}
+          disabled={patchMut.isPending}
+          onPick={v => patchMut.mutate({ pipeline_nudge_enabled: v === 'on' })}
+          options={[
+            ['on', 'Show the nudge', 'Amber dot on the Pipeline icon when no lead moved for 2 days.'],
+            ['off', 'Hide it', 'No staleness indicator on the sidebar.'],
+          ] as const}
+        />
+      </div>
     </div>
   )
 }

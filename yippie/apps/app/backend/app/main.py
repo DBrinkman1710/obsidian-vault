@@ -175,6 +175,7 @@ def create_app() -> FastAPI:
             plan_limits=limits_for_plan(tenant.plan),
             module_prices=module_prices_for_plan(tenant.plan),
             ai_auto_scan=tenant.ai_auto_scan,
+            pipeline_nudge_enabled=tenant.pipeline_nudge_enabled,
             stripe_subscription_status=tenant.stripe_subscription_status,
             stripe_publishable_key=settings.stripe_publishable_key,
             ai_scans_used_this_period=tenant.ai_scans_used_this_period,

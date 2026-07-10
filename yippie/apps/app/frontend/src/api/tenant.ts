@@ -30,6 +30,8 @@ export interface TenantConfig {
   // When false (default) the inbox AI never runs automatically — agents click
   // Generate per draft. True restores auto-scan-on-arrival.
   ai_auto_scan: boolean
+  // Workspace toggle for the pipeline staleness sidebar dot (Team settings, admins).
+  pipeline_nudge_enabled: boolean
   // Stripe SaaS billing
   stripe_subscription_status: string | null
   stripe_publishable_key: string

@@ -81,6 +81,10 @@ class Tenant(Base):
     # Red = overdue or due within deadline_red_days; orange = due within deadline_orange_days.
     deadline_red_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     deadline_orange_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2")
+    # Amber staleness dot on the Pipeline sidebar icon when no pipeline contact
+    # moved for >48h ([UX-PSYCH] nudge). Workspace wide; admins toggle it in
+    # Team settings (PATCH /team/workspace-prefs).
+    pipeline_nudge_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     # Auto-close stale tickets in "waiting" status after this many days without an
     # update. Per-tenant; the hourly scheduler job reads it (see sla_escalation.py).
     auto_close_days: Mapped[int] = mapped_column(Integer, nullable=False, server_default="7")
