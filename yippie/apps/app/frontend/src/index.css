@@ -174,7 +174,7 @@
 /* ── Shared button primitives ─────────────────────────────────────────────
    Use these on <button> elements that trigger actions.
    They cover default / hover / active (subtle press) / disabled / cursor.
-   Pair with px-*/py-* sizing classes at the callsite for layout flexibility.
+   Pair with px and py sizing classes at the callsite for layout flexibility.
 
    .btn-primary     — brand blue solid; main CTA / submit
    .btn-secondary   — bordered neutral; cancel / secondary action
