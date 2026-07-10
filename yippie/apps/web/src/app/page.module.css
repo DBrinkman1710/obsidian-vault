@@ -153,6 +153,52 @@
 }
 .frameWide { max-width: 940px; margin: 0 auto; }
 
+/* ── Real product screenshot inside the browser frame ──────────
+   Reuses the same chrome as the mock but drops in an actual /shots
+   image with a soft gradient scrim so any overlaid caption stays
+   readable. Lightly perspective-tilted in the hero for depth. */
+.shotWrap {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--slate-100);
+  overflow: hidden;
+}
+.shotImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top left;
+  display: block;
+}
+.shotScrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(11,17,32,0) 55%, rgba(11,17,32,0.55) 100%);
+}
+.shotCaption {
+  position: absolute;
+  left: 16px;
+  bottom: 14px;
+  right: 16px;
+  z-index: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.35);
+}
+.frameTilt {
+  transform: perspective(1600px) rotateY(-6deg) rotateX(1.5deg);
+  transform-origin: center left;
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.frameTilt:hover { transform: perspective(1600px) rotateY(-2deg) rotateX(0.5deg); }
+@media (max-width: 960px) {
+  .frameTilt { transform: none; }
+}
+
 .frameBar {
   display: flex;
   align-items: center;

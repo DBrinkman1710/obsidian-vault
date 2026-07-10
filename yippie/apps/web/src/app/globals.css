@@ -57,6 +57,33 @@
   --font-display: var(--font-space), system-ui, sans-serif;
   --font-body: var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-jetbrains), ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ── Type scale ([UX-CRAFT] carryover) ────────────────────────────
+     A capped set of six non-heading steps. New/refactored UI should
+     reference these instead of inventing another px value, so the many
+     near-duplicate sizes (13/13.5, 14/14.5, 16/16.5/17.5, …) collapse
+     onto one ladder over time. Headings use the fluid clamp() families
+     plus the .headingTight helper below. */
+  --fs-caption: 12px;   /* mono eyebrows, captions, meta */
+  --fs-small:   13px;   /* dense secondary text, chips */
+  --fs-body:    14px;   /* default body / list items */
+  --fs-body-lg: 15px;   /* comfortable body, buttons */
+  --fs-lead:    17px;   /* section subtitles, lead paragraphs */
+  --fs-stat:    22px;   /* inline stats / small numerals */
+
+  /* Systematised heading rhythm — matches the app's tracking-tight +
+     ~110-120% line-height treatment. */
+  --lh-heading: 1.12;
+  --tracking-heading: -0.025em;
+}
+
+/* ── Shared heading helper ────────────────────────────────────────
+   Apply to any display-font heading to get consistent tight tracking
+   and line-height without repeating the same two declarations. */
+.headingTight {
+  font-family: var(--font-display);
+  line-height: var(--lh-heading);
+  letter-spacing: var(--tracking-heading);
 }
 
 *, *::before, *::after {

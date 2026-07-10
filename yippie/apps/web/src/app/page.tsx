@@ -1,4 +1,5 @@
 import React from "react";
+import Image from "next/image";
 import type { Metadata } from "next";
 import styles from "./page.module.css";
 
@@ -147,63 +148,43 @@ const steps = [
   },
 ];
 
-const inboxItems = [
-  { sender: "Acme BV", subject: "Invoice INV-0421 question", dot: "", badge: "review" },
-  { sender: "TechCorp", subject: "Login issue: account locked", dot: "amber", badge: "review" },
-  { sender: "Nordex", subject: "Pricing plan upgrade", dot: "green", badge: "done" },
-  { sender: "Bloom Agency", subject: "Onboarding call request", dot: "", badge: "review" },
-];
-
-/* Light, browser-framed product mockup reused in hero + product moment. */
-function ProductMockup({ wide = false }: { wide?: boolean }) {
+/* Real product screenshot in the same browser frame, with a soft scrim so an
+   optional caption stays readable. Reuses the /shots assets from the modules page. */
+function ProductShot({
+  src,
+  url,
+  alt,
+  caption,
+  wide = false,
+  tilt = false,
+}: {
+  src: string;
+  url: string;
+  alt: string;
+  caption?: string;
+  wide?: boolean;
+  tilt?: boolean;
+}) {
   return (
-    <div className={`${styles.frame} ${wide ? styles.frameWide : ""}`}>
+    <div className={`${styles.frame} ${wide ? styles.frameWide : ""} ${tilt ? styles.frameTilt : ""}`}>
       <div className={styles.frameBar}>
         <span className={styles.dot} />
         <span className={styles.dot} />
         <span className={styles.dot} />
-        <span className={styles.frameUrl}>app.getyippie.com/inbox</span>
+        <span className={styles.frameUrl}>app.getyippie.com{url}</span>
       </div>
-      <div className={styles.app}>
-        <div className={styles.appSidebar}>
-          {[true, false, false, false, false, false].map((active, i) => (
-            <div key={i} className={`${styles.appNav} ${active ? styles.appNavActive : ""}`} />
-          ))}
-        </div>
-        <div className={styles.appMain}>
-          <div className={styles.appTop}>
-            <span className={styles.appTitle}>Inbox</span>
-            <span className={styles.appAvatar} />
-          </div>
-          <div className={styles.appStats}>
-            <div className={styles.appStat}>
-              <span className={styles.appStatLabel}>Open</span>
-              <span className={`${styles.appStatVal} ${styles.brand}`}>12</span>
-            </div>
-            <div className={styles.appStat}>
-              <span className={styles.appStatLabel}>Pending</span>
-              <span className={`${styles.appStatVal} ${styles.amber}`}>4</span>
-            </div>
-            <div className={styles.appStat}>
-              <span className={styles.appStatLabel}>Resolved</span>
-              <span className={`${styles.appStatVal} ${styles.green}`}>31</span>
-            </div>
-          </div>
-          <div className={styles.appList}>
-            {inboxItems.map((item) => (
-              <div key={item.sender} className={styles.appRow}>
-                <span className={`${styles.appRowDot} ${item.dot === "amber" ? styles.amber : item.dot === "green" ? styles.green : ""}`} />
-                <span className={styles.appRowText}>
-                  <span className={styles.appRowSender}>{item.sender}</span>
-                  <span className={styles.appRowSubject}>{item.subject}</span>
-                </span>
-                <span className={`${styles.appBadge} ${item.badge === "done" ? styles.badgeDone : styles.badgeReview}`}>
-                  {item.badge}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
+      <div className={styles.shotWrap}>
+        <Image
+          src={src}
+          alt={alt}
+          width={1440}
+          height={900}
+          unoptimized
+          className={styles.shotImg}
+          priority={!wide}
+        />
+        {caption && <span className={styles.shotScrim} aria-hidden="true" />}
+        {caption && <span className={styles.shotCaption}>{caption}</span>}
       </div>
     </div>
   );
@@ -247,7 +228,12 @@ export default function HomePage() {
           </Reveal>
 
           <Reveal className={styles.heroVisual} delay={120}>
-            <ProductMockup />
+            <ProductShot
+              src="/shots/inbox.png"
+              url="/inbox"
+              alt="Yippie shared inbox with AI-drafted tickets"
+              tilt
+            />
           </Reveal>
         </div>
       </section>
@@ -379,7 +365,13 @@ export default function HomePage() {
           </p>
         </Reveal>
         <Reveal className={styles.momentVisual} delay={120}>
-          <ProductMockup wide />
+          <ProductShot
+            src="/shots/contacts.png"
+            url="/contacts"
+            alt="Contact record with full history: emails, tickets, and pipeline stage"
+            caption="Every contact, with full history in one view"
+            wide
+          />
         </Reveal>
       </section>
 

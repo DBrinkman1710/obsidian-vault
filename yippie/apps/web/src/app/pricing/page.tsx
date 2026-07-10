@@ -227,7 +227,16 @@ export default function PricingPage() {
         </div>
 
         <div className={styles.plansGrid}>
-          {plans.map((plan) => (
+          {plans.map((plan, planIdx) => {
+            // "Everything in X, plus…" — show only what this tier adds over the
+            // previous paid tier, instead of repeating the full list. Presentation
+            // only: the underlying `included` entitlements are unchanged.
+            const prev = planIdx > 0 && !plan.enterprise ? plans[planIdx - 1] : null;
+            const inheritsFrom = prev ? prev.tier : null;
+            const deltaFeatures = prev
+              ? plan.included.filter((f) => !prev.included.includes(f))
+              : plan.included;
+            return (
             <div
               key={plan.tier}
               className={`${styles.planCard} ${plan.featured ? styles.featured : ""}`}
@@ -243,9 +252,9 @@ export default function PricingPage() {
                   <sub>{annual ? "/yr" : "/mo"}</sub>
                 </p>
               )}
-              {annual && !plan.enterprise && plan.monthly != null && (
+              {annual && !plan.enterprise && plan.monthly != null && plan.annual != null && (
                 <p className={styles.planDiscount}>
-                  10% off (was €{plan.monthly * 12}/yr)
+                  Save €{plan.monthly * 12 - plan.annual}/yr (was €{plan.monthly * 12})
                 </p>
               )}
               {!plan.enterprise && (
@@ -253,8 +262,11 @@ export default function PricingPage() {
                   {annual ? "billed annually" : "billed monthly"}
                 </p>
               )}
+              {inheritsFrom && (
+                <p className={styles.planInherits}>Everything in {inheritsFrom}, plus:</p>
+              )}
               <ul className={styles.planFeatures}>
-                {plan.included.map((f) => (
+                {deltaFeatures.map((f) => (
                   <li key={f}>
                     <span className={styles.planCheck}>✓</span>
                     {f}
@@ -268,7 +280,8 @@ export default function PricingPage() {
                 {plan.enterprise ? "Book a call" : "Start free trial"}
               </a>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 

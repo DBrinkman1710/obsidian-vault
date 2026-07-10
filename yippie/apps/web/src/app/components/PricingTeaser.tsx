@@ -100,8 +100,10 @@ export default function PricingTeaser() {
                 {price == null ? "Custom" : `€${price}`}
                 {price != null && <sub>{annual ? "/yr" : "/mo"}</sub>}
               </p>
-              {price != null && annual && plan.monthly != null && (
-                <p className={styles.priceDiscount}>10% off (was €{plan.monthly * 12}/yr)</p>
+              {price != null && annual && plan.monthly != null && plan.annual != null && (
+                <p className={styles.priceDiscount}>
+                  Save €{plan.monthly * 12 - plan.annual}/yr (was €{plan.monthly * 12})
+                </p>
               )}
               {perUser != null && (
                 <p className={styles.priceUser}>≈ €{perUser}/user/mo for up to {plan.users} users</p>

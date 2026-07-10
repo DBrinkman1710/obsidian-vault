@@ -45,7 +45,7 @@
 }
 
 .storyBody {
-  font-size: 17.5px;
+  font-size: var(--fs-lead);
   line-height: 1.8;
   color: var(--text);
   margin: 0 0 20px;

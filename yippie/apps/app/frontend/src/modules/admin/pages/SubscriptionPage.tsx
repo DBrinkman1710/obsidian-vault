@@ -237,7 +237,7 @@ export default function SubscriptionPage() {
               >
                 <div>
                   <div className="flex items-center justify-between">
-                    <p className="font-bold text-slate-900">{card.label}</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{card.label}</p>
                     {isCurrent ? (
                       <span className="text-xs font-semibold text-yippie bg-yippie/10 px-2 py-0.5 rounded-full">Current</span>
                     ) : card.id === 'growth' ? (
@@ -249,16 +249,21 @@ export default function SubscriptionPage() {
                 <div>
                   {displayPrice != null ? (
                     <>
-                      <p className="text-2xl font-bold text-slate-900">
+                      <p className="text-2xl font-bold text-slate-900 tracking-tight">
                         €{displayPrice}
                         <span className="text-sm font-normal text-slate-500">/{interval === 'annual' ? 'yr' : 'mo'}</span>
                       </p>
-                      {interval === 'annual' && card.price && (
-                        <p className="text-xs text-slate-400 mt-0.5">≈ €{Math.round(card.price * 0.9)}/mo</p>
+                      {interval === 'annual' && card.price && annualPrice != null && (
+                        <>
+                          <p className="text-xs text-slate-400 mt-0.5">≈ €{Math.round(card.price * 0.9)}/mo</p>
+                          <p className="text-xs font-semibold text-success-600 mt-0.5">
+                            Save €{card.price * 12 - annualPrice}/yr
+                          </p>
+                        </>
                       )}
                     </>
                   ) : (
-                    <p className="text-2xl font-bold text-slate-900">Custom</p>
+                    <p className="text-2xl font-bold text-slate-900 tracking-tight">Custom</p>
                   )}
                 </div>
                 <ul className="text-xs text-slate-600 space-y-1.5 flex-1">

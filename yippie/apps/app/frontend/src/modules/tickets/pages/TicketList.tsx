@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Plus, Ticket, Trash2, UserPlus, Check, Archive, GitMerge, User, AlertTriangle } from 'lucide-react'
+import { Plus, Ticket, Trash2, UserPlus, Check, Archive, GitMerge, User, AlertTriangle, MoreVertical } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { recordDailyActions } from '../../../lib/dailyStats'
@@ -150,6 +150,36 @@ export default function TicketList() {
     },
   })
 
+  // Shared action set for a ticket — reachable via right-click OR the visible
+  // ⋮ trigger, so the actions are discoverable without knowing the context menu.
+  function ticketMenuItems(t: any) {
+    return [
+      { header: t.subject.length > 32 ? t.subject.slice(0, 32) + '…' : t.subject },
+      { label: 'Assign to me', icon: <UserPlus size={14} />, onClick: () => assignMutation.mutate({ id: t.id, userId: user!.id }) },
+      {
+        label: 'Assign to…',
+        icon: <User size={14} />,
+        submenu: teamMembers.map((m: any) => ({
+          label: m.full_name,
+          onClick: () => assignMutation.mutate({ id: t.id, userId: m.id }),
+        })),
+      },
+      { separator: true },
+      { label: 'Mark resolved', icon: <Check size={14} />, onClick: () => resolveWithMotion(t.id, 'resolved') },
+      { label: 'Close ticket', icon: <Archive size={14} />, onClick: () => resolveWithMotion(t.id, 'closed') },
+      { separator: true },
+      {
+        label: 'Delete',
+        icon: <Trash2 size={14} />,
+        danger: true,
+        onClick: () => {
+          if (confirm('Delete this ticket? This cannot be undone.'))
+            deleteMutation.mutate([t.id])
+        },
+      },
+    ]
+  }
+
   function openMergeDialog() {
     const [idA, idB] = [...selection.sel]
     const ticketA = items.find((t: any) => t.id === idA)
@@ -265,31 +295,7 @@ export default function TicketList() {
               }}
               onMouseEnter={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = 'var(--brand-ring)' }}
               onMouseLeave={e => { if (!isSelected) (e.currentTarget as HTMLElement).style.borderColor = 'var(--border-default)' }}
-              onContextMenu={e => ctx.open(e, [
-                { header: t.subject.length > 32 ? t.subject.slice(0, 32) + '…' : t.subject },
-                { label: 'Assign to me', icon: <UserPlus size={14} />, onClick: () => assignMutation.mutate({ id: t.id, userId: user!.id }) },
-                {
-                  label: 'Assign to…',
-                  icon: <User size={14} />,
-                  submenu: teamMembers.map((m: any) => ({
-                    label: m.full_name,
-                    onClick: () => assignMutation.mutate({ id: t.id, userId: m.id }),
-                  })),
-                },
-                { separator: true },
-                { label: 'Mark resolved', icon: <Check size={14} />, onClick: () => resolveWithMotion(t.id, 'resolved') },
-                { label: 'Close ticket', icon: <Archive size={14} />, onClick: () => resolveWithMotion(t.id, 'closed') },
-                { separator: true },
-                {
-                  label: 'Delete',
-                  icon: <Trash2 size={14} />,
-                  danger: true,
-                  onClick: () => {
-                    if (confirm('Delete this ticket? This cannot be undone.'))
-                      deleteMutation.mutate([t.id])
-                  },
-                },
-              ])}
+              onContextMenu={e => ctx.open(e, ticketMenuItems(t))}
             >
               {leaveMode && (
                 <span className="absolute inset-0 flex items-center justify-center z-10">
@@ -336,6 +342,18 @@ export default function TicketList() {
                   })()}
                 </p>
               </Link>
+              <button
+                type="button"
+                aria-label="Ticket actions"
+                title="Actions"
+                onClick={e => { e.preventDefault(); e.stopPropagation(); ctx.open(e, ticketMenuItems(t)) }}
+                className="shrink-0 self-start p-1.5 rounded-lg transition-colors"
+                style={{ color: 'var(--text-subtle)' }}
+                onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = 'var(--slate-100)'; (e.currentTarget as HTMLElement).style.color = 'var(--text-body)' }}
+                onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'var(--text-subtle)' }}
+              >
+                <MoreVertical size={16} />
+              </button>
             </div>
           )
         })}

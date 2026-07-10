@@ -1,6 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ArrowRight, CalendarClock, GripVertical, Loader2, Megaphone, Plus, Settings2, Trash2, User, X } from 'lucide-react'
+import { ArrowRight, CalendarClock, GripVertical, Loader2, Megaphone, MoreVertical, Plus, Settings2, Trash2, User, X } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useMobile } from '../../../shell/useMobile'
@@ -456,14 +456,28 @@ function ContactCard({
             <p className="text-[11px] text-slate-400 truncate">{contact.company_name}</p>
           )}
         </div>
-        <button
-          onClick={e => { e.stopPropagation(); onRemove() }}
-          className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-300 hover:text-red-400 rounded transition-all shrink-0"
-          title="Remove from kanban"
-          draggable={false}
-        >
-          <X size={12} />
-        </button>
+        <div className="flex items-center gap-0.5 shrink-0">
+          {/* Visible ⋮ trigger — opens the same menu as right-click so move /
+              booking / campaign actions are discoverable, not hidden. */}
+          <button
+            onClick={e => { e.stopPropagation(); onContextMenu(e) }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-300 hover:text-slate-600 rounded transition-all"
+            title="Actions"
+            aria-label="Contact actions"
+            draggable={false}
+          >
+            <MoreVertical size={13} />
+          </button>
+          <button
+            onClick={e => { e.stopPropagation(); onRemove() }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-300 hover:text-red-400 rounded transition-all"
+            title="Remove from kanban"
+            aria-label="Remove from kanban"
+            draggable={false}
+          >
+            <X size={12} />
+          </button>
+        </div>
       </div>
       <p className={`text-[10px] mt-1.5 ${showStaleAlert ? 'text-amber-600 font-semibold' : 'text-slate-300'}`}>
         {showStaleAlert

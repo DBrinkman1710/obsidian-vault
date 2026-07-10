@@ -206,6 +206,13 @@
 .planPrice sub { font-size: 18px; font-weight: 500; color: var(--muted); vertical-align: baseline; }
 .planDiscount { font-size: 12px; font-weight: 600; color: #16a34a; margin: 2px 0 0; }
 .planBilling { font-size: 12px; color: var(--muted); margin-bottom: 24px; padding-bottom: 22px; border-bottom: 1px solid var(--border); }
+/* "Everything in X, plus:" lead-in above the delta feature list */
+.planInherits {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
 .planFeatures { list-style: none; display: flex; flex-direction: column; gap: 11px; margin-bottom: 28px; flex: 1; }
 .planFeatures li { font-size: 14px; color: var(--text); display: flex; align-items: center; gap: 10px; }
 .planCheck {

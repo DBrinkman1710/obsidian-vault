@@ -73,7 +73,7 @@
 }
 
 .desc {
-  font-size: 16.5px;
+  font-size: var(--fs-lead);
   line-height: 1.75;
   color: var(--muted);
   margin-bottom: 28px;
