@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { BarChart3, Check, Code, Copy, Layers, UserCheck, X, Zap } from 'lucide-react'
+import { BarChart3, Check, Code, Copy, Layers, UserCheck, Zap } from 'lucide-react'
+import { CloseButton } from '../../../shell/CloseButton'
 import { api } from '../../../api/client'
 import { useCopy } from '../../../hooks/useCopy'
 
@@ -217,9 +218,7 @@ export function SaasSettingsModal({ onClose }: Props) {
       <div ref={ref} tabIndex={-1} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-900">Product Analytics: Settings</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex gap-1 px-6 pt-4">

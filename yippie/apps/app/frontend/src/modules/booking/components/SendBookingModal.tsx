@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
@@ -209,7 +210,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-lg font-bold text-slate-900">Send booking link</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 flex flex-col gap-4">

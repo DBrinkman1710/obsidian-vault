@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, Eraser } from 'lucide-react'
 import { api } from '../api/client'
+import { fmtDate as libFmtDate } from '../lib/format'
 
 interface PublicContract {
   tenant_name: string
@@ -18,9 +19,7 @@ interface PublicContract {
   signer_name: string | null
 }
 
-function fmtDate(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleDateString('en-GB') : '—'
-}
+const fmtDate = libFmtDate
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (

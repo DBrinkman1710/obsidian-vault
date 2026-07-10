@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { BotMessageSquare, Loader2, Send, X } from 'lucide-react'
+import { BotMessageSquare, Loader2, Send } from 'lucide-react'
+import { CloseButton } from '../shell/CloseButton'
 import { api } from '../api/client'
 
 interface TrainMessage {
@@ -113,13 +114,7 @@ export default function YipTrainModal({ onComplete, onDismiss, tenantName }: Pro
             <p className="text-sm font-semibold text-slate-900">Train Yip</p>
             <p className="text-xs text-slate-400">5 quick questions to personalise your AI</p>
           </div>
-          <button
-            onClick={onDismiss}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-            aria-label="Close"
-          >
-            <X size={15} />
-          </button>
+          <CloseButton onClick={onDismiss} />
         </div>
 
         {/* Message thread */}

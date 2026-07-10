@@ -10,6 +10,7 @@ import { ShipmentSettingsModal } from '../components/ShipmentSettingsModal'
 import { useIsViewOnly } from '../../../shell/ModuleGate'
 import { useAuth } from '../../../auth/useAuth'
 import { EmptyState } from '../../../components/EmptyState'
+import { fmtDate } from '../../../lib/format'
 
 interface Shipment {
   id: string
@@ -46,10 +47,7 @@ const CARRIER_OPTIONS: { value: string; label: string }[] = [
   { value: 'other', label: 'Other' },
 ]
 
-function formatDate(iso: string | null) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-}
+const formatDate = fmtDate
 
 export default function ShipmentList() {
   const navigate = useNavigate()
@@ -77,7 +75,7 @@ export default function ShipmentList() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-slate-900">Track & Trace</h1>
+          <h1 className="heading-lg text-slate-900">Track & Trace</h1>
           <p className="text-sm text-slate-500 mt-0.5">
             {data?.total ?? 0} shipment{data?.total !== 1 ? 's' : ''}
           </p>

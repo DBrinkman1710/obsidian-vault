@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Keyboard, X } from 'lucide-react'
+import { Keyboard } from 'lucide-react'
+import { CloseButton } from '../shell/CloseButton'
 import { useAuth } from '../auth/useAuth'
 
 // [UX-PSYCH] Keyboard shortcut discovery: pressing "?" anywhere in the app
@@ -97,9 +98,7 @@ export default function HotkeyOverlay() {
             <Keyboard size={16} className="text-slate-400" />
             Keyboard shortcuts
           </h2>
-          <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={() => setOpen(false)} />
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-4">

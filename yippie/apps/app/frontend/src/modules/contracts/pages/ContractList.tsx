@@ -7,6 +7,7 @@ import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { ListRowSkeleton } from '../../../shell/Skeleton'
 import { CloseButton } from '../../../shell/CloseButton'
+import { fmtDate as libFmtDate, fmtMoney as libFmtMoney } from '../../../lib/format'
 import { EmptyState } from '../../../components/EmptyState'
 import { useCopy } from '../../../hooks/useCopy'
 
@@ -108,20 +109,15 @@ interface CompanyLite { id: string; name: string }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function counterpartyOf(c: Contract): string {
   return c.contact_name || c.company_name || c.counterparty_name || '—'
 }
 
-function fmtDate(iso: string | null): string {
-  return iso ? new Date(iso).toLocaleDateString('en-GB') : '—'
-}
-
-function fmtMoney(amount: number, currency = 'EUR'): string {
-  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency, maximumFractionDigits: 0 }).format(amount)
-}
+const fmtDate = libFmtDate
+const fmtMoney = libFmtMoney
 
 function valueLabel(c: Contract): string {
   if (c.value_amount == null || !c.value_interval) return '—'
@@ -996,7 +992,7 @@ export default function ContractList() {
       {/* Header */}
       <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-slate-900">Contracts</h1>
+          <h1 className="heading-xl text-slate-900">Contracts</h1>
           <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
             {(['all', 'renewals'] as const).map(v => (
               <button key={v} onClick={() => setView(v)}

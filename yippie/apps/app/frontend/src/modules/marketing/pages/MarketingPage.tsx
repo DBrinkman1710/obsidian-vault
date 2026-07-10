@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { BarChart2, Calendar, Copy, GitBranch, Megaphone, Pencil, Plus, Trash2, UserMinus, Users, X, Mail, MessageCircle, Zap } from 'lucide-react'
+import { BarChart2, Calendar, Copy, GitBranch, Megaphone, Pencil, Plus, Trash2, UserMinus, Users, Mail, MessageCircle, Zap } from 'lucide-react'
 import { Campaign, CampaignStatus, Channel, marketingApi, Unsubscribe } from '../api'
+import { CloseButton } from '../../../shell/CloseButton'
 import { CampaignDetail, TabKey } from './CampaignDetail'
 
 const STATUS_STYLES: Record<CampaignStatus, string> = {
@@ -44,9 +45,7 @@ function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreat
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">New campaign</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
         <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Name</label>
         <input

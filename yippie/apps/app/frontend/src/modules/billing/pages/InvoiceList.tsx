@@ -10,6 +10,7 @@ import { ListRowSkeleton } from '../../../shell/Skeleton'
 import { CloseButton } from '../../../shell/CloseButton'
 import { InvoicePeek } from './InvoiceDetail'
 import { EmptyState } from '../../../components/EmptyState'
+import { fmtDate } from '../../../lib/format'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -59,7 +60,7 @@ interface ContactLite {
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function fmtCents(cents: number, currency = 'EUR') {
@@ -576,7 +577,7 @@ export default function InvoiceList() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <h1 className="text-2xl font-bold text-slate-900">Invoices</h1>
+          <h1 className="heading-xl text-slate-900">Invoices</h1>
           {(() => { const n = (invoices ?? []).filter(i => i.status === 'overdue').length; return n > 0 ? <span className="text-xs font-semibold bg-danger-100 text-danger-700 px-2 py-0.5 rounded-full">{n} overdue</span> : null })()}
         </div>
         <div className="flex items-center gap-2">
@@ -698,7 +699,7 @@ export default function InvoiceList() {
                     {fmtCents(inv.total_cents, inv.currency)}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-500">
-                    {inv.due_date ? new Date(inv.due_date).toLocaleDateString('en-GB') : '—'}
+                    {fmtDate(inv.due_date)}
                   </td>
                 </tr>
               ))}

@@ -4,6 +4,8 @@ import { Plus, Ticket, Trash2, UserPlus, Check, Archive, GitMerge, User, AlertTr
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { recordDailyActions } from '../../../lib/dailyStats'
+import { timeAgo, fmtDate } from '../../../lib/format'
+import { STATUS_STYLES, PRIORITY_STYLES, Badge } from '../../../lib/statusStyles'
 import { CardListSkeleton } from '../../../shell/Skeleton'
 import { useAuth } from '../../../auth/useAuth'
 import { useState } from 'react'
@@ -11,43 +13,6 @@ import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { useT } from '../../../hooks/useT'
 import { DesktopOnly } from '../../../shell/DesktopOnly'
-
-const STATUS_STYLES: Record<string, { bg: string; color: string }> = {
-  open:        { bg: 'var(--status-info-bg)',    color: 'var(--status-info)' },
-  in_progress: { bg: 'var(--status-high-bg)',    color: 'var(--status-high)' },
-  waiting:     { bg: 'var(--status-waiting-bg)', color: 'var(--status-waiting)' },
-  resolved:    { bg: 'var(--status-success-bg)', color: 'var(--status-success)' },
-  closed:      { bg: 'var(--slate-100)',          color: 'var(--slate-500)' },
-}
-
-
-const PRIORITY_STYLES: Record<string, { bg: string; color: string }> = {
-  urgent: { bg: 'var(--status-urgent-bg)', color: 'var(--status-urgent)' },
-  high:   { bg: 'var(--status-high-bg)',   color: 'var(--status-high)' },
-  medium: { bg: 'var(--status-info-bg)',   color: 'var(--status-info)' },
-  low:    { bg: 'var(--slate-100)',         color: 'var(--slate-500)' },
-}
-
-function timeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1) return 'just now'
-  if (m < 60) return `${m}m ago`
-  const h = Math.floor(m / 60)
-  if (h < 24) return `${h}h ago`
-  return `${Math.floor(h / 24)}d ago`
-}
-
-function Badge({ bg, color, children }: { bg: string; color: string; children: React.ReactNode }) {
-  return (
-    <span
-      className="px-2 py-0.5 rounded-full text-[11px] font-semibold capitalize"
-      style={{ background: bg, color }}
-    >
-      {children}
-    </span>
-  )
-}
 
 interface MergeDialog {
   primary: { id: string; subject: string }
@@ -324,7 +289,7 @@ export default function TicketList() {
                   )}
                 </div>
                 <p className="text-xs flex items-center gap-2 flex-wrap" style={{ color: 'var(--text-muted)' }}>
-                  <span>{new Date(t.created_at).toLocaleDateString()}</span>
+                  <span>{fmtDate(t.created_at)}</span>
                   {t.last_comment_at && <span>· {timeAgo(t.last_comment_at)}</span>}
                   {t.sla_due_at && (() => {
                     const due = new Date(t.sla_due_at)

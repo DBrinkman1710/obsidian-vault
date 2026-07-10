@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import type { Carrier } from './CarrierBadge'
@@ -49,9 +49,7 @@ export function CreateShipmentModal({ onClose, onCreated }: Props) {
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="text-base font-semibold text-slate-900">Add shipment</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="space-y-4">

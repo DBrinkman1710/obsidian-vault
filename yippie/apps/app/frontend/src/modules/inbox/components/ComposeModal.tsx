@@ -2,6 +2,7 @@ import DOMPurify from 'dompurify'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { X, Sparkles, Send, Users, Plus, Paperclip, Palette, Pencil, Building2, CheckSquare, Square, Wand2 } from 'lucide-react'
+import { CloseButton } from '../../../shell/CloseButton'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from './TemplatePicker'
@@ -95,7 +96,7 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full flex flex-col" style={{ maxHeight: '80vh' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-base font-bold text-slate-900">Add recipients</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex border-b border-slate-100 shrink-0 px-2">
@@ -427,7 +428,7 @@ export default function ComposeModal({
             <Pencil size={16} className="text-slate-400" />
             <h2 className="text-lg font-bold text-slate-900">Compose email</h2>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">

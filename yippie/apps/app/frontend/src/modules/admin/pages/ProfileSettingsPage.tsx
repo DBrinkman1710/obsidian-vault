@@ -63,7 +63,7 @@ export default function ProfileSettingsPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-1">Profile</h1>
+      <h1 className="heading-xl text-slate-900 mb-1">Profile</h1>
       <p className="text-sm text-slate-500 mb-8">Manage your personal email address, signature and password.</p>
 
       <div className="flex items-start gap-8">
@@ -291,7 +291,7 @@ function ChangePasswordCard() {
     mutation.mutate()
   }
 
-  const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+  const inputCls = 'input-base'
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">

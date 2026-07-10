@@ -1,10 +1,12 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Mail, Bell, CreditCard, X, ChevronDown } from 'lucide-react'
+import { Download, Mail, Bell, CreditCard, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useT } from '../../../hooks/useT'
+import { fmtDate as libFmtDate } from '../../../lib/format'
+import { CloseButton } from '../../../shell/CloseButton'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -59,16 +61,13 @@ function fmtCents(cents: number, currency = 'EUR') {
   return new Intl.NumberFormat('en-EU', { style: 'currency', currency }).format(cents / 100)
 }
 
-function fmtDate(d: string | null) {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('en-GB')
-}
+const fmtDate = libFmtDate
 
 function statusLabel(s: string, t: (k: any) => string | undefined) {
   return t((`invoice_${s}`) as any) ?? (ALL_STATUS_OPTIONS.find(o => o.value === s)?.label ?? s)
 }
 
-const inputCls = 'w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function downloadBlob(data: BlobPart, filename: string, type: string) {
@@ -109,7 +108,7 @@ function RecordPaymentModal({ invoiceId, onClose }: { invoiceId: string; onClose
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900">Record Payment</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 flex flex-col gap-4">
           <div>
@@ -266,9 +265,7 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
                 </button>
               </>
             )}
-            <button onClick={onClose} className="ml-1 p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors">
-              <X size={16} />
-            </button>
+            <CloseButton onClick={onClose} className="ml-1" />
           </div>
         </div>
 

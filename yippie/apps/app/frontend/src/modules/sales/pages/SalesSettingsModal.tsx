@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { Check, Code, Copy, Globe, MousePointerClick, RefreshCw, TrendingUp, X, Zap } from 'lucide-react'
+import { Check, Code, Copy, Globe, MousePointerClick, RefreshCw, TrendingUp, Zap } from 'lucide-react'
+import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useCopy } from '../../../hooks/useCopy'
@@ -208,9 +209,7 @@ export function SalesSettingsModal({ onClose }: Props) {
       <div ref={ref} tabIndex={-1} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
           <h2 className="text-base font-semibold text-slate-900">Sales Tracking: Settings</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex gap-1 px-6 pt-4">

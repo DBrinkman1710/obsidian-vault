@@ -2,18 +2,20 @@ import { useState, useRef, useEffect } from 'react'
 import type { CSSProperties } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles, UserPlus, Mail, ExternalLink, ChevronRight, Paperclip, MessageSquare, Check } from 'lucide-react'
+import { Send, Lock, Trash2, X, CalendarClock, GitMerge, Sparkles, UserPlus, Mail, ExternalLink, ChevronRight, Paperclip, MessageSquare, Check, AlertTriangle } from 'lucide-react'
 import { SignaturePicker } from '../../inbox/components/SignaturePicker'
 import { TemplatePicker, htmlToText } from '../../inbox/components/TemplatePicker'
 import { useSignatures, pickDefaultSignature, swapSignature } from '../../../hooks/useSignatures'
 import type { Signature } from '../../../hooks/useSignatures'
 import { MutationGate } from '../../../shell/MutationGate'
+import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 import { useT } from '../../../hooks/useT'
 import SendBookingModal from '../../booking/components/SendBookingModal'
+import { timeAgo } from '../../../lib/format'
 
 const STATUS_OPTIONS = ['open', 'in_progress', 'waiting', 'resolved', 'closed']
 
@@ -285,7 +287,7 @@ export default function TicketDetail() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
               <h2 className="text-lg font-bold text-red-600">Delete ticket</h2>
-              <button onClick={() => setConfirmingDelete(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+              <CloseButton onClick={() => setConfirmingDelete(false)} />
             </div>
             <div className="p-6 flex flex-col gap-4">
               <p className="text-sm text-slate-600">
@@ -315,7 +317,8 @@ export default function TicketDetail() {
         return (
           <div className={`mb-4 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-3 ${overdue ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
             <span className="flex items-center gap-2 min-w-0">
-              ⚠ {overdue ? `SLA overdue (was due ${due.toLocaleString()})` : `SLA due in ${Math.ceil(hoursLeft)}h (${due.toLocaleString()})`}
+              <AlertTriangle size={14} className="shrink-0" />
+              {overdue ? `SLA overdue (was due ${due.toLocaleString()})` : `SLA due in ${Math.ceil(hoursLeft)}h (${due.toLocaleString()})`}
             </span>
             <MutationGate>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -342,7 +345,7 @@ export default function TicketDetail() {
       })()}
 
       <div className="flex items-start justify-between gap-4 mb-2">
-        <h1 className="text-2xl font-bold text-slate-900">{ticket.subject}</h1>
+        <h1 className="heading-xl text-slate-900">{ticket.subject}</h1>
         <MutationGate>
           <div className="flex items-center gap-2 flex-shrink-0">
             <select
@@ -767,9 +770,7 @@ function MergeModal({
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Merge ticket</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="p-6 flex flex-col gap-4">
@@ -847,22 +848,6 @@ function initials(name?: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60_000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  const weeks = Math.floor(days / 7)
-  if (weeks < 5) return `${weeks}w ago`
-  const months = Math.floor(days / 30)
-  if (months < 12) return `${months}mo ago`
-  return `${Math.floor(days / 365)}y ago`
-}
-
 function draftSubject(d: any): string {
   return d.final_subject ?? d.ai_suggested_subject ?? d.inbound_subject ?? '(no subject)'
 }
@@ -899,7 +884,7 @@ function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; o
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <h3 className="text-sm font-semibold text-slate-900">Link contact</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="p-4">
           <input
@@ -1104,7 +1089,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
     <aside className="w-96 flex-shrink-0">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-1">Contact</h2>
+          <h2 className="heading-xl text-slate-900 mb-1">Contact</h2>
           <p className="text-sm text-slate-500">Customer context &amp; history.</p>
         </div>
       </div>
@@ -1450,9 +1435,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
               <h2 className="text-base font-bold text-slate-900 truncate pr-2">{draftSubject(openDraft)}</h2>
-              <button onClick={() => setOpenDraft(null)} className="text-slate-400 hover:text-slate-600 shrink-0">
-                <X size={18} />
-              </button>
+              <CloseButton onClick={() => setOpenDraft(null)} />
             </div>
             <div className="p-6 flex flex-col gap-4">
               <div className="text-xs text-slate-500">
@@ -1555,9 +1538,7 @@ function ContactSlidePanel({
               Full profile
               <ExternalLink size={11} />
             </button>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600 ml-1">
-              <X size={16} />
-            </button>
+            <CloseButton onClick={onClose} className="ml-1" />
           </div>
         </div>
 

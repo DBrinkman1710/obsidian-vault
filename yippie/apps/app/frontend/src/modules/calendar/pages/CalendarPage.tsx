@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, Check, ChevronDown, ChevronLeft, ChevronRight, Edit2, ExternalLink, Plus, Settings2, Trash2, User, UserPlus, Users, X } from 'lucide-react'
+import { CloseButton } from '../../../shell/CloseButton'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
@@ -74,7 +75,7 @@ type CalendarTypeFilter = 'shared' | 'personal'
 interface PickerOption { id: string; label: string }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 const pad = (n: number) => String(n).padStart(2, '0')
@@ -461,7 +462,7 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
         {/* Header */}
         <div className="flex items-center justify-between px-8 pt-7 pb-0 shrink-0">
           <h2 className="text-lg font-bold text-slate-900">{event ? 'Edit event' : 'New'}</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
 
         {/* Tabs — only for create mode when booking module is on */}
@@ -784,7 +785,7 @@ function InvitationsPanel({ onClose }: { onClose: () => void }) {
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
             <UserPlus size={16} className="text-slate-400" /> Invitations
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
@@ -974,7 +975,7 @@ function BookingsPanel({ onClose, onNewBooking, onOpenSettings }: { onClose: () 
             <button onClick={onOpenSettings} className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors" title="Booking settings">
               <Settings2 size={15} />
             </button>
-            <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+            <CloseButton onClick={onClose} />
           </div>
         </div>
 
@@ -1316,7 +1317,7 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
           <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
             <Settings2 size={16} className="text-slate-400" /> Booking settings
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         {current ? (
           <div className="px-6 py-5 space-y-4 overflow-y-auto flex-1">
@@ -1577,7 +1578,7 @@ export default function CalendarPage() {
     <div className="max-w-6xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
+        <h1 className="heading-xl text-slate-900">Calendar</h1>
         <div className="flex items-center gap-2">
           {bookingEnabled && (
             <button onClick={() => setBookingsOpen(true)}

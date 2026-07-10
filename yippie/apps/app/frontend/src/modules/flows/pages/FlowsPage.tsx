@@ -7,6 +7,7 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
+import { useCopy } from '../../../hooks/useCopy'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
@@ -17,6 +18,7 @@ import {
   OP_LABELS, RUN_BADGE, WAIT_UNITS, WEEKDAYS,
   actionLabel, actionNodes, apiError, groupTriggers, isGraph, toGroups, triggerLabel,
 } from '../lib'
+import { CloseButton } from '../../../shell/CloseButton'
 
 interface TestFireResult {
   trigger_type: string
@@ -144,6 +146,7 @@ function WaitConfig({
 // Only meaningful once the flow exists (the token is minted on save).
 function WebhookPanel({ flowId }: { flowId: string | undefined }) {
   const qc = useQueryClient()
+  const { copy: copyText } = useCopy()
   const { data, isLoading } = useQuery<{ inbound_url: string; signing_secret: string }>({
     queryKey: ['flow-webhook', flowId],
     queryFn: () => api.get(`/flows/${flowId}/webhook`).then((r: any) => r.data),
@@ -160,7 +163,7 @@ function WebhookPanel({ flowId }: { flowId: string | undefined }) {
     onError: (err: any) => toast.error(apiError(err)),
   })
   const copy = (text: string, label: string) => {
-    navigator.clipboard?.writeText(text).then(() => toast.success(`${label} copied`))
+    copyText(text, `${label} copied`)
   }
   if (!flowId) {
     return (
@@ -333,9 +336,7 @@ function BuilderModal({
           <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
             <Zap size={16} className="text-slate-400" />
             <h2 className="text-base font-semibold text-slate-900">Edit flow</h2>
-            <button onClick={onClose} className="ml-auto p-1.5 text-slate-400 hover:text-slate-600 rounded-lg" title="Close">
-              <X size={16} />
-            </button>
+            <CloseButton onClick={onClose} className="ml-auto" />
           </div>
           <div className="px-6 py-10 text-center space-y-3">
             <GitBranch size={24} className="mx-auto text-violet-400" />
@@ -361,9 +362,7 @@ function BuilderModal({
         <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
           <Zap size={16} className="text-slate-400" />
           <h2 className="text-base font-semibold text-slate-900">{flow ? 'Edit flow' : 'New flow'}</h2>
-          <button onClick={onClose} className="ml-auto p-1.5 text-slate-400 hover:text-slate-600 rounded-lg" title="Close">
-            <X size={16} />
-          </button>
+          <CloseButton onClick={onClose} className="ml-auto" />
         </div>
 
         <div className="px-6 py-5 space-y-6">
@@ -664,9 +663,7 @@ function TestFireModal({
         <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
           <FlaskConical size={16} className="text-slate-400" />
           <h2 className="text-base font-semibold text-slate-900">Test fire — {flow.name}</h2>
-          <button onClick={onClose} className="ml-auto p-1.5 text-slate-400 hover:text-slate-600 rounded-lg" title="Close">
-            <X size={16} />
-          </button>
+          <CloseButton onClick={onClose} className="ml-auto" />
         </div>
         <div className="px-6 py-5 space-y-4">
           <p className="text-xs text-slate-500">
@@ -877,7 +874,7 @@ export default function FlowsPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Flows</h1>
+          <h1 className="heading-xl text-slate-900">Flows</h1>
           <p className="text-sm text-slate-500">Automations that connect your modules: when something happens, Yippie acts.</p>
         </div>
         {isAdmin && (

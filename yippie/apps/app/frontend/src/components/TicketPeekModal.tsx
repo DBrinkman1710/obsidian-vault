@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { X, UserCircle, ExternalLink, Clock } from 'lucide-react'
+import { UserCircle, ExternalLink, Clock } from 'lucide-react'
+import { CloseButton } from '../shell/CloseButton'
 import { api } from '../api/client'
 import { useT } from '../hooks/useT'
 
@@ -65,13 +66,7 @@ export default function TicketPeekModal({ ticketId, onClose }: TicketPeekModalPr
         onClick={e => e.stopPropagation()}
       >
         {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 transition-colors"
-          aria-label="Close"
-        >
-          <X size={18} />
-        </button>
+        <CloseButton onClick={onClose} className="absolute top-4 right-4" />
 
         {isLoading && (
           <div className="flex flex-col gap-4 animate-pulse pr-6">

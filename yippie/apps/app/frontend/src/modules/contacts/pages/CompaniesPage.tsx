@@ -82,7 +82,7 @@ export default function CompaniesPage() {
     <div className="max-w-3xl">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">Contacts</h1>
+          <h1 className="heading-xl text-slate-900 mb-1">Contacts</h1>
           <p className="text-sm text-slate-500">{companies?.length ?? 0} companies · {totalContacts} contacts</p>
         </div>
         <div className="flex flex-col items-end gap-2">

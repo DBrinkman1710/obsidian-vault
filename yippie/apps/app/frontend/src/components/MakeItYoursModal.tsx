@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
-import { Palette, X } from 'lucide-react'
+import { Palette } from 'lucide-react'
+import { CloseButton } from '../shell/CloseButton'
 import { api } from '../api/client'
 
 const DEFAULT_COLOR = '#5BA4F5'
@@ -47,13 +48,7 @@ export default function MakeItYoursModal({ tenantId, initialColor, initialLogoUr
             <p className="text-sm font-semibold text-slate-900">Make it yours</p>
             <p className="text-xs text-slate-400">Pick a brand colour and logo so this workspace feels like home</p>
           </div>
-          <button
-            onClick={onDismiss}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-            aria-label="Close"
-          >
-            <X size={15} />
-          </button>
+          <CloseButton onClick={onDismiss} />
         </div>
 
         <div className="px-5 py-5 flex flex-col gap-5">

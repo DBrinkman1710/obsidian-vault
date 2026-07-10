@@ -12,6 +12,7 @@ import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 import { useCopy } from '../../../hooks/useCopy'
+import { CloseButton } from '../../../shell/CloseButton'
 
 const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'flows', 'billing', 'contracts', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai']
 
@@ -188,7 +189,7 @@ function useSlugCheckError(slug: string): string | null {
   return null
 }
 
-const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function statusOf(t: Tenant): 'active' | 'demo' | 'inactive' {
@@ -472,9 +473,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">New client</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex items-center gap-1.5 px-6 pt-4 flex-wrap">
@@ -836,7 +835,7 @@ function EditClientModal({
             <h2 className="text-lg font-bold text-slate-900">Edit client</h2>
             <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex border-b border-slate-100 px-6 shrink-0">
@@ -1329,7 +1328,7 @@ function DeleteClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () =>
             <h2 className="text-lg font-bold text-red-600">Delete client</h2>
             <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="bg-red-50 border border-red-200 rounded-xl p-3">
@@ -1396,7 +1395,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
             <h2 className="text-lg font-bold text-slate-900">Add admin</h2>
             <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         {invited ? (
           <div className="p-6 flex flex-col gap-4">
@@ -1477,7 +1476,7 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
             <h2 className="text-lg font-bold text-red-600">Delete {tenants.length} client{tenants.length !== 1 ? 's' : ''}</h2>
             <p className="text-sm text-slate-400 mt-0.5">This cannot be undone</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 max-h-32 overflow-y-auto">
@@ -1531,9 +1530,7 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
             <h2 className="text-lg font-bold text-slate-900">Users</h2>
             <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="p-6">
           {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
@@ -1766,9 +1763,7 @@ function DnsRecordsModal({ tenant, onClose }: { tenant: Tenant; onClose: () => v
             <h2 className="text-base font-bold text-slate-900">DNS Records: {tenant.resend_domain_name}</h2>
             <p className="text-xs text-slate-400 mt-0.5">Add these records to your DNS provider, then click Verify.</p>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 flex flex-col gap-3">
           {records.length === 0 && (
@@ -1849,7 +1844,7 @@ function ProvisionDomainModal({ tenant, onClose, onSuccess }: {
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <h2 className="text-base font-bold text-slate-900">Set up sending domain</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 flex flex-col gap-4">
           <p className="text-sm text-slate-500">
@@ -2183,7 +2178,7 @@ export default function SuperAdminPage() {
     <div className="flex flex-col gap-8">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">
+          <h1 className="heading-xl text-slate-900">
             {pageTab === 'dashboard' ? 'Activity dashboard' : 'Client environments'}
           </h1>
           <p className="text-sm text-slate-400 mt-0.5">

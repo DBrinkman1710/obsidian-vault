@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, Unlink } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { timeAgo } from '../../../lib/format'
 
 // EML1 — linked Gmail/Outlook mailboxes. level='tenant' renders the shared
 // mailbox card (admin, Team settings); level='user' the personal one (Profile).
@@ -190,10 +191,3 @@ function StatusBadge({ account }: { account: EmailAccount }) {
   )
 }
 
-function timeAgo(iso: string): string {
-  const mins = Math.round((Date.now() - new Date(iso).getTime()) / 60000)
-  if (mins < 2) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  if (mins < 60 * 24) return `${Math.round(mins / 60)}h ago`
-  return `${Math.round(mins / 1440)}d ago`
-}

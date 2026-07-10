@@ -13,7 +13,7 @@ interface FormState {
 
 const EMPTY: FormState = { name: '', domain: '', notes: '' }
 
-const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function errorDetail(err: unknown): string {
@@ -133,7 +133,7 @@ export default function CompaniesPage() {
     <div className="max-w-3xl">
       <div className="flex items-start justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900 mb-1">Companies</h1>
+          <h1 className="heading-xl text-slate-900 mb-1">Companies</h1>
           <p className="text-sm text-slate-500">
             Group contacts under the company they work for. Filter the contact list and email everyone at once.
           </p>

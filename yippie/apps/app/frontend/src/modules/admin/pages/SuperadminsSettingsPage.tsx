@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ShieldCheck, UserPlus, X, ToggleLeft, ToggleRight, Trash2, Puzzle } from 'lucide-react'
+import { ShieldCheck, UserPlus, ToggleLeft, ToggleRight, Trash2, Puzzle } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+import { CloseButton } from '../../../shell/CloseButton'
 
 const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'contracts', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai'] as const
 type ModuleName = typeof ALL_MODULES[number]
@@ -75,7 +76,7 @@ interface Superadmin {
   created_at: string
 }
 
-const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30'
+const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function ToggleConfirmModal({
@@ -115,7 +116,7 @@ function ToggleConfirmModal({
           <h2 className="text-lg font-bold text-slate-900">
             {deactivating ? 'Deactivate superadmin' : 'Activate superadmin'}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <p className="text-sm text-slate-600">
@@ -183,7 +184,7 @@ function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Invite superadmin</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         {sent ? (
           <div className="p-6 flex flex-col gap-4">
@@ -253,7 +254,7 @@ function DeleteSuperadminModal({ target, onClose }: { target: Superadmin; onClos
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-red-600">Delete superadmin</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="bg-red-50 border border-red-200 rounded-xl p-3">
@@ -302,7 +303,7 @@ export default function SuperadminsSettingsPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <ShieldCheck size={20} className="text-amber-500" />
-              <h1 className="text-2xl font-bold text-slate-900">Superadmins</h1>
+              <h1 className="heading-xl text-slate-900">Superadmins</h1>
             </div>
             <p className="text-sm text-slate-400">
               Superadmins in this environment. Scope is limited to this database. Sandbox superadmins are not live superadmins.

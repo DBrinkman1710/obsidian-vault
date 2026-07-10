@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { X, Phone, Square, Sparkles, Mail, Check, Trash2, Plus, AlarmClock } from 'lucide-react'
+import { Phone, Square, Sparkles, Mail, Check, Trash2, Plus, AlarmClock } from 'lucide-react'
+import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useCompose } from '../../../hooks/useCompose'
@@ -185,9 +186,7 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
             Call — {contact.full_name}
             {contact.phone && <span className="text-slate-400 font-normal"> · +{contact.phone}</span>}
           </h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={16} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         {phase === 'capture' && (

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { X } from 'lucide-react'
+import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 
@@ -96,9 +96,7 @@ export default function BroadcastModal({ open, onClose }: Props) {
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-lg font-bold text-slate-900">New broadcast</h2>
-          <button onClick={handleClose} className="text-slate-400 hover:text-slate-600">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={handleClose} />
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5">

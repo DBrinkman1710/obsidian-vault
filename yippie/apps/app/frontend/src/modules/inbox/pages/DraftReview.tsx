@@ -16,6 +16,7 @@ import { useSignatures, pickDefaultSignature, swapSignature, type Signature } fr
 import { SignaturePicker } from '../components/SignaturePicker'
 import { useLinkedEmailAccounts, PROVIDER_SHORT } from '../hooks/useLinkedEmailAccounts'
 import { useCopy } from '../../../hooks/useCopy'
+import { CloseButton } from '../../../shell/CloseButton'
 
 interface PipelineStage { id: string; name: string; color: string }
 
@@ -133,7 +134,7 @@ function NewContactModal({ senderEmail, draftId, onSuccess, onDismiss }: NewCont
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-[480px] shadow-2xl max-h-[90vh] overflow-y-auto">
         <h2 className="text-lg font-bold text-slate-900 mb-1">Unknown Sender</h2>
         <p className="text-sm text-slate-500 mb-5">
@@ -228,13 +229,11 @@ function RouteAndApproveModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl p-6 w-full max-w-[440px] shadow-2xl">
         <div className="flex items-start justify-between mb-1">
           <h2 className="text-base font-bold text-slate-900">Route & Approve</h2>
-          <button onClick={onCancel} className="text-slate-400 hover:text-slate-600 transition-colors cursor-pointer">
-            <X size={16} />
-          </button>
+          <CloseButton onClick={onCancel} />
         </div>
         <p className="text-sm text-slate-500 mb-5">
           Set a department and SLA before approving, or proceed without.

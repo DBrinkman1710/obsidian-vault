@@ -57,7 +57,7 @@ export default function SalesPage() {
     <div className="space-y-8">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Sales Tracking</h1>
+          <h1 className="heading-xl text-slate-900">Sales Tracking</h1>
           <p className="text-sm text-slate-500 mt-1">
             Track visitor behaviour on your clients' websites and surface it inside Yippie contact cards.
           </p>

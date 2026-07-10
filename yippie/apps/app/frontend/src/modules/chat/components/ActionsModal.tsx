@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight, X } from 'lucide-react'
+import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 
@@ -111,7 +112,7 @@ interface Props {
   onTicketLinked: () => void
 }
 
-const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 export default function ActionsModal({ session, defaultPane = 'ticket', onClose, onTicketLinked }: Props) {
@@ -295,9 +296,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
             <button onClick={() => setPane('ticket')} className={tabCls(pane === 'ticket')}>Create Ticket</button>
             <button onClick={() => setPane('booking')} className={tabCls(pane === 'booking')}>Send Booking</button>
           </div>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors">
-            <X size={18} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         {/* Content */}

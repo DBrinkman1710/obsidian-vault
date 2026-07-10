@@ -1,4 +1,5 @@
-import { Building2, Globe, Plus, Users, X } from 'lucide-react'
+import { Building2, Globe, Plus, Users } from 'lucide-react'
+import { CloseButton } from '../shell/CloseButton'
 import { useEffect } from 'react'
 
 export interface CompanyPeekData {
@@ -38,12 +39,7 @@ export default function CompanyPeekModal({
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Company</span>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <X size={15} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex-1 overflow-y-auto p-5 space-y-4">

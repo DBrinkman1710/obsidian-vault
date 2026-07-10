@@ -12,21 +12,10 @@ import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import SendBookingModal from '../../booking/components/SendBookingModal'
 import CallModal from '../components/CallModal'
+import { timeAgo } from '../../../lib/format'
 
 function formatEventType(s: string): string {
   return s.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-}
-
-function timeAgo(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  const days = Math.floor(hours / 24)
-  if (days < 7) return `${days}d ago`
-  return new Date(iso).toLocaleDateString()
 }
 
 function payloadSummary(payload: any): string | null {
@@ -272,7 +261,7 @@ export default function ContactDetail() {
       <div className="flex-1 min-w-0">
         <div className="flex items-start justify-between gap-4 mb-6">
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-bold text-slate-900">{contact.full_name}</h1>
+            <h1 className="heading-xl text-slate-900">{contact.full_name}</h1>
             {marketingEnabled && typeof contact.engagement_score === 'number' && (
               <span
                 title="Engagement score"
@@ -423,7 +412,7 @@ export default function ContactDetail() {
         ) : (
           <>
             <div className="mb-6">
-              <h2 className="text-2xl font-bold text-slate-900 mb-1">Details</h2>
+              <h2 className="heading-xl text-slate-900 mb-1">Details</h2>
               <p className="text-sm text-slate-500">Contact info &amp; properties.</p>
             </div>
 

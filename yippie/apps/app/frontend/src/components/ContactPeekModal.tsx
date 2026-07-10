@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { Building2, ExternalLink, Mail, Phone, X } from 'lucide-react'
+import { Building2, ExternalLink, Mail, Phone } from 'lucide-react'
+import { CloseButton } from '../shell/CloseButton'
 import { useEffect } from 'react'
 import { api } from '../api/client'
 import { LabelChip } from '../modules/contacts/components/LabelChip'
@@ -50,12 +51,7 @@ export default function ContactPeekModal({
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Contact</span>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-          >
-            <X size={15} />
-          </button>
+          <CloseButton onClick={onClose} />
         </div>
 
         {isLoading || !contact ? (

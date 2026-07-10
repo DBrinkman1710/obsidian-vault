@@ -8,6 +8,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { useIsViewOnly } from '../../../shell/ModuleGate'
 import { ShipmentStatusBadge, type ShipmentStatus } from '../components/ShipmentStatusBadge'
 import { CarrierBadge, type Carrier } from '../components/CarrierBadge'
+import { fmtDate, fmtDateTime } from '../../../lib/format'
 
 interface ShipmentEvent {
   id: string
@@ -34,18 +35,8 @@ interface ShipmentDetail {
   events: ShipmentEvent[]
 }
 
-function formatDate(iso: string | null) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-function formatDateTime(iso: string | null) {
-  if (!iso) return '—'
-  return new Date(iso).toLocaleString('en-GB', {
-    day: 'numeric', month: 'short', year: 'numeric',
-    hour: '2-digit', minute: '2-digit',
-  })
-}
+const formatDate = fmtDate
+const formatDateTime = fmtDateTime
 
 export default function ShipmentDetail() {
   const { id } = useParams<{ id: string }>()

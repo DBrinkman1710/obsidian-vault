@@ -16,6 +16,7 @@ import type { ContactColumnPref } from '../../../auth/useAuth'
 import ContactPeekModal from '../../../components/ContactPeekModal'
 import CompanyPeekModal from '../../../components/CompanyPeekModal'
 import { EmptyState } from '../../../components/EmptyState'
+import { CloseButton } from '../../../shell/CloseButton'
 
 interface ImportResult {
   imported: number
@@ -56,7 +57,7 @@ interface PipelineStage {
 
 interface FormState { name: string; domain: string; notes: string }
 const EMPTY: FormState = { name: '', domain: '', notes: '' }
-const inputCls = 'w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie'
+const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function errDetail(e: unknown) {
@@ -254,7 +255,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-900">Move contacts to stage</h2>
-              <button onClick={() => setShowMoveStage(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+              <CloseButton onClick={() => setShowMoveStage(false)} />
             </div>
             <div className="p-4 flex flex-col gap-1.5">
               {stages?.map((stage: any) => (
@@ -418,7 +419,7 @@ function EditContactModal({ contact, companies, onClose }: {
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Edit contact</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={e => { e.preventDefault(); if (!form.full_name.trim()) { setError('Name is required'); return } setError(''); mutation.mutate() }}
           className="p-6 flex flex-col gap-4">
@@ -697,7 +698,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
               <h2 className="text-lg font-bold text-slate-900">Move {selected.size} contact{selected.size !== 1 ? 's' : ''} to stage</h2>
-              <button onClick={() => setShowMoveStage(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+              <CloseButton onClick={() => setShowMoveStage(false)} />
             </div>
             <div className="p-4 flex flex-col gap-1.5">
               {stages?.map((stage: any) => (
@@ -989,7 +990,7 @@ export default function ContactsPage() {
       {/* Fixed header */}
       <div className="shrink-0 px-8 pt-8 pb-0 bg-slate-50">
         <div className="flex items-start justify-between mb-5">
-          <h1 className="text-2xl font-bold text-slate-900">Contacts</h1>
+          <h1 className="heading-xl text-slate-900">Contacts</h1>
           <div className="flex gap-2">
             <button onClick={exportAll}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
@@ -1068,7 +1069,7 @@ export default function ContactsPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-bold text-slate-900">Import contacts</h2>
-              <button onClick={closeImport} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+              <CloseButton onClick={closeImport} />
             </div>
             <p className="text-sm text-slate-400 mb-5">Upload a CSV, JSON, or XLSX file.</p>
 

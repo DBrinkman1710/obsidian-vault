@@ -155,7 +155,7 @@ export default function TicketNew() {
           Tickets
         </Link>
         <span className="text-slate-300">/</span>
-        <h1 className="text-2xl font-bold text-slate-900">{t('ticket_new_title')}</h1>
+        <h1 className="heading-xl text-slate-900">{t('ticket_new_title')}</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">

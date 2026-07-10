@@ -251,7 +251,7 @@ export default function ActivityFeed() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-900 mb-6">Activity</h1>
+      <h1 className="heading-xl text-slate-900 mb-6">Activity</h1>
 
       {isLoading && <LoadingState />}
 

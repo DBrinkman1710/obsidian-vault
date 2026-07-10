@@ -11,16 +11,8 @@ import { useMobile } from '../../../shell/useMobile'
 import { useTenantConfig } from '../../../App'
 import BroadcastModal from '../components/BroadcastModal'
 import ActionsModal from '../components/ActionsModal'
-
-function timeAgo(dt: string) {
-  const diff = Date.now() - new Date(dt).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  return new Date(dt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
-}
+import { CloseButton } from '../../../shell/CloseButton'
+import { timeAgo } from '../../../lib/format'
 
 function formatTime(dt: string) {
   return new Date(dt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -694,7 +686,7 @@ export default function ChatPage() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
               <h2 className="text-base font-bold text-slate-900">Connect WhatsApp</h2>
-              <button onClick={() => setShowQrModal(false)} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+              <CloseButton onClick={() => setShowQrModal(false)} />
             </div>
             <div className="p-6 text-center">
               <p className="text-sm text-slate-500 mb-4">Scan this QR code with WhatsApp on your phone to connect.</p>
@@ -1221,7 +1213,7 @@ function HistoryViewModal({ sessionId, onClose }: { sessionId: string; onClose: 
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900">Past conversation</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 overflow-y-auto flex flex-col gap-3 bg-slate-50">
           {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
@@ -1269,7 +1261,7 @@ function ContactModal({ contactId, onClose, navigate }: { contactId: string; onC
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900">Contact</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 space-y-4">
           <Field label="Name" value={fullName} onChange={setFullName} />
@@ -1322,7 +1314,7 @@ function CreateContactModal({ phone, name, onClose, onCreated }: { phone: string
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-base font-bold text-slate-900">New contact</h2>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={18} /></button>
+          <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 space-y-4">
           <Field label="Name" value={fullName} onChange={setFullName} />

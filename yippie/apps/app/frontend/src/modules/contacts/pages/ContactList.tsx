@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useCompose } from '../../../hooks/useCompose'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Search, Plus, User, ChevronLeft, Upload, Download, Trash2, X, Mail } from 'lucide-react'
+import { Search, Plus, User, ChevronLeft, Upload, Download, Trash2, Mail } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { TableSkeleton } from '../../../shell/Skeleton'
@@ -11,6 +11,7 @@ import { CompanyBadge, fetchCompanies, type CompanyRef } from '../components/Com
 import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { useT } from '../../../hooks/useT'
+import { CloseButton } from '../../../shell/CloseButton'
 
 interface Contact {
   id: string
@@ -142,7 +143,7 @@ export default function ContactList() {
         </Link>
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">
+            <h1 className="heading-xl text-slate-900">
               {scopedCompany ? scopedCompany.name : t('contacts_all')}
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">{data?.total ?? 0} contact{(data?.total ?? 0) !== 1 ? 's' : ''}</p>
@@ -371,9 +372,7 @@ export default function ContactList() {
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
               <h2 className="text-lg font-bold text-slate-900">{t('contacts_import_title')}</h2>
-              <button onClick={closeImport} className="text-slate-400 hover:text-slate-600">
-                <X size={18} />
-              </button>
+              <CloseButton onClick={closeImport} />
             </div>
             <p className="text-sm text-slate-500 mb-5">{t('contacts_import_desc')}</p>
 
