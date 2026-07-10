@@ -62,10 +62,21 @@ def _normalize_condition_groups(raw: Any) -> list:
     return groups
 
 
-class ScheduleConfigSpec(BaseModel):
+class BaseTriggerConfigSpec(BaseModel):
+    """The trigger_config a trigger with no bespoke settings accepts: nothing.
+    The universal `chainable` flag is handled separately by the service, so this
+    spec receives only the bespoke keys and forbids ALL of them — any stray key
+    is a validation error (a clean 422 at save time). Every per-trigger config
+    spec (e.g. ScheduleConfigSpec) subclasses this to inherit ``extra='forbid'``."""
+
+    model_config = {"extra": "forbid"}
+
+
+class ScheduleConfigSpec(BaseTriggerConfigSpec):
     """trigger_config for the `schedule` trigger. daily needs only a time;
-    weekly also needs a weekday (0=Mon … 6=Sun). Validated on write; the engine's
-    schedule tick reads it back through steps.schedule_is_due."""
+    weekly also needs a weekday (0=Mon … 6=Sun). Validated on write (unknown keys
+    rejected via the forbid-extras base); the engine's schedule tick reads it back
+    through steps.schedule_is_due."""
     frequency: Literal["daily", "weekly"]
     time: str = Field(pattern=r"^([01]\d|2[0-3]):[0-5]\d$")
     weekday: Optional[int] = Field(default=None, ge=0, le=6)

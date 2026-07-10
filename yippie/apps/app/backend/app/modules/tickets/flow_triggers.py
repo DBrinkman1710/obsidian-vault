@@ -1,9 +1,11 @@
 """[FLOW7] Tickets module trigger declarations for the flow registry.
 
-Owns the shared field-option constants (_PRIORITIES/_STATUSES/_CHANNELS) that the
-ticket triggers pick from, and `ticket_fields` — the fresh-state loader ([FLOW4])
-that reads the ticket's CURRENT status/priority/assignee/subject and merges the
-contact's live fields on top, so a post-wait branch ("if STILL open") sees reality.
+The field-option lists (_PRIORITIES/_STATUSES/_CHANNELS) are derived straight from
+the domain enums in tickets/models.py — the single source of truth — so adding a
+new status/priority/channel is one enum edit, not a hand-synced copy in three
+places. `ticket_fields` is the fresh-state loader ([FLOW4]) that reads the
+ticket's CURRENT status/priority/assignee/subject and merges the contact's live
+fields on top, so a post-wait branch ("if STILL open") sees reality.
 
 Model imports are deferred inside the loader to keep the registry import light.
 """
@@ -12,10 +14,12 @@ from __future__ import annotations
 import uuid
 
 from app.modules.contacts.flow_triggers import contact_fields
+from app.modules.tickets.models import MessageSource, TicketPriority, TicketStatus
 
-_PRIORITIES = ["low", "medium", "high", "urgent"]
-_STATUSES = ["open", "in_progress", "waiting", "resolved", "closed"]
-_CHANNELS = ["manual", "email", "whatsapp", "chat", "portal"]
+# Derived from the domain enums (their declaration order) — never hand copied.
+_PRIORITIES = [p.value for p in TicketPriority]
+_STATUSES = [s.value for s in TicketStatus]
+_CHANNELS = [c.value for c in MessageSource]
 
 
 async def ticket_fields(db, tenant, event) -> dict:

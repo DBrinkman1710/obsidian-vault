@@ -2,12 +2,11 @@
 from __future__ import annotations
 
 from app.modules.contacts.flow_triggers import contact_fields
+from app.modules.shipments.models import ShipmentStatus
 
-# Mirrors ShipmentStatus in shipments/models.py.
-_STATUSES = [
-    "registered", "in_transit", "out_for_delivery",
-    "delivered", "exception", "returned", "cancelled",
-]
+# Derived from the domain enum (its declaration order) — never hand copied, so a
+# new shipment status is a single edit in shipments/models.py.
+_STATUSES = [s.value for s in ShipmentStatus]
 
 TRIGGERS: dict[str, dict] = {
     "order_received": {

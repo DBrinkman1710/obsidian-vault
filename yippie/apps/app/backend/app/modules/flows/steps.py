@@ -89,8 +89,9 @@ def retry_delay(attempt: int) -> timedelta | None:
 def chain_of(fields: dict) -> tuple[int, list[str]]:
     """[FLOW6] The chain a flow-caused event sits on, read from its payload
     fields: (depth, path of flow ids walked so far). Absent/garbled values read
-    as a fresh chain — payloads round-trip through JSONB and, for webhook
-    triggers, through external callers."""
+    as a fresh chain — payloads round-trip through JSONB. Chain fields on a
+    non-flow event (an inbound webhook body could carry them) are stripped by the
+    engine before this runs, so only genuine engine-stamped chains are honoured."""
     fields = fields or {}
     try:
         depth = int(fields.get("chain_depth") or 0)

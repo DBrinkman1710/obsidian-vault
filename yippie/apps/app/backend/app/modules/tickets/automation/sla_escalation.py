@@ -20,12 +20,15 @@ log = logging.getLogger(__name__)
 scheduler = AsyncIOScheduler()
 
 
-# [FLOW8] the stepwise "escalate overdue tickets every 5 min" job was retired: the
-# default flow "Escalate tickets before SLA breach" (trigger ticket_sla_due_soon,
-# action update_ticket → priority urgent) now owns escalation. Deliberate behaviour
-# change: escalation happens ONCE, straight to urgent, just BEFORE the SLA breach,
-# instead of one-notch-per-tick AFTER it. The emit_sla_due_soon_flow_events job
-# below feeds that flow.
+# [FLOW8] the hardcoded "escalate overdue tickets every 5 min" job was retired in
+# favour of the default flow "Escalate tickets before SLA breach". [SLA restore]
+# then put the OLD stepwise behaviour back: that flow now steps a ticket's priority
+# up over time (to high, wait, then to urgent) while it stays open/in_progress,
+# rather than the one-shot jump straight to urgent FLOW8 briefly used — see
+# flows/service.stepwise_sla_escalation_graph + migration flows10_sla_stepwise_restore.
+# The one-shot 60 min pre breach variant survives as the opt-in recipe
+# "escalate_before_sla_breach". The emit_sla_due_soon_flow_events job below feeds
+# whichever escalation flow the tenant has enabled.
 
 
 # [FLOW2C] emit a ticket_sla_due_soon flow event once per ticket when its SLA

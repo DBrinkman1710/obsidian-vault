@@ -26,6 +26,42 @@ from app.modules.flows.schemas import (
 _FAIL_STATUSES = ("failed", "partial")
 
 
+def stepwise_sla_escalation_graph() -> dict:
+    """[SLA restore] The default SLA escalation flow's actions as a branched graph
+    that recreates the retired stepwise post-breach escalation job (which climbed
+    a ticket's priority one notch per tick, low→…→urgent, only while it stayed
+    open/in_progress) using flow steps.
+
+    Fired by ``ticket_sla_due_soon`` (~60 min before breach — the only SLA trigger
+    the engine has), it escalates in STEPS rather than the one-shot jump to urgent
+    the FLOW8 default used: raise to high, wait, then — if the ticket is STILL
+    open/in_progress (fresh-state branch, so a resolved ticket stops climbing,
+    exactly like the old job's status filter) — raise to urgent. This is the
+    faithful flow-expressible reconstruction of "step the priority up over time
+    while the ticket is unresolved"; ``update_ticket`` can only set an absolute
+    priority (not "one notch up"), so the ladder is high→urgent rather than the
+    old per-notch climb from whatever the starting priority was.
+
+    Kept as a plain dict so the FLOW10 migration (raw SQL) and the tests reuse the
+    exact same shape. The engine accepts either the linear list or this graph."""
+    _still_open = [[{"field": "status", "op": "in", "value": ["open", "in_progress"]}]]
+    return {
+        "nodes": [
+            {"id": "check_open_1", "type": "branch", "config": {"conditions": _still_open}},
+            {"id": "to_high", "type": "update_ticket", "config": {"priority": "high"}},
+            {"id": "wait_1", "type": "wait", "config": {"minutes": 5}},
+            {"id": "check_open_2", "type": "branch", "config": {"conditions": _still_open}},
+            {"id": "to_urgent", "type": "update_ticket", "config": {"priority": "urgent"}},
+        ],
+        "edges": [
+            {"from": "check_open_1", "to": "to_high", "when": "match"},
+            {"from": "to_high", "to": "wait_1", "when": None},
+            {"from": "wait_1", "to": "check_open_2", "when": None},
+            {"from": "check_open_2", "to": "to_urgent", "when": "match"},
+        ],
+    }
+
+
 # [FLOW8] The two universal default flows every tenant gets — replacements for the
 # retired Yip SLA nudge (B1) and the SLA escalation job (B2). Installed for every
 # existing tenant by the FLOW8 migration and for every new tenant by seed.py /
@@ -33,6 +69,12 @@ _FAIL_STATUSES = ("failed", "partial")
 # reuse the exact same shapes. tickets is a paid add-on, but a tenant without it
 # simply never receives ticket_sla_due_soon events — the flow stays inert, so it's
 # safe to install unconditionally.
+#
+# [SLA restore] The escalation flow now carries the STEPWISE post-breach ladder
+# (stepwise_sla_escalation_graph) instead of FLOW8's one-shot jump to urgent. The
+# FLOW10 migration moves existing tenants' migrated flow back to this shape; the
+# one-shot "urgent, 60 min before breach" variant stays available as the opt-in
+# recipe "escalate_before_sla_breach" for new setups that prefer it.
 DEFAULT_FLOWS: list[dict] = [
     {
         "name": "Notify the assigned agent before SLA breach",
@@ -49,19 +91,26 @@ DEFAULT_FLOWS: list[dict] = [
         "name": "Escalate tickets before SLA breach",
         "trigger_type": "ticket_sla_due_soon",
         "conditions": [],
-        "actions": [
-            {"type": "update_ticket", "config": {"priority": "urgent"}},
-        ],
+        "actions": stepwise_sla_escalation_graph(),
     },
 ]
+
+
+def _default_flow_actions(actions):
+    """Normalize a DEFAULT_FLOWS ``actions`` entry — a linear list of action dicts
+    or an already-shaped [FLOW4] graph — into the JSONB the Flow row stores,
+    validating it through the same specs the API uses."""
+    from app.modules.flows.schemas import ActionSpec, GraphSpec
+
+    if isinstance(actions, dict):
+        return GraphSpec(**actions).dump()
+    return [ActionSpec(**a).model_dump() for a in actions]
 
 
 async def install_default_flows(db: AsyncSession, tenant_id: uuid.UUID) -> int:
     """Idempotently install the two universal default flows for a tenant. A flow
     is created only when the tenant has no flow of that name yet, so re-running is
     safe. Returns how many were newly created."""
-    from app.modules.flows.schemas import ActionSpec
-
     existing = set((await db.scalars(
         select(Flow.name).where(Flow.tenant_id == tenant_id)
     )).all())
@@ -76,7 +125,7 @@ async def install_default_flows(db: AsyncSession, tenant_id: uuid.UUID) -> int:
             is_default=True,
             trigger_type=spec["trigger_type"],
             conditions=spec["conditions"],
-            actions=[ActionSpec(**a).model_dump() for a in spec["actions"]],
+            actions=_default_flow_actions(spec["actions"]),
             trigger_config={},
             created_by=None,
         ))
@@ -96,9 +145,30 @@ def _new_token() -> str:
     return secrets.token_urlsafe(32)
 
 
+# [FLOW8] Trigger-specific config is now validated at SAVE time for EVERY trigger
+# type, not just `schedule`. Previously only schedule ran through a spec while
+# every other trigger's config was silently dropped — so a typo'd or hostile
+# config key persisted (or vanished without a word) and, at worst, only surfaced
+# when the engine interpreted it. Each trigger now names the pydantic spec its
+# config must satisfy; specs forbid unknown keys, so a bad config is a clean 422.
+# A trigger with no bespoke config uses the base spec (chainable only).
+_TRIGGER_CONFIG_SPECS: dict[str, type] = {"schedule": ScheduleConfigSpec}
+
+
+def _config_spec_for(trigger_type: str) -> type:
+    from app.modules.flows.schemas import BaseTriggerConfigSpec
+
+    return _TRIGGER_CONFIG_SPECS.get(trigger_type, BaseTriggerConfigSpec)
+
+
 def _normalize_trigger_config(trigger_type: str, raw: Optional[dict], *, enabled: bool) -> dict:
-    """The stored trigger_config: {} for every trigger except `schedule`, whose
-    config is validated (and its weekday normalized) through ScheduleConfigSpec.
+    """The stored, validated trigger_config. `schedule` carries its frequency/
+    time/weekday (validated + weekday-normalized via ScheduleConfigSpec); every
+    other trigger carries only the universal `chainable` opt-in. The config is
+    validated against the trigger's registered spec on write, so an unknown key
+    or an invalid value is rejected (FlowValidationError → 422) rather than
+    silently dropped or deferred to the engine.
+
     A disabled schedule flow may still be saved with an empty config (draft);
     enabling one requires a valid schedule.
 
@@ -106,16 +176,30 @@ def _normalize_trigger_config(trigger_type: str, raw: Optional[dict], *, enabled
     it's the per-flow opt-in that lets flow-caused events fire this flow."""
     raw = raw or {}
     chainable = bool(raw.get("chainable"))
+    spec = _config_spec_for(trigger_type)
+    # The bespoke config keys (everything except the universal chainable flag).
+    bespoke = {k: v for k, v in raw.items() if k != "chainable"}
     out: dict = {}
     if trigger_type == "schedule":
-        schedule_raw = {k: v for k, v in raw.items() if k != "chainable"}
-        if enabled or schedule_raw:
+        # A draft schedule with no config is allowed; an enabled one (or any
+        # non-empty config) must fully validate.
+        if enabled or bespoke:
             try:
-                out = ScheduleConfigSpec(**schedule_raw).model_dump()
+                out = spec(**bespoke).model_dump()
             except ValidationError:
                 raise FlowValidationError(
                     "This schedule needs a valid time (HH:MM); a weekly schedule also needs a weekday"
                 )
+    else:
+        # Non-schedule triggers accept no bespoke config — validate to reject any
+        # stray key (the base spec forbids extras) rather than dropping it silently.
+        try:
+            spec(**bespoke)
+        except ValidationError:
+            raise FlowValidationError(
+                "This trigger takes no configuration"
+                + (f" — unexpected setting(s): {', '.join(sorted(bespoke))}" if bespoke else "")
+            )
     if chainable:
         out["chainable"] = True
     return out

@@ -92,13 +92,29 @@ async def _claim_events(db: AsyncSession) -> list[dict]:
             "actor_id": str(row.actor_id) if row.actor_id else None,
             "source": row.source,
             "fields": {
-                **(row.payload or {}),
+                **_sanitized_payload(row.payload, row.source),
                 "event_type": row.event_type,
                 "contact_id": str(row.contact_id) if row.contact_id else None,
             },
         }
         for row in rows
     ]
+
+
+# [FLOW6] chain identity is engine managed: only flow-caused events (source
+# 'flow', stamped inside chain_scope) may carry chain_depth/chain_path. An
+# inbound webhook body is external data — if it happens to contain those keys
+# they must NOT seed the depth cap / cycle guard, or a caller could forge a
+# chain (or reset one to keep looping). Strip them from any non-flow payload so
+# chain_of reads a fresh chain, exactly as if the keys were absent.
+_CHAIN_FIELDS = ("chain_depth", "chain_path")
+
+
+def _sanitized_payload(payload: Optional[dict], source: Optional[str]) -> dict:
+    payload = payload or {}
+    if source == "flow":
+        return dict(payload)
+    return {k: v for k, v in payload.items() if k not in _CHAIN_FIELDS}
 
 
 async def _load_flows(

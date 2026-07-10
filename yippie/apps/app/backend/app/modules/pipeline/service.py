@@ -183,6 +183,12 @@ async def get_board(db: AsyncSession, tenant_id: uuid.UUID) -> list[PipelineBoar
     ]
 
 
+class StageMoveSkipped(ValueError):
+    """A non-human automation (flow, booking, tracking) tried to move a contact
+    a human had manually placed. The move is skipped, not applied — restoring the
+    original behaviour of respecting a human's pipeline placement."""
+
+
 async def _assign_stage(
     db: AsyncSession,
     tenant_id: uuid.UUID,
@@ -190,13 +196,22 @@ async def _assign_stage(
     stage_id: uuid.UUID,
     actor_id: Optional[uuid.UUID] = None,
     source: str = "app",
-) -> None:
+) -> str:
     """Write the stage assignment without committing. Caller must commit.
+    Returns ``"applied"`` when a move landed, ``"noop"`` when nothing needed to
+    change, or ``"blocked"`` when the human-placement guard refused it.
 
     Logs a ``pipeline_stage_changed`` activity event whenever the contact
     actually lands in a new stage. Every path that moves a contact between
     stages flows through here (kanban drag, booking auto-move, tracking link
     clicks), so the activity feed shows the full transition history inline.
+
+    Automation (a flow action, a booking auto-move, a tracking link) never
+    overrides a human's manual placement: if the contact's current entry was
+    ``moved_by_human`` and this move isn't itself a human action, the move is
+    refused (returns ``"blocked"``) so the operator's decision stands. Callers
+    that need to surface the skip (the flow action) go through
+    ``move_contact_to_stage``, which turns ``"blocked"`` into ``StageMoveSkipped``.
     """
     by_human = actor_id is not None
     existing = await db.scalar(
@@ -205,6 +220,15 @@ async def _assign_stage(
             ContactPipelineEntry.tenant_id == tenant_id,
         )
     )
+    # Restore the human-placement guard: an automated move (no actor) that would
+    # relocate a contact a human parked in a stage is refused entirely.
+    if (
+        not by_human
+        and existing is not None
+        and existing.moved_by_human
+        and existing.stage_id != stage_id
+    ):
+        return "blocked"
     from_stage_id = existing.stage_id if existing else None
     changed = False
     if existing is None:
@@ -223,7 +247,7 @@ async def _assign_stage(
         existing.moved_by_human = True
 
     if not changed:
-        return
+        return "noop"
 
     stage_name = await db.scalar(
         select(PipelineStage.name).where(
@@ -254,6 +278,7 @@ async def _assign_stage(
         },
         source=source,
     )
+    return "applied"
 
 
 async def move_contact_to_stage(
@@ -277,8 +302,15 @@ async def move_contact_to_stage(
         raise ValueError("Stage not found")
 
     # _assign_stage logs the pipeline_stage_changed activity event itself
-    # (only when the stage actually changes), so we don't log again here.
-    await _assign_stage(db, tenant_id, contact_id, stage_id, actor_id=actor_id, source=source)
+    # (only when the stage actually changes), so we don't log again here. An
+    # automated move the guard blocked (human placement) surfaces as a skip so
+    # the flow action records it rather than reporting a no-op success. A plain
+    # "noop" (already in that stage) is left as a silent, successful move.
+    outcome = await _assign_stage(db, tenant_id, contact_id, stage_id, actor_id=actor_id, source=source)
+    if outcome == "blocked":
+        raise StageMoveSkipped(
+            "Contact was placed in its stage by a person — automation left it there"
+        )
     await db.commit()
 
 

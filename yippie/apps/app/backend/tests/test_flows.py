@@ -388,10 +388,31 @@ def test_schedule_config_rejects_bad_time():
             ScheduleConfigSpec(frequency="daily", time=bad)
 
 
-def test_normalize_trigger_config_non_schedule_drops_config():
-    # any trigger that isn't `schedule` stores an empty config, always
-    assert _normalize_trigger_config("ticket_created", {"frequency": "daily"}, enabled=True) == {}
-    assert _normalize_trigger_config("ticket_sla_due_soon", {"x": 1}, enabled=False) == {}
+def test_normalize_trigger_config_non_schedule_empty_config_ok():
+    # a trigger that isn't `schedule` takes no bespoke config; empty stays empty
+    assert _normalize_trigger_config("ticket_created", {}, enabled=True) == {}
+    assert _normalize_trigger_config("ticket_sla_due_soon", None, enabled=False) == {}
+    # the universal chainable opt-in is preserved for non-schedule triggers
+    assert _normalize_trigger_config("ticket_created", {"chainable": True}, enabled=True) == {"chainable": True}
+
+
+def test_normalize_trigger_config_non_schedule_rejects_stray_keys():
+    # [FLOW8] stray/invalid config on a non-schedule trigger is rejected at save
+    # time (422) instead of being silently dropped or deferred to the engine.
+    with pytest.raises(FlowValidationError):
+        _normalize_trigger_config("ticket_created", {"frequency": "daily"}, enabled=True)
+    with pytest.raises(FlowValidationError):
+        _normalize_trigger_config("ticket_sla_due_soon", {"x": 1}, enabled=False)
+    with pytest.raises(FlowValidationError):
+        _normalize_trigger_config("webhook", {"time": "09:00"}, enabled=True)
+
+
+def test_normalize_trigger_config_schedule_rejects_unknown_key():
+    # ScheduleConfigSpec forbids extras, so a bogus key is a 422, not dropped.
+    with pytest.raises(FlowValidationError):
+        _normalize_trigger_config(
+            "schedule", {"frequency": "daily", "time": "08:30", "bogus": 1}, enabled=True
+        )
 
 
 def test_normalize_trigger_config_schedule_validates_and_normalizes():
@@ -881,9 +902,12 @@ def test_flow_create_accepts_webhook_trigger_and_send_webhook():
     assert flow.actions[0].config == {"url": "https://example.com/hook"}
 
 
-def test_webhook_trigger_config_is_dropped():
-    # webhook, like the mutation triggers, carries no trigger_config
-    assert _normalize_trigger_config("webhook", {"anything": 1}, enabled=True) == {}
+def test_webhook_trigger_config_is_empty_or_rejected():
+    # webhook, like the mutation triggers, carries no trigger_config: an empty one
+    # stays empty, but [FLOW8] a stray key is now rejected rather than dropped.
+    assert _normalize_trigger_config("webhook", {}, enabled=True) == {}
+    with pytest.raises(FlowValidationError):
+        _normalize_trigger_config("webhook", {"anything": 1}, enabled=True)
 
 
 def test_dry_run_webhook_uses_free_condition_fields():
@@ -953,11 +977,15 @@ def test_chain_allows_cycle_guard():
 
 
 def test_normalize_trigger_config_preserves_chainable():
-    # mutation trigger: chainable survives, everything else is dropped
-    out = _normalize_trigger_config("ticket_created", {"chainable": True, "junk": 1}, enabled=True)
+    # mutation trigger: the chainable opt-in survives (and is the ONLY key a
+    # non-schedule trigger accepts — see the stray-key rejection test above)
+    out = _normalize_trigger_config("ticket_created", {"chainable": True}, enabled=True)
     assert out == {"chainable": True}
     # falsy chainable is dropped, keeping the phase 1 {} shape
     assert _normalize_trigger_config("ticket_created", {"chainable": False}, enabled=True) == {}
+    # a stray key alongside chainable is still rejected, not quietly dropped
+    with pytest.raises(FlowValidationError):
+        _normalize_trigger_config("ticket_created", {"chainable": True, "junk": 1}, enabled=True)
     # schedule: chainable rides along with the validated schedule config
     out = _normalize_trigger_config(
         "schedule", {"frequency": "daily", "time": "08:30", "chainable": True}, enabled=True

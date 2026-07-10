@@ -84,6 +84,24 @@ RECIPES: list[dict] = [
             }},
         ],
     },
+    {
+        # [SLA restore] The one-shot "straight to urgent, 60 min before breach"
+        # behaviour is no longer the imposed default (existing tenants were moved
+        # back to stepwise post-breach escalation), but it stays available here as
+        # an opt-in template a new setup can install and enable if it prefers it.
+        "key": "escalate_before_sla_breach",
+        "name": "Escalate to urgent before SLA breach",
+        "description": (
+            "When a ticket's SLA is about to breach (fires ~60 minutes before), "
+            "raise it straight to urgent. Install this if you would rather escalate "
+            "once, ahead of the deadline, instead of stepping the priority up after a breach."
+        ),
+        "trigger_type": "ticket_sla_due_soon",
+        "conditions": [],
+        "actions": [
+            {"type": "update_ticket", "config": {"priority": "urgent"}},
+        ],
+    },
 ]
 
 RECIPES_BY_KEY = {r["key"]: r for r in RECIPES}
