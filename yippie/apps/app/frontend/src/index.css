@@ -47,6 +47,25 @@
   --status-info: #3b82f6;       --status-info-bg: #eff6ff;
   --status-waiting: #7c3aed;    --status-waiting-bg: #f5f3ff;
 
+  /* Semantic colour tokens (mirrors Tailwind semantic palette) */
+  --success-50: #f0fdf4;
+  --success-100: #dcfce7;
+  --success-200: #bbf7d0;
+  --success-600: #16a34a;
+  --success-700: #15803d;
+
+  --warning-50: #fffbeb;
+  --warning-100: #fef3c7;
+  --warning-200: #fde68a;
+  --warning-600: #d97706;
+  --warning-700: #b45309;
+
+  --danger-50: #fef2f2;
+  --danger-100: #fee2e2;
+  --danger-200: #fecaca;
+  --danger-600: #dc2626;
+  --danger-700: #b91c1c;
+
   /* Typography */
   --font-display: 'Space Grotesk', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
@@ -150,4 +169,85 @@
   font-weight: 700;
   letter-spacing: -0.025em;
   line-height: 1.2;
+}
+
+/* ── Shared button primitives ─────────────────────────────────────────────
+   Use these on <button> elements that trigger actions.
+   They cover default / hover / active (subtle press) / disabled / cursor.
+   Pair with px-*/py-* sizing classes at the callsite for layout flexibility.
+
+   .btn-primary     — brand blue solid; main CTA / submit
+   .btn-secondary   — bordered neutral; cancel / secondary action
+   .btn-danger      — red solid; destructive confirm (delete, terminate)
+   .btn-ghost-danger — red ghost; inline destructive (link-style red button)
+   ───────────────────────────────────────────────────────────────────────── */
+@layer components {
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-1.5
+           bg-yippie text-white text-sm font-semibold rounded-xl
+           hover:opacity-90 active:scale-[0.98] active:opacity-100
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-[opacity,transform] cursor-pointer select-none;
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-1.5
+           bg-white text-slate-600 text-sm font-semibold rounded-lg
+           border border-slate-200
+           hover:bg-slate-50 active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-[background-color,transform] cursor-pointer select-none;
+  }
+
+  .btn-danger {
+    @apply inline-flex items-center justify-center gap-1.5
+           bg-danger-600 text-white text-sm font-semibold rounded-lg
+           hover:bg-danger-700 active:scale-[0.98] active:bg-danger-700
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-[background-color,transform] cursor-pointer select-none;
+  }
+
+  .btn-ghost-danger {
+    @apply inline-flex items-center justify-center gap-1.5
+           text-danger-600 text-sm font-semibold rounded-lg
+           hover:bg-danger-50 active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-[background-color,transform] cursor-pointer select-none;
+  }
+
+  /* ── Shared input primitive ────────────────────────────────────────────
+     Standard text / email / select / textarea focus + error states.
+     Add .input-error for validation error state.
+     ─────────────────────────────────────────────────────────────────── */
+  .input-base {
+    @apply w-full px-3 py-2 text-sm border border-slate-200 rounded-xl
+           text-slate-900 placeholder-slate-400 bg-white
+           focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie
+           disabled:opacity-50 disabled:cursor-not-allowed
+           transition-shadow;
+  }
+
+  .input-error {
+    @apply border-danger-600 focus:ring-danger-600/30 focus:border-danger-600;
+  }
+
+  /* ── Inline error text (below a field or in a form footer) ───────────── */
+  .error-text {
+    @apply text-xs text-danger-600;
+  }
+
+  /* ── Banner-style error (bg block, used for form-level errors) ────────── */
+  .error-banner {
+    @apply bg-danger-50 border border-danger-200 rounded-lg px-4 py-3 text-sm text-danger-600;
+  }
+
+  /* ── Success banner ───────────────────────────────────────────────────── */
+  .success-banner {
+    @apply bg-success-50 border border-success-200 rounded-lg px-4 py-3 text-sm text-success-600;
+  }
+
+  /* ── Warning banner ───────────────────────────────────────────────────── */
+  .warning-banner {
+    @apply bg-warning-50 border border-warning-200 rounded-lg px-4 py-3 text-sm text-warning-600;
+  }
 }

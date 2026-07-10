@@ -291,13 +291,13 @@ export default function TicketDetail() {
               <p className="text-sm text-slate-600">
                 Delete <strong>{ticket.subject}</strong>? It disappears from all views; its history is kept.
               </p>
-              {deleteError && <p className="text-sm text-red-500">{deleteError}</p>}
+              {deleteError && <p className="error-text">{deleteError}</p>}
               <div className="flex gap-3 justify-end">
-                <button onClick={() => setConfirmingDelete(false)} className="bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">Cancel</button>
+                <button onClick={() => setConfirmingDelete(false)} className="btn-secondary px-4 py-2">Cancel</button>
                 <button
                   onClick={() => deleteMutation.mutate()}
                   disabled={deleteMutation.isPending}
-                  className="bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed"
+                  className="btn-danger px-4 py-2"
                 >
                   {deleteMutation.isPending ? 'Deleting…' : 'Delete ticket'}
                 </button>
@@ -349,7 +349,7 @@ export default function TicketDetail() {
               value={ticket.status}
               onChange={e => statusMutation.mutate(e.target.value)}
               disabled={statusMutation.isPending}
-              className="text-xs px-2 py-1 rounded-lg border border-slate-200 text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50"
+              className="text-xs px-2 py-1 rounded-lg border border-slate-200 text-slate-700 focus:outline-none focus:ring-1 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50"
             >
               {STATUS_OPTIONS.map(s => (
                 <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>
@@ -359,7 +359,7 @@ export default function TicketDetail() {
               value={ticket.priority}
               onChange={e => priorityMutation.mutate(e.target.value)}
               disabled={priorityMutation.isPending}
-              className={`text-xs px-2 py-1 rounded-lg border border-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-blue-400 disabled:opacity-50 ${PRIORITY_TEXT[ticket.priority] ?? 'text-slate-600'}`}
+              className={`text-xs px-2 py-1 rounded-lg border border-slate-200 font-semibold focus:outline-none focus:ring-1 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50 ${PRIORITY_TEXT[ticket.priority] ?? 'text-slate-600'}`}
             >
               {PRIORITY_OPTIONS.map(p => (
                 <option key={p} value={p}>{PRIORITY_LABELS[p]}</option>
@@ -482,7 +482,7 @@ export default function TicketDetail() {
                   value={replySubject}
                   onChange={e => setReplySubject(e.target.value)}
                   placeholder="Subject"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
                 />
                 {/* Toolbar */}
                 <div className="flex items-center gap-2">
@@ -610,7 +610,7 @@ export default function TicketDetail() {
                   onFocus={handleReplyFocus}
                   placeholder="Write your reply…"
                   rows={6}
-                  className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-400"
+                  className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
                 />
                 {/* Improve suggestions */}
                 {improveSuggestions.length > 0 && (
@@ -647,7 +647,7 @@ export default function TicketDetail() {
                     ))}
                   </div>
                 )}
-                {replySendError && <p className="text-xs text-red-500">{replySendError}</p>}
+                {replySendError && <p className="error-text">{replySendError}</p>}
                 {/* Footer */}
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                   <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
@@ -657,7 +657,7 @@ export default function TicketDetail() {
                   <button
                     onClick={() => replyMutation.mutate()}
                     disabled={!replySubject.trim() || !replyBody.trim() || replyMutation.isPending}
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
+                    className="btn-primary px-4 py-2"
                   >
                     <Send size={13} />
                     Send email
@@ -685,7 +685,7 @@ export default function TicketDetail() {
                 <button
                   onClick={() => commentMutation.mutate()}
                   disabled={!comment.trim() || commentMutation.isPending}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
+                  className="btn-primary px-4 py-2"
                 >
                   <Send size={13} />
                   Save note
@@ -908,7 +908,7 @@ function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; o
             placeholder="Search by name or email…"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
         </div>
         <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
@@ -1591,7 +1591,7 @@ function ContactSlidePanel({
                       type="text"
                       value={form.full_name}
                       onChange={e => setForm(f => ({ ...f, full_name: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
                     />
                   </div>
                   <div>
@@ -1600,7 +1600,7 @@ function ContactSlidePanel({
                       type="email"
                       value={form.email}
                       onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
                     />
                   </div>
                   <div>
@@ -1609,7 +1609,7 @@ function ContactSlidePanel({
                       type="tel"
                       value={form.phone}
                       onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
                     />
                   </div>
                   <div className="flex gap-2 pt-1">

@@ -22,9 +22,9 @@ const STATUS_OPTIONS = [
 
 const STATUS_STYLES: Record<string, string> = {
   draft:      'bg-slate-100 text-slate-600',
-  sent:       'bg-blue-100 text-blue-700',
-  active:     'bg-green-100 text-green-700',
-  expired:    'bg-amber-100 text-amber-700',
+  sent:       'bg-info-100 text-info-700',
+  active:     'bg-success-100 text-success-700',
+  expired:    'bg-warning-100 text-warning-700',
   terminated: 'bg-slate-100 text-slate-500',
 }
 
@@ -702,14 +702,13 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
                 onChange={e => { const f = e.target.files?.[0]; if (f) uploadFile.mutate(f) }} />
             </div>
 
-            {error && <p className="text-xs text-red-500">{error}</p>}
+            {error && <p className="error-text">{error}</p>}
             <div className="flex gap-3 pt-1">
               <button type="button" disabled={save.isPending} onClick={() => { if (!form.title.trim()) { setError('Title is required'); return } save.mutate() }}
-                className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity">
+                className="btn-primary px-5 py-2">
                 {save.isPending ? 'Saving…' : 'Save changes'}
               </button>
-              <button type="button" onClick={onClose}
-                className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Close</button>
+              <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">Close</button>
             </div>
           </div>
         )}
@@ -862,10 +861,10 @@ function DeleteModal({ ids, onClose }: { ids: string[]; onClose: () => void }) {
           </p>
           <div className="flex gap-3">
             <button onClick={() => mutation.mutate()} disabled={mutation.isPending}
-              className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors">
+              className="btn-danger px-5 py-2">
               {mutation.isPending ? 'Deleting…' : 'Delete'}
             </button>
-            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+            <button onClick={onClose} className="btn-secondary px-4 py-2">Cancel</button>
           </div>
         </div>
       </div>

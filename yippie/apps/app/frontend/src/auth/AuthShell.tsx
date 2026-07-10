@@ -31,7 +31,7 @@ export function AuthShell({ subtitle, children }: { subtitle: string; children: 
   )
 }
 
-export const authInputCls = 'w-full px-3 py-2.5 border border-[var(--border-default)] rounded-lg text-sm text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-[var(--brand)] focus:border-transparent transition-shadow'
+export const authInputCls = 'w-full px-3 py-2.5 border border-[var(--border-default)] rounded-lg text-sm text-[var(--ink)] focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie transition-shadow'
 export const authLabelCls = 'text-xs font-semibold text-[var(--text-subtle)] uppercase tracking-wide'
-export const authButtonCls = 'w-full py-2.5 bg-[var(--ink)] hover:bg-[var(--brand-hover)] disabled:opacity-50 text-white font-semibold text-sm rounded-lg transition-colors cursor-pointer disabled:cursor-not-allowed mt-2'
-export const authErrorCls = 'bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-600'
+export const authButtonCls = 'w-full py-2.5 bg-[var(--ink)] hover:bg-[var(--brand-hover)] active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold text-sm rounded-lg transition-[background-color,transform] cursor-pointer mt-2'
+export const authErrorCls = 'error-banner'

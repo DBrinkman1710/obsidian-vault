@@ -214,17 +214,17 @@ export default function ProfileSettingsPage() {
             </button>
           </div>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="error-text">{error}</p>}
 
           <div className="flex items-center gap-3">
             <button
               type="submit"
               disabled={mutation.isPending}
-              className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+              className="btn-primary px-5 py-2"
             >
               {mutation.isPending ? 'Saving…' : 'Save'}
             </button>
-            {saved && <span className="text-sm text-emerald-600 font-medium">✓ Saved</span>}
+            {saved && <span className="text-sm text-success-600 font-medium">✓ Saved</span>}
           </div>
         </form>
 
@@ -255,7 +255,7 @@ export default function ProfileSettingsPage() {
           type="button"
           onClick={handleDownloadManual}
           disabled={downloadingManual}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-sm font-semibold text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 transition-colors cursor-pointer"
+          className="btn-secondary px-4 py-2"
         >
           <Download size={15} />
           {downloadingManual ? 'Generating…' : 'Download PDF'}
@@ -312,17 +312,17 @@ function ChangePasswordCard() {
         <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} className={inputCls} required />
       </div>
 
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="error-text">{error}</p>}
 
       <div className="flex items-center gap-3">
         <button
           type="submit"
           disabled={mutation.isPending}
-          className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity cursor-pointer"
+          className="btn-primary px-5 py-2"
         >
           {mutation.isPending ? 'Updating…' : 'Update password'}
         </button>
-        {saved && <span className="text-sm text-emerald-600 font-medium">✓ Password updated</span>}
+        {saved && <span className="text-sm text-success-600 font-medium">✓ Password updated</span>}
       </div>
     </form>
   )
@@ -396,7 +396,7 @@ function SignaturesSection() {
         Your default signature is added automatically when you compose or reply. You can pick another from the message box.
       </p>
 
-      {error && <p className="mb-2 text-xs text-red-500">{error}</p>}
+      {error && <p className="error-text mb-2">{error}</p>}
 
       {isLoading ? (
         <p className="text-xs text-slate-400">Loading…</p>
@@ -535,7 +535,7 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
             className="hidden"
             onChange={e => { const f = e.target.files?.[0]; if (f) handleImage(f); e.target.value = '' }}
           />
-          {imgError && <span className="ml-2 text-xs text-red-500">{imgError}</span>}
+          {imgError && <span className="error-text ml-2">{imgError}</span>}
         </div>
         <div className="flex items-center gap-1.5">
           <button
@@ -651,7 +651,7 @@ function ConnectedCalendarsCard() {
                 <p className="text-sm font-semibold text-slate-800 truncate">{feed.name}</p>
                 <p className="text-xs text-slate-400 truncate">{feed.ical_url}</p>
                 {feed.last_sync_error && (
-                  <p className="text-xs text-red-500 mt-0.5 truncate" title={feed.last_sync_error}>{feed.last_sync_error}</p>
+                  <p className="error-text mt-0.5 truncate" title={feed.last_sync_error}>{feed.last_sync_error}</p>
                 )}
               </div>
               <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${sync.cls}`}>{sync.text}</span>
@@ -703,7 +703,7 @@ function ConnectedCalendarsCard() {
             Apple Calendar: right-click calendar → Share → Copy Link (webcal://…) &nbsp;·&nbsp;
             Outlook: Calendar settings → Share → ICS link
           </p>
-          {addError && <p className="text-xs text-red-500">{addError}</p>}
+          {addError && <p className="error-text">{addError}</p>}
           <div className="flex items-center gap-2 justify-end">
             <button
               type="button"
@@ -716,7 +716,7 @@ function ConnectedCalendarsCard() {
               type="button"
               disabled={!name.trim() || !url.trim() || addMutation.isPending}
               onClick={() => addMutation.mutate({ name: name.trim(), ical_url: url.trim() })}
-              className="px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 cursor-pointer"
+              className="btn-primary text-xs px-3 py-1.5"
             >
               {addMutation.isPending ? 'Adding…' : 'Add'}
             </button>

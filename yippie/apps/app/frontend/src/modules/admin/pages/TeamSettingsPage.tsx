@@ -156,12 +156,12 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
                 : <p className="text-xs text-slate-400">No template selected</p>
               }
             </div>
-            {error && <p className="text-xs text-red-500">{error}</p>}
+            {error && <p className="error-text">{error}</p>}
             <div className="flex gap-3 pt-1">
-              <button type="submit" disabled={saveMutation.isPending} className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
+              <button type="submit" disabled={saveMutation.isPending} className="btn-primary px-5 py-2">
                 {saveMutation.isPending ? 'Saving…' : 'Save'}
               </button>
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+              <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">Cancel</button>
             </div>
           </form>
         )}
@@ -400,9 +400,9 @@ function InviteModal({ onClose }: { onClose: () => void }) {
           <p className="text-xs text-slate-400">
             They'll receive an email with a link to set their own password. The link is valid for 7 days.
           </p>
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="error-text">{error}</p>}
           <button type="submit" disabled={mutation.isPending}
-            className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity">
+            className="btn-primary px-5 py-2">
             {mutation.isPending ? 'Sending…' : 'Send invite'}
           </button>
         </form>
@@ -573,13 +573,13 @@ function EditUserModal({ user, onClose }: { user: TeamUser; onClose: () => void 
                 </div>
               </div>
             )}
-            {error && <p className="text-xs text-red-500">{error}</p>}
+            {error && <p className="error-text">{error}</p>}
             <div className="flex gap-3 pt-1">
               <button type="submit" disabled={mutation.isPending}
-                className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity">
+                className="btn-primary px-5 py-2">
                 {mutation.isPending ? 'Saving…' : 'Save changes'}
               </button>
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+              <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">Cancel</button>
             </div>
           </form>
         )}
@@ -646,16 +646,16 @@ function DeleteUserModal({ user, onClose }: { user: TeamUser; onClose: () => voi
           <p className="text-sm text-slate-600">
             Are you sure you want to delete <span className="font-semibold text-slate-900">{user.full_name}</span>? This cannot be undone.
           </p>
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="error-text">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button
               onClick={() => mutation.mutate()}
               disabled={mutation.isPending}
-              className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors"
+              className="btn-danger px-5 py-2"
             >
               {mutation.isPending ? 'Deleting…' : 'Delete'}
             </button>
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">Cancel</button>
           </div>
         </div>
       </div>
@@ -715,13 +715,13 @@ function RolesTab({ enabledModules }: { enabledModules: string[] }) {
         <button
           type="submit"
           disabled={createMutation.isPending}
-          className="inline-flex items-center gap-2 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity"
+          className="btn-primary px-4 py-2"
         >
           <Plus size={15} />
           Create role
         </button>
       </form>
-      {error && <p className="text-xs text-red-500 mb-3">{error}</p>}
+      {error && <p className="error-text mb-3">{error}</p>}
 
       {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
 
@@ -818,7 +818,7 @@ export default function TeamSettingsPage() {
           {tab === 'members' && (
             <button
               onClick={() => setShowInvite(true)}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
+              className="btn-primary px-4 py-2"
             >
               <UserPlus size={15} />
               Invite
@@ -833,7 +833,7 @@ export default function TeamSettingsPage() {
               <p className="text-sm text-slate-500">Invite and manage the people in your workspace.</p>
             </div>
 
-            {error && <p className="text-sm text-red-500 mb-4">{error}</p>}
+            {error && <p className="error-text mb-4">{error}</p>}
             {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
 
             {users && (

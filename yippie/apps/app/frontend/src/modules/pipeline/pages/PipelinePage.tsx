@@ -273,7 +273,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="Stage name…"
-              className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
             <input
               type="color"
@@ -289,7 +289,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
               <select
                 value={campaigns.find((c: Campaign) => c.linked_stage_id === editId)?.id ?? ''}
                 onChange={e => linkCampaignMut.mutate({ campaignId: e.target.value || null, stageId: editId })}
-                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               >
                 <option value="">— None —</option>
                 {campaigns.map((c: Campaign) => (
@@ -298,19 +298,19 @@ function StageModal({ onClose }: { onClose: () => void }) {
               </select>
             </div>
           )}
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="error-text">{error}</p>}
           <div className="flex gap-2">
             <button
               onClick={handleSave}
               disabled={createMut.isPending || updateMut.isPending}
-              className="flex-1 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
+              className="btn-primary flex-1 py-2"
             >
               {editId ? 'Update' : 'Add stage'}
             </button>
             {editId && (
               <button
                 onClick={resetForm}
-                className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-sm font-semibold text-slate-600 rounded-lg transition-colors"
+                className="btn-secondary px-4 py-2"
               >
                 Cancel
               </button>
@@ -358,7 +358,7 @@ function AddContactModal({
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search contacts…"
-            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
           <button onClick={onClose} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg">
             <X size={16} />

@@ -4,10 +4,25 @@ export default {
   theme: {
     extend: {
       colors: {
-        yippie: '#5BA4F5',
+        // ── Brand ramp ──────────────────────────────────────────────────────
+        // Bare `yippie` keeps working (bg-yippie, text-yippie, ring-yippie/30, etc.)
+        yippie: {
+          DEFAULT: '#5BA4F5',
+          50:  '#eef5fe',
+          100: '#d7e9fd',
+          200: '#b4d5fb',
+          300: '#8fc0f8',
+          400: '#6faef6',
+          500: '#5BA4F5',
+          600: '#3d8de8',
+          700: '#2e74c9',
+          800: '#245fa8',
+          900: '#1a4a84',
+        },
+        // ── Kept for backwards compat (brand.* usages) ───────────────────
         brand: {
           DEFAULT: '#5ba4f5',
-          50: '#eef5fe',
+          50:  '#eef5fe',
           100: '#d7e9fd',
           200: '#b4d5fb',
           300: '#8fc0f8',
@@ -16,6 +31,42 @@ export default {
           600: '#3d8de8',
           700: '#2e74c9',
           deep: '#2e74c9',
+        },
+        // ── Semantic tokens ──────────────────────────────────────────────
+        // Derived from Tailwind palette colours already visually in use;
+        // shades 50/100/200 for bg/border, 500-700 for text/solids.
+        success: {
+          50:  '#f0fdf4',
+          100: '#dcfce7',
+          200: '#bbf7d0',
+          500: '#22c55e',
+          600: '#16a34a',
+          700: '#15803d',
+        },
+        warning: {
+          50:  '#fffbeb',
+          100: '#fef3c7',
+          200: '#fde68a',
+          500: '#f59e0b',
+          600: '#d97706',
+          700: '#b45309',
+        },
+        danger: {
+          50:  '#fef2f2',
+          100: '#fee2e2',
+          200: '#fecaca',
+          300: '#fca5a5',
+          500: '#ef4444',
+          600: '#dc2626',
+          700: '#b91c1c',
+        },
+        info: {
+          50:  '#eef5fe',
+          100: '#d7e9fd',
+          200: '#b4d5fb',
+          500: '#5BA4F5',
+          600: '#3d8de8',
+          700: '#2e74c9',
         },
         ink: '#0f172a',
         dark: { DEFAULT: '#0b1120', 2: '#111a2e' },

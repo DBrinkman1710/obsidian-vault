@@ -158,11 +158,11 @@ export default function TicketNew() {
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Subject *</label>
           <input
-            className={`w-full px-3 py-2 border rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie ${errors.subject ? 'border-red-400' : 'border-slate-300'}`}
+            className={`input-base ${errors.subject ? 'input-error' : ''}`}
             value={subject} onChange={e => setSubject(e.target.value)}
             placeholder="Short description of the issue" autoFocus
           />
-          {errors.subject && <p className="text-xs text-red-500 mt-1">{errors.subject}</p>}
+          {errors.subject && <p className="error-text mt-1">{errors.subject}</p>}
         </div>
 
         <div>
@@ -170,7 +170,7 @@ export default function TicketNew() {
             Contact *
           </label>
           <ContactPicker value={contact} onChange={setContact} />
-          {errors.contact && <p className="text-xs text-red-500 mt-1">{errors.contact}</p>}
+          {errors.contact && <p className="error-text mt-1">{errors.contact}</p>}
         </div>
 
         <div>
@@ -194,7 +194,7 @@ export default function TicketNew() {
           <select
             value={departmentId}
             onChange={e => setDepartmentId(e.target.value)}
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30"
+            className="input-base"
           >
             <option value="">No department</option>
             {departments?.map((d: any) => (
@@ -206,20 +206,20 @@ export default function TicketNew() {
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Description</label>
           <textarea
-            className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 resize-vertical min-h-[120px] font-[inherit]"
+            className="input-base resize-vertical min-h-[120px] font-[inherit]"
             value={description} onChange={e => setDescription(e.target.value)}
             placeholder="What happened? Any relevant details, error messages, or steps to reproduce…"
           />
         </div>
 
         {mutation.isError && (
-          <p className="text-sm text-red-500">Something went wrong. Try again.</p>
+          <p className="error-text">Something went wrong. Try again.</p>
         )}
 
         <div className="flex gap-3 items-center">
           <button
             type="submit" disabled={mutation.isPending}
-            className="bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-opacity disabled:cursor-not-allowed"
+            className="btn-primary px-4 py-2"
           >
             {mutation.isPending ? 'Creating…' : 'Create ticket'}
           </button>

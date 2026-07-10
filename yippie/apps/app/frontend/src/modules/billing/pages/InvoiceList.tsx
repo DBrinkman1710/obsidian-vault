@@ -26,12 +26,12 @@ const ALL_STATUS_OPTIONS = [
 
 const STATUS_STYLES: Record<string, string> = {
   draft:    'bg-slate-100 text-slate-600',
-  sent:     'bg-blue-100 text-blue-700',
-  paid:     'bg-green-100 text-green-700',
-  overdue:  'bg-red-100 text-red-700',
+  sent:     'bg-info-100 text-info-700',
+  paid:     'bg-success-100 text-success-700',
+  overdue:  'bg-danger-100 text-danger-700',
   void:     'bg-slate-100 text-slate-500',
-  pending:  'bg-amber-100 text-amber-700',
-  received: 'bg-green-100 text-green-700',
+  pending:  'bg-warning-100 text-warning-700',
+  received: 'bg-success-100 text-success-700',
   not_sent: 'bg-slate-100 text-slate-500',
 }
 
@@ -297,14 +297,13 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
               placeholder="E.g. IBAN NL12 BANK 0123 4567 89. Payment within 30 days." />
           </div>
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
+          {error && <p className="error-text">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={mutation.isPending}
-              className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity">
+              className="btn-primary px-5 py-2">
               {mutation.isPending ? 'Saving…' : 'Create invoice'}
             </button>
-            <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
+            <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">
               Cancel
             </button>
           </div>
@@ -340,10 +339,10 @@ function DeleteModal({ ids, onClose }: { ids: string[]; onClose: () => void }) {
           </p>
           <div className="flex gap-3">
             <button onClick={() => mutation.mutate()} disabled={mutation.isPending}
-              className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors">
+              className="btn-danger px-5 py-2">
               {mutation.isPending ? 'Deleting…' : 'Delete'}
             </button>
-            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+            <button onClick={onClose} className="btn-secondary px-4 py-2">Cancel</button>
           </div>
         </div>
       </div>
@@ -411,10 +410,10 @@ function ImportModal({ onClose }: { onClose: () => void }) {
               </div>
               <div className="flex gap-3">
                 <button type="button" disabled={!file || mutation.isPending} onClick={() => file && mutation.mutate(file)}
-                  className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50">
+                  className="btn-primary px-5 py-2">
                   {mutation.isPending ? 'Importing…' : 'Import'}
                 </button>
-                <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+                <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">Cancel</button>
               </div>
             </>
           ) : (
@@ -439,8 +438,8 @@ function ImportModal({ onClose }: { onClose: () => void }) {
                 </div>
               )}
               <div className="flex gap-3">
-                <button type="button" onClick={onClose} className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90">Done</button>
-                <button type="button" onClick={() => { setResult(null); setFile(null) }} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Import another</button>
+                <button type="button" onClick={onClose} className="btn-primary px-5 py-2">Done</button>
+                <button type="button" onClick={() => { setResult(null); setFile(null) }} className="btn-secondary px-4 py-2">Import another</button>
               </div>
             </>
           )}
@@ -578,7 +577,7 @@ export default function InvoiceList() {
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-bold text-slate-900">Invoices</h1>
-          {(() => { const n = (invoices ?? []).filter(i => i.status === 'overdue').length; return n > 0 ? <span className="text-xs font-semibold bg-red-100 text-red-700 px-2 py-0.5 rounded-full">{n} overdue</span> : null })()}
+          {(() => { const n = (invoices ?? []).filter(i => i.status === 'overdue').length; return n > 0 ? <span className="text-xs font-semibold bg-danger-100 text-danger-700 px-2 py-0.5 rounded-full">{n} overdue</span> : null })()}
         </div>
         <div className="flex items-center gap-2">
           {/* Export dropdown */}
@@ -611,7 +610,7 @@ export default function InvoiceList() {
             <Upload size={15} strokeWidth={2.5} /> Import
           </button>
           <button onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
+            className="btn-primary px-4 py-2">
             <Plus size={15} strokeWidth={2.5} /> New Invoice
           </button>
         </div>
