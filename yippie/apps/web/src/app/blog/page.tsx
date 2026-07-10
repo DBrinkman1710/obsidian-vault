@@ -19,6 +19,22 @@ export const metadata: Metadata = {
 
 const posts = [
   {
+    slug: "two_extremes_customer_support_smb",
+    title: "The Two Extremes of Customer Support — and Why SMBs Are Stuck in the Middle",
+    date: "2026-07-10",
+    dateLabel: "July 10, 2026",
+    excerpt:
+      "Most support software is built for chaos or enterprise. Small businesses sit in neither camp. Here is what the right middle ground looks like — and why it is so rarely built.",
+  },
+  {
+    slug: "klantenservice_software_voor_mkb",
+    title: "De twee extremen van klantenservice — en waarom het MKB er tussenin zit",
+    date: "2026-07-10",
+    dateLabel: "10 juli 2026",
+    excerpt:
+      "De meeste klantenservice software is gebouwd voor een gedeelde inbox of een enterprise-team. MKB zit er tussenin. Dit is wat de juiste maat er in de praktijk uitziet.",
+  },
+  {
     slug: "whatsapp_customer_service_for_small_business",
     title: "Why Small Businesses Are Moving Customer Service to WhatsApp",
     date: "2026-07-03",

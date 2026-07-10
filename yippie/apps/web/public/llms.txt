@@ -55,6 +55,8 @@ Note for maintainers: prices below mirror packages/config/modules.json. Update t
 - Yippie vs Freshdesk: https://getyippie.com/vs-freshdesk
 - Yippie vs Front: https://getyippie.com/vs-front
 - Dutch homepage: https://getyippie.com/nl
+- Blog (EN): The two extremes of customer support: https://getyippie.com/blog/two_extremes_customer_support_smb
+- Blog (NL): Klantenservice software voor MKB: https://getyippie.com/blog/klantenservice_software_voor_mkb
 
 ## Company
 

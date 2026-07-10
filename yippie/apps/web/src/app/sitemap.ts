@@ -9,6 +9,8 @@ const BLOG_DATES: Record<string, string> = {
   "/blog/shared_inbox_vs_regular_email": "2026-06-19",
   "/blog/cost_of_slow_customer_service_response": "2026-06-26",
   "/blog/whatsapp_customer_service_for_small_business": "2026-07-03",
+  "/blog/two_extremes_customer_support_smb": "2026-07-10",
+  "/blog/klantenservice_software_voor_mkb": "2026-07-10",
 };
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -35,6 +37,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/blog/cost_of_slow_customer_service_response", priority: 0.6, changeFrequency: "monthly" },
     { path: "/blog/shared_inbox_vs_regular_email", priority: 0.6, changeFrequency: "monthly" },
     { path: "/blog/whatsapp_customer_service_for_small_business", priority: 0.6, changeFrequency: "monthly" },
+    { path: "/blog/two_extremes_customer_support_smb", priority: 0.6, changeFrequency: "monthly" },
+    { path: "/blog/klantenservice_software_voor_mkb", priority: 0.6, changeFrequency: "monthly" },
     { path: "/privacy", priority: 0.3, changeFrequency: "yearly" },
     { path: "/terms", priority: 0.3, changeFrequency: "yearly" },
   ];
