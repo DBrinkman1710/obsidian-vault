@@ -9,6 +9,7 @@ import { useT } from '../../../hooks/useT'
 import { ListRowSkeleton } from '../../../shell/Skeleton'
 import { CloseButton } from '../../../shell/CloseButton'
 import { InvoicePeek } from './InvoiceDetail'
+import { EmptyState } from '../../../components/EmptyState'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -706,12 +707,14 @@ export default function InvoiceList() {
           </table>
         </div>
         {!isLoading && filtered.length === 0 && (
-          <div className="py-12 text-center">
-            <Receipt size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 font-medium">
-              {search ? 'No matching invoices' : 'No invoices yet'}
-            </p>
-          </div>
+          <EmptyState
+            icon={Receipt}
+            title={search ? 'No matching invoices' : 'No invoices yet'}
+            subtitle={search ? 'Try a different invoice number or contact.' : 'Create your first invoice to start tracking what you’re owed.'}
+            ctaLabel={search ? undefined : 'New invoice'}
+            ctaIcon={Plus}
+            onCta={search ? undefined : () => setShowAdd(true)}
+          />
         )}
       </div>
 

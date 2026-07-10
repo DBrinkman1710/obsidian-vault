@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { X, Paperclip, Sparkles, ArrowLeft, ChevronDown, ChevronUp, CheckCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { recordDailyActions } from '../../../lib/dailyStats'
 import { addFilesWithinLimits } from '../attachmentLimits'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
 import { CompanyPicker } from '../../contacts/components/CompanyPicker'
@@ -466,6 +467,9 @@ export default function DraftReview() {
       toast.error('Action failed. Please try again.')
     },
     onSuccess: () => {
+      // [UX-PSYCH] Count towards today's closure summary (shown by InboxQueue
+      // when the pending queue empties). Client-side only, no DB write.
+      recordDailyActions('inbox_processed')
       qc.invalidateQueries({ queryKey: ['drafts'] })
       qc.invalidateQueries({ queryKey: ['draft', id] })
       // Stay on this page — the processed view appears once the query refetches

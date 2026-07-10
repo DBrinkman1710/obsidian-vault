@@ -2,7 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, MessageSquare, ArrowRight, X, Trash2, AlertOctagon, CheckSquare, ChevronLeft, ChevronRight, Building2, Users, Pencil, Send, Sparkles, Search, ChevronDown, Check, XCircle, UserPlus, User } from 'lucide-react'
+import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { closureAlreadyShown, getDailyActions, markClosureShown, recordDailyActions, resetClosureShown } from '../../../lib/dailyStats'
 import { Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { useTenantConfig } from '../../../App'
@@ -552,11 +554,24 @@ export default function InboxQueue() {
     onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(ctx.key, ctx.prev)
     },
-    onSuccess: () => {
+    onSuccess: (_data: any, vars: { ids: string[]; action: 'bin' | 'spam' }) => {
+      recordDailyActions('inbox_processed', vars.ids.length)
       setSelected(new Set())
       qc.invalidateQueries({ queryKey: ['drafts'] })
     },
   })
+
+  // [UX-PSYCH] Motion feedback on destructive mail actions: cards swipe away
+  // and fade before the optimistic removal, so binning/spamming feels certain.
+  const [leavingIds, setLeavingIds] = useState<Set<string>>(new Set())
+  function bulkWithMotion(ids: string[], action: 'bin' | 'spam') {
+    setLeavingIds(prev => new Set([...prev, ...ids]))
+    window.setTimeout(() => {
+      bulkMutation.mutate({ ids, action }, {
+        onSettled: () => setLeavingIds(prev => { const n = new Set(prev); ids.forEach(i => n.delete(i)); return n }),
+      })
+    }, 320)
+  }
 
   const reviewMutation = useMutation({
     mutationFn: ({ id, action }: { id: string; action: 'approve' | 'reject' }) =>
@@ -571,8 +586,39 @@ export default function InboxQueue() {
     onError: (_err: any, _vars: any, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(ctx.key, ctx.prev)
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['drafts'] }),
+    onSuccess: () => {
+      recordDailyActions('inbox_processed')
+      qc.invalidateQueries({ queryKey: ['drafts'] })
+    },
   })
+
+  function rejectWithMotion(id: string) {
+    setLeavingIds(prev => new Set(prev).add(id))
+    window.setTimeout(() => {
+      reviewMutation.mutate({ id, action: 'reject' }, {
+        onSettled: () => setLeavingIds(prev => { const n = new Set(prev); n.delete(id); return n }),
+      })
+    }, 320)
+  }
+
+  // [UX-PSYCH] Daily-work closure: when the pending queue transitions to empty
+  // (via approvals in DraftReview or bin/spam/reject here), summarise the
+  // session's work once. Count is client-side only — no DB write.
+  const prevPendingCountRef = useRef<number | null>(null)
+  useEffect(() => {
+    if (activeTab !== 'pending' || pendingLoading || pendingDrafts === undefined) return
+    const count = (pendingDrafts ?? []).length
+    const prev = prevPendingCountRef.current
+    prevPendingCountRef.current = count
+    if (count > 0) { resetClosureShown('inbox_cleared'); return }
+    if (prev !== null && prev > 0 && !closureAlreadyShown('inbox_cleared')) {
+      markClosureShown('inbox_cleared')
+      const total = getDailyActions('inbox_processed')
+      if (total > 0) {
+        toast.success(`All caught up — ${total} message${total !== 1 ? 's' : ''} handled today`)
+      }
+    }
+  }, [pendingDrafts, pendingLoading, activeTab])
 
   const { data: inboxTeamMembers = [] } = useQuery({
     queryKey: ['team-members', 'inbox'],
@@ -848,13 +894,13 @@ export default function InboxQueue() {
               label: 'Move to Bin',
               icon: <Trash2 size={13} />,
               danger: true,
-              onClick: () => bulkMutation.mutate({ ids: Array.from(selected), action: 'bin' }),
+              onClick: () => bulkWithMotion(Array.from(selected), 'bin'),
             },
             {
               label: 'Mark as Spam',
               icon: <AlertOctagon size={13} />,
               danger: true,
-              onClick: () => bulkMutation.mutate({ ids: Array.from(selected), action: 'spam' }),
+              onClick: () => bulkWithMotion(Array.from(selected), 'spam'),
             },
             {
               label: 'Assign to me',
@@ -1071,10 +1117,11 @@ export default function InboxQueue() {
                 const isUrgent = followUpDate && (followUpDate.getTime() - Date.now()) <= 24 * 60 * 60 * 1000
                 const isSelected = selected.has(d.id)
                 const isFocused = focusedIdx === index
+                const isLeaving = leavingIds.has(d.id)
                 return (
                   <div
                     key={d.id}
-                    className="border flex items-start gap-3 transition-all p-4"
+                    className={`border flex items-start gap-3 transition-all p-4 ${isLeaving ? 'animate-card-exit pointer-events-none' : ''}`}
                     style={{
                       borderRadius: 'var(--radius-md)',
                       borderColor: isFocused ? 'var(--brand)' : isSelected ? 'var(--brand-ring)' : 'var(--border-default)',
@@ -1101,7 +1148,7 @@ export default function InboxQueue() {
                         })),
                       },
                       { separator: true },
-                      { label: 'Reject', icon: <XCircle size={14} />, danger: true, onClick: () => reviewMutation.mutate({ id: d.id, action: 'reject' }) },
+                      { label: 'Reject', icon: <XCircle size={14} />, danger: true, onClick: () => rejectWithMotion(d.id) },
                     ])}
                   >
                     {/* Checkbox — desktop only */}

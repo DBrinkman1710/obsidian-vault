@@ -15,6 +15,7 @@ import { ColumnPicker, resolveColumns } from '../components/ColumnPicker'
 import type { ContactColumnPref } from '../../../auth/useAuth'
 import ContactPeekModal from '../../../components/ContactPeekModal'
 import CompanyPeekModal from '../../../components/CompanyPeekModal'
+import { EmptyState } from '../../../components/EmptyState'
 
 interface ImportResult {
   imported: number
@@ -361,11 +362,14 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
           </table>
         </div>
         {displayed.length === 0 && !showCreate && (
-          <div className="text-center py-16">
-            <Building2 size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 font-medium">No companies yet</p>
-            {isAdmin && <p className="text-xs text-slate-400 mt-1">Create one to group your contacts.</p>}
-          </div>
+          <EmptyState
+            icon={Building2}
+            title={search ? 'No matching companies' : 'No companies yet'}
+            subtitle={isAdmin ? 'Group your contacts by company to see everything an organisation has going on in one place.' : 'Ask an admin to create the first company.'}
+            ctaLabel={isAdmin && !search ? 'New company' : undefined}
+            ctaIcon={Plus}
+            onCta={isAdmin && !search ? () => setShowCreate(true) : undefined}
+          />
         )}
       </div>
 
@@ -535,6 +539,35 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
     onSuccess: () => { clearSelection(); qc.invalidateQueries({ queryKey: ['contacts'] }) },
   })
 
+  // [UX-PSYCH] Friction reduction: contact deletes skip the confirm modal —
+  // delete immediately (soft delete server-side) and offer a 5s Undo toast
+  // that calls the existing POST /contacts/{id}/restore endpoint.
+  function deleteWithUndo(ids: string[]) {
+    const label = ids.length === 1
+      ? `"${items.find((c: any) => c.id === ids[0])?.full_name ?? 'contact'}"`
+      : `${ids.length} contacts`
+    deleteMutation.mutate(ids, {
+      onSuccess: () => {
+        toast(`Deleted ${label}`, {
+          duration: 5000,
+          action: {
+            label: 'Undo',
+            onClick: async () => {
+              try {
+                await Promise.all(ids.map(id => api.post(`/contacts/${id}/restore`)))
+                qc.invalidateQueries({ queryKey: ['contacts'] })
+                toast.success(ids.length === 1 ? 'Contact restored' : `${ids.length} contacts restored`)
+              } catch {
+                toast.error('Could not restore')
+              }
+            },
+          },
+        })
+      },
+      onError: () => toast.error('Failed to delete'),
+    })
+  }
+
   const restoreMutation = useMutation({
     mutationFn: (id: string) => api.post(`/contacts/${id}/restore`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
@@ -654,7 +687,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
             label: 'Delete selected',
             icon: <Trash2 size={14} strokeWidth={2.5} />,
             danger: true,
-            onClick: () => { if (confirm(`Delete ${selected.size} contact(s)? This cannot be undone.`)) deleteMutation.mutate(selectedIds) },
+            onClick: () => deleteWithUndo(selectedIds),
           },
         ]}
       />
@@ -726,7 +759,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                       { separator: true },
                       { label: 'Send email', icon: <Mail size={13} />, onClick: () => openCompose({ recipients: [{ email: c.email!, label: c.full_name || c.email! }], subject: '', body: '', fromEmail: null }) },
                       { separator: true },
-                      { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${c.full_name}"?`)) deleteMutation.mutate([c.id]) } },
+                      { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => deleteWithUndo([c.id]) },
                     ])}>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       {!isDeleted && (

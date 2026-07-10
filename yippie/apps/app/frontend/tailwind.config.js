@@ -37,6 +37,9 @@ export default {
         'slide-in-right': 'slide-in-right 0.22s cubic-bezier(0.22,1,0.36,1)',
         'slide-up': 'slide-up 0.3s cubic-bezier(0.22,1,0.36,1)',
         'pop-in': 'pop-in 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+        // [UX-PSYCH] motion feedback on irreversible actions
+        'card-exit': 'card-exit 0.32s cubic-bezier(0.4,0,1,1) forwards',
+        'check-pulse': 'check-pulse 0.45s cubic-bezier(0.34,1.56,0.64,1)',
       },
       keyframes: {
         'msg-enter': {
@@ -53,6 +56,18 @@ export default {
         },
         'pop-in': {
           '0%': { opacity: '0', transform: 'scale(0.6)' },
+          '100%': { opacity: '1', transform: 'scale(1)' },
+        },
+        // Card slides out to the right and fades — used when a ticket is
+        // resolved or a mail is binned/spammed so the removal feels certain.
+        'card-exit': {
+          '0%': { opacity: '1', transform: 'translateX(0)' },
+          '100%': { opacity: '0', transform: 'translateX(48px)' },
+        },
+        // Green checkmark pulse shown on the card as it leaves.
+        'check-pulse': {
+          '0%': { opacity: '0', transform: 'scale(0.3)' },
+          '60%': { opacity: '1', transform: 'scale(1.25)' },
           '100%': { opacity: '1', transform: 'scale(1)' },
         },
       },

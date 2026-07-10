@@ -2,6 +2,7 @@ import { useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import GrapesEditor, { GrapesEditorHandle, type PipelineStage, type CampaignButton } from '../components/GrapesEditor'
 import { Copy, FileText, Loader2, Palette, Pencil, Plus, Tag, Trash2, X } from 'lucide-react'
+import { toast } from 'sonner'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { api } from '../../../api/client'
 import { fetchLabels, type ContactLabel } from '../../contacts/components/LabelChip'
@@ -144,6 +145,34 @@ export default function TemplatesPage() {
     },
   })
 
+  // [UX-PSYCH] Friction reduction: no confirm modal — delete immediately and
+  // offer a 5s Undo that recreates the template from its full payload (same
+  // reconstruction the Duplicate action already uses).
+  function deleteWithUndo(t: Template) {
+    deleteMutation.mutate(t.id, {
+      onSuccess: () => {
+        toast(`Deleted "${t.name}"`, {
+          duration: 5000,
+          action: {
+            label: 'Undo',
+            onClick: () => {
+              api.post('/tickets/templates', {
+                name: t.name,
+                body: t.body ?? '',
+                design_json: t.design_json ?? null,
+                html_body: t.html_body ?? null,
+                campaign_buttons: t.campaign_buttons ?? null,
+              })
+                .then(() => { qc.invalidateQueries({ queryKey: ['templates'] }); toast.success('Template restored') })
+                .catch(() => toast.error('Could not restore template'))
+            },
+          },
+        })
+      },
+      onError: () => toast.error('Failed to delete template'),
+    })
+  }
+
   const duplicateMutation = useMutation({
     mutationFn: (t: Template) => api.post('/tickets/templates', {
       name: `${t.name} (copy)`,
@@ -245,7 +274,7 @@ export default function TemplatesPage() {
                 { label: 'Edit', icon: <Pencil size={13} />, onClick: () => openTemplate(t) },
                 { label: 'Duplicate', icon: <Copy size={13} />, onClick: () => duplicateMutation.mutate(t) },
                 { separator: true },
-                { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${t.name}"?`)) deleteMutation.mutate(t.id) } },
+                { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => deleteWithUndo(t) },
               ])}
             >
               <div className="flex-1 min-w-0">
@@ -262,7 +291,7 @@ export default function TemplatesPage() {
               <button
                 onClick={e => {
                   e.stopPropagation()
-                  if (confirm(`Delete "${t.name}"?`)) deleteMutation.mutate(t.id)
+                  deleteWithUndo(t)
                 }}
                 className="opacity-0 group-hover:opacity-100 p-1.5 text-red-500 hover:bg-red-50 rounded-lg transition-all shrink-0"
                 title="Delete template"

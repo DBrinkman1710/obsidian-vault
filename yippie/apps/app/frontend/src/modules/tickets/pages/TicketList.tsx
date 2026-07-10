@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Plus, Ticket, Trash2, UserPlus, Check, Archive, GitMerge, User, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { recordDailyActions } from '../../../lib/dailyStats'
 import { CardListSkeleton } from '../../../shell/Skeleton'
 import { useAuth } from '../../../auth/useAuth'
 import { useState } from 'react'
@@ -96,6 +97,32 @@ export default function TicketList() {
       qc.invalidateQueries({ queryKey: ['setup-closed-ticket'] })
     },
   })
+
+  // [UX-PSYCH] Resolving/closing from the list: the card slides out with a
+  // checkmark pulse before the mutation fires, so the irreversible action has
+  // motion feedback. When the card stays visible after the change (e.g. the
+  // "All statuses" view), only the checkmark pulses — no fake exit. When the
+  // last open ticket is cleared, a closure toast summarises today's session
+  // (client-side count, no DB write).
+  const [leaving, setLeaving] = useState<Map<string, 'exit' | 'pulse'>>(new Map())
+  function resolveWithMotion(id: string, status: 'resolved' | 'closed') {
+    const willLeaveList = statusFilter !== '' && statusFilter !== status
+    setLeaving(prev => new Map(prev).set(id, willLeaveList ? 'exit' : 'pulse'))
+    const openLeft = items.filter(
+      (x: any) => x.id !== id && ['open', 'in_progress', 'waiting'].includes(x.status)
+    ).length
+    window.setTimeout(() => {
+      statusMutation.mutate({ id, status }, {
+        onSuccess: () => {
+          const total = recordDailyActions('tickets_resolved')
+          if (openLeft === 0) {
+            toast.success(`All caught up — ${total} ticket${total !== 1 ? 's' : ''} resolved today`)
+          }
+        },
+        onSettled: () => setLeaving(prev => { const n = new Map(prev); n.delete(id); return n }),
+      })
+    }, 320)
+  }
 
   const { data: teamMembers = [] } = useQuery({
     queryKey: ['team-members', 'tickets'],
@@ -225,10 +252,11 @@ export default function TicketList() {
           const statusStyle = STATUS_STYLES[t.status] ?? { bg: 'var(--slate-100)', color: 'var(--slate-500)' }
           const priorityStyle = PRIORITY_STYLES[t.priority] ?? { bg: 'var(--slate-100)', color: 'var(--slate-500)' }
           const isSelected = selection.has(t.id)
+          const leaveMode = leaving.get(t.id)
           return (
             <div
               key={t.id}
-              className="border p-4 flex items-start gap-3 transition-all"
+              className={`relative border p-4 flex items-start gap-3 transition-all ${leaveMode === 'exit' ? 'animate-card-exit pointer-events-none' : leaveMode === 'pulse' ? 'pointer-events-none' : ''}`}
               style={{
                 borderRadius: 'var(--radius-md)',
                 borderColor: isSelected ? 'var(--brand-ring)' : 'var(--border-default)',
@@ -249,8 +277,8 @@ export default function TicketList() {
                   })),
                 },
                 { separator: true },
-                { label: 'Mark resolved', icon: <Check size={14} />, onClick: () => statusMutation.mutate({ id: t.id, status: 'resolved' }) },
-                { label: 'Close ticket', icon: <Archive size={14} />, onClick: () => statusMutation.mutate({ id: t.id, status: 'closed' }) },
+                { label: 'Mark resolved', icon: <Check size={14} />, onClick: () => resolveWithMotion(t.id, 'resolved') },
+                { label: 'Close ticket', icon: <Archive size={14} />, onClick: () => resolveWithMotion(t.id, 'closed') },
                 { separator: true },
                 {
                   label: 'Delete',
@@ -263,6 +291,16 @@ export default function TicketList() {
                 },
               ])}
             >
+              {leaveMode && (
+                <span className="absolute inset-0 flex items-center justify-center z-10">
+                  <span
+                    className="w-8 h-8 rounded-full flex items-center justify-center animate-check-pulse"
+                    style={{ background: 'var(--status-success-bg)' }}
+                  >
+                    <Check size={18} strokeWidth={3} style={{ color: 'var(--status-success)' }} />
+                  </span>
+                </span>
+              )}
               <span className="shrink-0 mt-0.5" onClick={e => e.preventDefault()}>
                 <Checkbox
                   checked={isSelected}

@@ -14,6 +14,7 @@ import { Sidebar } from './shell/Sidebar'
 import { BottomNav } from './shell/BottomNav'
 import { DesktopOnly } from './shell/DesktopOnly'
 import QuickCapturePopup from './components/QuickCapturePopup'
+import HotkeyOverlay from './components/HotkeyOverlay'
 
 const ContactDetail = lazy(() => import('./modules/contacts/pages/ContactDetail'))
 const ContactNew    = lazy(() => import('./modules/contacts/pages/ContactNew'))
@@ -523,6 +524,7 @@ export default function App() {
         </main>
         <BottomNav />
         <QuickCapturePopup />
+        <HotkeyOverlay />
         <Toaster position="bottom-right" richColors />
       </div>
       </ComposeProvider>

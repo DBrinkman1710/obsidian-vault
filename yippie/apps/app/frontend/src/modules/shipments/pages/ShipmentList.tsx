@@ -9,6 +9,7 @@ import { CreateShipmentModal } from '../components/CreateShipmentModal'
 import { ShipmentSettingsModal } from '../components/ShipmentSettingsModal'
 import { useIsViewOnly } from '../../../shell/ModuleGate'
 import { useAuth } from '../../../auth/useAuth'
+import { EmptyState } from '../../../components/EmptyState'
 
 interface Shipment {
   id: string
@@ -130,15 +131,14 @@ export default function ShipmentList() {
 
       {/* Table */}
       {shipments.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <Package size={40} className="text-slate-300 mb-3" />
-          <p className="text-slate-500 font-medium">No shipments yet</p>
-          {!isViewOnly && (
-            <p className="text-sm text-slate-400 mt-1">
-              Click "New shipment" to start tracking a delivery.
-            </p>
-          )}
-        </div>
+        <EmptyState
+          icon={Package}
+          title="No shipments yet"
+          subtitle={isViewOnly ? 'Shipments your team tracks will appear here.' : 'Track your first delivery and keep customers informed automatically.'}
+          ctaLabel={isViewOnly ? undefined : 'New shipment'}
+          ctaIcon={Plus}
+          onCta={isViewOnly ? undefined : () => setShowCreate(true)}
+        />
       ) : (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
           <table className="w-full text-sm">

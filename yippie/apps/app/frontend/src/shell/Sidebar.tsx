@@ -182,6 +182,25 @@ export function Sidebar() {
   const calInvBadge = calInvCount === 0 ? null : calInvCount > 9 ? '9+' : String(calInvCount)
 
 
+  // [UX-PSYCH] Engagement nudge: amber dot on the Pipeline nav item when no
+  // pipeline contact has seen movement in >48h. Read-only reuse of the existing
+  // /pipeline/board endpoint (shares the ['pipeline-board'] cache with the
+  // kanban page); entered_at updates on every stage move, so it doubles as the
+  // board's activity timestamp.
+  const { data: pipelineBoard } = useQuery<Array<{ contacts: Array<{ entered_at: string }> }>>({
+    queryKey: ['pipeline-board'],
+    queryFn: () => api.get('/pipeline/board').then((r: any) => r.data),
+    refetchInterval: 5 * 60_000,
+    staleTime: 5 * 60_000,
+    enabled: !!config && (config.enabled_modules ?? []).includes('pipeline'),
+  })
+  const pipelineStale = (() => {
+    const entries = (pipelineBoard ?? []).flatMap(col => col.contacts ?? [])
+    if (entries.length === 0) return false
+    const newest = Math.max(...entries.map(c => new Date(c.entered_at).getTime()))
+    return Date.now() - newest > 48 * 3_600_000
+  })()
+
   const pendingCount: number = draftCount?.pending ?? 0
   const badgeLabel = pendingCount === 0 ? null : pendingCount > 9 ? '9+' : String(pendingCount)
   const redCount: number = deadlineData?.red ?? 0
@@ -230,7 +249,15 @@ export function Sidebar() {
           className={({ isActive }: any) => navCls(isActive)}
           style={reordering ? { paddingRight: '2rem' } : undefined}
         >
-          <Icon size={16} strokeWidth={2} className="shrink-0" />
+          <span className="relative shrink-0 flex">
+            <Icon size={16} strokeWidth={2} className="shrink-0" />
+            {mod === 'pipeline' && pipelineStale && (
+              <span
+                className="absolute -top-1 -right-1 w-2 h-2 rounded-full bg-amber-400 ring-2 ring-black/10"
+                title="No pipeline activity in 2 days"
+              />
+            )}
+          </span>
           {!collapsed && <span className="flex-1">{label}</span>}
           {!collapsed && mod === 'inbox' && (
             <div className="flex items-center gap-1.5">

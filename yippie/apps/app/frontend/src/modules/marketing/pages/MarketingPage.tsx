@@ -273,8 +273,17 @@ export default function MarketingPage() {
             <p className="px-2 py-4 text-sm text-slate-400">Loading…</p>
           ) : campaigns.length === 0 ? (
             <div className="px-3 py-10 text-center">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: 'var(--brand-subtle)' }}>
+                <Megaphone size={22} strokeWidth={1.5} style={{ color: 'var(--brand)' }} />
+              </div>
               <p className="text-sm font-medium text-slate-600">No campaigns yet</p>
               <p className="mt-1 text-xs text-slate-400">Create your first campaign to reach your contacts.</p>
+              <button
+                onClick={() => setShowNew(true)}
+                className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
+              >
+                <Plus size={14} strokeWidth={2.5} /> New campaign
+              </button>
             </div>
           ) : (
             <ul className="space-y-1">

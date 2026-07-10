@@ -405,6 +405,7 @@ function ContactCard({
   selectable,
   selected,
   onToggleSelect,
+  justMoved,
 }: {
   contact: BoardContact
   stageName: string
@@ -415,6 +416,7 @@ function ContactCard({
   selectable: boolean
   selected: boolean
   onToggleSelect: () => void
+  justMoved?: boolean
 }) {
   const daysIn = contact.days_in_stage ?? Math.floor(
     (Date.now() - new Date(contact.entered_at).getTime()) / 86_400_000
@@ -430,6 +432,7 @@ function ContactCard({
       onContextMenu={onContextMenu}
       onClick={onClick}
       className={`bg-white rounded-xl border px-3 py-2.5 shadow-sm cursor-pointer hover:bg-slate-50 transition-colors group ${
+        justMoved ? 'animate-pop-in' : ''} ${
         selected ? 'border-blue-400 ring-1 ring-blue-200' : showStaleAlert ? 'border-amber-400 ring-1 ring-amber-200' : 'border-slate-200'}`}
     >
       <div className="flex items-start justify-between gap-1">
@@ -499,6 +502,17 @@ export default function PipelinePage() {
   } | null>(null)
   const dragContactRef = useRef<{ contactId: string; fromStageId: string } | null>(null)
   const boardRef = useRef<HTMLDivElement>(null)
+
+  // [UX-PSYCH] Motion feedback: cards pop into their new column after a move
+  // so the (optimistic) stage change reads as a completed, physical action.
+  const [justMovedIds, setJustMovedIds] = useState<Set<string>>(new Set())
+  const justMovedTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  function flashMoved(ids: string[]) {
+    setJustMovedIds(new Set(ids))
+    if (justMovedTimerRef.current) clearTimeout(justMovedTimerRef.current)
+    justMovedTimerRef.current = setTimeout(() => setJustMovedIds(new Set()), 450)
+  }
+  useEffect(() => () => { if (justMovedTimerRef.current) clearTimeout(justMovedTimerRef.current) }, [])
 
   useEffect(() => {
     const el = boardRef.current
@@ -651,8 +665,10 @@ export default function PipelinePage() {
     const drag = dragContactRef.current
     if (!drag || drag.fromStageId === toStageId) return
     if (selectedContacts.has(drag.contactId) && selectedContacts.size > 1) {
+      flashMoved([...selectedContacts])
       bulkMoveMut.mutate({ contactIds: [...selectedContacts], stageId: toStageId })
     } else {
+      flashMoved([drag.contactId])
       moveMut.mutate({ contactId: drag.contactId, stageId: toStageId })
     }
     dragContactRef.current = null
@@ -864,6 +880,7 @@ export default function PipelinePage() {
                     stageName={col.stage.name}
                     selectable
                     selected={selectedContacts.has(contact.contact_id)}
+                    justMoved={justMovedIds.has(contact.contact_id)}
                     onToggleSelect={() => toggleContact(contact.contact_id)}
                     onClick={() => setPeekContactId(contact.contact_id)}
                     onDragStart={() => {
@@ -885,9 +902,12 @@ export default function PipelinePage() {
                           .map((c: any) => ({
                             label: c.stage.name,
                             icon: <ArrowRight size={13} />,
-                            onClick: () => bulkIds
-                              ? bulkMoveMut.mutate({ contactIds: bulkIds, stageId: c.stage.id })
-                              : moveMut.mutate({ contactId: contact.contact_id, stageId: c.stage.id }),
+                            onClick: () => {
+                              flashMoved(bulkIds ?? [contact.contact_id])
+                              bulkIds
+                                ? bulkMoveMut.mutate({ contactIds: bulkIds, stageId: c.stage.id })
+                                : moveMut.mutate({ contactId: contact.contact_id, stageId: c.stage.id })
+                            },
                           })),
                         ...(bookingEnabled && !bulkIds ? [
                           { separator: true },

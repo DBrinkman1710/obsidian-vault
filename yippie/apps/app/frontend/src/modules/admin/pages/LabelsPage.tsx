@@ -312,6 +312,28 @@ function ContactLabelsCard() {
     onSuccess: () => invalidate(),
   })
 
+  // [UX-PSYCH] Friction reduction: no confirm modal — delete immediately and
+  // offer a 5s Undo that recreates the label with the same name/colour.
+  // (Contact↔label assignments are not restored; the label itself is.)
+  function deleteWithUndo(l: ContactLabel) {
+    deleteMut.mutate(l.id, {
+      onSuccess: () => {
+        toast(`Deleted label "${l.name}"`, {
+          duration: 5000,
+          action: {
+            label: 'Undo',
+            onClick: () => {
+              api.post('/contacts/labels', { name: l.name, color: l.color })
+                .then(() => { invalidate(); toast.success('Label restored') })
+                .catch(() => toast.error('Could not restore label'))
+            },
+          },
+        })
+      },
+      onError: () => toast.error('Failed to delete label'),
+    })
+  }
+
   function resetForm() { setEditId(null); setName(''); setColor('#64748b'); setError('') }
   function startEdit(l: ContactLabel) { setEditId(l.id); setName(l.name); setColor(l.color); setError('') }
   function handleSave() {
@@ -347,7 +369,7 @@ function ContactLabelsCard() {
               <Settings2 size={13} />
             </button>
             <button
-              onClick={() => { if (confirm(`Delete label "${l.name}"?`)) deleteMut.mutate(l.id) }}
+              onClick={() => deleteWithUndo(l)}
               className="shrink-0 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
               title="Delete"
             >

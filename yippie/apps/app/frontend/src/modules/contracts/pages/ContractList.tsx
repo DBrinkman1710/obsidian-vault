@@ -7,6 +7,7 @@ import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { ListRowSkeleton } from '../../../shell/Skeleton'
 import { CloseButton } from '../../../shell/CloseButton'
+import { EmptyState } from '../../../components/EmptyState'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -1130,10 +1131,14 @@ export default function ContractList() {
           </table>
         </div>
         {!isLoading && filtered.length === 0 && (
-          <div className="py-12 text-center">
-            <FileText size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 font-medium">{search ? 'No matching contracts' : 'No contracts yet'}</p>
-          </div>
+          <EmptyState
+            icon={FileText}
+            title={search ? 'No matching contracts' : 'No contracts yet'}
+            subtitle={search ? 'Try a different title or counterparty.' : 'Add your first contract to track renewals, value and e-signing in one place.'}
+            ctaLabel={search ? undefined : 'New contract'}
+            ctaIcon={Plus}
+            onCta={search ? undefined : () => setShowAdd(true)}
+          />
         )}
       </div>
       </>
