@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import styles from "./custom.module.css";
 import {
@@ -87,6 +87,10 @@ const REC_TO_KEY: Record<string, ModuleKey | undefined> = {
 
 type FormState = "idle" | "submitting" | "success" | "error";
 
+/* Everything the visitor fills in is kept in localStorage so a remount,
+   refresh, or coming back later never asks them to reselect. */
+const STORAGE_KEY = "yippie_custom_plan";
+
 export default function CustomForm() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -115,6 +119,56 @@ export default function CustomForm() {
   const [email, setEmail] = useState("");
   const [formState, setFormState] = useState<FormState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+
+  // Only preseed the module selection from recommendations once — after that
+  // the visitor's own package survives going back and forth between steps.
+  const seededRef = useRef(false);
+  const hydratedRef = useRef(false);
+
+  // Restore everything the visitor already filled in (survives remounts).
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (raw) {
+        const s = JSON.parse(raw);
+        if (typeof s.brandColor === "string") setBrandColor(s.brandColor);
+        if (typeof s.logoUrl === "string") setLogoUrl(s.logoUrl);
+        if (typeof s.teamSize === "string") setTeamSize(s.teamSize);
+        if (typeof s.industry === "string") setIndustry(s.industry);
+        if (Array.isArray(s.painPoints)) setPainPoints(s.painPoints);
+        if (Array.isArray(s.currentTools)) setCurrentTools(s.currentTools);
+        if (Array.isArray(s.recommendedNames)) setRecommendedNames(s.recommendedNames);
+        if (Array.isArray(s.recommendedKeys)) setRecommendedKeys(s.recommendedKeys);
+        if (Array.isArray(s.selectedModules) && s.selectedModules.length > 0) {
+          setSelectedModules(s.selectedModules);
+          seededRef.current = true;
+        }
+        if (typeof s.annual === "boolean") setAnnual(s.annual);
+        if (typeof s.name === "string") setName(s.name);
+        if (typeof s.company === "string") setCompany(s.company);
+        if (typeof s.email === "string") setEmail(s.email);
+      }
+    } catch { /* corrupt or unavailable storage — start fresh */ }
+    hydratedRef.current = true;
+  }, []);
+
+  // Persist on every change (after the initial hydration pass).
+  useEffect(() => {
+    if (!hydratedRef.current) return;
+    const snapshot = {
+      brandColor, logoUrl, teamSize, industry, painPoints, currentTools,
+      recommendedNames, recommendedKeys, selectedModules, annual, name, company, email,
+    };
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+    } catch {
+      // Quota exceeded (large logo) — persist everything except the logo.
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...snapshot, logoUrl: null }));
+      } catch { /* storage unavailable */ }
+    }
+  }, [brandColor, logoUrl, teamSize, industry, painPoints, currentTools,
+      recommendedNames, recommendedKeys, selectedModules, annual, name, company, email]);
 
   const recommendedPlanKey = useMemo<PlanKey>(() => {
     const idx = TEAM_SIZES.indexOf(teamSize);
@@ -192,13 +246,17 @@ export default function CustomForm() {
   function handleLogoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (logoUrl) URL.revokeObjectURL(logoUrl);
-    setLogoUrl(URL.createObjectURL(file));
+    // Data URL instead of an object URL: survives remounts, persists in
+    // localStorage, and travels in the quote payload for environment setup.
+    const reader = new FileReader();
+    reader.onload = () => {
+      setLogoUrl(typeof reader.result === "string" ? reader.result : null);
+    };
+    reader.readAsDataURL(file);
     e.target.value = ""; // allow re-uploading the same file
   }
 
   function removeLogo() {
-    if (logoUrl) URL.revokeObjectURL(logoUrl);
     setLogoUrl(null);
   }
 
@@ -209,7 +267,12 @@ export default function CustomForm() {
       .filter((k): k is ModuleKey => !!k);
     setRecommendedNames(recs);
     setRecommendedKeys(preSelected);
-    setSelectedModules(preSelected);
+    // Seed from recommendations only the first time — a visitor who already
+    // built a package keeps their own selection when moving between steps.
+    if (!seededRef.current) {
+      setSelectedModules(preSelected);
+      seededRef.current = true;
+    }
     setStep(2);
   }
 
@@ -237,6 +300,7 @@ export default function CustomForm() {
             monthly_total: (isFounder || recommendedPlanKey !== "enterprise") ? displayMonthlyTotal : null,
             billing_cycle: annual ? "annual" : "monthly",
             branding_color: brandColor,
+            branding_logo: logoUrl,
           },
         }),
       });
@@ -270,9 +334,6 @@ export default function CustomForm() {
         companyName={company}
         modules={selectedModules}
       />
-      <p className={styles.previewHint}>
-        Every module you add appears in your sidebar.
-      </p>
     </aside>
   );
 

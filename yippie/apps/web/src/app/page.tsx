@@ -27,7 +27,6 @@ import {
   SalesIcon,
   SaasIcon,
   ArrowRightIcon,
-  LockIcon,
 } from "./components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
@@ -383,65 +382,6 @@ export default function HomePage() {
           <a href="/pricing" className={styles.textLink}>
             Compare all plans &amp; add-ons <ArrowRightIcon size={15} />
           </a>
-        </div>
-      </section>
-
-      {/* Chrome Extension */}
-      <section className={styles.sectionLight}>
-        <Reveal className={styles.sectionHead}>
-          <span className={styles.eyebrowPill}>
-            <span className={styles.eyebrowDot} style={{ background: "#22c55e" }} />
-            Free Chrome extension · Gmail &amp; Outlook
-          </span>
-          <h2 className={styles.sectionTitle}>See your inbox ROI in 60 seconds</h2>
-          <p className={styles.sectionSub}>
-            Install the extension to connect your inbox directly. It reads email metadata only — never content — then opens this calculator with your real numbers pre-filled.
-          </p>
-          <a
-            href="https://chromewebstore.google.com/detail/yippie-inbox-analyser/fhfdjapipgidbknncajebhglembhaick"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.btnPrimary}
-            style={{ alignSelf: "center", display: "inline-flex", alignItems: "center", gap: 8 }}
-          >
-            Add to Chrome — it&apos;s free
-          </a>
-        </Reveal>
-        <div className={styles.extensionPreview}>
-          <div className={styles.extensionCard}>
-            <div className={styles.extensionHeader}>
-              <img src="/logo-white-bg-mark.svg" alt="" className={styles.extensionLogo} />
-              <span className={styles.extensionName}>Yippie Inbox Analyser</span>
-            </div>
-            <div className={styles.extensionStat}>
-              <span className={styles.extensionStatNum}>847</span>
-              <span className={styles.extensionStatLabel}>emails last 30 days</span>
-            </div>
-            <div className={styles.extensionRows}>
-              <div className={styles.extensionRow}>
-                <span className={`${styles.extensionDot} ${styles.dotBlue}`} />
-                <span>Customer conversations</span>
-                <strong>340</strong>
-              </div>
-              <div className={styles.extensionRow}>
-                <span className={`${styles.extensionDot} ${styles.dotGrey}`} />
-                <span>Newsletters / automated</span>
-                <strong>290</strong>
-              </div>
-              <div className={styles.extensionRow}>
-                <span className={`${styles.extensionDot} ${styles.dotAmber}`} />
-                <span>Internal</span>
-                <strong>150</strong>
-              </div>
-            </div>
-            <div className={styles.extensionSavings}>
-              <span>Yippie saves you</span>
-              <strong>~15 hrs/month</strong>
-            </div>
-            <div className={styles.extensionBadge}>
-              <LockIcon size={13} /> Headers only · nothing leaves your browser
-            </div>
-          </div>
         </div>
       </section>
 

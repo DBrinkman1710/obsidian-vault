@@ -996,7 +996,7 @@ export default function ContractList() {
   return (
     <div>
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-start justify-between mb-6">
         <div className="flex items-center gap-4">
           <h1 className="text-2xl font-bold text-slate-900">Contracts</h1>
           <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden text-sm">
@@ -1008,14 +1008,15 @@ export default function ContractList() {
             ))}
           </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setShowTemplates(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
-            <LayoutTemplate size={15} /> Templates
-          </button>
+        {/* Action buttons stacked underneath each other (inbox-style) */}
+        <div className="flex flex-col gap-2 w-44">
           <button onClick={() => setShowAdd(true)}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
             <Plus size={15} strokeWidth={2.5} /> New Contract
+          </button>
+          <button onClick={() => setShowTemplates(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors">
+            <LayoutTemplate size={15} /> Templates
           </button>
         </div>
       </div>

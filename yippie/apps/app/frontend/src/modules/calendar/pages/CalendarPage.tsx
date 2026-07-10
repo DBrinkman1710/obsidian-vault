@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { CalendarClock, Check, ChevronLeft, ChevronRight, Edit2, ExternalLink, Plus, Settings2, Trash2, User, UserPlus, Users, X } from 'lucide-react'
+import { CalendarClock, Check, ChevronDown, ChevronLeft, ChevronRight, Edit2, ExternalLink, Plus, Settings2, Trash2, User, UserPlus, Users, X } from 'lucide-react'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
@@ -1513,6 +1513,18 @@ export default function CalendarPage() {
   const [newBookingOpen, setNewBookingOpen] = useState(false)
   const [bookingSettingsOpen, setBookingSettingsOpen] = useState(false)
 
+  // "+ New" dropdown (event / booking)
+  const [newMenuOpen, setNewMenuOpen] = useState(false)
+  const newMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!newMenuOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (newMenuRef.current && !newMenuRef.current.contains(e.target as Node)) setNewMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [newMenuOpen])
+
   const { data: bookingTokens } = useQuery<BookingToken[]>({
     queryKey: ['booking-tokens'],
     queryFn: () => api.get('/booking/tokens').then((r: any) => r.data),
@@ -1568,26 +1580,15 @@ export default function CalendarPage() {
         <h1 className="text-2xl font-bold text-slate-900">Calendar</h1>
         <div className="flex items-center gap-2">
           {bookingEnabled && (
-            <>
-              <button onClick={() => setBookingsOpen(true)}
-                className="relative inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-                <CalendarClock size={15} strokeWidth={2.5} /> Bookings
-                {pendingCount > 0 && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-blue-600 rounded-full">
-                    {pendingCount}
-                  </span>
-                )}
-              </button>
-              <button onClick={() => setNewBookingOpen(true)}
-                className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-                <Plus size={15} strokeWidth={2.5} /> New booking
-              </button>
-              <button onClick={() => setBookingSettingsOpen(true)}
-                className="p-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-lg transition-colors"
-                title="Booking settings">
-                <Settings2 size={15} />
-              </button>
-            </>
+            <button onClick={() => setBookingsOpen(true)}
+              className="relative inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+              <CalendarClock size={15} strokeWidth={2.5} /> Bookings
+              {pendingCount > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center text-[10px] font-bold text-white bg-blue-600 rounded-full">
+                  {pendingCount}
+                </span>
+              )}
+            </button>
           )}
           <button onClick={() => setInvitationsOpen(true)}
             className="relative inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
@@ -1598,10 +1599,39 @@ export default function CalendarPage() {
               </span>
             )}
           </button>
-          <button onClick={() => setModal({ open: true, event: null })}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
-            <Plus size={15} strokeWidth={2.5} /> New event
-          </button>
+
+          {/* + New dropdown — event or booking */}
+          <div className="relative" ref={newMenuRef}>
+            <button onClick={() => setNewMenuOpen(v => !v)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
+              <Plus size={15} strokeWidth={2.5} /> New <ChevronDown size={14} />
+            </button>
+            {newMenuOpen && (
+              <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50">
+                <button
+                  onClick={() => { setNewMenuOpen(false); setModal({ open: true, event: null }) }}
+                  className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                  <CalendarClock size={14} className="text-slate-400" /> New event
+                </button>
+                {bookingEnabled && (
+                  <button
+                    onClick={() => { setNewMenuOpen(false); setNewBookingOpen(true) }}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <UserPlus size={14} className="text-slate-400" /> New booking
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Settings — always the last item, all the way right */}
+          {bookingEnabled && (
+            <button onClick={() => setBookingSettingsOpen(true)}
+              className="p-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-lg transition-colors"
+              title="Booking settings">
+              <Settings2 size={15} />
+            </button>
+          )}
         </div>
       </div>
 

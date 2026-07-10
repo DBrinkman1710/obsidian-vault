@@ -696,50 +696,13 @@ export default function InboxQueue() {
               </div>
             )}
           </div>
-          <button
-            onClick={() => {
-              setComposeInitial(mailbox === 'personal' && !!user?.reply_from_email ? {
-                recipients: [],
-                subject: '',
-                body: defaultSigBody ? `\n\n${defaultSigBody}` : '',
-                fromEmail: user.reply_from_email,
-              } : null)
-              setShowCompose(true)
-            }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
-          >
-            <Pencil size={14} />
-            Compose
-          </button>
-        </div>
-
-        {/* Search bar + Templates — same row */}
-        <div className="flex items-center gap-2 mb-3">
-          <div className="relative w-72 max-w-full">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-            <input
-              type="text"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              placeholder="Search inbox…"
-              className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie focus:border-transparent transition-colors"
-            />
-            {search && (
-              <button
-                onClick={() => setSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
-                aria-label="Clear search"
-              >
-                <X size={14} />
-              </button>
-            )}
-          </div>
-          {marketingEnabled && (
-            <div className="ml-auto">
+          {/* Actions — grouped top right so the left column stays clean */}
+          <div className="flex items-center gap-2 shrink-0">
+            {marketingEnabled && (
               <TemplatePicker
                 direction="down"
                 triggerIconSize={14}
-                triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
+                triggerClassName="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
                 onSelect={(tmplBody, isHtml, buttons) => {
                   const text = isHtml ? htmlToText(tmplBody) : tmplBody
                   setComposeInitial({
@@ -753,12 +716,27 @@ export default function InboxQueue() {
                   setShowCompose(true)
                 }}
               />
-            </div>
-          )}
+            )}
+            <button
+              onClick={() => {
+                setComposeInitial(mailbox === 'personal' && !!user?.reply_from_email ? {
+                  recipients: [],
+                  subject: '',
+                  body: defaultSigBody ? `\n\n${defaultSigBody}` : '',
+                  fromEmail: user.reply_from_email,
+                } : null)
+                setShowCompose(true)
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
+            >
+              <Pencil size={14} />
+              Compose
+            </button>
+          </div>
         </div>
 
         {/* Tabs (shared across all three tabs) */}
-        <div className="flex items-center gap-2 mb-0">
+        <div className="flex items-center gap-2 mb-3">
           {(['pending', 'processed', 'sent'] as Tab[]).map(tab => (
             <button
               key={tab}
@@ -772,6 +750,27 @@ export default function InboxQueue() {
               {tab}
             </button>
           ))}
+        </div>
+
+        {/* Search */}
+        <div className="relative w-72 max-w-full">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search inbox…"
+            className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie focus:border-transparent transition-colors"
+          />
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
+              aria-label="Clear search"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {/* Trending topics — shown when the search box is empty */}

@@ -208,7 +208,9 @@ export function Sidebar() {
   const primaryColor = config.branding.primary_color
 
   function navCls(isActive: boolean) {
-    return `flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+    return `flex items-center gap-3 py-2.5 rounded-md text-sm font-medium transition-colors ${
+      collapsed ? 'justify-center px-0' : 'px-3'
+    } ${
       isActive
         ? 'bg-white/20 text-white font-semibold'
         : 'text-white/75 hover:bg-white/10 hover:text-white'
@@ -287,16 +289,16 @@ export function Sidebar() {
 
         {/* Workspace header — pinned */}
         <div className={`pt-5 pb-4 shrink-0 ${collapsed ? 'px-2' : 'px-3'}`}>
-          <div className="flex items-center gap-3">
-            {/* White tile holding the logo mark */}
+          <div className={`flex items-center gap-3 ${collapsed ? 'justify-center' : ''}`}>
+            {/* White tile holding the logo mark — smaller when collapsed so it fits the narrow rail */}
             <div
               className="shrink-0 flex items-center justify-center bg-white rounded-md"
-              style={{ width: 44, height: 44, boxShadow: 'var(--shadow-sm)' }}
+              style={{ width: collapsed ? 36 : 44, height: collapsed ? 36 : 44, boxShadow: 'var(--shadow-sm)' }}
             >
               <img
                 src="/logo-mark-tight.svg"
                 alt="Yippie"
-                className="w-7 h-7 object-contain"
+                className={`object-contain ${collapsed ? 'w-6 h-6' : 'w-7 h-7'}`}
               />
             </div>
             {!collapsed && (
@@ -351,7 +353,9 @@ export function Sidebar() {
             <button
               onClick={() => setAccountOpen(v => !v)}
               title={collapsed ? (user?.full_name || user?.email || 'Account') : undefined}
-              className={`flex items-center gap-2.5 w-full px-2 py-2 rounded-lg text-left transition-colors hover:bg-white/10 ${accountOpen ? 'bg-white/10' : ''}`}
+              className={`flex items-center gap-2.5 w-full py-2 rounded-lg text-left transition-colors hover:bg-white/10 ${
+                collapsed ? 'justify-center px-0' : 'px-2'
+              } ${accountOpen ? 'bg-white/10' : ''}`}
             >
               {/* Gradient-letter avatar */}
               <div
@@ -368,9 +372,9 @@ export function Sidebar() {
               )}
             </button>
 
-            {/* Popover */}
+            {/* Popover — opens to the side of the sidebar, anchored to the bottom */}
             {accountOpen && (
-              <div className="absolute bottom-full left-0 right-0 mb-1 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50 min-w-[180px]">
+              <div className="absolute left-full bottom-0 ml-3 w-56 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50">
                 <button onClick={() => { navigate('/settings/profile'); setAccountOpen(false) }}
                   className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
                   <UserCircle size={14} className="text-slate-400" /> {t('profile')}
@@ -409,7 +413,7 @@ export function Sidebar() {
           </div>
 
           {/* Collapse toggle */}
-          <div className="flex justify-end pt-1">
+          <div className={`flex pt-1 ${collapsed ? 'justify-center' : 'justify-end'}`}>
             <button
               onClick={toggleCollapsed}
               title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}

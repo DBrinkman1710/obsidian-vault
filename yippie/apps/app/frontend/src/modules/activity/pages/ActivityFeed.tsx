@@ -116,6 +116,39 @@ function KpiRow({ label, value, valueColor }: { label: string; value: string; va
   )
 }
 
+/** SVG donut for a single percentage — no chart lib needed. */
+function MiniDonut({ pct, color, size = 64 }: { pct: number; color: string; size?: number }) {
+  const r = (size - 10) / 2
+  const c = 2 * Math.PI * r
+  const clamped = Math.max(0, Math.min(100, pct))
+  return (
+    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="shrink-0 -rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#e2e8f0" strokeWidth={7} />
+      <circle
+        cx={size / 2} cy={size / 2} r={r} fill="none"
+        stroke={color} strokeWidth={7} strokeLinecap="round"
+        strokeDasharray={`${(clamped / 100) * c} ${c}`}
+      />
+    </svg>
+  )
+}
+
+/** Labelled value with a proportional bar underneath. */
+function BarRow({ label, value, max, color }: { label: string; value: number; max: number; color: string }) {
+  const pct = max > 0 ? Math.min(100, Math.round((value / max) * 100)) : 0
+  return (
+    <div>
+      <div className="flex items-baseline justify-between mb-1">
+        <span className="text-sm text-slate-500">{label}</span>
+        <span className="text-sm font-bold text-slate-900 tabular-nums">{value}</span>
+      </div>
+      <div className="h-1.5 rounded-full bg-slate-100 overflow-hidden">
+        <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  )
+}
+
 function formatRelative(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60000)
@@ -204,10 +237,12 @@ export default function ActivityFeed() {
   })
 
   const openRateVal = kpis && kpis.email.sent_total > 0 ? Math.round(kpis.email.open_rate * 1000) / 10 : null
-  const openRateColor = openRateVal === null ? undefined : openRateVal >= 40 ? 'text-emerald-600' : openRateVal >= 20 ? 'text-amber-500' : 'text-red-600'
-  const bouncedColor = kpis && kpis.email.bounced > 0 ? 'text-red-600' : 'text-emerald-600'
+  // Opened is a positive metric (green when healthy); bounced is negative (red
+  // only when it actually happens, neutral at zero) — previously these read as
+  // inverted when open rate was low and bounces were zero.
+  const openRateHex = openRateVal === null ? '#94a3b8' : openRateVal >= 40 ? '#10b981' : openRateVal >= 20 ? '#f59e0b' : '#94a3b8'
   const avgHoursColor = !kpis?.tickets.avg_resolution_hours ? undefined : kpis.tickets.avg_resolution_hours <= 4 ? 'text-emerald-600' : kpis.tickets.avg_resolution_hours <= 24 ? 'text-amber-500' : 'text-red-600'
-  const resolvedColor = kpis && kpis.tickets.resolved_this_week > 0 ? 'text-emerald-600' : undefined
+  const pipelineTotal = (kpis?.pipeline ?? []).reduce((s, p) => s + p.contact_count, 0)
 
   const allEvents = events ?? []
   const eventPageCount = Math.max(1, Math.ceil(allEvents.length / EVENTS_PER_PAGE))
@@ -234,6 +269,19 @@ export default function ActivityFeed() {
             {kpis.pipeline.length === 0 ? (
               <div className={`${CARD} text-sm text-slate-400`}>No pipeline stages yet</div>
             ) : (
+              <>
+              {/* Stage distribution — one glance shows where contacts sit */}
+              {pipelineTotal > 0 && (
+                <div className="flex h-3 rounded-full overflow-hidden mb-4 bg-slate-100">
+                  {kpis.pipeline.filter((s: any) => s.contact_count > 0).map((s: any) => (
+                    <div
+                      key={s.stage_id}
+                      style={{ width: `${(s.contact_count / pipelineTotal) * 100}%`, background: s.color }}
+                      title={`${s.stage_name}: ${s.contact_count}`}
+                    />
+                  ))}
+                </div>
+              )}
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {kpis.pipeline.map((stage: any) => (
                   <div key={stage.stage_id} className={CARD}>
@@ -255,6 +303,7 @@ export default function ActivityFeed() {
                   </div>
                 ))}
               </div>
+              </>
             )}
           </section>
 
@@ -262,24 +311,37 @@ export default function ActivityFeed() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className={CARD}>
               <p className={SECTION_HEADER}>Email</p>
-              <div className="space-y-4">
-                <KpiRow label="Sent total" value={fmt(kpis.email.sent_total)} />
-                <KpiRow label="Sent this week" value={fmt(kpis.email.sent_this_week)} />
-                <KpiRow
-                  label="Open rate"
-                  value={openRateVal === null ? '—' : `${openRateVal}%`}
-                  valueColor={openRateColor}
-                />
-                <KpiRow label="Bounced" value={fmt(kpis.email.bounced)} valueColor={bouncedColor} />
+              {/* Open rate donut */}
+              <div className="flex items-center gap-4 mb-5">
+                <div className="relative">
+                  <MiniDonut pct={openRateVal ?? 0} color={openRateHex} />
+                  <span className="absolute inset-0 flex items-center justify-center text-xs font-extrabold text-slate-900 tabular-nums">
+                    {openRateVal === null ? '—' : `${openRateVal}%`}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-slate-700">Open rate</p>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    {kpis.email.opened} of {kpis.email.sent_total} emails opened
+                  </p>
+                </div>
+              </div>
+              <div className="space-y-3">
+                <BarRow label="Sent this week" value={kpis.email.sent_this_week} max={kpis.email.sent_total} color="#5BA4F5" />
+                <BarRow label="Delivered" value={kpis.email.delivered} max={kpis.email.sent_total} color="#5BA4F5" />
+                <BarRow label="Opened" value={kpis.email.opened} max={kpis.email.sent_total} color="#10b981" />
+                <BarRow label="Bounced" value={kpis.email.bounced} max={kpis.email.sent_total} color={kpis.email.bounced > 0 ? '#ef4444' : '#e2e8f0'} />
               </div>
             </div>
 
             <div className={CARD}>
               <p className={SECTION_HEADER}>Tickets</p>
-              <div className="space-y-4">
-                <KpiRow label="Open" value={fmt(kpis.tickets.open)} />
-                <KpiRow label="In progress" value={fmt(kpis.tickets.in_progress)} />
-                <KpiRow label="Resolved this week" value={fmt(kpis.tickets.resolved_this_week)} valueColor={resolvedColor} />
+              <div className="space-y-3">
+                <BarRow label="Open" value={kpis.tickets.open} max={Math.max(kpis.tickets.open, kpis.tickets.in_progress, kpis.tickets.resolved_this_week)} color="#f59e0b" />
+                <BarRow label="In progress" value={kpis.tickets.in_progress} max={Math.max(kpis.tickets.open, kpis.tickets.in_progress, kpis.tickets.resolved_this_week)} color="#5BA4F5" />
+                <BarRow label="Resolved this week" value={kpis.tickets.resolved_this_week} max={Math.max(kpis.tickets.open, kpis.tickets.in_progress, kpis.tickets.resolved_this_week)} color="#10b981" />
+              </div>
+              <div className="mt-5 pt-4 border-t border-slate-100">
                 <KpiRow
                   label="Avg resolution (hours)"
                   value={fmt(kpis.tickets.avg_resolution_hours)}
@@ -292,7 +354,9 @@ export default function ActivityFeed() {
               <p className={SECTION_HEADER}>Contacts</p>
               <div className="space-y-4">
                 <KpiRow label="Total contacts" value={fmt(kpis.contacts.total)} />
-                <KpiRow label="New this week" value={fmt(kpis.contacts.new_this_week)} />
+              </div>
+              <div className="mt-4">
+                <BarRow label="New this week" value={kpis.contacts.new_this_week} max={kpis.contacts.total} color="#10b981" />
               </div>
             </div>
           </div>

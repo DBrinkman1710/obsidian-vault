@@ -61,6 +61,31 @@ async def _public_rate_limit(ip: str, bucket: str, limit: int) -> None:
     await rl_hit(key, DEMO_RATE_WINDOW)
 
 
+# Global provisioning cap. Per IP limiting alone cannot stop an attacker who
+# rotates IPs from provisioning unbounded tenants (each demo/signup creates a
+# real tenant row, seeds demo data, and sends outbound email via Resend). This
+# bounds total tenants created per hour across ALL visitors, per bucket.
+# The counter is recorded only after a tenant is actually created, so failed
+# attempts (409 duplicate email, validation errors) cannot burn the budget —
+# exhausting the cap requires actually creating tenants.
+GLOBAL_PROVISION_LIMIT = int(os.getenv("GLOBAL_PROVISION_LIMIT", "20"))  # per bucket per hour
+
+
+async def _check_global_provision_cap(bucket: str) -> None:
+    """Raise 429 when the hourly global tenant-creation budget for *bucket*
+    (request_demo / signup) is exhausted. Call before doing any work."""
+    if await rl_is_blocked(f"provision_global:{bucket}", GLOBAL_PROVISION_LIMIT, DEMO_RATE_WINDOW):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="We are receiving a high volume of signups right now. Please try again in an hour.",
+        )
+
+
+async def _record_global_provision(bucket: str) -> None:
+    """Count one successfully created tenant against the global budget."""
+    await rl_hit(f"provision_global:{bucket}", DEMO_RATE_WINDOW)
+
+
 @router.get("/stats")
 async def get_public_stats(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
     """Global, cross-tenant aggregate of hours saved by Yippie.
@@ -110,6 +135,10 @@ class CustomPlanQuestionnaire(BaseModel):
     monthly_total: Optional[int] = None
     billing_cycle: Optional[str] = None  # "monthly" | "annual"
     branding_color: Optional[str] = None  # sidebar colour picked in the mini workspace preview
+    # Logo uploaded in the mini workspace preview, as a data URL — kept on the
+    # contact record so environment provisioning can reuse it. Size capped so a
+    # huge upload can't bloat the request (~375KB of image data).
+    branding_logo: Optional[str] = Field(default=None, max_length=500_000)
 
 
 class CustomPlanRequest(BaseModel):
@@ -416,6 +445,7 @@ async def custom_plan_request(
             "monthly_total": q.monthly_total,
             "billing_cycle": q.billing_cycle,
             "branding_color": q.branding_color,
+            "branding_logo": q.branding_logo,
         }
 
     q_lines: list[str] = []
@@ -439,6 +469,10 @@ async def custom_plan_request(
             q_lines.append(f"Estimated total: €{q.monthly_total}/mo ({cycle})")
         if q.branding_color:
             q_lines.append(f"Branding colour: {q.branding_color}")
+        if q.branding_logo:
+            # The data URL itself lives on the contact's custom fields; the
+            # ticket only notes that it exists.
+            q_lines.append("Logo: uploaded (stored on the contact record)")
 
     plan_label = q.plan_selected.capitalize() if q and q.plan_selected else "Custom"
     description = (
@@ -490,6 +524,7 @@ async def request_demo(
 
     ip = get_client_ip(request)
     await _public_rate_limit(ip, "request_demo", 5)
+    await _check_global_provision_cap("request_demo")
 
     email = body.email.lower().strip()
     # Rejects live accounts and already-active demos with distinct 409 messages;
@@ -530,6 +565,8 @@ async def request_demo(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Demo provisioning email is not configured.",
         )
+
+    await _record_global_provision("request_demo")
 
     tenant_id = tenant["id"]
     demo_tenant = await db.get(Tenant, uuid.UUID(str(tenant_id)))
@@ -1663,6 +1700,7 @@ async def signup(
 
     ip = get_client_ip(request)
     await _public_rate_limit(ip, "signup", 5)
+    await _check_global_provision_cap("signup")
 
     email = body.email.lower().strip()
 
@@ -1726,6 +1764,8 @@ async def signup(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             detail="Account creation email is not configured.",
         )
+
+    await _record_global_provision("signup")
 
     tenant_id = uuid.UUID(str(tenant_result["id"]))
 

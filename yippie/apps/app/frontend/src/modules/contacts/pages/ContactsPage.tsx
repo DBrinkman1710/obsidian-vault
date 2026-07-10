@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCompose } from '../../../hooks/useCompose'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail, ExternalLink, Kanban, Send } from 'lucide-react'
+import { Plus, Search, User, Building2, Pencil, Trash2, Upload, Download, X, Mail, ExternalLink, Kanban, Send, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { BulkBar } from '../../../components/Selection'
@@ -869,8 +869,21 @@ function autoMap(headers: string[]): Record<string, string> {
 export default function ContactsPage() {
   const { user } = useAuth()
   const qc = useQueryClient()
+  const navigate = useNavigate()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [activeTab, setActiveTab] = useState<Tab>('contacts')
+
+  // "+ New" dropdown (contact / company)
+  const [newMenuOpen, setNewMenuOpen] = useState(false)
+  const newMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!newMenuOpen) return
+    function handleClickOutside(e: MouseEvent) {
+      if (newMenuRef.current && !newMenuRef.current.contains(e.target as Node)) setNewMenuOpen(false)
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [newMenuOpen])
   const [triggerCreate, setTriggerCreate] = useState(false)
   const [companyFilter, setCompanyFilter] = useState<string | null>(null)
   const [showImport, setShowImport] = useState(false)
@@ -956,22 +969,29 @@ export default function ContactsPage() {
                   <Upload size={15} strokeWidth={2.5} /> Import
                 </button>
               )}
-              {isAdmin && (
-                <button
-                  onClick={handleNewCompany}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
-                >
-                  <Plus size={15} strokeWidth={2.5} />
-                  New Company
+              {/* + New dropdown — contact or company */}
+              <div className="relative" ref={newMenuRef}>
+                <button onClick={() => setNewMenuOpen(v => !v)}
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
+                  <Plus size={15} strokeWidth={2.5} /> New <ChevronDown size={14} />
                 </button>
-              )}
-              <Link
-                to="/contacts/new"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
-              >
-                <Plus size={15} strokeWidth={2.5} />
-                New Contact
-              </Link>
+                {newMenuOpen && (
+                  <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50">
+                    <button
+                      onClick={() => { setNewMenuOpen(false); navigate('/contacts/new') }}
+                      className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                      <User size={14} className="text-slate-400" /> New contact
+                    </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => { setNewMenuOpen(false); handleNewCompany() }}
+                        className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                        <Building2 size={14} className="text-slate-400" /> New company
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
             </MutationGate>
           </div>
         </div>

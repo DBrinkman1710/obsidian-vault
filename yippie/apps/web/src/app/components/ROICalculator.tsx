@@ -3,6 +3,10 @@
 import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import styles from "./ROICalculator.module.css";
+// The extension popup mock lives in the homepage stylesheet — reused here so
+// the ROI section's first tab shows the real preview instead of a text card.
+import extStyles from "../page.module.css";
+import { LockIcon } from "./icons";
 
 const PLAN_PRICE = 29; // cheapest Yippie plan, €/mo
 const HOURS_PER_FTE_MONTH = 160;
@@ -165,105 +169,172 @@ export default function ROICalculator({ appUrl }: { appUrl: string }) {
         </button>
       </div>
 
+      {/* Tab 1 — extension preview + download; sliders live on the manual tab */}
       {mode === "inbox" && (
         <div className={styles.uploadWrap}>
           {scanned ? (
-            <div className={styles.scanResult}>
-              <span className={styles.scanBadge}>
-                Estimated from your inbox via the Chrome extension
-              </span>
-              <button type="button" className={styles.clearLink} onClick={clearScan}>
-                Clear / try again
-              </button>
-            </div>
+            <>
+              <div className={styles.scanResult}>
+                <span className={styles.scanBadge}>
+                  Estimated from your inbox via the Chrome extension
+                </span>
+                <button type="button" className={styles.clearLink} onClick={clearScan}>
+                  Clear / try again
+                </button>
+              </div>
+              {/* Personalised results for the scanned estimate */}
+              <div className={styles.output} style={{ width: "100%", maxWidth: 520 }}>
+                <div className={styles.results}>
+                  <div className={styles.result}>
+                    <div className={styles.resultValue}>{hoursDisplay}h</div>
+                    <div className={styles.resultLabel}>saved / month</div>
+                  </div>
+                  <div className={styles.result}>
+                    <div className={styles.resultValue}>€{euroDisplay}</div>
+                    <div className={styles.resultLabel}>saved / month</div>
+                  </div>
+                  <div className={styles.result}>
+                    <div className={styles.resultValue}>{payback.value}</div>
+                    <div className={styles.resultLabel}>{payback.sub}</div>
+                  </div>
+                </div>
+                {teamPct > 0 && (
+                  <p className={styles.teamNote}>
+                    That&apos;s {teamPct}% of your {values.staff === 1 ? "support person's" : "team's"} time
+                    freed up every month.
+                  </p>
+                )}
+                <a href={appUrl} className={styles.cta}>
+                  Request demo →
+                </a>
+              </div>
+            </>
           ) : (
-            <div className={styles.extCard}>
-              <p className={styles.extCardTitle}>Yippie Inbox Analyser</p>
-              <p className={styles.extCardSub}>Free Chrome extension · Gmail &amp; Outlook</p>
-              <p className={styles.extCardDesc}>
-                Install the extension to connect your inbox directly. It reads email metadata
-                only — never content — then opens this calculator with your real numbers pre-filled.
-              </p>
+            <>
+              {/* Live preview of the extension popup */}
+              <div className={extStyles.extensionPreview}>
+                <div className={extStyles.extensionCard}>
+                  <div className={extStyles.extensionHeader}>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src="/logo-white-bg-mark.svg" alt="" className={extStyles.extensionLogo} />
+                    <span className={extStyles.extensionName}>Yippie Inbox Analyser</span>
+                  </div>
+                  <div className={extStyles.extensionStat}>
+                    <span className={extStyles.extensionStatNum}>847</span>
+                    <span className={extStyles.extensionStatLabel}>emails last 30 days</span>
+                  </div>
+                  <div className={extStyles.extensionRows}>
+                    <div className={extStyles.extensionRow}>
+                      <span className={`${extStyles.extensionDot} ${extStyles.dotBlue}`} />
+                      <span>Customer conversations</span>
+                      <strong>340</strong>
+                    </div>
+                    <div className={extStyles.extensionRow}>
+                      <span className={`${extStyles.extensionDot} ${extStyles.dotGrey}`} />
+                      <span>Newsletters / automated</span>
+                      <strong>290</strong>
+                    </div>
+                    <div className={extStyles.extensionRow}>
+                      <span className={`${extStyles.extensionDot} ${extStyles.dotAmber}`} />
+                      <span>Internal</span>
+                      <strong>150</strong>
+                    </div>
+                  </div>
+                  <div className={extStyles.extensionSavings}>
+                    <span>Yippie saves you</span>
+                    <strong>~15 hrs/month</strong>
+                  </div>
+                  <div className={extStyles.extensionBadge}>
+                    <LockIcon size={13} /> Headers only · nothing leaves your browser
+                  </div>
+                </div>
+              </div>
+
+              {/* Download button underneath the preview */}
               <a
                 href={CHROME_STORE_URL}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={styles.extInstallBtn}
               >
-                Add to Chrome →
+                Add to Chrome — it&apos;s free →
               </a>
               <p className={styles.extNote}>
-                Already installed? Click &ldquo;See your full ROI&rdquo; inside the extension.
+                Free Chrome extension for Gmail &amp; Outlook. It reads email metadata only — never
+                content — then opens this calculator with your real numbers pre-filled.
               </p>
-            </div>
+            </>
           )}
           <p className={styles.privacyStrong}>We never read your email content.</p>
         </div>
       )}
 
-      <div className={styles.grid}>
-        {/* Inputs */}
-        <div className={styles.inputs}>
-          {sliders.map((s) => {
-            const value = values[s.key];
-            const pct = ((value - s.min) / (s.max - s.min)) * 100;
-            return (
-              <div key={s.key} className={styles.inputRow}>
-                <div className={styles.inputHeader}>
-                  <label htmlFor={`roi-${s.key}`} className={styles.inputLabel}>
-                    {s.label}
-                  </label>
-                  <span className={styles.inputValue}>{s.format(value)}</span>
+      {/* Tab 2 — manual calculator with the sliders */}
+      {mode === "manual" && (
+        <div className={styles.grid}>
+          {/* Inputs */}
+          <div className={styles.inputs}>
+            {sliders.map((s) => {
+              const value = values[s.key];
+              const pct = ((value - s.min) / (s.max - s.min)) * 100;
+              return (
+                <div key={s.key} className={styles.inputRow}>
+                  <div className={styles.inputHeader}>
+                    <label htmlFor={`roi-${s.key}`} className={styles.inputLabel}>
+                      {s.label}
+                    </label>
+                    <span className={styles.inputValue}>{s.format(value)}</span>
+                  </div>
+                  <input
+                    id={`roi-${s.key}`}
+                    type="range"
+                    className={styles.slider}
+                    min={s.min}
+                    max={s.max}
+                    step={s.step}
+                    value={value}
+                    onChange={(e) => set(s.key, Number(e.target.value))}
+                    style={{ "--val": `${pct}%` } as CSSProperties}
+                    aria-label={s.label}
+                  />
                 </div>
-                <input
-                  id={`roi-${s.key}`}
-                  type="range"
-                  className={styles.slider}
-                  min={s.min}
-                  max={s.max}
-                  step={s.step}
-                  value={value}
-                  onChange={(e) => set(s.key, Number(e.target.value))}
-                  style={{ "--val": `${pct}%` } as CSSProperties}
-                  aria-label={s.label}
-                />
-              </div>
-            );
-          })}
-          <p className={styles.privacyNote}>
-            Calculated in your browser. Nothing is sent anywhere.
-          </p>
-        </div>
-
-        {/* Output panel */}
-        <div className={styles.output}>
-          <div className={styles.results}>
-            <div className={styles.result}>
-              <div className={styles.resultValue}>{hoursDisplay}h</div>
-              <div className={styles.resultLabel}>saved / month</div>
-            </div>
-            <div className={styles.result}>
-              <div className={styles.resultValue}>€{euroDisplay}</div>
-              <div className={styles.resultLabel}>saved / month</div>
-            </div>
-            <div className={styles.result}>
-              <div className={styles.resultValue}>{payback.value}</div>
-              <div className={styles.resultLabel}>{payback.sub}</div>
-            </div>
+              );
+            })}
+            <p className={styles.privacyNote}>
+              Calculated in your browser. Nothing is sent anywhere.
+            </p>
           </div>
 
-          {teamPct > 0 && (
-            <p className={styles.teamNote}>
-              That&apos;s {teamPct}% of your {values.staff === 1 ? "support person's" : "team's"} time
-              freed up every month.
-            </p>
-          )}
+          {/* Output panel */}
+          <div className={styles.output}>
+            <div className={styles.results}>
+              <div className={styles.result}>
+                <div className={styles.resultValue}>{hoursDisplay}h</div>
+                <div className={styles.resultLabel}>saved / month</div>
+              </div>
+              <div className={styles.result}>
+                <div className={styles.resultValue}>€{euroDisplay}</div>
+                <div className={styles.resultLabel}>saved / month</div>
+              </div>
+              <div className={styles.result}>
+                <div className={styles.resultValue}>{payback.value}</div>
+                <div className={styles.resultLabel}>{payback.sub}</div>
+              </div>
+            </div>
 
-          <a href={appUrl} className={styles.cta}>
-            Request demo →
-          </a>
+            {teamPct > 0 && (
+              <p className={styles.teamNote}>
+                That&apos;s {teamPct}% of your {values.staff === 1 ? "support person's" : "team's"} time
+                freed up every month.
+              </p>
+            )}
+
+            <a href={appUrl} className={styles.cta}>
+              Request demo →
+            </a>
+          </div>
         </div>
-      </div>
+      )}
     </section>
   );
 }
