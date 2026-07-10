@@ -1,33 +1,62 @@
-// [FLOW3] Visual flow canvas at /flows/:id — the node view of one flow, with an
-// inspector for edit parity (writes the exact same flows JSON as the modal
-// builder) and run replay (highlights the path a historical run took).
-// [FLOW4] the canvas is the editing surface for branches: the draft holds a
-// step TREE (branch steps carry their match/else legs inline) that serializes
-// to the graph shape — or back to the plain linear list while branch-free, so
-// the modal builder stays usable until a branch is added.
-import { useEffect, useMemo, useState } from 'react'
+// [FLOW3] Visual flow canvas at /flows/:id — node view of one flow, with an
+// inspector for edit parity and run replay.
+// [FLOW4] Canvas edits the step TREE; branching handled inline.
+// [FLOW-CANVAS-DD] Drag-and-drop canvas: free-position nodes, node palette,
+// re-layout button, user-drawn connections. Positions saved to localStorage
+// (not server) so they survive page reloads without needing backend changes.
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Background, Controls, ReactFlow } from '@xyflow/react'
+import {
+  Background, Connection, Controls, ReactFlow, ReactFlowProvider,
+  applyNodeChanges, useNodesState, useEdgesState, useReactFlow,
+} from '@xyflow/react'
+import type { NodeChange } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
-  ArrowLeft, GitBranch, History, Plus, SlidersHorizontal, Trash2, X, Zap,
+  ArrowLeft, GitBranch, History, LayoutGrid, Plus,
+  RefreshCw, SlidersHorizontal, Timer, Trash2, X, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import {
   Condition, Flow, FlowRun, FlowsMeta, RUN_BADGE, Step, WEEKDAYS, apiError,
-  canAppend, findStep, graphToTree, groupTriggers, newActionId, toGroups, treeToActions,
+  canAppend, findStep, graphToTree, groupTriggers, newActionId,
+  toGroups, treeToActions,
 } from '../lib'
 import { ConditionRow, ConfigField, WaitConfig } from '../components/FieldInputs'
 import { nodeTypes } from './nodes'
-import { FlowDraft, Selection, buildGraph } from './layout'
+import { CanvasPositions, FlowDraft, Selection, buildGraph } from './layout'
 import { ReplayState, computeReplay } from './replay'
+
+// --- localStorage position helpers ---
+
+const POS_KEY = (flowId: string) => `yippie_canvas_pos_${flowId}`
+
+function loadCanvasPos(flowId: string): CanvasPositions {
+  try {
+    const raw = localStorage.getItem(POS_KEY(flowId))
+    if (!raw) return new Map()
+    return new Map(Object.entries(JSON.parse(raw)) as [string, { x: number; y: number }][])
+  } catch { return new Map() }
+}
+
+function saveCanvasPos(flowId: string, pos: CanvasPositions) {
+  try {
+    localStorage.setItem(POS_KEY(flowId), JSON.stringify(Object.fromEntries(pos)))
+  } catch {}
+}
+
+function clearCanvasPos(flowId: string) {
+  try { localStorage.removeItem(POS_KEY(flowId)) } catch {}
+}
+
+// --- draft helpers ---
 
 function draftFrom(flow: Flow): FlowDraft | null {
   const steps = graphToTree(flow.actions)
-  if (steps === null) return null // non-tree DAG — only possible via the raw API
+  if (steps === null) return null
   return {
     name: flow.name,
     trigger_type: flow.trigger_type,
@@ -65,15 +94,12 @@ function cleanSteps(steps: Step[]): Step[] {
     : s))
 }
 
-// The exact same request body the modal builder sends (edit parity) — except
-// `actions` becomes the graph shape once the tree contains a branch.
 function saveBody(draft: FlowDraft): object {
   return {
     name: draft.name.trim(),
     trigger_type: draft.trigger_type,
     trigger_config: {
       ...(draft.trigger_type === 'schedule' ? draft.trigger_config : {}),
-      // [FLOW6] the chaining opt-in rides along for every trigger type
       ...(draft.trigger_config.chainable ? { chainable: true } : {}),
     },
     conditions: cleanGroups(draft.groups),
@@ -82,12 +108,78 @@ function saveBody(draft: FlowDraft): object {
   }
 }
 
+// --- node palette ---
+
+function NodePalette({ meta, canEdit }: { meta: FlowsMeta | undefined; canEdit: boolean }) {
+  if (!canEdit) return null
+  return (
+    <div className="w-40 shrink-0 border-r border-slate-200 bg-slate-50 flex flex-col">
+      <div className="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200">
+        <LayoutGrid size={11} className="text-slate-400" />
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Add node</p>
+      </div>
+      <div className="flex-1 overflow-y-auto p-2 space-y-1">
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-1 pt-1">Actions</p>
+        {meta?.actions.filter(a => a.key !== 'wait').map(action => (
+          <div
+            key={action.key}
+            draggable
+            onDragStart={e => {
+              e.dataTransfer.setData('application/flow-node', JSON.stringify({ actionType: action.key }))
+              e.dataTransfer.effectAllowed = 'copy'
+            }}
+            className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-700 cursor-grab active:cursor-grabbing hover:border-blue-300 hover:shadow-sm transition-all select-none"
+          >
+            <Zap size={10} className="text-slate-400 shrink-0" />
+            <span className="truncate">{action.label}</span>
+          </div>
+        ))}
+        {!meta && <p className="text-xs text-slate-400 px-1">Loading…</p>}
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-1 pt-2">Special</p>
+        <div
+          draggable
+          onDragStart={e => {
+            e.dataTransfer.setData('application/flow-node', JSON.stringify({ actionType: 'wait' }))
+            e.dataTransfer.effectAllowed = 'copy'
+          }}
+          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-700 cursor-grab active:cursor-grabbing hover:border-blue-300 hover:shadow-sm transition-all select-none"
+        >
+          <Timer size={10} className="text-slate-400 shrink-0" />
+          Wait
+        </div>
+        <div
+          draggable
+          onDragStart={e => {
+            e.dataTransfer.setData('application/flow-node', JSON.stringify({ actionType: 'branch' }))
+            e.dataTransfer.effectAllowed = 'copy'
+          }}
+          className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white border border-slate-200 text-xs text-violet-600 cursor-grab active:cursor-grabbing hover:border-violet-300 hover:shadow-sm transition-all select-none"
+        >
+          <GitBranch size={10} className="text-violet-400 shrink-0" />
+          Branch
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// --- main page ---
+
 export default function FlowCanvasPage() {
+  return (
+    <ReactFlowProvider>
+      <FlowCanvasInner />
+    </ReactFlowProvider>
+  )
+}
+
+function FlowCanvasInner() {
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+  const { screenToFlowPosition } = useReactFlow()
 
   const { data: meta } = useQuery<FlowsMeta>({
     queryKey: ['flows-meta'],
@@ -112,14 +204,26 @@ export default function FlowCanvasPage() {
   const [panel, setPanel] = useState<'inspect' | 'runs'>('inspect')
   const [error, setError] = useState('')
 
-  // Initialize the draft once the flow arrives; never clobber unsaved edits.
+  // [FLOW-CANVAS-DD] Canvas positions — stored in localStorage, keyed by step id
+  // (without the 'step:' prefix) or by node id for trigger/'group-N' nodes.
+  const positionsRef = useRef<CanvasPositions>(new Map())
+
+  // [FLOW-CANVAS-DD] React Flow state — RF owns visual positions.
+  const [rfNodes, setRfNodes] = useNodesState<any>([])
+  const [rfEdges, setRfEdges, onRfEdgesChange] = useEdgesState<any>([])
+
+  // Initialize the draft once the flow arrives; load saved canvas positions.
   useEffect(() => {
     if (flow && draft === null && !unsupported) {
       const d = draftFrom(flow)
-      if (d) setDraft(d)
-      else setUnsupported(true)
+      if (d) {
+        setDraft(d)
+        if (id) positionsRef.current = loadCanvasPos(id)
+      } else {
+        setUnsupported(true)
+      }
     }
-  }, [flow, draft, unsupported])
+  }, [flow, draft, unsupported, id])
 
   const dirty = useMemo(
     () => !!flow && !!draft && JSON.stringify(draft) !== JSON.stringify(draftFrom(flow)),
@@ -132,10 +236,38 @@ export default function FlowCanvasPage() {
     [replayRun, draft],
   )
 
-  const { nodes, edges } = useMemo(
-    () => (draft ? buildGraph(draft, meta, replay, selection) : { nodes: [], edges: [] }),
-    [draft, meta, replay, selection],
-  )
+  // Sync RF nodes/edges whenever the draft or view state changes.
+  useEffect(() => {
+    if (!draft) return
+    const { nodes: newNodes, edges: newEdges } = buildGraph(
+      draft, meta, replay, selection, positionsRef.current,
+    )
+    setRfNodes(newNodes)
+    setRfEdges(newEdges)
+  }, [draft, meta, replay, selection]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // [FLOW-CANVAS-DD] Track node position changes → save to localStorage.
+  const handleNodesChange = useCallback((changes: NodeChange[]) => {
+    setRfNodes(nds => applyNodeChanges(changes, nds))
+    for (const c of changes) {
+      if (c.type === 'position' && c.position && !c.dragging) {
+        // Drag ended — persist the final position.
+        const key = c.id.startsWith('step:') ? c.id.slice('step:'.length) : c.id
+        positionsRef.current.set(key, c.position)
+        if (id) saveCanvasPos(id, positionsRef.current)
+      }
+    }
+  }, [id, setRfNodes])
+
+  // [FLOW-CANVAS-DD] Re-layout: clear stored positions and let auto-layout run.
+  function relayout() {
+    positionsRef.current = new Map()
+    if (id) clearCanvasPos(id)
+    if (!draft) return
+    const { nodes: newNodes, edges: newEdges } = buildGraph(draft, meta, replay, selection)
+    setRfNodes(newNodes)
+    setRfEdges(newEdges)
+  }
 
   const saveMut = useMutation({
     mutationFn: () => api.patch(`/flows/${id}`, saveBody(draft!)),
@@ -152,7 +284,7 @@ export default function FlowCanvasPage() {
     setDraft(d => (d ? { ...d, ...patch } : d))
   }
 
-  // --- flow-level condition group edits (unchanged from [FLOW3])
+  // --- flow-level condition group edits
   function setCondition(gi: number, ci: number, patch: Partial<Condition>) {
     patchDraft({
       groups: draft!.groups.map((g, gIdx) =>
@@ -181,7 +313,7 @@ export default function FlowCanvasPage() {
     setSelection(null)
   }
 
-  // --- step tree edits ([FLOW4] — all on a cloned tree, then patched in)
+  // --- step tree edits
   type LegTarget = { branchId: string; leg: 'match' | 'else' } | null
 
   function listFor(steps: Step[], target: LegTarget): Step[] | null {
@@ -233,7 +365,6 @@ export default function FlowCanvasPage() {
     const to = loc.index + dir
     if (to < 0 || to >= loc.list.length) return
     ;[loc.list[loc.index], loc.list[to]] = [loc.list[to], loc.list[loc.index]]
-    // a branch always ends its chain — block moves that would bury one
     if (loc.list.some((s, i) => s.type === 'branch' && i !== loc.list.length - 1)) return
     patchDraft({ steps })
   }
@@ -245,6 +376,83 @@ export default function FlowCanvasPage() {
     const step = loc.list[loc.index]
     const groups = fn(((step.config?.conditions as Condition[][]) ?? []).map(g => [...g]))
     step.config = { ...step.config, conditions: groups }
+    patchDraft({ steps })
+  }
+
+  // [FLOW-CANVAS-DD] Drop from palette — appends step at canvas position.
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    if (!draft || !canEdit) return
+    const raw = e.dataTransfer.getData('application/flow-node')
+    if (!raw) return
+    let parsed: { actionType: string }
+    try { parsed = JSON.parse(raw) } catch { return }
+
+    const position = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    const stepId = newActionId()
+
+    const newStep: Step = parsed.actionType === 'branch'
+      ? {
+          id: stepId, type: 'branch',
+          config: { conditions: [[{ field: '', op: 'equals', value: '' }]] },
+          match: [], else: [],
+        }
+      : { id: stepId, type: parsed.actionType, config: {} }
+
+    const steps = structuredClone(draft.steps)
+    if (!canAppend(steps)) {
+      toast.error('This flow ends in a branch — select the branch to extend its paths.')
+      return
+    }
+    steps.push(newStep)
+
+    // Store the dropped position so it appears where the user dropped it.
+    positionsRef.current.set(stepId, position)
+    if (id) saveCanvasPos(id, positionsRef.current)
+
+    patchDraft({ steps })
+    setPanel('inspect')
+    setSelection({ kind: 'step', id: stepId })
+  }
+
+  // [FLOW-CANVAS-DD] User draws an edge from source → target: move target step
+  // to come after source in the chain.
+  function handleConnect(connection: Connection) {
+    if (!draft || !canEdit) return
+    const { source, target, sourceHandle } = connection
+    if (!source || !target || !target.startsWith('step:')) return
+
+    const targetId = target.slice('step:'.length)
+    if (source === target) return
+
+    const steps = structuredClone(draft.steps)
+    const targetLoc = findStep(steps, targetId)
+    if (!targetLoc) return
+
+    // Detach the target step from its current position.
+    const [removed] = targetLoc.list.splice(targetLoc.index, 1)
+
+    if (source.startsWith('step:')) {
+      const sourceId = source.slice('step:'.length)
+      const sourceLoc = findStep(steps, sourceId)
+      if (!sourceLoc) {
+        toast.error('Cannot connect these nodes — try using the inspector to reorder.')
+        return
+      }
+      const sourceStep = sourceLoc.list[sourceLoc.index]
+
+      if (sourceStep.type === 'branch') {
+        const leg = sourceHandle === 'match' ? 'match' : 'else'
+        if (!sourceStep[leg]) sourceStep[leg] = []
+        sourceStep[leg]!.unshift(removed)
+      } else {
+        sourceLoc.list.splice(sourceLoc.index + 1, 0, removed)
+      }
+    } else {
+      // Connected from trigger or group node → prepend to main chain.
+      steps.unshift(removed)
+    }
+
     patchDraft({ steps })
   }
 
@@ -275,8 +483,6 @@ export default function FlowCanvasPage() {
   }
   if (!draft) return null
 
-  // [FLOW9] default flows are showcases: anyone may view them on the canvas,
-  // nobody edits them — duplicate one (from the Flows page) to customise it.
   const canEdit = isAdmin && !flow.is_default
   const trigger = meta?.triggers.find(t => t.key === draft.trigger_type)
   const selectedLoc = selection?.kind === 'step' ? findStep(draft.steps, selection.id) : null
@@ -355,6 +561,14 @@ export default function FlowCanvasPage() {
         )}
         <div className="ml-auto flex items-center gap-3">
           {error && <p className="text-xs text-red-500 max-w-xs truncate" title={error}>{error}</p>}
+          {/* [FLOW-CANVAS-DD] Re-layout button */}
+          <button
+            onClick={relayout}
+            title="Reset to auto-layout"
+            className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
+          >
+            <RefreshCw size={14} />
+          </button>
           {canEdit && (
             <>
               <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
@@ -379,15 +593,25 @@ export default function FlowCanvasPage() {
       </div>
 
       <div className="flex flex-1 min-h-0">
+        {/* [FLOW-CANVAS-DD] Left node palette */}
+        <NodePalette meta={meta} canEdit={canEdit} />
+
         {/* canvas */}
-        <div className="flex-1 min-w-0">
+        <div
+          className="flex-1 min-w-0"
+          onDrop={handleDrop}
+          onDragOver={e => e.preventDefault()}
+        >
           <ReactFlow
-            nodes={nodes}
-            edges={edges}
+            nodes={rfNodes}
+            edges={rfEdges}
             nodeTypes={nodeTypes}
+            onNodesChange={handleNodesChange}
+            onEdgesChange={onRfEdgesChange}
+            onConnect={handleConnect}
             fitView
             fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
-            nodesConnectable={false}
+            nodesConnectable={canEdit}
             deleteKeyCode={null}
             onNodeClick={(_, node) => {
               if (node.id.startsWith('ghost-')) return
@@ -459,7 +683,9 @@ export default function FlowCanvasPage() {
 
             {panel === 'inspect' && canEdit && selection === null && (
               <>
-                <p className="text-xs text-slate-400">Select a node to edit it, or add a step:</p>
+                <p className="text-xs text-slate-400">
+                  Drag nodes to rearrange. Select a node to configure it, or add a step:
+                </p>
                 {canAppend(draft.steps) ? (
                   <>
                     <button onClick={() => addStep(null, 'action')} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700">
@@ -528,8 +754,6 @@ export default function FlowCanvasPage() {
                     />
                   </div>
                 )}
-                {/* [FLOW6] schedule/webhook events are never flow-caused, so the
-                    opt-in only makes sense for mutation triggers */}
                 {draft.trigger_type !== 'schedule' && draft.trigger_type !== 'webhook' && (
                   <label className="flex items-start gap-2 text-xs text-slate-500 cursor-pointer pt-1">
                     <input

@@ -15,6 +15,8 @@ const GAP_X = 48
 const GAP_Y = 56
 const CENTER_X = 0
 
+export type CanvasPositions = Map<string, { x: number; y: number }>
+
 export interface FlowDraft {
   name: string
   trigger_type: string
@@ -86,6 +88,7 @@ interface Ctx {
   trigger: MetaTrigger | undefined
   replay: ReplayState | null
   selectedId: string | null
+  positions: CanvasPositions
 }
 
 interface EdgeSource {
@@ -144,8 +147,7 @@ function layoutChain(ctx: Ctx, steps: Step[], axis: number, y: number, source: E
       ctx.nodes.push({
         id,
         type: 'branch',
-        position: { x: axis - NODE_WIDTH / 2, y },
-        draggable: false,
+        position: ctx.positions.get(step.id) ?? { x: axis - NODE_WIDTH / 2, y },
         data: { lines, badge, selected: ctx.selectedId === id, dimmed },
       })
       pushEdges(ctx, currentSource, id, dimmed)
@@ -173,8 +175,7 @@ function layoutChain(ctx: Ctx, steps: Step[], axis: number, y: number, source: E
     ctx.nodes.push({
       id,
       type: 'action',
-      position: { x: axis - NODE_WIDTH / 2, y },
-      draggable: false,
+      position: ctx.positions.get(step.id) ?? { x: axis - NODE_WIDTH / 2, y },
       data: {
         label: isWait ? waitSummary(step.config ?? {}) : actionLabel(ctx.meta, step.type),
         lines,
@@ -196,6 +197,7 @@ export function buildGraph(
   meta: FlowsMeta | undefined,
   replay: ReplayState | null,
   selection: Selection | null,
+  positions: CanvasPositions = new Map(),
 ): { nodes: Node[]; edges: Edge[] } {
   const trigger = meta?.triggers.find(t => t.key === draft.trigger_type)
   const ctx: Ctx = {
@@ -205,6 +207,7 @@ export function buildGraph(
     trigger,
     replay,
     selectedId: selection ? nodeIdFor(selection) : null,
+    positions,
   }
 
   let y = 0
@@ -214,8 +217,7 @@ export function buildGraph(
   ctx.nodes.push({
     id: 'trigger',
     type: 'trigger',
-    position: { x: CENTER_X, y },
-    draggable: false,
+    position: positions.get('trigger') ?? { x: CENTER_X, y },
     data: {
       label: triggerLabel(meta, draft.trigger_type),
       detail: draft.trigger_type === 'schedule' ? scheduleSummary(draft.trigger_config) : null,
@@ -238,8 +240,7 @@ export function buildGraph(
       ctx.nodes.push({
         id,
         type: 'group',
-        position: { x: startX + gi * (NODE_WIDTH + GAP_X), y },
-        draggable: false,
+        position: positions.get(id) ?? { x: startX + gi * (NODE_WIDTH + GAP_X), y },
         data: {
           index: gi,
           lines,
