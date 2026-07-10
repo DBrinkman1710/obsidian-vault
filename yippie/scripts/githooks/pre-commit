@@ -1,0 +1,28 @@
+#!/bin/sh
+# Yippie pre commit gate — versioned in yippie/scripts/githooks.
+# Activate once per clone:  git config core.hooksPath yippie/scripts/githooks
+#
+# 1. UI drift barrier — when app frontend files are staged (DESIGN.md contract).
+# 2. Single alembic head — when a migration file is staged.
+
+staged=$(git diff --cached --name-only)
+top=$(git rev-parse --show-toplevel)
+
+if echo "$staged" | grep -q "yippie/apps/app/frontend/src/"; then
+  echo "pre commit: running UI drift check…"
+  (cd "$top/yippie/apps/app/frontend" && node scripts/ui_drift_check.mjs) || {
+    echo "pre commit: UI drift check failed — see apps/app/frontend/DESIGN.md" >&2
+    exit 1
+  }
+fi
+
+if echo "$staged" | grep -q "yippie/apps/app/backend/migrations/versions/"; then
+  echo "pre commit: verifying single alembic head…"
+  heads=$(cd "$top/yippie/apps/app/backend" && python3 -m alembic heads 2>/dev/null | grep -c "head")
+  if [ "$heads" != "1" ]; then
+    echo "pre commit: expected exactly 1 alembic head, found $heads — create a merge migration first" >&2
+    exit 1
+  fi
+fi
+
+exit 0

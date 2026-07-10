@@ -21,6 +21,10 @@ docker compose exec -e ADMIN_EMAIL=you@example.com -e ADMIN_PASSWORD=pass backen
 - **AI**: Mistral Small via litellm (inbox scanning, Jarvis). EU-hosted, GDPR-safe. Fallback: Anthropic Claude Haiku (set AI_PROVIDER=anthropic)
 - **Deploy**: Docker Compose per client
 
+## Frontend design contract — MANDATORY
+
+`frontend/DESIGN.md` is the binding UI contract: shared tokens (semantic `success/warning/danger/info` + `yippie` ramp), shared primitives (`.btn-*`, `.input-base`, `heading-*`, `CloseButton`, `Skeleton`, `EmptyState`, `useCopy`, `lib/format.ts`, `lib/statusStyles.ts`). Before writing any new UI, read it. `pnpm run check:ui` (also wired into pre commit) fails the commit if new drift is introduced; when you clean up legacy drift, tighten the ratchet with `node scripts/ui_drift_check.mjs --update-baseline` in the same commit.
+
 ## Architecture — the key ideas
 
 ### Module system
