@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import styles from "./SiteChrome.module.css";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
@@ -13,6 +14,14 @@ const links = [
   { href: "/about", label: "About" },
 ];
 
+const NL_MAP: Record<string, string> = { "/": "/nl", "/pricing": "/nl/pricing" };
+const EN_MAP: Record<string, string> = { "/nl": "/", "/nl/pricing": "/pricing" };
+
+function altLang(pathname: string, to: "en" | "nl"): string {
+  if (to === "nl") return NL_MAP[pathname] ?? "/nl";
+  return EN_MAP[pathname] ?? EN_MAP[pathname.replace(/\/$/, "")] ?? "/";
+}
+
 const useCaseLinks = [
   { href: "/for-smbs", label: "For SMBs" },
   { href: "/for-agencies", label: "For agencies" },
@@ -22,6 +31,8 @@ const useCaseLinks = [
 export default function SiteNav() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
+  const isNL = pathname.startsWith("/nl");
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
@@ -66,6 +77,15 @@ export default function SiteNav() {
         </ul>
 
         <div className={styles.navRight}>
+          <div className={styles.navDropdown}>
+            <button type="button" className={`${styles.navDropdownTrigger} ${styles.langTrigger}`} tabIndex={0}>
+              {isNL ? "NL" : "EN"} <span className={styles.navDropdownCaret} aria-hidden="true">▾</span>
+            </button>
+            <ul className={`${styles.navDropdownMenu} ${styles.langMenu}`}>
+              <li><a href={altLang(pathname, "en")} className={!isNL ? styles.langActive : ""}>EN — English</a></li>
+              <li><a href={altLang(pathname, "nl")} className={isNL ? styles.langActive : ""}>NL — Nederlands</a></li>
+            </ul>
+          </div>
           <a href={`${APP_URL}/login`} className={styles.navLogin}>Log in</a>
           <a href={DEMO_URL} className={styles.navLoginOutline}>Request demo</a>
           <a href="/custom" className={styles.navCta}>
