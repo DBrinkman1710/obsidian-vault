@@ -605,8 +605,16 @@ export default function InboxQueue() {
   // (via approvals in DraftReview or bin/spam/reject here), summarise the
   // session's work once. Count is client-side only — no DB write.
   const prevPendingCountRef = useRef<number | null>(null)
+  const prevPendingKeyRef = useRef<string>('')
   useEffect(() => {
     if (activeTab !== 'pending' || pendingLoading || pendingDrafts === undefined) return
+    // Switching mailbox/search/department swaps the list out entirely — reset
+    // the baseline so a filter change never fires a false "all caught up".
+    const listKey = draftKey('pending').join('|')
+    if (listKey !== prevPendingKeyRef.current) {
+      prevPendingKeyRef.current = listKey
+      prevPendingCountRef.current = null
+    }
     const count = (pendingDrafts ?? []).length
     const prev = prevPendingCountRef.current
     prevPendingCountRef.current = count
