@@ -3,6 +3,8 @@ import { useNavigate, Link, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ChevronLeft, X } from 'lucide-react'
 import { api } from '../../../api/client'
+import { useT } from '../../../hooks/useT'
+import type { TKey } from '../../../i18n/translations'
 
 interface Contact {
   id: string
@@ -22,6 +24,7 @@ function ContactPicker({ value, onChange }: {
   value: { id: string; label: string } | null
   onChange: (c: { id: string; label: string } | null) => void
 }) {
+  const t = useT()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -58,15 +61,15 @@ function ContactPicker({ value, onChange }: {
         value={search}
         onChange={e => { setSearch(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
-        placeholder="Search contacts by name, email or company…"
+        placeholder={t('ticket_contact_search_ph')}
       />
       {open && (
         <div className="absolute top-full left-0 right-0 z-10 bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-64 overflow-y-auto">
           {!data?.length && (
             <div className="px-4 py-3 text-sm text-slate-400">
               {search
-                ? <>No contacts found. <Link to="/contacts/new" className="text-blue-600 hover:underline">Create one?</Link></>
-                : <>Start typing to search… or <Link to="/contacts/new" className="text-blue-600 hover:underline">add a new contact</Link></>
+                ? <>{t('ticket_contact_not_found')} <Link to="/contacts/new" className="text-blue-600 hover:underline">{t('ticket_contact_create')}</Link></>
+                : <>{t('ticket_contact_typing')} <Link to="/contacts/new" className="text-blue-600 hover:underline">{t('ticket_contact_add')}</Link></>
               }
             </div>
           )}
@@ -92,6 +95,7 @@ function ContactPicker({ value, onChange }: {
 }
 
 export default function TicketNew() {
+  const t = useT()
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const qc = useQueryClient()
@@ -116,8 +120,8 @@ export default function TicketNew() {
 
   function validate() {
     const next: { subject?: string; contact?: string } = {}
-    if (!subject.trim()) next.subject = 'Subject is required'
-    if (!contact) next.contact = 'Contact is required'
+    if (!subject.trim()) next.subject = t('ticket_subject_required')
+    if (!contact) next.contact = t('ticket_contact_required')
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -151,37 +155,37 @@ export default function TicketNew() {
           Tickets
         </Link>
         <span className="text-slate-300">/</span>
-        <h1 className="text-2xl font-bold text-slate-900">New Ticket</h1>
+        <h1 className="text-2xl font-bold text-slate-900">{t('ticket_new_title')}</h1>
       </div>
 
       <form onSubmit={handleSubmit} className="flex flex-col gap-5">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Subject *</label>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('ticket_subject_label')} *</label>
           <input
             className={`input-base ${errors.subject ? 'input-error' : ''}`}
             value={subject} onChange={e => setSubject(e.target.value)}
-            placeholder="Short description of the issue" autoFocus
+            placeholder={t('ticket_subject_ph')} autoFocus
           />
           {errors.subject && <p className="error-text mt-1">{errors.subject}</p>}
         </div>
 
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-            Contact *
+            {t('ticket_contact_label')} *
           </label>
           <ContactPicker value={contact} onChange={setContact} />
           {errors.contact && <p className="error-text mt-1">{errors.contact}</p>}
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Priority</label>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('ticket_priority_label')}</label>
           <div className="flex gap-2">
             {(['low', 'medium', 'high', 'urgent'] as const).map(p => (
               <button
                 key={p} type="button" onClick={() => setPriority(p)}
-                className={`px-4 py-1.5 rounded-full border text-xs font-semibold capitalize transition-colors ${priority === p ? PRIORITY_STYLES[p].active : PRIORITY_STYLES[p].inactive}`}
+                className={`px-4 py-1.5 rounded-full border text-xs font-semibold transition-colors ${priority === p ? PRIORITY_STYLES[p].active : PRIORITY_STYLES[p].inactive}`}
               >
-                {p}
+                {t(`priority_${p}` as TKey)}
               </button>
             ))}
           </div>
@@ -189,14 +193,14 @@ export default function TicketNew() {
 
         <div>
           <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-            Department <span className="font-normal text-slate-400 normal-case">(optional)</span>
+            {t('ticket_dept_label')} <span className="font-normal text-slate-400 normal-case">{t('ticket_dept_optional')}</span>
           </label>
           <select
             value={departmentId}
             onChange={e => setDepartmentId(e.target.value)}
             className="input-base"
           >
-            <option value="">No department</option>
+            <option value="">{t('ticket_dept_none')}</option>
             {departments?.map((d: any) => (
               <option key={d.id} value={d.id}>{d.name} ({d.sla_working_days}d SLA)</option>
             ))}
@@ -204,16 +208,16 @@ export default function TicketNew() {
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Description</label>
+          <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('ticket_desc_label')}</label>
           <textarea
             className="input-base resize-vertical min-h-[120px] font-[inherit]"
             value={description} onChange={e => setDescription(e.target.value)}
-            placeholder="What happened? Any relevant details, error messages, or steps to reproduce…"
+            placeholder={t('ticket_desc_ph')}
           />
         </div>
 
         {mutation.isError && (
-          <p className="error-text">Something went wrong. Try again.</p>
+          <p className="error-text">{t('something_went_wrong')}</p>
         )}
 
         <div className="flex gap-3 items-center">
@@ -221,10 +225,10 @@ export default function TicketNew() {
             type="submit" disabled={mutation.isPending}
             className="btn-primary px-4 py-2"
           >
-            {mutation.isPending ? 'Creating…' : 'Create ticket'}
+            {mutation.isPending ? t('ticket_creating') : t('ticket_create_btn')}
           </button>
           <Link to="/tickets" className="text-slate-600 hover:text-slate-900 text-sm font-medium transition-colors">
-            Cancel
+            {t('cancel')}
           </Link>
         </div>
       </form>

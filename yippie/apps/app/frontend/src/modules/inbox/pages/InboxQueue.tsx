@@ -13,6 +13,8 @@ import { CardListSkeleton } from '../../../shell/Skeleton'
 import ComposeModal, { type ComposeInitialState, type SendQueuedPayload } from '../components/ComposeModal'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
 import { useSignatures, pickDefaultSignature } from '../../../hooks/useSignatures'
+import { useT } from '../../../hooks/useT'
+import type { TKey } from '../../../i18n/translations'
 
 const INBOX_FACTS = [
   "Studies show clearing your inbox reduces stress by up to 38%.",
@@ -43,6 +45,7 @@ const INBOX_FACTS = [
 ]
 
 function AllCaughtUp({ hasHistory = false }: { hasHistory?: boolean }) {
+  const t = useT()
   const [fact, setFact] = useState(() => INBOX_FACTS[Math.floor(Math.random() * INBOX_FACTS.length)])
   useEffect(() => {
     const id = setInterval(() => {
@@ -57,9 +60,9 @@ function AllCaughtUp({ hasHistory = false }: { hasHistory?: boolean }) {
         <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center">
           <Mail size={32} className="text-slate-400" strokeWidth={1.5} />
         </div>
-        <h3 className="text-lg font-semibold text-slate-700">No messages yet</h3>
+        <h3 className="text-lg font-semibold text-slate-700">{t('inbox_no_messages')}</h3>
         <p className="text-sm text-slate-400 max-w-xs leading-relaxed">
-          Incoming emails and WhatsApp messages will appear here for review.
+          {t('inbox_no_messages_desc')}
         </p>
       </div>
     )
@@ -70,7 +73,7 @@ function AllCaughtUp({ hasHistory = false }: { hasHistory?: boolean }) {
       <div className="w-16 h-16 rounded-full bg-green-50 flex items-center justify-center">
         <CheckSquare size={32} className="text-green-500" strokeWidth={1.5} />
       </div>
-      <h3 className="text-lg font-semibold text-slate-700">All caught up!</h3>
+      <h3 className="text-lg font-semibold text-slate-700">{t('inbox_all_caught_up')}</h3>
       <p className="text-sm text-slate-400 max-w-xs leading-relaxed">{fact}</p>
     </div>
   )
@@ -96,16 +99,16 @@ const STATUS_STYLES: Record<string, string> = {
   spam:      'bg-orange-100 text-orange-700',
 }
 
-function statusBadge(status: string) {
-  const map: Record<string, { label: string; cls: string }> = {
-    sent:      { label: 'Sent',      cls: 'bg-slate-100 text-slate-500' },
-    delivered: { label: 'Delivered', cls: 'bg-green-50 text-green-600' },
-    opened:    { label: 'Opened',    cls: 'bg-blue-50 text-blue-600' },
-    clicked:   { label: 'Clicked',   cls: 'bg-purple-50 text-purple-600' },
-    bounced:   { label: 'Bounced',   cls: 'bg-red-50 text-red-600' },
+function statusBadge(status: string, t: (k: TKey) => string) {
+  const map: Record<string, { key: TKey; cls: string }> = {
+    sent:      { key: 'status_sent',      cls: 'bg-slate-100 text-slate-500' },
+    delivered: { key: 'status_delivered', cls: 'bg-green-50 text-green-600' },
+    opened:    { key: 'status_opened',    cls: 'bg-blue-50 text-blue-600' },
+    clicked:   { key: 'status_clicked',   cls: 'bg-purple-50 text-purple-600' },
+    bounced:   { key: 'status_bounced',   cls: 'bg-red-50 text-red-600' },
   }
   const s = map[status] ?? map['sent']
-  return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${s.cls}`}>{s.label}</span>
+  return <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${s.cls}`}>{t(s.key)}</span>
 }
 
 type Tab = 'pending' | 'processed' | 'sent'
@@ -136,6 +139,7 @@ interface Assignee {
 }
 
 function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => void; onDone: () => void }) {
+  const t = useT()
   const [tab, setTab] = useState<'users' | 'departments'>('users')
   const qc = useQueryClient()
   const [assigning, setAssigning] = useState(false)
@@ -190,18 +194,18 @@ function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => v
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full flex flex-col" style={{ maxHeight: '80vh' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-base font-bold text-slate-900">Assign to</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('assign_to')}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
         </div>
 
         <div className="flex border-b border-slate-100 shrink-0 px-2">
           <button className={tabCls('users')} onClick={() => setTab('users')}>
             <Users size={13} className="inline mr-1.5 -mt-0.5" />
-            Users
+            {t('assign_users')}
           </button>
           <button className={tabCls('departments')} onClick={() => setTab('departments')}>
             <Building2 size={13} className="inline mr-1.5 -mt-0.5" />
-            Departments
+            {t('assign_depts')}
           </button>
         </div>
 
@@ -223,7 +227,7 @@ function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => v
                   </div>
                 </button>
               ))}
-              {assignees.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">No assignees available</div>}
+              {assignees.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">{t('assign_no_users')}</div>}
             </>
           )}
 
@@ -241,7 +245,7 @@ function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => v
                   <span className="text-sm font-medium text-slate-900">{dept.name}</span>
                 </button>
               ))}
-              {depts.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">No departments</div>}
+              {depts.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">{t('assign_no_depts')}</div>}
             </>
           )}
         </div>
@@ -253,7 +257,7 @@ function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => v
             disabled={assigning}
             className="flex-1 px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors disabled:cursor-not-allowed"
           >
-            Unassign
+            {t('unassign')}
           </button>
           <button
             type="button"
@@ -261,7 +265,7 @@ function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => v
             disabled={assigning}
             className="flex-1 px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 transition-colors disabled:cursor-not-allowed"
           >
-            Cancel
+            {t('cancel')}
           </button>
         </div>
       </div>
@@ -298,6 +302,7 @@ export default function InboxQueue() {
   const [undoProgress, setUndoProgress] = useState(0)
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const qc = useQueryClient()
+  const t = useT()
   const config = useTenantConfig()
   const { user } = useAuth()
   const { data: signatures } = useSignatures()
@@ -691,8 +696,8 @@ export default function InboxQueue() {
             {/* Mailbox switch: shared (whole team) vs personal (mail to your own address) */}
             <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
               {([
-                { value: 'shared', label: 'Shared', icon: <Users size={13} />, count: inboxCounts?.unread },
-                { value: 'personal', label: 'Personal', icon: <Mail size={13} />, count: inboxCounts?.unread_personal },
+                { value: 'shared', label: t('inbox_mailbox_shared'), icon: <Users size={13} />, count: inboxCounts?.unread },
+                { value: 'personal', label: t('inbox_mailbox_personal'), icon: <Mail size={13} />, count: inboxCounts?.unread_personal },
               ] as { value: Mailbox; label: string; icon: React.ReactNode; count?: number }[]).map(m => {
                 const displayCount = m.count !== undefined && m.count > 0 ? (m.count > 9 ? '9+' : m.count.toString()) : null
                 return (
@@ -784,7 +789,7 @@ export default function InboxQueue() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               <Pencil size={14} />
-              Compose
+              {t('inbox_compose')}
             </button>
           </div>
         </div>
@@ -795,13 +800,13 @@ export default function InboxQueue() {
             <button
               key={tab}
               onClick={() => handleTabSwitch(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
+              className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
                 activeTab === tab
                   ? 'bg-yippie text-white'
                   : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
-              {tab}
+              {t(`tab_${tab}` as TKey)}
             </button>
           ))}
         </div>
@@ -813,7 +818,7 @@ export default function InboxQueue() {
             type="text"
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder="Search inbox…"
+            placeholder={t('inbox_search_ph')}
             className="w-full pl-9 pr-8 py-2 bg-white border border-slate-200 rounded-lg text-sm text-slate-700 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie focus:border-transparent transition-colors"
           />
           {search && (
@@ -861,7 +866,7 @@ export default function InboxQueue() {
               onClick={() => setShowProcessedFilter(o => !o)}
               className="inline-flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
             >
-              {PROCESSED_FILTERS.find(f => f.value === processedFilter)?.label ?? 'All'}
+              {t(`filter_${processedFilter}` as TKey)}
               <ChevronDown size={13} className={`text-slate-400 transition-transform ${showProcessedFilter ? 'rotate-180' : ''}`} />
             </button>
             {showProcessedFilter && (
@@ -876,7 +881,7 @@ export default function InboxQueue() {
                         : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    {f.label}
+                    {t(`filter_${f.value}` as TKey)}
                   </button>
                 ))}
               </div>
@@ -885,12 +890,14 @@ export default function InboxQueue() {
         )}
 
         {activeTab === 'processed' && RETENTION_NOTES[processedFilter] && (
-          <p className="mt-2 text-xs text-slate-400">{RETENTION_NOTES[processedFilter]}</p>
+          <p className="mt-2 text-xs text-slate-400">
+            {processedFilter === 'spam' ? t('retention_spam') : t('retention_bin')}
+          </p>
         )}
 
         {/* Sent tab description */}
         {activeTab === 'sent' && (
-          <p className="mt-3 text-xs text-slate-400">All outbound mail sent by your team.</p>
+          <p className="mt-3 text-xs text-slate-400">{t('inbox_sent_desc')}</p>
         )}
 
         {/* Bulk action bar */}
@@ -899,24 +906,24 @@ export default function InboxQueue() {
           onClear={() => setSelected(new Set())}
           actions={[
             {
-              label: 'Move to Bin',
+              label: t('inbox_move_to_bin'),
               icon: <Trash2 size={13} />,
               danger: true,
               onClick: () => bulkWithMotion(Array.from(selected), 'bin'),
             },
             {
-              label: 'Mark as Spam',
+              label: t('inbox_mark_spam'),
               icon: <AlertOctagon size={13} />,
               danger: true,
               onClick: () => bulkWithMotion(Array.from(selected), 'spam'),
             },
             {
-              label: 'Assign to me',
+              label: t('inbox_assign_to_me'),
               icon: <User size={13} />,
               onClick: () => bulkAssignMutation.mutate({ ids: Array.from(selected), assigned_to_user_id: user?.id ?? null }),
             },
             {
-              label: 'Assign to…',
+              label: t('inbox_assign_to'),
               icon: <UserPlus size={13} />,
               onClick: () => setShowAssignModal(true),
             },
@@ -936,7 +943,7 @@ export default function InboxQueue() {
               <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
                 <Send size={32} className="text-slate-300 mx-auto mb-3" />
                 <p className="text-sm text-slate-400 font-medium">
-                  {debouncedSearch ? 'No sent mail matches your search' : 'No sent mail yet'}
+                  {debouncedSearch ? t('inbox_no_sent_search') : t('inbox_no_sent')}
                 </p>
               </div>
             )}
@@ -956,7 +963,7 @@ export default function InboxQueue() {
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <Send size={13} className="text-slate-400 shrink-0" />
                           <span className="text-sm font-semibold text-slate-900 truncate">{subject}</span>
-                          {statusBadge(item.status)}
+                          {statusBadge(item.status, t)}
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${isCompose ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
                             {isCompose ? 'Composed' : 'Reply'}
                           </span>
@@ -1011,7 +1018,7 @@ export default function InboxQueue() {
           <div className="py-12 text-center bg-white rounded-xl border border-slate-200">
             <Mail size={32} className="text-slate-300 mx-auto mb-3" />
             <p className="text-sm text-slate-400 font-medium">
-              No processed messages yet
+              {t('inbox_no_processed')}
             </p>
           </div>
         )}
@@ -1296,7 +1303,7 @@ export default function InboxQueue() {
               <div className="text-xs text-slate-500 flex flex-wrap gap-3">
                 <span>To: <strong className="text-slate-700">{selectedSentItem.to_email}</strong></span>
                 <span>{new Date(selectedSentItem.created_at).toLocaleString()}</span>
-                {statusBadge(selectedSentItem.status)}
+                {statusBadge(selectedSentItem.status, t)}
               </div>
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 max-h-64 overflow-y-auto">
                 {selectedSentItem.body

@@ -10,6 +10,7 @@ import { LabelChip, fetchLabels, type ContactLabel } from '../components/LabelCh
 import { CompanyBadge, fetchCompanies, type CompanyRef } from '../components/CompanyBadge'
 import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
+import { useT } from '../../../hooks/useT'
 
 interface Contact {
   id: string
@@ -42,6 +43,7 @@ function downloadBlob(data: BlobPart, filename: string, type: string) {
 }
 
 export default function ContactList() {
+  const t = useT()
   const navigate = useNavigate()
   const { openCompose } = useCompose()
   const { companyId } = useParams<{ companyId?: string }>()
@@ -141,7 +143,7 @@ export default function ContactList() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">
-              {scopedCompany ? scopedCompany.name : 'All Contacts'}
+              {scopedCompany ? scopedCompany.name : t('contacts_all')}
             </h1>
             <p className="text-sm text-slate-500 mt-0.5">{data?.total ?? 0} contact{(data?.total ?? 0) !== 1 ? 's' : ''}</p>
           </div>
@@ -151,7 +153,7 @@ export default function ContactList() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
             >
               <Download size={15} strokeWidth={2.5} />
-              Export
+              {t('contacts_export_btn')}
             </button>
             {isAdmin && (
               <button
@@ -159,7 +161,7 @@ export default function ContactList() {
                 className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
               >
                 <Upload size={15} strokeWidth={2.5} />
-                Import
+                {t('contacts_import_btn')}
               </button>
             )}
             <Link
@@ -167,7 +169,7 @@ export default function ContactList() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               <Plus size={15} strokeWidth={2.5} />
-              New Contact
+              {t('contacts_new_btn')}
             </Link>
           </div>
         </div>
@@ -176,7 +178,7 @@ export default function ContactList() {
       <div className="relative mb-5 max-w-sm">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
-          placeholder="Search by name, email, or company…"
+          placeholder={t('contacts_search_ph')}
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
@@ -194,7 +196,7 @@ export default function ContactList() {
                 : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'
             }`}
           >
-            All
+            {t('filter_all')}
           </button>
           {labels.map((label: any) => (
             <LabelChip
@@ -218,7 +220,7 @@ export default function ContactList() {
                 : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'
             }`}
           >
-            All companies
+            {t('contacts_all_companies')}
           </button>
           {companies.map((company: any) => (
             <CompanyBadge
@@ -236,16 +238,16 @@ export default function ContactList() {
         onClear={selection.clear}
         actions={[
           {
-            label: 'Export',
+            label: t('contacts_export_btn'),
             icon: <Download size={13} />,
             onClick: () => exportContacts([...selection.sel]),
           },
           {
-            label: 'Delete',
+            label: t('delete'),
             icon: <Trash2 size={13} />,
             danger: true,
             onClick: () => {
-              if (confirm(`Delete ${selection.count} contact(s)? This cannot be undone.`))
+              if (confirm(`${t('delete')} ${selection.count} contact(s)? ${t('confirm_cannot_undo')}`))
                 deleteMutation.mutate([...selection.sel])
             },
           },
@@ -264,11 +266,11 @@ export default function ContactList() {
                   ariaLabel="Select all contacts"
                 />
               </th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Labels</th>
-              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Phone</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('contacts_col_name')}</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('contacts_col_email')}</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('contacts_col_company')}</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('contacts_col_labels')}</th>
+              <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('contacts_col_phone')}</th>
             </tr>
           </thead>
           {isLoading ? (
@@ -282,16 +284,16 @@ export default function ContactList() {
                   style={{ background: selection.has(c.id) ? 'rgba(91,164,245,0.08)' : undefined }}
                   onContextMenu={e => ctx.open(e, [
                     { header: c.full_name },
-                    { label: 'View contact', icon: <User size={14} />, onClick: () => navigate(`/contacts/${c.id}`) },
-                    ...(c.email ? [{ label: 'Send email', icon: <Mail size={14} />, onClick: () => openCompose({ recipients: [{ email: c.email!, label: c.full_name || c.email! }], subject: '', body: '', fromEmail: null }) }] : []),
+                    { label: t('contacts_view'), icon: <User size={14} />, onClick: () => navigate(`/contacts/${c.id}`) },
+                    ...(c.email ? [{ label: t('contacts_send_email'), icon: <Mail size={14} />, onClick: () => openCompose({ recipients: [{ email: c.email!, label: c.full_name || c.email! }], subject: '', body: '', fromEmail: null }) }] : []),
                     { separator: true },
-                    { label: 'Export', icon: <Download size={14} />, onClick: () => exportContacts([c.id]) },
+                    { label: t('contacts_export_btn'), icon: <Download size={14} />, onClick: () => exportContacts([c.id]) },
                     {
-                      label: 'Delete',
+                      label: t('delete'),
                       icon: <Trash2 size={14} />,
                       danger: true,
                       onClick: () => {
-                        if (confirm('Delete this contact? This cannot be undone.'))
+                        if (confirm(t('contacts_delete_one')))
                           deleteMutation.mutate([c.id])
                       },
                     },
@@ -350,13 +352,13 @@ export default function ContactList() {
         {!isLoading && items.length === 0 && (
           <div className="py-12 text-center">
             <User size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 font-medium mb-4">No contacts yet</p>
+            <p className="text-sm text-slate-400 font-medium mb-4">{t('contacts_empty')}</p>
             <Link
               to={newContactHref}
               className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               <Plus size={14} strokeWidth={2.5} />
-              Add first contact
+              {t('contacts_add_first')}
             </Link>
           </div>
         )}
@@ -368,25 +370,25 @@ export default function ContactList() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeImport}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md p-8" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-lg font-bold text-slate-900">Import contacts</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t('contacts_import_title')}</h2>
               <button onClick={closeImport} className="text-slate-400 hover:text-slate-600">
                 <X size={18} />
               </button>
             </div>
-            <p className="text-sm text-slate-500 mb-5">Upload a CSV, JSON, or XLSX file.</p>
+            <p className="text-sm text-slate-500 mb-5">{t('contacts_import_desc')}</p>
 
             {!importResult ? (
               <>
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4">
                   <p className="text-xs text-slate-500 mb-2">
-                    Columns: <span className="font-mono text-slate-700">full_name*</span>, email, phone, company, notes
+                    {t('contacts_import_cols')} <span className="font-mono text-slate-700">full_name*</span>, email, phone, company, notes
                   </p>
                   <button
                     onClick={() => downloadBlob(TEMPLATE_CSV, 'contacts-template.csv', 'text/csv')}
                     className="text-xs font-medium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1"
                   >
                     <Download size={12} strokeWidth={2.5} />
-                    Download template
+                    {t('contacts_download_tpl')}
                   </button>
                 </div>
 
@@ -409,15 +411,15 @@ export default function ContactList() {
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity disabled:opacity-50"
                 >
                   <Upload size={15} strokeWidth={2.5} />
-                  {importMutation.isPending ? 'Importing…' : 'Choose file'}
+                  {importMutation.isPending ? t('contacts_importing') : t('contacts_choose_file')}
                 </button>
               </>
             ) : (
               <>
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4 text-sm text-slate-700">
-                  <span className="font-semibold text-green-700">{importResult.imported} imported</span>
+                  <span className="font-semibold text-green-700">{importResult.imported} {t('contacts_imported')}</span>
                   {', '}
-                  <span className="font-semibold text-amber-700">{importResult.skipped} skipped (duplicates)</span>
+                  <span className="font-semibold text-amber-700">{importResult.skipped} {t('contacts_skipped')}</span>
                   {', '}
                   <span className="font-semibold text-red-700">{importResult.errors} error{importResult.errors === 1 ? '' : 's'}</span>
                 </div>
@@ -430,7 +432,7 @@ export default function ContactList() {
                   onClick={closeImport}
                   className="w-full px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
                 >
-                  Done
+                  {t('done')}
                 </button>
               </>
             )}

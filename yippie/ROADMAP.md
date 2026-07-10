@@ -360,7 +360,7 @@ Full specs for [AI-MOD1] live in the **Post-launch build order** section above; 
 - **[FLOW-CANVAS-DD] Drag-and-drop canvas (n8n-style)** — `Opus` — ✅ shipped 2026-07-10 (no DDL, no migration). See ✅ Done.
 - **[FLOW7] Flows: trigger registry + full trigger coverage** — `Opus` — ✅ shipped 2026-07-09, commit `c5d8de8`. See ✅ Done.
 - **[FLOW8] Flows: built in automations — full inventarisation + /flows surface** — `Opus` — ✅ shipped 2026-07-09, migration `flows8_builtin_migration`, commit `30d643a`. See ✅ Done.
-- **[FLOW5] Flows: webhook triggers & actions** — `Opus` — after phase 2; tokened inbound hook URL + HMAC signed outbound webhook action with SSRF guard.
+- **[FLOW5] Flows: webhook triggers & actions** — `Opus` — ✅ shipped 2026-07-08 (migration `flows5_webhooks`, commit `77e7a7d`). See ✅ Done. All review amendments applied: IP-pinned SSRF guard, per-token rate limit, free-text condition fields for webhook trigger.
 - **[FLOW6] Flows: flow chaining** — `Sonnet` — ✅ shipped 2026-07-09, no DDL, commit `0d67d07`. See ✅ Done.
 - **[CLUSTER1] Issue cluster generator** — `Opus` — *not built* (no `ticket_clusters` table or insights code). Spec above. Note: no longer hard-blocked on [AI-MOD1] — Mistral/Anthropic fallback works for early tenants.
 - **[AI-CTRL] Cloud LLM control panel** — `Opus` — *not built* (no `/superadmin/cloud-llm` route in `App.tsx`). Spec above.
