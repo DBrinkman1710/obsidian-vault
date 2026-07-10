@@ -16,7 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import litellm
 
-from app.core.models import AssistantMemory, Tenant, User, UserReminder
+from app.core.models import AssistantMemory, Tenant, User, UserReminder, UserRole
 from app.modules.activity import service as activity_service
 from app.modules.ai.client import ai_stream_tools
 from app.modules.contacts.models import Contact
@@ -360,7 +360,97 @@ TOOL_DEFS: list[dict] = [
             },
         },
     },
+    # [YIP-FLOW] read tools — create_flow is generated dynamically in _tools_for_tenant
+    {
+        "type": "function",
+        "function": {
+            "name": "list_flows",
+            "description": "List the workspace's automation flows: name, trigger, enabled status and recent success/fail counts. Use for 'what automations do we have?'.",
+            "parameters": {"type": "object", "properties": {}},
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "explain_flow_run",
+            "description": "Narrate what happened in a flow's most recent run: which conditions matched, which actions ran, skipped or failed and how many attempts. Use for 'why didn't my flow fire?' or 'what did that automation do?'.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "flow_name": {"type": "string", "description": "Name or partial name of the flow to inspect"},
+                },
+                "required": ["flow_name"],
+            },
+        },
+    },
 ]
+
+
+def _build_create_flow_tool(trigger_keys: list[str], action_keys: list[str]) -> dict:
+    """[YIP-FLOW] Build the create_flow tool def with trigger/action enums filtered
+    to the tenant's enabled modules. Called once per request in _tools_for_tenant."""
+    return {
+        "type": "function",
+        "function": {
+            "name": "create_flow",
+            "description": (
+                "Propose building a new automation flow. The user sees a confirmation card "
+                "and must press Confirm before anything is created. The flow is created "
+                "disabled so they can review it on the canvas first. "
+                "Only propose one flow per turn."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Short descriptive name for this automation",
+                    },
+                    "trigger_type": {
+                        "type": "string",
+                        "enum": trigger_keys,
+                        "description": "The event that starts this flow",
+                    },
+                    "conditions": {
+                        "type": "array",
+                        "description": "OR groups of AND conditions. Omit for a flow that always runs.",
+                        "items": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "field": {"type": "string"},
+                                    "op": {
+                                        "type": "string",
+                                        "enum": ["equals", "not_equals", "contains", "gte", "lte", "in"],
+                                    },
+                                    "value": {"type": "string"},
+                                },
+                                "required": ["field", "op", "value"],
+                            },
+                        },
+                    },
+                    "actions": {
+                        "type": "array",
+                        "description": "Ordered list of actions the flow performs when it fires.",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "type": {"type": "string", "enum": action_keys},
+                                "config": {
+                                    "type": "object",
+                                    "description": "Action-specific settings (priority, status, stage_id, message, url, etc.)",
+                                },
+                            },
+                            "required": ["type"],
+                        },
+                        "minItems": 1,
+                    },
+                },
+                "required": ["name", "trigger_type", "actions"],
+            },
+        },
+    }
 
 
 # [YIP-GATE] Tool → module that must be in tenant.enabled_modules (None = always
@@ -394,6 +484,10 @@ TOOL_MODULES: dict[str, str | None] = {
     "create_contact": None,
     "create_calendar_event": "calendar",
     "move_pipeline_stage": "pipeline",
+    # [YIP-FLOW] flows tools (create_flow injected dynamically, still gated here for confirm path)
+    "create_flow": "flows",
+    "list_flows": "flows",
+    "explain_flow_run": "flows",
 }
 
 
@@ -405,6 +499,20 @@ def _tools_for_tenant(tenant: Tenant) -> list[dict]:
         required = TOOL_MODULES.get(t["function"]["name"])
         if required is None or required in enabled:
             tools.append(t)
+    # [YIP-FLOW] inject create_flow with trigger/action enums filtered to this
+    # tenant so the model only proposes flows it can actually build.
+    if "flows" in enabled:
+        from app.modules.flows.actions import ACTION_META
+        from app.modules.flows.conditions import TRIGGER_META
+        trigger_keys = [
+            k for k, m in TRIGGER_META.items()
+            if not m["module"] or m["module"] in enabled
+        ]
+        action_keys = [
+            k for k, m in ACTION_META.items()
+            if k != "wait" and (not m["module"] or m["module"] in enabled)
+        ]
+        tools.append(_build_create_flow_tool(trigger_keys, action_keys))
     return tools
 
 
@@ -465,7 +573,8 @@ def _build_system_prompt(ctx: AgentContext, route: str | None, memories: list[st
         "- Be brief: one to three sentences unless the user asks for detail. Lead with the answer, not with caveats.",
         "- When asked to draft, write or answer a reply or email, use draft_reply — the draft opens in the compose window for the user to review; it is never sent by you. Confirm in one sentence.",
         "- For 'brief me on this ticket', thread summaries or translating what a customer wrote, fetch the conversation with get_ticket_thread first, then summarise or translate it yourself.",
-        "- Write tools (create_ticket, update_ticket, create_contact, create_calendar_event, move_pipeline_stage) only PROPOSE the change: the user gets Confirm and Cancel buttons and nothing happens until they press Confirm. After proposing, say in one sentence what will happen once they confirm — never claim it is already done. Propose at most one write action per turn.",
+        "- Write tools (create_ticket, update_ticket, create_contact, create_calendar_event, move_pipeline_stage, create_flow) only PROPOSE the change: the user gets Confirm and Cancel buttons and nothing happens until they press Confirm. After proposing, say in one sentence what will happen once they confirm — never claim it is already done. Propose at most one write action per turn.",
+        "- create_flow is only available to admins and creates the flow disabled so the user can review it on the canvas before enabling it.",
         "- When the user states a lasting preference or says 'remember', use save_memory.",
         "- If a tool reports an error or no match, say what you found (or didn't) in one sentence and suggest the next step.",
     ]
@@ -1279,7 +1388,157 @@ async def _tool_move_pipeline_stage(ctx: AgentContext, args: dict) -> dict:
     return _propose(ctx, "move_pipeline_stage", confirm_args, f"Move {contact.full_name} to {stage.name}", details)
 
 
+# ---------------------------------------------------------------------------
+# [YIP-FLOW] Flows tools — create (propose/confirm), list, explain run.
+# ---------------------------------------------------------------------------
+
+async def _tool_create_flow(ctx: AgentContext, args: dict) -> dict:
+    if ctx.user.role not in (UserRole.admin, UserRole.superadmin):
+        return {"error": "only admins can create automations — ask an admin to do this"}
+    name = (args.get("name") or "").strip()
+    trigger_type = (args.get("trigger_type") or "").strip()
+    if not name or not trigger_type:
+        return {"error": "name and trigger_type are required"}
+    actions = args.get("actions") or []
+    if not actions:
+        return {"error": "at least one action is required"}
+    conditions = args.get("conditions") or []
+    confirm_args = {
+        "name": name,
+        "trigger_type": trigger_type,
+        "conditions": conditions,
+        "actions": actions,
+    }
+    from app.modules.flows.conditions import TRIGGER_META
+    trigger_label = TRIGGER_META.get(trigger_type, {}).get("label", trigger_type)
+    action_labels = ", ".join(
+        str(a.get("type", "?")) for a in actions[:3]
+    )
+    details = [
+        {"label": "Name", "value": name},
+        {"label": "Trigger", "value": trigger_label},
+        {"label": "Actions", "value": action_labels},
+    ]
+    if conditions:
+        details.append({"label": "Conditions", "value": f"{sum(len(g) for g in conditions)} condition(s)"})
+    details.append({"label": "Note", "value": "Created disabled — review and enable it on the canvas"})
+    return _propose(ctx, "create_flow", confirm_args, f"Create flow: {name}", details)
+
+
+async def _tool_list_flows(ctx: AgentContext, args: dict) -> dict:
+    from app.modules.flows import service as flows_service
+
+    flows = await flows_service.list_flows(ctx.db, ctx.tenant.id)
+    ctx.add_action("Open flows", kind="navigate", path="/flows")
+    return {
+        "flows": [
+            {
+                "name": f.name,
+                "trigger": f.trigger_type,
+                "enabled": f.enabled,
+                "runs_success": getattr(f, "success_count", 0),
+                "runs_failed": getattr(f, "fail_count", 0),
+            }
+            for f in flows
+        ],
+        "count": len(flows),
+    }
+
+
+def _narrate_run_results(results: list) -> str:
+    if not results:
+        return "No actions were recorded."
+    parts = []
+    for r in results:
+        rtype = r.get("type") or r.get("action_type") or "action"
+        status = r.get("status", "")
+        attempts = r.get("attempts", 1)
+        summary = r.get("summary") or ""
+        matched = r.get("matched")
+        if rtype == "branch":
+            parts.append(f"Branch evaluated: {'conditions matched' if matched else 'no match — else path taken'}.")
+        elif status == "skipped":
+            parts.append(f"{rtype}: skipped (condition not met or module disabled).")
+        elif status == "failed":
+            suffix = f" after {attempts} attempt(s)" if attempts and attempts > 1 else ""
+            parts.append(f"{rtype}: failed{suffix}. {summary}".strip())
+        elif status in ("success", "ok"):
+            parts.append(f"{rtype}: completed. {summary}".strip() or f"{rtype}: done.")
+        elif status == "waiting":
+            parts.append(f"{rtype}: flow is paused here waiting for a delay to expire.")
+        elif status == "pending_retry":
+            parts.append(f"{rtype}: scheduled for retry (attempt {attempts}).")
+        else:
+            parts.append(f"{rtype}: {status or 'ran'}.")
+    return " ".join(parts)
+
+
+async def _tool_explain_flow_run(ctx: AgentContext, args: dict) -> dict:
+    from sqlalchemy import select as sa_select
+
+    from app.modules.flows import service as flows_service
+    from app.modules.flows.models import Flow, FlowRun
+
+    name_query = (args.get("flow_name") or "").strip()
+    if not name_query:
+        return {"error": "flow_name is required"}
+    flow = await ctx.db.scalar(
+        sa_select(Flow).where(
+            Flow.tenant_id == ctx.tenant.id,
+            Flow.name.ilike(f"%{name_query}%"),
+        ).limit(1)
+    )
+    if not flow:
+        return {"error": f"no flow found matching '{name_query}'"}
+    runs = await flows_service.list_runs(ctx.db, ctx.tenant.id, flow.id, limit=1)
+    if not runs:
+        return {"flow": flow.name, "note": "this flow has never fired"}
+    run = runs[0]
+    narration = _narrate_run_results(run.results or [])
+    ctx.add_action("Open flow", kind="navigate", path=f"/flows/{flow.id}")
+    return {
+        "flow": flow.name,
+        "run_status": run.status,
+        "ran_at": run.created_at.isoformat() if run.created_at else None,
+        "what_happened": (
+            f"The flow was skipped — the conditions did not match."
+            if run.status == "skipped"
+            else narration
+        ),
+    }
+
+
 # --- Confirmed write executors — run only after the user presses Confirm. ---
+
+async def _confirm_create_flow(ctx: AgentContext, args: dict) -> dict:
+    if ctx.user.role not in (UserRole.admin, UserRole.superadmin):
+        return {"error": "only admins can create automations"}
+    from pydantic import ValidationError
+
+    from app.modules.flows import service as flows_service
+    from app.modules.flows.schemas import FlowCreate
+
+    name = str(args.get("name") or "").strip()[:255]
+    trigger_type = str(args.get("trigger_type") or "").strip()
+    if not name or not trigger_type:
+        return {"error": "name and trigger_type are required"}
+    try:
+        data = FlowCreate(
+            name=name,
+            trigger_type=trigger_type,
+            conditions=args.get("conditions") or [],
+            actions=args.get("actions") or [],
+            enabled=False,
+        )
+    except (ValidationError, ValueError) as exc:
+        return {"error": f"flow definition is invalid: {exc}"}
+    try:
+        flow = await flows_service.create_flow(ctx.db, ctx.tenant, ctx.user.id, data)
+    except flows_service.FlowValidationError as exc:
+        return {"error": str(exc)}
+    ctx.add_action("Open flow", kind="navigate", path=f"/flows/{flow.id}")
+    return {"ok": True, "summary": f"Flow \"{flow.name}\" created (disabled). Open it on the canvas to review and enable it."}
+
 
 async def _confirm_create_ticket(ctx: AgentContext, args: dict) -> dict:
     from app.modules.tickets import service as tickets_service
@@ -1434,6 +1693,7 @@ _CONFIRM_EXECUTORS = {
     "create_contact": _confirm_create_contact,
     "create_calendar_event": _confirm_create_calendar_event,
     "move_pipeline_stage": _confirm_move_pipeline_stage,
+    "create_flow": _confirm_create_flow,
 }
 
 
@@ -1496,6 +1756,10 @@ _EXECUTORS = {
     "create_contact": _tool_create_contact,
     "create_calendar_event": _tool_create_calendar_event,
     "move_pipeline_stage": _tool_move_pipeline_stage,
+    # [YIP-FLOW] flows tools
+    "create_flow": _tool_create_flow,
+    "list_flows": _tool_list_flows,
+    "explain_flow_run": _tool_explain_flow_run,
 }
 
 
