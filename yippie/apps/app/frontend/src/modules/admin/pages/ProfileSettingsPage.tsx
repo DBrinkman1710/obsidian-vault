@@ -6,6 +6,7 @@ import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useSignatures, readSignatureImage, signatureImageTag, type Signature } from '../../../hooks/useSignatures'
 import { EmailAccountsCard } from '../../inbox/components/EmailAccountsCard'
+import { useCopy } from '../../../hooks/useCopy'
 
 export default function ProfileSettingsPage() {
   const { user, refreshUser } = useAuth()
@@ -729,7 +730,7 @@ function ConnectedCalendarsCard() {
 // ── Yippie iCal Export Feed (Yippie → Apple Calendar / Outlook) ──────────────
 
 function YippieCalendarFeedCard() {
-  const [copied, setCopied] = useState(false)
+  const { copy: copyUrl, copied } = useCopy({ useToast: false })
   const [regenerating, setRegenerating] = useState(false)
   const [feedUrl, setFeedUrl] = useState<string | null>(null)
 
@@ -743,9 +744,7 @@ function YippieCalendarFeedCard() {
 
   async function handleCopy() {
     if (!url) return
-    await navigator.clipboard.writeText(url)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    await copyUrl(url)
   }
 
   async function handleRegenerate() {

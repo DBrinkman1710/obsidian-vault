@@ -62,7 +62,7 @@ export function CampaignDetail({
         <div className="flex items-start justify-between">
           <div className="min-w-0">
             <div className="flex items-center gap-3">
-              <h2 className="truncate text-xl font-bold tracking-tight text-slate-900">{campaign.name}</h2>
+              <h2 className="truncate heading-lg text-slate-900">{campaign.name}</h2>
               <StatusBadge status={campaign.status} />
             </div>
             <p className="mt-1 truncate font-mono text-xs text-slate-400">{campaign.subject}</p>

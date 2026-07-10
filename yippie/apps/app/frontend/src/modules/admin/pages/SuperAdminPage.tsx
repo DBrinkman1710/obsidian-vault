@@ -11,6 +11,7 @@ import {
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
+import { useCopy } from '../../../hooks/useCopy'
 
 const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'flows', 'billing', 'contracts', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai']
 
@@ -250,7 +251,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   const [created, setCreated] = useState<{ invites: string[]; tenant: Tenant } | null>(null)
   const [domainSetupTenant, setDomainSetupTenant] = useState<Tenant | null>(null)
   const [dnsViewTenant, setDnsViewTenant] = useState<Tenant | null>(null)
-  const [copiedLoginUrl, setCopiedLoginUrl] = useState(false)
+  const { copy: copyUrl, copied: copiedLoginUrl } = useCopy({ useToast: false })
 
   const adminEmailError = useEmailCheckError(form.admin_email)
   const extraEmailError = useEmailCheckError(extraEmail)
@@ -345,9 +346,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   const loginUrl = window.location.origin
 
   function copyLoginUrl() {
-    navigator.clipboard.writeText(loginUrl)
-    setCopiedLoginUrl(true)
-    setTimeout(() => setCopiedLoginUrl(false), 2000)
+    copyUrl(loginUrl)
   }
 
   // Domain setup flow inside success screen
@@ -744,7 +743,7 @@ function EditClientModal({
   })
   const [error, setError] = useState('')
   const [showAddAdmin, setShowAddAdmin] = useState(false)
-  const [embedCopied, setEmbedCopied] = useState(false)
+  const { copy: copyEmbed, copied: embedCopied } = useCopy({ useToast: false })
 
   const mutation = useMutation({
     mutationFn: (patch: Record<string, unknown>) =>
@@ -1263,11 +1262,7 @@ function EditClientModal({
                   <pre className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all font-mono text-slate-700">{`<script src="https://app.getyippie.com/lead-widget.js" data-tenant="${tenant.slug}"></script>`}</pre>
                   <button
                     type="button"
-                    onClick={() => {
-                      navigator.clipboard.writeText(`<script src="https://app.getyippie.com/lead-widget.js" data-tenant="${tenant.slug}"></script>`)
-                      setEmbedCopied(true)
-                      setTimeout(() => setEmbedCopied(false), 2000)
-                    }}
+                    onClick={() => copyEmbed(`<script src="https://app.getyippie.com/lead-widget.js" data-tenant="${tenant.slug}"></script>`)}
                     className="shrink-0 px-3 py-2 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                     title="Copy embed code"
                   >
@@ -1582,7 +1577,7 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
 function EvolutionDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
   const [sendResult, setSendResult] = useState<any>(null)
-  const [copied, setCopied] = useState(false)
+  const { copy: copyJson, copied } = useCopy({ useToast: false })
   const [testNumber, setTestNumber] = useState('')
 
   const mutation = useMutation({
@@ -1604,9 +1599,7 @@ function EvolutionDiagnosticPanel() {
       ...(result ? { check: result } : {}),
       ...(sendResult ? { send_test: sendResult } : {}),
     }
-    navigator.clipboard.writeText(JSON.stringify(all, null, 2))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    copyJson(JSON.stringify(all, null, 2))
   }
 
   const combined = result || sendResult
@@ -1668,7 +1661,7 @@ function EvolutionDiagnosticPanel() {
 
 function ResendDiagnosticPanel() {
   const [result, setResult] = useState<any>(null)
-  const [copied, setCopied] = useState(false)
+  const { copy: copyJson, copied } = useCopy({ useToast: false })
 
   const mutation = useMutation({
     mutationFn: () => api.get('/admin/resend-check').then((r: any) => r.data),
@@ -1676,9 +1669,7 @@ function ResendDiagnosticPanel() {
   })
 
   function copyAll() {
-    navigator.clipboard.writeText(JSON.stringify(result, null, 2))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    copyJson(JSON.stringify(result, null, 2))
   }
 
   return (
@@ -1754,9 +1745,10 @@ const RANGE_TABS: { key: DateRange; label: string }[] = [
 
 function DnsRecordsModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
   const [copied, setCopied] = useState<string | null>(null)
+  const { copy: copyDns } = useCopy({ useToast: false, successMessage: 'Copied ✓' })
 
   function copyValue(key: string, value: string) {
-    navigator.clipboard.writeText(value)
+    copyDns(value)
     setCopied(key)
     setTimeout(() => setCopied(null), 2000)
   }
@@ -2053,6 +2045,7 @@ export default function SuperAdminPage() {
   const navigate = useNavigate()
   const { user, startImpersonation } = useAuth()
   const isRootOwner = user?.is_root_owner ?? false
+  const { copy: copyEmail } = useCopy({ useToast: false })
   const [copiedSlug, setCopiedSlug] = useState<string | null>(null)
   const [showCreate, setShowCreate] = useState(false)
   const [editingTenant, setEditingTenant] = useState<Tenant | null>(null)
@@ -2174,7 +2167,7 @@ export default function SuperAdminPage() {
   const someSelected = selectedIds.size > 0
 
   function copyInboundEmail(slug: string, email: string) {
-    navigator.clipboard.writeText(email)
+    copyEmail(email)
     setCopiedSlug(slug)
     setTimeout(() => setCopiedSlug(null), 2000)
   }

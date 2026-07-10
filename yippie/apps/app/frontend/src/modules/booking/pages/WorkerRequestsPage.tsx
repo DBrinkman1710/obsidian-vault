@@ -49,7 +49,7 @@ export default function WorkerRequestsPage() {
             <div className="h-8 w-8 rounded-xl bg-yippie flex items-center justify-center">
               <CalendarClock className="h-4 w-4 text-white" strokeWidth={2.2} />
             </div>
-            <span className="font-display text-lg font-bold text-ink tracking-tight">Open requests</span>
+            <span className="heading-md text-ink">Open requests</span>
           </div>
           <button onClick={() => logout()} className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800">
             <LogOut className="h-4 w-4" /> Sign out
@@ -58,7 +58,7 @@ export default function WorkerRequestsPage() {
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-5 py-6">
-        <h1 className="font-display text-2xl font-bold text-ink tracking-tight">Hi {firstName} 👋</h1>
+        <h1 className="heading-xl text-ink">Hi {firstName} 👋</h1>
         <p className="text-sm text-slate-500 mt-1">Claim a job by picking one of the customer's preferred times.</p>
 
         {isLoading ? (

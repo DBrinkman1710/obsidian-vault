@@ -73,7 +73,7 @@ export default function WorkerAvailabilityPage() {
             <div className="h-8 w-8 rounded-xl bg-yippie flex items-center justify-center">
               <CalendarDays className="h-4 w-4 text-white" strokeWidth={2.2} />
             </div>
-            <span className="font-display text-lg font-bold text-ink tracking-tight">Availability</span>
+            <span className="heading-md text-ink">Availability</span>
           </div>
           <button
             onClick={() => logout()}
@@ -85,7 +85,7 @@ export default function WorkerAvailabilityPage() {
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-5 py-6 pb-28">
-        <h1 className="font-display text-2xl font-bold text-ink tracking-tight">
+        <h1 className="heading-xl text-ink">
           Hi {firstName} 👋
         </h1>
         <p className="text-sm text-slate-500 mt-1">

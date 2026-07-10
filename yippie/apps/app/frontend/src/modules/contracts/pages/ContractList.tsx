@@ -8,6 +8,7 @@ import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { ListRowSkeleton } from '../../../shell/Skeleton'
 import { CloseButton } from '../../../shell/CloseButton'
 import { EmptyState } from '../../../components/EmptyState'
+import { useCopy } from '../../../hooks/useCopy'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -724,6 +725,7 @@ function SigningSection({ contract }: { contract: Contract }) {
   const [templateId, setTemplateId] = useState('')
   const [bodyDraft, setBodyDraft] = useState<string | null>(null)
   const [regenerating, setRegenerating] = useState(false)
+  const { copy: copyUrl } = useCopy()
 
   const { data: templates } = useQuery<ContractTemplate[]>({
     queryKey: ['contract-templates'],
@@ -752,8 +754,7 @@ function SigningSection({ contract }: { contract: Contract }) {
     onSuccess: (res: any) => {
       invalidate()
       const url = `${window.location.origin}/sign/${res.data.sign_token}`
-      navigator.clipboard.writeText(url)
-      toast.success('Signing link copied to clipboard — valid 14 days')
+      copyUrl(url, 'Signing link copied to clipboard — valid 14 days')
     },
     onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Could not create signing link'),
   })
@@ -810,10 +811,7 @@ function SigningSection({ contract }: { contract: Contract }) {
             {!signed && (
               contract.sign_token ? (
                 <button type="button"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${window.location.origin}/sign/${contract.sign_token}`)
-                    toast.success('Signing link copied')
-                  }}
+                  onClick={() => copyUrl(`${window.location.origin}/sign/${contract.sign_token}`, 'Signing link copied')}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-green-700 border border-green-200 bg-green-50 rounded-lg hover:bg-green-100">
                   <Link2 size={13} /> Copy signing link
                 </button>

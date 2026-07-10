@@ -15,6 +15,7 @@ import { useMobile } from '../../../shell/useMobile'
 import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
 import { SignaturePicker } from '../components/SignaturePicker'
 import { useLinkedEmailAccounts, PROVIDER_SHORT } from '../hooks/useLinkedEmailAccounts'
+import { useCopy } from '../../../hooks/useCopy'
 
 interface PipelineStage { id: string; name: string; color: string }
 
@@ -376,7 +377,7 @@ export default function DraftReview() {
   const [replyLoading, setReplyLoading] = useState(false)
   const [improveLoading, setImproveLoading] = useState(false)
   const [suggestions, setSuggestions] = useState<Array<{ label: string; revised_text: string }>>([])
-  const [copied, setCopied] = useState(false)
+  const { copy: copyReply, copied } = useCopy({ useToast: false })
   const [sending, setSending] = useState(false)
   const [sentTo, setSentTo] = useState('')
   const [sendError, setSendError] = useState('')
@@ -575,13 +576,7 @@ export default function DraftReview() {
   }
 
   async function handleCopy() {
-    try {
-      await navigator.clipboard.writeText(replyText)
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    } catch {
-      setActionError('Couldn\'t copy to clipboard.')
-    }
+    await copyReply(replyText)
   }
 
   async function handleSendReply() {

@@ -165,7 +165,7 @@ export default function TicketList() {
     <DesktopOnly>
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="font-display font-bold text-[26px] tracking-tight" style={{ color: 'var(--ink)' }}>
+        <h1 className="heading-xl" style={{ color: 'var(--ink)' }}>
           Tickets
         </h1>
         <Link

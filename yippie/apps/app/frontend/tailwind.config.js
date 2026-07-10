@@ -72,11 +72,11 @@ export default {
         },
       },
       boxShadow: {
-        sm: '0 1px 2px rgba(15,23,42,.04),0 1px 3px rgba(15,23,42,.06)',
-        md: '0 4px 12px rgba(15,23,42,.06),0 12px 28px rgba(15,23,42,.08)',
-        lg: '0 12px 24px rgba(15,23,42,.08),0 30px 60px rgba(15,23,42,.12)',
-        '2xl': '0 25px 50px -12px rgba(15,23,42,.25)',
-        brand: '0 10px 30px rgba(91,164,245,.22)',
+        sm: '0 1px 2px rgba(15,23,42,.03),0 2px 4px rgba(15,23,42,.04)',
+        md: '0 2px 8px rgba(15,23,42,.04),0 6px 16px rgba(15,23,42,.06)',
+        lg: '0 6px 16px rgba(15,23,42,.06),0 16px 32px rgba(15,23,42,.08)',
+        '2xl': '0 12px 32px rgba(15,23,42,.12)',
+        brand: '0 4px 16px rgba(91,164,245,.14)',
       },
       maxWidth: {
         container: '1180px',

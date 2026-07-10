@@ -3,6 +3,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Check, Code, Copy, Globe, MousePointerClick, RefreshCw, TrendingUp, X, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { useCopy } from '../../../hooks/useCopy'
 
 interface Props {
   onClose: () => void
@@ -11,15 +12,10 @@ interface Props {
 type Tab = 'overview' | 'snippet'
 
 function CopyButton({ text }: { text: string }) {
-  const [copied, setCopied] = useState(false)
-  const copy = () => {
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
+  const { copy, copied } = useCopy({ useToast: false })
   return (
     <button
-      onClick={copy}
+      onClick={() => copy(text)}
       className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg transition-colors"
     >
       {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
