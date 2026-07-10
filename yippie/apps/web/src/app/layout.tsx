@@ -35,6 +35,13 @@ export const metadata: Metadata = {
   description:
     "Yippie is the AI-powered customer service platform that grows with your business. Unlimited contacts on every plan. Inbox, tickets, contacts, and bookings in one place.",
   metadataBase: new URL(SITE_URL),
+  alternates: {
+    canonical: "/",
+    languages: {
+      en: "/",
+      nl: "/nl",
+    },
+  },
   keywords: [
     "customer service",
     "SMB",

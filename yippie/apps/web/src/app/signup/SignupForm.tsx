@@ -124,6 +124,18 @@ export default function SignupForm() {
     }
   }
 
+  function readCustomFormBranding(): { branding_color?: string; branding_logo?: string } {
+    try {
+      const raw = localStorage.getItem("yippie_custom_plan");
+      if (!raw) return {};
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      return {
+        branding_color: typeof parsed.brandColor === "string" ? parsed.brandColor : undefined,
+        branding_logo: typeof parsed.logoUrl === "string" && parsed.logoUrl.startsWith("data:") ? parsed.logoUrl : undefined,
+      };
+    } catch { return {}; }
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (password !== confirmPassword) {
@@ -165,13 +177,18 @@ export default function SignupForm() {
           password,
           plan,
           enabled_modules: selectedModules,
-          questionnaire: hasAnyAnswer ? {
-            team_size: teamSize || null,
-            industry: industry || null,
-            current_tools: currentTools.length ? currentTools : null,
-            pain_points: painPoints.length ? painPoints : null,
-            recommended_modules: recommendations,
-          } : null,
+          questionnaire: (() => {
+            const branding = readCustomFormBranding();
+            const base = hasAnyAnswer ? {
+              team_size: teamSize || null,
+              industry: industry || null,
+              current_tools: currentTools.length ? currentTools : null,
+              pain_points: painPoints.length ? painPoints : null,
+              recommended_modules: recommendations,
+            } : {};
+            const merged = { ...base, ...branding };
+            return Object.keys(merged).length > 0 ? merged : null;
+          })(),
           from_demo_token: fromDemoToken || undefined,
         }),
       });

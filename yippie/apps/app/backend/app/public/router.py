@@ -113,6 +113,9 @@ class Questionnaire(BaseModel):
     current_tools: Optional[list[str]] = None
     pain_points: Optional[list[str]] = None
     recommended_modules: Optional[list[str]] = None  # what was shown to user
+    branding_color: Optional[str] = None  # hex colour picked in /custom configurator
+    # Logo from /custom configurator as a data URL; capped to prevent request bloat.
+    branding_logo: Optional[str] = Field(default=None, max_length=500_000)
 
 
 class RequestDemo(BaseModel):
@@ -1790,6 +1793,15 @@ async def signup(
     if signup_tenant is not None:
         signup_tenant.trial_ends_at = trial_ends_at
         await db.flush()
+
+    # [WEB-LOGO-CARRY] Apply branding from the /custom configurator to the new
+    # tenant workspace. Both fields are written before set_tenant_context switches
+    # to the RLS-enforced role, so the UPDATE lands correctly.
+    if questionnaire is not None and signup_tenant is not None:
+        if questionnaire.branding_color:
+            signup_tenant.primary_color = questionnaire.branding_color
+        if questionnaire.branding_logo:
+            signup_tenant.logo_url = questionnaire.branding_logo
 
     await set_tenant_context(db, str(root_tenant_id))
 

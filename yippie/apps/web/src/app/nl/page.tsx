@@ -1,17 +1,35 @@
-import React from "react";
 import type { Metadata } from "next";
-import styles from "./page.module.css";
+import styles from "../page.module.css";
 
 export const metadata: Metadata = {
-  alternates: { canonical: "/" },
+  title: "Yippie | Klantenservice software voor MKB",
+  description:
+    "Yippie verwerkt elk support ticket automatisch vanuit je inbox. Gedeelde inbox, AI-tickets, onbeperkte contacten en live chat in één platform. Start je gratis proefperiode van 30 dagen.",
+  alternates: {
+    canonical: "/nl",
+    languages: {
+      en: "/",
+      nl: "/nl",
+    },
+  },
+  keywords: [
+    "klantenservice software",
+    "gedeelde inbox",
+    "MKB",
+    "helpdesk software",
+    "klantenservice automatisering",
+    "ticket systeem",
+    "AI inbox",
+    "onbeperkte contacten",
+  ],
 };
-import SiteNav from "./components/SiteNav";
-import SiteFooter from "./components/SiteFooter";
-import Reveal from "./components/Reveal";
-import ROICalculator from "./components/ROICalculator";
-import PricingTeaser from "./components/PricingTeaser";
+
+import SiteNav from "../components/SiteNav";
+import SiteFooter from "../components/SiteFooter";
+import Reveal from "../components/Reveal";
+import ROICalculator from "../components/ROICalculator";
+import PricingTeaser from "../components/PricingTeaser";
 import { PLAN_LIMITS } from "@/lib/config";
-// import HourCounter from "./components/HourCounter";
 import {
   InboxIcon,
   TicketIcon,
@@ -28,7 +46,7 @@ import {
   SalesIcon,
   SaasIcon,
   ArrowRightIcon,
-} from "./components/icons";
+} from "../components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
@@ -42,88 +60,88 @@ const featureGroups = [
     items: [
       {
         Icon: InboxIcon,
-        title: "Smart Inbox",
-        desc: "AI reads every message and drafts the ticket subject, priority, and description. Review, approve, done.",
+        title: "Slimme inbox",
+        desc: "AI leest elk bericht en stelt het ticketonderwerp, de prioriteit en de omschrijving voor. Controleer, keur goed, klaar.",
       },
       {
         Icon: TicketIcon,
         title: "Tickets",
-        desc: "Track, assign, and close requests in one place. SLA alerts fire before anything slips through.",
+        desc: "Volg, wijs toe en sluit verzoeken af op één plek. SLA-meldingen gaan af voordat er iets tussen wal en schip valt.",
       },
       {
         Icon: UsersIcon,
-        title: "Contacts",
-        desc: "Full customer history in one view: emails, tickets, pipeline stage, and company. No inbox digging.",
+        title: "Contacten",
+        desc: "Volledige klanthistorie in één overzicht: e-mails, tickets, pipelinefase en bedrijf. Nooit meer zoeken in je inbox.",
       },
       {
         Icon: ChatIcon,
-        title: "Live Chat",
-        desc: "Embed a chat widget with one line of code. Every conversation lands in the shared inbox alongside email.",
+        title: "Live chat",
+        desc: "Voeg een chatwidget toe met één regel code. Elk gesprek belandt in de gedeelde inbox, naast e-mail.",
       },
       {
         Icon: TemplateIcon,
-        title: "Templates",
-        desc: "Build a shared library of canned responses. Pick and personalise before sending. Fast and on-brand.",
+        title: "Sjablonen",
+        desc: "Bouw een gedeelde bibliotheek met snelle antwoorden. Kies en personaliseer voor het versturen. Snel en on-brand.",
       },
     ],
   },
   {
-    label: "Sales & Growth",
+    label: "Sales & Groei",
     items: [
       {
         Icon: KanbanIcon,
         title: "Pipeline",
-        desc: "Drag-and-drop Kanban to track contacts through custom stages. Campaign buttons auto-advance contacts on click.",
+        desc: "Drag-and-drop Kanban om contacten door op maat gemaakte fases te sturen. Campagnebuttons zetten contacten automatisch door bij een klik.",
       },
       {
         Icon: MailTrackIcon,
         title: "Marketing",
-        desc: "Stage-targeted email campaigns with A/B testing, real-time tracking, and pipeline auto-advance on click.",
+        desc: "E-mailcampagnes gericht op pipelinefase, met A/B-testen, realtime tracking en automatische doorplaatsing op klik.",
       },
       {
         Icon: SalesIcon,
         title: "Sales",
-        desc: "Track product views, add-to-cart, and purchase events. See which contacts are high-intent buyers.",
+        desc: "Volg productweergaven, winkelwagen-acties en aankopen. Zie welke contacten koopintentie tonen.",
       },
       {
         Icon: SaasIcon,
         title: "SaaS Analytics",
-        desc: "Manage recurring subscriptions, track MRR and churn, and link every subscription to a contact.",
+        desc: "Beheer terugkerende abonnementen, volg MRR en churn, en koppel elk abonnement aan een contact.",
       },
     ],
   },
   {
-    label: "Operations",
+    label: "Operaties",
     items: [
       {
         Icon: CalendarIcon,
-        title: "Calendar",
-        desc: "Monthly calendar with events, deadlines, and bookings. Send booking links so customers pick their own slot.",
+        title: "Agenda",
+        desc: "Maandelijkse kalender met afspraken, deadlines en boekingen. Stuur boekingslinks zodat klanten zelf een moment kiezen.",
       },
       {
         Icon: TeamIcon,
-        title: "Departments",
-        desc: "Create departments, add agents, and let inbound email route automatically to the right team.",
+        title: "Afdelingen",
+        desc: "Maak afdelingen aan, voeg medewerkers toe en laat inkomende e-mail automatisch naar het juiste team routeren.",
       },
       {
         Icon: BillingIcon,
-        title: "Billing",
-        desc: "Create and send invoices from your workspace. Track payment status without a separate billing tool.",
+        title: "Facturatie",
+        desc: "Maak en verstuur facturen vanuit je werkruimte. Volg de betaalstatus zonder een apart factuurprogramma.",
       },
       {
         Icon: ActivityIcon,
-        title: "Activity",
-        desc: "Real-time log of everything across your workspace. Always know who did what and when.",
+        title: "Activiteit",
+        desc: "Realtime log van alles in je werkruimte. Je weet altijd wie wat heeft gedaan en wanneer.",
       },
       {
         Icon: TeamIcon,
         title: "Team",
-        desc: "Invite agents, set roles, and organise into departments. Tickets route to the right person automatically.",
+        desc: "Nodig medewerkers uit, stel rollen in en verdeel over afdelingen. Tickets worden automatisch naar de juiste persoon gerouteerd.",
       },
       {
         Icon: TrackingIcon,
-        title: "Tracking",
-        desc: "Connect your ERP or shop and shipments land on the right contact automatically. Live carrier updates for DHL, UPS, PostNL, and FedEx. No copy-pasting.",
+        title: "Zendingtracking",
+        desc: "Koppel je ERP of webshop en zendingen verschijnen automatisch bij het juiste contact. Live carrierupdates voor DHL, UPS, PostNL en FedEx. Geen kopiëren en plakken.",
       },
     ],
   },
@@ -132,29 +150,28 @@ const featureGroups = [
 const steps = [
   {
     n: "01",
-    title: "Customer sends a message",
-    desc: "An email or WhatsApp message lands in your Yippie inbox automatically.",
+    title: "Klant stuurt een bericht",
+    desc: "Een e-mail of WhatsApp-bericht belandt automatisch in je Yippie-inbox.",
   },
   {
     n: "02",
-    title: "AI drafts the ticket",
-    desc: "Yippie reads the message and suggests subject, priority, and description.",
+    title: "AI stelt het ticket op",
+    desc: "Yippie leest het bericht en stelt onderwerp, prioriteit en omschrijving voor.",
   },
   {
     n: "03",
-    title: "You approve in one click",
-    desc: "Edit if you want, then approve. It becomes a real ticket instantly.",
+    title: "Jij keurt het goed met één klik",
+    desc: "Bewerk indien gewenst en keur dan goed. Het wordt meteen een echt ticket.",
   },
 ];
 
 const inboxItems = [
-  { sender: "Acme BV", subject: "Invoice INV-0421 question", dot: "", badge: "review" },
-  { sender: "TechCorp", subject: "Login issue: account locked", dot: "amber", badge: "review" },
-  { sender: "Nordex", subject: "Pricing plan upgrade", dot: "green", badge: "done" },
-  { sender: "Bloom Agency", subject: "Onboarding call request", dot: "", badge: "review" },
+  { sender: "Acme BV", subject: "Vraag over factuur INV-0421", dot: "", badge: "review" },
+  { sender: "TechCorp", subject: "Inlogprobleem: account geblokkeerd", dot: "amber", badge: "review" },
+  { sender: "Nordex", subject: "Upgrade naar groter abonnement", dot: "green", badge: "done" },
+  { sender: "Bloom Agency", subject: "Verzoek voor onboardingsgesprek", dot: "", badge: "review" },
 ];
 
-/* Light, browser-framed product mockup reused in hero + product moment. */
 function ProductMockup({ wide = false }: { wide?: boolean }) {
   return (
     <div className={`${styles.frame} ${wide ? styles.frameWide : ""}`}>
@@ -181,11 +198,11 @@ function ProductMockup({ wide = false }: { wide?: boolean }) {
               <span className={`${styles.appStatVal} ${styles.brand}`}>12</span>
             </div>
             <div className={styles.appStat}>
-              <span className={styles.appStatLabel}>Pending</span>
+              <span className={styles.appStatLabel}>In behandeling</span>
               <span className={`${styles.appStatVal} ${styles.amber}`}>4</span>
             </div>
             <div className={styles.appStat}>
-              <span className={styles.appStatLabel}>Resolved</span>
+              <span className={styles.appStatLabel}>Opgelost</span>
               <span className={`${styles.appStatVal} ${styles.green}`}>31</span>
             </div>
           </div>
@@ -209,7 +226,7 @@ function ProductMockup({ wide = false }: { wide?: boolean }) {
   );
 }
 
-export default function HomePage() {
+export default function NlHomePage() {
   return (
     <>
       <SiteNav />
@@ -228,22 +245,22 @@ export default function HomePage() {
           <Reveal className={styles.heroCopy}>
             <div className={styles.eyebrowPill}>
               <span className={styles.pillDot} />
-              Your growth partner in customer service
+              Je groeiparter in klantenservice
             </div>
             <h1 className={styles.heroTitle}>
-              Take back the time<br />that matters.
+              Neem de tijd terug<br />die ertoe doet.
             </h1>
             <p className={styles.heroSub}>
-              Yippie auto-drafts every support ticket from your inbox and grows
-              alongside your business. Review, approve, done.
+              Yippie verwerkt elk support ticket automatisch vanuit je inbox en
+              groeit mee met je bedrijf. Controleer, keur goed, klaar.
             </p>
             <div className={styles.heroActions}>
               <a href="/signup" className={styles.btnPrimary}>
-                Start your free 30 day trial <ArrowRightIcon size={17} />
+                Start je gratis proefperiode van 30 dagen <ArrowRightIcon size={17} />
               </a>
-              <a href={DEMO_URL} className={styles.btnGhost}>Request demo</a>
+              <a href={DEMO_URL} className={styles.btnGhost}>Demo aanvragen</a>
             </div>
-            <p className={styles.heroMeta}>30 days free · No credit card · Cancel anytime</p>
+            <p className={styles.heroMeta}>30 dagen gratis · Geen creditcard · Altijd opzegbaar</p>
           </Reveal>
 
           <Reveal className={styles.heroVisual} delay={120}>
@@ -255,9 +272,9 @@ export default function HomePage() {
       {/* Stats */}
       <section className={styles.statsBar}>
         {[
-          { value: "10h+", label: "saved per week on average" },
-          { value: "< 2 min", label: "average ticket response time" },
-          { value: "15", label: "modules, one platform" },
+          { value: "10u+", label: "bespaard per week gemiddeld" },
+          { value: "< 2 min", label: "gemiddelde reactietijd op tickets" },
+          { value: "15", label: "modules, één platform" },
         ].map((s, i) => (
           <Reveal key={s.label} className={styles.stat} delay={i * 80}>
             <div className={styles.statValue}>{s.value}</div>
@@ -266,22 +283,20 @@ export default function HomePage() {
         ))}
       </section>
 
-      {/* <HourCounter statsUrl={APP_URL} /> */}
-
       {/* Features */}
-      <section id="features" className={styles.section}>
+      <section id="functies" className={styles.section}>
         <Reveal className={styles.sectionHead}>
-          <p className={styles.eyebrow}>// Features</p>
-          <h2 className={styles.sectionTitle}>Everything your support team needs</h2>
+          <p className={styles.eyebrow}>// Functies</p>
+          <h2 className={styles.sectionTitle}>Alles wat je supportteam nodig heeft</h2>
           <p className={styles.sectionSub}>
-            Fifteen modules: inbox, tickets, contacts, pipeline, marketing, live chat, and more.
-            One platform. Stop juggling tools.
+            Vijftien modules: inbox, tickets, contacten, pipeline, marketing, live chat en meer.
+            Één platform. Stop met schakelen tussen tools.
           </p>
         </Reveal>
         <div className={styles.featureRows}>
           {featureGroups.map((group) => (
-            <React.Fragment key={group.label}>
-              <p className={styles.featureGroupLabel}>{group.label}</p>
+            <>
+              <p key={`label_${group.label}`} className={styles.featureGroupLabel}>{group.label}</p>
               {group.items.map((f, i) => (
                 <Reveal key={f.title} className={styles.featureRow} delay={(i % 2) * 70}>
                   <div className={styles.featureIcon}>
@@ -293,18 +308,18 @@ export default function HomePage() {
                   </div>
                 </Reveal>
               ))}
-            </React.Fragment>
+            </>
           ))}
         </div>
       </section>
 
-      {/* How it works */}
-      <section id="how-it-works" className={styles.sectionLight}>
+      {/* Hoe het werkt */}
+      <section id="hoe-het-werkt" className={styles.sectionLight}>
         <Reveal className={styles.sectionHead}>
-          <p className={styles.eyebrow}>// How it works</p>
-          <h2 className={styles.sectionTitle}>From email to resolved in seconds</h2>
+          <p className={styles.eyebrow}>// Hoe het werkt</p>
+          <h2 className={styles.sectionTitle}>Van e-mail naar opgelost in seconden</h2>
           <p className={styles.sectionSub}>
-            Yippie&apos;s AI reads every incoming message and does the write-up for you.
+            De AI van Yippie leest elk inkomend bericht en doet de administratie voor je.
           </p>
         </Reveal>
         <div className={styles.steps}>
@@ -318,12 +333,12 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Growth Partner */}
+      {/* Groeiparter */}
       <section className={styles.sectionLight}>
         <Reveal className={styles.sectionHead}>
-          <p className={styles.eyebrow}>// Growth Partner</p>
-          <h2 className={styles.sectionTitle}>When you grow, we grow with you.</h2>
-          <p className={styles.sectionSub}>Choose what your company needs, no more, no less.</p>
+          <p className={styles.eyebrow}>// Groeiparter</p>
+          <h2 className={styles.sectionTitle}>Jij groeit, wij groeien mee.</h2>
+          <p className={styles.sectionSub}>Kies wat je bedrijf nodig heeft, niet meer en niet minder.</p>
         </Reveal>
         <div className={styles.featureRows}>
           <Reveal className={styles.featureRow}>
@@ -331,10 +346,10 @@ export default function HomePage() {
               <UsersIcon size={22} />
             </div>
             <div>
-              <h3 className={styles.featureTitle}>Unlimited contacts, on every plan</h3>
+              <h3 className={styles.featureTitle}>Onbeperkte contacten op elk abonnement</h3>
               <p className={styles.featureDesc}>
-                From your first customer to your ten-thousandth, your contact limit never
-                changes. No forced upgrade, no surprise cap.
+                Van je eerste klant tot je tienduizendste verandert je contactlimiet nooit.
+                Geen gedwongen upgrade, geen onverwachte limiet.
               </p>
             </div>
           </Reveal>
@@ -343,10 +358,10 @@ export default function HomePage() {
               <BillingIcon size={22} />
             </div>
             <div>
-              <h3 className={styles.featureTitle}>Transparent pricing, no games</h3>
+              <h3 className={styles.featureTitle}>Transparante prijzen, geen verrassingen</h3>
               <p className={styles.featureDesc}>
-                One flat monthly price. No hidden fees, no per-contact charges.
-                You always know exactly what you pay.
+                Één vaste maandprijs. Geen verborgen kosten, geen kosten per contact.
+                Je weet altijd precies wat je betaalt.
               </p>
             </div>
           </Reveal>
@@ -355,10 +370,10 @@ export default function HomePage() {
               <ChatIcon size={22} />
             </div>
             <div>
-              <h3 className={styles.featureTitle}>Reachable people, not a black box</h3>
+              <h3 className={styles.featureTitle}>Bereikbare mensen, geen zwarte doos</h3>
               <p className={styles.featureDesc}>
-                We&apos;re here when you need us. Not a ticket queue, not a chatbot.
-                Founders who want to see you succeed.
+                Wij zijn er als je ons nodig hebt. Geen ticketqueue, geen chatbot.
+                Oprichters die willen dat jij slaagt.
               </p>
             </div>
           </Reveal>
@@ -371,11 +386,11 @@ export default function HomePage() {
       {/* Product moment (dark) */}
       <section className={`${styles.moment} bgDots`}>
         <Reveal className={styles.momentHead}>
-          <p className={styles.eyebrowDark}>// One workspace</p>
-          <h2 className={styles.momentTitle}>Everything in one place</h2>
+          <p className={styles.eyebrowDark}>// Één werkruimte</p>
+          <h2 className={styles.momentTitle}>Alles op één plek</h2>
           <p className={styles.momentSub}>
-            Inbox, tickets, contacts, and pipeline share the same screen, so nothing
-            falls through the cracks and every reply has full context.
+            Inbox, tickets, contacten en pipeline delen hetzelfde scherm, zodat er niets
+            verloren gaat en elk antwoord de volledige context heeft.
           </p>
         </Reveal>
         <Reveal className={styles.momentVisual} delay={120}>
@@ -384,27 +399,27 @@ export default function HomePage() {
       </section>
 
       {/* Pricing teaser */}
-      <section id="pricing" className={styles.section}>
+      <section id="prijzen" className={styles.section}>
         <Reveal className={styles.sectionHead}>
-          <p className={styles.eyebrow}>// Pricing</p>
-          <h2 className={styles.sectionTitle}>Simple, honest pricing</h2>
+          <p className={styles.eyebrow}>// Prijzen</p>
+          <h2 className={styles.sectionTitle}>Eerlijke, transparante prijzen</h2>
           <p className={styles.sectionSub}>
-            No hidden fees. Unlimited contacts. Start small and add modules as you grow.
+            Geen verborgen kosten. Onbeperkte contacten. Begin klein en voeg modules toe naarmate je groeit.
           </p>
         </Reveal>
 
         <div className={styles.founderBanner}>
-          <span className={styles.founderBadge}>Limited offer</span>
+          <span className={styles.founderBadge}>Beperkt aanbod</span>
           <p className={styles.founderText}>
-            <strong>Founding Member: {FOUNDER_SPOTS_LEFT} of {FOUNDER_SPOTS_TOTAL} spots left</strong> at €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
+            <strong>Founding Member: nog {FOUNDER_SPOTS_LEFT} van {FOUNDER_SPOTS_TOTAL} plekken beschikbaar</strong> voor €{PLAN_LIMITS.founder.priceMonthly}/mo, tot 10 gebruikers, alle kernfuncties en 50% korting op alle betaalde modules.
           </p>
-          <a href="/custom?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
+          <a href="/custom?plan=founder" className={styles.founderBtn}>Claim een foundersplek →</a>
         </div>
 
         <PricingTeaser />
         <div className={styles.pricingMore}>
-          <a href="/pricing" className={styles.textLink}>
-            Compare all plans &amp; add-ons <ArrowRightIcon size={15} />
+          <a href="/nl/pricing" className={styles.textLink}>
+            Bekijk alle abonnementen &amp; modules <ArrowRightIcon size={15} />
           </a>
         </div>
       </section>
@@ -412,17 +427,17 @@ export default function HomePage() {
       {/* CTA */}
       <section className={styles.cta}>
         <Reveal className={styles.ctaCard}>
-          <h2 className={styles.ctaTitle}>Ready to win back your time?</h2>
+          <h2 className={styles.ctaTitle}>Klaar om je tijd terug te winnen?</h2>
           <p className={styles.ctaSub}>
-            Join businesses that handle customer support in half the time with Yippie.
-            30 days free, no credit card required.
+            Sluit je aan bij bedrijven die klantenservice in half de tijd afhandelen met Yippie.
+            30 dagen gratis, geen creditcard nodig.
           </p>
           <a href="/signup" className={styles.btnPrimaryLg}>
-            Start your free 30 day trial <ArrowRightIcon size={18} />
+            Start je gratis proefperiode van 30 dagen <ArrowRightIcon size={18} />
           </a>
           <p className={styles.ctaSub} style={{ marginTop: 14 }}>
             <a href={DEMO_URL} style={{ color: "inherit", textDecoration: "underline" }}>
-              Or request a guided demo
+              Of vraag een begeleide demo aan
             </a>
           </p>
         </Reveal>

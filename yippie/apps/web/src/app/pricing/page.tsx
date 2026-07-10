@@ -147,7 +147,7 @@ export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
 
   // Questionnaire state
-  const [teamSize, setTeamSize] = useState("");
+  const [teamSize, setTeamSize] = useState("4–10");
   const [industry, setIndustry] = useState("");
   const [currentTools, setCurrentTools] = useState<string[]>([]);
   const [painPoints, setPainPoints] = useState<string[]>([]);

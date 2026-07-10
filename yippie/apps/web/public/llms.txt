@@ -35,7 +35,7 @@ Note for maintainers: prices below mirror packages/config/modules.json. Update t
 - Sales €20 — product view / cart / purchase tracking
 - SaaS Analytics €20 — MRR, churn, subscription tracking
 
-## Why teams pick Yippie over Zendesk or Freshdesk
+## Why teams pick Yippie over Zendesk, Freshdesk, or Front
 
 - Flat workspace pricing instead of per agent fees (Zendesk starts around €55 per agent per month).
 - Unlimited contacts on every plan — contact list growth never raises the price.
@@ -52,6 +52,9 @@ Note for maintainers: prices below mirror packages/config/modules.json. Update t
 - For agencies: https://getyippie.com/for-agencies
 - Request a demo: https://getyippie.com/request-demo
 - Blog: https://getyippie.com/blog
+- Yippie vs Freshdesk: https://getyippie.com/vs-freshdesk
+- Yippie vs Front: https://getyippie.com/vs-front
+- Dutch homepage: https://getyippie.com/nl
 
 ## Company
 
