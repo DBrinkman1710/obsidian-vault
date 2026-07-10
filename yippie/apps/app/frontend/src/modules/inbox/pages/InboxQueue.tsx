@@ -755,8 +755,24 @@ export default function InboxQueue() {
               </div>
             )}
           </div>
-          {/* Actions — grouped top right so the left column stays clean */}
-          <div className="flex items-center gap-2 shrink-0">
+          {/* Actions — grouped top right so the left column stays clean.
+              Compose on top, Templates directly underneath it. */}
+          <div className="flex flex-col items-end gap-2 shrink-0">
+            <button
+              onClick={() => {
+                setComposeInitial(mailbox === 'personal' && !!user?.reply_from_email ? {
+                  recipients: [],
+                  subject: '',
+                  body: defaultSigBody ? `\n\n${defaultSigBody}` : '',
+                  fromEmail: user.reply_from_email,
+                } : null)
+                setShowCompose(true)
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
+            >
+              <Pencil size={14} />
+              {t('inbox_compose')}
+            </button>
             {marketingEnabled && (
               <TemplatePicker
                 direction="down"
@@ -776,21 +792,6 @@ export default function InboxQueue() {
                 }}
               />
             )}
-            <button
-              onClick={() => {
-                setComposeInitial(mailbox === 'personal' && !!user?.reply_from_email ? {
-                  recipients: [],
-                  subject: '',
-                  body: defaultSigBody ? `\n\n${defaultSigBody}` : '',
-                  fromEmail: user.reply_from_email,
-                } : null)
-                setShowCompose(true)
-              }}
-              className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
-            >
-              <Pencil size={14} />
-              {t('inbox_compose')}
-            </button>
           </div>
         </div>
 
