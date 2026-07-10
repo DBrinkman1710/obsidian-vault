@@ -1194,18 +1194,29 @@ from app.modules.flows.service import DEFAULT_FLOWS
 
 
 def test_default_flows_validate_through_flow_create():
+    from app.modules.flows.schemas import GraphSpec
     for spec in DEFAULT_FLOWS:
+        raw_actions = spec["actions"]
+        # actions may be a graph dict (FLOW4 branching) or a plain list
+        actions = raw_actions if isinstance(raw_actions, dict) else [ActionSpec(**a) for a in raw_actions]
         flow = FlowCreate(
             name=spec["name"],
             trigger_type=spec["trigger_type"],
             conditions=[ConditionSpec(**c) for group in spec["conditions"] for c in group]
             if spec["conditions"] else [],
-            actions=[ActionSpec(**a) for a in spec["actions"]],
+            actions=actions,
             enabled=False,  # skip DB-backed enable-time validation
         )
         assert flow.trigger_type in TRIGGER_META
-        for action in flow.actions:
-            assert action.type in ACTION_EXECUTORS
+        if isinstance(flow.actions, list):
+            for action in flow.actions:
+                assert action.type in ACTION_EXECUTORS
+        else:
+            # graph: FlowCreate already parsed it into a GraphSpec; check action nodes
+            # "branch" and "wait" are pseudo-nodes handled by the engine, not executors
+            for node in flow.actions.nodes:
+                if node.type not in ("branch", "wait"):
+                    assert node.type in ACTION_EXECUTORS
 
 
 def test_default_flows_are_the_two_sla_flows():
