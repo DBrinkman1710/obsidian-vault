@@ -168,8 +168,14 @@ async def _run_action(tenant: Tenant, event: dict, action: dict, flow_id: uuid.U
 
 
 def _event_snapshot(event: dict) -> dict:
-    """The event as persisted on a run / pending step (drop the transient outbox id)."""
-    return {k: v for k, v in event.items() if k != "id"}
+    """The event as persisted on a run / pending step: drop the transient outbox
+    id and stringify UUIDs — the claim dict keeps tenant_id as a raw UUID for
+    querying, but stdlib json (the JSONB serializer) cannot encode UUID."""
+    return {
+        k: str(v) if isinstance(v, uuid.UUID) else v
+        for k, v in event.items()
+        if k != "id"
+    }
 
 
 async def _upsert_run(

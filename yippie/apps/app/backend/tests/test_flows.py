@@ -1227,3 +1227,34 @@ def test_default_flows_are_the_two_sla_flows():
     }
     for spec in DEFAULT_FLOWS:
         assert spec["trigger_type"] == "ticket_sla_due_soon"
+
+
+# --------------------------------------------------- event snapshot (engine)
+
+import json
+import uuid as _uuid
+
+from app.modules.flows.engine import _event_snapshot
+
+
+def test_event_snapshot_is_json_serializable():
+    """Regression: the claim dict carries tenant_id as a raw UUID; persisting it
+    into the flow_runs/flow_pending_steps JSONB event column crashed stdlib
+    json.dumps (Sentry: "Object of type UUID is not JSON serializable"), so no
+    fresh run was ever recorded and waits/retries were silently dropped."""
+    tenant_id = _uuid.UUID("9fbbfd38-9fbb-4844-8031-be020254aa04")
+    event = {
+        "id": _uuid.uuid4(),  # transient outbox id — must be dropped
+        "tenant_id": tenant_id,
+        "event_type": "ticket_created",
+        "entity_type": "ticket",
+        "entity_id": "3f0f8f6a-0000-0000-0000-000000000001",
+        "contact_id": None,
+        "actor_id": None,
+        "source": None,
+        "fields": {"event_type": "ticket_created", "contact_id": None},
+    }
+    snapshot = _event_snapshot(event)
+    assert "id" not in snapshot
+    assert snapshot["tenant_id"] == str(tenant_id)
+    json.dumps(snapshot)  # must not raise
