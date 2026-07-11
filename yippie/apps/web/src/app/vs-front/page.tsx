@@ -125,7 +125,7 @@ export default function VsFrontPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Switch to support that fits your business</h2>
         <p className={styles.ctaSub}>
-          See why SMBs choose Yippie over Front. Request a guided demo. No
+          See why SMBs choose Yippie over Front. Try the instant demo. No
           credit card required.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>

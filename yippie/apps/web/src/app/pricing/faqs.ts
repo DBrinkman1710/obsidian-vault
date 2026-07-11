@@ -16,6 +16,6 @@ export const faqs = [
   },
   {
     q: "Is there a free trial?",
-    a: "Yes. Every new account starts with a 30 day free trial of the full product. No credit card needed, and everything you set up stays when you upgrade. Prefer a walkthrough first? You can also request a guided demo or book a call.",
+    a: "Yes. Every new account starts with a 30 day free trial of the full product. No credit card needed, and everything you set up stays when you upgrade. Prefer to look around first? Try the instant demo workspace or book a call.",
   },
 ];

@@ -104,8 +104,8 @@ export default function ForSmbsPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Get your time back</h2>
         <p className={styles.ctaSub}>
-          See how Yippie handles your real support inbox. Book a demo. No credit
-          card required.
+          See how Yippie handles your real support inbox. Try the instant demo.
+          No credit card required.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
       </section>

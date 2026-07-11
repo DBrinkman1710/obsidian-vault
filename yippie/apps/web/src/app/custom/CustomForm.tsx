@@ -28,7 +28,8 @@ import {
 } from "../components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
-const TALK_PATH = `${APP_URL}/meet/default`;
+// Booking page of the Yippie owner tenant (backend resolves the tenant by slug).
+const TALK_PATH = `${APP_URL}/meet/yippie`;
 
 type PlanKey = "starter" | "growth" | "pro" | "enterprise";
 

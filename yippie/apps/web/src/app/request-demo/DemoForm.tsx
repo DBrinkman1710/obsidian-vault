@@ -349,7 +349,7 @@ export default function DemoForm() {
       )}
 
       <p className={styles.finePrint}>
-        No credit card required · Usually replies within 1 business day
+        No credit card required · Your demo link lands in your inbox within a minute
       </p>
     </form>
   );

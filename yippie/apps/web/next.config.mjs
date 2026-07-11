@@ -13,12 +13,6 @@ const nextConfig = {
 
   reactStrictMode: true,
 
-  async redirects() {
-    return [
-      { source: "/signup", destination: "/custom", permanent: false },
-    ];
-  },
-
   async headers() {
     // Content-Security-Policy for the marketing site.
     // - script-src: Next.js injects inline bootstrap scripts, so 'unsafe-inline'

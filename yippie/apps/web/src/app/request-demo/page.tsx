@@ -8,12 +8,12 @@ import DemoForm from "./DemoForm";
 export const metadata: Metadata = {
   title: "Request a demo | Yippie",
   description:
-    "See Yippie in action. Book a personalised demo and watch AI turn a messy support inbox into resolved tickets in seconds.",
+    "See Yippie in action. Get instant access to your own demo workspace and watch AI turn a messy support inbox into resolved tickets in seconds.",
   alternates: { canonical: "/request-demo" },
   openGraph: {
     title: "Request a demo | Yippie",
     description:
-      "See Yippie in action. Book a personalised demo and watch AI turn a messy support inbox into resolved tickets in seconds.",
+      "See Yippie in action. Get instant access to your own demo workspace and watch AI turn a messy support inbox into resolved tickets in seconds.",
     url: "https://getyippie.com/request-demo",
     type: "website",
   },
@@ -33,9 +33,9 @@ export default function RequestDemoPage() {
         </div>
         <h1 className={styles.heroTitle}>See Yippie on your own inbox</h1>
         <p className={styles.heroSub}>
-          Fill in the form and we&apos;ll schedule a personalised walkthrough.
-          No sales pressure, just a real look at how Yippie saves your team
-          hours every week.
+          Fill in the form and get instant access to your own demo workspace,
+          pre-loaded with realistic data. No sales pressure, just a real look
+          at how Yippie saves your team hours every week.
         </p>
       </section>
 

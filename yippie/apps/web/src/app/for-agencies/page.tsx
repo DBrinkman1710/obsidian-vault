@@ -93,7 +93,7 @@ export default function ForAgenciesPage() {
         <h2 className={styles.ctaTitle}>Run every client from one platform</h2>
         <p className={styles.ctaSub}>
           See how agencies use Yippie to scale customer support without scaling
-          headcount. Book a demo today.
+          headcount. Try the instant demo today.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
       </section>

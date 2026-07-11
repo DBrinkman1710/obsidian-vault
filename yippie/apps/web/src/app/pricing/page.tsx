@@ -41,7 +41,8 @@ const TEAM_RANK_MAP: Record<string, number> = {
 
 const DEMO_PATH = "/request-demo";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
-const TALK_PATH = `${APP_URL}/meet/default`;
+// Booking page of the Yippie owner tenant (backend resolves the tenant by slug).
+const TALK_PATH = `${APP_URL}/meet/yippie`;
 
 type Plan = {
   tier: string;

@@ -414,7 +414,7 @@ export default function HomePage() {
           </a>
           <p className={styles.ctaSub} style={{ marginTop: 14 }}>
             <a href={DEMO_URL} style={{ color: "inherit", textDecoration: "underline" }}>
-              Or request a guided demo
+              Or try the instant demo
             </a>
           </p>
         </Reveal>
