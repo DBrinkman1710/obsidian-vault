@@ -152,8 +152,8 @@ async def send_signup_welcome_email(to: str, full_name: str, login_url: str) -> 
         f"Hi {first_name},\n\n"
         f"Your Yippie workspace is ready. Click the link below to log in:\n{login_url}\n\n"
         f"A few things to get you started:\n"
-        f"  - Set up your profile: add a reply-from email address\n"
-        f"  - Train Yip: a quick 5-question chat that teaches Yip your brand\n"
+        f"  - Set up your profile: add the email address your replies come from\n"
+        f"  - Train Yip: a short chat of five questions that teaches Yip your brand\n"
         f"  - Invite your team: teammates each get their own login\n\n"
         f"If you have any questions, just reply. I read everything.\n\n"
         f"Diederik\n"
@@ -170,8 +170,8 @@ async def send_signup_welcome_email(to: str, full_name: str, login_url: str) -> 
         f'</div>'
         f'<p style="margin:24px 0 8px;font-size:14px;">A few things to get you started:</p>'
         f'<ul style="margin:0 0 24px;padding-left:20px;font-size:14px;line-height:1.8;">'
-        f'<li>Set up your profile: add a reply-from email address</li>'
-        f'<li>Train Yip: a quick 5-question chat that teaches Yip your brand</li>'
+        f'<li>Set up your profile: add the email address your replies come from</li>'
+        f'<li>Train Yip: a short chat of five questions that teaches Yip your brand</li>'
         f'<li>Invite your team: teammates each get their own login</li>'
         f'</ul>'
         f'<p style="margin:0 0 16px;">If you have any questions, just reply. I read everything.</p>'
@@ -208,7 +208,7 @@ async def send_welcome_to_inbox(tenant_inbound_email: str, tenant_name: str) -> 
         f"    when replying or composing\n\n"
         f"As an admin you can also:\n"
         f"  - Invite your team from Settings -> Team. Every teammate gets their own login.\n"
-        f"  - Manage departments and follow-up times from Settings -> Departments\n\n"
+        f"  - Manage departments and follow up times from Settings -> Departments\n\n"
         f"Questions? Just reply. A real person reads it.\n\n"
         f"Take back the time that matters,\n"
         f"Team Yippie"

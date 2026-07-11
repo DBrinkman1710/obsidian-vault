@@ -2139,12 +2139,9 @@ async def verify_email(token: str, db: Annotated[AsyncSession, Depends(get_db)])
     if not user.is_active:
         user.is_active = True
         await db.commit()
-        # Post-activation welcome email with the getting-started tips (best effort).
-        try:
-            from app.auth.invite import send_signup_welcome_email
-            await send_signup_welcome_email(user.email, user.full_name or "", f"{base}/login")
-        except Exception:
-            logger.exception("verify_email: welcome email failed for %s", user.email)
+        # Deliberately NO welcome email here: the entry click puts the user
+        # inside the workspace already, and a second mail right after the entry
+        # mail reads as spam (user feedback 2026-07-11).
 
     # Auto-generated password (no password field on the signup form): hand the
     # workspace a short-lived reset token so the SetPasswordModal can let the

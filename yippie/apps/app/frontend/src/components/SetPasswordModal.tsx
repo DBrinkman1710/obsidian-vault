@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { Lock } from 'lucide-react'
-import { CloseButton } from '../shell/CloseButton'
 import { api } from '../api/client'
 
 interface Props {
@@ -12,9 +11,10 @@ interface Props {
 /** Shown once, right after entering the workspace through the signup entry
  * link, when no password was chosen on the form. Only the inbox owner ever
  * holds that link, so only they can set the password (this is what protects
- * against pre-registration account takeover). Uses the existing
- * POST /auth/reset-password with the short-lived reset token minted by the
- * verify-email redirect. Skippable — "Forgot password" covers stragglers. */
+ * against pre registration account takeover). Uses the existing
+ * POST /auth/reset-password with the short lived reset token minted by the
+ * verify email redirect. NOT skippable: without a password the account is
+ * unreachable once the 48h entry link expires. */
 export default function SetPasswordModal({ token, onDone }: Props) {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -35,14 +35,14 @@ export default function SetPasswordModal({ token, onDone }: Props) {
   return (
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="relative w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
-        {/* Header */}
+        {/* Header — no close affordance on purpose: the password is the only
+            way back in after the entry link expires. */}
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100">
           <Lock size={18} className="text-yippie shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-slate-900">Secure your account</p>
             <p className="text-xs text-slate-400">Choose a password so you can log in any time</p>
           </div>
-          <CloseButton onClick={onDone} />
         </div>
 
         <form
@@ -91,21 +91,22 @@ export default function SetPasswordModal({ token, onDone }: Props) {
             <button
               type="submit"
               disabled={mutation.isPending}
-              className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
+              className="w-full px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
-              {mutation.isPending ? 'Saving…' : 'Save password'}
+              {mutation.isPending ? 'Saving…' : 'Save password and continue'}
             </button>
+          </div>
+          {/* Escape hatch ONLY when saving failed (e.g. expired token) — the
+              user should never be trapped behind a modal that cannot succeed. */}
+          {mutation.isError && (
             <button
               type="button"
               onClick={onDone}
-              className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+              className="text-xs text-slate-500 hover:text-slate-700 underline self-start"
             >
-              Later
+              Continue without a password for now
             </button>
-          </div>
-          <p className="text-xs text-slate-400">
-            Skipped it? You can always set one via “Forgot password” on the login page.
-          </p>
+          )}
         </form>
       </div>
     </div>
