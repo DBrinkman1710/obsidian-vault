@@ -142,8 +142,6 @@ export default function CustomForm() {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
   // Honeypot — real visitors never see or fill this field.
   const [website, setWebsite] = useState("");
   const [formState, setFormState] = useState<FormState>("idle");
@@ -380,17 +378,9 @@ export default function CustomForm() {
       return;
     }
 
-    // Self serve trial — validate locally before creating anything.
-    if (password.length < 8) {
-      setErrorMsg("Please choose a password of at least 8 characters.");
-      setFormState("error");
-      return;
-    }
-    if (password !== confirmPassword) {
-      setErrorMsg("Passwords do not match.");
-      setFormState("error");
-      return;
-    }
+    // Self serve trial — no password on the form: the backend generates one
+    // and the visitor chooses their own inside the workspace, after entering
+    // through the emailed link. Only the inbox owner can ever set it.
     setFormState("submitting");
 
     // Lead capture first, best effort — the lead lands in the owner CRM even
@@ -418,7 +408,6 @@ export default function CustomForm() {
           name: name.trim(),
           company_name: company.trim(),
           email: email.trim(),
-          password,
           website,
           plan: isFounder ? "founder" : planKey,
           enabled_modules: selectedModules,
@@ -998,41 +987,6 @@ export default function CustomForm() {
           />
         </div>
 
-        {!isEnterprise && (
-          <>
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="custom-password">Choose a password</label>
-              <input
-                id="custom-password"
-                className={styles.input}
-                type="password"
-                placeholder="At least 8 characters"
-                required
-                minLength={8}
-                autoComplete="new-password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={busy}
-              />
-            </div>
-
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor="custom-password-confirm">Confirm password</label>
-              <input
-                id="custom-password-confirm"
-                className={styles.input}
-                type="password"
-                placeholder="Repeat your password"
-                required
-                minLength={8}
-                autoComplete="new-password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                disabled={busy}
-              />
-            </div>
-          </>
-        )}
       </div>
 
       {/* Honeypot — visually hidden; bots that fill it are silently dropped server-side */}
