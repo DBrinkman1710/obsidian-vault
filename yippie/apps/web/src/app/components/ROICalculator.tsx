@@ -7,8 +7,9 @@ import styles from "./ROICalculator.module.css";
 // the ROI section's first tab shows the real preview instead of a text card.
 import extStyles from "../page.module.css";
 import { LockIcon } from "./icons";
+import { PLAN_LIMITS } from "@/lib/config";
 
-const PLAN_PRICE = 29; // cheapest Yippie plan, €/mo
+const PLAN_PRICE = PLAN_LIMITS.starter.priceMonthly; // cheapest Yippie plan, €/mo
 const HOURS_PER_FTE_MONTH = 160;
 
 const TICKETS_MIN = 10;

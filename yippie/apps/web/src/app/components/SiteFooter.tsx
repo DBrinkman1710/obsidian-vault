@@ -19,6 +19,8 @@ const columns = [
       { href: "/for-smbs", label: "For SMBs" },
       { href: "/for-agencies", label: "For agencies" },
       { href: "/vs-zendesk", label: "Yippie vs Zendesk" },
+      { href: "/vs-front", label: "Yippie vs Front" },
+      { href: "/vs-freshdesk", label: "Yippie vs Freshdesk" },
     ],
   },
   {

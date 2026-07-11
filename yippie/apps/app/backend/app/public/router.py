@@ -9,7 +9,8 @@ logger = logging.getLogger(__name__)
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Literal, Optional
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,6 +50,15 @@ DEMO_PIPELINE_STAGE = "Demo"
 DEMO_RATE_LIMIT = 5
 DEMO_RATE_WINDOW = 3600  # seconds
 
+# One generic 409 for every "this email already has something" case on the
+# public provisioning endpoints. Distinct messages ("already registered" vs
+# "demo already pending") let an attacker enumerate which addresses have a
+# Yippie account — every conflict cause must return this exact string.
+GENERIC_CONFLICT_DETAIL = (
+    "An account or demo already exists for this email address. "
+    "Check your inbox, or contact support if you need help."
+)
+
 
 async def _public_rate_limit(ip: str, bucket: str, limit: int) -> None:
     """Per-endpoint public rate limit. Each bucket has its own counter so a
@@ -59,6 +69,21 @@ async def _public_rate_limit(ip: str, bucket: str, limit: int) -> None:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many requests. Please try again later.")
     await rl_hit(key, DEMO_RATE_WINDOW)
+
+
+async def _public_rate_limit_check(ip: str, bucket: str, limit: int) -> None:
+    """Read-only variant for the provisioning endpoints: raises 429 when the
+    per-IP budget is exhausted but does NOT record an attempt. Pair with
+    _public_rate_limit_record() after a successful provision so failed attempts
+    (validation typos, duplicate-email 409s) never burn the visitor's budget."""
+    if await rl_is_blocked(f"{bucket}:{ip}", limit, DEMO_RATE_WINDOW):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many requests. Please try again later.")
+
+
+async def _public_rate_limit_record(ip: str, bucket: str) -> None:
+    """Count one successful provision against the per-IP budget."""
+    await rl_hit(f"{bucket}:{ip}", DEMO_RATE_WINDOW)
 
 
 # Global provisioning cap. Per IP limiting alone cannot stop an attacker who
@@ -124,6 +149,9 @@ class RequestDemo(BaseModel):
     email: EmailStr
     slug: Optional[str] = None
     questionnaire: Optional[Questionnaire] = None
+    # Honeypot — hidden field on the marketing form. Humans never fill it;
+    # a non-empty value means a bot, and the endpoint fakes success.
+    website: Optional[str] = None
 
 
 class CustomPlanQuestionnaire(BaseModel):
@@ -149,6 +177,8 @@ class CustomPlanRequest(BaseModel):
     company_name: str = Field(min_length=1, max_length=200)
     email: EmailStr
     questionnaire: Optional[CustomPlanQuestionnaire] = None
+    # Honeypot — see RequestDemo.website.
+    website: Optional[str] = None
 
 
 CUSTOM_PLAN_PIPELINE_STAGE = "Custom plan"
@@ -207,9 +237,9 @@ DEMO_BYPASS_EMAILS = {e.strip().lower() for e in os.getenv("DEMO_BYPASS_EMAILS",
 async def _reject_active_user_email(db: AsyncSession, email: str) -> None:
     """Block demo provisioning when the address already belongs to a Yippie account.
 
-    Distinguishes two cases with distinct, user-facing 409 messages:
-      * the email is a live (non-demo) tenant  -> tell them to log in
-      * the email already has a pending/active demo -> tell them it's pending
+    Two cases are rejected — a live (non-demo) tenant, and a pending/active demo —
+    but both return the same generic 409 (GENERIC_CONFLICT_DETAIL) so the endpoint
+    can't be used to enumerate which addresses have an account.
 
     The address(es) in ``DEMO_BYPASS_EMAILS`` skip all checks (testing exception).
     """
@@ -231,13 +261,15 @@ async def _reject_active_user_email(db: AsyncSession, email: str) -> None:
     user, tenant = result
 
     # An existing demo tenant (pending or still within its lifetime) for this email.
+    # NOTE: the 409 detail is deliberately identical for every conflict cause —
+    # distinct messages would reveal whether an address has a Yippie account.
     if tenant.is_demo:
         now = datetime.now(timezone.utc)
         active_demo = tenant.demo_expires_at is None or tenant.demo_expires_at > now
         if active_demo:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="A demo for this email is already pending or active.",
+                detail=GENERIC_CONFLICT_DETAIL,
             )
         # Expired demo — fall through and let a fresh demo be provisioned.
         return
@@ -246,7 +278,7 @@ async def _reject_active_user_email(db: AsyncSession, email: str) -> None:
     if user.is_active:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This email is already registered with a Yippie account.",
+            detail=GENERIC_CONFLICT_DETAIL,
         )
 
 
@@ -261,9 +293,13 @@ async def _purge_stale_demo_for_email(db: AsyncSession, email: str) -> None:
     untouched (and is already rejected upstream by ``_reject_active_user_email``).
     create_tenant rejects any colliding user, so the old demo tenant (with all of
     its rows) must be wiped first.
+
+    All tenant-scoped tables carry ON DELETE CASCADE FKs to tenants(id)
+    (migration tenant_cascade_all), so deleting the tenant row removes every
+    child row. (The old manual TENANT_DELETE_ORDER table list no longer exists —
+    importing it here used to break this purge at runtime.)
     """
     from app.core.models import Tenant, User
-    from app.modules.admin.service import TENANT_DELETE_ORDER
 
     email = email.lower().strip()
     rows = await db.execute(
@@ -276,15 +312,38 @@ async def _purge_stale_demo_for_email(db: AsyncSession, email: str) -> None:
         if not tenant.is_demo or tenant.id in seen:
             continue  # never delete a live account; wipe each tenant once
         seen.add(tenant.id)
-        _allowed = frozenset(TENANT_DELETE_ORDER)
-        for table in TENANT_DELETE_ORDER:
-            assert table in _allowed, f"BUG: unknown table {table!r} in delete loop"
-            await db.execute(
-                text("DELETE FROM " + table + " WHERE tenant_id = :tid"),
-                {"tid": str(tenant.id)},
-            )
-        await db.delete(tenant)
+        await db.delete(tenant)  # children cascade via FK ON DELETE CASCADE
         await db.flush()
+
+
+async def _purge_tenant_after_failed_provision(db: AsyncSession, tenant_id: uuid.UUID) -> None:
+    """Compensation cleanup for the public provisioning endpoints.
+
+    Deletes a tenant that was created earlier in this request but whose
+    provisioning could not be completed (e.g. the onboarding email failed to
+    send). Without this the tenant + user rows linger and the visitor's retry
+    hits the duplicate 409. Children cascade via the tenants(id) FKs
+    (migration tenant_cascade_all).
+
+    Rolls back first, which also clears any SET LOCAL tenant context, so the
+    delete runs on the connecting (RLS bypassing) role. Never raises — a failed
+    purge is logged and the caller's error response still goes out.
+    """
+    from app.core.models import Tenant
+
+    try:
+        await db.rollback()
+        tenant = await db.get(Tenant, tenant_id)
+        if tenant is not None:
+            await db.delete(tenant)
+            await db.commit()
+            logger.warning("Purged partially provisioned tenant %s after a provisioning failure", tenant_id)
+    except Exception:
+        logger.exception("Failed to purge partially provisioned tenant %s", tenant_id)
+        try:
+            await db.rollback()
+        except Exception:
+            pass
 
 
 async def _ensure_demo_pipeline_stage(db: AsyncSession, tenant_id: uuid.UUID):
@@ -406,13 +465,14 @@ async def custom_plan_request(
     from app.modules.pipeline.service import _assign_stage
     from app.modules.tickets.models import MessageSource, Ticket, TicketPriority, TicketStatus
 
+    # Honeypot: bots fill the hidden `website` field — fake success, touch nothing.
+    if body.website:
+        return {"ok": True}
+
     ip = get_client_ip(request)
-    if await rl_is_blocked(f"custom_plan:{ip}", DEMO_RATE_LIMIT, DEMO_RATE_WINDOW):
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Too many requests. Please try again later.",
-        )
-    await rl_hit(f"custom_plan:{ip}", DEMO_RATE_WINDOW)
+    # Read-only check up front; the attempt is only counted after a successful
+    # submission so validation failures can't lock a real prospect out.
+    await _public_rate_limit_check(ip, "custom_plan", DEMO_RATE_LIMIT)
 
     root_tenant_id = await _resolve_root_tenant_id(db)
     await set_tenant_context(db, str(root_tenant_id))
@@ -498,6 +558,7 @@ async def custom_plan_request(
     ))
     await db.commit()
 
+    await _public_rate_limit_record(ip, "custom_plan")
     return {"ok": True}
 
 
@@ -505,15 +566,18 @@ async def custom_plan_request(
 async def request_demo(
     body: RequestDemo,
     request: Request,
-    background_tasks: BackgroundTasks,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> dict:
     """Self-serve demo provisioning — no auth.
 
-    Creates an is_demo tenant (the requester gets a set-password invite), then
-    files a follow-up Contact + Ticket in the root owner's own tenant.
+    Creates an is_demo tenant, seeds its demo data in the request path, then
+    sends the magic-link email and files a follow-up Contact + Ticket in the
+    root owner's own tenant. If the email cannot be sent the tenant is purged
+    so a retry never hits the duplicate 409.
     """
     import secrets
+
+    from sqlalchemy.exc import IntegrityError
 
     from app.auth.invite import send_demo_ready_email
     from app.auth.tokens import create_signed_token
@@ -525,12 +589,24 @@ async def request_demo(
     from app.modules.pipeline.service import _assign_stage
     from app.modules.tickets.models import MessageSource, Ticket, TicketPriority, TicketStatus
 
+    # Honeypot: bots fill the hidden `website` field — fake a plausible success
+    # response (same shape as the real one) without creating anything.
+    if body.website:
+        return {
+            "tenant_id": str(uuid.uuid4()),
+            "slug": _slugify(body.slug or body.company_name),
+            "invited": True,
+        }
+
     ip = get_client_ip(request)
-    await _public_rate_limit(ip, "request_demo", 5)
+    # Read-only per-IP check; the attempt is counted only after a tenant is
+    # actually provisioned, so typo'd or duplicate submissions can't lock a
+    # prospect out for an hour.
+    await _public_rate_limit_check(ip, "request_demo", 5)
     await _check_global_provision_cap("request_demo")
 
     email = body.email.lower().strip()
-    # Rejects live accounts and already-active demos with distinct 409 messages;
+    # Rejects live accounts and already-active demos (one generic 409 for both);
     # returns cleanly for new emails, expired demos, and the testing-bypass email.
     await _reject_active_user_email(db, email)
 
@@ -561,8 +637,15 @@ async def request_demo(
                 enabled_modules=ALL_MODULES,
             ),
         )
-    except ValueError as e:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
+    except ValueError:
+        # create_tenant's "user already exists" guard — same generic 409 as
+        # every other conflict cause (no email enumeration).
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=GENERIC_CONFLICT_DETAIL)
+    except IntegrityError:
+        # Concurrent duplicate submission raced past the pre-check and tripped
+        # the users.email unique constraint — a conflict, not a server error.
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=GENERIC_CONFLICT_DETAIL)
     except ResendNotConfiguredError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -570,112 +653,145 @@ async def request_demo(
         )
 
     await _record_global_provision("request_demo")
+    await _public_rate_limit_record(ip, "request_demo")
 
     tenant_id = tenant["id"]
-    demo_tenant = await db.get(Tenant, uuid.UUID(str(tenant_id)))
-    expires_at = (
-        demo_tenant.demo_expires_at
-        if demo_tenant and demo_tenant.demo_expires_at
-        else datetime.now(timezone.utc) + timedelta(days=DEFAULT_DEMO_DAYS)
-    )
+    demo_tenant_uuid = uuid.UUID(str(tenant_id))
 
-    user = await db.scalar(select(User).where(func.lower(User.email) == email))
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Demo account could not be created.",
+    # From here on the demo tenant exists. If any of the steps needed to hand
+    # the prospect a working magic link fails, purge the tenant so their retry
+    # doesn't hit the duplicate 409 — otherwise they'd be stranded.
+    try:
+        demo_tenant = await db.get(Tenant, demo_tenant_uuid)
+        expires_at = (
+            demo_tenant.demo_expires_at
+            if demo_tenant and demo_tenant.demo_expires_at
+            else datetime.now(timezone.utc) + timedelta(days=DEFAULT_DEMO_DAYS)
         )
 
-    ttl = expires_at - datetime.now(timezone.utc)
-    if ttl.total_seconds() < 60:
-        ttl = timedelta(days=DEFAULT_DEMO_DAYS)
-    token = create_signed_token(
-        "demo_magic",
-        ttl,
-        user_id=str(user.id),
-        email=email,
-        tenant_id=str(tenant_id),
-    )
-    base = _demo_client_base_url()
-    if not base:
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Demo link URL is not configured.",
+        user = await db.scalar(select(User).where(func.lower(User.email) == email))
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Demo account could not be created.",
+            )
+
+        ttl = expires_at - datetime.now(timezone.utc)
+        if ttl.total_seconds() < 60:
+            ttl = timedelta(days=DEFAULT_DEMO_DAYS)
+        token = create_signed_token(
+            "demo_magic",
+            ttl,
+            user_id=str(user.id),
+            email=email,
+            tenant_id=str(tenant_id),
         )
-    magic_link = f"{base}/demo-enter?token={token}"
+        base = _demo_client_base_url()
+        if not base:
+            raise HTTPException(
+                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                detail="Demo link URL is not configured.",
+            )
+        magic_link = f"{base}/demo-enter?token={token}"
+    except HTTPException:
+        await _purge_tenant_after_failed_provision(db, demo_tenant_uuid)
+        raise
+
+    # Seed the demo workspace BEFORE the email goes out, so the prospect's very
+    # first click never lands in an empty workspace (the old BackgroundTask
+    # raced the email). seed_demo_data opens its own DB session, logs loudly on
+    # failure and never raises — a seed failure still leaves the default stages,
+    # so we prefer proceeding with the email over stranding the lead.
+    from app.core.demo_seeder import seed_demo_data
+    await seed_demo_data(demo_tenant_uuid, user.id)
+
+    # If the magic-link email cannot be sent, the tenant would exist with no way
+    # in and every retry would 409. Purge it and tell the prospect to retry.
     try:
         await send_demo_ready_email(email, body.name.strip(), magic_link)
     except Exception:
-        logger.exception("Failed to send demo ready email to %s", email)
+        logger.exception(
+            "Failed to send demo ready email to %s — purging demo tenant %s so a retry can succeed",
+            email, tenant_id,
+        )
+        await _purge_tenant_after_failed_provision(db, demo_tenant_uuid)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="We couldn't send your demo email. Please try again in a few minutes.",
+        )
 
     # All remaining writes are in the root tenant — set RLS context so
     # pipeline_stages INSERT/SELECT passes the tenant_isolation policy.
     await set_tenant_context(db, str(root_tenant_id))
 
     # File a follow-up Contact + Ticket in the root owner's own tenant.
-    label = await _ensure_demo_label(db, root_tenant_id)
-    contact = Contact(
-        tenant_id=root_tenant_id,
-        full_name=body.name.strip(),
-        email=email,
-        company=body.company_name.strip(),
-    )
-    db.add(contact)
-    await db.flush()
-    await db.execute(
-        contact_label_links.insert().values(contact_id=contact.id, label_id=label.id)
-    )
+    # Best effort: the demo is live and the magic link is already in the
+    # prospect's inbox — a pipeline hiccup here must not fail the request
+    # (and must NOT purge the tenant the email now points at).
+    try:
+        label = await _ensure_demo_label(db, root_tenant_id)
+        contact = Contact(
+            tenant_id=root_tenant_id,
+            full_name=body.name.strip(),
+            email=email,
+            company=body.company_name.strip(),
+        )
+        db.add(contact)
+        await db.flush()
+        await db.execute(
+            contact_label_links.insert().values(contact_id=contact.id, label_id=label.id)
+        )
 
-    stage = await _ensure_demo_pipeline_stage(db, root_tenant_id)
-    await _assign_stage(db, root_tenant_id, contact.id, stage.id)
+        stage = await _ensure_demo_pipeline_stage(db, root_tenant_id)
+        await _assign_stage(db, root_tenant_id, contact.id, stage.id)
 
-    # Store questionnaire as structured data on the contact for later reuse
-    # (pre-filling signup page, demo nudge emails, etc.)
-    if body.questionnaire:
-        contact.custom_fields = {
-            "team_size": body.questionnaire.team_size,
-            "industry": body.questionnaire.industry,
-            "current_tools": body.questionnaire.current_tools,
-            "pain_points": body.questionnaire.pain_points,
-            "recommended_modules": body.questionnaire.recommended_modules,
-        }
+        # Store questionnaire as structured data on the contact for later reuse
+        # (pre-filling signup page, demo nudge emails, etc.)
+        if body.questionnaire:
+            contact.custom_fields = {
+                "team_size": body.questionnaire.team_size,
+                "industry": body.questionnaire.industry,
+                "current_tools": body.questionnaire.current_tools,
+                "pain_points": body.questionnaire.pain_points,
+                "recommended_modules": body.questionnaire.recommended_modules,
+            }
 
-    q = body.questionnaire
-    q_lines = []
-    if q:
-        if q.team_size:
-            q_lines.append(f"Team size: {q.team_size}")
-        if q.industry:
-            q_lines.append(f"Industry: {q.industry}")
-        if q.current_tools:
-            q_lines.append(f"Current tools: {', '.join(q.current_tools)}")
-        if q.pain_points:
-            q_lines.append(f"Pain points: {', '.join(q.pain_points)}")
-        if q.recommended_modules:
-            q_lines.append(f"Modules recommended: {', '.join(q.recommended_modules)}")
+        q = body.questionnaire
+        q_lines = []
+        if q:
+            if q.team_size:
+                q_lines.append(f"Team size: {q.team_size}")
+            if q.industry:
+                q_lines.append(f"Industry: {q.industry}")
+            if q.current_tools:
+                q_lines.append(f"Current tools: {', '.join(q.current_tools)}")
+            if q.pain_points:
+                q_lines.append(f"Pain points: {', '.join(q.pain_points)}")
+            if q.recommended_modules:
+                q_lines.append(f"Modules recommended: {', '.join(q.recommended_modules)}")
 
-    description = (
-        f"Demo requested by {body.name.strip()} ({email}). "
-        f"Tenant slug: {slug}. Follow up within 3 days."
-    )
-    if q_lines:
-        description += "\n\nQuestionnaire answers:\n" + "\n".join(f"- {line}" for line in q_lines)
+        description = (
+            f"Demo requested by {body.name.strip()} ({email}). "
+            f"Tenant slug: {slug}. Follow up within 3 days."
+        )
+        if q_lines:
+            description += "\n\nQuestionnaire answers:\n" + "\n".join(f"- {line}" for line in q_lines)
 
-    now = datetime.now(timezone.utc)
-    db.add(Ticket(
-        tenant_id=root_tenant_id,
-        contact_id=contact.id,
-        subject=f"Follow up: {body.company_name.strip()} demo",
-        description=description,
-        status=TicketStatus.open,
-        priority=TicketPriority.medium,
-        source=MessageSource.manual,
-        sla_due_at=now + timedelta(days=3),
-    ))
-    await db.commit()
-
-    from app.core.demo_seeder import seed_demo_data
-    background_tasks.add_task(seed_demo_data, uuid.UUID(str(tenant_id)), user.id)
+        now = datetime.now(timezone.utc)
+        db.add(Ticket(
+            tenant_id=root_tenant_id,
+            contact_id=contact.id,
+            subject=f"Follow up: {body.company_name.strip()} demo",
+            description=description,
+            status=TicketStatus.open,
+            priority=TicketPriority.medium,
+            source=MessageSource.manual,
+            sla_due_at=now + timedelta(days=3),
+        ))
+        await db.commit()
+    except Exception:
+        logger.exception("request_demo: root tenant follow-up failed for %s (demo tenant %s is live)", email, tenant_id)
+        await db.rollback()
 
     import asyncio
     from app.core.mailer import notify_owner
@@ -1673,6 +1789,12 @@ class SignupRequest(BaseModel):
     enabled_modules: list[str] = Field(default=[], max_length=20)
     questionnaire: Optional[Questionnaire] = None
     from_demo_token: Optional[str] = None
+    # Honeypot — see RequestDemo.website.
+    website: Optional[str] = None
+
+
+# Signed email-verification token lifetime — mirrors the demo_magic pattern.
+EMAIL_VERIFY_TTL = timedelta(hours=48)
 
 
 @router.post("/signup", status_code=201)
@@ -1687,10 +1809,16 @@ async def signup(
     trial (trial_ends_at stamped, no payment collected), and moves the contact
     to the 'Live' Kanban stage in the root tenant. Conversion happens later via
     Stripe checkout from Settings → Subscription.
-    """
-    import secrets as _secrets
 
-    from app.auth.tokens import verify_signed_token
+    The admin user is created INACTIVE: a verification email (48h signed JWT)
+    must be clicked before the first login. The response carries
+    "verification_required": true so the marketing SignupForm shows a
+    "check your inbox" state instead of a login link.
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.auth.invite import send_verification_email
+    from app.auth.tokens import create_signed_token, verify_signed_token
     from app.core.mailer import ResendNotConfiguredError
     from app.core.models import Tenant, User
     from app.database import set_tenant_context
@@ -1701,14 +1829,33 @@ async def signup(
     from app.config import ALL_MODULES
     from app.core._modules_gen import CORE_MODULES
 
+    # Honeypot: bots fill the hidden `website` field — fake a plausible success
+    # response (same shape as the real one) without creating anything.
+    if body.website:
+        _fake_base = _demo_client_base_url() or ""
+        return {
+            "tenant_slug": _slugify(body.company_name),
+            "login_url": f"{_fake_base}/login",
+            "verification_required": True,
+            "payment": {
+                "type": "trial",
+                "trial_days": TRIAL_DAYS,
+                "trial_ends_at": (datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS)).isoformat(),
+            },
+        }
+
     ip = get_client_ip(request)
-    await _public_rate_limit(ip, "signup", 5)
+    # Read-only per-IP check; counted only after a successful provision so a
+    # few typo'd attempts can't lock a prospect out for an hour.
+    await _public_rate_limit_check(ip, "signup", 5)
     await _check_global_provision_cap("signup")
 
     email = body.email.lower().strip()
 
     # Block if already a live account; clean up demo accounts so the user can
     # re-register for a real account without hitting an IntegrityError.
+    # Generic 409 detail — same string as every other conflict cause, so the
+    # endpoint can't be used to enumerate registered addresses.
     existing = await db.scalar(
         select(User).where(func.lower(User.email) == email)
     )
@@ -1717,7 +1864,7 @@ async def signup(
         if existing_tenant and not existing_tenant.is_demo:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
-                detail="This email is already registered with a Yippie account.",
+                detail=GENERIC_CONFLICT_DETAIL,
             )
         # Existing account is a demo — purge it so create_tenant won't collide.
         await _purge_stale_demo_for_email(db, email)
@@ -1758,10 +1905,18 @@ async def signup(
                 admin_password=body.password,
                 enabled_modules=enabled_modules,
                 plan=body.plan,
+                # Email verification: the admin account stays inactive until the
+                # verification link is clicked (login rejects inactive users).
+                admin_is_active=False,
             ),
         )
     except ValueError:
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Account could not be created. Please check your details and try again.")
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=GENERIC_CONFLICT_DETAIL)
+    except IntegrityError:
+        # Concurrent duplicate submission tripped the users.email unique
+        # constraint after the pre-check — a conflict, not a 500.
+        await db.rollback()
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=GENERIC_CONFLICT_DETAIL)
     except ResendNotConfiguredError:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
@@ -1769,84 +1924,111 @@ async def signup(
         )
 
     await _record_global_provision("signup")
+    await _public_rate_limit_record(ip, "signup")
 
     tenant_id = uuid.UUID(str(tenant_result["id"]))
 
+    # Load the new admin user NOW, while still on the connecting (RLS bypassing)
+    # role — needed for the verification token below.
+    new_user = await db.scalar(select(User).where(func.lower(User.email) == email))
+    if new_user is None:
+        await _purge_tenant_after_failed_provision(db, tenant_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Account could not be created. Please try again.",
+        )
+    new_user_id = new_user.id
+
     root_tenant_id = await _resolve_root_tenant_id(db)
 
-    # Load the new tenant now, while the session is still on the connecting
-    # (RLS-bypassing) role — once we switch into root-tenant context below the
-    # tenants RLS policy (id = app_tenant_id()) would hide it.
-    signup_tenant = await db.get(Tenant, tenant_id)
+    # Everything up to (and including) the verification email must succeed —
+    # the user cannot log in until verified, so a failure partway would strand
+    # them behind the duplicate 409. On failure: purge the tenant and ask them
+    # to try again.
+    try:
+        # Load the new tenant now, while the session is still on the connecting
+        # (RLS-bypassing) role — once we switch into root-tenant context below the
+        # tenants RLS policy (id = app_tenant_id()) would hide it.
+        signup_tenant = await db.get(Tenant, tenant_id)
 
-    # [TRIAL30] Every self serve signup starts a 30 day free trial — no payment
-    # at signup (reciprocity: full product first, ask later). Conversion happens
-    # from Settings → Subscription via Stripe checkout; the platform webhook
-    # (checkout.session.completed / invoice.paid) clears trial_ends_at. Until the
-    # Stripe webhook is configured in production, a superadmin setting go_live_at
-    # also clears the trial (admin.service.update_tenant). The hourly
-    # trial_expiry_check job deactivates unconverted tenants after expiry.
-    # Stamp + flush HERE, before set_tenant_context switches to the RLS enforced
-    # role — the tenants policy (id = app_tenant_id()) would block this UPDATE
-    # from root-tenant context.
-    trial_ends_at = datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS)
-    if signup_tenant is not None:
-        signup_tenant.trial_ends_at = trial_ends_at
+        # [TRIAL30] Every self serve signup starts a 30 day free trial — no payment
+        # at signup (reciprocity: full product first, ask later). Conversion happens
+        # from Settings → Subscription via Stripe checkout; the platform webhook
+        # (checkout.session.completed / invoice.paid) clears trial_ends_at. Until the
+        # Stripe webhook is configured in production, a superadmin setting go_live_at
+        # also clears the trial (admin.service.update_tenant). The hourly
+        # trial_expiry_check job deactivates unconverted tenants after expiry.
+        # Stamp + flush HERE, before set_tenant_context switches to the RLS enforced
+        # role — the tenants policy (id = app_tenant_id()) would block this UPDATE
+        # from root-tenant context.
+        trial_ends_at = datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS)
+        if signup_tenant is not None:
+            signup_tenant.trial_ends_at = trial_ends_at
+            await db.flush()
+
+        # [WEB-LOGO-CARRY] Apply branding from the /custom configurator to the new
+        # tenant workspace. Both fields are written before set_tenant_context switches
+        # to the RLS-enforced role, so the UPDATE lands correctly.
+        if questionnaire is not None and signup_tenant is not None:
+            if questionnaire.branding_color:
+                signup_tenant.primary_color = questionnaire.branding_color
+            if questionnaire.branding_logo:
+                signup_tenant.logo_url = questionnaire.branding_logo
+
+        await set_tenant_context(db, str(root_tenant_id))
+
+        # Find or create contact in root tenant
+        contact = await db.scalar(
+            select(Contact).where(
+                Contact.tenant_id == root_tenant_id,
+                Contact.email == email,
+                Contact.deleted_at.is_(None),
+            )
+        )
+        if contact is None:
+            contact = Contact(
+                tenant_id=root_tenant_id,
+                full_name=body.name.strip(),
+                email=email,
+                company=body.company_name.strip(),
+            )
+            db.add(contact)
+            await db.flush()
+        else:
+            contact.full_name = body.name.strip()
+            contact.company = body.company_name.strip()
+
+        if questionnaire:
+            contact.custom_fields = {
+                "team_size": questionnaire.team_size,
+                "industry": questionnaire.industry,
+                "current_tools": questionnaire.current_tools,
+                "pain_points": questionnaire.pain_points,
+                "recommended_modules": questionnaire.recommended_modules,
+                "signed_up_plan": body.plan,
+                "signed_up_modules": enabled_modules,
+            }
+
+        stage = await _ensure_stage_by_name(db, root_tenant_id, "Live", "#22c55e")
+        await _assign_stage(db, root_tenant_id, contact.id, stage.id)
+
         await db.flush()
 
-    # [WEB-LOGO-CARRY] Apply branding from the /custom configurator to the new
-    # tenant workspace. Both fields are written before set_tenant_context switches
-    # to the RLS-enforced role, so the UPDATE lands correctly.
-    if questionnaire is not None and signup_tenant is not None:
-        if questionnaire.branding_color:
-            signup_tenant.primary_color = questionnaire.branding_color
-        if questionnaire.branding_logo:
-            signup_tenant.logo_url = questionnaire.branding_logo
-
-    await set_tenant_context(db, str(root_tenant_id))
-
-    # Find or create contact in root tenant
-    contact = await db.scalar(
-        select(Contact).where(
-            Contact.tenant_id == root_tenant_id,
-            Contact.email == email,
-            Contact.deleted_at.is_(None),
+        # Persist the trial stamp + root tenant contact/stage work. Without this the
+        # session rollback on close silently discarded the Kanban 'Live' assignment
+        # (create_tenant committed the account itself, which is why signup appeared
+        # to work) — latent bug found while adding [TRIAL30].
+        await db.commit()
+    except HTTPException:
+        await _purge_tenant_after_failed_provision(db, tenant_id)
+        raise
+    except Exception:
+        logger.exception("signup: provisioning failed after tenant creation for %s — purging tenant %s", email, tenant_id)
+        await _purge_tenant_after_failed_provision(db, tenant_id)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Account could not be created. Please try again.",
         )
-    )
-    if contact is None:
-        contact = Contact(
-            tenant_id=root_tenant_id,
-            full_name=body.name.strip(),
-            email=email,
-            company=body.company_name.strip(),
-        )
-        db.add(contact)
-        await db.flush()
-    else:
-        contact.full_name = body.name.strip()
-        contact.company = body.company_name.strip()
-
-    if questionnaire:
-        contact.custom_fields = {
-            "team_size": questionnaire.team_size,
-            "industry": questionnaire.industry,
-            "current_tools": questionnaire.current_tools,
-            "pain_points": questionnaire.pain_points,
-            "recommended_modules": questionnaire.recommended_modules,
-            "signed_up_plan": body.plan,
-            "signed_up_modules": enabled_modules,
-        }
-
-    stage = await _ensure_stage_by_name(db, root_tenant_id, "Live", "#22c55e")
-    await _assign_stage(db, root_tenant_id, contact.id, stage.id)
-
-    await db.flush()
-
-    # Persist the trial stamp + root tenant contact/stage work. Without this the
-    # session rollback on close silently discarded the Kanban 'Live' assignment
-    # (create_tenant committed the account itself, which is why signup appeared
-    # to work) — latent bug found while adding [TRIAL30].
-    await db.commit()
 
     base = _demo_client_base_url()
     login_url = f"{base}/login"
@@ -1859,17 +2041,95 @@ async def signup(
         "trial_ends_at": trial_ends_at.isoformat(),
     }
 
+    # Verification email — mirrors the demo_magic signed-JWT pattern, with a
+    # distinct purpose so tokens can't be replayed across flows. The link hits
+    # the backend directly (same origin as the app) and 302s to /login?verified=1.
+    verify_token = create_signed_token(
+        "email_verify",
+        EMAIL_VERIFY_TTL,
+        user_id=str(new_user_id),
+        email=email,
+    )
+    verify_url = f"{base}/api/v1/public/verify-email?token={verify_token}"
+
     try:
-        from app.auth.invite import send_signup_welcome_email
-        await send_signup_welcome_email(email, body.name.strip(), login_url)
+        await send_verification_email(email, body.name.strip(), verify_url)
     except Exception:
-        pass  # tenant is created; email failure must not fail the response
+        # Without this email the (inactive) account is unreachable and a retry
+        # would 409 — purge so the visitor can simply sign up again.
+        logger.exception(
+            "signup: failed to send verification email to %s — purging tenant %s so a retry can succeed",
+            email, tenant_id,
+        )
+        await _purge_tenant_after_failed_provision(db, tenant_id)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="We couldn't send your verification email. Please try again in a few minutes.",
+        )
 
     return {
         "tenant_slug": slug,
         "login_url": login_url,
+        "verification_required": True,
         "payment": payment_result,
     }
+
+
+@router.get("/verify-email", include_in_schema=False)
+async def verify_email(token: str, db: Annotated[AsyncSession, Depends(get_db)]) -> RedirectResponse:
+    """Enter a self-serve trial workspace from the emailed entry link.
+
+    Mirrors the demo magic-link UX: validates the signed "email_verify" JWT
+    (48h TTL), flips the user to active on first click, sets the session auth
+    cookie and 302-redirects straight into the workspace — verification IS the
+    login. Repeat clicks within the TTL just enter again (like demo_magic).
+    Invalid/expired tokens redirect to /login?verified=0 (a browser-facing
+    endpoint should never dead-end on raw JSON). Demo tenants never receive
+    these tokens — their magic-link flow (demo_magic) is unchanged.
+    """
+    from app.auth.router import _set_auth_cookie, create_access_token
+    from app.auth.tokens import verify_signed_token
+    from app.core.models import Tenant, User
+
+    base = _demo_client_base_url() or ""
+    claims = verify_signed_token(token, "email_verify")
+    if not claims:
+        logger.warning("verify_email: invalid or expired token (first 20 chars: %s…)", token[:20])
+        return RedirectResponse(f"{base}/login?verified=0", status_code=302)
+
+    try:
+        user = await db.get(User, uuid.UUID(claims["user_id"]))
+    except (KeyError, ValueError):
+        return RedirectResponse(f"{base}/login?verified=0", status_code=302)
+    if user is None:
+        logger.warning("verify_email: user %s not found", claims.get("user_id"))
+        return RedirectResponse(f"{base}/login?verified=0", status_code=302)
+
+    token_email = (claims.get("email") or "").lower()
+    if token_email and token_email != user.email.lower():
+        logger.warning("verify_email: token email %s does not match user email %s", token_email, user.email)
+        return RedirectResponse(f"{base}/login?verified=0", status_code=302)
+
+    tenant = await db.get(Tenant, user.tenant_id)
+    if tenant is None or not tenant.is_active:
+        logger.warning("verify_email: tenant %s inactive or missing for user %s", user.tenant_id, user.id)
+        return RedirectResponse(f"{base}/login?verified=0", status_code=302)
+
+    if not user.is_active:
+        user.is_active = True
+        await db.commit()
+        # Post-activation welcome email with the getting-started tips (best effort).
+        try:
+            from app.auth.invite import send_signup_welcome_email
+            await send_signup_welcome_email(user.email, user.full_name or "", f"{base}/login")
+        except Exception:
+            logger.exception("verify_email: welcome email failed for %s", user.email)
+
+    settings = get_settings()
+    access_token = create_access_token(str(user.id), settings)
+    response = RedirectResponse(f"{base}/", status_code=302)
+    _set_auth_cookie(response, access_token, settings)
+    return response
 
 
 # ── Contract e-signing ([CONTRACT3]) — booking-token pattern ──────────────────

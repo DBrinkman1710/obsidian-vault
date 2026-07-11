@@ -92,6 +92,51 @@ async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> Non
     )
 
 
+async def send_verification_email(to: str, full_name: str, verify_url: str) -> None:
+    """Self-serve trial entry link — one click activates the account, logs the
+    user in, and lands them in their workspace (demo magic-link UX). The signed
+    JWT is valid for 48 hours; afterwards they log in with email + password."""
+    first_name = full_name.split()[0] if full_name else full_name
+    safe_name = _html.escape(first_name)
+    safe_link = _html.escape(verify_url)
+
+    plain_body = (
+        f"Hi {first_name},\n\n"
+        f"Your Yippie workspace is ready. Click the link below to step right in:\n{verify_url}\n\n"
+        f"Your first 30 days are free — no payment details needed, cancel any time.\n\n"
+        f"The link is valid for 48 hours. After that, just log in with your email "
+        f"and the password you chose at signup.\n\n"
+        f"If you didn't sign up for Yippie, you can safely ignore this email.\n\n"
+        f"Diederik\n"
+        f"Founder, Yippie"
+    )
+
+    prerendered = (
+        f'<p style="margin:0 0 16px;">Hi {safe_name},</p>'
+        f'<p style="margin:0 0 24px;">Your Yippie workspace is ready. One click and you\'re in — '
+        f'your first 30 days are free, no payment details needed.</p>'
+        f'<div style="text-align:center;margin:32px 0;">'
+        f'<a href="{safe_link}" style="display:inline-block;background:#5BA4F5;color:#ffffff;'
+        f'text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">'
+        f'Enter my workspace</a>'
+        f'</div>'
+        f'<p style="margin:24px 0 16px;color:#6b7280;font-size:13px;">The link is valid for 48 hours. '
+        f'After that, just log in with your email and the password you chose at signup.</p>'
+        f'<p style="margin:0 0 16px;color:#6b7280;font-size:13px;">If you didn\'t sign up for Yippie, you can safely ignore this email.</p>'
+        f'<p style="margin:0;"><strong>Diederik</strong><br>'
+        f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
+    )
+
+    await send_email(
+        to=to,
+        subject="Your Yippie workspace is ready — first 30 days free",
+        body=plain_body,
+        html=render_email_html(plain_body, prerendered_html=prerendered, tenant_name="Yippie"),
+        from_email="Diederik from Yippie <diederik@getyippie.com>",
+        reply_to="diederik@getyippie.com",
+    )
+
+
 async def send_signup_welcome_email(to: str, full_name: str, login_url: str) -> None:
     first_name = full_name.split()[0] if full_name else full_name
     safe_name = _html.escape(first_name)

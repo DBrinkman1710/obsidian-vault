@@ -17,6 +17,7 @@ export const metadata: Metadata = {
       "Answer a few quick questions and we'll put together a personalised plan with exactly the modules your team needs. No guesswork, no bloat.",
     url: "https://getyippie.com/custom",
     type: "website",
+    images: ["/og.png"],
   },
 };
 

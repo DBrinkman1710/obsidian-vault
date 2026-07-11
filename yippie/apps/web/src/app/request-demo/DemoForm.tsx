@@ -61,6 +61,8 @@ export default function DemoForm() {
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
+  // Honeypot — real visitors never see or fill this field.
+  const [website, setWebsite] = useState("");
 
   const [state, setState] = useState<State>("idle");
   const [errorMsg, setErrorMsg] = useState("");
@@ -100,6 +102,7 @@ export default function DemoForm() {
           name,
           company_name: company,
           email,
+          website,
           questionnaire: {
             team_size: teamSize || null,
             industry: industry || null,
@@ -240,7 +243,7 @@ export default function DemoForm() {
 
   // ── Step 2 — Module overview + contact form ──────────
   return (
-    <form className={styles.card} onSubmit={handleSubmit} noValidate>
+    <form className={styles.card} onSubmit={handleSubmit}>
       <div className={styles.steps}>
         <button
           type="button"
@@ -340,6 +343,18 @@ export default function DemoForm() {
         </div>
       </div>
 
+      {/* Honeypot — visually hidden; bots that fill it are silently dropped server-side */}
+      <input
+        type="text"
+        name="website"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+        autoComplete="off"
+        tabIndex={-1}
+        aria-hidden="true"
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+      />
+
       <button className={styles.submit} type="submit" disabled={busy}>
         {busy ? "Sending…" : "Request demo →"}
       </button>
@@ -347,6 +362,11 @@ export default function DemoForm() {
       {state === "error" && errorMsg && (
         <p className={styles.error}>{errorMsg}</p>
       )}
+
+      <p className={styles.finePrint}>
+        By submitting you agree to our{" "}
+        <a href="/privacy" style={{ color: "#5BA4F5" }}>Privacy Policy</a>
+      </p>
 
       <p className={styles.finePrint}>
         No credit card required · Your demo link lands in your inbox within a minute

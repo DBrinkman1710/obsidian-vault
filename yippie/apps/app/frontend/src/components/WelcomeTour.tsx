@@ -1,16 +1,19 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   Inbox, Users, ClipboardList, Calendar, Kanban, MessageSquare,
   CreditCard, Activity, ChevronRight, X, Package, Megaphone,
-  BarChart3, TrendingUp, ArrowRight,
+  BarChart3, TrendingUp, ArrowRight, FileText, Zap,
 } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { useTenantConfig } from '../App'
 
-// Order must match sidebar MODULE_MAP top-to-bottom: inbox→contacts→tickets→calendar→pipeline→activity→billing→chat→marketing→tracking→sales→saas
+// Order must match sidebar MODULE_MAP top-to-bottom:
+// inbox→contacts→tickets→calendar→pipeline→activity→billing→contracts→chat→marketing→tracking→sales→saas→flows
+// Titles must match the sidebar's English labels (i18n/translations.ts) so the
+// tour names the same thing the user sees in the nav.
 const STEP_DEFS: {
   module: string
   title: string
@@ -21,7 +24,7 @@ const STEP_DEFS: {
   {
     module: 'inbox',
     title: 'Your Inbox',
-    body: 'Incoming mail and WhatsApp messages land here. AI drafts a ticket for each one. Review and approve with one click.',
+    body: 'Incoming mail and WhatsApp messages land here. AI can draft a ticket for each one. Review and approve with one click.',
     route: '/inbox',
     icon: <Inbox size={22} className="text-blue-500" />,
   },
@@ -55,7 +58,7 @@ const STEP_DEFS: {
   },
   {
     module: 'activity',
-    title: 'Activity Log',
+    title: 'Activity',
     body: 'A full audit trail of everything your team has done: replies, ticket updates, pipeline moves, and more.',
     route: '/activity',
     icon: <Activity size={22} className="text-teal-500" />,
@@ -66,6 +69,13 @@ const STEP_DEFS: {
     body: 'Manage invoices, track payment status, and export your financials. All in one place.',
     route: '/billing',
     icon: <CreditCard size={22} className="text-slate-500" />,
+  },
+  {
+    module: 'contracts',
+    title: 'Contracts',
+    body: 'Manage the full contract lifecycle: draft, send for e-signing, and track renewals. Customers sign online with a draw-to-sign page.',
+    route: '/contracts',
+    icon: <FileText size={22} className="text-sky-500" />,
   },
   {
     module: 'chat',
@@ -83,14 +93,14 @@ const STEP_DEFS: {
   },
   {
     module: 'tracking',
-    title: 'Track & Trace',
+    title: 'Tracking',
     body: 'Connect Sendcloud to monitor shipments and share tracking links with customers automatically.',
     route: '/tracking',
     icon: <Package size={22} className="text-amber-500" />,
   },
   {
     module: 'sales',
-    title: 'Sales Dashboard',
+    title: 'Sales',
     body: 'Track revenue, monitor sales performance, and see which deals are moving through your pipeline.',
     route: '/sales',
     icon: <TrendingUp size={22} className="text-cyan-500" />,
@@ -102,12 +112,30 @@ const STEP_DEFS: {
     route: '/saas',
     icon: <BarChart3 size={22} className="text-indigo-500" />,
   },
+  {
+    module: 'flows',
+    title: 'Flows',
+    body: 'Build no-code automations with triggers, SLA escalation, and webhooks. Set a flow live and let it handle the routine work.',
+    route: '/flows',
+    icon: <Zap size={22} className="text-fuchsia-500" />,
+  },
 ]
 
+// Per-user sessionStorage key so the checklist's page reloads (branding save,
+// profile save) resume the tour at the same step instead of resetting to 0.
+export function tourStepStorageKey(userId: string) {
+  return `welcome_tour_step_${userId}`
+}
+
 export default function WelcomeTour() {
-  const [step, setStep] = useState(0)
+  const { user, refreshUser } = useAuth()
+  const storageKey = user ? tourStepStorageKey(user.id) : null
+  const [step, setStep] = useState(() => {
+    if (!storageKey) return 0
+    const saved = Number(sessionStorage.getItem(storageKey))
+    return Number.isInteger(saved) && saved > 0 ? saved : 0
+  })
   const [minimised, setMinimised] = useState(false)
-  const { refreshUser } = useAuth()
   const navigate = useNavigate()
   const config = useTenantConfig()
 
@@ -116,22 +144,32 @@ export default function WelcomeTour() {
     ? STEP_DEFS.filter(s => enabledModules.includes(s.module))
     : STEP_DEFS.slice(0, 3)
 
+  // Persist progress across the reloads some checklist detours trigger.
+  useEffect(() => {
+    if (storageKey) sessionStorage.setItem(storageKey, String(step))
+  }, [step, storageKey])
+
   const completeMutation = useMutation({
     mutationFn: () => api.patch('/auth/me', { tour_completed: true }).then((r: any) => r.data),
-    onSuccess: () => refreshUser(),
+    onSuccess: () => {
+      if (storageKey) sessionStorage.removeItem(storageKey)
+      refreshUser()
+    },
   })
 
   if (!config) return null
 
-  const current = steps[step]
+  // Clamp in case a persisted step outlives a shrunken module set.
+  const boundedStep = Math.min(step, steps.length - 1)
+  const current = steps[boundedStep]
   if (!current) return null
 
-  const isLast = step === steps.length - 1
+  const isLast = boundedStep === steps.length - 1
 
   function dismiss() { completeMutation.mutate() }
 
   function next() {
-    if (step < steps.length - 1) setStep(s => s + 1)
+    if (boundedStep < steps.length - 1) setStep(boundedStep + 1)
     else dismiss()
   }
 
@@ -143,7 +181,7 @@ export default function WelcomeTour() {
         className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 flex items-center gap-2 bg-white border border-slate-200 rounded-full shadow-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
       >
         <span className="w-2 h-2 rounded-full bg-yippie animate-pulse shrink-0" />
-        Tour ({step + 1}/{steps.length})
+        Tour ({boundedStep + 1}/{steps.length})
       </button>
     )
   }
@@ -154,7 +192,7 @@ export default function WelcomeTour() {
       <div className="h-1 bg-slate-100">
         <div
           className="h-full bg-yippie transition-all duration-300"
-          style={{ width: `${((step + 1) / steps.length) * 100}%` }}
+          style={{ width: `${((boundedStep + 1) / steps.length) * 100}%` }}
         />
       </div>
 
@@ -167,7 +205,7 @@ export default function WelcomeTour() {
                 key={i}
                 onClick={() => setStep(i)}
                 className={`h-1.5 rounded-full transition-all ${
-                  i === step ? 'w-5 bg-yippie' : i < step ? 'w-2 bg-yippie/40' : 'w-2 bg-slate-200'
+                  i === boundedStep ? 'w-5 bg-yippie' : i < boundedStep ? 'w-2 bg-yippie/40' : 'w-2 bg-slate-200'
                 }`}
               />
             ))}

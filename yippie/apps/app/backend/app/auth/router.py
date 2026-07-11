@@ -110,11 +110,32 @@ async def login(body: LoginRequest, request: Request, response: Response, db: An
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     if not user.is_active:
+        # An inactive user who has never logged in is a self-serve signup that
+        # hasn't clicked their verification email yet (accounts are created
+        # inactive until verified) — point them at their inbox instead of the
+        # dead-end "deactivated" message.
+        if user.last_login_at is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Check your inbox to activate your account — we sent you a verification email when you signed up.",
+            )
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Account deactivated")
     if user.role != UserRole.superadmin:
         tenant = await db.get(Tenant, user.tenant_id)
         if tenant is None or not tenant.is_active:
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This workspace is inactive")
+            detail = "This workspace is inactive"
+            # [TRIAL30] Distinguish trial expiry — the hourly trial_expiry_check
+            # job deactivates unconverted tenants once trial_ends_at passes.
+            if tenant is not None and tenant.trial_ends_at is not None:
+                trial_end = tenant.trial_ends_at
+                if trial_end.tzinfo is None:
+                    trial_end = trial_end.replace(tzinfo=timezone.utc)
+                if trial_end < datetime.now(timezone.utc):
+                    detail = (
+                        "Your free trial has ended — check your email for reactivation options, "
+                        "or contact support@getyippie.com"
+                    )
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=detail)
 
     await db.execute(
         update(User).where(User.id == user.id).values(last_login_at=datetime.now(timezone.utc))

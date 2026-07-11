@@ -396,8 +396,10 @@ export default function App() {
   return (
     <TenantConfigContext.Provider value={config}>
       <ComposeProvider>
-      {user && !user.tour_completed && <WelcomeTour />}
-      <SetupChecklist />
+      {/* First-run surfaces are the impersonated user's — never consume their
+          tour/checklist state while a superadmin is viewing as them. */}
+      {user && !user.tour_completed && !impersonating && <WelcomeTour />}
+      {!impersonating && <SetupChecklist />}
       <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
         <Sidebar />
         <main className="flex-1 min-w-0 overflow-hidden flex flex-col pb-16 md:pb-0">
@@ -513,9 +515,7 @@ export default function App() {
               <Route path="/settings/workspace" element={<PagePad><WorkspaceSettingsPage /></PagePad>} />
 <Route path="/settings/team" element={<PagePad><TeamSettingsPage /></PagePad>} />
               <Route path="/settings/templates" element={<PagePad><TemplatesPage /></PagePad>} />
-              {config?.environment === 'sandbox' && (
-                <Route path="/settings/subscription" element={<PagePad><SubscriptionPage /></PagePad>} />
-              )}
+              <Route path="/settings/subscription" element={<PagePad><SubscriptionPage /></PagePad>} />
               <Route path="/superadmin/clients" element={<PagePad><SuperAdminPage /></PagePad>} />
               <Route path="/track/confirm" element={<TrackConfirmPage />} />
             </Routes>

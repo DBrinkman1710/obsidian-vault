@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, company_name, email, questionnaire } = body as Record<string, unknown>;
+  const { name, company_name, email, questionnaire, website } = body as Record<string, unknown>;
 
   if (
     typeof name !== "string" || !name.trim() ||
@@ -30,6 +30,10 @@ export async function POST(req: NextRequest) {
   };
   if (questionnaire && typeof questionnaire === "object") {
     payload.questionnaire = questionnaire;
+  }
+  // Honeypot field — forwarded as-is; the backend drops non-empty submissions.
+  if (typeof website === "string") {
+    payload.website = website;
   }
 
   let upstream: Response;

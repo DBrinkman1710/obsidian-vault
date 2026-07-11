@@ -43,7 +43,7 @@ const PLAN_NAMES: Record<PlanKey, string> = {
 };
 
 const MODULE_CONFIG = [
-  { key: "ai",          recName: "AI",               Icon: AiIcon,        price: MODULE_PRICES.ai,          desc: "AI scans every message and drafts the ticket. One click to approve." },
+  { key: "ai",          recName: "AI Inbox",         Icon: AiIcon,        price: MODULE_PRICES.ai,          desc: "AI scans every message and drafts the ticket. One click to approve." },
   { key: "tickets",     recName: "Tickets",          Icon: TicketIcon,    price: MODULE_PRICES.tickets,     desc: "Track, assign, and close requests with SLA alerts" },
   { key: "chat",        recName: "Live Chat",        Icon: ChatIcon,      price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp. All conversations in one inbox." },
   { key: "calendar",    recName: "Calendar",         Icon: CalendarIcon,  price: MODULE_PRICES.calendar,    desc: "Booking links, availability grids, appointments" },
@@ -92,6 +92,22 @@ type FormState = "idle" | "submitting" | "success" | "error";
    refresh, or coming back later never asks them to reselect. */
 const STORAGE_KEY = "yippie_custom_plan";
 
+/* Demo → trial conversion emails link /signup?token=<jwt>. The payload is
+   readable without verification (prefill only — the backend re-verifies). */
+function decodeToken(token: string): { company_name?: string; questionnaire?: Record<string, unknown> } | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    return JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+  } catch {
+    return null;
+  }
+}
+
+/* Endowed progress (ux-habits): never show 0% — arriving with a recommended
+   setup already counts. The bar only moves forward. */
+const STEP_PROGRESS: Record<number, number> = { 1: 30, 2: 60, 3: 85 };
+
 export default function CustomForm() {
   const [step, setStep] = useState<1 | 2 | 3>(1);
 
@@ -110,16 +126,32 @@ export default function CustomForm() {
   const [recommendedNames, setRecommendedNames] = useState<string[]>([]);
   const [recommendedKeys, setRecommendedKeys] = useState<ModuleKey[]>([]);
   const [selectedModules, setSelectedModules] = useState<ModuleKey[]>([]);
+  // Smart default (ux-habits): the recommendation preselects the plan; the
+  // visitor can override it in the plan picker on step 2.
+  const [pickedPlan, setPickedPlan] = useState<PlanKey | null>(null);
 
   const searchParams = useSearchParams();
   const isFounder = searchParams.get("plan") === "founder";
+
+  // Demo → trial conversion: outreach emails carry a signed token that prefill
+  // the company + questionnaire and travels along to the signup API.
+  const fromDemoToken = searchParams.get("token") ?? "";
+  const tokenData = useMemo(() => (fromDemoToken ? decodeToken(fromDemoToken) : null), [fromDemoToken]);
 
   // Step 3 state
   const [name, setName] = useState("");
   const [company, setCompany] = useState("");
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  // Honeypot — real visitors never see or fill this field.
+  const [website, setWebsite] = useState("");
   const [formState, setFormState] = useState<FormState>("idle");
   const [errorMsg, setErrorMsg] = useState("");
+  // Success flavours: trial signups get an entry-link mail; older backends
+  // return a login URL instead; enterprise sends a tailored quote.
+  const [successKind, setSuccessKind] = useState<"entry_mail" | "login" | "quote">("entry_mail");
+  const [loginUrl, setLoginUrl] = useState("");
 
   // Only preseed the module selection from recommendations once — after that
   // the visitor's own package survives going back and forth between steps.
@@ -145,11 +177,23 @@ export default function CustomForm() {
           seededRef.current = true;
         }
         if (typeof s.annual === "boolean") setAnnual(s.annual);
+        if (typeof s.pickedPlan === "string" && PLANS_BY_RANK.includes(s.pickedPlan)) setPickedPlan(s.pickedPlan);
         if (typeof s.name === "string") setName(s.name);
         if (typeof s.company === "string") setCompany(s.company);
         if (typeof s.email === "string") setEmail(s.email);
       }
     } catch { /* corrupt or unavailable storage — start fresh */ }
+    // Demo-token prefill wins over the stored snapshot (runs once, after it).
+    if (tokenData) {
+      if (typeof tokenData.company_name === "string") setCompany(tokenData.company_name);
+      const q = tokenData.questionnaire as Record<string, unknown> | undefined;
+      if (q) {
+        if (typeof q.team_size === "string") setTeamSize(q.team_size);
+        if (typeof q.industry === "string") setIndustry(q.industry);
+        if (Array.isArray(q.current_tools)) setCurrentTools(q.current_tools as string[]);
+        if (Array.isArray(q.pain_points)) setPainPoints(q.pain_points as string[]);
+      }
+    }
     hydratedRef.current = true;
   }, []);
 
@@ -158,7 +202,7 @@ export default function CustomForm() {
     if (!hydratedRef.current) return;
     const snapshot = {
       brandColor, logoUrl, teamSize, industry, painPoints, currentTools,
-      recommendedNames, recommendedKeys, selectedModules, annual, name, company, email,
+      recommendedNames, recommendedKeys, selectedModules, annual, pickedPlan, name, company, email,
     };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
@@ -169,7 +213,7 @@ export default function CustomForm() {
       } catch { /* storage unavailable */ }
     }
   }, [brandColor, logoUrl, teamSize, industry, painPoints, currentTools,
-      recommendedNames, recommendedKeys, selectedModules, annual, name, company, email]);
+      recommendedNames, recommendedKeys, selectedModules, annual, pickedPlan, name, company, email]);
 
   const recommendedPlanKey = useMemo<PlanKey>(() => {
     const idx = TEAM_SIZES.indexOf(teamSize);
@@ -177,11 +221,15 @@ export default function CustomForm() {
     return PLANS_BY_RANK[Math.min(idx, 3)] ?? "growth";
   }, [teamSize]);
 
+  // The plan that actually applies: the visitor's own pick, falling back to
+  // the recommendation (smart default).
+  const planKey: PlanKey = pickedPlan ?? recommendedPlanKey;
+
   const planLimits = useMemo(() => {
     if (isFounder) return PLAN_LIMITS.founder;
-    if (recommendedPlanKey === "enterprise") return null;
-    return PLAN_LIMITS[recommendedPlanKey];
-  }, [isFounder, recommendedPlanKey]);
+    if (planKey === "enterprise") return null;
+    return PLAN_LIMITS[planKey];
+  }, [isFounder, planKey]);
 
   const planMonthlyDisplay = useMemo(() => {
     if (!planLimits) return null;
@@ -277,44 +325,131 @@ export default function CustomForm() {
     setStep(2);
   }
 
+  // Shared questionnaire payload — the lead/quote endpoints and the signup
+  // endpoint carry the same shape (branding included, [WEB-LOGO-CARRY]).
+  function questionnairePayload() {
+    return {
+      team_size: teamSize || null,
+      industry: industry || null,
+      current_tools: currentTools.length ? currentTools : null,
+      pain_points: painPoints.length ? painPoints : null,
+      recommended_modules: recommendedNames.length ? recommendedNames : null,
+      plan_selected: isFounder ? "founder" : planKey,
+      modules_selected: selectedModules.length ? selectedModules : null,
+      monthly_total: (isFounder || planKey !== "enterprise") ? displayMonthlyTotal : null,
+      billing_cycle: annual ? "annual" : "monthly",
+      branding_color: brandColor,
+      branding_logo: logoUrl,
+    };
+  }
+
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    setFormState("submitting");
     setErrorMsg("");
 
+    const isEnterpriseSubmit = !isFounder && planKey === "enterprise";
+
+    // Enterprise is custom made: no instant workspace — a tailored proposal
+    // within 1 business day (plus the book-a-call escape hatch).
+    if (isEnterpriseSubmit) {
+      setFormState("submitting");
+      try {
+        const res = await fetch("/api/custom-plan", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name,
+            company_name: company,
+            email,
+            website,
+            questionnaire: questionnairePayload(),
+          }),
+        });
+        if (res.ok) {
+          setSuccessKind("quote");
+          setFormState("success");
+          return;
+        }
+        const data = await res.json().catch(() => ({}));
+        setErrorMsg(typeof data?.error === "string" ? data.error : "Something went wrong. Please try again.");
+        setFormState("error");
+      } catch {
+        setErrorMsg("Network error. Please check your connection and try again.");
+        setFormState("error");
+      }
+      return;
+    }
+
+    // Self serve trial — validate locally before creating anything.
+    if (password.length < 8) {
+      setErrorMsg("Please choose a password of at least 8 characters.");
+      setFormState("error");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setErrorMsg("Passwords do not match.");
+      setFormState("error");
+      return;
+    }
+    setFormState("submitting");
+
+    // Lead capture first, best effort — the lead lands in the owner CRM even
+    // if workspace creation fails on the next call.
     try {
-      const res = await fetch("/api/custom-plan", {
+      void fetch("/api/questionnaire-lead", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        keepalive: true,
+        body: JSON.stringify({
+          name: name.trim() || email.split("@")[0],
+          email: email.trim(),
+          company: company.trim() || email.split("@")[0],
+          website,
+          questionnaire: questionnairePayload(),
+        }),
+      });
+    } catch { /* lead capture must never block workspace creation */ }
+
+    try {
+      const res = await fetch("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          name,
-          company_name: company,
-          email,
-          questionnaire: {
-            team_size: teamSize || null,
-            industry: industry || null,
-            current_tools: currentTools.length ? currentTools : null,
-            pain_points: painPoints.length ? painPoints : null,
-            recommended_modules: recommendedNames.length ? recommendedNames : null,
-            plan_selected: isFounder ? "founder" : recommendedPlanKey,
-            modules_selected: selectedModules.length ? selectedModules : null,
-            monthly_total: (isFounder || recommendedPlanKey !== "enterprise") ? displayMonthlyTotal : null,
-            billing_cycle: annual ? "annual" : "monthly",
-            branding_color: brandColor,
-            branding_logo: logoUrl,
-          },
+          name: name.trim(),
+          company_name: company.trim(),
+          email: email.trim(),
+          password,
+          website,
+          plan: isFounder ? "founder" : planKey,
+          enabled_modules: selectedModules,
+          questionnaire: questionnairePayload(),
+          from_demo_token: fromDemoToken || undefined,
         }),
       });
 
       if (res.ok) {
+        const data = await res.json().catch(() => ({}));
+        // Stripe hook: backend returns { payment: { checkout_url } } when live.
+        if (data.payment?.checkout_url) {
+          window.location.href = data.payment.checkout_url;
+          return;
+        }
+        if (data.verification_required) {
+          // New backend: entry link is in the mail — verification IS the login.
+          setSuccessKind("entry_mail");
+        } else {
+          // Older backend: account is live right away, hand them the login.
+          setSuccessKind("login");
+          setLoginUrl(typeof data.login_url === "string" ? data.login_url : `${APP_URL}/login`);
+        }
         setFormState("success");
         return;
       }
 
       const data = await res.json().catch(() => ({}));
       setErrorMsg(
-        typeof data?.error === "string"
-          ? data.error
+        typeof data?.error === "string" ? data.error
+          : typeof data?.detail === "string" ? data.detail
           : "Something went wrong. Please try again.",
       );
       setFormState("error");
@@ -338,21 +473,57 @@ export default function CustomForm() {
     </aside>
   );
 
-  // ── Success ──────────────────────────────────────────────
+  // Endowed progress (ux-habits): starts at 30%, never at 0 — the recommended
+  // setup the visitor arrives with already counts as momentum.
+  const progressPct = formState === "success" ? 100 : STEP_PROGRESS[step] ?? 30;
+  const progressBar = (
+    <div className={styles.progressWrap}>
+      <div className={styles.progressTrack}>
+        <div className={styles.progressFill} style={{ width: `${progressPct}%` }} />
+      </div>
+      <span className={styles.progressLabel}>{progressPct}% there</span>
+    </div>
+  );
+
+  // ── Success — three flavours ─────────────────────────────
   if (formState === "success") {
     return (
       <div className={styles.layout}>
         <div className={styles.card}>
+          {progressBar}
           <div className={styles.success}>
             <div className={styles.successIcon}>✓</div>
-            <h2 className={styles.successTitle}>Quote request sent</h2>
-            <p className={styles.successSub}>
-              Your workspace is ready to go. We&apos;ll be in touch within 1 business
-              day with your personalised package proposal. Want to talk sooner?
-            </p>
-            <a href={TALK_PATH} target="_blank" rel="noopener noreferrer" className={styles.successBookCall}>
-              Book a call →
-            </a>
+            {successKind === "quote" ? (
+              <>
+                <h2 className={styles.successTitle}>Request sent</h2>
+                <p className={styles.successSub}>
+                  Enterprise is custom made for you. We&apos;ll send a tailored
+                  proposal within 1 business day. Want to talk sooner?
+                </p>
+                <a href={TALK_PATH} target="_blank" rel="noopener noreferrer" className={styles.successBookCall}>
+                  Book a call →
+                </a>
+              </>
+            ) : successKind === "login" ? (
+              <>
+                <h2 className={styles.successTitle}>Your workspace is ready</h2>
+                <p className={styles.successSub}>
+                  Your 30 day free trial has started — no payment details needed.
+                </p>
+                <a href={loginUrl} className={styles.successBookCall}>
+                  Log in to your workspace →
+                </a>
+              </>
+            ) : (
+              <>
+                <h2 className={styles.successTitle}>Check your inbox — your workspace is ready</h2>
+                <p className={styles.successSub}>
+                  We&apos;ve emailed an entry link to <strong>{email}</strong>.
+                  One click and you&apos;re in. First 30 days free, no payment
+                  details needed.
+                </p>
+              </>
+            )}
           </div>
         </div>
         {preview}
@@ -367,6 +538,7 @@ export default function CustomForm() {
     return (
       <div className={styles.layout}>
       <div className={styles.card}>
+        {progressBar}
         <div className={styles.steps}>
           <span className={`${styles.stepDot} ${styles.stepDotActive}`}>1</span>
           <span className={styles.stepLine} />
@@ -495,11 +667,12 @@ export default function CustomForm() {
   if (step === 2) {
     const recMods = MODULE_CONFIG.filter((m) => recommendedKeys.includes(m.key as ModuleKey));
     const extraMods = MODULE_CONFIG.filter((m) => !recommendedKeys.includes(m.key as ModuleKey));
-    const isEnterprise = !isFounder && recommendedPlanKey === "enterprise";
+    const isEnterprise = !isFounder && planKey === "enterprise";
 
     return (
       <div className={styles.layout}>
       <div className={styles.card}>
+        {progressBar}
         <div className={styles.steps}>
           <button
             type="button"
@@ -551,17 +724,28 @@ export default function CustomForm() {
             </>
           ) : (
             <>
-              <p className={styles.planLabel}>Recommended plan for your team</p>
-              <div className={styles.planRow}>
-                <span className={styles.planName}>{PLAN_NAMES[recommendedPlanKey]}</span>
-                {isEnterprise ? (
-                  <span className={styles.planEnterprise}>Custom pricing</span>
-                ) : (
-                  <span>
-                    <span className={styles.planPrice}>€{planMonthlyDisplay}</span>
-                    <span className={styles.planPricePer}>/mo</span>
-                  </span>
-                )}
+              <p className={styles.planLabel}>Pick your plan</p>
+              <div className={styles.planOptions}>
+                {PLANS_BY_RANK.map((k) => {
+                  const lims = k === "enterprise" ? null : PLAN_LIMITS[k];
+                  const active = planKey === k;
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      className={`${styles.planOption} ${active ? styles.planOptionActive : ""}`}
+                      onClick={() => setPickedPlan(k)}
+                    >
+                      <span className={styles.planOptionName}>{PLAN_NAMES[k]}</span>
+                      <span className={styles.planOptionPrice}>
+                        {lims ? `€${annual ? Math.round(lims.priceAnnual / 12) : lims.priceMonthly}/mo` : "Custom"}
+                      </span>
+                      {recommendedPlanKey === k && (
+                        <span className={styles.planOptionBadge}>Recommended</span>
+                      )}
+                    </button>
+                  );
+                })}
               </div>
               {planLimits && (
                 <p className={styles.planMeta}>
@@ -570,7 +754,9 @@ export default function CustomForm() {
                 </p>
               )}
               {isEnterprise && (
-                <p className={styles.planMeta}>Unlimited users · unlimited AI scans</p>
+                <p className={styles.planMeta}>
+                  Unlimited users · unlimited AI scans · custom made — tailored proposal within 1 business day
+                </p>
               )}
             </>
           )}
@@ -653,7 +839,7 @@ export default function CustomForm() {
             <span className={styles.totalLabel}>
               {isEnterprise
                 ? "Enterprise plan + " + selectedModules.length + " module" + (selectedModules.length !== 1 ? "s" : "")
-                : PLAN_NAMES[recommendedPlanKey] + " plan"
+                : PLAN_NAMES[planKey] + " plan"
                   + (selectedModules.length > 0
                     ? " + " + selectedModules.length + " module" + (selectedModules.length !== 1 ? "s" : "")
                     : "")}
@@ -690,15 +876,16 @@ export default function CustomForm() {
     );
   }
 
-  // ── Step 3 — Contact + summary ───────────────────────────
+  // ── Step 3 — Account (self serve) or quote request (enterprise) ──────────
   const selectedModuleDetails = MODULE_CONFIG.filter((m) =>
     selectedModules.includes(m.key as ModuleKey),
   );
-  const isEnterprise = !isFounder && recommendedPlanKey === "enterprise";
+  const isEnterprise = !isFounder && planKey === "enterprise";
 
   return (
     <div className={styles.layout}>
-    <form className={styles.card} onSubmit={handleSubmit} noValidate>
+    <form className={styles.card} onSubmit={handleSubmit}>
+      {progressBar}
       <div className={styles.steps}>
         <button
           type="button"
@@ -726,7 +913,7 @@ export default function CustomForm() {
         <p className={styles.summaryTitle}>Your package</p>
         <div className={styles.summaryLines}>
           <div className={styles.summaryLine}>
-            <span className={styles.summaryLineName}>{isFounder ? "Founding Member" : PLAN_NAMES[recommendedPlanKey]} plan</span>
+            <span className={styles.summaryLineName}>{isFounder ? "Founding Member" : PLAN_NAMES[planKey]} plan</span>
             {!isEnterprise && planMonthlyDisplay !== null ? (
               <span className={styles.summaryLinePrice}>€{planMonthlyDisplay}/mo</span>
             ) : (
@@ -810,11 +997,72 @@ export default function CustomForm() {
             disabled={busy}
           />
         </div>
+
+        {!isEnterprise && (
+          <>
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="custom-password">Choose a password</label>
+              <input
+                id="custom-password"
+                className={styles.input}
+                type="password"
+                placeholder="At least 8 characters"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor="custom-password-confirm">Confirm password</label>
+              <input
+                id="custom-password-confirm"
+                className={styles.input}
+                type="password"
+                placeholder="Repeat your password"
+                required
+                minLength={8}
+                autoComplete="new-password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                disabled={busy}
+              />
+            </div>
+          </>
+        )}
       </div>
 
+      {/* Honeypot — visually hidden; bots that fill it are silently dropped server-side */}
+      <input
+        type="text"
+        name="website"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+        autoComplete="off"
+        tabIndex={-1}
+        aria-hidden="true"
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+      />
+
       <button className={styles.submit} type="submit" disabled={busy}>
-        {busy ? "Sending…" : "Send my quote →"}
+        {busy
+          ? "One moment…"
+          : isEnterprise ? "Request my proposal →" : "Create my workspace →"}
       </button>
+
+      <p className={styles.finePrint}>
+        {isEnterprise
+          ? "Custom made for your organisation · Tailored proposal within 1 business day"
+          : "First 30 days free · No payment details needed · Cancel any time"}
+      </p>
+
+      <p className={styles.finePrint}>
+        By submitting you agree to our{" "}
+        <a href="/privacy" style={{ color: "#5BA4F5" }}>Privacy Policy</a>
+      </p>
 
       {formState === "error" && errorMsg && (
         <p className={styles.error}>{errorMsg}</p>
@@ -825,10 +1073,6 @@ export default function CustomForm() {
       <a href={TALK_PATH} target="_blank" rel="noopener noreferrer" className={styles.bookCall}>
         Prefer to talk first? Book a call →
       </a>
-
-      <p className={styles.finePrint}>
-        No credit card required · We reply within 1 business day
-      </p>
     </form>
     {preview}
     </div>

@@ -13,6 +13,14 @@ const nextConfig = {
 
   reactStrictMode: true,
 
+  async redirects() {
+    return [
+      // One onboarding flow: the package builder lives at /signup now.
+      // Query strings (?plan=founder, ?token=…) are passed through.
+      { source: "/custom", destination: "/signup", permanent: false },
+    ];
+  },
+
   async headers() {
     // Content-Security-Policy for the marketing site.
     // - script-src: Next.js injects inline bootstrap scripts, so 'unsafe-inline'

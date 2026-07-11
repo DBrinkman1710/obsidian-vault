@@ -44,7 +44,7 @@ const featureGroups = [
       {
         Icon: InboxIcon,
         title: "Smart Inbox",
-        desc: "AI reads every message and drafts the ticket subject, priority, and description. Review, approve, done.",
+        desc: "One shared inbox for the whole team. Add the AI Inbox add-on and AI drafts the ticket subject, priority, and description. Review, approve, done.",
       },
       {
         Icon: TicketIcon,
@@ -139,7 +139,7 @@ const steps = [
   {
     n: "02",
     title: "AI drafts the ticket",
-    desc: "Yippie reads the message and suggests subject, priority, and description.",
+    desc: "The AI Inbox add-on reads the message and suggests subject, priority, and description.",
   },
   {
     n: "03",
@@ -215,8 +215,9 @@ export default function HomePage() {
               Take back the time<br />that matters.
             </h1>
             <p className={styles.heroSub}>
-              Yippie auto-drafts every support ticket from your inbox and grows
-              alongside your business. Review, approve, done.
+              Yippie brings your whole support inbox into one workspace and grows
+              alongside your business. Add the AI Inbox add-on and every support
+              ticket is auto-drafted for you. Review, approve, done.
             </p>
             <div className={styles.heroActions}>
               <a href="/signup" className={styles.btnPrimary}>
@@ -290,7 +291,7 @@ export default function HomePage() {
           <p className={styles.eyebrow}>// How it works</p>
           <h2 className={styles.sectionTitle}>From email to resolved in seconds</h2>
           <p className={styles.sectionSub}>
-            Yippie&apos;s AI reads every incoming message and does the write-up for you.
+            With the AI Inbox add-on, Yippie reads every incoming message and does the write-up for you.
           </p>
         </Reveal>
         <div className={styles.steps}>
@@ -390,7 +391,7 @@ export default function HomePage() {
           <p className={styles.founderText}>
             <strong>Founding Member: {FOUNDER_SPOTS_LEFT} of {FOUNDER_SPOTS_TOTAL} spots left</strong> at €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
           </p>
-          <a href="/custom?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
+          <a href="/signup?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
         </div>
 
         <PricingTeaser />

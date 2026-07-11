@@ -32,6 +32,12 @@ export default function SetupChecklist() {
   const [showMakeItYours, setShowMakeItYours] = useState(false)
 
   const isAdmin = user?.role === 'admin'
+  // The jarvis train endpoint is mounted behind require_module("ai") +
+  // require_feature("ai") on the backend, so tenants without the ai module
+  // (or a plan that allows it) would 403/402 and could never complete a
+  // "Train Yip" gate — only show it when the tenant can actually call it.
+  const aiEnabled = (config?.enabled_modules ?? []).includes('ai')
+    && (config?.allowed_features ?? []).includes('ai')
 
   // Branding is "made yours" once the colour differs from the platform default,
   // a logo has been set, or the user explicitly saved their branding at least
@@ -42,15 +48,18 @@ export default function SetupChecklist() {
     || !!config?.branding?.logo_url
     || (!!config?.tenant_id && localStorage.getItem(`made_it_yours_${config.tenant_id}`) === '1')
 
+  // Share the source pages' query keys (['team-users'] in TeamSettingsPage,
+  // ['signatures'] in useSignatures/ProfileSettingsPage) so their mutation
+  // invalidations flip these gates immediately.
   const teamQuery = useQuery({
-    queryKey: ['setup-team-count'],
+    queryKey: ['team-users'],
     queryFn: () => api.get('/team/users').then((r: any) => r.data as { id: string }[]),
-    enabled: isAdmin,
+    enabled: isAdmin && !!user && !user.setup_checklist_dismissed,
     staleTime: 5 * 60 * 1000,
   })
 
   const signatureQuery = useQuery({
-    queryKey: ['setup-signatures'],
+    queryKey: ['signatures'],
     queryFn: () => api.get('/auth/me/signatures').then((r: any) => r.data as { id: string }[]),
     staleTime: 5 * 60 * 1000,
     enabled: !!user && !user.setup_checklist_dismissed,
@@ -80,7 +89,7 @@ export default function SetupChecklist() {
       done: (signatureQuery.data?.length ?? 0) > 0,
       optional: true,
     },
-    ...(isAdmin ? [{
+    ...(isAdmin && aiEnabled ? [{
       id: 'yip-train',
       label: 'Train Yip',
       detail: 'Help Yip learn your business so AI replies fit your brand.',
@@ -133,7 +142,10 @@ export default function SetupChecklist() {
 
   return (
     <>
-    <div className={`fixed bottom-20 md:bottom-6 z-40 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden ${tourActive ? 'right-4 md:right-[22rem]' : 'right-4 md:right-6'}`}>
+    {/* While the tour is active the checklist hides below md — both are fixed
+        bottom-20 right-4 on mobile and the checklist would paint over the
+        tour's Next button. Desktop keeps the side-by-side shift. */}
+    <div className={`fixed bottom-20 md:bottom-6 z-40 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden ${tourActive ? 'hidden md:block right-4 md:right-[22rem]' : 'right-4 md:right-6'}`}>
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
         <div>

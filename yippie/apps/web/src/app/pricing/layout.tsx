@@ -10,6 +10,8 @@ export const metadata: Metadata = {
     title: "Yippie Pricing — Start free, scale as you grow",
     description:
       "Unlimited contacts on every plan. 30 day free trial, no credit card required. Starter from €19/mo.",
+    url: "https://getyippie.com/pricing",
+    images: ["/og.png"],
   },
 };
 

@@ -24,7 +24,6 @@ import {
   SaasIcon,
 } from "../components/icons";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
@@ -38,6 +37,7 @@ export const metadata: Metadata = {
       "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
     url: "https://getyippie.com/modules",
     type: "website",
+    images: ["/og.png"],
   },
 };
 
@@ -57,9 +57,9 @@ const modules: Module[] = [
     id: "inbox",
     kicker: "INBOX",
     title: "Smart Inbox: zero manual write-up",
-    desc: "Every incoming email lands in a unified inbox where AI reads the message and instantly drafts the ticket subject, priority, and description. You review, edit if needed, and approve in one click. Minutes of admin turned into seconds.",
+    desc: "Every incoming email lands in a unified inbox. Add the AI Inbox add-on and AI reads the message and instantly drafts the ticket subject, priority, and description. You review, edit if needed, and approve in one click. Minutes of admin turned into seconds.",
     bullets: [
-      "AI auto-drafts subject, priority, and description from every email",
+      "AI Inbox add-on auto-drafts subject, priority, and description from every email",
       "Bulk approve, archive, or reassign in a single action",
       "Shared inbox for the whole team. No more CC chains.",
       "SLA timers start the moment a message arrives",
@@ -345,7 +345,7 @@ export default function ModulesPage() {
           <a href={DEMO_URL} className={contentStyles.btnPrimary}>
             Request demo →
           </a>
-          <a href="/modules" className={contentStyles.btnGhost}>
+          <a href="/pricing" className={contentStyles.btnGhost}>
             All features
           </a>
         </div>
@@ -396,13 +396,8 @@ export default function ModulesPage() {
                     </li>
                   ))}
                 </ul>
-                <a
-                  href={`${APP_URL}${mod.path}`}
-                  className={styles.openBtn}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Open in app
+                <a href="/request-demo" className={styles.openBtn}>
+                  See it in a demo
                   <ArrowRightIcon size={15} />
                 </a>
               </div>

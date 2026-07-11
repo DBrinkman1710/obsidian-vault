@@ -3,8 +3,7 @@ import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "../components/content.module.css";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
-const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
+const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
   title: "Yippie vs Zendesk | The SMB-Friendly Zendesk Alternative",

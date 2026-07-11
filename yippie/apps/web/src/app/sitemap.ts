@@ -29,7 +29,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/nl", priority: 0.9, changeFrequency: "weekly" },
     { path: "/nl/pricing", priority: 0.8, changeFrequency: "monthly" },
     { path: "/request-demo", priority: 0.8, changeFrequency: "monthly" },
-    { path: "/custom", priority: 0.7, changeFrequency: "monthly" },
+    { path: "/docs", priority: 0.7, changeFrequency: "monthly" },
     { path: "/about", priority: 0.7, changeFrequency: "monthly" },
     { path: "/blog", priority: 0.7, changeFrequency: "weekly" },
     { path: "/blog/5-ways-ai-saves-smb-customer-service-time", priority: 0.6, changeFrequency: "monthly" },

@@ -24,6 +24,10 @@ class TenantCreate(BaseModel):
     plan: Optional[PlanTier] = None
     is_demo: bool = False
     inbound_email: Optional[str] = None
+    # Self-serve signup email verification: when False, the admin user is
+    # created inactive and must click the verification link before first login.
+    # Uses the existing users.is_active column — no schema change.
+    admin_is_active: bool = True
 
 
 class TenantUpdate(BaseModel):

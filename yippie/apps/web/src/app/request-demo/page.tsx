@@ -16,6 +16,7 @@ export const metadata: Metadata = {
       "See Yippie in action. Get instant access to your own demo workspace and watch AI turn a messy support inbox into resolved tickets in seconds.",
     url: "https://getyippie.com/request-demo",
     type: "website",
+    images: ["/og.png"],
   },
 };
 

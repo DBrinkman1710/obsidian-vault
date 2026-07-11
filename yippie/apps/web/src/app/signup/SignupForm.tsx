@@ -71,6 +71,32 @@ export default function SignupForm() {
     if (Array.isArray(q.pain_points)) setPainPoints(q.pain_points as string[]);
   }, []); // run once on mount
 
+  // Pre-populate from the /custom configurator handoff (runs once on mount):
+  // the builder persists everything in localStorage and redirects here, so the
+  // visitor never re-enters what they already told us. Demo token wins.
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("yippie_custom_plan");
+      if (!raw) return;
+      const s = JSON.parse(raw) as Record<string, unknown>;
+      if (!tokenData) {
+        if (typeof s.name === "string" && s.name) setName(s.name);
+        if (typeof s.company === "string" && s.company) setCompany(s.company);
+        if (typeof s.email === "string" && s.email) setEmail(s.email);
+        if (typeof s.teamSize === "string" && s.teamSize) setTeamSize(s.teamSize);
+        if (typeof s.industry === "string" && s.industry) setIndustry(s.industry);
+        if (Array.isArray(s.currentTools)) setCurrentTools(s.currentTools as string[]);
+        if (Array.isArray(s.painPoints)) setPainPoints(s.painPoints as string[]);
+      }
+      if (Array.isArray(s.selectedModules)) {
+        const known = (s.selectedModules as string[]).filter((id) =>
+          ADDON_MODULES.some((a) => a.id === id),
+        );
+        if (known.length) setPickedModules(known);
+      }
+    } catch { /* corrupt or unavailable storage — start fresh */ }
+  }, []); // run once on mount
+
   // Step 2 — Plan + modules
   const [plan, setPlan] = useState(initialPlan);
 
@@ -80,10 +106,13 @@ export default function SignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  // Honeypot — real visitors never see or fill this field.
+  const [website, setWebsite] = useState("");
 
   const [state, setState] = useState<State>("idle");
   const [errorMsg, setErrorMsg] = useState("");
   const [loginUrl, setLoginUrl] = useState("");
+  const [verificationRequired, setVerificationRequired] = useState(false);
 
   const hasAnyAnswer = !!teamSize || !!industry || currentTools.length > 0 || painPoints.length > 0;
 
@@ -155,6 +184,7 @@ export default function SignupForm() {
           name: name.trim() || email.split("@")[0],
           email: email.trim(),
           company: company.trim() || email.split("@")[0],
+          website,
           questionnaire: hasAnyAnswer ? {
             team_size: teamSize || null,
             industry: industry || null,
@@ -175,6 +205,7 @@ export default function SignupForm() {
           company_name: company.trim(),
           email: email.trim(),
           password,
+          website,
           plan,
           enabled_modules: selectedModules,
           questionnaire: (() => {
@@ -195,6 +226,12 @@ export default function SignupForm() {
 
       if (res.ok) {
         const data = await res.json().catch(() => ({}));
+        // Email verification flow: no usable auto-login, tell them to check their inbox.
+        if (data.verification_required) {
+          setVerificationRequired(true);
+          setState("success");
+          return;
+        }
         // Stripe hook: backend returns { payment: { type: "stripe", checkout_url: "..." } }
         // when Stripe is live. No other frontend change needed.
         if (data.payment?.checkout_url) {
@@ -216,6 +253,21 @@ export default function SignupForm() {
   }
 
   if (state === "success") {
+    if (verificationRequired) {
+      return (
+        <div className={styles.card}>
+          <div className={styles.success}>
+            <div className={styles.successIcon}><CheckIcon size={24} /></div>
+            <h2 className={styles.successTitle}>Check your inbox — your workspace is ready</h2>
+            <p className={styles.successSub}>
+              We&apos;ve emailed an entry link to <strong>{email}</strong>.
+              One click and you&apos;re in. First 30 days free, no payment details
+              needed.
+            </p>
+          </div>
+        </div>
+      );
+    }
     return (
       <div className={styles.card}>
         <div className={styles.success}>
@@ -424,7 +476,7 @@ export default function SignupForm() {
 
   // ── Step 3 — Account details ────────────────────────────────────────────────
   return (
-    <form className={styles.card} onSubmit={handleSubmit} noValidate>
+    <form className={styles.card} onSubmit={handleSubmit}>
       <div className={styles.steps}>
         <button type="button" className={`${styles.stepDot} ${styles.stepDotDone}`}
           onClick={() => !fromDemoToken && setStep(1)}
@@ -477,6 +529,18 @@ export default function SignupForm() {
         </div>
       </div>
 
+      {/* Honeypot — visually hidden; bots that fill it are silently dropped server-side */}
+      <input
+        type="text"
+        name="website"
+        value={website}
+        onChange={(e) => setWebsite(e.target.value)}
+        autoComplete="off"
+        tabIndex={-1}
+        aria-hidden="true"
+        style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
+      />
+
       <button className={styles.submit} type="submit" disabled={busy}>
         {busy ? "Creating your workspace…" : "Start 30 day free trial →"}
       </button>
@@ -486,7 +550,12 @@ export default function SignupForm() {
       )}
 
       <p className={styles.finePrint}>
-        30 days free · No credit card required · Cancel any time
+        By submitting you agree to our{" "}
+        <a href="/privacy" style={{ color: "#5BA4F5" }}>Privacy Policy</a>
+      </p>
+
+      <p className={styles.finePrint}>
+        First 30 days free · No payment details needed · Cancel any time
       </p>
     </form>
   );

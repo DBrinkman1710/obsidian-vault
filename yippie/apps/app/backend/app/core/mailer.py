@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import logging
 import re
 from typing import Optional
 
 import httpx
 
 from app.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 # Pragmatic single-line email check — full RFC validation is not the goal, just
 # rejecting obviously malformed addresses before they reach the mail provider.
@@ -98,4 +101,6 @@ async def notify_owner(subject: str, body: str) -> None:
     try:
         await send_email(to=to, subject=subject, body=body)
     except Exception:
-        pass
+        # Best effort by design (often fired from asyncio.create_task), but a
+        # silent pass hid every Resend outage — log it so failures are visible.
+        logger.exception("notify_owner: failed to send %r to %s", subject, to)

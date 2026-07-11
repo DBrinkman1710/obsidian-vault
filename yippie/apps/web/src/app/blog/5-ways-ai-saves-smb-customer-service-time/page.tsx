@@ -4,8 +4,7 @@ import SiteFooter from "../../components/SiteFooter";
 import styles from "../../components/content.module.css";
 import { breadcrumbJsonLd } from "../jsonld";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
-const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? APP_URL;
+const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 const TITLE = "5 Ways AI Is Saving SMBs 10+ Hours a Week on Customer Service";
 const DESCRIPTION =

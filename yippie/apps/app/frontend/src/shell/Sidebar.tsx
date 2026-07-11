@@ -8,6 +8,7 @@ import {
   MessageSquare, LogOut, Building2, ShieldCheck, UserCircle, Kanban,
   ChevronLeft, ChevronRight, Megaphone, GripVertical, Package,
   TrendingUp, BarChart3, Settings, UsersRound, FileText, Zap,
+  RotateCcw,
   type LucideIcon,
 } from 'lucide-react'
 import {
@@ -25,6 +26,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import { useTenantConfig } from '../App'
+import { tourStepStorageKey } from '../components/WelcomeTour'
 import { useAuth } from '../auth/useAuth'
 import { api } from '../api/client'
 import { useT } from '../hooks/useT'
@@ -135,6 +137,19 @@ export function Sidebar() {
         const newIndex = prev.indexOf(String(over.id))
         return arrayMove(prev, oldIndex, newIndex)
       })
+    }
+  }
+
+  // Replay the welcome tour: reset the flag on the server (PATCH accepts
+  // false) and start from step 0 by clearing the persisted step.
+  async function replayTour() {
+    setAccountOpen(false)
+    try {
+      if (user) sessionStorage.removeItem(tourStepStorageKey(user.id))
+      await api.patch('/auth/me', { tour_completed: false })
+      await refreshUser()
+    } catch {
+      toast.error('Could not restart the tour')
     }
   }
 
@@ -431,6 +446,12 @@ export function Sidebar() {
                       <ShieldCheck size={14} className="text-slate-400" /> Superadmins
                     </button>
                   </>
+                )}
+                {user?.tour_completed && (
+                  <button onClick={replayTour}
+                    className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
+                    <RotateCcw size={14} className="text-slate-400" /> Replay welcome tour
+                  </button>
                 )}
                 <div className="h-px bg-slate-100 my-1" />
                 <button onClick={() => { setAccountOpen(false); logout() }}

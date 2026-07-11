@@ -413,7 +413,7 @@ export default function NlHomePage() {
           <p className={styles.founderText}>
             <strong>Founding Member: nog {FOUNDER_SPOTS_LEFT} van {FOUNDER_SPOTS_TOTAL} plekken beschikbaar</strong> voor €{PLAN_LIMITS.founder.priceMonthly}/mo, tot 10 gebruikers, alle kernfuncties en 50% korting op alle betaalde modules.
           </p>
-          <a href="/custom?plan=founder" className={styles.founderBtn}>Claim een foundersplek →</a>
+          <a href="/signup?plan=founder" className={styles.founderBtn}>Claim een foundersplek →</a>
         </div>
 
         <PricingTeaser />

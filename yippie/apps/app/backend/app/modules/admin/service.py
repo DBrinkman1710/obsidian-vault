@@ -8,6 +8,7 @@ from datetime import datetime, timedelta, timezone
 
 import bcrypt as _bcrypt
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant, User, UserRole
@@ -103,12 +104,21 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
             full_name=data.admin_full_name,
             hashed_password=(await asyncio.to_thread(_bcrypt.hashpw, data.admin_password.encode(), _bcrypt.gensalt())).decode(),
             role=UserRole.admin,
+            # False for self-serve signups awaiting email verification.
+            is_active=data.admin_is_active,
         ))
         user_count = 1
     else:
         invites.insert(0, data.admin_email)
 
-    await db.commit()
+    try:
+        await db.commit()
+    except IntegrityError:
+        # Concurrent duplicate submission raced past the pre-check above and
+        # tripped the users.email unique constraint. Surface it as the same
+        # ValueError the pre-check raises so callers return 409, not 500.
+        await db.rollback()
+        raise ValueError(f"A user with email '{data.admin_email}' already exists.")
     await db.refresh(tenant)
 
     # Seed sensible default Kanban stages so new tenants start with a working board.

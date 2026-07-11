@@ -956,3 +956,99 @@
   border-radius: 99px;
   white-space: nowrap;
 }
+
+/* Onboarding progress — endowed progress per ux-habits: never starts at 0%. */
+.progressWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.progressTrack {
+  flex: 1;
+  height: 6px;
+  border-radius: 99px;
+  background: var(--brand-ring, #dbeafe);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: 99px;
+  background: #5BA4F5;
+  transition: width 0.4s ease;
+}
+
+.progressLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--brand-700, #1d4ed8);
+  white-space: nowrap;
+}
+
+/* Plan picker — recommendation preselected (smart default), override allowed. */
+.planOptions {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+@media (max-width: 560px) {
+  .planOptions {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.planOption {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 12px 12px 10px;
+  border: 1.5px solid var(--brand-ring, #dbeafe);
+  border-radius: var(--r-md, 12px);
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.planOption:hover {
+  border-color: #5BA4F5;
+}
+
+.planOptionActive {
+  border-color: #5BA4F5;
+  box-shadow: 0 0 0 3px rgba(91, 164, 245, 0.18);
+}
+
+.planOptionName {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.01em;
+}
+
+.planOptionPrice {
+  font-size: 13px;
+  color: var(--muted, #64748b);
+}
+
+.planOptionBadge {
+  position: absolute;
+  top: -9px;
+  right: 8px;
+  background: #5BA4F5;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 99px;
+  white-space: nowrap;
+}

@@ -40,6 +40,8 @@ const TEAM_RANK_MAP: Record<string, number> = {
 };
 
 const DEMO_PATH = "/request-demo";
+const FOUNDER_SPOTS_TOTAL = 5;
+const FOUNDER_SPOTS_LEFT = parseInt(process.env.NEXT_PUBLIC_FOUNDER_SPOTS_LEFT ?? "5", 10);
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
 // Booking page of the Yippie owner tenant (backend resolves the tenant by slug).
 const TALK_PATH = `${APP_URL}/meet/yippie`;
@@ -179,7 +181,12 @@ export default function PricingPage() {
     ? annual ? (recommendedPlan.annual ?? null) : (recommendedPlan.monthly ?? null)
     : null;
   const isEnterprise = recommendedPlan?.enterprise ?? false;
-  const addOnsTotal = isEnterprise ? 0 : recommendations.reduce((sum, m) => sum + (MODULE_PRICE_MAP[m] ?? 0), 0);
+  // Annual: add-ons are billed ×12 with the same 10% discount CustomForm applies.
+  const addOnPrice = (name: string) => {
+    const monthly = MODULE_PRICE_MAP[name] ?? 0;
+    return annual ? Math.round(monthly * 12 * 0.9) : monthly;
+  };
+  const addOnsTotal = isEnterprise ? 0 : recommendations.reduce((sum, m) => sum + addOnPrice(m), 0);
   const estimatedTotal = planPrice != null ? planPrice + addOnsTotal : null;
 
   return (
@@ -222,9 +229,9 @@ export default function PricingPage() {
         <div className={styles.founderBanner}>
           <span className={styles.founderBadge}>Limited offer</span>
           <p className={styles.founderText}>
-            <strong>Founding Member: first 5 spots</strong> at €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
+            <strong>Founding Member: {FOUNDER_SPOTS_LEFT} of {FOUNDER_SPOTS_TOTAL} spots left</strong> at €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
           </p>
-          <a href="/custom?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
+          <a href="/signup?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
         </div>
 
         <div className={styles.plansGrid}>
@@ -378,13 +385,13 @@ export default function PricingPage() {
                   <div className={styles.quizBreakdown}>
                     <div className={styles.quizRow}>
                       <span>{recommendedPlan.tier} plan</span>
-                      <span>€{planPrice}/mo</span>
+                      <span>€{planPrice}{annual ? "/yr" : "/mo"}</span>
                     </div>
                     {recommendations.map((m) =>
                       MODULE_PRICE_MAP[m] != null ? (
                         <div key={m} className={styles.quizRow}>
                           <span>+ {m}</span>
-                          <span>€{MODULE_PRICE_MAP[m]}/mo</span>
+                          <span>€{addOnPrice(m)}{annual ? "/yr" : "/mo"}</span>
                         </div>
                       ) : null
                     )}
@@ -400,8 +407,8 @@ export default function PricingPage() {
                     Add-ons are per workspace. Modules based on your answers.
                   </p>
                 )}
-                <a href={isEnterprise ? TALK_PATH : "/custom"} className={styles.quizResultBtn}>
-                  {isEnterprise ? "Book a call →" : "Build your plan →"}
+                <a href={isEnterprise ? TALK_PATH : "/signup"} className={styles.quizResultBtn}>
+                  {isEnterprise ? "Book a call →" : "Start free trial →"}
                 </a>
               </>
             ) : (
@@ -463,14 +470,14 @@ export default function PricingPage() {
       </section>
 
       <section className={styles.ctaSection}>
-        <h2 className={styles.ctaTitle}>Want a tailored quote?</h2>
+        <h2 className={styles.ctaTitle}>Ready to build your workspace?</h2>
         <p className={styles.ctaSub}>
-          Answer a few quick questions and we&apos;ll put together a personalised
-          package with exactly the modules your team needs.
+          Answer a few quick questions, pick your modules, and step in through
+          the link we mail you. First 30 days free — no payment details needed.
         </p>
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
-          <a href="/custom" className={styles.btnPrimary}>
-            Build your package →
+          <a href="/signup" className={styles.btnPrimary}>
+            Start free trial →
           </a>
           <a href={TALK_PATH} className={contentStyles.btnGhost}>
             Book a call
