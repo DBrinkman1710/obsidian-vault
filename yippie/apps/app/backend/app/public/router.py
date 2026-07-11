@@ -312,7 +312,10 @@ async def _purge_stale_demo_for_email(db: AsyncSession, email: str) -> None:
         if not tenant.is_demo or tenant.id in seen:
             continue  # never delete a live account; wipe each tenant once
         seen.add(tenant.id)
-        await db.delete(tenant)  # children cascade via FK ON DELETE CASCADE
+        # Raw DELETE, not db.delete(tenant): the ORM relationship cascade would
+        # try to NULL users.tenant_id (NOT NULL → violation) instead of letting
+        # the DB-level ON DELETE CASCADE remove the children.
+        await db.execute(text("DELETE FROM tenants WHERE id = :tid"), {"tid": str(tenant.id)})
         await db.flush()
 
 
@@ -329,14 +332,16 @@ async def _purge_tenant_after_failed_provision(db: AsyncSession, tenant_id: uuid
     delete runs on the connecting (RLS bypassing) role. Never raises — a failed
     purge is logged and the caller's error response still goes out.
     """
-    from app.core.models import Tenant
-
     try:
         await db.rollback()
-        tenant = await db.get(Tenant, tenant_id)
-        if tenant is not None:
-            await db.delete(tenant)
-            await db.commit()
+        # Raw DELETE, not ORM delete: the relationship cascade would try to
+        # NULL users.tenant_id (NOT NULL → violation) instead of letting the
+        # DB-level ON DELETE CASCADE remove the children.
+        result = await db.execute(
+            text("DELETE FROM tenants WHERE id = :tid"), {"tid": str(tenant_id)}
+        )
+        await db.commit()
+        if result.rowcount:
             logger.warning("Purged partially provisioned tenant %s after a provisioning failure", tenant_id)
     except Exception:
         logger.exception("Failed to purge partially provisioned tenant %s", tenant_id)
@@ -1967,13 +1972,16 @@ async def signup(
             await db.flush()
 
         # [WEB-LOGO-CARRY] Apply branding from the /custom configurator to the new
-        # tenant workspace. Both fields are written before set_tenant_context switches
-        # to the RLS-enforced role, so the UPDATE lands correctly.
+        # tenant workspace. Must be FLUSHED (not just assigned) before
+        # set_tenant_context switches to the RLS enforced role — a lazy autoflush
+        # after the switch emits the tenants UPDATE under the root tenant policy,
+        # matches 0 rows, and blows up with StaleDataError.
         if questionnaire is not None and signup_tenant is not None:
             if questionnaire.branding_color:
                 signup_tenant.primary_color = questionnaire.branding_color
             if questionnaire.branding_logo:
                 signup_tenant.logo_url = questionnaire.branding_logo
+            await db.flush()
 
         await set_tenant_context(db, str(root_tenant_id))
 
