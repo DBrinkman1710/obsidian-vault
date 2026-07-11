@@ -15,7 +15,7 @@ from html.parser import HTMLParser
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import DBAPIError, IntegrityError
 
 from app.config import get_settings
 from app.core.models import Tenant
@@ -34,6 +34,21 @@ scheduler = AsyncIOScheduler()
 from app.config import get_settings as _get_settings
 
 _is_prod = _get_settings().environment == "production"
+
+
+def _is_stale_plan_error(exc: Exception) -> bool:
+    """True for asyncpg's InvalidCachedStatementError (wrapped by SQLAlchemy).
+
+    Fires once per pooled connection when a migration changes a table's shape
+    (e.g. new columns on tenants) while this container is still running its
+    schedulers. SQLAlchemy invalidates all prepared statement caches in
+    response, so the next cycle succeeds — an expected one shot transient
+    after deploys, not worth a Sentry error alert.
+    """
+    return (
+        isinstance(exc, DBAPIError)
+        and type(getattr(exc, "orig", None)).__name__ == "InvalidCachedStatementError"
+    )
 
 
 def _html_to_text(html: str) -> str:
@@ -306,8 +321,11 @@ async def poll_inbound_emails() -> None:
                         existing.attachments_json = atts
                     await service.update_message_body(db, tid, existing, body, ai_scan=ai)
 
-    except Exception:
-        log.exception("email_poll failed")
+    except Exception as e:
+        if _is_stale_plan_error(e):
+            log.warning("email_poll hit a stale prepared statement plan after a schema change — caches invalidated, next cycle recovers")
+        else:
+            log.exception("email_poll failed")
 
 
 @scheduler.scheduled_job("interval", seconds=60, id="poll_oauth_inboxes", max_instances=1, coalesce=True)
@@ -318,8 +336,11 @@ async def poll_oauth_inboxes_job() -> None:
 
     try:
         await sync_all_accounts()
-    except Exception:
-        log.exception("poll_oauth_inboxes failed")
+    except Exception as e:
+        if _is_stale_plan_error(e):
+            log.warning("poll_oauth_inboxes hit a stale prepared statement plan — next cycle recovers")
+        else:
+            log.exception("poll_oauth_inboxes failed")
 
 
 @scheduler.scheduled_job("interval", seconds=10 if _is_prod else 30, id="enrich_drafts", max_instances=1, coalesce=True)
@@ -332,8 +353,11 @@ async def enrich_drafts_job() -> None:
                 processed = await service.enrich_queued_drafts(db)
             if processed < service.ENRICH_BATCH_SIZE:
                 break
-    except Exception:
-        log.exception("enrich_drafts failed")
+    except Exception as e:
+        if _is_stale_plan_error(e):
+            log.warning("enrich_drafts hit a stale prepared statement plan — next cycle recovers")
+        else:
+            log.exception("enrich_drafts failed")
 
 
 @scheduler.scheduled_job("interval", seconds=5 if _is_prod else 30, id="flush_pending_sends", max_instances=1, coalesce=True)
@@ -349,8 +373,11 @@ async def retention_job() -> None:
     try:
         async with db_session() as db:
             await service.apply_retention(db)
-    except Exception:
-        log.exception("retention failed")
+    except Exception as e:
+        if _is_stale_plan_error(e):
+            log.warning("retention hit a stale prepared statement plan — next cycle recovers")
+        else:
+            log.exception("retention failed")
 
 
 @scheduler.scheduled_job("interval", seconds=60, id="go_live_check", max_instances=1, coalesce=True)
