@@ -96,9 +96,9 @@ const STORAGE_KEY = "yippie_custom_plan";
    readable without verification (prefill only — the backend re-verifies). */
 function decodeToken(token: string): { company_name?: string; questionnaire?: Record<string, unknown> } | null {
   try {
-    const parts = token.split(".");
-    if (parts.length < 2) return null;
-    return JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")));
+    const payload = token.split(".")[1];
+    if (!payload) return null;
+    return JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
   } catch {
     return null;
   }
