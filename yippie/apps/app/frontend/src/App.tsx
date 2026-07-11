@@ -1,5 +1,6 @@
 import WelcomeTour from './components/WelcomeTour'
 import SetupChecklist from './components/SetupChecklist'
+import SetPasswordModal from './components/SetPasswordModal'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
 import { ComposeProvider } from './hooks/useCompose'
@@ -181,6 +182,14 @@ export default function App() {
   const { user, refreshUser, impersonating, exitImpersonation } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
   const [configError, setConfigError] = useState(false)
+  // Signup entry link with an auto-generated password lands on
+  // /?set_password=<reset token> — capture the token once and scrub the URL
+  // so a refresh or share never leaks it.
+  const [setPwToken, setSetPwToken] = useState<string | null>(() => {
+    const t = new URLSearchParams(window.location.search).get('set_password')
+    if (t) window.history.replaceState({}, '', window.location.pathname)
+    return t
+  })
   useGlobalHotkeys()
 
   // Public booking pages are standalone — render without the app shell or auth,
@@ -397,9 +406,19 @@ export default function App() {
     <TenantConfigContext.Provider value={config}>
       <ComposeProvider>
       {/* First-run surfaces are the impersonated user's — never consume their
-          tour/checklist state while a superadmin is viewing as them. */}
-      {user && !user.tour_completed && !impersonating && <WelcomeTour />}
-      {!impersonating && <SetupChecklist />}
+          tour/checklist state while a superadmin is viewing as them.
+          One anchored column, bottom-right: the checklist stacks ABOVE the
+          tour while both are visible; when the tour finishes it unmounts and
+          the checklist drops down into its spot. */}
+      {!impersonating && (
+        <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 flex flex-col items-end gap-3">
+          <SetupChecklist />
+          {user && !user.tour_completed && <WelcomeTour />}
+        </div>
+      )}
+      {user && !impersonating && setPwToken && (
+        <SetPasswordModal token={setPwToken} onDone={() => setSetPwToken(null)} />
+      )}
       <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
         <Sidebar />
         <main className="flex-1 min-w-0 overflow-hidden flex flex-col pb-16 md:pb-0">

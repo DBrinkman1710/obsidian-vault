@@ -142,10 +142,10 @@ export default function SetupChecklist() {
 
   return (
     <>
-    {/* While the tour is active the checklist hides below md — both are fixed
-        bottom-20 right-4 on mobile and the checklist would paint over the
-        tour's Next button. Desktop keeps the side-by-side shift. */}
-    <div className={`fixed bottom-20 md:bottom-6 z-40 w-72 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden ${tourActive ? 'hidden md:block right-4 md:right-[22rem]' : 'right-4 md:right-6'}`}>
+    {/* Positioned by App's bottom-right column: stacked above the tour while
+        it runs (collapsed by default), drops into its spot and auto-expands
+        when the tour finishes (effect above). */}
+    <div className="w-72 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
         <div>
@@ -174,13 +174,9 @@ export default function SetupChecklist() {
         </div>
       </div>
 
-      {/* Progress bar */}
-      <div className="h-1 bg-slate-100">
-        <div
-          className="h-full bg-yippie transition-all duration-500"
-          style={{ width: `${(completedCount / requiredGates.length) * 100}%` }}
-        />
-      </div>
+      {/* No progress bar here on purpose: endowed progress is a conversion
+          device for the commercial onboarding — inside the workspace the
+          customer is already committed, so the bar is just noise. */}
 
       {/* Gate list */}
       {!collapsed && (

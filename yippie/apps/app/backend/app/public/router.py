@@ -1789,7 +1789,11 @@ class SignupRequest(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     company_name: str = Field(min_length=1, max_length=200)
     email: EmailStr
-    password: str = Field(min_length=8, max_length=128)
+    # Optional by design: a password chosen at signup could have been chosen by
+    # anyone who typed the email (pre-registration takeover). When absent, a
+    # random one is generated (demo pattern) and the user picks their own AFTER
+    # entering via the emailed link — i.e. only the inbox owner ever sets it.
+    password: Optional[str] = Field(default=None, min_length=8, max_length=128)
     plan: Literal["founder", "starter", "growth", "pro"] = "starter"
     enabled_modules: list[str] = Field(default=[], max_length=20)
     questionnaire: Optional[Questionnaire] = None
@@ -1898,6 +1902,13 @@ async def signup(
     base_slug = _slugify(body.company_name)
     slug = await _unique_slug(db, base_slug)
 
+    # No password on the form? Generate a throwaway one (demo pattern). The
+    # entry-link token carries pw="auto" so verify_email hands the user a
+    # set-password modal once they're inside the workspace.
+    import secrets as _secrets
+    password_auto = not body.password
+    admin_password = body.password or _secrets.token_urlsafe(24)
+
     try:
         tenant_result = await create_tenant(
             db,
@@ -1907,7 +1918,7 @@ async def signup(
                 admin_email=email,
                 admin_full_name=body.name.strip(),
                 is_demo=False,
-                admin_password=body.password,
+                admin_password=admin_password,
                 enabled_modules=enabled_modules,
                 plan=body.plan,
                 # Email verification: the admin account stays inactive until the
@@ -2049,19 +2060,21 @@ async def signup(
         "trial_ends_at": trial_ends_at.isoformat(),
     }
 
-    # Verification email — mirrors the demo_magic signed-JWT pattern, with a
+    # Entry-link email — mirrors the demo_magic signed-JWT pattern, with a
     # distinct purpose so tokens can't be replayed across flows. The link hits
-    # the backend directly (same origin as the app) and 302s to /login?verified=1.
+    # the backend directly (same origin as the app), which logs the user in and
+    # 302s straight into the workspace.
     verify_token = create_signed_token(
         "email_verify",
         EMAIL_VERIFY_TTL,
         user_id=str(new_user_id),
         email=email,
+        **({"pw": "auto"} if password_auto else {}),
     )
     verify_url = f"{base}/api/v1/public/verify-email?token={verify_token}"
 
     try:
-        await send_verification_email(email, body.name.strip(), verify_url)
+        await send_verification_email(email, body.name.strip(), verify_url, auto_password=password_auto)
     except Exception:
         # Without this email the (inactive) account is unreachable and a retry
         # would 409 — purge so the visitor can simply sign up again.
@@ -2133,9 +2146,19 @@ async def verify_email(token: str, db: Annotated[AsyncSession, Depends(get_db)])
         except Exception:
             logger.exception("verify_email: welcome email failed for %s", user.email)
 
+    # Auto-generated password (no password field on the signup form): hand the
+    # workspace a short-lived reset token so the SetPasswordModal can let the
+    # user choose their own via the existing POST /auth/reset-password. Only
+    # the inbox owner ever holds this link, so only they can set the password.
+    landing = f"{base}/"
+    if claims.get("pw") == "auto":
+        from app.auth.tokens import create_signed_token
+        pw_token = create_signed_token("reset", timedelta(hours=1), sub=str(user.id))
+        landing = f"{base}/?set_password={pw_token}"
+
     settings = get_settings()
     access_token = create_access_token(str(user.id), settings)
-    response = RedirectResponse(f"{base}/", status_code=302)
+    response = RedirectResponse(landing, status_code=302)
     _set_auth_cookie(response, access_token, settings)
     return response
 

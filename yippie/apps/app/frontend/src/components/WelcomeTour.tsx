@@ -178,7 +178,7 @@ export default function WelcomeTour() {
     return (
       <button
         onClick={() => setMinimised(false)}
-        className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 flex items-center gap-2 bg-white border border-slate-200 rounded-full shadow-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
+        className="flex items-center gap-2 bg-white border border-slate-200 rounded-full shadow-lg px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50 transition-colors"
       >
         <span className="w-2 h-2 rounded-full bg-yippie animate-pulse shrink-0" />
         Tour ({boundedStep + 1}/{steps.length})
@@ -187,7 +187,7 @@ export default function WelcomeTour() {
   }
 
   return (
-    <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
+    <div className="w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 overflow-hidden">
       {/* Progress strip */}
       <div className="h-1 bg-slate-100">
         <div

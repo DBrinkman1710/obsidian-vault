@@ -92,20 +92,26 @@ async def send_demo_ready_email(to: str, full_name: str, magic_link: str) -> Non
     )
 
 
-async def send_verification_email(to: str, full_name: str, verify_url: str) -> None:
+async def send_verification_email(to: str, full_name: str, verify_url: str, auto_password: bool = False) -> None:
     """Self-serve trial entry link — one click activates the account, logs the
     user in, and lands them in their workspace (demo magic-link UX). The signed
-    JWT is valid for 48 hours; afterwards they log in with email + password."""
+    JWT is valid for 48 hours; afterwards they log in with email + password.
+    auto_password: the form had no password field, so the user picks one inside
+    the workspace — the "password you chose" line would be wrong."""
     first_name = full_name.split()[0] if full_name else full_name
     safe_name = _html.escape(first_name)
     safe_link = _html.escape(verify_url)
+    after_line = (
+        "You'll choose your password once you're in."
+        if auto_password
+        else "After that, just log in with your email and the password you chose at signup."
+    )
 
     plain_body = (
         f"Hi {first_name},\n\n"
         f"Your Yippie workspace is ready. Click the link below to step right in:\n{verify_url}\n\n"
         f"Your first 30 days are free — no payment details needed, cancel any time.\n\n"
-        f"The link is valid for 48 hours. After that, just log in with your email "
-        f"and the password you chose at signup.\n\n"
+        f"The link is valid for 48 hours. {after_line}\n\n"
         f"If you didn't sign up for Yippie, you can safely ignore this email.\n\n"
         f"Diederik\n"
         f"Founder, Yippie"
@@ -121,7 +127,7 @@ async def send_verification_email(to: str, full_name: str, verify_url: str) -> N
         f'Enter my workspace</a>'
         f'</div>'
         f'<p style="margin:24px 0 16px;color:#6b7280;font-size:13px;">The link is valid for 48 hours. '
-        f'After that, just log in with your email and the password you chose at signup.</p>'
+        f'{_html.escape(after_line)}</p>'
         f'<p style="margin:0 0 16px;color:#6b7280;font-size:13px;">If you didn\'t sign up for Yippie, you can safely ignore this email.</p>'
         f'<p style="margin:0;"><strong>Diederik</strong><br>'
         f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
