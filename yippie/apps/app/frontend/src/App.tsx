@@ -184,11 +184,19 @@ export default function App() {
   const [configError, setConfigError] = useState(false)
   // Signup entry link with an auto-generated password lands on
   // /?set_password=<reset token> — capture the token once and scrub the URL
-  // so a refresh or share never leaks it.
+  // so a refresh or share never leaks it. Mirror it into sessionStorage so a
+  // reload before the password is set re-shows the (mandatory) modal instead of
+  // dropping it permanently — otherwise the account keeps a password its owner
+  // never chose. Cleared in onDone once the password is saved. The token is a
+  // 1h reset token, so a stale one simply surfaces the modal's escape hatch.
   const [setPwToken, setSetPwToken] = useState<string | null>(() => {
-    const t = new URLSearchParams(window.location.search).get('set_password')
-    if (t) window.history.replaceState({}, '', window.location.pathname)
-    return t
+    const fromUrl = new URLSearchParams(window.location.search).get('set_password')
+    if (fromUrl) {
+      window.history.replaceState({}, '', window.location.pathname)
+      sessionStorage.setItem('pending_set_password', fromUrl)
+      return fromUrl
+    }
+    return sessionStorage.getItem('pending_set_password')
   })
   useGlobalHotkeys()
 
@@ -411,13 +419,13 @@ export default function App() {
           tour while both are visible; when the tour finishes it unmounts and
           the checklist drops down into its spot. */}
       {!impersonating && (
-        <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 flex flex-col items-end gap-3">
+        <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 flex flex-col items-end gap-3 max-h-[calc(100dvh-6.5rem)] overflow-y-auto">
           <SetupChecklist />
           {user && !user.tour_completed && <WelcomeTour />}
         </div>
       )}
       {user && !impersonating && setPwToken && (
-        <SetPasswordModal token={setPwToken} onDone={() => setSetPwToken(null)} />
+        <SetPasswordModal token={setPwToken} onDone={() => { sessionStorage.removeItem('pending_set_password'); setSetPwToken(null) }} />
       )}
       <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
         <Sidebar />

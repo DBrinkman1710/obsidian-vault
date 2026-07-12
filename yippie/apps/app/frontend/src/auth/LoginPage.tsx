@@ -1,15 +1,37 @@
 import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { Mail, Lock } from 'lucide-react'
+import { api } from '../api/client'
 import { useAuth } from './useAuth'
 
 export default function LoginPage() {
   const { login } = useAuth()
   const navigate = useNavigate()
+  const [params] = useSearchParams()
+  // verify-email redirects an expired/used entry link here as ?verified=0 —
+  // surface why they landed on login and offer a fresh link (an unclicked
+  // link leaves the account inactive with a password its owner never saw, so
+  // neither sign-in nor forgot-password can recover it without a resend).
+  const linkExpired = params.get('verified') === '0'
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [resendState, setResendState] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle')
+
+  async function handleResend() {
+    if (!email.trim()) {
+      setResendState('error')
+      return
+    }
+    setResendState('sending')
+    try {
+      await api.post('/public/resend-verification', { email: email.trim() })
+      setResendState('sent')
+    } catch {
+      setResendState('error')
+    }
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -60,6 +82,37 @@ export default function LoginPage() {
         >
           Welcome back
         </h1>
+
+        {linkExpired && (
+          <div
+            className="rounded-md px-4 py-3 text-sm mb-4"
+            style={{
+              background: 'var(--status-warning-bg, #fffbeb)',
+              border: '1px solid rgba(217,119,6,0.25)',
+              color: 'var(--status-warning, #b45309)',
+            }}
+          >
+            {resendState === 'sent' ? (
+              <span>Check your inbox — we've sent a fresh entry link to <strong>{email.trim()}</strong>.</span>
+            ) : (
+              <>
+                <p className="mb-2">That entry link has expired or was already used. Enter your email below and we'll send a new one.</p>
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendState === 'sending'}
+                  className="font-semibold underline disabled:opacity-60"
+                  style={{ color: 'inherit' }}
+                >
+                  {resendState === 'sending' ? 'Sending…' : 'Email me a new link'}
+                </button>
+                {resendState === 'error' && (
+                  <span className="ml-2">Enter your email below first, then try again.</span>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
           {error && (
@@ -161,7 +214,7 @@ export default function LoginPage() {
           <p className="text-xs text-center" style={{ color: 'var(--text-muted)' }}>
             Don't have an account?{' '}
             <a
-              href="https://getyippie.com/custom"
+              href="https://getyippie.com/signup"
               className="underline transition-colors"
               style={{ color: 'var(--text-subtle)' }}
             >

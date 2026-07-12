@@ -312,10 +312,8 @@ async def _purge_stale_demo_for_email(db: AsyncSession, email: str) -> None:
         if not tenant.is_demo or tenant.id in seen:
             continue  # never delete a live account; wipe each tenant once
         seen.add(tenant.id)
-        # Raw DELETE, not db.delete(tenant): the ORM relationship cascade would
-        # try to NULL users.tenant_id (NOT NULL → violation) instead of letting
-        # the DB-level ON DELETE CASCADE remove the children.
-        await db.execute(text("DELETE FROM tenants WHERE id = :tid"), {"tid": str(tenant.id)})
+        # Tenant.users has passive_deletes, so the DB level ON DELETE CASCADE removes children.
+        await db.delete(tenant)
         await db.flush()
 
 
@@ -332,16 +330,15 @@ async def _purge_tenant_after_failed_provision(db: AsyncSession, tenant_id: uuid
     delete runs on the connecting (RLS bypassing) role. Never raises — a failed
     purge is logged and the caller's error response still goes out.
     """
+    from app.core.models import Tenant
+
     try:
         await db.rollback()
-        # Raw DELETE, not ORM delete: the relationship cascade would try to
-        # NULL users.tenant_id (NOT NULL → violation) instead of letting the
-        # DB-level ON DELETE CASCADE remove the children.
-        result = await db.execute(
-            text("DELETE FROM tenants WHERE id = :tid"), {"tid": str(tenant_id)}
-        )
-        await db.commit()
-        if result.rowcount:
+        # Tenant.users has passive_deletes, so the DB level ON DELETE CASCADE removes children.
+        tenant = await db.get(Tenant, tenant_id)
+        if tenant is not None:
+            await db.delete(tenant)
+            await db.commit()
             logger.warning("Purged partially provisioned tenant %s after a provisioning failure", tenant_id)
     except Exception:
         logger.exception("Failed to purge partially provisioned tenant %s", tenant_id)
@@ -2158,6 +2155,67 @@ async def verify_email(token: str, db: Annotated[AsyncSession, Depends(get_db)])
     response = RedirectResponse(landing, status_code=302)
     _set_auth_cookie(response, access_token, settings)
     return response
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
+@router.post("/resend-verification")
+async def resend_verification(
+    body: ResendVerificationRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Mail a fresh entry link to a self-serve signup whose 48h link expired
+    before first use.
+
+    Without this the funnel dead-ends: the account is created inactive with an
+    auto-generated password, so once the entry link lapses login is refused
+    ("check your inbox"), forgot-password stays silent for inactive users, and
+    the owner has no password to fall back on. The login screen offers this when
+    it lands on ?verified=0.
+
+    Always returns {"ok": True} (never reveals whether the email has an account),
+    and only ever re-mails a still-pending self-serve signup: an inactive,
+    never-logged-in user on a live, non-demo tenant. The new link carries
+    pw="auto" so the SetPasswordModal guarantees a known password on entry —
+    harmless even if a password was chosen at signup (it is simply reset)."""
+    from app.auth.invite import send_verification_email
+    from app.auth.tokens import create_signed_token
+    from app.core.models import Tenant, User
+
+    ip = get_client_ip(request)
+    await _public_rate_limit(ip, "resend_verification", 5)
+
+    email = body.email.lower().strip()
+    user = await db.scalar(select(User).where(func.lower(User.email) == email))
+    # Only a pending self-serve signup qualifies — active accounts use
+    # forgot-password, and demo tenants have their own magic-link flow.
+    if user is None or user.is_active or user.last_login_at is not None:
+        return {"ok": True}
+    tenant = await db.get(Tenant, user.tenant_id)
+    if tenant is None or not tenant.is_active or tenant.is_demo:
+        return {"ok": True}
+
+    base = _demo_client_base_url()
+    verify_token = create_signed_token(
+        "email_verify",
+        EMAIL_VERIFY_TTL,
+        user_id=str(user.id),
+        email=email,
+        pw="auto",
+    )
+    verify_url = f"{base}/api/v1/public/verify-email?token={verify_token}"
+    try:
+        await send_verification_email(email, user.full_name, verify_url, auto_password=True)
+    except Exception:
+        logger.exception("resend_verification: failed to send entry link to %s", email)
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="We couldn't send the link just now. Please try again in a few minutes.",
+        )
+    return {"ok": True}
 
 
 # ── Contract e-signing ([CONTRACT3]) — booking-token pattern ──────────────────
