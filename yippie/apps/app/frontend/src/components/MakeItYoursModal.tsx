@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import { useMutation } from '@tanstack/react-query'
 import { Palette } from 'lucide-react'
 import { CloseButton } from '../shell/CloseButton'
@@ -38,7 +39,10 @@ export default function MakeItYoursModal({ tenantId, initialColor, initialLogoUr
 
   const previewOk = logoUrl.trim().length > 0 && !logoError
 
-  return (
+  // Portal to document.body so the overlay escapes App's fixed bottom right
+  // column (a z-40 stacking context) — otherwise BottomNav and other chrome
+  // paint over this full screen modal.
+  return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm">
       <div className="relative w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
         {/* Header */}
@@ -115,6 +119,7 @@ export default function MakeItYoursModal({ tenantId, initialColor, initialLogoUr
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }

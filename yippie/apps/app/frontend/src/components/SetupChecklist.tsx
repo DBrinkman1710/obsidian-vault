@@ -67,8 +67,8 @@ export default function SetupChecklist() {
 
   const gates: Gate[] = [
     {
-      // Endowed-progress gate: always complete so the checklist never opens at
-      // 0%. Users are far likelier to finish a bar that already shows momentum.
+      // Always done gate: keeps the "X of Y complete" header count above zero
+      // so the checklist never opens with no visible momentum.
       id: 'account',
       label: 'Account created',
       detail: '',

@@ -182,22 +182,24 @@ export default function App() {
   const { user, refreshUser, impersonating, exitImpersonation } = useAuth()
   const [config, setConfig] = useState<TenantConfig | null>(null)
   const [configError, setConfigError] = useState(false)
-  // Signup entry link with an auto-generated password lands on
-  // /?set_password=<reset token> — capture the token once and scrub the URL
-  // so a refresh or share never leaks it. Mirror it into sessionStorage so a
-  // reload before the password is set re-shows the (mandatory) modal instead of
-  // dropping it permanently — otherwise the account keeps a password its owner
-  // never chose. Cleared in onDone once the password is saved. The token is a
-  // 1h reset token, so a stale one simply surfaces the modal's escape hatch.
-  const [setPwToken, setSetPwToken] = useState<string | null>(() => {
-    const fromUrl = new URLSearchParams(window.location.search).get('set_password')
-    if (fromUrl) {
-      window.history.replaceState({}, '', window.location.pathname)
-      sessionStorage.setItem('pending_set_password', fromUrl)
-      return fromUrl
-    }
-    return sessionStorage.getItem('pending_set_password')
-  })
+  // Session local dismissal for SetPasswordModal's error escape hatch: the
+  // server side needs_password flag stays true, so the modal honestly returns
+  // next session — but the user is never trapped behind a failing modal now.
+  const [pwModalDismissed, setPwModalDismissed] = useState(false)
+  // The signup entry link (verify_email) 302s to /?entry=1 with only the
+  // httponly auth cookie set — a fresh browser has no localStorage session
+  // yet, so hydrate one from that cookie via GET /auth/me. The flag itself is
+  // not sensitive (unlike the old ?set_password reset token); scrub it so a
+  // refresh or shared URL doesn't re-trigger the bootstrap.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('entry') !== '1') return
+    params.delete('entry')
+    const qs = params.toString()
+    window.history.replaceState({}, '', window.location.pathname + (qs ? `?${qs}` : ''))
+    if (!user) refreshUser()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
   useGlobalHotkeys()
 
   // Public booking pages are standalone — render without the app shell or auth,
@@ -424,8 +426,14 @@ export default function App() {
           {user && !user.tour_completed && <WelcomeTour />}
         </div>
       )}
-      {user && !impersonating && setPwToken && (
-        <SetPasswordModal token={setPwToken} onDone={() => { sessionStorage.removeItem('pending_set_password'); setSetPwToken(null) }} />
+      {/* Passwordless signup: user.needs_password is a durable server side
+          flag, so the mandatory modal survives refreshes and repeat entry
+          link clicks. onDone refetches /auth/me so needs_password=false
+          propagates into localStorage and state after a successful save; the
+          local dismissed bit covers the error path escape hatch, where the
+          server flag (still true) would otherwise keep the modal mounted. */}
+      {user && user.needs_password && !impersonating && !pwModalDismissed && (
+        <SetPasswordModal onDone={() => { setPwModalDismissed(true); refreshUser() }} />
       )}
       <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
         <Sidebar />

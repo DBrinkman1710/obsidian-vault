@@ -143,52 +143,6 @@ async def send_verification_email(to: str, full_name: str, verify_url: str, auto
     )
 
 
-async def send_signup_welcome_email(to: str, full_name: str, login_url: str) -> None:
-    first_name = full_name.split()[0] if full_name else full_name
-    safe_name = _html.escape(first_name)
-    safe_link = _html.escape(login_url)
-
-    plain_body = (
-        f"Hi {first_name},\n\n"
-        f"Your Yippie workspace is ready. Click the link below to log in:\n{login_url}\n\n"
-        f"A few things to get you started:\n"
-        f"  - Set up your profile: add the email address your replies come from\n"
-        f"  - Train Yip: a short chat of five questions that teaches Yip your brand\n"
-        f"  - Invite your team: teammates each get their own login\n\n"
-        f"If you have any questions, just reply. I read everything.\n\n"
-        f"Diederik\n"
-        f"Founder, Yippie"
-    )
-
-    prerendered = (
-        f'<p style="margin:0 0 16px;">Hi {safe_name},</p>'
-        f'<p style="margin:0 0 24px;">Your Yippie workspace is ready.</p>'
-        f'<div style="text-align:center;margin:32px 0;">'
-        f'<a href="{safe_link}" style="display:inline-block;background:#5BA4F5;color:#ffffff;'
-        f'text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">'
-        f'Log in to Yippie</a>'
-        f'</div>'
-        f'<p style="margin:24px 0 8px;font-size:14px;">A few things to get you started:</p>'
-        f'<ul style="margin:0 0 24px;padding-left:20px;font-size:14px;line-height:1.8;">'
-        f'<li>Set up your profile: add the email address your replies come from</li>'
-        f'<li>Train Yip: a short chat of five questions that teaches Yip your brand</li>'
-        f'<li>Invite your team: teammates each get their own login</li>'
-        f'</ul>'
-        f'<p style="margin:0 0 16px;">If you have any questions, just reply. I read everything.</p>'
-        f'<p style="margin:0;"><strong>Diederik</strong><br>'
-        f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
-    )
-
-    await send_email(
-        to=to,
-        subject="Your Yippie workspace is ready",
-        body=plain_body,
-        html=render_email_html(plain_body, prerendered_html=prerendered, tenant_name="Yippie"),
-        from_email="Diederik from Yippie <diederik@getyippie.com>",
-        reply_to="diederik@getyippie.com",
-    )
-
-
 async def send_welcome_to_inbox(tenant_inbound_email: str, tenant_name: str) -> None:
     """Send the welcome/introduction mail INTO the client's Yippie inbox (their
     tenant inbound address), so it's the first item they see in the product

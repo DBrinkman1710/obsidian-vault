@@ -300,7 +300,37 @@ async def reset_password(body: ResetPasswordRequest, db: Annotated[AsyncSession,
     if user is None or not user.is_active:
         raise HTTPException(status_code=400, detail="Invalid or expired reset link")
     user.hashed_password = await _hash_password(body.new_password)
+    # Choosing a password through any path clears the signup auto password obligation.
+    user.needs_password = False
     await db.commit()
+    return {"ok": True}
+
+
+class SetInitialPasswordRequest(BaseModel):
+    new_password: str
+
+
+@router.post("/set-initial-password")
+async def set_initial_password(
+    body: SetInitialPasswordRequest,
+    current_user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """One-time password creation for accounts provisioned with an auto-generated
+    password (passwordless signup). The session itself came from the emailed
+    entry link, so possession of the session proves inbox ownership — the same
+    trust model as the reset-token flow."""
+    if not current_user.needs_password:
+        # Closed once a password has been chosen — this endpoint must not act
+        # as a change password bypass (that path requires the current password).
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                            detail="A password is already set for this account")
+    if len(body.new_password) < 8:
+        raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+    current_user.hashed_password = await _hash_password(body.new_password)
+    current_user.needs_password = False
+    await db.commit()
+    log.info("AUTH_PASSWORD_SET_INITIAL user_id=%s", current_user.id)
     return {"ok": True}
 
 
@@ -327,6 +357,8 @@ async def change_password(
     if len(body.new_password) < 8:
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     current_user.hashed_password = await _hash_password(body.new_password)
+    # Choosing a password through any path clears the signup auto password obligation.
+    current_user.needs_password = False
     await db.commit()
     log.warning("AUTH_PASSWORD_CHANGE user_id=%s ip=%s", current_user.id, get_client_ip(request))
     return {"ok": True}

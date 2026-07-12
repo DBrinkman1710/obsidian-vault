@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 import os
 import re
+import secrets
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -1900,11 +1901,10 @@ async def signup(
     slug = await _unique_slug(db, base_slug)
 
     # No password on the form? Generate a throwaway one (demo pattern). The
-    # entry-link token carries pw="auto" so verify_email hands the user a
-    # set-password modal once they're inside the workspace.
-    import secrets as _secrets
+    # new admin gets needs_password=True below, so the workspace shows the
+    # one time set password modal until they choose their own.
     password_auto = not body.password
-    admin_password = body.password or _secrets.token_urlsafe(24)
+    admin_password = body.password or secrets.token_urlsafe(24)
 
     try:
         tenant_result = await create_tenant(
@@ -1977,7 +1977,6 @@ async def signup(
         trial_ends_at = datetime.now(timezone.utc) + timedelta(days=TRIAL_DAYS)
         if signup_tenant is not None:
             signup_tenant.trial_ends_at = trial_ends_at
-            await db.flush()
 
         # [WEB-LOGO-CARRY] Apply branding from the /custom configurator to the new
         # tenant workspace. Must be FLUSHED (not just assigned) before
@@ -1989,7 +1988,18 @@ async def signup(
                 signup_tenant.primary_color = questionnaire.branding_color
             if questionnaire.branding_logo:
                 signup_tenant.logo_url = questionnaire.branding_logo
-            await db.flush()
+
+        # Auto-generated password: mark the new admin so the workspace shows
+        # the mandatory set password modal. A durable server side flag — it
+        # survives refreshes and repeat entry link clicks, unlike the old one
+        # shot ?set_password reset token URL. Cleared by set_initial_password /
+        # reset_password / change_password. Must also happen before
+        # set_tenant_context: the users RLS policy would hide the new tenant's
+        # admin row from root-tenant context.
+        if password_auto:
+            new_user.needs_password = True
+
+        await db.flush()
 
         await set_tenant_context(db, str(root_tenant_id))
 
@@ -2066,7 +2076,6 @@ async def signup(
         EMAIL_VERIFY_TTL,
         user_id=str(new_user_id),
         email=email,
-        **({"pw": "auto"} if password_auto else {}),
     )
     verify_url = f"{base}/api/v1/public/verify-email?token={verify_token}"
 
@@ -2135,20 +2144,28 @@ async def verify_email(token: str, db: Annotated[AsyncSession, Depends(get_db)])
 
     if not user.is_active:
         user.is_active = True
+        # Backward compat: entry emails sent before the users.needs_password
+        # DB flag existed (in flight for up to 48h) carry a pw="auto" claim.
+        # Backfill the durable flag on the activation click so those signups
+        # still get the mandatory set password modal. Gated on the FIRST
+        # click on purpose: a first click is proof the password is still the
+        # auto generated one, while after it the user may have chosen their
+        # own (clearing the flag) — and a later re-click must never force the
+        # modal back, which was exactly the bug in the old reset token flow
+        # this flag replaces. Users who don't set a password right away are
+        # still covered: the flag persists until they do.
+        if claims.get("pw") == "auto":
+            user.needs_password = True
         await db.commit()
         # Deliberately NO welcome email here: the entry click puts the user
         # inside the workspace already, and a second mail right after the entry
         # mail reads as spam (user feedback 2026-07-11).
 
-    # Auto-generated password (no password field on the signup form): hand the
-    # workspace a short-lived reset token so the SetPasswordModal can let the
-    # user choose their own via the existing POST /auth/reset-password. Only
-    # the inbox owner ever holds this link, so only they can set the password.
-    landing = f"{base}/"
-    if claims.get("pw") == "auto":
-        from app.auth.tokens import create_signed_token
-        pw_token = create_signed_token("reset", timedelta(hours=1), sub=str(user.id))
-        landing = f"{base}/?set_password={pw_token}"
+    # /?entry=1 tells the SPA this navigation came from the entry link: a
+    # fresh browser has no localStorage session yet, so the frontend uses the
+    # (non sensitive) flag to bootstrap the session from the auth cookie set
+    # below via GET /auth/me.
+    landing = f"{base}/?entry=1"
 
     settings = get_settings()
     access_token = create_access_token(str(user.id), settings)
@@ -2178,9 +2195,11 @@ async def resend_verification(
 
     Always returns {"ok": True} (never reveals whether the email has an account),
     and only ever re-mails a still-pending self-serve signup: an inactive,
-    never-logged-in user on a live, non-demo tenant. The new link carries
-    pw="auto" so the SetPasswordModal guarantees a known password on entry —
-    harmless even if a password was chosen at signup (it is simply reset)."""
+    never-logged-in user on a live, non-demo tenant. No pw claim on the new
+    link: whether the account still needs a password lives on the durable
+    users.needs_password flag (set at signup), which drives the SetPasswordModal
+    on entry — a resent link can no longer force the modal onto a signup that
+    chose its own password."""
     from app.auth.invite import send_verification_email
     from app.auth.tokens import create_signed_token
     from app.core.models import Tenant, User
@@ -2204,11 +2223,12 @@ async def resend_verification(
         EMAIL_VERIFY_TTL,
         user_id=str(user.id),
         email=email,
-        pw="auto",
     )
     verify_url = f"{base}/api/v1/public/verify-email?token={verify_token}"
     try:
-        await send_verification_email(email, user.full_name, verify_url, auto_password=True)
+        # auto_password only switches the email copy — mirror the DB flag so
+        # signups that chose a password don't get "we generated one for you".
+        await send_verification_email(email, user.full_name, verify_url, auto_password=user.needs_password)
     except Exception:
         logger.exception("resend_verification: failed to send entry link to %s", email)
         raise HTTPException(

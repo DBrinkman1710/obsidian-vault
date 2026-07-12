@@ -22,6 +22,9 @@ export interface User {
   ui_language?: string
   jarvis_prefs?: JarvisPrefs | null
   help_tips_enabled?: boolean
+  // True while a passwordless signup still has its auto generated password —
+  // App renders the mandatory SetPasswordModal until refreshUser clears it.
+  needs_password?: boolean
 }
 
 export interface JarvisPrefs {
@@ -82,6 +85,11 @@ export const useAuth = create<AuthState>((set: any, get: any) => ({
     set({ user: null, impersonating: null })
   },
 
+  // Also serves as the cold bootstrap from the httponly auth cookie (user may
+  // be null): the signup entry link 302s into the SPA with only that cookie
+  // set, so /?entry=1 calls this to hydrate localStorage + state the same way
+  // login does. A 401 is swallowed — /auth/ endpoints are exempt from the
+  // global 401 redirect interceptor, so an anonymous visitor just stays on /login.
   refreshUser: async () => {
     try {
       const { data } = await api.get('/auth/me')

@@ -145,17 +145,22 @@ class Tenant(Base):
     # trigger. Columns dropped by migration flows8_builtin_migration.
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    users: Mapped[list[User]] = relationship("User", back_populates="tenant")
+    # passive_deletes: the DB has ON DELETE CASCADE (migration tenant_cascade_all); without
+    # this flag the ORM would NULL users.tenant_id on tenant delete, violating NOT NULL.
+    users: Mapped[list[User]] = relationship("User", back_populates="tenant", passive_deletes=True)
 
 
 class User(Base):
     __tablename__ = "users"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     hashed_password: Mapped[str] = mapped_column(Text, nullable=False)
+    # Set when signup auto-generated the password; cleared the moment the user
+    # chooses one (set_initial_password / reset_password / change_password).
+    needs_password: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False, default=UserRole.agent)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     reply_from_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
@@ -209,7 +214,7 @@ class UserSignature(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     # tenant_id is carried directly so the standard RLS tenant_isolation policy applies.
-    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     name: Mapped[str] = mapped_column(String(120), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False, server_default="")
     is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
@@ -235,6 +240,9 @@ class UserReminder(Base):
     body: Mapped[str] = mapped_column(Text, nullable=False)
     remind_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     dismissed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set once the toast has actually been pushed to the owner, so a process
+    # restart or a second worker never re-fires an already delivered reminder.
+    delivered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

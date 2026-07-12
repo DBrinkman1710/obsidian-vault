@@ -30,6 +30,9 @@ class UserOut(BaseModel):
     ui_language: str = "en"
     jarvis_prefs: Optional[dict] = None
     help_tips_enabled: bool = True
+    # True while a passwordless signup still has its auto generated password —
+    # the frontend shows the mandatory SetPasswordModal until it clears.
+    needs_password: bool = False
     created_at: datetime
 
     model_config = {"from_attributes": True}
