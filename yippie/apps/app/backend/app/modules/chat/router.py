@@ -1363,7 +1363,7 @@ async def agent_ws(websocket: WebSocket):
                 return
         tenant_key = str(user.tenant_id)
 
-    await manager.connect_agent(websocket, tenant_key)
+    await manager.connect_agent(websocket, tenant_key, user_id=str(user_uuid))
 
     async def _agent_ping_loop() -> None:
         """Send a ping every 30 s to detect stale agent connections."""

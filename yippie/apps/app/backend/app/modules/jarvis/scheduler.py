@@ -21,16 +21,16 @@ scheduler = AsyncIOScheduler()
 
 DEFAULT_BRIEFING_TIME = "08:00"
 
-# Reminders only carry dismissed_at, so a delivered-but-undismissed reminder would
-# re-fire every minute. Track what we've already pushed this process to fire once.
-_fired: set[str] = set()
-
 
 @scheduler.scheduled_job("interval", minutes=1, id="jarvis_reminders", max_instances=1, coalesce=True)
 async def jarvis_reminder_job():
-    import sys
+    """Push due reminder toasts to their owner, exactly once.
+
+    delivered_at is stamped in the DB the moment a reminder reaches an online
+    socket, so a process restart or a second worker never re-fires it. An offline
+    owner simply leaves delivered_at NULL and the reminder is retried next tick.
+    """
     now = datetime.now(timezone.utc)
-    print(f"[jarvis_scheduler] tick at {now.isoformat()}", file=sys.stderr, flush=True)
     try:
         async with db_session() as db:
             await db.execute(text("SET LOCAL row_security = off"))
@@ -38,33 +38,32 @@ async def jarvis_reminder_job():
                 select(UserReminder).where(
                     UserReminder.remind_at <= now,
                     UserReminder.dismissed_at.is_(None),
+                    UserReminder.delivered_at.is_(None),
                 )
             )
             reminders = result.scalars().all()
-        print(f"[jarvis_scheduler] {len(reminders)} due reminder(s)", file=sys.stderr, flush=True)
-    except Exception as exc:
-        print(f"[jarvis_scheduler] ERROR: {exc}", file=sys.stderr, flush=True)
-        raise
 
-    for reminder in reminders:
-        key = str(reminder.id)
-        if key in _fired:
-            continue
-        delivered = await manager.broadcast_to_agents(
-            str(reminder.tenant_id),
-            {
-                "event": "jarvis_reminder",
-                "type": "jarvis_reminder",
-                "reminder_id": key,
-                "user_id": str(reminder.user_id),
-                "body": reminder.body,
-            },
-        )
-        if delivered:
-            _fired.add(key)
-            print(f"[jarvis_scheduler] Fired reminder {key[:8]} to agents", flush=True)
-        else:
-            print(f"[jarvis_scheduler] No agents online for reminder {key[:8]}, will retry", flush=True)
+            fired = 0
+            for reminder in reminders:
+                delivered = await manager.send_to_agent_user(
+                    str(reminder.tenant_id),
+                    str(reminder.user_id),
+                    {
+                        "event": "jarvis_reminder",
+                        "type": "jarvis_reminder",
+                        "reminder_id": str(reminder.id),
+                        "user_id": str(reminder.user_id),
+                        "body": reminder.body,
+                    },
+                )
+                if delivered:
+                    reminder.delivered_at = now
+                    fired += 1
+            if fired:
+                await db.commit()
+                log.info("[jarvis_reminders] delivered %d reminder(s)", fired)
+    except Exception:
+        log.exception("[jarvis_reminders] job failed")
 
 
 # ---------------------------------------------------------------------------

@@ -17,6 +17,8 @@ class ConnectionManager:
     def __init__(self):
         self._connections: Dict[str, Dict[str, Set[WebSocket]]] = defaultdict(lambda: defaultdict(set))
         self._agent_connections: Dict[str, Set[WebSocket]] = defaultdict(set)
+        # ws → user_id, so personal events (e.g. Yip reminders) reach only their owner.
+        self._agent_users: Dict[WebSocket, str] = {}
 
     # ------------------------------------------------------------------
     # Visitor (widget) connections
@@ -52,12 +54,15 @@ class ConnectionManager:
     # Agent connections — receive all events for the tenant in real time
     # ------------------------------------------------------------------
 
-    async def connect_agent(self, websocket: WebSocket, tenant_key: str):
+    async def connect_agent(self, websocket: WebSocket, tenant_key: str, user_id: str | None = None):
         await websocket.accept()
         self._agent_connections[tenant_key].add(websocket)
+        if user_id:
+            self._agent_users[websocket] = user_id
 
     def disconnect_agent(self, websocket: WebSocket, tenant_key: str):
         self._agent_connections[tenant_key].discard(websocket)
+        self._agent_users.pop(websocket, None)
         if not self._agent_connections[tenant_key]:
             del self._agent_connections[tenant_key]
 
@@ -74,6 +79,28 @@ class ConnectionManager:
                 dead.add(ws)
         for ws in dead:
             self._agent_connections[tenant_key].discard(ws)
+        return sent > 0
+
+    async def send_to_agent_user(self, tenant_key: str, user_id: str, data: dict) -> bool:
+        """Send only to the given user's agent sockets in this tenant. Returns True if at least one was reached.
+
+        Used for personal events (Yip reminders) that must not fan out to every
+        agent's browser.
+        """
+        payload = json.dumps(data)
+        dead = set()
+        sent = 0
+        for ws in list(self._agent_connections[tenant_key]):
+            if self._agent_users.get(ws) != user_id:
+                continue
+            try:
+                await ws.send_text(payload)
+                sent += 1
+            except Exception:
+                dead.add(ws)
+        for ws in dead:
+            self._agent_connections[tenant_key].discard(ws)
+            self._agent_users.pop(ws, None)
         return sent > 0
 
 
