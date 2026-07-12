@@ -350,7 +350,16 @@ async def resend_check(_: SuperAdminUser):
                     headers=auth,
                 )
                 result["detail_status"] = body_resp.status_code
-                result["detail_body"] = body_resp.json() if body_resp.status_code == 200 else body_resp.text
+                if body_resp.status_code == 200:
+                    # Redact message content — this is a delivery diagnostic, not a
+                    # mail reader. Returning full bodies here exposes any tenant's
+                    # inbound customer mail to whoever can reach this endpoint.
+                    detail = body_resp.json()
+                    for field in ("text", "html", "body", "raw"):
+                        detail.pop(field, None)
+                    result["detail_body"] = detail
+                else:
+                    result["detail_body"] = body_resp.text
             else:
                 result["detail_body"] = "no emails in list"
 
@@ -680,4 +689,6 @@ async def resend_demo_invite(_: SuperAdminUser, db: DB, data: schemas.ResendDemo
         raise HTTPException(status_code=503, detail="Demo link URL is not configured.")
     magic_link = f"{base}/demo-enter?token={token}"
     await send_demo_ready_email(data.email, user.full_name or data.email, magic_link)
-    return {"sent": True, "magic_link": magic_link}
+    # The magic link is an auto-login JWT — never echo it in the API response,
+    # where it would land in proxy logs and browser devtools. It goes by email only.
+    return {"sent": True}

@@ -132,42 +132,6 @@ async def list_tickets(
     return _enrich_tickets(tickets, dept_names, last_comments), total or 0
 
 
-async def count_deadline_badges(
-    db: AsyncSession,
-    tenant_id: uuid.UUID,
-    red_hours: int = 24,
-    orange_hours: int = 48,
-) -> dict:
-    """Return red/orange badge counts for the Tickets nav item.
-
-    Red: overdue OR due within red_hours (default ≤ 1 day).
-    Orange: due within orange_hours but NOT already red.
-    Red tickets are excluded from the orange count.
-    """
-    now = datetime.now(timezone.utc)
-    red_cutoff = now + timedelta(hours=red_hours)
-    orange_cutoff = now + timedelta(hours=orange_hours)
-
-    base = and_(
-        Ticket.tenant_id == tenant_id,
-        Ticket.deleted_at.is_(None),
-        Ticket.status.in_([TicketStatus.open, TicketStatus.in_progress]),
-        Ticket.sla_due_at.isnot(None),
-    )
-
-    red_result = await db.scalar(
-        select(func.count()).where(base, Ticket.sla_due_at <= red_cutoff)
-    )
-    orange_result = await db.scalar(
-        select(func.count()).where(
-            base,
-            Ticket.sla_due_at > red_cutoff,
-            Ticket.sla_due_at <= orange_cutoff,
-        )
-    )
-    return {"red": red_result or 0, "orange": orange_result or 0}
-
-
 async def deadline_severity(
     db: AsyncSession, tenant_id: uuid.UUID, red_days: int, orange_days: int
 ) -> dict:
@@ -225,6 +189,28 @@ async def get_ticket_orm(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid
 async def soft_delete_ticket(db: AsyncSession, ticket: Ticket) -> None:
     ticket.deleted_at = datetime.now(timezone.utc)
     await db.commit()
+
+
+async def bulk_soft_delete_tickets(
+    db: AsyncSession, tenant_id: uuid.UUID, ticket_ids: list[uuid.UUID]
+) -> int:
+    """Soft-delete many tickets in one tenant-scoped UPDATE + one commit.
+
+    Only rows that belong to ``tenant_id`` and are still live are touched, so a
+    leaked id can never delete another tenant's ticket. Returns the row count."""
+    if not ticket_ids:
+        return 0
+    result = await db.execute(
+        update(Ticket)
+        .where(
+            Ticket.tenant_id == tenant_id,
+            Ticket.id.in_(ticket_ids),
+            Ticket.deleted_at.is_(None),
+        )
+        .values(deleted_at=datetime.now(timezone.utc))
+    )
+    await db.commit()
+    return result.rowcount or 0
 
 
 async def get_ticket(db: AsyncSession, tenant_id: uuid.UUID, ticket_id: uuid.UUID) -> Optional[TicketOut]:

@@ -4,10 +4,25 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, model_validator
+from pydantic import BaseModel, EmailStr, field_validator, model_validator
 
 from app.config import ALL_MODULES
 from app.core.plans import PlanTier
+
+
+def _validate_logo_url(value: Optional[str]) -> Optional[str]:
+    """Reject logo URLs that could carry script (javascript:, vbscript:, non-image
+    data: URIs). Only http(s) links and inline data:image/... payloads are allowed,
+    since a logo_url is rendered as an <img src>/href in the app shell."""
+    if value is None:
+        return value
+    v = value.strip()
+    if not v:
+        return None
+    lowered = v.lower()
+    if lowered.startswith(("http://", "https://")) or lowered.startswith("data:image/"):
+        return v
+    raise ValueError("logo_url must be an http(s) URL or a data:image/... URI")
 
 
 class TenantCreate(BaseModel):
@@ -28,6 +43,8 @@ class TenantCreate(BaseModel):
     # created inactive and must click the verification link before first login.
     # Uses the existing users.is_active column — no schema change.
     admin_is_active: bool = True
+
+    _check_logo = field_validator("logo_url")(_validate_logo_url)
 
 
 class TenantUpdate(BaseModel):
@@ -53,6 +70,8 @@ class TenantUpdate(BaseModel):
     lead_widget_save_contact: Optional[bool] = None
     lead_widget_stage_id: Optional[uuid.UUID] = None
 
+    _check_logo = field_validator("logo_url")(_validate_logo_url)
+
 
 class TenantOut(BaseModel):
     id: uuid.UUID
@@ -71,7 +90,10 @@ class TenantOut(BaseModel):
     kvk_nummer: Optional[str]
     btw_nummer: Optional[str]
     whatsapp_phone_number_id: Optional[str]
-    whatsapp_access_token: Optional[str]
+    # whatsapp_access_token (Meta Cloud API bearer) is deliberately NOT exposed —
+    # it is a long-lived credential and the frontend never reads it back. Whether
+    # WhatsApp is wired up is signalled by whatsapp_configured instead.
+    whatsapp_configured: bool = False
     whatsapp_verify_token: Optional[str]
     ai_auto_scan: bool = False
     lead_widget_save_contact: bool = True

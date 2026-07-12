@@ -52,7 +52,12 @@ PROTECTED_SUPERADMIN_EMAIL = _admin_email_env
 
 
 def _tenant_to_dict(tenant: Tenant, user_count: int) -> dict:
-    return {**{c.name: getattr(tenant, c.name) for c in Tenant.__table__.columns}, "user_count": user_count}
+    return {
+        **{c.name: getattr(tenant, c.name) for c in Tenant.__table__.columns},
+        "user_count": user_count,
+        # Surface only whether the WhatsApp bearer is set, never the token itself.
+        "whatsapp_configured": bool(getattr(tenant, "whatsapp_access_token", None)),
+    }
 
 
 async def list_tenants(db: AsyncSession) -> list[dict]:
@@ -163,10 +168,9 @@ async def check_email_available(db: AsyncSession, email: str) -> tuple[bool, str
     addr = (email or "").strip().lower()
     if not is_valid_email(addr):
         return False, "Not a valid email address"
-    existing = await db.scalar(select(User.id).where(func.lower(User.email) == addr))
-    if existing:
-        user = await db.scalar(select(User).where(func.lower(User.email) == addr))
-        if user and user.is_active:
+    user = await db.scalar(select(User).where(func.lower(User.email) == addr))
+    if user:
+        if user.is_active:
             return False, "Email address already active, use app.getyippie.com to log in."
         return False, "A user with this email already exists"
     return True, None

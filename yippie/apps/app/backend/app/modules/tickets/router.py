@@ -199,12 +199,7 @@ async def snooze_ticket(ticket_id: uuid.UUID, current_user: CurrentUser, db: DB)
 
 @router.delete("/bulk", status_code=status.HTTP_200_OK)
 async def bulk_delete_tickets(body: BulkDeleteTicketsRequest, current_user: AdminUser, db: DB):
-    deleted = 0
-    for ticket_id in body.ids:
-        ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
-        if ticket:
-            await service.soft_delete_ticket(db, ticket)
-            deleted += 1
+    deleted = await service.bulk_soft_delete_tickets(db, current_user.tenant_id, body.ids)
     return {"deleted": deleted}
 
 
