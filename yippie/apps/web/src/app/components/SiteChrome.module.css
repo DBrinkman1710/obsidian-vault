@@ -122,7 +122,9 @@
 .navDropdownMenu a:hover { background: var(--off-white); color: var(--ink); }
 
 .langTrigger { font-size: 12px; font-weight: 600; letter-spacing: 0.04em; padding: 4px 6px; }
-.langMenu { min-width: 140px; right: 0; left: auto; }
+.langMenu { min-width: 140px; right: 0; left: auto; transform: translateY(6px); }
+.navDropdown:hover .langMenu,
+.navDropdown:focus-within .langMenu { transform: translateY(2px); }
 .langActive { font-weight: 600; color: var(--brand) !important; }
 
 .navRight { display: flex; align-items: center; gap: 8px; justify-self: end; white-space: nowrap; }

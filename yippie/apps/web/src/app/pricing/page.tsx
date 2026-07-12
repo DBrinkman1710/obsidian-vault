@@ -298,7 +298,7 @@ export default function PricingPage() {
         <h2 className={styles.sectionTitle}>Tell us about your business</h2>
         <p className={styles.sectionSub}>
           Answer a few quick questions and we&apos;ll recommend the plan and
-          add-ons that fit, with an estimated monthly price.
+          add-ons that fit, with an estimated {annual ? "annual" : "monthly"} price.
         </p>
 
         <div className={styles.quiz}>
@@ -428,7 +428,7 @@ export default function PricingPage() {
         <h2 className={styles.sectionTitle}>Add the features you need</h2>
         <p className={styles.sectionSub}>
           Start with the core and switch on any module à la carte. Each add-on is
-          one flat price per workspace, per month.
+          one flat price per workspace, {annual ? "per year (10% off vs monthly)." : "per month."}
         </p>
         <div className={styles.addOnsGrid}>
           {addOns.map((a) => (
@@ -437,8 +437,8 @@ export default function PricingPage() {
               <h3 className={styles.addOnName}>{a.name}</h3>
               <p className={styles.addOnDesc}>{a.desc}</p>
               <p className={styles.addOnPrice}>
-                €{a.price}
-                <span>/mo</span>
+                €{annual ? Math.round(a.price * 12 * 0.9) : a.price}
+                <span>{annual ? "/yr" : "/mo"}</span>
               </p>
             </div>
           ))}

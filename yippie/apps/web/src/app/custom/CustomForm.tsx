@@ -307,6 +307,11 @@ export default function CustomForm() {
     setLogoUrl(null);
   }
 
+  function goToStep(n: 1 | 2 | 3) {
+    setStep(n);
+    window.scrollTo({ top: 0, behavior: "instant" });
+  }
+
   function goToStep2() {
     const recs = computeRecommendations(industry, currentTools, painPoints);
     const preSelected = recs
@@ -320,7 +325,7 @@ export default function CustomForm() {
       setSelectedModules(preSelected);
       seededRef.current = true;
     }
-    setStep(2);
+    goToStep(2);
   }
 
   // Shared questionnaire payload — the lead/quote endpoints and the signup
@@ -450,6 +455,9 @@ export default function CustomForm() {
 
   // Live preview panel — shown next to every step so the visitor
   // watches their own workspace take shape while they build it.
+  // Show a teaser set on step 1 before the visitor has built their package.
+  const TEASER_MODULES: ModuleKey[] = ["ai", "tickets", "chat", "calendar"];
+  const previewModules = selectedModules.length > 0 ? selectedModules : TEASER_MODULES;
   const preview = (
     <aside className={styles.previewCol}>
       <p className={styles.previewLabel}>Your workspace — live preview</p>
@@ -457,7 +465,7 @@ export default function CustomForm() {
         brandColor={brandColor}
         logoUrl={logoUrl}
         companyName={company}
-        modules={selectedModules}
+        modules={previewModules}
       />
     </aside>
   );
@@ -666,7 +674,7 @@ export default function CustomForm() {
           <button
             type="button"
             className={`${styles.stepDot} ${styles.stepDotDone}`}
-            onClick={() => setStep(1)}
+            onClick={() => goToStep(1)}
             aria-label="Back to profile"
           >
             1
@@ -775,7 +783,11 @@ export default function CustomForm() {
                     </span>
                   </div>
                   <div className={styles.moduleRowRight}>
-                    <span className={styles.moduleRowPrice}>€{isFounder ? Math.round(mod.price * 0.5) : mod.price}/mo</span>
+                    <span className={styles.moduleRowPrice}>
+                      {annual
+                        ? `€${Math.round((isFounder ? mod.price * 0.5 : mod.price) * 12 * 0.9)}/yr`
+                        : `€${isFounder ? Math.round(mod.price * 0.5) : mod.price}/mo`}
+                    </span>
                     <span className={active ? styles.moduleTagIncluded : styles.moduleTagAddBack}>
                       {active ? "✓ Included" : "+ Add back"}
                     </span>
@@ -810,7 +822,9 @@ export default function CustomForm() {
                       </span>
                     </div>
                     <div className={styles.moduleRowRight}>
-                      <span className={styles.moduleRowPrice}>€{mod.price}/mo</span>
+                      <span className={styles.moduleRowPrice}>
+                        {annual ? `€${Math.round(mod.price * 12 * 0.9)}/yr` : `€${mod.price}/mo`}
+                      </span>
                       <span className={active ? styles.moduleTagIncluded : styles.moduleTagAdd}>
                         {active ? "✓ Included" : "+ Add"}
                       </span>
@@ -847,13 +861,13 @@ export default function CustomForm() {
         </div>
 
         <div className={styles.navRow}>
-          <button type="button" className={styles.backBtn} onClick={() => setStep(1)}>
+          <button type="button" className={styles.backBtn} onClick={() => goToStep(1)}>
             ← Back
           </button>
           <button
             className={styles.submit}
             type="button"
-            onClick={() => setStep(3)}
+            onClick={() => goToStep(3)}
             style={{ flex: 1 }}
           >
             Continue →
@@ -879,7 +893,7 @@ export default function CustomForm() {
         <button
           type="button"
           className={`${styles.stepDot} ${styles.stepDotDone}`}
-          onClick={() => setStep(1)}
+          onClick={() => goToStep(1)}
           aria-label="Back to profile"
         >
           1
@@ -888,7 +902,7 @@ export default function CustomForm() {
         <button
           type="button"
           className={`${styles.stepDot} ${styles.stepDotDone}`}
-          onClick={() => setStep(2)}
+          onClick={() => goToStep(2)}
           aria-label="Back to package"
         >
           2

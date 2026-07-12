@@ -14,11 +14,10 @@ export async function POST(req: NextRequest) {
   if (
     typeof b.name !== "string" || !b.name.trim() ||
     typeof b.company_name !== "string" || !b.company_name.trim() ||
-    typeof b.email !== "string" || !b.email.trim() ||
-    typeof b.password !== "string" || b.password.length < 8
+    typeof b.email !== "string" || !b.email.trim()
   ) {
     return NextResponse.json(
-      { error: "Your name, company, email, and a password of at least 8 characters are required." },
+      { error: "Your name, company name, and work email are required." },
       { status: 400 }
     );
   }
