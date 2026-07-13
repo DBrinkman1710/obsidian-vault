@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../../../api/client'
 import { fmtDate, timeAgo } from '../../../lib/format'
 import { Skeleton } from '../../../shell/Skeleton'
+import { Sparkline } from '../../../shell/Sparkline'
 
 const CARD = 'bg-white rounded-xl border border-slate-200 shadow-sm p-6'
 const SECTION_HEADER = 'text-xs font-semibold text-slate-500 uppercase tracking-wide mb-4'
@@ -34,6 +35,11 @@ interface DeptStat {
   tickets_open: number
   tickets_resolved: number
   avg_resolution_hours: number | null
+}
+
+interface Sparklines {
+  days: number
+  series: { activity: number[]; emails_sent: number[]; tickets_resolved: number[]; tickets_created: number[] }
 }
 
 interface UserStatsResp { period_days: number; users: UserStat[] }
@@ -113,9 +119,36 @@ function Stat({ label, value, sub, tone = 'none' }: { label: string; value: stri
   )
 }
 
+// Chart hex values mirror the semantic tokens (Sparkline takes an inline stroke colour).
+const C_BRAND = '#5BA4F5'
+const C_SUCCESS = '#22c55e'
+const C_WARNING = '#f59e0b'
+
+/** KPI number with a trend micro chart alongside — the dashboard habit. */
+function SparkCard({ label, value, data, color }: { label: string; value: string; data?: number[]; color: string }) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/60 px-4 py-3">
+      <div>
+        <p className="text-xs text-slate-500 mb-0.5">{label}</p>
+        <p className="text-xl font-bold text-slate-900 tabular-nums">{value}</p>
+      </div>
+      {data && data.length > 1 && <Sparkline data={data} color={color} width={72} height={34} />}
+    </div>
+  )
+}
+
+type CompareKey = 'tickets_resolved' | 'tickets_open' | 'emails_sent' | 'first_response_minutes'
+const COMPARE: { key: CompareKey; label: string; color: string; get: (u: UserStat) => number; lowerBetter?: boolean }[] = [
+  { key: 'tickets_resolved', label: 'Tickets resolved', color: C_SUCCESS, get: u => u.tickets_resolved },
+  { key: 'tickets_open', label: 'Open workload', color: C_WARNING, get: u => u.tickets_open },
+  { key: 'emails_sent', label: 'Emails sent', color: C_BRAND, get: u => u.emails_sent },
+  { key: 'first_response_minutes', label: 'First response', color: C_BRAND, get: u => u.first_response_minutes ?? 0, lowerBetter: true },
+]
+
 export default function UsersTab() {
   const [days, setDays] = useState<number>(7)
   const [selectedUserId, setSelectedUserId] = useState<string>('')
+  const [compareKey, setCompareKey] = useState<CompareKey>('tickets_resolved')
 
   const { data: userStats, isLoading: usersLoading } = useQuery<UserStatsResp>({
     queryKey: ['activity-user-stats', days],
@@ -143,6 +176,14 @@ export default function UsersTab() {
       api.get('/activity', { params: { actor_id: activeUserId, limit: 60 } }).then((r: any) => r.data),
     enabled: !!activeUserId,
   })
+
+  const { data: sparks } = useQuery<Sparklines>({
+    queryKey: ['activity-user-sparklines', activeUserId, days],
+    queryFn: () =>
+      api.get('/activity/user-sparklines', { params: { user_id: activeUserId, days } }).then((r: any) => r.data),
+    enabled: !!activeUserId,
+  })
+  const series = sparks?.series
 
   const eventsByDay = useMemo(() => {
     const groups: Record<string, ActivityEvent[]> = {}
@@ -226,22 +267,75 @@ export default function UsersTab() {
                 <Hero label="Open workload" value={num(selected.tickets_open)} sub="assigned right now" />
               </div>
 
-              {/* Time to open — shared + personal */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pb-6 mb-6 border-b border-slate-100">
+              {/* Time to open, mail quality, chats */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 pb-6 mb-6 border-b border-slate-100">
                 <Stat label="Time to open (shared)" value={mins(selected.time_to_open_shared_minutes)} sub="shared inbox" tone={openTone(selected.time_to_open_shared_minutes)} />
                 <Stat label="Time to open (personal)" value={mins(selected.time_to_open_personal_minutes)} sub="own mailbox" tone={openTone(selected.time_to_open_personal_minutes)} />
                 <Stat label="Emails received" value={num(selected.emails_received_personal)} sub="personal mailbox" />
-                <Stat label="Emails sent" value={num(selected.emails_sent)} />
-              </div>
-
-              {/* Volume */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
-                <Stat label="Tickets resolved" value={num(selected.tickets_resolved)} />
-                <Stat label="Tickets created" value={num(selected.tickets_created)} />
                 <Stat label="Open rate" value={pct(selected.open_rate)} tone={rateTone(selected.open_rate)} />
                 <Stat label="Chats handled" value={num(selected.chats_handled)} />
                 <Stat label="Chats solved" value={num(selected.chats_solved)} />
               </div>
+
+              {/* Trend cards with micro charts */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <SparkCard label="Activity" value={num(series?.activity.reduce((a, b) => a + b, 0))} data={series?.activity} color={C_BRAND} />
+                <SparkCard label="Tickets resolved" value={num(selected.tickets_resolved)} data={series?.tickets_resolved} color={C_SUCCESS} />
+                <SparkCard label="Tickets created" value={num(selected.tickets_created)} data={series?.tickets_created} color={C_WARNING} />
+                <SparkCard label="Emails sent" value={num(selected.emails_sent)} data={series?.emails_sent} color={C_BRAND} />
+              </div>
+            </div>
+
+            {/* Team comparison chart */}
+            <div className={CARD}>
+              <div className="flex items-center justify-between mb-4">
+                <p className={SECTION_HEADER} style={{ marginBottom: 0 }}>Team comparison</p>
+                <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden shrink-0">
+                  {COMPARE.map(m => (
+                    <button
+                      key={m.key}
+                      onClick={() => setCompareKey(m.key)}
+                      className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
+                        compareKey === m.key ? 'bg-yippie text-white' : 'text-slate-500 hover:bg-slate-50'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {(() => {
+                const metric = COMPARE.find(m => m.key === compareKey)!
+                const ranked = [...users].sort((a, b) =>
+                  metric.lowerBetter ? metric.get(a) - metric.get(b) : metric.get(b) - metric.get(a),
+                )
+                const max = Math.max(1, ...ranked.map(metric.get))
+                const unit = metric.key === 'first_response_minutes' ? mins : num
+                return (
+                  <div className="space-y-2.5">
+                    {ranked.map(u => {
+                      const v = metric.get(u)
+                      const isSel = u.user_id === activeUserId
+                      return (
+                        <div key={u.user_id} className="flex items-center gap-3">
+                          <span className={`w-32 shrink-0 text-sm truncate ${isSel ? 'font-semibold text-slate-900' : 'text-slate-600'}`}>
+                            {u.user_name}
+                          </span>
+                          <div className="flex-1 h-2.5 rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full rounded-full transition-all"
+                              style={{ width: `${Math.round((v / max) * 100)}%`, background: metric.color, opacity: isSel ? 1 : 0.55 }}
+                            />
+                          </div>
+                          <span className="w-14 shrink-0 text-right text-sm font-bold tabular-nums text-slate-700">
+                            {metric.key === 'first_response_minutes' ? unit(u.first_response_minutes) : v}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                )
+              })()}
             </div>
 
             {/* Timeline */}

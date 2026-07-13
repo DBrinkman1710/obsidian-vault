@@ -688,3 +688,71 @@ async def get_department_activity_stats(
         "shared_time_to_open_minutes": _round1(shared_tto),
         "departments": departments,
     }
+
+
+def _fill_days(rows: list, days: int, now: datetime) -> list[int]:
+    """Turn grouped (day, count) rows into a contiguous array of length ``days``,
+    oldest first, zero-filling missing days — the shape the Sparkline wants."""
+    start = (now - timedelta(days=days - 1)).date()
+    buckets = {start + timedelta(days=i): 0 for i in range(days)}
+    for day, count in rows:
+        key = day.date() if hasattr(day, "date") else day
+        if key in buckets:
+            buckets[key] = int(count)
+    return [buckets[start + timedelta(days=i)] for i in range(days)]
+
+
+async def get_user_sparklines(
+    db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID, days: int = 7
+) -> dict:
+    """Daily time series for one user, to render micro charts on the Users tab
+    KPI cards. Admin-gated at the router."""
+    from app.modules.emailtracking.models import OutboundEmail
+    from app.modules.tickets.models import Ticket, TicketStatus
+
+    now = datetime.now(timezone.utc)
+    since = (now - timedelta(days=days - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+    async def daily(date_col, *conds) -> list[int]:
+        day = func.date_trunc("day", date_col)
+        rows = (
+            await db.execute(
+                select(day, func.count()).where(*conds, date_col >= since).group_by(day)
+            )
+        ).all()
+        return _fill_days(rows, days, now)
+
+    ticket_base = (Ticket.tenant_id == tenant_id) & (Ticket.deleted_at.is_(None))
+
+    activity = await daily(
+        ActivityEvent.created_at,
+        ActivityEvent.tenant_id == tenant_id,
+        ActivityEvent.actor_id == user_id,
+    )
+    emails_sent = await daily(
+        OutboundEmail.created_at,
+        OutboundEmail.tenant_id == tenant_id,
+        OutboundEmail.actor_id == user_id,
+    )
+    resolved = await daily(
+        Ticket.resolved_at,
+        ticket_base,
+        Ticket.assigned_to == user_id,
+        Ticket.status.in_([TicketStatus.resolved, TicketStatus.closed]),
+        Ticket.resolved_at.is_not(None),
+    )
+    created = await daily(
+        Ticket.created_at,
+        ticket_base,
+        Ticket.created_by == user_id,
+    )
+
+    return {
+        "days": days,
+        "series": {
+            "activity": activity,
+            "emails_sent": emails_sent,
+            "tickets_resolved": resolved,
+            "tickets_created": created,
+        },
+    }

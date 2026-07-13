@@ -62,6 +62,17 @@ async def department_stats(current_user: AdminUser, db: DB, days: int = Query(7,
     return await service.get_department_activity_stats(db, current_user.tenant_id, days)
 
 
+@router.get("/user-sparklines")
+async def user_sparklines(
+    current_user: AdminUser,
+    db: DB,
+    user_id: uuid.UUID = Query(...),
+    days: int = Query(7, ge=1, le=90),
+):
+    """Daily time series for one user's KPI micro charts. Admin/superadmin only."""
+    return await service.get_user_sparklines(db, current_user.tenant_id, user_id, days)
+
+
 @router.get("/contacts/{contact_id}", response_model=list[ActivityEventOut])
 async def contact_activity(contact_id: uuid.UUID, current_user: CurrentUser, db: DB):
     return await service.list_events(db, current_user.tenant_id, contact_id)
