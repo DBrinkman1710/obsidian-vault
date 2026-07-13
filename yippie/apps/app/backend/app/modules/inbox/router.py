@@ -236,6 +236,7 @@ async def get_draft(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
     draft = ctx["draft"]
     if draft is not None and draft.opened_at is None:
         draft.opened_at = datetime.now(timezone.utc)
+        draft.opened_by = current_user.id
         await db.commit()
     return ctx
 

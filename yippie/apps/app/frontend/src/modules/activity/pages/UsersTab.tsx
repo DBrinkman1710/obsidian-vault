@@ -15,6 +15,8 @@ interface UserStat {
   emails_sent: number
   open_rate: number | null
   emails_received_personal: number
+  time_to_open_shared_minutes: number | null
+  time_to_open_personal_minutes: number | null
   tickets_created: number
   tickets_open: number
   tickets_resolved: number
@@ -35,7 +37,12 @@ interface DeptStat {
 }
 
 interface UserStatsResp { period_days: number; users: UserStat[] }
-interface DeptStatsResp { period_days: number; shared_emails_received: number; departments: DeptStat[] }
+interface DeptStatsResp {
+  period_days: number
+  shared_emails_received: number
+  shared_time_to_open_minutes: number | null
+  departments: DeptStat[]
+}
 
 interface ActivityEvent {
   id: string
@@ -66,17 +73,41 @@ function mins(v: number | null): string {
   return `${Math.round((v / 60) * 10) / 10}h`
 }
 
+// Semantic threshold tones — brand/success/warning/danger tokens only (no raw palette).
+type Tone = 'good' | 'warn' | 'bad' | 'none'
+function toneText(t: Tone): string {
+  return t === 'good' ? 'text-success-600'
+    : t === 'warn' ? 'text-warning-600'
+    : t === 'bad' ? 'text-danger-600'
+    : 'text-slate-900'
+}
+const responseTone = (m: number | null): Tone => m === null ? 'none' : m <= 30 ? 'good' : m <= 120 ? 'warn' : 'bad'
+const resolutionTone = (h: number | null): Tone => h === null ? 'none' : h <= 4 ? 'good' : h <= 24 ? 'warn' : 'bad'
+const openTone = (m: number | null): Tone => m === null ? 'none' : m <= 15 ? 'good' : m <= 60 ? 'warn' : 'bad'
+const rateTone = (r: number | null): Tone => r === null ? 'none' : r >= 0.4 ? 'good' : r >= 0.2 ? 'warn' : 'none'
+
 const ROLE_STYLE: Record<string, string> = {
-  superadmin: 'bg-violet-50 text-violet-600',
-  admin: 'bg-blue-50 text-blue-600',
+  superadmin: 'bg-yippie-50 text-yippie-700',
+  admin: 'bg-info-50 text-info-600',
   agent: 'bg-slate-100 text-slate-500',
 }
 
-function Stat({ label, value, sub }: { label: string; value: string; sub?: string }) {
+/** Headline metric — larger, colour-coded by health. */
+function Hero({ label, value, sub, tone = 'none' }: { label: string; value: string; sub?: string; tone?: Tone }) {
+  return (
+    <div>
+      <p className="text-xs font-semibold text-slate-500 mb-1">{label}</p>
+      <p className={`text-2xl font-extrabold tabular-nums ${toneText(tone)}`}>{value}</p>
+      {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
+    </div>
+  )
+}
+
+function Stat({ label, value, sub, tone = 'none' }: { label: string; value: string; sub?: string; tone?: Tone }) {
   return (
     <div>
       <p className="text-xs text-slate-500 mb-1">{label}</p>
-      <p className="text-2xl font-extrabold text-slate-900 tabular-nums">{value}</p>
+      <p className={`text-xl font-bold tabular-nums ${toneText(tone)}`}>{value}</p>
       {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
     </div>
   )
@@ -178,8 +209,8 @@ export default function UsersTab() {
         ) : (
           <div className="space-y-4">
             <div className={CARD}>
-              <div className="flex items-center gap-3 mb-5">
-                <span className="text-sm font-semibold text-slate-900">{selected.user_name}</span>
+              <div className="flex items-center gap-3 mb-6">
+                <span className="heading-md text-slate-900">{selected.user_name}</span>
                 <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${ROLE_STYLE[selected.role] ?? 'bg-slate-100 text-slate-500'}`}>
                   {selected.role}
                 </span>
@@ -187,15 +218,27 @@ export default function UsersTab() {
                   {selected.last_login_at ? `active ${timeAgo(selected.last_login_at)}` : 'never signed in'}
                 </span>
               </div>
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
-                <Stat label="First response" value={mins(selected.first_response_minutes)} sub="avg to first reply" />
-                <Stat label="Avg resolution" value={hrs(selected.avg_resolution_hours)} />
-                <Stat label="Open workload" value={num(selected.tickets_open)} sub="assigned now" />
+
+              {/* Headline service metrics */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pb-6 mb-6 border-b border-slate-100">
+                <Hero label="First response" value={mins(selected.first_response_minutes)} sub="avg to first reply" tone={responseTone(selected.first_response_minutes)} />
+                <Hero label="Avg resolution" value={hrs(selected.avg_resolution_hours)} sub="created to resolved" tone={resolutionTone(selected.avg_resolution_hours)} />
+                <Hero label="Open workload" value={num(selected.tickets_open)} sub="assigned right now" />
+              </div>
+
+              {/* Time to open — shared + personal */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 pb-6 mb-6 border-b border-slate-100">
+                <Stat label="Time to open (shared)" value={mins(selected.time_to_open_shared_minutes)} sub="shared inbox" tone={openTone(selected.time_to_open_shared_minutes)} />
+                <Stat label="Time to open (personal)" value={mins(selected.time_to_open_personal_minutes)} sub="own mailbox" tone={openTone(selected.time_to_open_personal_minutes)} />
+                <Stat label="Emails received" value={num(selected.emails_received_personal)} sub="personal mailbox" />
+                <Stat label="Emails sent" value={num(selected.emails_sent)} />
+              </div>
+
+              {/* Volume */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6">
                 <Stat label="Tickets resolved" value={num(selected.tickets_resolved)} />
                 <Stat label="Tickets created" value={num(selected.tickets_created)} />
-                <Stat label="Emails sent" value={num(selected.emails_sent)} />
-                <Stat label="Open rate" value={pct(selected.open_rate)} />
-                <Stat label="Emails received" value={num(selected.emails_received_personal)} sub="personal mailbox" />
+                <Stat label="Open rate" value={pct(selected.open_rate)} tone={rateTone(selected.open_rate)} />
                 <Stat label="Chats handled" value={num(selected.chats_handled)} />
                 <Stat label="Chats solved" value={num(selected.chats_solved)} />
               </div>
@@ -241,6 +284,9 @@ export default function UsersTab() {
           {deptStats && (
             <span className="text-xs text-slate-400">
               Shared inbox: <span className="font-semibold text-slate-600">{deptStats.shared_emails_received}</span> received
+              {deptStats.shared_time_to_open_minutes !== null && (
+                <> · <span className="font-semibold text-slate-600">{mins(deptStats.shared_time_to_open_minutes)}</span> to open</>
+              )}
             </span>
           )}
         </div>

@@ -334,6 +334,43 @@ def _round1(value) -> Optional[float]:
     return round(float(value), 1) if value is not None else None
 
 
+async def _time_to_open_map(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    user_ids: list,
+    since: datetime,
+    personal: bool,
+) -> dict:
+    """Avg minutes from message received to first opened in the Yippie inbox
+    (draft.opened_at - inbound.received_at), grouped by the opener. ``personal``
+    selects mail arriving at a user's own linked mailbox; otherwise the shared
+    inbox. Attributed to whoever opened it."""
+    from app.modules.email_accounts.models import EmailAccount
+    from app.modules.inbox.models import DraftTicket, InboundMessage
+
+    diff = func.extract("epoch", DraftTicket.opened_at - InboundMessage.received_at) / 60.0
+    q = (
+        select(DraftTicket.opened_by, func.avg(diff))
+        .select_from(DraftTicket)
+        .join(InboundMessage, InboundMessage.id == DraftTicket.inbound_message_id)
+        .outerjoin(EmailAccount, EmailAccount.id == InboundMessage.email_account_id)
+        .where(
+            DraftTicket.tenant_id == tenant_id,
+            DraftTicket.opened_by.in_(user_ids),
+            DraftTicket.opened_at.is_not(None),
+            DraftTicket.opened_at >= since,
+        )
+        .group_by(DraftTicket.opened_by)
+    )
+    if personal:
+        q = q.where(EmailAccount.user_id.is_not(None))
+    else:
+        q = q.where(
+            or_(InboundMessage.email_account_id.is_(None), EmailAccount.user_id.is_(None))
+        )
+    return {r[0]: r[1] for r in (await db.execute(q)).all()}
+
+
 async def get_user_activity_stats(
     db: AsyncSession, tenant_id: uuid.UUID, days: int = 7
 ) -> dict:
@@ -490,6 +527,10 @@ async def get_user_activity_stats(
     ).all()
     chat_map = {r[0]: (r[1], r[2]) for r in chat_rows}
 
+    # Avg time to open, split shared vs personal (attributed to the opener)
+    tto_shared = await _time_to_open_map(db, tenant_id, user_ids, since, personal=False)
+    tto_personal = await _time_to_open_map(db, tenant_id, user_ids, since, personal=True)
+
     users = []
     for uid, name, role, last_login in users_rows:
         sent, opened = email_map.get(uid, (0, 0))
@@ -504,6 +545,8 @@ async def get_user_activity_stats(
                 "emails_sent": sent,
                 "open_rate": (opened / sent) if sent else None,
                 "emails_received_personal": recv_map.get(uid, 0),
+                "time_to_open_shared_minutes": _round1(tto_shared.get(uid)),
+                "time_to_open_personal_minutes": _round1(tto_personal.get(uid)),
                 "tickets_created": created_map.get(uid, 0),
                 "tickets_open": open_map.get(uid, 0),
                 "tickets_resolved": res_cnt,
@@ -524,14 +567,20 @@ async def get_department_activity_stats(
     mailbox received count. Admin-gated at the router."""
     from app.modules.departments.models import Department, DepartmentMember
     from app.modules.email_accounts.models import EmailAccount
-    from app.modules.inbox.models import InboundMessage
+    from app.modules.inbox.models import DraftTicket, InboundMessage
     from app.modules.tickets.models import Ticket, TicketStatus
 
     now = datetime.now(timezone.utc)
     since = now - timedelta(days=days)
 
-    # Shared inbox received (period): inbound with no linked account, or a
-    # tenant-level shared account (user_id NULL) — i.e. not a personal mailbox.
+    # Shared inbox = inbound with no linked account, or a tenant-level shared
+    # account (user_id NULL) — i.e. not a personal mailbox.
+    is_shared = or_(
+        InboundMessage.email_account_id.is_(None),
+        EmailAccount.user_id.is_(None),
+    )
+
+    # Shared inbox received (period)
     shared_recv = (
         await db.scalar(
             select(func.count())
@@ -540,13 +589,25 @@ async def get_department_activity_stats(
             .where(
                 InboundMessage.tenant_id == tenant_id,
                 InboundMessage.received_at >= since,
-                or_(
-                    InboundMessage.email_account_id.is_(None),
-                    EmailAccount.user_id.is_(None),
-                ),
+                is_shared,
             )
         )
     ) or 0
+
+    # Shared inbox avg time to open (period), across the whole team
+    tto_diff = func.extract("epoch", DraftTicket.opened_at - InboundMessage.received_at) / 60.0
+    shared_tto = await db.scalar(
+        select(func.avg(tto_diff))
+        .select_from(DraftTicket)
+        .join(InboundMessage, InboundMessage.id == DraftTicket.inbound_message_id)
+        .outerjoin(EmailAccount, EmailAccount.id == InboundMessage.email_account_id)
+        .where(
+            DraftTicket.tenant_id == tenant_id,
+            DraftTicket.opened_at.is_not(None),
+            DraftTicket.opened_at >= since,
+            is_shared,
+        )
+    )
 
     depts = (
         await db.execute(
@@ -624,5 +685,6 @@ async def get_department_activity_stats(
     return {
         "period_days": days,
         "shared_emails_received": shared_recv,
+        "shared_time_to_open_minutes": _round1(shared_tto),
         "departments": departments,
     }
