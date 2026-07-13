@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { ArrowDown, ArrowUp } from 'lucide-react'
 import { api } from '../../../api/client'
 import { fmtDate, timeAgo } from '../../../lib/format'
 import { Skeleton } from '../../../shell/Skeleton'
@@ -25,6 +26,12 @@ interface UserStat {
   first_response_minutes: number | null
   chats_handled: number
   chats_solved: number
+  prev: {
+    emails_sent: number
+    tickets_created: number
+    tickets_resolved: number
+    first_response_minutes: number | null
+  }
 }
 
 interface DeptStat {
@@ -98,12 +105,29 @@ const ROLE_STYLE: Record<string, string> = {
   agent: 'bg-slate-100 text-slate-500',
 }
 
+/** Week over week delta vs the previous period. */
+function DeltaChip({ cur, prev, lowerBetter = false }: { cur: number | null; prev: number | null; lowerBetter?: boolean }) {
+  if (cur === null || prev === null) return null
+  const diff = Math.round((cur - prev) * 10) / 10
+  if (diff === 0) return <span className="text-xs text-slate-400">no change</span>
+  const improved = lowerBetter ? diff < 0 : diff > 0
+  const Icon = diff > 0 ? ArrowUp : ArrowDown
+  return (
+    <span className={`inline-flex items-center gap-0.5 text-xs font-semibold ${improved ? 'text-success-600' : 'text-danger-600'}`}>
+      <Icon size={12} />{Math.abs(diff)}
+    </span>
+  )
+}
+
 /** Headline metric — larger, colour-coded by health. */
-function Hero({ label, value, sub, tone = 'none' }: { label: string; value: string; sub?: string; tone?: Tone }) {
+function Hero({ label, value, sub, tone = 'none', delta }: { label: string; value: string; sub?: string; tone?: Tone; delta?: React.ReactNode }) {
   return (
     <div>
       <p className="text-xs font-semibold text-slate-500 mb-1">{label}</p>
-      <p className={`text-2xl font-extrabold tabular-nums ${toneText(tone)}`}>{value}</p>
+      <div className="flex items-baseline gap-2">
+        <p className={`text-2xl font-extrabold tabular-nums ${toneText(tone)}`}>{value}</p>
+        {delta}
+      </div>
       {sub && <p className="text-xs text-slate-400 mt-0.5">{sub}</p>}
     </div>
   )
@@ -125,12 +149,15 @@ const C_SUCCESS = '#22c55e'
 const C_WARNING = '#f59e0b'
 
 /** KPI number with a trend micro chart alongside — the dashboard habit. */
-function SparkCard({ label, value, data, color }: { label: string; value: string; data?: number[]; color: string }) {
+function SparkCard({ label, value, data, color, delta }: { label: string; value: string; data?: number[]; color: string; delta?: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50/60 px-4 py-3">
       <div>
         <p className="text-xs text-slate-500 mb-0.5">{label}</p>
-        <p className="text-xl font-bold text-slate-900 tabular-nums">{value}</p>
+        <div className="flex items-baseline gap-2">
+          <p className="text-xl font-bold text-slate-900 tabular-nums">{value}</p>
+          {delta}
+        </div>
       </div>
       {data && data.length > 1 && <Sparkline data={data} color={color} width={72} height={34} />}
     </div>
@@ -199,7 +226,7 @@ export default function UsersTab() {
       {/* Period toggle */}
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-slate-500">
-          Team activity over the last {days} days. Numbers are per user; shared inbox rolls up by department below.
+          Team activity over the last {days} days; arrows compare with the prior {days}. Numbers are per user; shared inbox rolls up by department below.
         </p>
         <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden shrink-0">
           {PERIODS.map(p => (
@@ -262,7 +289,7 @@ export default function UsersTab() {
 
               {/* Headline service metrics */}
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pb-6 mb-6 border-b border-slate-100">
-                <Hero label="First response" value={mins(selected.first_response_minutes)} sub="avg to first reply" tone={responseTone(selected.first_response_minutes)} />
+                <Hero label="First response" value={mins(selected.first_response_minutes)} sub="avg to first reply" tone={responseTone(selected.first_response_minutes)} delta={<DeltaChip cur={selected.first_response_minutes} prev={selected.prev.first_response_minutes} lowerBetter />} />
                 <Hero label="Avg resolution" value={hrs(selected.avg_resolution_hours)} sub="created to resolved" tone={resolutionTone(selected.avg_resolution_hours)} />
                 <Hero label="Open workload" value={num(selected.tickets_open)} sub="assigned right now" />
               </div>
@@ -280,9 +307,9 @@ export default function UsersTab() {
               {/* Trend cards with micro charts */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <SparkCard label="Activity" value={num(series?.activity.reduce((a, b) => a + b, 0))} data={series?.activity} color={C_BRAND} />
-                <SparkCard label="Tickets resolved" value={num(selected.tickets_resolved)} data={series?.tickets_resolved} color={C_SUCCESS} />
-                <SparkCard label="Tickets created" value={num(selected.tickets_created)} data={series?.tickets_created} color={C_WARNING} />
-                <SparkCard label="Emails sent" value={num(selected.emails_sent)} data={series?.emails_sent} color={C_BRAND} />
+                <SparkCard label="Tickets resolved" value={num(selected.tickets_resolved)} data={series?.tickets_resolved} color={C_SUCCESS} delta={<DeltaChip cur={selected.tickets_resolved} prev={selected.prev.tickets_resolved} />} />
+                <SparkCard label="Tickets created" value={num(selected.tickets_created)} data={series?.tickets_created} color={C_WARNING} delta={<DeltaChip cur={selected.tickets_created} prev={selected.prev.tickets_created} />} />
+                <SparkCard label="Emails sent" value={num(selected.emails_sent)} data={series?.emails_sent} color={C_BRAND} delta={<DeltaChip cur={selected.emails_sent} prev={selected.prev.emails_sent} />} />
               </div>
             </div>
 

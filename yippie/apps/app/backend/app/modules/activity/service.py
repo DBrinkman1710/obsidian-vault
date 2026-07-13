@@ -531,6 +531,71 @@ async def get_user_activity_stats(
     tto_shared = await _time_to_open_map(db, tenant_id, user_ids, since, personal=False)
     tto_personal = await _time_to_open_map(db, tenant_id, user_ids, since, personal=True)
 
+    # Previous window (same length, immediately before) for week over week deltas
+    prev_since = now - timedelta(days=2 * days)
+
+    prev_email = dict(
+        (
+            await db.execute(
+                select(OutboundEmail.actor_id, func.count())
+                .where(
+                    OutboundEmail.tenant_id == tenant_id,
+                    OutboundEmail.actor_id.in_(user_ids),
+                    OutboundEmail.created_at >= prev_since,
+                    OutboundEmail.created_at < since,
+                )
+                .group_by(OutboundEmail.actor_id)
+            )
+        ).all()
+    )
+    prev_created = dict(
+        (
+            await db.execute(
+                select(Ticket.created_by, func.count())
+                .where(
+                    ticket_base,
+                    Ticket.created_by.in_(user_ids),
+                    Ticket.created_at >= prev_since,
+                    Ticket.created_at < since,
+                )
+                .group_by(Ticket.created_by)
+            )
+        ).all()
+    )
+    prev_resolved = dict(
+        (
+            await db.execute(
+                select(Ticket.assigned_to, func.count())
+                .where(
+                    ticket_base,
+                    Ticket.assigned_to.in_(user_ids),
+                    Ticket.status.in_([TicketStatus.resolved, TicketStatus.closed]),
+                    Ticket.resolved_at.is_not(None),
+                    Ticket.resolved_at >= prev_since,
+                    Ticket.resolved_at < since,
+                )
+                .group_by(Ticket.assigned_to)
+            )
+        ).all()
+    )
+    prev_frt_rows = (
+        await db.execute(
+            select(
+                frt_subq.c.author_id,
+                func.avg(func.extract("epoch", frt_subq.c.first_reply_at - Ticket.created_at) / 60.0),
+            )
+            .select_from(frt_subq)
+            .join(Ticket, Ticket.id == frt_subq.c.ticket_id)
+            .where(
+                Ticket.tenant_id == tenant_id,
+                Ticket.created_at >= prev_since,
+                Ticket.created_at < since,
+            )
+            .group_by(frt_subq.c.author_id)
+        )
+    ).all()
+    prev_frt = {r[0]: r[1] for r in prev_frt_rows if r[0] in user_id_set}
+
     users = []
     for uid, name, role, last_login in users_rows:
         sent, opened = email_map.get(uid, (0, 0))
@@ -554,6 +619,13 @@ async def get_user_activity_stats(
                 "first_response_minutes": _round1(frt_map.get(uid)),
                 "chats_handled": chats_h,
                 "chats_solved": chats_s,
+                # Previous window (same length) for week over week deltas
+                "prev": {
+                    "emails_sent": prev_email.get(uid, 0),
+                    "tickets_created": prev_created.get(uid, 0),
+                    "tickets_resolved": prev_resolved.get(uid, 0),
+                    "first_response_minutes": _round1(prev_frt.get(uid)),
+                },
             }
         )
     return {"period_days": days, "users": users}
