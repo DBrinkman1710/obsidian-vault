@@ -313,12 +313,24 @@ async def _emit_status_changed(
 
 
 async def change_status(
-    db: AsyncSession, ticket: Ticket, new_status: TicketStatus, source: str = "app"
+    db: AsyncSession,
+    ticket: Ticket,
+    new_status: TicketStatus,
+    source: str = "app",
+    thank_you: Optional[bool] = None,
 ) -> TicketOut:
     old_status = ticket.status
     ticket.status = new_status
     if new_status in (TicketStatus.resolved, TicketStatus.closed):
-        ticket.resolved_at = datetime.now(timezone.utc)
+        # Only stamp on the actual transition, so re-sending the same status to
+        # toggle the thank you flag doesn't move the resolve time.
+        if new_status != old_status:
+            ticket.resolved_at = datetime.now(timezone.utc)
+        if thank_you is not None:
+            ticket.thank_you = thank_you
+    else:
+        # Reopening a thank you close means it was a real issue after all
+        ticket.thank_you = False
     if new_status != old_status:
         await _emit_status_changed(db, ticket, old_status, source)
     await db.commit()

@@ -488,6 +488,7 @@ async def get_user_activity_stats(
                 .where(
                     ticket_base,
                     Ticket.assigned_to.in_(user_ids),
+                    Ticket.thank_you.is_(False),
                     Ticket.resolved_at.is_not(None),
                     Ticket.resolved_at >= since,
                 )
@@ -502,6 +503,7 @@ async def get_user_activity_stats(
                 .where(
                     ticket_base,
                     Ticket.assigned_to.in_(user_ids),
+                    Ticket.thank_you.is_(False),
                     Ticket.resolved_at.is_not(None),
                     Ticket.resolved_at >= since,
                     Ticket.status.in_([TicketStatus.open, TicketStatus.in_progress]),

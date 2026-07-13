@@ -20,6 +20,51 @@ import { CloseButton } from '../../../shell/CloseButton'
 
 interface PipelineStage { id: string; name: string; color: string }
 
+const REJECT_REASONS = [
+  { key: 'thank_you', label: 'Thank you mail' },
+  { key: 'spam', label: 'Spam' },
+  { key: 'duplicate', label: 'Duplicate' },
+  { key: 'no_action', label: 'No action needed' },
+] as const
+
+/** Reject button that first asks why — feeds first time right + triage stats ([ACTIVITY2]). */
+function RejectMenu({ onReject, disabled, wrapperClassName, buttonClassName }: {
+  onReject: (reason?: string) => void
+  disabled?: boolean
+  wrapperClassName: string
+  buttonClassName: string
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className={`relative ${wrapperClassName}`}>
+      <button disabled={disabled} onClick={() => setOpen(o => !o)} className={buttonClassName}>Reject</button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute bottom-full mb-2 left-0 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
+            <p className="px-3 py-2 text-xs font-semibold text-slate-400 border-b border-slate-100">Why reject?</p>
+            {REJECT_REASONS.map(r => (
+              <button
+                key={r.key}
+                onClick={() => { setOpen(false); onReject(r.key) }}
+                className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                {r.label}
+              </button>
+            ))}
+            <button
+              onClick={() => { setOpen(false); onReject(undefined) }}
+              className="block w-full text-left px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 border-t border-slate-100 transition-colors"
+            >
+              Just reject
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
 const LANGUAGE_NAMES: Record<string, string> = {
   en: 'English', nl: 'Dutch', fr: 'French', de: 'German', es: 'Spanish',
   pt: 'Portuguese', it: 'Italian', ar: 'Arabic', zh: 'Chinese', ja: 'Japanese',
@@ -445,7 +490,7 @@ export default function DraftReview() {
   })
 
   const reviewMutation = useMutation({
-    mutationFn: ({ action, departmentId, modalFollowUpDays }: { action: 'approve' | 'reject'; departmentId?: string; modalFollowUpDays?: number }) =>
+    mutationFn: ({ action, departmentId, modalFollowUpDays, rejectReason }: { action: 'approve' | 'reject'; departmentId?: string; modalFollowUpDays?: number; rejectReason?: string }) =>
       api.post(`/inbox/drafts/${id}/review`, {
         action,
         subject: subject || draft?.ai_suggested_subject,
@@ -453,6 +498,7 @@ export default function DraftReview() {
         priority: priority || draft?.ai_suggested_priority,
         follow_up_days: modalFollowUpDays ?? (followUpDays ? parseInt(followUpDays) : undefined),
         department_id: departmentId || selectedDeptId || undefined,
+        reject_reason: rejectReason,
       }),
     onMutate: async ({ action }: any) => {
       await qc.cancelQueries({ queryKey: ['draft', id] })
@@ -969,13 +1015,12 @@ export default function DraftReview() {
         {/* Sticky action bar */}
         {!isProcessed && (
           <div className="fixed bottom-16 inset-x-0 p-4 bg-white border-t border-slate-100 flex gap-3 z-30">
-            <button
-              onClick={() => reviewMutation.mutate({ action: 'reject' })}
+            <RejectMenu
+              onReject={(reason) => reviewMutation.mutate({ action: 'reject', rejectReason: reason })}
               disabled={reviewMutation.isPending}
-              className="flex-1 py-3 text-sm font-semibold text-red-500 bg-red-50 border border-red-200 rounded-2xl hover:bg-red-100 transition-colors disabled:opacity-50"
-            >
-              Reject
-            </button>
+              wrapperClassName="flex-1"
+              buttonClassName="w-full py-3 text-sm font-semibold text-red-500 bg-red-50 border border-red-200 rounded-2xl hover:bg-red-100 transition-colors disabled:opacity-50"
+            />
             <button
               onClick={handleApprove}
               disabled={reviewMutation.isPending}
@@ -1287,13 +1332,12 @@ export default function DraftReview() {
                       >
                         {reviewMutation.isPending ? 'Creating…' : 'Approve & Create Ticket'}
                       </button>
-                      <button
-                        onClick={() => reviewMutation.mutate({ action: 'reject' })}
+                      <RejectMenu
+                        onReject={(reason) => reviewMutation.mutate({ action: 'reject', rejectReason: reason })}
                         disabled={reviewMutation.isPending}
-                        className="w-full py-2 text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors cursor-pointer"
-                      >
-                        Reject
-                      </button>
+                        wrapperClassName="w-full"
+                        buttonClassName="w-full py-2 text-sm font-semibold text-red-500 bg-red-50 hover:bg-red-100 border border-red-100 rounded-xl transition-colors cursor-pointer"
+                      />
                     </div>
                   </>
                 )}

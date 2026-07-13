@@ -44,6 +44,7 @@ class DraftTicketOut(BaseModel):
     detected_language: Optional[str] = None
     ai_status: str = "done"
     opened_at: Optional[datetime] = None
+    reject_reason: Optional[str] = None
     created_at: datetime
     inbound_subject: Optional[str] = None
     inbound_to: Optional[str] = None
@@ -123,6 +124,8 @@ class DraftReview(BaseModel):
     contact_id: Optional[uuid.UUID] = None
     follow_up_days: Optional[int] = None
     department_id: Optional[uuid.UUID] = None
+    # On reject: why — thank_you|spam|duplicate|no_action ([ACTIVITY2])
+    reject_reason: Optional[str] = None
 
 
 class EmailWebhookPayload(BaseModel):

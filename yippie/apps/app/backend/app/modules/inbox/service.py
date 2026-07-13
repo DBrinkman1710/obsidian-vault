@@ -674,6 +674,8 @@ async def review_draft(
         )
     else:
         draft.status = DraftStatus.rejected
+        if review.reject_reason in ("thank_you", "spam", "duplicate", "no_action"):
+            draft.reject_reason = review.reject_reason
 
     await db.commit()
     await db.refresh(draft)

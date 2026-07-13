@@ -153,6 +153,21 @@ export default function TicketDetail() {
     },
   })
 
+  const thankYouMutation = useMutation({
+    mutationFn: ({ status, thank_you }: { status: string; thank_you: boolean }) =>
+      api.patch(`/tickets/${id}/status`, { status, thank_you }),
+    onMutate: async ({ thank_you }: any) => {
+      await qc.cancelQueries({ queryKey: ['ticket', id] })
+      const prev = qc.getQueryData(['ticket', id])
+      qc.setQueryData(['ticket', id], (old: any) => old ? { ...old, thank_you } : old)
+      return { prev }
+    },
+    onError: (_err: any, _v: any, ctx: any) => {
+      if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
+  })
+
   const priorityMutation = useMutation({
     mutationFn: (priority: string) => api.patch(`/tickets/${id}`, { priority }),
     onMutate: async (priority: any) => {
@@ -358,6 +373,20 @@ export default function TicketDetail() {
                 <option key={s} value={s}>{STATUS_LABELS[s] ?? s}</option>
               ))}
             </select>
+            {(ticket.status === 'resolved' || ticket.status === 'closed') && (
+              <button
+                onClick={() => thankYouMutation.mutate({ status: ticket.status, thank_you: !ticket.thank_you })}
+                disabled={thankYouMutation.isPending}
+                title="Mark this close as a pure thank you — excluded from first time right"
+                className={`text-xs px-2 py-1 rounded-lg border font-semibold transition-colors disabled:opacity-50 ${
+                  ticket.thank_you
+                    ? 'bg-yippie-50 text-yippie-700 border-yippie-200'
+                    : 'border-slate-200 text-slate-500 hover:bg-slate-50'
+                }`}
+              >
+                Thank you
+              </button>
+            )}
             <select
               value={ticket.priority}
               onChange={e => priorityMutation.mutate(e.target.value)}

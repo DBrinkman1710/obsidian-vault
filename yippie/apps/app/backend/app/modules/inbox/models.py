@@ -93,6 +93,8 @@ class DraftTicket(Base):
     opened_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # [ACTIVITY2] who first opened this draft — powers avg time to open per user
     opened_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
+    # [ACTIVITY2] why a draft was rejected: thank_you|spam|duplicate|no_action
+    reject_reason: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (

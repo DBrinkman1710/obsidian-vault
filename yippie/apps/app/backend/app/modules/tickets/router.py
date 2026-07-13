@@ -160,7 +160,7 @@ async def change_status(ticket_id: uuid.UUID, body: TicketStatusUpdate, current_
     ticket = await service.get_ticket_orm(db, current_user.tenant_id, ticket_id)
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
-    updated = await service.change_status(db, ticket, body.status)
+    updated = await service.change_status(db, ticket, body.status, thank_you=body.thank_you)
     await activity_service.log_event(
         db, current_user.tenant_id,
         module="tickets", event_type="ticket_status_changed", entity_type="ticket",

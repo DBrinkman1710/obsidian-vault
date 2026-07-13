@@ -25,6 +25,8 @@ class TicketCreate(BaseModel):
 
 class TicketStatusUpdate(BaseModel):
     status: TicketStatus
+    # [ACTIVITY2] on resolve/close: mark as a pure thank you (excluded from FTR)
+    thank_you: Optional[bool] = None
 
 
 class TicketMergeRequest(BaseModel):
@@ -57,6 +59,7 @@ class TicketOut(BaseModel):
     last_comment_at: Optional[datetime] = None
     sla_due_at: Optional[datetime]
     resolved_at: Optional[datetime]
+    thank_you: bool = False
     created_at: datetime
     updated_at: datetime
 

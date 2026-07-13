@@ -58,6 +58,8 @@ class Ticket(Base):
     # [FLOW2] set once when the ticket_sla_due_soon flow event was emitted — one event per ticket
     sla_flow_emitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # [ACTIVITY2] closed as a pure thank you — excluded from first time right
+    thank_you: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false", default=False)
     # Soft delete — deleted tickets keep their history but vanish from all views
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
