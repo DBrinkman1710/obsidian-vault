@@ -1,7 +1,9 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Activity, Calendar, CreditCard, FileText, GitBranch, Mail, MessageSquare, Package, Tag, Users, Zap } from 'lucide-react'
 import { api } from '../../../api/client'
+import { useAuth } from '../../../auth/useAuth'
+import UsersTab from './UsersTab'
 
 interface PipelineStage {
   id: string
@@ -25,16 +27,6 @@ interface PipelineKpi {
   color: string
   contact_count: number
   avg_days_in_stage: number | null
-}
-
-interface AgentKpi {
-  agent_id: string
-  agent_name: string
-  emails_sent: number
-  emails_opened: number
-  tickets_assigned: number
-  tickets_resolved_this_week: number
-  avg_resolution_hours: number | null
 }
 
 interface Kpis {
@@ -176,50 +168,17 @@ const DEFAULT_MOD_ICON = { Icon: Activity, color: 'text-slate-400', bg: 'bg-slat
 const EVENTS_PER_PAGE = 10
 
 export default function ActivityFeed() {
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
+  const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview')
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
   const [eventsPage, setEventsPage] = useState(0)
-  const [selectedAgentId, setSelectedAgentId] = useState<string>('all')
 
   const { data: kpis, isLoading, isError } = useQuery<Kpis>({
     queryKey: ['activity-kpis'],
     queryFn: () => api.get('/activity/kpis').then((r: any) => r.data),
     refetchInterval: 60_000,
   })
-
-  const { data: agentKpis } = useQuery<AgentKpi[]>({
-    queryKey: ['activity-agent-kpis'],
-    queryFn: () => api.get('/activity/agent-kpis').then((r: any) => r.data),
-    refetchInterval: 60_000,
-  })
-
-  const agentStats = useMemo(() => {
-    if (!agentKpis || agentKpis.length === 0) return null
-    if (selectedAgentId === 'all') {
-      const totalSent = agentKpis.reduce((s: number, a: AgentKpi) => s + a.emails_sent, 0)
-      const totalOpened = agentKpis.reduce((s: number, a: AgentKpi) => s + a.emails_opened, 0)
-      const withHours = agentKpis.filter((a: AgentKpi) => a.avg_resolution_hours !== null)
-      return {
-        agent_name: 'All agents',
-        emails_sent: totalSent,
-        open_rate: totalSent > 0 ? totalOpened / totalSent : null,
-        tickets_assigned: agentKpis.reduce((s: number, a: AgentKpi) => s + a.tickets_assigned, 0),
-        tickets_resolved_this_week: agentKpis.reduce((s: number, a: AgentKpi) => s + a.tickets_resolved_this_week, 0),
-        avg_resolution_hours: withHours.length > 0
-          ? Math.round((withHours.reduce((s: number, a: AgentKpi) => s + a.avg_resolution_hours!, 0) / withHours.length) * 10) / 10
-          : null,
-      }
-    }
-    const agent = agentKpis.find((a: AgentKpi) => a.agent_id === selectedAgentId)
-    if (!agent) return null
-    return {
-      agent_name: agent.agent_name,
-      emails_sent: agent.emails_sent,
-      open_rate: agent.emails_sent > 0 ? agent.emails_opened / agent.emails_sent : null,
-      tickets_assigned: agent.tickets_assigned,
-      tickets_resolved_this_week: agent.tickets_resolved_this_week,
-      avg_resolution_hours: agent.avg_resolution_hours,
-    }
-  }, [agentKpis, selectedAgentId])
 
   const { data: stages } = useQuery<PipelineStage[]>({
     queryKey: ['pipeline-stages'],
@@ -251,8 +210,31 @@ export default function ActivityFeed() {
 
   return (
     <div>
-      <h1 className="heading-xl text-slate-900 mb-6">Activity</h1>
+      <div className="flex items-center justify-between gap-4 mb-6">
+        <h1 className="heading-xl text-slate-900">Activity</h1>
+        {isAdmin && (
+          <div className="flex gap-2">
+            {(['overview', 'users'] as const).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setActiveTab(tab)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
+                  activeTab === tab
+                    ? 'bg-yippie text-white'
+                    : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
+      {activeTab === 'users' && <UsersTab />}
+
+      {activeTab === 'overview' && (
+        <>
       {isLoading && <LoadingState />}
 
       {!isLoading && isError && (
@@ -361,53 +343,6 @@ export default function ActivityFeed() {
             </div>
           </div>
 
-          {/* Agent performance */}
-          {agentKpis && agentKpis.length > 0 && agentStats && (
-            <section>
-              <div className="flex items-center justify-between mb-4">
-                <p className={SECTION_HEADER} style={{ marginBottom: 0 }}>Agent performance</p>
-                <select
-                  value={selectedAgentId}
-                  onChange={e => setSelectedAgentId(e.target.value)}
-                  className="text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg px-2.5 py-1.5 bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-yippie/30"
-                >
-                  <option value="all">All agents</option>
-                  {agentKpis.map((a: AgentKpi) => (
-                    <option key={a.agent_id} value={a.agent_id}>{a.agent_name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className={CARD}>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6">
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">Emails sent</p>
-                    <p className="text-2xl font-extrabold text-slate-900 tabular-nums">{agentStats.emails_sent}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">Open rate</p>
-                    <p className="text-2xl font-extrabold text-slate-900 tabular-nums">
-                      {agentStats.open_rate === null ? '—' : `${Math.round(agentStats.open_rate * 1000) / 10}%`}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">Tickets assigned</p>
-                    <p className="text-2xl font-extrabold text-slate-900 tabular-nums">{agentStats.tickets_assigned}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">Resolved this week</p>
-                    <p className="text-2xl font-extrabold text-slate-900 tabular-nums">{agentStats.tickets_resolved_this_week}</p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-slate-500 mb-1">Avg resolution (hrs)</p>
-                    <p className="text-2xl font-extrabold text-slate-900 tabular-nums">
-                      {agentStats.avg_resolution_hours === null ? '—' : agentStats.avg_resolution_hours}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </section>
-          )}
-
           {/* Recent activity */}
           <section>
             <p className={SECTION_HEADER}>Recent activity</p>
@@ -486,6 +421,8 @@ export default function ActivityFeed() {
             </div>
           </section>
         </div>
+      )}
+        </>
       )}
     </div>
   )
