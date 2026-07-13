@@ -478,6 +478,39 @@ async def get_user_activity_stats(
     ).all()
     resolved_map = {r[0]: (r[1], r[2]) for r in resolved_rows}
 
+    # First time right: of tickets resolved in the period, how many did NOT bounce
+    # back. resolved_at is set on resolve and never cleared on reopen, so a ticket
+    # with resolved_at in the window but now open/in_progress was reopened.
+    ftr_total = dict(
+        (
+            await db.execute(
+                select(Ticket.assigned_to, func.count())
+                .where(
+                    ticket_base,
+                    Ticket.assigned_to.in_(user_ids),
+                    Ticket.resolved_at.is_not(None),
+                    Ticket.resolved_at >= since,
+                )
+                .group_by(Ticket.assigned_to)
+            )
+        ).all()
+    )
+    ftr_reopened = dict(
+        (
+            await db.execute(
+                select(Ticket.assigned_to, func.count())
+                .where(
+                    ticket_base,
+                    Ticket.assigned_to.in_(user_ids),
+                    Ticket.resolved_at.is_not(None),
+                    Ticket.resolved_at >= since,
+                    Ticket.status.in_([TicketStatus.open, TicketStatus.in_progress]),
+                )
+                .group_by(Ticket.assigned_to)
+            )
+        ).all()
+    )
+
     # First response time (period): first non-internal agent reply per ticket,
     # attributed to whoever sent it — works on shared threads many people touched.
     frt_subq = (
@@ -601,6 +634,8 @@ async def get_user_activity_stats(
         sent, opened = email_map.get(uid, (0, 0))
         res_cnt, res_hours = resolved_map.get(uid, (0, None))
         chats_h, chats_s = chat_map.get(uid, (0, 0))
+        ftr_tot = ftr_total.get(uid, 0)
+        ftr_reop = ftr_reopened.get(uid, 0)
         users.append(
             {
                 "user_id": str(uid),
@@ -615,6 +650,8 @@ async def get_user_activity_stats(
                 "tickets_created": created_map.get(uid, 0),
                 "tickets_open": open_map.get(uid, 0),
                 "tickets_resolved": res_cnt,
+                "tickets_reopened": ftr_reop,
+                "first_time_right": ((ftr_tot - ftr_reop) / ftr_tot) if ftr_tot else None,
                 "avg_resolution_hours": _round1(res_hours),
                 "first_response_minutes": _round1(frt_map.get(uid)),
                 "chats_handled": chats_h,

@@ -22,6 +22,8 @@ interface UserStat {
   tickets_created: number
   tickets_open: number
   tickets_resolved: number
+  tickets_reopened: number
+  first_time_right: number | null
   avg_resolution_hours: number | null
   first_response_minutes: number | null
   chats_handled: number
@@ -98,6 +100,7 @@ const responseTone = (m: number | null): Tone => m === null ? 'none' : m <= 30 ?
 const resolutionTone = (h: number | null): Tone => h === null ? 'none' : h <= 4 ? 'good' : h <= 24 ? 'warn' : 'bad'
 const openTone = (m: number | null): Tone => m === null ? 'none' : m <= 15 ? 'good' : m <= 60 ? 'warn' : 'bad'
 const rateTone = (r: number | null): Tone => r === null ? 'none' : r >= 0.4 ? 'good' : r >= 0.2 ? 'warn' : 'none'
+const ftrTone = (r: number | null): Tone => r === null ? 'none' : r >= 0.9 ? 'good' : r >= 0.75 ? 'warn' : 'bad'
 
 const ROLE_STYLE: Record<string, string> = {
   superadmin: 'bg-yippie-50 text-yippie-700',
@@ -288,8 +291,9 @@ export default function UsersTab() {
               </div>
 
               {/* Headline service metrics */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 pb-6 mb-6 border-b border-slate-100">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 pb-6 mb-6 border-b border-slate-100">
                 <Hero label="First response" value={mins(selected.first_response_minutes)} sub="avg to first reply" tone={responseTone(selected.first_response_minutes)} delta={<DeltaChip cur={selected.first_response_minutes} prev={selected.prev.first_response_minutes} lowerBetter />} />
+                <Hero label="First time right" value={pct(selected.first_time_right)} sub={`${selected.tickets_reopened} reopened`} tone={ftrTone(selected.first_time_right)} />
                 <Hero label="Avg resolution" value={hrs(selected.avg_resolution_hours)} sub="created to resolved" tone={resolutionTone(selected.avg_resolution_hours)} />
                 <Hero label="Open workload" value={num(selected.tickets_open)} sub="assigned right now" />
               </div>
