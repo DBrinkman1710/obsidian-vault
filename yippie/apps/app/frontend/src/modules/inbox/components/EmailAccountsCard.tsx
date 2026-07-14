@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, Unlink } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { useAuth } from '../../../auth/useAuth'
 import { timeAgo } from '../../../lib/format'
 
 // EML1 — linked Gmail/Outlook mailboxes. level='tenant' renders the shared
@@ -76,8 +77,9 @@ export function EmailAccountsCard({ level }: { level: 'tenant' | 'user' }) {
   const visible = accounts.filter(a => (level === 'tenant' ? a.user_id === null : a.user_id !== null))
   const anyProvider = Boolean(providers?.gmail || providers?.outlook)
 
-  // Feature not configured in this environment and nothing linked → stay hidden
-  if (!anyProvider && visible.length === 0) return null
+  // Personal card: feature not configured and nothing linked → stay hidden.
+  // The tenant card always renders so the shared inbox address stays visible.
+  if (level === 'user' && !anyProvider && visible.length === 0) return null
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
@@ -92,6 +94,8 @@ export function EmailAccountsCard({ level }: { level: 'tenant' | 'user' }) {
           ? 'Link your support mailbox (Gmail or Outlook) so incoming mail lands in the shared inbox and replies are sent from your own address. Optional — without a linked account, Yippie sends via your verified domain.'
           : 'Link your own Gmail or Outlook account. Mail sent to it lands in your Personal inbox, and replies go out from your address and appear in its Sent folder.'}
       </p>
+
+      {level === 'tenant' && <SharedInboxAddress hasLinkedAccount={visible.length > 0} />}
 
       {visible.length > 0 && (
         <div className="space-y-2 mb-4">
@@ -162,6 +166,93 @@ export function EmailAccountsCard({ level }: { level: 'tenant' | 'user' }) {
             </button>
           )}
         </div>
+      )}
+    </div>
+  )
+}
+
+// Tenant shared inbox receiving address (Tenant.inbound_email). Auto created
+// from the workspace name; admins can override it. When a Gmail/Outlook account
+// is linked above, that account takes over and this address is a fallback.
+function SharedInboxAddress({ hasLinkedAccount }: { hasLinkedAccount: boolean }) {
+  const qc = useQueryClient()
+  const { user } = useAuth()
+  const isAdmin = user?.role === 'admin'
+
+  const { data } = useQuery<{ inbound_email: string | null }>({
+    queryKey: ['workspace-prefs'],
+    queryFn: () => api.get('/team/workspace-prefs').then((r: any) => r.data),
+    enabled: isAdmin,
+  })
+
+  const current = data?.inbound_email ?? ''
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+
+  const saveMut = useMutation({
+    mutationFn: (addr: string) =>
+      api.patch('/team/workspace-prefs', { inbound_email: addr }).then((r: any) => r.data),
+    onSuccess: () => {
+      toast.success('Shared inbox address updated')
+      qc.invalidateQueries({ queryKey: ['workspace-prefs'] })
+      setEditing(false)
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Could not update the address.'),
+  })
+
+  return (
+    <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-slate-500">Shared inbox address</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">Mail sent here lands in your shared inbox. Created automatically from your workspace name.</p>
+        </div>
+        {isAdmin && !editing && (
+          <button
+            type="button"
+            onClick={() => { setValue(current); setEditing(true) }}
+            className="shrink-0 text-xs font-semibold text-yippie hover:underline cursor-pointer"
+          >
+            Edit
+          </button>
+        )}
+      </div>
+
+      {editing ? (
+        <div className="mt-2.5 flex items-center gap-2">
+          <input
+            type="email"
+            value={value}
+            onChange={e => setValue(e.target.value)}
+            placeholder="support@getyippie.com"
+            className="flex-1 min-w-0 px-3 py-1.5 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
+          />
+          <button
+            type="button"
+            onClick={() => saveMut.mutate(value)}
+            disabled={saveMut.isPending}
+            className="shrink-0 px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 cursor-pointer"
+          >
+            Save
+          </button>
+          <button
+            type="button"
+            onClick={() => setEditing(false)}
+            className="shrink-0 px-2.5 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-100 cursor-pointer"
+          >
+            Cancel
+          </button>
+        </div>
+      ) : (
+        <p className={`mt-1.5 text-sm font-mono truncate ${hasLinkedAccount ? 'text-slate-400' : 'text-slate-800'}`}>
+          {current || <span className="font-sans text-slate-400">Not set</span>}
+        </p>
+      )}
+
+      {hasLinkedAccount && (
+        <p className="mt-2 text-[11px] text-warning-600">
+          A connected account below is active, so incoming mail syncs from it and replies go out from that address. This Yippie address stays as a fallback.
+        </p>
       )}
     </div>
   )

@@ -84,7 +84,8 @@ export default function ProfileSettingsPage() {
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
             <p className="mt-1.5 text-xs text-slate-400">
-              One address for both directions: mail sent to it lands in your Personal inbox, and you can pick it as the "From" address when replying or composing.
+              One address for both directions: mail sent to it lands in your Personal inbox, and you can pick it as the "From" address when replying or composing. You can also connect this address with OAuth (Gmail or Outlook) instead — contact your admin at{' '}
+              <a href="mailto:diederik@getyippie.com" className="text-yippie hover:underline">diederik@getyippie.com</a>{' '}to set that up.
             </p>
           </div>
 

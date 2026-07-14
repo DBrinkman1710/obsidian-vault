@@ -63,7 +63,7 @@ const STEP_DEFS: {
     module: 'booking',
     title: 'Booking',
     body: 'Share a public booking page and customers pick a slot themselves. Post your availability once and let appointments fill your calendar automatically.',
-    route: '/availability',
+    route: '',
     icon: <CalendarClock size={22} className="text-rose-500" />,
   },
   {
@@ -267,13 +267,15 @@ export default function WelcomeTour() {
 
         {/* Actions */}
         <div className="flex items-center justify-between mt-4">
-          <button
-            onClick={() => current.openYip ? openQuickCapture() : navigate(current.route)}
-            className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 transition-colors"
-          >
-            <ArrowRight size={12} />
-            Open {current.title}
-          </button>
+          {(current.route || current.openYip) ? (
+            <button
+              onClick={() => current.openYip ? openQuickCapture() : navigate(current.route)}
+              className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 transition-colors"
+            >
+              <ArrowRight size={12} />
+              Open {current.title}
+            </button>
+          ) : <span />}
           <button
             onClick={next}
             className="inline-flex items-center gap-1.5 px-4 py-2 bg-yippie hover:opacity-90 text-white text-xs font-semibold rounded-xl transition-opacity"

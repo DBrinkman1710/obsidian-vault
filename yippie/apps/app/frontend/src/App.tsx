@@ -417,13 +417,13 @@ export default function App() {
       <ComposeProvider>
       {/* First-run surfaces are the impersonated user's — never consume their
           tour/checklist state while a superadmin is viewing as them.
-          One anchored column, bottom-right: the checklist stacks ABOVE the
-          tour while both are visible; when the tour finishes it unmounts and
-          the checklist drops down into its spot. */}
+          One anchored column, bottom-right: the tour sits ABOVE the checklist
+          while both are visible; when the tour finishes it unmounts and the
+          checklist takes its place. */}
       {!impersonating && (
         <div className="fixed bottom-20 md:bottom-6 right-4 md:right-6 z-40 flex flex-col items-end gap-3 max-h-[calc(100dvh-6.5rem)] overflow-y-auto">
-          <SetupChecklist />
           {user && !user.tour_completed && <WelcomeTour />}
+          <SetupChecklist />
         </div>
       )}
       {/* Passwordless signup: user.needs_password is a durable server side

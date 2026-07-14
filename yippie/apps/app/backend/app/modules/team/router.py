@@ -72,11 +72,16 @@ async def get_workspace_prefs(current_user: AdminUser, db: DB):
     tenant = await db.get(Tenant, current_user.tenant_id)
     if tenant is None:
         raise HTTPException(status_code=404, detail="Tenant not found")
-    return schemas.WorkspacePrefsOut(pipeline_nudge_enabled=tenant.pipeline_nudge_enabled)
+    return schemas.WorkspacePrefsOut(
+        pipeline_nudge_enabled=tenant.pipeline_nudge_enabled,
+        inbound_email=tenant.inbound_email,
+    )
 
 
 @router.patch("/workspace-prefs", response_model=schemas.WorkspacePrefsOut)
 async def update_workspace_prefs(current_user: AdminUser, db: DB, data: schemas.WorkspacePrefsUpdate):
+    from sqlalchemy import select
+
     from app.core.models import Tenant
 
     tenant = await db.get(Tenant, current_user.tenant_id)
@@ -84,9 +89,23 @@ async def update_workspace_prefs(current_user: AdminUser, db: DB, data: schemas.
         raise HTTPException(status_code=404, detail="Tenant not found")
     if data.pipeline_nudge_enabled is not None:
         tenant.pipeline_nudge_enabled = data.pipeline_nudge_enabled
+    if data.inbound_email is not None:
+        addr = data.inbound_email.strip().lower()
+        if addr and "@" not in addr:
+            raise HTTPException(status_code=422, detail="Enter a valid email address.")
+        if addr:
+            clash = await db.scalar(
+                select(Tenant.id).where(Tenant.inbound_email == addr, Tenant.id != tenant.id)
+            )
+            if clash is not None:
+                raise HTTPException(status_code=409, detail="That address is already used by another workspace.")
+        tenant.inbound_email = addr or None
     await db.commit()
     await db.refresh(tenant)
-    return schemas.WorkspacePrefsOut(pipeline_nudge_enabled=tenant.pipeline_nudge_enabled)
+    return schemas.WorkspacePrefsOut(
+        pipeline_nudge_enabled=tenant.pipeline_nudge_enabled,
+        inbound_email=tenant.inbound_email,
+    )
 
 
 @router.get("/org-settings", response_model=schemas.OrgSettingsOut)

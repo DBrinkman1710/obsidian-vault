@@ -192,9 +192,9 @@ export default function SetupChecklist() {
 
   return (
     <>
-    {/* Positioned by App's bottom-right column: stacked above the tour while
-        it runs (collapsed by default), drops into its spot and auto-expands
-        when the tour finishes (effect above). */}
+    {/* Positioned by App's bottom-right column: sits below the tour while it
+        runs (collapsed by default), then auto-expands and takes the tour's
+        place when it finishes (effect above). */}
     <div className="w-80 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
