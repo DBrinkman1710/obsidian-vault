@@ -753,7 +753,9 @@ function YippieCalendarFeedCard() {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-slate-200 p-6">
+    // flex-1 lets this last card fill the leftover height so its bottom lines
+    // up with the settings form on the left (the row stretches both columns).
+    <div className="bg-white rounded-2xl border border-slate-200 p-6 flex-1">
       <div className="flex items-center gap-2 mb-1">
         <Link size={15} className="text-slate-400" />
         <h2 className="text-sm font-bold text-slate-900">Your Yippie Calendar Feed</h2>
