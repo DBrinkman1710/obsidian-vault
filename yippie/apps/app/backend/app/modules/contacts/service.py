@@ -328,7 +328,9 @@ async def get_company(db: AsyncSession, tenant_id: uuid.UUID, company_id: uuid.U
 
 async def _company_contact_count(db: AsyncSession, company_id: uuid.UUID) -> int:
     return await db.scalar(
-        select(func.count()).select_from(Contact).where(Contact.company_id == company_id)
+        select(func.count()).select_from(Contact).where(
+            Contact.company_id == company_id, Contact.deleted_at.is_(None)
+        )
     ) or 0
 
 

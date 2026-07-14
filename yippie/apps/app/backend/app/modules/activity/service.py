@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.modules.activity.models import ActivityEvent
@@ -219,7 +219,7 @@ async def get_kpis(db: AsyncSession, tenant_id: uuid.UUID) -> dict:
     }
 
     # --- Contacts ---
-    contact_base = Contact.tenant_id == tenant_id
+    contact_base = and_(Contact.tenant_id == tenant_id, Contact.deleted_at.is_(None))
     contacts_total = await db.scalar(select(func.count()).where(contact_base)) or 0
     contacts_new_this_week = (
         await db.scalar(
