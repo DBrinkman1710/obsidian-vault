@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import secrets
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from pydantic import ValidationError
@@ -244,6 +245,102 @@ async def get_flow(db: AsyncSession, tenant_id: uuid.UUID, flow_id: uuid.UUID) -
     return await db.scalar(
         select(Flow).where(Flow.tenant_id == tenant_id, Flow.id == flow_id)
     )
+
+
+# Rough ROI constant — minutes of manual work saved per automated run that did
+# something (success or partial). Blended across action types; tune in one place.
+MINUTES_SAVED_PER_RUN = 3
+
+
+async def get_flow_performance(
+    db: AsyncSession, tenant_id: uuid.UUID, days: int = 7
+) -> dict:
+    """Per-flow health + ROI from flow_runs for the Automation tab ([ACTIVITY2]
+    Phase 2). Admin-gated at the router."""
+    since = datetime.now(timezone.utc) - timedelta(days=days)
+
+    # Status tallies per flow within the window
+    tally_rows = (
+        await db.execute(
+            select(FlowRun.flow_id, FlowRun.status, func.count())
+            .where(FlowRun.tenant_id == tenant_id, FlowRun.created_at >= since)
+            .group_by(FlowRun.flow_id, FlowRun.status)
+        )
+    ).all()
+    tallies: dict = {}
+    for flow_id, run_status, count in tally_rows:
+        tallies.setdefault(flow_id, {}).update({run_status: count})
+
+    # Most recent error per flow in the window (distinct on flow_id, newest first)
+    err_subq = (
+        select(FlowRun.flow_id, FlowRun.error, FlowRun.created_at)
+        .where(
+            FlowRun.tenant_id == tenant_id,
+            FlowRun.created_at >= since,
+            FlowRun.error.is_not(None),
+        )
+        .distinct(FlowRun.flow_id)
+        .order_by(FlowRun.flow_id, FlowRun.created_at.desc())
+        .subquery()
+    )
+    error_map = {
+        r[0]: r[1] for r in (await db.execute(select(err_subq.c.flow_id, err_subq.c.error))).all()
+    }
+
+    flow_rows = (
+        await db.execute(
+            select(Flow.id, Flow.name, Flow.enabled, Flow.trigger_type, Flow.last_run_at)
+            .where(Flow.tenant_id == tenant_id)
+            .order_by(Flow.name)
+        )
+    ).all()
+
+    flows = []
+    tot = {"success": 0, "partial": 0, "failed": 0, "skipped": 0}
+    for fid, name, enabled, trigger_type, last_run_at in flow_rows:
+        t = tallies.get(fid, {})
+        success = t.get("success", 0)
+        partial = t.get("partial", 0)
+        failed = t.get("failed", 0)
+        skipped = t.get("skipped", 0)
+        fires = success + partial + failed
+        tot["success"] += success
+        tot["partial"] += partial
+        tot["failed"] += failed
+        tot["skipped"] += skipped
+        flows.append(
+            {
+                "flow_id": str(fid),
+                "name": name,
+                "enabled": enabled,
+                "trigger_type": trigger_type,
+                "fires": fires,
+                "success": success,
+                "partial": partial,
+                "failed": failed,
+                "skipped": skipped,
+                "success_rate": (success / fires) if fires else None,
+                "est_hours_saved": round((success + partial) * MINUTES_SAVED_PER_RUN / 60.0, 1),
+                "last_error": error_map.get(fid),
+                "last_run_at": last_run_at,
+            }
+        )
+
+    flows.sort(key=lambda f: f["fires"], reverse=True)
+    total_fires = tot["success"] + tot["partial"] + tot["failed"]
+    return {
+        "period_days": days,
+        "totals": {
+            "fires": total_fires,
+            "success": tot["success"],
+            "partial": tot["partial"],
+            "failed": tot["failed"],
+            "skipped": tot["skipped"],
+            "success_rate": (tot["success"] / total_fires) if total_fires else None,
+            "est_hours_saved": round((tot["success"] + tot["partial"]) * MINUTES_SAVED_PER_RUN / 60.0, 1),
+        },
+        "flows": flows,
+    }
 
 
 def _required_config_keys(action_type: str) -> list[str]:

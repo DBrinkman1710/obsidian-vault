@@ -4,6 +4,7 @@ import { Activity, Calendar, CreditCard, FileText, GitBranch, Mail, MessageSquar
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import UsersTab from './UsersTab'
+import AutomationTab from './AutomationTab'
 
 interface PipelineStage {
   id: string
@@ -170,7 +171,7 @@ const EVENTS_PER_PAGE = 10
 export default function ActivityFeed() {
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
-  const [activeTab, setActiveTab] = useState<'overview' | 'users'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'automation'>('overview')
   const [selectedStageId, setSelectedStageId] = useState<string | null>(null)
   const [eventsPage, setEventsPage] = useState(0)
 
@@ -214,7 +215,7 @@ export default function ActivityFeed() {
         <h1 className="heading-xl text-slate-900">Activity</h1>
         {isAdmin && (
           <div className="flex gap-2">
-            {(['overview', 'users'] as const).map(tab => (
+            {(['overview', 'users', 'automation'] as const).map(tab => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -232,6 +233,8 @@ export default function ActivityFeed() {
       </div>
 
       {activeTab === 'users' && <UsersTab />}
+
+      {activeTab === 'automation' && <AutomationTab />}
 
       {activeTab === 'overview' && (
         <>

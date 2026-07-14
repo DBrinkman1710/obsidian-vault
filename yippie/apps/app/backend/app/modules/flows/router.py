@@ -90,6 +90,12 @@ async def rotate_signing_secret(current_user: AdminUser, db: DB):
     return await service.rotate_signing_secret(db, tenant)
 
 
+@router.get("/performance")
+async def flow_performance(current_user: AdminUser, db: DB, days: int = Query(7, ge=1, le=365)):
+    """Per-flow health + ROI for the Automation tab. Admin/superadmin only."""
+    return await service.get_flow_performance(db, current_user.tenant_id, days)
+
+
 @router.get("/{flow_id}/webhook")
 async def get_webhook_config(flow_id: uuid.UUID, current_user: AdminUser, db: DB):
     """Inbound URL + outbound signing secret for a webhook-trigger flow."""
