@@ -144,6 +144,84 @@ export default function PrivacyPage() {
             data immediately. No data exists anywhere else.
           </p>
 
+          <h2>Yippie platform — Gmail and Outlook integration</h2>
+          <p>
+            Within the Yippie customer service platform, users can optionally
+            connect their Gmail or Microsoft Outlook mailbox so that incoming
+            emails are handled alongside other support channels.
+          </p>
+
+          <h3>What we access</h3>
+          <p>
+            When you connect a Gmail account, Yippie requests the following
+            OAuth scopes:
+          </p>
+          <ul>
+            <li>
+              <strong>gmail.readonly</strong> — to read incoming messages and
+              thread history so they can be shown in the Yippie inbox.
+            </li>
+            <li>
+              <strong>gmail.send</strong> — to send replies on your behalf
+              directly from the Yippie platform.
+            </li>
+            <li>
+              <strong>gmail.modify</strong> — to mark messages as read and
+              apply labels after they are handled.
+            </li>
+          </ul>
+          <p>
+            When you connect a Microsoft Outlook account, Yippie requests
+            equivalent Microsoft Graph permissions (
+            <strong>Mail.Read</strong>, <strong>Mail.Send</strong>,{" "}
+            <strong>Mail.ReadWrite</strong>) for the same purposes.
+          </p>
+
+          <h3>How we use your email data</h3>
+          <p>
+            Email content (sender, recipient, subject, and body) is processed
+            solely to display messages in the Yippie platform, generate
+            AI-assisted reply suggestions, and classify conversations. We do{" "}
+            <strong>not</strong> use your email data to serve advertising, build
+            profiles for third parties, or train AI models. Message content
+            processed by our AI provider (Mistral AI SAS) is subject to a Data
+            Processing Agreement and is not used for model training.
+          </p>
+
+          <h3>Where your data is processed</h3>
+          <p>
+            Email data is fetched from Gmail or Outlook to Yippie&apos;s
+            servers (hosted on Railway, EU region) and stored in your
+            account&apos;s isolated database. It is not shared with other
+            tenants and is not sold or transferred to third parties outside the
+            processors listed in this policy.
+          </p>
+
+          <h3>Legal basis</h3>
+          <p>
+            Processing is based on your explicit consent (Art. 6(1)(a) GDPR),
+            granted when you connect your mailbox via the OAuth consent screen.
+            You can disconnect your mailbox at any time from your Yippie account
+            settings, which immediately revokes our access token. You can also
+            revoke access directly at{" "}
+            <a
+              href="https://myaccount.google.com/permissions"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              myaccount.google.com/permissions
+            </a>{" "}
+            (Gmail) or via your Microsoft account security settings (Outlook).
+          </p>
+
+          <h3>Data retention</h3>
+          <p>
+            Email messages synced to Yippie are retained for as long as your
+            account is active. When you delete a conversation or close your
+            account, the associated message data is deleted from our systems
+            within 30 days.
+          </p>
+
           <h2>Cookies &amp; analytics</h2>
           <p>
             We use <strong>Google Analytics 4</strong> with Google{" "}
