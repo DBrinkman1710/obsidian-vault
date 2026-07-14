@@ -58,7 +58,7 @@ class DraftTicket(Base):
     status: Mapped[DraftStatus] = mapped_column(Enum(DraftStatus), nullable=False, default=DraftStatus.pending)
 
     # Auto-matched contact (from sender email lookup)
-    matched_contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
+    matched_contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True)
 
     # AI-generated customer briefing shown in the context window
     context_summary: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -79,7 +79,7 @@ class DraftTicket(Base):
     final_description: Mapped[str | None] = mapped_column(Text, nullable=True)
     final_priority: Mapped[str | None] = mapped_column(String(20), nullable=True)
     assigned_to: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
-    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True)
+    contact_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True)
 
     approved_ticket_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     reviewed_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)

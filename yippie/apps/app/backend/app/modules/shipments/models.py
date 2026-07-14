@@ -48,7 +48,7 @@ class Shipment(Base):
         Enum(ShipmentStatus), nullable=False, default=ShipmentStatus.registered
     )
     contact_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("contacts.id"), nullable=True, index=True
+        UUID(as_uuid=True), ForeignKey("contacts.id", ondelete="SET NULL"), nullable=True, index=True
     )
     order_reference: Mapped[str | None] = mapped_column(String(255), nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
