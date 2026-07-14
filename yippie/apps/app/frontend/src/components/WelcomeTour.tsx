@@ -5,21 +5,31 @@ import {
   Inbox, Users, ClipboardList, Calendar, Kanban, MessageSquare,
   CreditCard, Activity, ChevronRight, X, Package, Megaphone,
   BarChart3, TrendingUp, ArrowRight, FileText, Zap,
+  CalendarClock, Sparkles,
 } from 'lucide-react'
 import { api } from '../api/client'
 import { useAuth } from '../auth/useAuth'
 import { useTenantConfig } from '../App'
+import { openQuickCapture } from '../hooks/useQuickCapture'
 
-// Order must match sidebar MODULE_MAP top-to-bottom:
+// The sidebar-visible modules follow MODULE_MAP top-to-bottom:
 // inbox→contacts→tickets→calendar→pipeline→activity→billing→contracts→chat→marketing→tracking→sales→saas→flows
-// Titles must match the sidebar's English labels (i18n/translations.ts) so the
+// Their titles match the sidebar's English labels (i18n/translations.ts) so the
 // tour names the same thing the user sees in the nav.
+//
+// A couple of steps cover features with no sidebar entry:
+//   - booking: module-gated, surfaced via Calendar
+//   - Yip: always shown (alwaysShow) — the ⌘K assistant available everywhere.
+//     openYip opens the assistant popup instead of navigating to a route.
+// (Departments + Roles are onboarded via the SetupChecklist gates, not here.)
 const STEP_DEFS: {
   module: string
   title: string
   body: string
   route: string
   icon: React.ReactNode
+  alwaysShow?: boolean
+  openYip?: boolean
 }[] = [
   {
     module: 'inbox',
@@ -48,6 +58,13 @@ const STEP_DEFS: {
     body: 'Schedule follow-ups, meetings, and deadlines. Events sync with your tickets and contacts automatically.',
     route: '/calendar',
     icon: <Calendar size={22} className="text-orange-500" />,
+  },
+  {
+    module: 'booking',
+    title: 'Booking',
+    body: 'Share a public booking page and customers pick a slot themselves. Post your availability once and let appointments fill your calendar automatically.',
+    route: '/availability',
+    icon: <CalendarClock size={22} className="text-rose-500" />,
   },
   {
     module: 'pipeline',
@@ -119,6 +136,15 @@ const STEP_DEFS: {
     route: '/flows',
     icon: <Zap size={22} className="text-fuchsia-500" />,
   },
+  {
+    module: 'ai',
+    title: 'Yip',
+    body: 'Your AI assistant. Press ⌘K anywhere to jot a note, set a reminder, look up a customer, or ask Yip to draft a reply for you.',
+    route: '',
+    icon: <Sparkles size={22} className="text-yippie" />,
+    alwaysShow: true,
+    openYip: true,
+  },
 ]
 
 // Per-user sessionStorage key so the checklist's page reloads (branding save,
@@ -141,7 +167,7 @@ export default function WelcomeTour() {
 
   const enabledModules: string[] = config?.enabled_modules ?? []
   const steps = enabledModules.length > 0
-    ? STEP_DEFS.filter(s => enabledModules.includes(s.module))
+    ? STEP_DEFS.filter(s => s.alwaysShow || enabledModules.includes(s.module))
     : STEP_DEFS.slice(0, 3)
 
   // Persist progress across the reloads some checklist detours trigger.
@@ -242,7 +268,7 @@ export default function WelcomeTour() {
         {/* Actions */}
         <div className="flex items-center justify-between mt-4">
           <button
-            onClick={() => navigate(current.route)}
+            onClick={() => current.openYip ? openQuickCapture() : navigate(current.route)}
             className="inline-flex items-center gap-1 text-xs text-slate-500 hover:text-slate-800 transition-colors"
           >
             <ArrowRight size={12} />

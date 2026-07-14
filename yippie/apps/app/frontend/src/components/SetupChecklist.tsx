@@ -10,6 +10,11 @@ import MakeItYoursModal from './MakeItYoursModal'
 
 const DEFAULT_BRAND_COLOR = '#5BA4F5'
 
+// Every tenant is seeded with the Agent + Viewer roles (see
+// provision_default_rbac_roles), so the Roles gate only counts as done once the
+// admin has added a role of their own beyond those two.
+const DEFAULT_RBAC_ROLE_COUNT = 2
+
 interface Gate {
   id: string
   label: string
@@ -31,6 +36,13 @@ export default function SetupChecklist() {
   const [yipTrainDone, setYipTrainDone] = useState(false)
   const [showMakeItYours, setShowMakeItYours] = useState(false)
 
+  // The Departments + Roles gates stay hidden until the admin opens their
+  // profile for the first time; the click flips this flag (persisted per user).
+  const profileOpenedKey = user ? `profile_opened_${user.id}` : null
+  const [profileOpened, setProfileOpened] = useState(
+    () => !!profileOpenedKey && localStorage.getItem(profileOpenedKey) === '1',
+  )
+
   const isAdmin = user?.role === 'admin'
   // The jarvis train endpoint is mounted behind require_module("ai") +
   // require_feature("ai") on the backend, so tenants without the ai module
@@ -38,6 +50,11 @@ export default function SetupChecklist() {
   // "Train Yip" gate — only show it when the tenant can actually call it.
   const aiEnabled = (config?.enabled_modules ?? []).includes('ai')
     && (config?.allowed_features ?? []).includes('ai')
+
+  const departmentsEnabled = (config?.enabled_modules ?? []).includes('departments')
+  // A returning admin who already set a reply-from address has clearly been to
+  // their profile before, so treat that as "opened" too.
+  const profileReached = profileOpened || !!user?.reply_from_email
 
   // Branding is "made yours" once the colour differs from the platform default,
   // a logo has been set, or the user explicitly saved their branding at least
@@ -65,6 +82,23 @@ export default function SetupChecklist() {
     enabled: !!user && !user.setup_checklist_dismissed,
   })
 
+  // Same query keys as TeamSettingsPage (['departments'], ['rbac-roles']) so
+  // creating a department or role there flips these gates immediately. Only
+  // fetched once the gates can appear (admin, module on, profile opened).
+  const departmentsQuery = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => api.get('/departments').then((r: any) => r.data as { id: string }[]),
+    staleTime: 5 * 60 * 1000,
+    enabled: isAdmin && departmentsEnabled && profileReached && !!user && !user.setup_checklist_dismissed,
+  })
+
+  const rolesQuery = useQuery({
+    queryKey: ['rbac-roles'],
+    queryFn: () => api.get('/rbac/roles').then((r: any) => r.data as { id: string }[]),
+    staleTime: 5 * 60 * 1000,
+    enabled: isAdmin && profileReached && !!user && !user.setup_checklist_dismissed,
+  })
+
   const gates: Gate[] = [
     {
       // Always done gate: keeps the "X of Y complete" header count above zero
@@ -81,6 +115,22 @@ export default function SetupChecklist() {
       route: '/settings/profile',
       done: !!user?.reply_from_email,
     },
+    ...(isAdmin && departmentsEnabled && profileReached ? [{
+      id: 'departments',
+      label: 'Set up departments',
+      detail: 'Group your team into departments like Sales or Support so conversations reach the right people.',
+      route: '/settings/team',
+      done: (departmentsQuery.data?.length ?? 0) > 0,
+      optional: true,
+    }] : []),
+    ...(isAdmin && profileReached ? [{
+      id: 'roles',
+      label: 'Set up roles',
+      detail: 'Create access roles to control who can see and do what, then assign them to your team.',
+      route: '/settings/team',
+      done: (rolesQuery.data?.length ?? 0) > DEFAULT_RBAC_ROLE_COUNT,
+      optional: true,
+    }] : []),
     {
       id: 'signature',
       label: 'Add your email signature',
@@ -186,6 +236,10 @@ export default function SetupChecklist() {
               <button
                 disabled={gate.done}
                 onClick={() => {
+                  if (gate.id === 'profile' && profileOpenedKey && !profileOpened) {
+                    localStorage.setItem(profileOpenedKey, '1')
+                    setProfileOpened(true)
+                  }
                   if (gate.action) gate.action()
                   else if (gate.route) navigate(gate.route)
                 }}
