@@ -66,7 +66,7 @@ export default function ProfileSettingsPage() {
       <h1 className="heading-xl text-slate-900 mb-1">Profile</h1>
       <p className="text-sm text-slate-500 mb-8">Manage your personal email address, signature and password.</p>
 
-      <div className="flex items-start gap-8">
+      <div className="flex items-stretch gap-8">
         {/* Main form: email + personal address + signature + hotkeys */}
         <form onSubmit={handleSubmit} className="flex-1 min-w-0 bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
           <div>
@@ -228,21 +228,15 @@ export default function ProfileSettingsPage() {
           </div>
         </form>
 
-        {/* Change password */}
-        <div className="w-96 flex-shrink-0">
+        {/* Right column: password + linked accounts + calendar */}
+        <div className="w-96 flex-shrink-0 flex flex-col gap-6">
           <ChangePasswordCard />
+          <EmailAccountsCard level="user" />
+          <div className="flex flex-col gap-6 flex-1">
+            <ConnectedCalendarsCard />
+            <YippieCalendarFeedCard />
+          </div>
         </div>
-      </div>
-
-      {/* Linked personal mailbox (Gmail/Outlook OAuth) */}
-      <div className="mt-10 pt-6 border-t border-slate-200">
-        <EmailAccountsCard level="user" />
-      </div>
-
-      {/* Calendar integration */}
-      <div className="mt-10 pt-6 border-t border-slate-200 grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ConnectedCalendarsCard />
-        <YippieCalendarFeedCard />
       </div>
 
       {/* Platform manual download */}
