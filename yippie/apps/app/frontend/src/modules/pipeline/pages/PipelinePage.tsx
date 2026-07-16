@@ -157,7 +157,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
       const prev = campaigns.find((c: Campaign) => c.linked_stage_id === stageId)
       const calls: Promise<any>[] = []
       if (prev && prev.id !== campaignId) {
-        calls.push(marketingApi.updateCampaign(prev.id, { linked_stage_id: undefined } as any))
+        calls.push(marketingApi.updateCampaign(prev.id, { linked_stage_id: null } as any))
       }
       if (campaignId) {
         calls.push(marketingApi.updateCampaign(campaignId, { linked_stage_id: stageId } as any))

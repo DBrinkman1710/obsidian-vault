@@ -17,6 +17,7 @@ import {
   ActivityIcon,
   TeamIcon,
   BillingIcon,
+  ContractIcon,
   CheckIcon,
   ArrowRightIcon,
   TrackingIcon,
@@ -29,12 +30,12 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 export const metadata: Metadata = {
   title: "Modules | Yippie customer service platform",
   description:
-    "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
+    "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, contracts, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
   alternates: { canonical: "/modules" },
   openGraph: {
     title: "Modules | Yippie customer service platform",
     description:
-      "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
+      "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, contracts, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
     url: "https://getyippie.com/modules",
     type: "website",
     images: ["/og.png"],
@@ -190,6 +191,21 @@ const modules: Module[] = [
     Icon: BillingIcon,
   },
   {
+    id: "contracts",
+    kicker: "CONTRACTS",
+    title: "Contracts: sign, store, and never miss a renewal",
+    desc: "Store signed contracts alongside each contact, track notice periods and renewal dates, and get reminded before anything lapses. Upload PDFs or send for e-signing directly from your workspace.",
+    bullets: [
+      "Upload and attach contracts to any contact or company",
+      "Track renewal dates and notice periods with automatic reminders",
+      "Send contracts for e-signing without leaving Yippie",
+      "Filter by status: draft, sent, signed, expired",
+    ],
+    shot: "/shots/contracts.png",
+    path: "/contracts",
+    Icon: ContractIcon,
+  },
+  {
     id: "activity",
     kicker: "ACTIVITY",
     title: "Activity: your business in real time",
@@ -334,7 +350,7 @@ export default function ModulesPage() {
           The product
         </div>
         <h1 className={contentStyles.heroTitle}>
-          Fifteen modules. One platform.
+          Sixteen modules. One platform.
         </h1>
         <p className={contentStyles.heroSub}>
           Inbox, tickets, contacts, calendar, pipeline, live chat, marketing,

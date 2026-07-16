@@ -7,7 +7,7 @@ import styles from "./page.module.css";
 import contentStyles from "../components/content.module.css";
 import {
   AiIcon, CalendarIcon, KanbanIcon, ChatIcon, LayersIcon,
-  BillingIcon, ContractIcon, MailTrackIcon, TeamIcon, TrackingIcon, SalesIcon, SaasIcon,
+  BillingIcon, ContractIcon, MailTrackIcon, TeamIcon, TrackingIcon, SalesIcon, SaasIcon, TicketIcon,
 } from "../components/icons";
 import { PLAN_LIMITS, MODULE_PRICES } from "@/lib/config";
 import {
@@ -130,6 +130,7 @@ const plans: Plan[] = [
 ];
 
 const addOns = [
+  { Icon: TicketIcon, name: "Tickets", desc: "Track, assign, and close support requests with SLA alerts and bulk actions.", price: MODULE_PRICES.tickets },
   { Icon: AiIcon, name: "AI Inbox", desc: "Auto-draft tickets and replies from incoming messages.", price: MODULE_PRICES.ai },
   { Icon: CalendarIcon, name: "Calendar + Booking", desc: "Share booking links and manage appointments.", price: MODULE_PRICES.calendar },
   { Icon: KanbanIcon, name: "Pipeline", desc: "Visual Kanban boards to move contacts through custom stages.", price: MODULE_PRICES.pipeline },

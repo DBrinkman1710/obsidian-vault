@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field
 from sqlalchemy import func, select, text
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -1653,19 +1654,18 @@ async def track_events(
         )
         contact = contact_row.scalar_one_or_none()
         if contact and body.anonymous_id:
-            # Upsert identity mapping
-            existing_identity = await db.execute(
-                select(SaasIdentity).where(
-                    SaasIdentity.tenant_id == tenant.id,
-                    SaasIdentity.anonymous_id == body.anonymous_id,
-                )
-            )
-            if not existing_identity.scalar_one_or_none():
-                db.add(SaasIdentity(
+            # Upsert identity mapping — use on_conflict_do_nothing to avoid a
+            # race condition where two concurrent requests both pass the SELECT
+            # and the loser hits an IntegrityError on the composite PK.
+            await db.execute(
+                pg_insert(SaasIdentity)
+                .values(
                     tenant_id=tenant.id,
                     anonymous_id=body.anonymous_id,
                     contact_id=contact.id,
-                ))
+                )
+                .on_conflict_do_nothing()
+            )
             contact_id = contact.id
 
     # Resolve contact_id from existing identity mapping if not yet known

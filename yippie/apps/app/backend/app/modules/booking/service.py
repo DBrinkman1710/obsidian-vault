@@ -1390,6 +1390,19 @@ async def reschedule_booking(
     if conflict is not None:
         raise ValueError("That time is no longer available. Please pick another slot.")
 
+    # Also check external calendar events for the agent (mirrors confirm_booking).
+    from app.modules.external_calendar.models import ExternalCalendarEvent
+    ext_conflict = await db.scalar(
+        select(ExternalCalendarEvent.id).where(
+            ExternalCalendarEvent.tenant_id == token.tenant_id,
+            ExternalCalendarEvent.user_id == token.created_by,
+            ExternalCalendarEvent.start_at < slot_end,
+            ExternalCalendarEvent.end_at > slot_start,
+        )
+    )
+    if ext_conflict is not None:
+        raise ValueError("That time is no longer available. Please pick another slot.")
+
     event.start_at = slot_start
     event.end_at = slot_end
     await db.commit()

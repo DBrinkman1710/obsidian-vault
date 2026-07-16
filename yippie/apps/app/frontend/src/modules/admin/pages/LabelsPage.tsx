@@ -623,7 +623,7 @@ export default function LabelsPage() {
       {isAdmin && <ContactLabelsCard />}
       {isAdmin && <LiveChatSettingsCard />}
       {isAdmin && <KanbanStagesPanel />}
-      {isAdmin && config?.enabled_modules?.includes('shipments') && <SendcloudSettingsCard />}
+      {isAdmin && config?.enabled_modules?.includes('tracking') && <SendcloudSettingsCard />}
     </div>
   )
 }

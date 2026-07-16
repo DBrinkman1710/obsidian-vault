@@ -180,6 +180,8 @@ async def refresh_token(request: Request, response: Response, db: AsyncSession =
         tenant = await db.get(Tenant, user.tenant_id)
         if tenant is None or not tenant.is_active:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="This workspace is inactive")
+    if payload.get("imp"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot refresh an impersonation token")
     extra = {k: v for k, v in payload.items() if k not in ("sub", "exp", "iat", "nbf")}
     new_token = create_access_token(payload["sub"], settings, **extra)
     _set_auth_cookie(response, new_token, settings)
@@ -262,7 +264,7 @@ async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Ann
     user = await db.scalar(select(User).where(func.lower(User.email) == body.email.lower().strip()))
     if user and user.is_active:
         settings = get_settings()
-        token = create_signed_token("reset", timedelta(hours=1), sub=str(user.id))
+        token = create_signed_token("reset", timedelta(hours=1), sub=str(user.id), phash=(user.hashed_password or "")[-8:])
         # effective_base_url falls back to the ENVIRONMENT-derived URL when
         # APP_BASE_URL is unset — a bare app_base_url would produce a relative
         # (dead) link in the email.
@@ -298,6 +300,10 @@ async def reset_password(body: ResetPasswordRequest, db: Annotated[AsyncSession,
         raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
     user = await db.get(User, uuid.UUID(claims["sub"]))
     if user is None or not user.is_active:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset link")
+    # Invalidate the token by verifying it was minted against the current password
+    # hash. Any prior reset (which changes the hash) renders outstanding tokens stale.
+    if claims.get("phash") != (user.hashed_password or "")[-8:]:
         raise HTTPException(status_code=400, detail="Invalid or expired reset link")
     user.hashed_password = await _hash_password(body.new_password)
     # Choosing a password through any path clears the signup auto password obligation.
