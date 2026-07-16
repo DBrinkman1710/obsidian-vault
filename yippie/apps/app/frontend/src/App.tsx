@@ -30,6 +30,7 @@ const PipelinePage  = lazy(() => import('./modules/pipeline/pages/PipelinePage')
 const InvoiceList   = lazy(() => import('./modules/billing/pages/InvoiceList'))
 const InvoiceDetail = lazy(() => import('./modules/billing/pages/InvoiceDetail'))
 const ContractList  = lazy(() => import('./modules/contracts/pages/ContractList'))
+const TemplateBuilderPage = lazy(() => import('./modules/templates/TemplateBuilderPage'))
 const ActivityFeed  = lazy(() => import('./modules/activity/pages/ActivityFeed'))
 const FlowsPage     = lazy(() => import('./modules/flows/pages/FlowsPage'))
 const FlowCanvasPage = lazy(() => import('./modules/flows/canvas/FlowCanvasPage'))
@@ -508,8 +509,16 @@ export default function App() {
                 <ModuleGate module="billing"><PagePad><InvoiceDetail /></PagePad></ModuleGate>
               } />
 
+              <Route path="/billing/templates/:templateId/edit" element={
+                <ModuleGate module="billing"><PagePad><TemplateBuilderPage docType="invoice" /></PagePad></ModuleGate>
+              } />
+
               <Route path="/contracts" element={
                 <ModuleGate module="contracts"><PagePad><ContractList /></PagePad></ModuleGate>
+              } />
+
+              <Route path="/contracts/templates/:templateId/edit" element={
+                <ModuleGate module="contracts"><PagePad><TemplateBuilderPage docType="contract" /></PagePad></ModuleGate>
               } />
 
               <Route path="/activity" element={

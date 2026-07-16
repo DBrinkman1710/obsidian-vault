@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CalendarClock, FileSignature, FileText, LayoutTemplate, Link2, PenLine, Plus, RefreshCw, Search, Trash2, Upload, Download, ChevronDown, Paperclip } from 'lucide-react'
 import { toast } from 'sonner'
@@ -10,6 +11,7 @@ import { CloseButton } from '../../../shell/CloseButton'
 import { fmtDate as libFmtDate, fmtMoney as libFmtMoney } from '../../../lib/format'
 import { EmptyState } from '../../../components/EmptyState'
 import { useCopy } from '../../../hooks/useCopy'
+import { starterBlocks } from '../../templates/blocks'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -398,41 +400,30 @@ function toPayload(f: FormState) {
   }
 }
 
-// ── Templates modal ([CONTRACT3]) ─────────────────────────────────────────────
+// ── Templates modal ([CONTRACT3] / [TMPL2]) ───────────────────────────────────
+// Manage templates here; the layout itself is edited in the drag and drop
+// builder at /contracts/templates/:id/edit.
 
 function TemplatesModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const [name, setName] = useState('')
-  const [body, setBody] = useState('')
-  const bodyRef = useRef<HTMLTextAreaElement>(null)
+  const navigate = useNavigate()
+  const [newName, setNewName] = useState('')
 
   const { data: templates } = useQuery<ContractTemplate[]>({
     queryKey: ['contract-templates'],
     queryFn: () => api.get('/contracts/templates').then((r: any) => r.data),
   })
-  const { data: fieldsData } = useQuery<{ fields: string[] }>({
-    queryKey: ['contract-merge-fields'],
-    queryFn: () => api.get('/contracts/templates/fields').then((r: any) => r.data),
-    staleTime: Infinity,
-  })
 
-  function select(t: ContractTemplate | null) {
-    setSelectedId(t?.id ?? null)
-    setName(t?.name ?? '')
-    setBody(t?.body ?? '')
-  }
-
-  const save = useMutation({
-    mutationFn: () => selectedId
-      ? api.patch(`/contracts/templates/${selectedId}`, { name: name.trim(), body })
-      : api.post('/contracts/templates', { name: name.trim(), body }),
+  const create = useMutation({
+    mutationFn: () => api.post('/contracts/templates', {
+      name: newName.trim(),
+      blocks: starterBlocks('contract'),
+    }),
     onSuccess: (res: any) => {
       qc.invalidateQueries({ queryKey: ['contract-templates'] })
-      toast.success(selectedId ? 'Template saved' : 'Template created')
-      if (!selectedId) setSelectedId(res.data.id)
+      navigate(`/contracts/templates/${res.data.id}/edit`)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Save failed'),
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Failed to create template'),
   })
 
   const remove = useMutation({
@@ -440,76 +431,46 @@ function TemplatesModal({ onClose }: { onClose: () => void }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contract-templates'] })
       toast.success('Template deleted')
-      select(null)
     },
   })
 
-  function insertField(field: string) {
-    const el = bodyRef.current
-    const token = `{{${field}}}`
-    if (!el) { setBody(prev => prev + token); return }
-    const start = el.selectionStart ?? body.length
-    setBody(prev => prev.slice(0, start) + token + prev.slice(el.selectionEnd ?? start))
-  }
-
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">Contract templates</h2>
           <CloseButton onClick={onClose} />
         </div>
-        <div className="flex flex-1 min-h-0">
-          {/* Template list */}
-          <div className="w-56 border-r border-slate-100 p-3 overflow-y-auto shrink-0">
-            <button onClick={() => select(null)}
-              className="w-full mb-2 inline-flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-semibold text-yippie border border-yippie/40 rounded-lg hover:bg-yippie/5">
-              <Plus size={13} /> New template
+        <div className="p-5 flex flex-col gap-3 overflow-y-auto">
+          <form
+            className="flex gap-2"
+            onSubmit={e => { e.preventDefault(); if (newName.trim()) create.mutate() }}
+          >
+            <input className={inputCls} value={newName} placeholder="e.g. Service agreement"
+              onChange={e => setNewName(e.target.value)} />
+            <button type="submit" disabled={!newName.trim() || create.isPending}
+              className="btn-primary px-4 py-2 shrink-0 inline-flex items-center gap-1.5">
+              <Plus size={13} /> {create.isPending ? 'Creating…' : 'Create'}
             </button>
+          </form>
+          <div className="flex flex-col gap-1">
             {(templates ?? []).map(t => (
-              <button key={t.id} onClick={() => select(t)}
-                className={`w-full text-left px-3 py-2 text-sm rounded-lg mb-0.5 truncate ${selectedId === t.id ? 'bg-yippie/10 text-slate-900 font-medium' : 'text-slate-600 hover:bg-slate-50'}`}>
-                {t.name}
-              </button>
+              <div key={t.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-100 hover:border-slate-200">
+                <FileText size={14} className="text-slate-300 shrink-0" />
+                <span className="text-sm text-slate-700 truncate flex-1">{t.name}</span>
+                <button onClick={() => navigate(`/contracts/templates/${t.id}/edit`)}
+                  className="btn-secondary px-3 py-1.5 text-xs inline-flex items-center gap-1">
+                  <PenLine size={12} /> Edit layout
+                </button>
+                <button onClick={() => remove.mutate(t.id)} aria-label={`Delete ${t.name}`}
+                  className="p-1.5 text-slate-300 hover:text-danger-600">
+                  <Trash2 size={14} />
+                </button>
+              </div>
             ))}
             {(templates ?? []).length === 0 && (
-              <p className="text-xs text-slate-400 px-2 py-3">No templates yet. Create your first one.</p>
+              <p className="text-xs text-slate-400 px-2 py-3">No templates yet. Create your first one and design it in the builder.</p>
             )}
-          </div>
-          {/* Editor */}
-          <div className="flex-1 p-5 flex flex-col gap-3 overflow-y-auto">
-            <div>
-              <label className={labelCls}>Template name *</label>
-              <input className={inputCls} value={name} placeholder="e.g. Service agreement"
-                onChange={e => setName(e.target.value)} />
-            </div>
-            <div className="flex-1 flex flex-col">
-              <label className={labelCls}>Contract text</label>
-              <textarea ref={bodyRef} className={`${inputCls} flex-1 min-h-[260px] resize-y font-mono text-xs leading-relaxed`}
-                value={body} onChange={e => setBody(e.target.value)}
-                placeholder={'This service agreement is made on {{date.today}} between {{tenant.name}} and {{company.name}}…'} />
-            </div>
-            <div>
-              <p className="text-xs text-slate-400 mb-1.5">Click to insert a merge field — filled in automatically when you generate a contract:</p>
-              <div className="flex flex-wrap gap-1.5">
-                {(fieldsData?.fields ?? []).map(f => (
-                  <button key={f} type="button" onClick={() => insertField(f)}
-                    className="px-2 py-0.5 text-xs font-mono bg-slate-100 text-slate-600 rounded-md hover:bg-slate-200">
-                    {`{{${f}}}`}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-3 pt-1">
-              <button type="button" disabled={!name.trim() || save.isPending} onClick={() => save.mutate()}
-                className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50">
-                {save.isPending ? 'Saving…' : selectedId ? 'Save changes' : 'Create template'}
-              </button>
-              {selectedId && (
-                <button type="button" onClick={() => remove.mutate(selectedId)}
-                  className="px-4 py-2 text-sm text-red-500 border border-red-200 rounded-lg hover:bg-red-50">Delete</button>
-              )}
-            </div>
           </div>
         </div>
       </div>
