@@ -78,6 +78,9 @@ class Contract(Base):
         UUID(as_uuid=True), ForeignKey("contract_templates.id", ondelete="SET NULL"), nullable=True
     )
     body: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Merge resolved copy of the template's blocks, frozen at generation time
+    # ([TMPL1]) — the block PDF renderer's input. Never exposed to updates.
+    rendered_blocks: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     # Public signing link (booking-token pattern → /sign/:token). Cleared on signature.
     sign_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True, unique=True)
     sign_token_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
@@ -102,7 +105,13 @@ class Contract(Base):
 
 
 class ContractTemplate(Base):
-    """Reusable contract text with {{merge_field}} placeholders ([CONTRACT3])."""
+    """Reusable contract layout with {{merge_field}} placeholders ([CONTRACT3]).
+
+    Since [TMPL1] the source of truth is `blocks` (structured JSON edited in
+    the drag and drop builder); `body` is kept as the flattened plain text
+    projection (sign page, search, legacy PDF fallback) and is rewritten by
+    the service on every save.
+    """
 
     __tablename__ = "contract_templates"
 
@@ -110,6 +119,10 @@ class ContractTemplate(Base):
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     body: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    blocks: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=lambda: {"version": 1, "blocks": []}
+    )
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

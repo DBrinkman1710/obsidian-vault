@@ -16,6 +16,10 @@ from app.modules.billing.schemas import (
     InvoiceCreate,
     InvoiceImportResult,
     InvoiceOut,
+    InvoiceTemplateCreate,
+    InvoiceTemplateOut,
+    InvoiceTemplatePreviewRequest,
+    InvoiceTemplateUpdate,
     InvoiceUpdate,
     PaymentCreate,
     PaymentOut,
@@ -35,6 +39,114 @@ async def create_subscription(body: SubscriptionCreate, current_user: CurrentUse
 @router.get("/subscriptions", response_model=list[SubscriptionOut])
 async def list_subscriptions(current_user: CurrentUser, db: DB):
     return await service.list_subscriptions(db, current_user.tenant_id)
+
+
+# ── Invoice templates ([TMPL1]) ───────────────────────────────────────────────
+# Static template paths declared before "/templates/{template_id}" so FastAPI
+# does not read "fields" / "preview" as UUIDs.
+
+
+@router.get("/templates", response_model=list[InvoiceTemplateOut])
+async def list_invoice_templates(current_user: CurrentUser, db: DB):
+    return await service.list_invoice_templates(db, current_user.tenant_id)
+
+
+@router.get("/templates/fields")
+async def list_invoice_merge_fields():
+    """Merge fields the template builder can insert."""
+    from app.core.doc_blocks import INVOICE_MERGE_FIELDS
+
+    return {"fields": list(INVOICE_MERGE_FIELDS)}
+
+
+@router.post("/templates/preview")
+async def preview_invoice_template(
+    body: InvoiceTemplatePreviewRequest, current_user: CurrentUser, db: DB
+):
+    """Render unsaved blocks as a sample invoice PDF — the builder's preview."""
+    from app.core.doc_blocks import (
+        SAMPLE_LINE_ITEMS,
+        resolve_merge_fields_in_blocks,
+        sample_invoice_values,
+        validate_blocks,
+    )
+    from app.core.doc_blocks_pdf import RenderContext, render_blocks_pdf
+    from app.core.models import Tenant
+    from datetime import date, timedelta
+
+    try:
+        doc = validate_blocks(body.blocks, "invoice")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    resolved = resolve_merge_fields_in_blocks(doc, sample_invoice_values(tenant))
+    today = date.today()
+    data = render_blocks_pdf(
+        resolved,
+        RenderContext(
+            doc_type="invoice",
+            tenant=tenant,
+            tenant_name=(tenant.name if tenant else "") or "",
+            primary_color=getattr(tenant, "primary_color", None),
+            line_items=SAMPLE_LINE_ITEMS,
+            meta_lines=[
+                ("Factuurnummer", "INV-0042"),
+                ("Factuurdatum", today.strftime("%d-%m-%Y")),
+                ("Vervaldatum", (today + timedelta(days=14)).strftime("%d-%m-%Y")),
+            ],
+            notes=body.default_notes or "Gelieve het bedrag over te maken onder vermelding van het factuurnummer.",
+        ),
+    )
+    return StreamingResponse(
+        iter([data]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="template_preview.pdf"'},
+    )
+
+
+@router.post("/templates", response_model=InvoiceTemplateOut, status_code=status.HTTP_201_CREATED)
+async def create_invoice_template(body: InvoiceTemplateCreate, current_user: CurrentUser, db: DB):
+    try:
+        return await service.create_invoice_template(db, current_user.tenant_id, current_user.id, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/templates/{template_id}", response_model=InvoiceTemplateOut)
+async def get_invoice_template(template_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    template = await service.get_invoice_template(db, current_user.tenant_id, template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
+
+
+@router.patch("/templates/{template_id}", response_model=InvoiceTemplateOut)
+async def update_invoice_template(
+    template_id: uuid.UUID, body: InvoiceTemplateUpdate, current_user: CurrentUser, db: DB
+):
+    try:
+        template = await service.update_invoice_template(db, current_user.tenant_id, template_id, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
+
+
+@router.delete("/templates/{template_id}")
+async def delete_invoice_template(template_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    ok = await service.delete_invoice_template(db, current_user.tenant_id, template_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return {"deleted": True}
+
+
+@router.post("/templates/{template_id}/default", response_model=InvoiceTemplateOut)
+async def set_default_invoice_template(template_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    template = await service.set_default_invoice_template(db, current_user.tenant_id, template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
 
 
 @router.get("/invoices", response_model=list[InvoiceOut])

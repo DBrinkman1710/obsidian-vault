@@ -5,18 +5,20 @@ import csv
 import io
 import uuid
 from collections import defaultdict
-from datetime import date, datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from typing import Optional
 
-from sqlalchemy import delete, func, select, text
+from sqlalchemy import delete, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.models import Tenant
-from app.modules.billing.models import Invoice, InvoiceStatus, Payment, Subscription
+from app.modules.billing.models import Invoice, InvoiceStatus, InvoiceTemplate, Payment, Subscription
 from app.modules.billing.schemas import (
     ImportRow,
     InvoiceCreate,
     InvoiceImportResult,
+    InvoiceTemplateCreate,
+    InvoiceTemplateUpdate,
     InvoiceUpdate,
     LineItem,
     PaymentCreate,
@@ -101,6 +103,116 @@ async def list_subscriptions(db: AsyncSession, tenant_id: uuid.UUID) -> list[Sub
     return result.scalars().all()
 
 
+# ── Invoice templates ([TMPL1]) ───────────────────────────────────────────────
+
+async def list_invoice_templates(db: AsyncSession, tenant_id: uuid.UUID) -> list[InvoiceTemplate]:
+    result = await db.execute(
+        select(InvoiceTemplate)
+        .where(InvoiceTemplate.tenant_id == tenant_id)
+        .order_by(InvoiceTemplate.created_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def get_invoice_template(
+    db: AsyncSession, tenant_id: uuid.UUID, template_id: uuid.UUID
+) -> Optional[InvoiceTemplate]:
+    result = await db.execute(
+        select(InvoiceTemplate).where(
+            InvoiceTemplate.id == template_id, InvoiceTemplate.tenant_id == tenant_id
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def create_invoice_template(
+    db: AsyncSession, tenant_id: uuid.UUID, created_by: uuid.UUID, data: InvoiceTemplateCreate
+) -> InvoiceTemplate:
+    from app.core.doc_blocks import validate_blocks
+
+    template = InvoiceTemplate(
+        tenant_id=tenant_id,
+        created_by=created_by,
+        name=data.name,
+        default_tax_rate_pct=data.default_tax_rate_pct,
+        default_due_days=data.default_due_days,
+        default_notes=data.default_notes,
+    )
+    if data.blocks is not None:
+        template.blocks = validate_blocks(data.blocks, "invoice").model_dump()  # raises ValueError
+    db.add(template)
+    await db.commit()
+    await db.refresh(template)
+    return template
+
+
+async def update_invoice_template(
+    db: AsyncSession, tenant_id: uuid.UUID, template_id: uuid.UUID, data: InvoiceTemplateUpdate
+) -> Optional[InvoiceTemplate]:
+    from app.core.doc_blocks import validate_blocks
+
+    template = await get_invoice_template(db, tenant_id, template_id)
+    if not template:
+        return None
+    changes = data.model_dump(exclude_unset=True)
+    blocks = changes.pop("blocks", None)
+    if blocks is not None:
+        template.blocks = validate_blocks(blocks, "invoice").model_dump()  # raises ValueError
+    for field, value in changes.items():
+        setattr(template, field, value)
+    await db.commit()
+    await db.refresh(template)
+    return template
+
+
+async def delete_invoice_template(
+    db: AsyncSession, tenant_id: uuid.UUID, template_id: uuid.UUID
+) -> bool:
+    result = await db.execute(
+        delete(InvoiceTemplate).where(
+            InvoiceTemplate.id == template_id, InvoiceTemplate.tenant_id == tenant_id
+        )
+    )
+    await db.commit()
+    return bool(result.rowcount)
+
+
+async def set_default_invoice_template(
+    db: AsyncSession, tenant_id: uuid.UUID, template_id: uuid.UUID
+) -> Optional[InvoiceTemplate]:
+    """Make this the tenant default — clears any other default first (the
+    partial unique index guards concurrent races)."""
+    template = await get_invoice_template(db, tenant_id, template_id)
+    if not template:
+        return None
+    await db.execute(
+        update(InvoiceTemplate)
+        .where(InvoiceTemplate.tenant_id == tenant_id, InvoiceTemplate.is_default.is_(True))
+        .values(is_default=False)
+    )
+    template.is_default = True
+    await db.commit()
+    await db.refresh(template)
+    return template
+
+
+async def resolve_invoice_template(
+    db: AsyncSession, tenant_id: uuid.UUID, invoice: Invoice | None = None
+) -> Optional[InvoiceTemplate]:
+    """Explicit per invoice override first, else the tenant default, else None
+    (None = the legacy hardcoded PDF layout)."""
+    if invoice is not None and invoice.template_id:
+        template = await get_invoice_template(db, tenant_id, invoice.template_id)
+        if template:
+            return template
+    result = await db.execute(
+        select(InvoiceTemplate).where(
+            InvoiceTemplate.tenant_id == tenant_id, InvoiceTemplate.is_default.is_(True)
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 # ── Invoices ───────────────────────────────────────────────────────────────────
 
 async def create_invoice(
@@ -113,6 +225,21 @@ async def create_invoice(
     if not line_items_data and data.description:
         line_items_data = [{"description": data.description, "quantity": 1, "unit_price_cents": 0, "tax_rate_pct": 21}]
 
+    # Template defaults ([TMPL1]) — only fill what the caller left empty; line
+    # items are never mutated (the tax rate default is a frontend prefill).
+    due_date = data.due_date
+    notes = data.notes
+    template = None
+    if data.template_id:
+        template = await get_invoice_template(db, tenant_id, data.template_id)
+    if template is None:
+        template = await resolve_invoice_template(db, tenant_id)
+    if template is not None:
+        if due_date is None and template.default_due_days is not None:
+            due_date = (data.invoice_date or date.today()) + timedelta(days=template.default_due_days)
+        if notes is None and template.default_notes:
+            notes = template.default_notes
+
     invoice = Invoice(
         tenant_id=tenant_id,
         invoice_number=await _next_invoice_number(db, tenant_id),
@@ -124,8 +251,9 @@ async def create_invoice(
         total_cents=subtotal + tax,
         currency=data.currency,
         invoice_date=data.invoice_date,
-        due_date=data.due_date,
-        notes=data.notes,
+        due_date=due_date,
+        notes=notes,
+        template_id=template.id if template is not None else None,
         status=data.status,
     )
     db.add(invoice)
@@ -212,6 +340,17 @@ async def _get_tenant_and_contact(
     return tenant, contact
 
 
+def _invoice_meta_lines(invoice: Invoice) -> list[tuple[str, str]]:
+    """Number/date/due date lines for the logo_header block's right column."""
+    inv_date = invoice.invoice_date or (invoice.created_at.date() if invoice.created_at else None)
+    fmt = lambda d: d.strftime("%d-%m-%Y") if d else "-"  # noqa: E731
+    return [
+        ("Factuurnummer", invoice.invoice_number),
+        ("Factuurdatum", fmt(inv_date)),
+        ("Vervaldatum", fmt(invoice.due_date)),
+    ]
+
+
 async def generate_pdf_bytes(
     db: AsyncSession, tenant_id: uuid.UUID, invoice: Invoice
 ) -> bytes:
@@ -219,6 +358,32 @@ async def generate_pdf_bytes(
     from app.modules.billing.pdf import generate_invoice_pdf
 
     tenant, contact = await _get_tenant_and_contact(db, tenant_id, invoice)
+
+    # [TMPL1] block layout when a template resolves; the legacy hardcoded
+    # layout stays the fallback so template less tenants see zero change.
+    template = await resolve_invoice_template(db, tenant_id, invoice)
+    if template is not None:
+        from app.core.doc_blocks import (
+            invoice_merge_values,
+            resolve_merge_fields_in_blocks,
+            validate_blocks,
+        )
+        from app.core.doc_blocks_pdf import RenderContext, render_blocks_pdf
+
+        doc = validate_blocks(template.blocks, "invoice")
+        resolved = resolve_merge_fields_in_blocks(doc, invoice_merge_values(invoice, tenant, contact))
+        ctx = RenderContext(
+            doc_type="invoice",
+            tenant=tenant,
+            tenant_name=(tenant.name if tenant else "") or "",
+            primary_color=getattr(tenant, "primary_color", None),
+            currency=invoice.currency or "EUR",
+            line_items=invoice.line_items or [],
+            meta_lines=_invoice_meta_lines(invoice),
+            notes=invoice.notes,
+        )
+        return await asyncio.to_thread(render_blocks_pdf, resolved, ctx)
+
     return await asyncio.to_thread(generate_invoice_pdf, invoice, tenant, contact)
 
 

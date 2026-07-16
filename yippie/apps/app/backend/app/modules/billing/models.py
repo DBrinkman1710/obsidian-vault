@@ -4,7 +4,7 @@ import enum
 import uuid
 from datetime import date, datetime
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Boolean, Date, DateTime, Enum, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -73,8 +73,40 @@ class Invoice(Base):
     invoice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     due_date: Mapped[date | None] = mapped_column(Date, nullable=True)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Per invoice layout override ([TMPL1]); falls back to the tenant default.
+    template_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("invoice_templates.id", ondelete="SET NULL"), nullable=True
+    )
     paid_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class InvoiceTemplate(Base):
+    """Drag and drop invoice layout + invoice defaults ([TMPL1]).
+
+    blocks holds the structured JSON layout (app/core/doc_blocks.py); the
+    default_* columns prefill new invoices (tax rate, due days, payment notes).
+    At most one template per tenant carries is_default (partial unique index).
+    """
+
+    __tablename__ = "invoice_templates"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    blocks: Mapped[dict] = mapped_column(
+        JSONB, nullable=False, default=lambda: {"version": 1, "blocks": []}
+    )
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    default_tax_rate_pct: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    default_due_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    default_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
 
 
 class Payment(Base):

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import re
 import uuid
 from datetime import date, datetime, timedelta, timezone
 from typing import Optional
@@ -9,6 +8,14 @@ from sqlalchemy import delete, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import undefer
 
+from app.core.doc_blocks import (
+    CONTRACT_MERGE_FIELDS,
+    body_text_to_blocks,
+    flatten_blocks_to_text,
+    render_text_merge_fields,
+    resolve_merge_fields_in_blocks,
+    validate_blocks,
+)
 from app.modules.contacts.models import Company, Contact
 from app.modules.contracts.models import Contract, ContractTemplate
 from app.modules.contracts.schemas import (
@@ -263,16 +270,21 @@ async def get_file(
     return result.scalar_one_or_none()
 
 
-# ── Templates + e-signing ([CONTRACT3]) ──────────────────────────────────────
+# ── Templates + e-signing ([CONTRACT3] / [TMPL1]) ────────────────────────────
 
 # Merge fields resolvable at generation time. Unknown fields render as "…" so a
 # typo is visible in the preview instead of leaking the raw placeholder.
-MERGE_FIELDS = (
-    "contract.title", "contract.type", "contract.start_date", "contract.end_date",
-    "contract.notice_period_days", "contract.value",
-    "company.name", "contact.name", "contact.email", "tenant.name", "date.today",
-)
-_FIELD_RE = re.compile(r"\{\{\s*([a-z_.]+)\s*\}\}")
+# The registry lives in app/core/doc_blocks.py since [TMPL1]; re-exported here
+# so /contracts/templates/fields and existing imports keep working.
+MERGE_FIELDS = CONTRACT_MERGE_FIELDS
+
+
+def _ensure_blocks(template: ContractTemplate) -> ContractTemplate:
+    """Runtime guard for templates that predate [TMPL1]: wrap a plain text
+    body into the single text block shape so the builder can open it."""
+    if not (template.blocks or {}).get("blocks") and template.body:
+        template.blocks = body_text_to_blocks(template.body)
+    return template
 
 
 async def list_templates(db: AsyncSession, tenant_id: uuid.UUID) -> list[ContractTemplate]:
@@ -281,13 +293,31 @@ async def list_templates(db: AsyncSession, tenant_id: uuid.UUID) -> list[Contrac
         .where(ContractTemplate.tenant_id == tenant_id)
         .order_by(ContractTemplate.created_at.desc())
     )
-    return list(result.scalars().all())
+    return [_ensure_blocks(t) for t in result.scalars().all()]
+
+
+async def get_template(
+    db: AsyncSession, tenant_id: uuid.UUID, template_id: uuid.UUID
+) -> Optional[ContractTemplate]:
+    result = await db.execute(
+        select(ContractTemplate).where(
+            ContractTemplate.id == template_id, ContractTemplate.tenant_id == tenant_id
+        )
+    )
+    template = result.scalar_one_or_none()
+    return _ensure_blocks(template) if template else None
 
 
 async def create_template(
     db: AsyncSession, tenant_id: uuid.UUID, created_by: uuid.UUID, body: TemplateCreate
 ) -> ContractTemplate:
     template = ContractTemplate(tenant_id=tenant_id, created_by=created_by, name=body.name, body=body.body)
+    if body.blocks is not None:
+        doc = validate_blocks(body.blocks, "contract")  # raises ValueError
+        template.blocks = doc.model_dump()
+        template.body = flatten_blocks_to_text(doc)
+    elif body.body:
+        template.blocks = body_text_to_blocks(body.body)
     db.add(template)
     await db.commit()
     await db.refresh(template)
@@ -305,7 +335,16 @@ async def update_template(
     template = result.scalar_one_or_none()
     if not template:
         return None
-    for field, value in body.model_dump(exclude_unset=True).items():
+    changes = body.model_dump(exclude_unset=True)
+    blocks = changes.pop("blocks", None)
+    if blocks is not None:
+        doc = validate_blocks(blocks, "contract")  # raises ValueError
+        template.blocks = doc.model_dump()
+        # body follows the blocks — the builder is the single editing surface.
+        changes["body"] = flatten_blocks_to_text(doc)
+    elif "body" in changes:
+        template.blocks = body_text_to_blocks(changes["body"] or "")
+    for field, value in changes.items():
         setattr(template, field, value)
     await db.commit()
     await db.refresh(template)
@@ -326,14 +365,14 @@ def _fmt_merge_date(d: date | None) -> str:
     return d.strftime("%d-%m-%Y") if d else "…"
 
 
-def render_merge_fields(template_body: str, contract: Contract, tenant_name: str) -> str:
-    """Replace {{merge.fields}} with contract data. Names come pre-attached."""
+def contract_merge_values(contract: Contract, tenant_name: str) -> dict[str, str]:
+    """Merge field values for a contract. Names come pre-attached."""
     if contract.value_amount is not None:
         suffix = {"monthly": " per month", "yearly": " per year"}.get(contract.value_interval or "", "")
         value = f"{contract.currency} {float(contract.value_amount):,.2f}{suffix}"
     else:
         value = "…"
-    values = {
+    return {
         "contract.title": contract.title,
         "contract.type": contract.contract_type or "…",
         "contract.start_date": _fmt_merge_date(contract.start_date),
@@ -346,22 +385,26 @@ def render_merge_fields(template_body: str, contract: Contract, tenant_name: str
         "tenant.name": tenant_name,
         "date.today": _fmt_merge_date(date.today()),
     }
-    return _FIELD_RE.sub(lambda m: values.get(m.group(1), "…"), template_body)
+
+
+def render_merge_fields(template_body: str, contract: Contract, tenant_name: str) -> str:
+    """Replace {{merge.fields}} with contract data. Names come pre-attached."""
+    return render_text_merge_fields(template_body, contract_merge_values(contract, tenant_name))
 
 
 async def generate_body(
     db: AsyncSession, tenant_id: uuid.UUID, contract_id: uuid.UUID, template_id: uuid.UUID, tenant_name: str
 ) -> Optional[Contract]:
-    """Render a template into the contract's frozen body."""
+    """Render a template into the contract's frozen body + frozen blocks.
+
+    Both the flattened text (body — sign page, legacy PDF) and the merge
+    resolved block layout (rendered_blocks — block PDF renderer) are frozen
+    here; later template edits never change a generated contract.
+    """
     contract = await get_contract(db, tenant_id, contract_id)
     if not contract:
         return None
-    result = await db.execute(
-        select(ContractTemplate).where(
-            ContractTemplate.id == template_id, ContractTemplate.tenant_id == tenant_id
-        )
-    )
-    template = result.scalar_one_or_none()
+    template = await get_template(db, tenant_id, template_id)
     if not template:
         return None
     # Contact email for {{contact.email}} — attach alongside the names.
@@ -371,7 +414,11 @@ async def generate_body(
             select(Contact.email).where(Contact.id == contract.contact_id, Contact.tenant_id == tenant_id)
         )
         contract.contact_email = row.scalar_one_or_none()
-    contract.body = render_merge_fields(template.body, contract, tenant_name)
+    values = contract_merge_values(contract, tenant_name)
+    doc = validate_blocks(template.blocks, "contract")
+    resolved = resolve_merge_fields_in_blocks(doc, values)
+    contract.rendered_blocks = resolved.model_dump()
+    contract.body = flatten_blocks_to_text(resolved)
     contract.template_id = template.id
     await db.commit()
     await db.refresh(contract)

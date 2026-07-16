@@ -4,7 +4,7 @@ import uuid
 from datetime import date, datetime
 from typing import Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.modules.billing.models import BillingCycle, InvoiceStatus, SubscriptionStatus
 
@@ -49,6 +49,8 @@ class InvoiceCreate(BaseModel):
     due_date: Optional[date] = None
     notes: Optional[str] = None
     status: InvoiceStatus = InvoiceStatus.pending
+    # Layout override ([TMPL1]); when omitted the tenant default template applies.
+    template_id: Optional[uuid.UUID] = None
 
 
 class InvoiceUpdate(BaseModel):
@@ -82,11 +84,53 @@ class InvoiceOut(BaseModel):
     invoice_date: Optional[date] = None
     due_date: Optional[date]
     notes: Optional[str] = None
+    template_id: Optional[uuid.UUID] = None
     paid_at: Optional[datetime]
     created_at: datetime
     vat_breakdown: list[VatBreakdownLine] = []
 
     model_config = {"from_attributes": True}
+
+
+# ── Invoice templates ([TMPL1]) ────────────────────────────────────────────────
+
+
+class InvoiceTemplateCreate(BaseModel):
+    name: str = Field(..., min_length=1, max_length=255)
+    blocks: Optional[dict] = None
+    default_tax_rate_pct: Optional[int] = Field(None, ge=0, le=100)
+    default_due_days: Optional[int] = Field(None, ge=0, le=365)
+    default_notes: Optional[str] = None
+
+
+class InvoiceTemplateUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1, max_length=255)
+    blocks: Optional[dict] = None
+    default_tax_rate_pct: Optional[int] = Field(None, ge=0, le=100)
+    default_due_days: Optional[int] = Field(None, ge=0, le=365)
+    default_notes: Optional[str] = None
+
+
+class InvoiceTemplateOut(BaseModel):
+    id: uuid.UUID
+    name: str
+    blocks: dict
+    schema_version: int = 1
+    default_tax_rate_pct: Optional[int] = None
+    default_due_days: Optional[int] = None
+    default_notes: Optional[str] = None
+    is_default: bool
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class InvoiceTemplatePreviewRequest(BaseModel):
+    """Unsaved blocks → sample invoice PDF, so the builder can preview before saving."""
+
+    blocks: dict
+    default_notes: Optional[str] = None
 
 
 class ImportRow(BaseModel):

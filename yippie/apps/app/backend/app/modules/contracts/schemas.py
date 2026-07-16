@@ -120,11 +120,15 @@ class BulkDeleteRequest(BaseModel):
 class TemplateCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     body: str = ""
+    # Structured block layout ([TMPL1]) — validated by the service; when set,
+    # body is rewritten from the flattened blocks.
+    blocks: Optional[dict] = None
 
 
 class TemplateUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     body: Optional[str] = None
+    blocks: Optional[dict] = None
 
 
 class TemplateOut(BaseModel):
@@ -133,8 +137,16 @@ class TemplateOut(BaseModel):
     id: uuid.UUID
     name: str
     body: str
+    blocks: dict
+    schema_version: int = 1
     created_at: datetime
     updated_at: datetime
+
+
+class TemplatePreviewRequest(BaseModel):
+    """Unsaved blocks → sample PDF, so the builder can preview before saving."""
+
+    blocks: dict
 
 
 class GenerateRequest(BaseModel):

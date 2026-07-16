@@ -22,6 +22,7 @@ from app.modules.contracts.schemas import (
     SignLinkRequest,
     TemplateCreate,
     TemplateOut,
+    TemplatePreviewRequest,
     TemplateUpdate,
 )
 
@@ -81,12 +82,60 @@ async def list_merge_fields():
 
 @router.post("/templates", response_model=TemplateOut, status_code=status.HTTP_201_CREATED)
 async def create_template(body: TemplateCreate, current_user: CurrentUser, db: DB):
-    return await service.create_template(db, current_user.tenant_id, current_user.id, body)
+    try:
+        return await service.create_template(db, current_user.tenant_id, current_user.id, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/templates/preview")
+async def preview_template(body: TemplatePreviewRequest, current_user: CurrentUser, db: DB):
+    """Render unsaved blocks as a sample contract PDF — the builder's preview."""
+    from app.core.doc_blocks import (
+        resolve_merge_fields_in_blocks,
+        sample_contract_values,
+        validate_blocks,
+    )
+    from app.core.doc_blocks_pdf import RenderContext, render_blocks_pdf
+    from app.core.models import Tenant
+
+    try:
+        doc = validate_blocks(body.blocks, "contract")
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    tenant_name = tenant.name if tenant else ""
+    resolved = resolve_merge_fields_in_blocks(doc, sample_contract_values(tenant_name))
+    data = render_blocks_pdf(
+        resolved,
+        RenderContext(
+            doc_type="contract",
+            tenant=tenant,
+            tenant_name=tenant_name,
+            primary_color=getattr(tenant, "primary_color", None),
+        ),
+    )
+    return StreamingResponse(
+        iter([data]),
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'inline; filename="template_preview.pdf"'},
+    )
+
+
+@router.get("/templates/{template_id}", response_model=TemplateOut)
+async def get_template(template_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    template = await service.get_template(db, current_user.tenant_id, template_id)
+    if not template:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return template
 
 
 @router.patch("/templates/{template_id}", response_model=TemplateOut)
 async def update_template(template_id: uuid.UUID, body: TemplateUpdate, current_user: CurrentUser, db: DB):
-    template = await service.update_template(db, current_user.tenant_id, template_id, body)
+    try:
+        template = await service.update_template(db, current_user.tenant_id, template_id, body)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     if not template:
         raise HTTPException(status_code=404, detail="Template not found")
     return template
@@ -167,12 +216,34 @@ async def download_pdf(contract_id: uuid.UUID, current_user: CurrentUser, db: DB
     from app.modules.contracts.pdf import generate_contract_pdf
 
     contract = await service.get_for_pdf(db, current_user.tenant_id, contract_id)
-    if not contract or not contract.body:
+    if not contract or not (contract.body or contract.rendered_blocks):
         raise HTTPException(status_code=404, detail="No generated contract text to render")
     tenant = await db.get(Tenant, current_user.tenant_id)
-    data = generate_contract_pdf(
-        contract, tenant.name if tenant else "", getattr(tenant, "primary_color", None)
-    )
+    if contract.rendered_blocks:
+        # [TMPL1] block layout, frozen at generation time — already merge resolved.
+        from app.core.doc_blocks import BlockDocument
+        from app.core.doc_blocks_pdf import RenderContext, SignatureData, render_blocks_pdf
+
+        data = render_blocks_pdf(
+            BlockDocument.model_validate(contract.rendered_blocks),
+            RenderContext(
+                doc_type="contract",
+                tenant=tenant,
+                tenant_name=tenant.name if tenant else "",
+                primary_color=getattr(tenant, "primary_color", None),
+                notes=contract.notes,
+                signature=SignatureData(
+                    signed_at=contract.signed_at,
+                    signer_name=contract.signer_name,
+                    signer_ip=contract.signer_ip,
+                    signature_image=getattr(contract, "signature_image", None),
+                ),
+            ),
+        )
+    else:
+        data = generate_contract_pdf(
+            contract, tenant.name if tenant else "", getattr(tenant, "primary_color", None)
+        )
     safe_name = re.sub(r'[^\w.]', '_', contract.title)[:60] or "contract"
     return StreamingResponse(
         iter([data]),
