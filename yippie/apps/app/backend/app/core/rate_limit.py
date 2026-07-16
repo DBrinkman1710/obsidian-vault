@@ -17,18 +17,22 @@ if TYPE_CHECKING:
 def get_client_ip(request: "Request") -> str:
     """Return the real client IP.
 
-    Uses the RIGHTMOST X-Forwarded-For entry: each proxy appends the peer it
-    saw, so the last entry was written by the outermost proxy we actually sit
-    behind (Railway's edge) and cannot be forged by the client — anything the
-    client sends itself arrives earlier in the list. cf-connecting-ip and
-    x-real-ip are deliberately NOT consulted: any client can set those headers
-    directly and mint themselves fresh rate-limit buckets per request.
+    Proxy chain: Client → Railway edge → nginx → FastAPI.
+    nginx appends $remote_addr (the Railway internal IP) via $proxy_add_x_forwarded_for,
+    so the XFF list arriving at FastAPI is: [client_ip, railway_edge_ip].
+    The second-to-last entry is the actual visitor; the last is Railway's own IP and
+    cannot be used to key rate limiters (all visitors would share one bucket).
+    With a single entry (local dev, no Railway in front) the single entry is used.
+    cf-connecting-ip and x-real-ip are deliberately NOT consulted: any client can
+    set those headers and mint fresh rate-limit buckets per request.
     """
     xff = request.headers.get("x-forwarded-for", "")
     if xff:
-        last_hop = xff.split(",")[-1].strip()
-        if last_hop:
-            return last_hop
+        parts = [p.strip() for p in xff.split(",") if p.strip()]
+        # Two trusted hops (Railway + nginx): real client is second-to-last.
+        client_ip = parts[-2] if len(parts) >= 2 else parts[-1]
+        if client_ip:
+            return client_ip
     return (request.client.host if request.client else None) or "unknown"
 
 _client = None
