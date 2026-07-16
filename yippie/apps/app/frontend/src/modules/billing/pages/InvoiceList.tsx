@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Receipt, Plus, Search, Trash2, Download, Upload, X, Mail, FileDown, ChevronDown } from 'lucide-react'
+import { Receipt, Plus, Search, Trash2, Download, Upload, X, Mail, FileDown, ChevronDown, LayoutTemplate, PenLine, Star } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useSelection, Checkbox, BulkBar } from '../../../components/Selection'
@@ -11,6 +12,7 @@ import { CloseButton } from '../../../shell/CloseButton'
 import { InvoicePeek } from './InvoiceDetail'
 import { EmptyState } from '../../../components/EmptyState'
 import { fmtDate } from '../../../lib/format'
+import { starterBlocks } from '../../templates/blocks'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -56,6 +58,15 @@ interface ContactLite {
   id: string
   full_name: string
   email: string | null
+}
+
+interface InvoiceTemplate {
+  id: string
+  name: string
+  is_default: boolean
+  default_tax_rate_pct: number | null
+  default_due_days: number | null
+  default_notes: string | null
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -144,6 +155,102 @@ function calcTotals(items: LineItemForm[]) {
 // Line item column grid: description wide, qty narrow, price medium, vat narrow, delete narrow
 const LINE_GRID = '1fr 52px 90px 68px 20px'
 
+// ── Invoice templates modal ([TMPL3]) ─────────────────────────────────────────
+// Manage layouts here; the layout itself is edited in the drag and drop
+// builder at /billing/templates/:id/edit. The starred template is the tenant
+// default applied to new invoices and their PDFs.
+
+function InvoiceTemplatesModal({ onClose }: { onClose: () => void }) {
+  const qc = useQueryClient()
+  const navigate = useNavigate()
+  const [newName, setNewName] = useState('')
+
+  const { data: templates } = useQuery<InvoiceTemplate[]>({
+    queryKey: ['invoice-templates'],
+    queryFn: () => api.get('/billing/templates').then((r: any) => r.data),
+  })
+
+  const create = useMutation({
+    mutationFn: () => api.post('/billing/templates', {
+      name: newName.trim(),
+      blocks: starterBlocks('invoice'),
+    }),
+    onSuccess: (res: any) => {
+      qc.invalidateQueries({ queryKey: ['invoice-templates'] })
+      navigate(`/billing/templates/${res.data.id}/edit`)
+    },
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Failed to create template'),
+  })
+
+  const setDefault = useMutation({
+    mutationFn: (id: string) => api.post(`/billing/templates/${id}/default`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoice-templates'] })
+      toast.success('Default template set')
+    },
+  })
+
+  const remove = useMutation({
+    mutationFn: (id: string) => api.delete(`/billing/templates/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoice-templates'] })
+      toast.success('Template deleted')
+    },
+  })
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+          <h2 className="text-lg font-bold text-slate-900">Invoice templates</h2>
+          <CloseButton onClick={onClose} />
+        </div>
+        <div className="p-5 flex flex-col gap-3 overflow-y-auto">
+          <form
+            className="flex gap-2"
+            onSubmit={e => { e.preventDefault(); if (newName.trim()) create.mutate() }}
+          >
+            <input className={inputCls} value={newName} placeholder="e.g. Standard invoice"
+              onChange={e => setNewName(e.target.value)} />
+            <button type="submit" disabled={!newName.trim() || create.isPending}
+              className="btn-primary px-4 py-2 shrink-0 inline-flex items-center gap-1.5">
+              <Plus size={13} /> {create.isPending ? 'Creating…' : 'Create'}
+            </button>
+          </form>
+          <div className="flex flex-col gap-1">
+            {(templates ?? []).map(tpl => (
+              <div key={tpl.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-100 hover:border-slate-200">
+                <button
+                  onClick={() => !tpl.is_default && setDefault.mutate(tpl.id)}
+                  aria-label={tpl.is_default ? `${tpl.name} is the default` : `Make ${tpl.name} the default`}
+                  title={tpl.is_default ? 'Default template' : 'Make default'}
+                  className={tpl.is_default ? 'text-warning-500' : 'text-slate-200 hover:text-warning-500'}
+                >
+                  <Star size={15} fill={tpl.is_default ? 'currentColor' : 'none'} />
+                </button>
+                <span className="text-sm text-slate-700 truncate flex-1">{tpl.name}</span>
+                <button onClick={() => navigate(`/billing/templates/${tpl.id}/edit`)}
+                  className="btn-secondary px-3 py-1.5 text-xs inline-flex items-center gap-1">
+                  <PenLine size={12} /> Edit layout
+                </button>
+                <button onClick={() => remove.mutate(tpl.id)} aria-label={`Delete ${tpl.name}`}
+                  className="p-1.5 text-slate-300 hover:text-danger-600">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+            {(templates ?? []).length === 0 && (
+              <p className="text-xs text-slate-400 px-2 py-3">
+                No templates yet. Without one, invoices use the standard layout — create one to design your own.
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Add Invoice Modal ─────────────────────────────────────────────────────────
 
 function AddInvoiceModal({ onClose }: { onClose: () => void }) {
@@ -161,6 +268,36 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
   const [status, setStatus] = useState('pending')
   const [error, setError] = useState('')
 
+  // Template prefill ([TMPL3]) — the default template's due days, notes and
+  // VAT rate seed the form once; everything stays editable.
+  const [templateId, setTemplateId] = useState('')
+  const prefillApplied = useRef(false)
+  const { data: templates } = useQuery<InvoiceTemplate[]>({
+    queryKey: ['invoice-templates'],
+    queryFn: () => api.get('/billing/templates').then((r: any) => r.data),
+  })
+
+  function applyTemplate(tpl: InvoiceTemplate | null) {
+    setTemplateId(tpl?.id ?? '')
+    if (!tpl) return
+    if (tpl.default_due_days != null) {
+      const d = new Date(); d.setDate(d.getDate() + tpl.default_due_days)
+      setDueDate(d.toISOString().split('T')[0])
+    }
+    if (tpl.default_notes) setNotes(tpl.default_notes)
+    if (tpl.default_tax_rate_pct != null && VAT_RATES.includes(tpl.default_tax_rate_pct)) {
+      const rate = tpl.default_tax_rate_pct
+      setItems(prev => prev.map(it => ({ ...it, tax_rate_pct: rate })))
+    }
+  }
+
+  useEffect(() => {
+    if (prefillApplied.current || !templates) return
+    prefillApplied.current = true
+    const def = templates.find(tpl => tpl.is_default)
+    if (def) applyTemplate(def)
+  }, [templates])  // eslint-disable-line react-hooks/exhaustive-deps
+
   const totals = calcTotals(items)
 
   const mutation = useMutation({
@@ -176,6 +313,7 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
       invoice_date: invoiceDate || null,
       due_date: dueDate || null,
       notes: notes.trim() || null,
+      template_id: templateId || null,
       status,
     }),
     onSuccess: () => {
@@ -289,6 +427,18 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
                 ))}
               </select>
             </div>
+            {(templates ?? []).length > 0 && (
+              <div className="col-span-2">
+                <label className={labelCls}>Template</label>
+                <select className={inputCls} value={templateId}
+                  onChange={e => applyTemplate(templates?.find(tpl => tpl.id === e.target.value) ?? null)}>
+                  <option value="">Standard layout</option>
+                  {(templates ?? []).map(tpl => (
+                    <option key={tpl.id} value={tpl.id}>{tpl.name}{tpl.is_default ? ' (default)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+            )}
           </div>
 
           <div>
@@ -482,6 +632,7 @@ export default function InvoiceList() {
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
+  const [showTemplates, setShowTemplates] = useState(false)
   const [showImport, setShowImport] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [rightClickId, setRightClickId] = useState<string | null>(null)
@@ -610,6 +761,10 @@ export default function InvoiceList() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
             <Upload size={15} strokeWidth={2.5} /> Import
           </button>
+          <button onClick={() => setShowTemplates(true)}
+            className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
+            <LayoutTemplate size={15} strokeWidth={2.5} /> Templates
+          </button>
           <button onClick={() => setShowAdd(true)}
             className="btn-primary px-4 py-2">
             <Plus size={15} strokeWidth={2.5} /> New Invoice
@@ -720,6 +875,7 @@ export default function InvoiceList() {
 
       <ContextMenu state={ctx.state} onClose={ctx.close} />
       {showAdd && <AddInvoiceModal onClose={() => setShowAdd(false)} />}
+      {showTemplates && <InvoiceTemplatesModal onClose={() => setShowTemplates(false)} />}
       {showImport && <ImportModal onClose={() => setShowImport(false)} />}
       {confirmDelete && (
         <DeleteModal
