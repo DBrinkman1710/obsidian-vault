@@ -51,6 +51,17 @@ def _is_stale_plan_error(exc: Exception) -> bool:
     )
 
 
+def _is_transient_network_error(exc: Exception) -> bool:
+    """True for httpx timeouts/connection drops talking to Resend.
+
+    The poll runs every 30s and re-lists from scratch each time (no cursor/offset
+    state), so a failed cycle just means this tick's fetch is skipped — the same
+    unprocessed emails show up again next cycle. Expected under normal network
+    jitter, not worth a Sentry error alert.
+    """
+    return isinstance(exc, (httpx.TimeoutException, httpx.ConnectError))
+
+
 def _html_to_text(html: str) -> str:
     """Strip HTML tags to readable plain text, skipping style/script/head content."""
     class _Stripper(HTMLParser):
@@ -148,7 +159,12 @@ async def poll_inbound_emails() -> None:
     auth = {"Authorization": f"Bearer {settings.resend_api_key}"}
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
+        # A single client is shared by the list call below and by every per-email
+        # body/attachment fetch run concurrently via asyncio.gather further down —
+        # give reads more headroom than connects so a burst of concurrent requests
+        # queuing on the connection pool doesn't spuriously time out the whole cycle.
+        timeout = httpx.Timeout(connect=10, read=25, write=10, pool=10)
+        async with httpx.AsyncClient(timeout=timeout) as client:
             list_resp = await client.get(
                 "https://api.resend.com/emails/receiving",
                 headers=auth,
@@ -324,6 +340,8 @@ async def poll_inbound_emails() -> None:
     except Exception as e:
         if _is_stale_plan_error(e):
             log.warning("email_poll hit a stale prepared statement plan after a schema change — caches invalidated, next cycle recovers")
+        elif _is_transient_network_error(e):
+            log.warning("email_poll hit a transient network error talking to Resend (%s) — next cycle recovers", e)
         else:
             log.exception("email_poll failed")
 
