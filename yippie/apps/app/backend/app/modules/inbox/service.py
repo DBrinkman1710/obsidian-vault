@@ -34,13 +34,21 @@ SEND_RETRY_DELAY = timedelta(minutes=10)
 
 
 async def _match_contact(db: AsyncSession, tenant_id: uuid.UUID, sender: str) -> Optional[Contact]:
-    """Try to find an existing contact by sender email or phone number."""
+    """Try to find an existing contact by sender email or phone number.
+
+    Email has no uniqueness constraint, so tenants can end up with duplicate
+    contacts sharing an address (manual entry, imports). Pick the oldest
+    deterministically instead of crashing the poller with MultipleResultsFound.
+    """
     result = await db.execute(
-        select(Contact).where(
+        select(Contact)
+        .where(
             Contact.tenant_id == tenant_id,
             func.lower(Contact.email) == sender.lower().strip(),
             Contact.deleted_at.is_(None),
         )
+        .order_by(Contact.created_at)
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -164,10 +172,12 @@ async def _create_draft(
     if msg.inbound_to:
         from app.modules.departments.models import Department as Dept
         dept_result = await db.execute(
-            select(Dept).where(
+            select(Dept)
+            .where(
                 Dept.tenant_id == tenant_id,
                 Dept.email == msg.inbound_to.lower(),
             )
+            .limit(1)
         )
         found_dept = dept_result.scalar_one_or_none()
         if found_dept:
