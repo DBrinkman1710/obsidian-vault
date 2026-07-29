@@ -1422,7 +1422,7 @@ Yippie integrates with a self-hosted Evolution API instance for WhatsApp:
 
 ### ERP Order Webhook
 
-- **Endpoint**: `POST /api/v1/shipments/webhooks/orders`
+- **Endpoint**: `POST /api/v1/webhooks/shipments/orders/{your-tenant-slug}`
 - **Authentication**: HMAC-SHA256 signature in the `X-Webhook-Signature` header
 - **Payload**: include `contact_email`, `tracking_number`, and `carrier`
 - **Secret rotation**: generate a new secret in **Settings → Organisation → Tracking**; old secret is immediately invalidated

@@ -14,11 +14,18 @@ interface PublicBooking {
   message: string | null
   expires_at: string
   available_slots: AvailableSlot[]
+  tenant_timezone: string
 }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const pad = (n: number) => String(n).padStart(2, '0')
-const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const dateKey = (d: Date, tz: string) => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d)
+  const y = parts.find(p => p.type === 'year')!.value
+  const m = parts.find(p => p.type === 'month')!.value
+  const day = parts.find(p => p.type === 'day')!.value
+  return `${y}-${m}-${day}`
+}
 
 function monthGrid(year: number, month: number): Date[] {
   const first = new Date(year, month, 1)
@@ -28,13 +35,13 @@ function monthGrid(year: number, month: number): Date[] {
     new Date(start.getFullYear(), start.getMonth(), start.getDate() + i))
 }
 
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+function fmtTime(iso: string, tz: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz })
 }
-function fmtSlotLong(start: string, end: string) {
+function fmtSlotLong(start: string, end: string, tz: string) {
   const d = new Date(start)
-  const day = d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
-  return `${day}, ${fmtTime(start)}–${fmtTime(end)}`
+  const day = d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: tz })
+  return `${day}, ${fmtTime(start, tz)}–${fmtTime(end, tz)}`
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -204,15 +211,16 @@ export default function BookingPage() {
     enabled: !!token,
   })
 
+  const tz = data?.tenant_timezone ?? 'Europe/Amsterdam'
   const days = useMemo(() => monthGrid(year, month), [year, month])
   const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  const todayKey = dateKey(today)
+  const todayKey = dateKey(today, tz)
 
   // Group available slots by day for the picker.
   const slotsByDay = useMemo(() => {
     const map = new Map<string, AvailableSlot[]>()
     for (const s of data?.available_slots ?? []) {
-      const key = dateKey(new Date(s.start))
+      const key = dateKey(new Date(s.start), tz)
       const list = map.get(key) ?? []
       list.push(s)
       map.set(key, list)
@@ -325,7 +333,7 @@ export default function BookingPage() {
               onClick={() => confirm(slot)}
               className="w-full flex items-center justify-between gap-3 px-4 py-3 border border-slate-200 rounded-xl hover:border-blue-400 hover:bg-blue-50 transition-colors text-left disabled:opacity-50"
             >
-              <span className="text-sm font-semibold text-slate-800">{fmtSlotLong(slot.start, slot.end)}</span>
+              <span className="text-sm font-semibold text-slate-800">{fmtSlotLong(slot.start, slot.end, tz)}</span>
               <span className="text-xs font-semibold text-blue-600 shrink-0">Accept this time</span>
             </button>
           ))}
@@ -381,7 +389,7 @@ export default function BookingPage() {
             </div>
             <div className="grid grid-cols-7 px-2 pb-2 gap-0.5">
               {days.map(day => {
-                const key = dateKey(day)
+                const key = dateKey(day, tz)
                 const inMonth = day.getMonth() === month
                 const isPastOrToday = key <= todayKey
                 const hasSlots = (slotsByDay.get(key)?.length ?? 0) > 0
@@ -423,7 +431,7 @@ export default function BookingPage() {
                             ? 'bg-blue-600 text-white border-blue-600'
                             : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}
                     >
-                      {fmtTime(chip.start)}
+                      {fmtTime(chip.start, tz)}
                     </button>
                   )
                 })}
@@ -438,7 +446,7 @@ export default function BookingPage() {
               disabled={confirming}
               className="w-full mt-5 py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
-              {confirming ? 'Booking…' : `Book ${fmtSlotLong(picked.start, picked.end)}`}
+              {confirming ? 'Booking…' : `Book ${fmtSlotLong(picked.start, picked.end, tz)}`}
             </button>
           )}
 

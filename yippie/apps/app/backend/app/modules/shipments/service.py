@@ -417,7 +417,7 @@ async def get_erp_webhook_settings(
 
     tenant = await db.get(Tenant, tenant_id)
     return WebhookSettingsOut(
-        orders_webhook_url=f"{base_url}/api/v1/webhooks/orders/{slug}",
+        orders_webhook_url=f"{base_url}/api/v1/webhooks/shipments/orders/{slug}",
         orders_webhook_secret_set=bool(tenant and tenant.orders_webhook_secret),
     )
 
@@ -436,7 +436,7 @@ async def rotate_erp_webhook_secret(
     await db.flush()
 
     return WebhookSettingsOut(
-        orders_webhook_url=f"{base_url}/api/v1/webhooks/orders/{slug}",
+        orders_webhook_url=f"{base_url}/api/v1/webhooks/shipments/orders/{slug}",
         orders_webhook_secret_set=True,
     )
 

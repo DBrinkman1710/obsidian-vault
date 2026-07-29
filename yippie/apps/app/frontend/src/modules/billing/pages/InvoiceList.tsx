@@ -75,7 +75,7 @@ const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 function fmtCents(cents: number, currency = 'EUR') {
-  return new Intl.NumberFormat('en-EU', { style: 'currency', currency }).format(cents / 100)
+  return new Intl.NumberFormat('nl-NL', { style: 'currency', currency }).format(cents / 100)
 }
 
 function downloadBlob(data: BlobPart, filename: string, type: string) {

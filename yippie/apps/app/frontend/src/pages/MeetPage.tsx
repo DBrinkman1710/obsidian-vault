@@ -8,12 +8,19 @@ interface Slot { start: string; end: string }
 interface AvailableSlot extends Slot { available: boolean }
 interface MeetInfo {
   tenant_name: string
+  tenant_timezone: string
   available_slots: AvailableSlot[]
 }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const pad = (n: number) => String(n).padStart(2, '0')
-const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const dateKey = (d: Date, tz: string) => {
+  const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d)
+  const y = parts.find(p => p.type === 'year')!.value
+  const m = parts.find(p => p.type === 'month')!.value
+  const day = parts.find(p => p.type === 'day')!.value
+  return `${y}-${m}-${day}`
+}
 
 function monthGrid(year: number, month: number): Date[] {
   const first = new Date(year, month, 1)
@@ -23,13 +30,13 @@ function monthGrid(year: number, month: number): Date[] {
     new Date(start.getFullYear(), start.getMonth(), start.getDate() + i))
 }
 
-function fmtTime(iso: string) {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+function fmtTime(iso: string, tz: string) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: tz })
 }
-function fmtSlotLong(start: string, end: string) {
+function fmtSlotLong(start: string, end: string, tz: string) {
   const d = new Date(start)
-  const day = d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })
-  return `${day}, ${fmtTime(start)}–${fmtTime(end)}`
+  const day = d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: tz })
+  return `${day}, ${fmtTime(start, tz)}–${fmtTime(end, tz)}`
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -76,14 +83,15 @@ export default function MeetPage() {
     enabled: !!slug,
   })
 
+  const tz = data?.tenant_timezone ?? 'Europe/Amsterdam'
   const days = useMemo(() => monthGrid(year, month), [year, month])
   const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
-  const todayKey = dateKey(today)
+  const todayKey = dateKey(today, tz)
 
   const slotsByDay = useMemo(() => {
     const map = new Map<string, AvailableSlot[]>()
     for (const s of data?.available_slots ?? []) {
-      const key = dateKey(new Date(s.start))
+      const key = dateKey(new Date(s.start), tz)
       const list = map.get(key) ?? []
       list.push(s)
       map.set(key, list)
@@ -143,7 +151,7 @@ export default function MeetPage() {
           </div>
           <h1 className="text-lg font-bold text-slate-900 mb-2">You're booked!</h1>
           <p className="text-sm text-slate-500 mb-1">
-            {picked ? fmtSlotLong(picked.start, picked.end) : ''}
+            {picked ? fmtSlotLong(picked.start, picked.end, tz) : ''}
           </p>
           <p className="text-sm text-slate-500">Check your email for confirmation.</p>
         </div>
@@ -167,7 +175,7 @@ export default function MeetPage() {
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{data.tenant_name}</p>
           <h1 className="text-xl font-bold text-slate-900 mt-1">Confirm your booking</h1>
           <p className="mt-2 text-sm font-semibold text-slate-700">
-            {fmtSlotLong(picked.start, picked.end)}
+            {fmtSlotLong(picked.start, picked.end, tz)}
           </p>
         </div>
 
@@ -263,7 +271,7 @@ export default function MeetPage() {
         </div>
         <div className="grid grid-cols-7 px-2 pb-2 gap-0.5">
           {days.map(day => {
-            const key = dateKey(day)
+            const key = dateKey(day, tz)
             const inMonth = day.getMonth() === month
             const isPastOrToday = key <= todayKey
             const hasSlots = (slotsByDay.get(key)?.length ?? 0) > 0
@@ -305,7 +313,7 @@ export default function MeetPage() {
                         ? 'bg-blue-600 text-white border-blue-600'
                         : 'bg-green-50 text-green-700 border-green-200 hover:bg-green-100'}`}
                 >
-                  {fmtTime(chip.start)}
+                  {fmtTime(chip.start, tz)}
                 </button>
               )
             })}
@@ -319,7 +327,7 @@ export default function MeetPage() {
           onClick={() => setStep('details')}
           className="w-full mt-5 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
         >
-          Continue: {fmtSlotLong(picked.start, picked.end)}
+          Continue: {fmtSlotLong(picked.start, picked.end, tz)}
         </button>
       )}
     </Shell>

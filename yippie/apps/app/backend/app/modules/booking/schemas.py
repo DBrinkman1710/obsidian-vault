@@ -107,6 +107,7 @@ class PublicBookingOut(BaseModel):
     message: Optional[str] = None
     expires_at: datetime
     available_slots: list[AvailableSlot]
+    tenant_timezone: str = "Europe/Amsterdam"
 
 
 class ManageBookingOut(BaseModel):

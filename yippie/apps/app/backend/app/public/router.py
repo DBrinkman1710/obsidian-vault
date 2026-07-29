@@ -904,6 +904,7 @@ async def meet_get(
     slots = await booking_service.get_available_slots(db, tenant.id, settings, days_ahead)
     return {
         "tenant_name": tenant.name,
+        "tenant_timezone": getattr(settings, "timezone", None) or "Europe/Amsterdam",
         "available_slots": [
             {"start": s.start.isoformat(), "end": s.end.isoformat(), "available": s.available}
             for s in slots
@@ -1360,6 +1361,7 @@ async def public_get_booking(
         message=token.message,
         expires_at=token.expires_at,
         available_slots=available,
+        tenant_timezone=getattr(settings, "timezone", None) or "Europe/Amsterdam",
     )
 
 

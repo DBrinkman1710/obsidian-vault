@@ -171,31 +171,37 @@ async def send_drip_steps():
                 # of two per recipient.
                 emails = {r.recipient_email for r in recipients}
                 contact_rows = await db.execute(
-                    select(Contact.email, Contact.id).where(
+                    select(Contact).where(
                         Contact.tenant_id == campaign.tenant_id,
                         Contact.email.in_(emails),
                         Contact.deleted_at.is_(None),
                     )
                 )
-                contact_by_email = {email: cid for email, cid in contact_rows.all()}
+                contact_by_email = {c.email: c for c in contact_rows.scalars().all()}
                 unsub_rows = await db.execute(
                     select(ContactUnsubscribe.contact_id).where(
                         ContactUnsubscribe.tenant_id == campaign.tenant_id,
-                        ContactUnsubscribe.contact_id.in_(contact_by_email.values()),
+                        ContactUnsubscribe.contact_id.in_(
+                            c.id for c in contact_by_email.values()
+                        ),
                     )
                 )
                 unsubscribed_ids = {cid for (cid,) in unsub_rows.all()}
 
                 sent_any = False
                 for row in recipients:
-                    contact_id = contact_by_email.get(row.recipient_email)
-                    if contact_id in unsubscribed_ids:
+                    contact = contact_by_email.get(row.recipient_email)
+                    if contact is not None and contact.id in unsubscribed_ids:
                         continue
 
+                    body_html = service._apply_personalization(
+                        step.html_body or "", contact
+                    ) if contact else (step.html_body or "")
                     html = render_email_html(
                         body_text=step.subject,
-                        prerendered_html=step.html_body,
+                        prerendered_html=body_html,
                     )
+                    unsub_url = f"{base_url}/api/v1/track/unsubscribe/{row.tracking_token}"
                     html += service._open_pixel(base_url, row.tracking_token)
                     html += service._unsubscribe_footer(base_url, row.tracking_token)
                     try:
@@ -204,6 +210,10 @@ async def send_drip_steps():
                             subject=step.subject,
                             body=step.subject,
                             html=html,
+                            headers={
+                                "List-Unsubscribe": f"<{unsub_url}>",
+                                "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                            },
                         )
                         sent_any = True
                     except Exception:

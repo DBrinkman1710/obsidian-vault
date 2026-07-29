@@ -214,6 +214,8 @@ async def _act_notify_user(db: AsyncSession, tenant: Tenant, event: dict, config
             return _skip("Ticket has no assigned agent")
         user_id = uuid.UUID(str(assignee))
     else:
+        if not config.get("user_id"):
+            return _skip("No team member configured")
         user_id = uuid.UUID(config["user_id"])
     exists = await db.scalar(
         select(User.id).where(User.id == user_id, User.tenant_id == tenant.id)

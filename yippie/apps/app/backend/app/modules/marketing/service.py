@@ -876,7 +876,7 @@ async def launch_campaign(
     campaign.dispatched_at = datetime.now(timezone.utc)
     await db.flush()
 
-    payloads: list[tuple[Contact, str, str]] = []  # (contact, html, to_email)
+    payloads: list[tuple[Contact, str, str, str]] = []  # (contact, html, to_email, unsub_url)
     for idx, contact in enumerate(dispatch_set):
         token = uuid.uuid4()
         variant: Optional[str] = None
@@ -935,6 +935,7 @@ async def launch_campaign(
             except Exception:
                 log.exception("Campaign %s: failed to assign post-send stage for contact %s", campaign.id, contact.id)
 
+        unsub_url = f"{base_url}/api/v1/track/unsubscribe/{token}"
         full_html += _open_pixel(base_url, token)
         full_html += _unsubscribe_footer(base_url, token)
 
@@ -948,14 +949,14 @@ async def launch_campaign(
                 variant=variant,
             )
         )
-        payloads.append((contact, full_html, contact.email))
+        payloads.append((contact, full_html, contact.email, unsub_url))
 
     await db.flush()
 
     # Actual sending happens after the DB rows exist so a delivery failure
     # never loses the analytics row. Failures are logged, not fatal.
     if campaign.dispatch_channel == "whatsapp":
-        await _dispatch_whatsapp(db, campaign, dispatch_set)
+        await _dispatch_whatsapp(db, campaign, payloads)
     else:
         await _dispatch_email(campaign, payloads, sender_email)
 
@@ -974,12 +975,12 @@ async def launch_campaign(
 
 async def _dispatch_email(
     campaign: Campaign,
-    payloads: list[tuple[Contact, str, str]],
+    payloads: list[tuple[Contact, str, str, str]],
     sender_email: Optional[str],
 ) -> None:
     from app.core.mailer import send_email
 
-    for _contact, html, to_email in payloads:
+    for _contact, html, to_email, unsub_url in payloads:
         try:
             plain = re.sub(r"<[^>]+>", " ", html).strip() or campaign.subject
             await send_email(
@@ -988,16 +989,20 @@ async def _dispatch_email(
                 body=plain,
                 html=html,
                 from_email=sender_email,
+                headers={
+                    "List-Unsubscribe": f"<{unsub_url}>",
+                    "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+                },
             )
         except Exception:
             log.exception("Campaign %s: failed to send to %s", campaign.id, to_email)
 
 
 async def _dispatch_whatsapp(
-    db: AsyncSession, campaign: Campaign, contacts: list[Contact]
+    db: AsyncSession, campaign: Campaign, payloads: list[tuple[Contact, str, str, str]]
 ) -> None:
-    """Send the campaign subject as a WhatsApp text with a 5-10s random delay
-    per recipient (anti-ban). Instance name is the tenant slug."""
+    """Send the campaign body (HTML stripped to plain text) as a WhatsApp text
+    with a 5-10s random delay per recipient (anti-ban). Instance name is the tenant slug."""
     from app.core.models import Tenant
     from app.modules.chat import whatsapp_service
 
@@ -1005,11 +1010,13 @@ async def _dispatch_whatsapp(
     if tenant is None:
         return
     instance = tenant.slug
-    for contact in contacts:
+    for contact, html, _to_email, _unsub_url in payloads:
         if not contact.phone:
             continue
         try:
-            await whatsapp_service.send_text(instance, contact.phone, campaign.subject)
+            plain = re.sub(r"<[^>]+>", " ", html).strip() or campaign.subject
+            plain = re.sub(r" {2,}", " ", plain).strip()
+            await whatsapp_service.send_text(instance, contact.phone, plain)
         except Exception:
             log.exception("Campaign %s: WhatsApp send failed for %s", campaign.id, contact.phone)
         await asyncio.sleep(random.uniform(5, 10))
@@ -1070,7 +1077,7 @@ async def ab_pick_winner(
     templates = {t.variant: t for t in await get_campaign_templates(db, campaign.id)}
     win_html = _select_variant_html(templates, winner)
 
-    payloads: list[tuple[Contact, str, str]] = []
+    payloads: list[tuple[Contact, str, str, str]] = []
     for contact in remaining:
         token = uuid.uuid4()
         personalized = _apply_personalization(win_html, contact)
@@ -1078,6 +1085,7 @@ async def ab_pick_winner(
             body_text=campaign.subject,
             prerendered_html=personalized or f"<p>{campaign.subject}</p>",
         )
+        unsub_url = f"{base_url}/api/v1/track/unsubscribe/{token}"
         full_html += _open_pixel(base_url, token)
         full_html += _unsubscribe_footer(base_url, token)
         db.add(
@@ -1090,7 +1098,7 @@ async def ab_pick_winner(
                 variant=winner,
             )
         )
-        payloads.append((contact, full_html, contact.email))
+        payloads.append((contact, full_html, contact.email, unsub_url))
 
     await db.flush()
     if payloads:

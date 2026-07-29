@@ -395,7 +395,7 @@ function EditContactModal({ contact, companies, onClose }: {
     full_name: contact.full_name,
     email: contact.email ?? '',
     phone: contact.phone ?? '',
-    notes: '',
+    notes: contact.notes ?? '',
     company_id: contact.company?.id ?? '',
   })
   const [error, setError] = useState('')
