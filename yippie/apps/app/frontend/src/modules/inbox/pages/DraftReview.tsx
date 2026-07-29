@@ -540,7 +540,7 @@ export default function DraftReview() {
     mutationFn: () => api.post(`/inbox/drafts/${id}/clear-followup`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['drafts'] })
-      navigate('/inbox')
+      navigate(`/inbox?mailbox=${mailbox}`)
     },
   })
 
@@ -799,7 +799,7 @@ export default function DraftReview() {
         <div className="flex flex-col flex-1 overflow-auto bg-slate-50 pb-32">
           {/* Back */}
           <div className="px-4 pt-4 pb-2">
-            <Link to="/inbox" className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
+            <Link to={`/inbox?mailbox=${mailbox}`} className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500 hover:text-slate-700 transition-colors">
               <ArrowLeft size={15} />
               Inbox
             </Link>

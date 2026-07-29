@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Mail, MessageSquare, ArrowRight, X, Trash2, AlertOctagon, CheckSquare, ChevronLeft, ChevronRight, Building2, Users, Pencil, Send, Sparkles, Search, ChevronDown, Check, XCircle, UserPlus, User } from 'lucide-react'
 import { toast } from 'sonner'
@@ -274,8 +274,14 @@ function AssignModal({ ids, onClose, onDone }: { ids: string[]; onClose: () => v
 }
 
 export default function InboxQueue() {
+  const [searchParams] = useSearchParams()
   const [activeTab, setActiveTab] = useState<Tab>('pending')
-  const [mailbox, setMailbox] = useState<Mailbox>('shared')
+  const [mailbox, setMailbox] = useState<Mailbox>(() => {
+    const fromUrl = searchParams.get('mailbox') as Mailbox | null
+    if (fromUrl === 'shared' || fromUrl === 'personal') return fromUrl
+    const stored = sessionStorage.getItem('inbox_mailbox') as Mailbox | null
+    return stored === 'personal' ? 'personal' : 'shared'
+  })
   const [focusedIdx, setFocusedIdx] = useState<number>(-1)
   const navigate = useNavigate()
   const [activeDeptId, setActiveDeptId] = useState<string | undefined>(undefined)
@@ -703,7 +709,7 @@ export default function InboxQueue() {
                 return (
                   <button
                     key={m.value}
-                    onClick={() => { setMailbox(m.value); setSelected(new Set()); setPage(0) }}
+                    onClick={() => { setMailbox(m.value); sessionStorage.setItem('inbox_mailbox', m.value); setSelected(new Set()); setPage(0) }}
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
                       mailbox === m.value
                         ? 'bg-blue-600 text-white'
