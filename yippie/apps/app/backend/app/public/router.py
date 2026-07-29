@@ -471,6 +471,7 @@ async def custom_plan_request(
 
     # Honeypot: bots fill the hidden `website` field — fake success, touch nothing.
     if body.website:
+        logger.info("custom_plan_request: honeypot triggered for %s, dropped silently", body.email)
         return {"ok": True}
 
     ip = get_client_ip(request)
@@ -596,6 +597,7 @@ async def request_demo(
     # Honeypot: bots fill the hidden `website` field — fake a plausible success
     # response (same shape as the real one) without creating anything.
     if body.website:
+        logger.info("request_demo: honeypot triggered for %s, dropped silently", body.email)
         return {
             "tenant_id": str(uuid.uuid4()),
             "slug": _slugify(body.slug or body.company_name),
@@ -1003,7 +1005,7 @@ async def meet_book(
     admin = await db.scalar(
         select(User).where(
             User.tenant_id == tenant.id,
-            User.role == UserRole.admin,
+            User.role.in_([UserRole.admin, UserRole.superadmin]),
             User.is_active == True,  # noqa: E712
         ).limit(1)
     )
@@ -1841,6 +1843,7 @@ async def signup(
     # Honeypot: bots fill the hidden `website` field — fake a plausible success
     # response (same shape as the real one) without creating anything.
     if body.website:
+        logger.info("signup: honeypot triggered for %s, dropped silently", body.email)
         _fake_base = _demo_client_base_url() or ""
         return {
             "tenant_slug": _slugify(body.company_name),

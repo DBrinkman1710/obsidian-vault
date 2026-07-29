@@ -343,13 +343,16 @@ export default function DemoForm() {
         </div>
       </div>
 
-      {/* Honeypot — visually hidden; bots that fill it are silently dropped server-side */}
+      {/* Honeypot — visually hidden; bots that fill it are silently dropped server-side.
+          `name` deliberately avoids "website"/"url"-style values: browsers' autofill
+          heuristics target those even on a hidden field, which silently discarded
+          real visitors' submissions (autoComplete="off" is widely ignored). */}
       <input
         type="text"
-        name="website"
+        name="hp_a1"
         value={website}
         onChange={(e) => setWebsite(e.target.value)}
-        autoComplete="off"
+        autoComplete="one-time-code"
         tabIndex={-1}
         aria-hidden="true"
         style={{ position: "absolute", left: "-9999px", width: 1, height: 1, opacity: 0 }}
