@@ -18,7 +18,6 @@ interface PublicBooking {
 }
 
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-const pad = (n: number) => String(n).padStart(2, '0')
 const dateKey = (d: Date, tz: string) => {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d)
   const y = parts.find(p => p.type === 'year')!.value
