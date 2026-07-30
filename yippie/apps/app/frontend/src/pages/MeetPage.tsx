@@ -69,6 +69,7 @@ export default function MeetPage() {
   const [step, setStep] = useState<'pick' | 'details'>('pick')
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
+  const [company, setCompany] = useState('')
   const [message, setMessage] = useState('')
 
   const [submitting, setSubmitting] = useState(false)
@@ -112,6 +113,7 @@ export default function MeetPage() {
       await api.post(`/public/meet/${slug}`, {
         name: name.trim(),
         email: email.trim(),
+        company: company.trim() || null,
         slot_start: picked.start,
         slot_end: picked.end,
         message: message.trim() || null,
@@ -208,6 +210,21 @@ export default function MeetPage() {
               onChange={e => setEmail(e.target.value)}
               disabled={submitting}
               placeholder="jane@acme.com"
+              className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50"
+            />
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5" htmlFor="meet-company">
+              Company <span className="font-normal text-slate-400">(optional)</span>
+            </label>
+            <input
+              id="meet-company"
+              type="text"
+              autoComplete="organization"
+              value={company}
+              onChange={e => setCompany(e.target.value)}
+              disabled={submitting}
+              placeholder="Acme BV"
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50"
             />
           </div>

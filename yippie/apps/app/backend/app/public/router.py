@@ -878,6 +878,7 @@ class MeetBookRequest(BaseModel):
     slot_start: datetime
     slot_end: datetime
     message: Optional[str] = None
+    company: Optional[str] = Field(default=None, max_length=200)
 
 
 @router.get("/meet/{slug}")
@@ -998,9 +999,12 @@ async def meet_book(
             tenant_id=tenant.id,
             full_name=body.name.strip(),
             email=email,
+            company=body.company.strip() if body.company else None,
         )
         db.add(contact)
         await db.flush()
+    elif body.company and not contact.company:
+        contact.company = body.company.strip()
 
     admin = await db.scalar(
         select(User).where(
@@ -1034,16 +1038,17 @@ async def meet_book(
     await db.commit()
     await db.refresh(event)
 
+    tz_name = getattr(settings, "timezone", None)
     try:
         asyncio.create_task(
-            booking_service._notify_customer_confirmed(event, contact, tenant)
+            booking_service._notify_customer_confirmed(event, contact, tenant, tz_name=tz_name)
         )
         asyncio.create_task(
-            booking_service._notify_agent_confirmed(event, contact, admin)
+            booking_service._notify_agent_confirmed(event, contact, admin, tz_name=tz_name)
         )
         if assigned_worker is not None and assigned_worker.id != admin.id:
             asyncio.create_task(
-                booking_service._notify_agent_confirmed(event, contact, assigned_worker)
+                booking_service._notify_agent_confirmed(event, contact, assigned_worker, tz_name=tz_name)
             )
     except Exception:
         pass

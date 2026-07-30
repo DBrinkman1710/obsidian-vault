@@ -44,8 +44,12 @@ _MONTHS = (
 )
 
 
-def _format_slot(start: datetime, end: datetime) -> str:
-    """e.g. 'Monday 16 June 2026, 14:00–14:30'."""
+def _format_slot(start: datetime, end: datetime, tz_name: Optional[str] = None) -> str:
+    """e.g. 'Monday 16 June 2026, 14:00–14:30'. Converts from UTC to tz_name first."""
+    if tz_name:
+        tz = _resolve_tz(tz_name)
+        start = start.astimezone(tz)
+        end = end.astimezone(tz)
     day = f"{_WEEKDAYS[start.weekday()]} {start.day} {_MONTHS[start.month - 1]} {start.year}"
     return f"{day}, {start:%H:%M}–{end:%H:%M}"
 
@@ -808,9 +812,10 @@ async def fulfil_request(
 
     tenant = await db.get(Tenant, tenant_id)
     worker = await db.get(User, worker_user_id)
-    asyncio.create_task(_notify_customer_confirmed(event, contact, tenant, None))
+    tz_name = getattr(await get_or_create_settings(db, tenant_id), "timezone", None)
+    asyncio.create_task(_notify_customer_confirmed(event, contact, tenant, None, tz_name))
     if worker is not None:
-        asyncio.create_task(_notify_agent_confirmed(event, contact, worker))
+        asyncio.create_task(_notify_agent_confirmed(event, contact, worker, tz_name))
     return event
 
 
@@ -1100,11 +1105,12 @@ async def confirm_booking(
 
     tenant = await db.get(Tenant, token.tenant_id)
     agent = await db.get(User, token.created_by)
-    asyncio.create_task(_notify_customer_confirmed(event, contact, tenant, token))
-    asyncio.create_task(_notify_agent_confirmed(event, contact, agent))
+    tz_name = getattr(await get_or_create_settings(db, token.tenant_id), "timezone", None)
+    asyncio.create_task(_notify_customer_confirmed(event, contact, tenant, token, tz_name))
+    asyncio.create_task(_notify_agent_confirmed(event, contact, agent, tz_name))
     # In auto-assign mode also tell the worker who got the job.
     if assigned_worker is not None and assigned_worker.id != token.created_by:
-        asyncio.create_task(_notify_agent_confirmed(event, contact, assigned_worker))
+        asyncio.create_task(_notify_agent_confirmed(event, contact, assigned_worker, tz_name))
     return event
 
 
@@ -1195,13 +1201,14 @@ async def _notify_customer_confirmed(
     contact: Contact,
     tenant: Optional[Tenant],
     token: Optional[BookingToken] = None,
+    tz_name: Optional[str] = None,
 ) -> None:
     try:
         if contact is None or not contact.email or not is_valid_email(contact.email):
             return
         tenant_name = tenant.name if tenant else "Yippie"
         primary_color = tenant.primary_color if tenant else None
-        when = _format_slot(event.start_at, event.end_at)
+        when = _format_slot(event.start_at, event.end_at, tz_name)
         subject = f"Your meeting with {tenant_name} is confirmed"
 
         manage_token = getattr(token, "manage_token", None) if token else None
@@ -1595,7 +1602,8 @@ async def _notify_agent_cancelled(
 
 
 async def _notify_agent_confirmed(
-    event: CalendarEvent, contact: Contact, agent_user: Optional[User]
+    event: CalendarEvent, contact: Contact, agent_user: Optional[User],
+    tz_name: Optional[str] = None,
 ) -> None:
     try:
         if agent_user is None:
@@ -1603,7 +1611,7 @@ async def _notify_agent_confirmed(
         to_addr = agent_user.inbound_email or agent_user.email
         if not to_addr or not is_valid_email(to_addr):
             return
-        when = _format_slot(event.start_at, event.end_at)
+        when = _format_slot(event.start_at, event.end_at, tz_name)
         contact_name = contact.full_name if contact else "A contact"
         subject = f"{contact_name} booked a meeting: {when}"
 
