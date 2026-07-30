@@ -42,11 +42,9 @@ export default function PrivacyPage() {
             (verwerkingsverantwoordelijke) is:
           </p>
           <p>
-            <strong>[BEDRIJFSNAAM INVULLEN]</strong>
+            <strong>GetYippie</strong>
             <br />
-            [VESTIGINGSADRES INVULLEN]
-            <br />
-            KVK-nummer: [KVK INVULLEN]
+            KVK-nummer: 42124040
             <br />
             E-mail:{" "}
             <a href="mailto:support@getyippie.com">support@getyippie.com</a>

@@ -66,7 +66,7 @@ export default function SiteFooter() {
       </div>
 
       <div className={styles.footerBar}>
-        <span className={styles.footerCopy}>© {new Date().getFullYear()} Yippie. All rights reserved.</span>
+        <span className={styles.footerCopy}>© {new Date().getFullYear()} GetYippie — KVK 42124040. All rights reserved.</span>
         <span className={styles.footerMade}>Built for founders who mean business.</span>
       </div>
     </footer>
