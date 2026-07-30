@@ -304,15 +304,8 @@ export default function ComposeModal({
   const [composeFiles, setComposeFiles] = useState<File[]>([])
   const [demoResult, setDemoResult] = useState<{ demo: true } | null>(null)
   const [fromEmail, setFromEmail] = useState<string | null>(initialState?.fromEmail ?? null)
-  const fromEmailInitRef = useRef(false)
   const [body, setBody] = useState(initialState?.body ?? '')
   const sigPrefilledRef = useRef(false)
-
-  useEffect(() => {
-    if (fromEmailInitRef.current || fromEmail !== null || linkedAccounts.length === 0) return
-    fromEmailInitRef.current = true
-    setFromEmail(linkedAccounts[0].email_address)
-  }, [linkedAccounts.length])
 
   useEffect(() => {
     if (sigPrefilledRef.current) return
