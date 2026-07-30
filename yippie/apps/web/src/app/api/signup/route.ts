@@ -54,18 +54,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Too many requests. Try again later." }, { status: 429 });
   }
 
-  const upstreamBody = await upstream.json().catch(() => null);
-  const rawDetail = upstreamBody?.detail;
+  // Try JSON first; fall back to text (Cloudflare replaces origin 5xx bodies with
+  // its own text/plain error page, which causes json() to throw).
   let detail: string | null = null;
-  if (typeof rawDetail === "string") {
-    detail = rawDetail;
-  } else if (Array.isArray(rawDetail) && rawDetail.length > 0) {
-    const first = rawDetail[0];
-    if (first && typeof first.msg === "string") detail = first.msg;
+  const contentType = upstream.headers.get("content-type") ?? "";
+  if (contentType.includes("application/json")) {
+    const upstreamBody = await upstream.json().catch(() => null);
+    const rawDetail = upstreamBody?.detail;
+    if (typeof rawDetail === "string") {
+      detail = rawDetail;
+    } else if (Array.isArray(rawDetail) && rawDetail.length > 0) {
+      const first = rawDetail[0];
+      if (first && typeof first.msg === "string") detail = first.msg;
+    }
   }
 
+  // 502/503 with no parseable detail = infrastructure error (e.g. email delivery
+  // service down). Give a specific message rather than the generic fallback.
+  const fallback =
+    upstream.status === 502 || upstream.status === 503
+      ? "We couldn't send your verification email right now. Please try again in a few minutes."
+      : "Something went wrong. Please try again.";
+
   return NextResponse.json(
-    { error: detail ?? "Something went wrong. Please try again." },
+    { error: detail ?? fallback },
     { status: 502 }
   );
 }

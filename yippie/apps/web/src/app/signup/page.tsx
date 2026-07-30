@@ -36,7 +36,7 @@ export default function SignupPage() {
         <h1 className={styles.heroTitle}>Build your workspace</h1>
         <p className={styles.heroSub}>
           Answer a few quick questions, watch your workspace take shape, and
-          step in through the link we mail you. First 30 days free — no payment
+          step in through the link we mail you. First 30 days free, no payment
           details needed.
         </p>
       </section>
