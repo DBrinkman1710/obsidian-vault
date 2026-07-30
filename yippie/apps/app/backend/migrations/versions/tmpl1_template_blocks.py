@@ -1,7 +1,7 @@
 """[TMPL1] block based document templates — contract template blocks + invoice_templates
 
 Revision ID: tmpl1_template_blocks
-Revises: uxp2_pipeline_nudge_toggle, contacts_fk_set_null (merges the two open heads)
+Revises: contacts_fk_set_null
 Create Date: 2026-07-16
 
 Drag and drop template builder foundation:
@@ -18,7 +18,7 @@ from typing import Sequence, Union
 from alembic import op
 
 revision: str = "tmpl1_template_blocks"
-down_revision: Union[str, Sequence[str], None] = ("uxp2_pipeline_nudge_toggle", "contacts_fk_set_null")
+down_revision: Union[str, Sequence[str], None] = "contacts_fk_set_null"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
