@@ -63,7 +63,7 @@ const STEP_DEFS: {
   {
     module: 'calendar',
     title: 'Calendar',
-    body: 'Schedule follow ups, meetings, and deadlines. Link events to your tickets and contacts so everything stays in context.',
+    body: 'Schedule follow ups, meetings, and deadlines. Events sync with your tickets and contacts automatically.',
     route: '/calendar',
     icon: <Calendar size={22} className="text-orange-500" />,
   },
