@@ -51,6 +51,9 @@ function pyInlineDict(obj) {
 function buildPython() {
   const allIds = modules.map((m) => m.id);
   const coreIds = modules.filter((m) => m.core).map((m) => m.id);
+  const bundledWith = Object.fromEntries(
+    modules.filter((m) => m.bundledWith).map((m) => [m.id, m.bundledWith]),
+  );
   const modulePrices = Object.fromEntries(paid.map((m) => [m.id, m.price]));
   const stripeKeys = Object.fromEntries(paid.map((m) => [stripeKey(m.id), m.id]));
   const planLimits = Object.fromEntries(
@@ -79,6 +82,11 @@ function buildPython() {
     "from __future__ import annotations\n\n" +
     `ALL_MODULES: list[str] = ${JSON.stringify(allIds)}\n\n` +
     `CORE_MODULES: list[str] = ${JSON.stringify(coreIds)}\n\n` +
+    "# Bundled modules: child module id -> parent module id (from `bundledWith` in\n" +
+    "# modules.json). A child counts as enabled whenever its parent is enabled —\n" +
+    "# read-side expansion only (see app.config.expand_enabled_modules); the\n" +
+    "# stored Tenant.enabled_modules row is never rewritten.\n" +
+    `BUNDLED_WITH: dict[str, str] = ${pyDict(bundledWith)}\n\n` +
     "# Paid add-on prices (euros/month), keyed by module id.\n" +
     `MODULE_PRICES: dict[str, int] = ${pyDict(modulePrices)}\n\n` +
     "# Stripe Checkout price lookup_key -> module id (paid add-ons only).\n" +

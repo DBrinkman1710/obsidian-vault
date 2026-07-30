@@ -8,7 +8,7 @@ import jwt
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
+from app.config import expand_enabled_modules, get_settings
 from app.core.models import Tenant, User, UserRole
 from app.core.plans import plan_allows
 from app.database import get_db, set_tenant_context
@@ -103,7 +103,9 @@ def require_module(module_name: str):
         db: Annotated[AsyncSession, Depends(get_db)],
     ) -> None:
         tenant = await db.get(Tenant, current_user.tenant_id)
-        if not tenant or module_name not in (tenant.enabled_modules or []):
+        # expand_enabled_modules: bundled modules (booking ⊂ calendar) count as
+        # enabled even when absent from the stored list.
+        if not tenant or module_name not in expand_enabled_modules(tenant.enabled_modules):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={"error": "module_disabled", "module": module_name},
@@ -127,7 +129,7 @@ def require_feature(feature: str):
         db: Annotated[AsyncSession, Depends(get_db)],
     ) -> None:
         tenant = await db.get(Tenant, current_user.tenant_id)
-        if not tenant or feature not in (tenant.enabled_modules or []):
+        if not tenant or feature not in expand_enabled_modules(tenant.enabled_modules):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail={"error": "module_disabled", "module": feature},

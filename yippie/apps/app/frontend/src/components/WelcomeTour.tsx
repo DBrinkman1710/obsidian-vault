@@ -18,7 +18,8 @@ import { openQuickCapture } from '../hooks/useQuickCapture'
 // tour names the same thing the user sees in the nav.
 //
 // A couple of steps cover features with no sidebar entry:
-//   - booking: module-gated, surfaced via Calendar
+//   - booking: module gated, surfaced via Calendar
+//   - ai: the paid AI Inbox add on — gated on the 'ai' module, surfaced via Inbox
 //   - Yip: always shown (alwaysShow) — the ⌘K assistant available everywhere.
 //     openYip opens the assistant popup instead of navigating to a route.
 // (Departments + Roles are onboarded via the SetupChecklist gates, not here.)
@@ -34,9 +35,16 @@ const STEP_DEFS: {
   {
     module: 'inbox',
     title: 'Your Inbox',
-    body: 'Incoming mail and WhatsApp messages land here. AI can draft a ticket for each one. Review and approve with one click.',
+    body: 'Incoming mail lands here. Review each message, reply, and turn it into a ticket in one click.',
     route: '/inbox',
     icon: <Inbox size={22} className="text-blue-500" />,
+  },
+  {
+    module: 'ai',
+    title: 'AI Inbox',
+    body: 'AI reads every incoming message and drafts the ticket for you: subject, priority, description. Review and approve with one click.',
+    route: '/inbox',
+    icon: <Sparkles size={22} className="text-blue-400" />,
   },
   {
     module: 'contacts',
@@ -55,7 +63,7 @@ const STEP_DEFS: {
   {
     module: 'calendar',
     title: 'Calendar',
-    body: 'Schedule follow-ups, meetings, and deadlines. Events sync with your tickets and contacts automatically.',
+    body: 'Schedule follow ups, meetings, and deadlines. Link events to your tickets and contacts so everything stays in context.',
     route: '/calendar',
     icon: <Calendar size={22} className="text-orange-500" />,
   },
@@ -69,7 +77,7 @@ const STEP_DEFS: {
   {
     module: 'pipeline',
     title: 'Kanban',
-    body: 'Visualise your workflow with drag-and-drop Kanban stages. Move contacts forward and track deals in real time.',
+    body: 'Visualise your workflow with drag and drop Kanban stages. Move contacts forward and track deals in real time.',
     route: '/pipeline',
     icon: <Kanban size={22} className="text-pink-500" />,
   },
@@ -90,54 +98,54 @@ const STEP_DEFS: {
   {
     module: 'contracts',
     title: 'Contracts',
-    body: 'Manage the full contract lifecycle: draft, send for e-signing, and track renewals. Customers sign online with a draw-to-sign page.',
+    body: 'Manage the full contract lifecycle: draft, send for e signing, and track renewals. Customers sign online with a draw to sign page.',
     route: '/contracts',
     icon: <FileText size={22} className="text-sky-500" />,
   },
   {
     module: 'chat',
     title: 'Live Chat',
-    body: 'Handle WhatsApp conversations in real time. Assign sessions to agents, use canned responses, and convert chats to tickets.',
+    body: 'Chat with website visitors and WhatsApp customers in real time. Assign sessions to agents, use canned responses, and convert chats to tickets.',
     route: '/chat',
     icon: <MessageSquare size={22} className="text-green-500" />,
   },
   {
     module: 'marketing',
     title: 'Marketing',
-    body: 'Send campaigns, track opens and clicks, and build email templates with a drag-and-drop editor.',
+    body: 'Send campaigns, track opens and clicks, and build email templates with a drag and drop editor.',
     route: '/marketing',
     icon: <Megaphone size={22} className="text-purple-500" />,
   },
   {
     module: 'tracking',
     title: 'Tracking',
-    body: 'Connect Sendcloud to monitor shipments and share tracking links with customers automatically.',
+    body: 'Connect Sendcloud and follow every shipment: carrier, status, and delivery, linked to your contacts.',
     route: '/tracking',
     icon: <Package size={22} className="text-amber-500" />,
   },
   {
     module: 'sales',
     title: 'Sales',
-    body: 'Track revenue, monitor sales performance, and see which deals are moving through your pipeline.',
+    body: 'See what visitors do on your site: product views, carts, and purchases. Spot high intent buyers before they reach out.',
     route: '/sales',
     icon: <TrendingUp size={22} className="text-cyan-500" />,
   },
   {
     module: 'saas',
     title: 'Product Analytics',
-    body: 'Monitor user engagement, retention, and feature adoption across your product.',
+    body: 'Monitor user engagement, feature adoption, and account health across your product.',
     route: '/saas',
     icon: <BarChart3 size={22} className="text-indigo-500" />,
   },
   {
     module: 'flows',
     title: 'Flows',
-    body: 'Build no-code automations with triggers, SLA escalation, and webhooks. Set a flow live and let it handle the routine work.',
+    body: 'Build no code automations with triggers, actions, and webhooks. Set a flow live and let it handle the routine work.',
     route: '/flows',
     icon: <Zap size={22} className="text-fuchsia-500" />,
   },
   {
-    module: 'ai',
+    module: 'yip',
     title: 'Yip',
     body: 'Your AI assistant. Press ⌘K anywhere to jot a note, set a reminder, look up a customer, or ask Yip to draft a reply for you.',
     route: '',
@@ -166,9 +174,11 @@ export default function WelcomeTour() {
   const config = useTenantConfig()
 
   const enabledModules: string[] = config?.enabled_modules ?? []
+  // Fallback while config has no module list: core modules + alwaysShow only.
+  // (Never show paid add ons like Tickets here — they are not included by default.)
   const steps = enabledModules.length > 0
     ? STEP_DEFS.filter(s => s.alwaysShow || enabledModules.includes(s.module))
-    : STEP_DEFS.slice(0, 3)
+    : STEP_DEFS.filter(s => s.alwaysShow || s.module === 'inbox' || s.module === 'contacts')
 
   // Persist progress across the reloads some checklist detours trigger.
   useEffect(() => {

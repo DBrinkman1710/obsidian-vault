@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import expand_enabled_modules
 from app.core._modules_gen import MODULE_META
 from app.core.models import Tenant, User
 from app.core.plans import limits_for_plan
@@ -355,7 +356,7 @@ async def _validate_enabled(
     """A flow must be fully wired before it may be enabled. `actions` is either
     the linear list or the [FLOW4] graph — completeness checks iterate the
     executable nodes of either shape."""
-    enabled_modules = tenant.enabled_modules or []
+    enabled_modules = expand_enabled_modules(tenant.enabled_modules)
 
     trigger_module = TRIGGER_META[trigger_type]["module"]
     if trigger_module and trigger_module not in enabled_modules:
@@ -553,7 +554,8 @@ def test_fire(tenant: Tenant, flow: Flow) -> dict:
     """Dry-run a flow against a synthesized sample event — evaluate its
     conditions and report which actions would run, executing nothing."""
     return preview.dry_run(
-        flow.trigger_type, flow.conditions, flow.actions, tenant.enabled_modules or []
+        flow.trigger_type, flow.conditions, flow.actions,
+        expand_enabled_modules(tenant.enabled_modules),
     )
 
 
@@ -617,7 +619,7 @@ async def list_runs(
 async def build_meta(db: AsyncSession, tenant: Tenant) -> dict:
     """Everything the builder UI needs in one call, filtered to the tenant's
     enabled modules so it never offers a trigger or action that can't run."""
-    enabled_modules = tenant.enabled_modules or []
+    enabled_modules = expand_enabled_modules(tenant.enabled_modules)
 
     triggers = [
         {
@@ -690,7 +692,7 @@ async def build_meta(db: AsyncSession, tenant: Tenant) -> dict:
 
 
 def list_recipes(tenant: Tenant) -> list[dict]:
-    enabled_modules = tenant.enabled_modules or []
+    enabled_modules = expand_enabled_modules(tenant.enabled_modules)
 
     def _available(recipe: dict) -> bool:
         trigger_module = TRIGGER_META[recipe["trigger_type"]]["module"]

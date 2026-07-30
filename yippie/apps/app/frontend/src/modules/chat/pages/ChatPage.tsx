@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, Clock, FileText, Megaphone, MessageSquare, Paperclip, Power, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2, Zap } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Check, CheckCheck, ChevronDown, Clock, Code, Copy, FileText, Megaphone, MessageSquare, Paperclip, Power, QrCode, Search, Send, SquarePen, UserPlus, Users, X, Trash2, Zap } from 'lucide-react'
 import { List } from 'react-window'
 import { api } from '../../../api/client'
 import { Checkbox, BulkBar } from '../../../components/Selection'
@@ -13,6 +13,7 @@ import BroadcastModal from '../components/BroadcastModal'
 import ActionsModal from '../components/ActionsModal'
 import { CloseButton } from '../../../shell/CloseButton'
 import { timeAgo } from '../../../lib/format'
+import { useCopy } from '../../../hooks/useCopy'
 
 function formatTime(dt: string) {
   return new Date(dt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -25,6 +26,48 @@ const STATUS_STYLES: Record<string, string> = {
   assigned: 'bg-amber-100 text-amber-700',
   solved: 'bg-emerald-100 text-emerald-700',
   ticket: 'bg-violet-100 text-violet-700',
+}
+
+// Website widget embed snippet — the real config contract of public/widget.js:
+// it reads window.__YIPPIE_CHAT_CONFIG__ ({ tenant, host }) or the script tag's
+// data-tenant attribute, and defaults host to app.getyippie.com. On production
+// the one line data-tenant form suffices; on any other environment (sandbox,
+// local dev) the config global must carry the host so the widget's WebSocket
+// and history fetch hit this deployment instead of production.
+function widgetEmbedSnippet(tenantSlug: string): string {
+  const host = window.location.host
+  if (host === 'app.getyippie.com') {
+    return `<script src="https://app.getyippie.com/widget.js" data-tenant="${tenantSlug}" async></script>`
+  }
+  return [
+    `<script>window.__YIPPIE_CHAT_CONFIG__ = { tenant: "${tenantSlug}", host: "${host}" };</script>`,
+    `<script src="${window.location.origin}/widget.js" async></script>`,
+  ].join('\n')
+}
+
+function WidgetSnippetCard({ tenantSlug }: { tenantSlug: string }) {
+  const { copy, copied } = useCopy({ useToast: false })
+  const snippet = widgetEmbedSnippet(tenantSlug)
+  return (
+    <div className="md:col-span-2 text-left border border-slate-200 rounded-xl p-6 bg-white">
+      <Code size={20} className="text-blue-600 mb-3" />
+      <p className="text-sm font-bold text-slate-900 mb-1">Website widget</p>
+      <p className="text-xs text-slate-500 mb-3">
+        Add the chat bubble to your own website: paste this snippet just before the closing{' '}
+        <code className="bg-slate-100 px-1 rounded">&lt;/body&gt;</code> tag. Visitor messages show up here as sessions.
+      </p>
+      <div className="flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
+        <p className="flex-1 text-xs font-mono text-slate-700 break-all whitespace-pre-wrap leading-relaxed">{snippet}</p>
+        <button
+          onClick={() => copy(snippet)}
+          className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg transition-colors flex-shrink-0"
+        >
+          {copied ? <Check size={12} className="text-success-500" /> : <Copy size={12} />}
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+    </div>
+  )
 }
 
 // Delivery tick indicator for outbound agent messages
@@ -1121,6 +1164,7 @@ export default function ChatPage() {
           <p className="text-sm font-bold text-slate-900 mb-1">Send a group update?</p>
           <p className="text-xs text-slate-500">Create a multi-contact broadcast</p>
         </button>
+        {config?.tenant_id && <WidgetSnippetCard tenantSlug={config.tenant_id} />}
       </div>
     </div>
   )

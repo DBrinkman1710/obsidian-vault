@@ -6,6 +6,14 @@ ALL_MODULES: list[str] = ["inbox","contacts","tickets","calendar","pipeline","bo
 
 CORE_MODULES: list[str] = ["inbox","contacts","activity","flows"]
 
+# Bundled modules: child module id -> parent module id (from `bundledWith` in
+# modules.json). A child counts as enabled whenever its parent is enabled —
+# read-side expansion only (see app.config.expand_enabled_modules); the
+# stored Tenant.enabled_modules row is never rewritten.
+BUNDLED_WITH: dict[str, str] = {
+    "booking": "calendar",
+}
+
 # Paid add-on prices (euros/month), keyed by module id.
 MODULE_PRICES: dict[str, int] = {
     "tickets": 9,
@@ -63,8 +71,8 @@ MODULE_META: dict[str, dict] = {
     "chat": {"label": "Live Chat", "icon": "💬", "desc": "Web chat widget + WhatsApp. All conversations in one inbox.", "core": False, "price": 9},
     "departments": {"label": "Departments", "icon": "🏢", "desc": "Route tickets and chats to the right team automatically.", "core": False, "price": 7},
     "marketing": {"label": "Marketing", "icon": "📣", "desc": "Email campaigns, A/B testing, drip sequences, and shared reply templates.", "core": False, "price": 9},
-    "tracking": {"label": "Shipment Tracking", "icon": "📦", "desc": "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts.", "core": False, "price": 9},
+    "tracking": {"label": "Shipment Tracking", "icon": "📦", "desc": "Connect Sendcloud for live shipment updates across PostNL, DHL, DPD, UPS, and FedEx, linked to contacts.", "core": False, "price": 9},
     "sales": {"label": "Sales", "icon": "📈", "desc": "Track product views, add-to-cart, and purchases. Identify high-intent buyers.", "core": False, "price": 20},
-    "saas": {"label": "SaaS Analytics", "icon": "🔁", "desc": "Recurring subscriptions, MRR/churn tracking, linked to contacts.", "core": False, "price": 20},
+    "saas": {"label": "SaaS Analytics", "icon": "🔁", "desc": "User engagement, feature adoption, and account health scores, linked to contacts.", "core": False, "price": 20},
     "ai": {"label": "AI Inbox", "icon": "✦", "desc": "AI reads every message and drafts the ticket for you. One click to approve.", "core": False, "price": 15},
 }

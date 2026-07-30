@@ -698,7 +698,7 @@ export default function InboxQueue() {
       <div className="shrink-0 px-4 pt-4 pb-0 md:px-8 md:pt-8 bg-slate-50">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-            <h1 className="text-2xl font-bold text-slate-900">Inbox</h1>
+            <h1 className="heading-xl text-slate-900">Inbox</h1>
             {/* Mailbox switch: shared (whole team) vs personal (mail to your own address) */}
             <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
               {([
@@ -761,9 +761,8 @@ export default function InboxQueue() {
               </div>
             )}
           </div>
-          {/* Actions — grouped top right so the left column stays clean.
-              Compose on top, Templates directly underneath it. */}
-          <div className="flex flex-col items-end gap-2 shrink-0">
+          {/* Actions — grouped top right so the left column stays clean. */}
+          <div className="flex flex-row items-center gap-2 shrink-0">
             <button
               onClick={() => {
                 setComposeInitial(mailbox === 'personal' && !!user?.reply_from_email ? {

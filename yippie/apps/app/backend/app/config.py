@@ -10,7 +10,24 @@ from pydantic_settings import BaseSettings
 # packages/config/modules.json; `pnpm sync:config` regenerates ``_modules_gen``.
 # Matches the keys of ``app.modules.MODULES`` and is the default
 # ``enabled_modules`` for new tenants (see app.core.models.Tenant).
-from app.core._modules_gen import ALL_MODULES  # noqa: E402,F401
+from app.core._modules_gen import ALL_MODULES, BUNDLED_WITH  # noqa: E402,F401
+
+
+def expand_enabled_modules(mods: "list[str] | None") -> list[str]:
+    """Read-side expansion of bundled modules (``bundledWith`` in modules.json).
+
+    A child module (e.g. ``booking``) counts as enabled whenever its parent
+    (``calendar``) is in the stored list, even if the child was never written to
+    ``Tenant.enabled_modules`` — older backfill migrations only patched tenants
+    that existed at the time. Every read of ``enabled_modules`` used for module
+    gating must go through this helper; the stored DB list is never rewritten
+    (superadmin editing keeps operating on the raw list).
+    """
+    expanded = list(mods or [])
+    for child, parent in BUNDLED_WITH.items():
+        if parent in expanded and child not in expanded:
+            expanded.append(child)
+    return expanded
 
 
 class Settings(BaseSettings):

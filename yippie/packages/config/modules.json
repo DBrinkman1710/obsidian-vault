@@ -21,9 +21,9 @@
     { "id": "chat",        "label": "Live Chat",        "icon": "💬", "core": false, "price": 9,    "recName": "Live Chat",         "desc": "Web chat widget + WhatsApp. All conversations in one inbox." },
     { "id": "departments", "label": "Departments",      "icon": "🏢", "core": false, "price": 7,    "recName": "Departments",       "desc": "Route tickets and chats to the right team automatically." },
     { "id": "marketing",   "label": "Marketing",        "icon": "📣", "core": false, "price": 9,    "recName": "Marketing",         "desc": "Email campaigns, A/B testing, drip sequences, and shared reply templates." },
-    { "id": "tracking",    "label": "Shipment Tracking","icon": "📦", "core": false, "price": 9,    "recName": "Shipment Tracking", "desc": "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts." },
+    { "id": "tracking",    "label": "Shipment Tracking","icon": "📦", "core": false, "price": 9,    "recName": "Shipment Tracking", "desc": "Connect Sendcloud for live shipment updates across PostNL, DHL, DPD, UPS, and FedEx, linked to contacts." },
     { "id": "sales",       "label": "Sales",            "icon": "📈", "core": false, "price": 20,   "recName": "Sales",             "desc": "Track product views, add-to-cart, and purchases. Identify high-intent buyers." },
-    { "id": "saas",        "label": "SaaS Analytics",   "icon": "🔁", "core": false, "price": 20,   "recName": "SaaS Analytics",    "desc": "Recurring subscriptions, MRR/churn tracking, linked to contacts." },
+    { "id": "saas",        "label": "SaaS Analytics",   "icon": "🔁", "core": false, "price": 20,   "recName": "SaaS Analytics",    "desc": "User engagement, feature adoption, and account health scores, linked to contacts." },
     { "id": "ai",          "label": "AI Inbox",         "icon": "✦",  "core": false, "price": 15,   "recName": "AI Inbox",          "desc": "AI reads every message and drafts the ticket for you. One click to approve." }
   ]
 }

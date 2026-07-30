@@ -19,6 +19,8 @@ from typing import Optional, TYPE_CHECKING
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import expand_enabled_modules
+
 if TYPE_CHECKING:
     from app.core.models import Tenant
     from app.modules.contacts.models import Contact
@@ -36,7 +38,8 @@ UPCOMING_WINDOW_DAYS = 14
 
 
 def _has(tenant: "Tenant", module: str) -> bool:
-    return module in (tenant.enabled_modules or [])
+    # Bundled modules (booking ⊂ calendar) count as enabled read-side.
+    return module in expand_enabled_modules(tenant.enabled_modules)
 
 
 async def build_customer_context(

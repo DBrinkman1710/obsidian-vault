@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import litellm
 
+from app.config import expand_enabled_modules
 from app.core.models import AssistantMemory, Tenant, User, UserReminder, UserRole
 from app.modules.activity import service as activity_service
 from app.modules.ai.client import ai_stream_tools
@@ -493,7 +494,7 @@ TOOL_MODULES: dict[str, str | None] = {
 
 def _tools_for_tenant(tenant: Tenant) -> list[dict]:
     """Filter TOOL_DEFS down to the tenant's enabled modules."""
-    enabled = set(tenant.enabled_modules or [])
+    enabled = set(expand_enabled_modules(tenant.enabled_modules))
     tools = []
     for t in TOOL_DEFS:
         required = TOOL_MODULES.get(t["function"]["name"])
@@ -1711,7 +1712,7 @@ async def execute_confirmed(
     if executor is None:
         return {"error": f"unknown action '{tool}'"}
     required = TOOL_MODULES.get(tool)
-    if required is not None and required not in (tenant.enabled_modules or []):
+    if required is not None and required not in expand_enabled_modules(tenant.enabled_modules):
         return {"error": f"the {required} module is not enabled for this workspace"}
     ctx = AgentContext(db, user, tenant, "none", None)
     try:
@@ -1770,7 +1771,7 @@ async def _execute_tool(ctx: AgentContext, name: str, args: dict) -> dict:
     # [YIP-GATE] belt-and-braces: refuse tools for modules the tenant doesn't have,
     # even if the model calls one that wasn't offered.
     required = TOOL_MODULES.get(name)
-    if required is not None and required not in (ctx.tenant.enabled_modules or []):
+    if required is not None and required not in expand_enabled_modules(ctx.tenant.enabled_modules):
         return {"error": f"the {required} module is not enabled for this workspace"}
     try:
         return await executor(ctx, args)

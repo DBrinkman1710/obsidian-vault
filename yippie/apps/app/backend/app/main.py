@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, check_module_access, require_feature, require_module
 from app.auth.router import router as auth_router
-from app.config import ALL_MODULES, get_settings
+from app.config import ALL_MODULES, expand_enabled_modules, get_settings
 from app.core.logging_config import RequestIDMiddleware, configure_logging
 from app.core.models import Tenant
 from app.core.plans import ADVANCED_FEATURES, features_for_plan, limits_for_plan, module_prices_for_plan
@@ -155,7 +155,9 @@ def create_app() -> FastAPI:
         if tenant is None:
             raise HTTPException(status_code=404, detail="Tenant not found")
         settings = get_settings()
-        stored = tenant.enabled_modules or []
+        # Bundled modules (booking ⊂ calendar) are expanded read-side — the
+        # stored row may predate the bundle and never gets rewritten.
+        stored = expand_enabled_modules(tenant.enabled_modules)
         ordered_modules = [m for m in ALL_MODULES if m in stored] + [m for m in stored if m not in ALL_MODULES]
         # allowed_features = what the plan unlocks; the frontend gates a feature
         # only when it is BOTH enabled (in enabled_modules) AND plan-allowed.

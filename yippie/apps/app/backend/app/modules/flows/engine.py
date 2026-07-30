@@ -39,6 +39,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from sqlalchemy import delete, exists, func, select, text, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import expand_enabled_modules
 from app.core.flow_events import chain_scope, emit_flow_event
 from app.core.models import Tenant
 from app.core.scheduler_lock import skip_if_locked
@@ -153,7 +154,7 @@ async def _run_action(tenant: Tenant, event: dict, action: dict, flow_id: uuid.U
         return {"type": action_type, "ok": False, "skipped": True,
                 "summary": f"Unknown action '{action_type}'"}
     required_module = ACTION_MODULES.get(action_type)
-    if required_module and required_module not in (tenant.enabled_modules or []):
+    if required_module and required_module not in expand_enabled_modules(tenant.enabled_modules):
         return {"type": action_type, "ok": False, "skipped": True,
                 "summary": f"Module '{required_module}' is disabled"}
     # Fresh session per action: services commit internally, and SET LOCAL

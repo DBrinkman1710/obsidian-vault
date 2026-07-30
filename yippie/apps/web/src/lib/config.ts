@@ -38,9 +38,9 @@ export const MODULE_LIST = [
   { id: "chat", label: "Live Chat", icon: "💬", desc: "Web chat widget + WhatsApp. All conversations in one inbox.", core: false, price: 9, recName: "Live Chat" },
   { id: "departments", label: "Departments", icon: "🏢", desc: "Route tickets and chats to the right team automatically.", core: false, price: 7, recName: "Departments" },
   { id: "marketing", label: "Marketing", icon: "📣", desc: "Email campaigns, A/B testing, drip sequences, and shared reply templates.", core: false, price: 9, recName: "Marketing" },
-  { id: "tracking", label: "Shipment Tracking", icon: "📦", desc: "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts.", core: false, price: 9, recName: "Shipment Tracking" },
+  { id: "tracking", label: "Shipment Tracking", icon: "📦", desc: "Connect Sendcloud for live shipment updates across PostNL, DHL, DPD, UPS, and FedEx, linked to contacts.", core: false, price: 9, recName: "Shipment Tracking" },
   { id: "sales", label: "Sales", icon: "📈", desc: "Track product views, add-to-cart, and purchases. Identify high-intent buyers.", core: false, price: 20, recName: "Sales" },
-  { id: "saas", label: "SaaS Analytics", icon: "🔁", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts.", core: false, price: 20, recName: "SaaS Analytics" },
+  { id: "saas", label: "SaaS Analytics", icon: "🔁", desc: "User engagement, feature adoption, and account health scores, linked to contacts.", core: false, price: 20, recName: "SaaS Analytics" },
   { id: "ai", label: "AI Inbox", icon: "✦", desc: "AI reads every message and drafts the ticket for you. One click to approve.", core: false, price: 15, recName: "AI Inbox" },
 ] as const;
 
