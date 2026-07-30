@@ -27,13 +27,13 @@ export function EmailAccountsCard({ level }: { level: 'tenant' | 'user' }) {
   const qc = useQueryClient()
 
   const { data: providers } = useQuery<{ gmail: boolean; outlook: boolean }>({
-    queryKey: ['email-account-providers'],
-    queryFn: () => api.get('/email-accounts/providers').then((r: any) => r.data),
+    queryKey: ['email_account_providers'],
+    queryFn: () => api.get('/email_accounts/providers').then((r: any) => r.data),
   })
 
   const { data: accounts = [] } = useQuery<EmailAccount[]>({
-    queryKey: ['email-accounts'],
-    queryFn: () => api.get('/email-accounts').then((r: any) => r.data),
+    queryKey: ['email_accounts'],
+    queryFn: () => api.get('/email_accounts').then((r: any) => r.data),
   })
 
   // Success/error toast after the OAuth redirect lands back on this page
@@ -43,7 +43,7 @@ export function EmailAccountsCard({ level }: { level: 'tenant' | 'user' }) {
     if (!result) return
     if (result === 'success') {
       toast.success('Email account connected')
-      qc.invalidateQueries({ queryKey: ['email-accounts'] })
+      qc.invalidateQueries({ queryKey: ['email_accounts'] })
     } else {
       const reason = params.get('reason')
       toast.error(
@@ -60,16 +60,16 @@ export function EmailAccountsCard({ level }: { level: 'tenant' | 'user' }) {
 
   const connectMutation = useMutation({
     mutationFn: (provider: 'gmail' | 'outlook') =>
-      api.post('/email-accounts/connect', { provider, level }).then((r: any) => r.data),
+      api.post('/email_accounts/connect', { provider, level }).then((r: any) => r.data),
     onSuccess: (data: { authorize_url: string }) => { window.location.href = data.authorize_url },
     onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Could not start the connection.'),
   })
 
   const disconnectMutation = useMutation({
-    mutationFn: (id: string) => api.delete(`/email-accounts/${id}`),
+    mutationFn: (id: string) => api.delete(`/email_accounts/${id}`),
     onSuccess: () => {
       toast.success('Account disconnected')
-      qc.invalidateQueries({ queryKey: ['email-accounts'] })
+      qc.invalidateQueries({ queryKey: ['email_accounts'] })
     },
     onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Could not disconnect the account.'),
   })

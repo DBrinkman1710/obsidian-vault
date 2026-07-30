@@ -821,6 +821,7 @@ async def queue_send(
     contact_id: Optional[uuid.UUID] = None,
     attachments_json: Optional[str] = None,
     from_email: Optional[str] = None,
+    linked_account_id: Optional[uuid.UUID] = None,
     kind: str = "reply",
     campaign_buttons_json: Optional[str] = None,
     prerendered_html: Optional[str] = None,
@@ -835,15 +836,18 @@ async def queue_send(
     from app.config import get_settings
     from app.core.models import Tenant as _Tenant
 
+    _cfg = get_settings()
+    _tenant: _Tenant | None = None
     if not from_email:
         _tenant = await db.get(_Tenant, tenant_id)
-        from_email = (_tenant.inbound_email if _tenant else None) or get_settings().resend_from or None
+        from_email = (_tenant.inbound_email if _tenant else None) or _cfg.resend_from or None
 
     # EML1 transport snapshot: when the from-address is a linked Gmail/Outlook
-    # account, dispatch goes via that provider instead of Resend. Snapshotted at
-    # queue time for the same two-container reason as from_email above.
-    email_account_id = None
-    if from_email:
+    # account (or an alias routed through one), dispatch goes via that provider
+    # instead of Resend. Snapshotted at queue time for the same two-container
+    # reason as from_email above.
+    email_account_id = linked_account_id  # explicit alias transport takes priority
+    if email_account_id is None and from_email:
         from app.modules.email_accounts.models import EmailAccount as _EmailAccount
 
         email_account_id = await db.scalar(
@@ -853,6 +857,31 @@ async def queue_send(
                 _EmailAccount.status == "active",
             )
         )
+
+    # If still no transport, use the active team-level linked account (Gmail/
+    # Outlook) when one exists. This makes the "replies go out from your own
+    # address" promise true: from_email stays as the display address, the
+    # linked account is the actual SMTP carrier.
+    if email_account_id is None:
+        from app.modules.email_accounts.models import EmailAccount as _EmailAccount
+
+        email_account_id = await db.scalar(
+            select(_EmailAccount.id).where(
+                _EmailAccount.tenant_id == tenant_id,
+                _EmailAccount.user_id.is_(None),
+                _EmailAccount.status == "active",
+            ).limit(1)
+        )
+
+    # Last resort: if from_email domain isn't Resend-sendable and there is no
+    # linked account, fall back to the platform default so the message delivers
+    # rather than retrying forever and hitting a 403 on flush.
+    if email_account_id is None and from_email and "@" in from_email:
+        _resend_domain = (_cfg.resend_from or "").rsplit("@", 1)[-1].lower()
+        _from_domain = from_email.rsplit("@", 1)[-1].lower()
+        if _resend_domain and _from_domain != _resend_domain:
+            from_email = _cfg.resend_from or None
+
     pending = PendingSend(
         draft_id=draft_id,
         tenant_id=tenant_id,
@@ -1044,8 +1073,19 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                 if c["email_account_id"]:
                     # EML1: dispatch via the linked Gmail/Outlook account. No
                     # Resend fallback — wrong From identity would fail SPF/DKIM.
+                    from app.modules.email_accounts.models import EmailAccount as _EmailAccount
                     from app.modules.email_accounts.outbound import send_via_linked_account
 
+                    acct_addr = None
+                    _acct = await db.get(_EmailAccount, c["email_account_id"])
+                    if _acct:
+                        acct_addr = _acct.email_address
+                    _from_override = (
+                        c["from_email"]
+                        if c.get("from_email") and acct_addr and
+                        c["from_email"].lower() != acct_addr.lower()
+                        else None
+                    )
                     sent_id, sent_provider = await send_via_linked_account(
                         db,
                         account_id=c["email_account_id"],
@@ -1058,6 +1098,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                         bcc=_bcc,
                         draft_id=c["draft_id"],
                         kind=c["kind"],
+                        from_email_override=_from_override,
                     )
                 else:
                     sent_id = await send_email(to=c["to_email"], subject=c["subject"], body=c["reply_text"], attachments=attachments, from_email=c["from_email"] or None, html=html_body, cc=_cc, bcc=_bcc)

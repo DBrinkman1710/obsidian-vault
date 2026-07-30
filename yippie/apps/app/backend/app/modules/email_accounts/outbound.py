@@ -40,6 +40,7 @@ async def send_via_linked_account(
     bcc: list[str] | None = None,
     draft_id: uuid.UUID | None = None,
     kind: str = "reply",
+    from_email_override: str | None = None,
 ) -> tuple[str, str]:
     """Send raw MIME via the account's provider.
 
@@ -77,8 +78,8 @@ async def send_via_linked_account(
                 thread_ref = hdrs.get("thread_ref")
 
     mime_bytes, message_id = build_mime(
-        from_email=account.email_address,
-        from_name=account.display_name,
+        from_email=from_email_override or account.email_address,
+        from_name=account.display_name if not from_email_override else None,
         to=[to_email],
         cc=cc,
         bcc=bcc,

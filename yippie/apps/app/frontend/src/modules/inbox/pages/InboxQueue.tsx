@@ -358,8 +358,8 @@ export default function InboxQueue() {
   // Linked Gmail/Outlook accounts (EML1) — a personal linked mailbox counts as
   // a personal inbox address for the "no address configured" banner.
   const { data: linkedAccounts = [] } = useQuery<{ user_id: string | null }[]>({
-    queryKey: ['email-accounts'],
-    queryFn: () => api.get('/email-accounts').then((r: any) => r.data),
+    queryKey: ['email_accounts'],
+    queryFn: () => api.get('/email_accounts').then((r: any) => r.data),
     staleTime: 5 * 60_000,
   })
   const hasPersonalLinkedAccount = linkedAccounts.some(a => a.user_id === user?.id)

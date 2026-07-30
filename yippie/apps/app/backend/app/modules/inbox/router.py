@@ -64,7 +64,12 @@ def _tenant_from_domains(tenant: Optional[Tenant]) -> set[str]:
     return {d for d in domains if d}
 
 
-async def _validate_from_email(from_email: Optional[str], db: AsyncSession, tenant_id: uuid.UUID) -> None:
+async def _validate_from_email(
+    from_email: Optional[str],
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    user_aliases: Optional[list[str]] = None,
+) -> None:
     """Reject malformed senders and addresses outside this tenant's verified domains."""
     if not from_email:
         return
@@ -84,9 +89,55 @@ async def _validate_from_email(from_email: Optional[str], db: AsyncSession, tena
     )
     if linked is not None:
         return
+    # Alias transport: a user-configured alias is allowed when the tenant has
+    # at least one active linked account to use as the sending transport.
+    if user_aliases and from_email.lower() in [a.lower() for a in user_aliases]:
+        has_linked = await db.scalar(
+            select(EmailAccount.id).where(
+                EmailAccount.tenant_id == tenant_id,
+                EmailAccount.status == "active",
+            ).limit(1)
+        )
+        if has_linked is not None:
+            return
     allowed = _tenant_from_domains(await db.get(Tenant, tenant_id))
     if allowed and email_domain(from_email) not in allowed:
         raise HTTPException(status_code=403, detail="Sender domain is not permitted for this workspace")
+
+
+async def _resolve_linked_account_for_alias(
+    from_email: Optional[str],
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    user_aliases: Optional[list[str]] = None,
+) -> Optional[uuid.UUID]:
+    """Return the linked account ID to use as transport when from_email is a
+    user alias. Returns None when from_email matches the account directly (the
+    normal EML1 path) or when Resend should be used."""
+    if not from_email:
+        return None
+    from app.modules.email_accounts.models import EmailAccount
+    from sqlalchemy import func as _func, select
+
+    # Exact match — queue_send handles this path itself.
+    exact = await db.scalar(
+        select(EmailAccount.id).where(
+            EmailAccount.tenant_id == tenant_id,
+            _func.lower(EmailAccount.email_address) == from_email.lower(),
+            EmailAccount.status == "active",
+        )
+    )
+    if exact is not None:
+        return None  # queue_send will find it via its own lookup
+    # Alias case: use the first active linked account as transport.
+    if user_aliases and from_email.lower() in [a.lower() for a in user_aliases]:
+        return await db.scalar(
+            select(EmailAccount.id).where(
+                EmailAccount.tenant_id == tenant_id,
+                EmailAccount.status == "active",
+            ).limit(1)
+        )
+    return None
 
 
 async def _encode_attachments(attachments: list[UploadFile]) -> list[dict]:
@@ -394,7 +445,11 @@ async def send_reply(
     contact = ctx["contact"]
     if not msg or not msg.sender:
         raise HTTPException(status_code=409, detail="Original message has no sender to reply to")
-    await _validate_from_email(from_email, db, current_user.tenant_id)
+    user_aliases = list(current_user.send_from_aliases or [])
+    if current_user.reply_from_email and current_user.reply_from_email not in user_aliases:
+        user_aliases.append(current_user.reply_from_email)
+    await _validate_from_email(from_email, db, current_user.tenant_id, user_aliases)
+    alias_account_id = await _resolve_linked_account_for_alias(from_email, db, current_user.tenant_id, user_aliases)
     subject = f"Re: {msg.subject or draft.final_subject or draft.ai_suggested_subject}"
 
     if await service.tenant_is_demo(db, current_user.tenant_id):
@@ -423,6 +478,7 @@ async def send_reply(
         contact_id=contact.id if contact else None,
         attachments_json=attachments_json,
         from_email=from_email or None,
+        linked_account_id=alias_account_id,
         cc_emails=cc_json,
         bcc_emails=bcc_json,
     )
@@ -632,7 +688,11 @@ async def compose_send(
 ):
     """Queue a new outbound email to one or more recipients (sent individually,
     BCC-style) after a 5s undo window. Supports optional file attachments."""
-    await _validate_from_email(from_email, db, current_user.tenant_id)
+    user_aliases = list(current_user.send_from_aliases or [])
+    if current_user.reply_from_email and current_user.reply_from_email not in user_aliases:
+        user_aliases.append(current_user.reply_from_email)
+    await _validate_from_email(from_email, db, current_user.tenant_id, user_aliases)
+    alias_account_id = await _resolve_linked_account_for_alias(from_email, db, current_user.tenant_id, user_aliases)
     try:
         recipients = json.loads(to)
     except (json.JSONDecodeError, TypeError):
@@ -677,6 +737,7 @@ async def compose_send(
             contact_id=recipient_contact_id,
             attachments_json=attachments_json,
             from_email=from_email or None,
+            linked_account_id=alias_account_id,
             kind="compose",
             campaign_buttons_json=campaign_buttons_json or None,
             prerendered_html=html_body or None,

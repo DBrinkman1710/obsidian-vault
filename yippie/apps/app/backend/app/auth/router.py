@@ -434,14 +434,25 @@ async def update_me(
         aliases = body.send_from_aliases or []
         if aliases:
             from app.core.mailer import email_domain as _email_domain, is_valid_email as _is_valid_email
+            from app.modules.email_accounts.models import EmailAccount as _EA
             tenant = await db.get(Tenant, current_user.tenant_id)
+            # When the user has an active linked account the alias goes out via
+            # that provider (From override), so the Resend domain restriction
+            # does not apply — any valid address is permitted.
+            has_linked = await db.scalar(
+                select(_EA.id).where(
+                    _EA.tenant_id == current_user.tenant_id,
+                    _EA.status == "active",
+                ).limit(1)
+            )
             allowed: set[str] = set()
-            if tenant and tenant.inbound_email:
-                allowed.add(_email_domain(tenant.inbound_email))
-            _cfg = get_settings()
-            if _cfg.resend_from:
-                allowed.add(_email_domain(_cfg.resend_from))
-            allowed = {d for d in allowed if d}
+            if not has_linked:
+                if tenant and tenant.inbound_email:
+                    allowed.add(_email_domain(tenant.inbound_email))
+                _cfg = get_settings()
+                if _cfg.resend_from:
+                    allowed.add(_email_domain(_cfg.resend_from))
+                allowed = {d for d in allowed if d}
             for alias in aliases:
                 if not _is_valid_email(alias):
                     raise HTTPException(status_code=400, detail=f"Invalid alias email address: {alias}")

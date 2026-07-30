@@ -15,8 +15,8 @@ export const PROVIDER_SHORT: Record<string, string> = { gmail: 'Gmail', outlook:
 /** Active linked accounts visible to this user (own + tenant-level shared). */
 export function useLinkedEmailAccounts(): LinkedEmailAccount[] {
   const { data = [] } = useQuery<LinkedEmailAccount[]>({
-    queryKey: ['email-accounts'],
-    queryFn: () => api.get('/email-accounts').then((r: any) => r.data),
+    queryKey: ['email_accounts'],
+    queryFn: () => api.get('/email_accounts').then((r: any) => r.data),
     staleTime: 5 * 60_000,
   })
   return data.filter(a => a.status === 'active')

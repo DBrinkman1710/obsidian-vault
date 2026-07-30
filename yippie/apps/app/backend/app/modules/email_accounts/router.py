@@ -30,13 +30,13 @@ log = logging.getLogger("yippie.email_accounts")
 # Authenticated routes — inbox module gates the whole feature (it is an inbox
 # transport, not a separate sellable module).
 router = APIRouter(
-    prefix="/email-accounts",
-    tags=["email-accounts"],
+    prefix="/email_accounts",
+    tags=["email_accounts"],
     dependencies=[Depends(require_module("inbox"))],
 )
 # The OAuth callback is a bare browser redirect from Google/Microsoft — no
 # cookie/JWT guaranteed. Identity comes from the signed `state` token instead.
-callback_router = APIRouter(prefix="/email-accounts", tags=["email-accounts"])
+callback_router = APIRouter(prefix="/email_accounts", tags=["email_accounts"])
 
 DB = Annotated[AsyncSession, Depends(get_db)]
 
@@ -92,7 +92,7 @@ async def connect(body: ConnectRequest, current_user: CurrentUser):
         level=body.level,
         provider=body.provider,
     )
-    redirect_uri = f"{_callback_base()}/api/v1/email-accounts/callback/{body.provider}"
+    redirect_uri = f"{_callback_base()}/api/v1/email_accounts/callback/{body.provider}"
     return ConnectOut(authorize_url=provider.get_authorize_url(redirect_uri, state))
 
 
@@ -122,7 +122,7 @@ async def oauth_callback(
     except ValueError:
         return _fail("invalid_state", level)
 
-    redirect_uri = f"{_callback_base()}/api/v1/email-accounts/callback/{provider_name}"
+    redirect_uri = f"{_callback_base()}/api/v1/email_accounts/callback/{provider_name}"
     try:
         bundle = await provider.exchange_code(code, redirect_uri)
     except ProviderAuthError as exc:
