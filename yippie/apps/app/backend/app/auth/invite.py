@@ -110,7 +110,7 @@ async def send_verification_email(to: str, full_name: str, verify_url: str, auto
     plain_body = (
         f"Hi {first_name},\n\n"
         f"Your Yippie workspace is ready. Click the link below to step right in:\n{verify_url}\n\n"
-        f"Your first 30 days are free — no payment details needed, cancel any time.\n\n"
+        f"Your first 30 days are free, no payment details needed, cancel any time.\n\n"
         f"The link is valid for 48 hours. {after_line}\n\n"
         f"If you didn't sign up for Yippie, you can safely ignore this email.\n\n"
         f"Diederik\n"
@@ -119,8 +119,8 @@ async def send_verification_email(to: str, full_name: str, verify_url: str, auto
 
     prerendered = (
         f'<p style="margin:0 0 16px;">Hi {safe_name},</p>'
-        f'<p style="margin:0 0 24px;">Your Yippie workspace is ready. One click and you\'re in — '
-        f'your first 30 days are free, no payment details needed.</p>'
+        f'<p style="margin:0 0 24px;">Your Yippie workspace is ready. One click and you\'re in. '
+        f'Your first 30 days are free, no payment details needed.</p>'
         f'<div style="text-align:center;margin:32px 0;">'
         f'<a href="{safe_link}" style="display:inline-block;background:#5BA4F5;color:#ffffff;'
         f'text-decoration:none;padding:14px 32px;border-radius:8px;font-weight:600;font-size:15px;">'
@@ -135,7 +135,7 @@ async def send_verification_email(to: str, full_name: str, verify_url: str, auto
 
     await send_email(
         to=to,
-        subject="Your Yippie workspace is ready — first 30 days free",
+        subject="Your Yippie workspace is ready. First 30 days free",
         body=plain_body,
         html=render_email_html(plain_body, prerendered_html=prerendered, tenant_name="Yippie"),
         from_email="Diederik from Yippie <diederik@getyippie.com>",
