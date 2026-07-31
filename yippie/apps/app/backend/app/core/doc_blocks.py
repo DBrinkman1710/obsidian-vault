@@ -323,3 +323,14 @@ def sample_invoice_values(tenant: "Tenant | None") -> dict[str, str]:
         "tenant.btw": (getattr(tenant, "btw_nummer", None) if tenant else None) or "NL000000000B00",
         "date.today": _fmt_merge_date(today),
     }
+
+
+# The recipient block the invoice renderer draws alongside the header. Kept with
+# the other sample data so the builder preview shows the same "FACTUUR AAN"
+# block a real invoice carries, instead of a document with no client on it.
+SAMPLE_CLIENT_LINES = [
+    "Jan de Vries",
+    "Voorbeeld BV",
+    "Dorpsstraat 2",
+    "3500 BB Utrecht",
+]

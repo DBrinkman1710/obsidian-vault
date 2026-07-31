@@ -32,6 +32,17 @@ function BlockPreview({ block, docType }: { block: Block; docType: DocType }) {
               {docType === 'invoice' && <p className="text-xs text-slate-400">Number · Date · Due date</p>}
             </div>
           </div>
+          {/* The recipient block is drawn with the header on every invoice — it
+              is legally required and has no block of its own, so it is shown
+              here rather than looking like something the user forgot to add. */}
+          {docType === 'invoice' && (
+            <div className="mt-3">
+              <p className="text-[10px] font-bold text-slate-400 tracking-wide">FACTUUR AAN</p>
+              <p className="text-xs font-semibold text-slate-700">Client name</p>
+              <p className="text-xs text-slate-400">Street address · Postal code · City</p>
+              <p className="text-xs text-slate-400">BTW (reverse charge only)</p>
+            </div>
+          )}
         </div>
       )
     case 'heading':

@@ -200,3 +200,27 @@ def test_numeric_suffix_parses_imported_numbers():
     assert service._numeric_suffix("2026/0007") == 20260007
     assert service._numeric_suffix("") is None
     assert service._numeric_suffix("CONCEPT") is None
+
+
+# ── Marking sent by hand must issue (immutability cannot be sidestepped) ──────
+
+def test_issuing_statuses_are_the_ones_that_lock_an_invoice():
+    """The status values that mean 'this left the building' are exactly the ones
+    update_invoice routes through issue_invoice, so flipping the dropdown to any
+    of them locks the invoice instead of leaving it editable."""
+    from app.modules.billing.service import _ALLOWED_ISSUED_STATUSES
+
+    assert _ALLOWED_ISSUED_STATUSES == {
+        InvoiceStatus.sent, InvoiceStatus.paid,
+        InvoiceStatus.overdue, InvoiceStatus.received,
+    }
+    # Working states must NOT trigger issuing.
+    for working in (InvoiceStatus.draft, InvoiceStatus.pending, InvoiceStatus.not_sent):
+        assert working not in _ALLOWED_ISSUED_STATUSES
+
+
+def test_void_is_not_an_issuing_status():
+    """Voiding must go through the credit note path, never issue by itself."""
+    from app.modules.billing.service import _ALLOWED_ISSUED_STATUSES
+
+    assert InvoiceStatus.void not in _ALLOWED_ISSUED_STATUSES

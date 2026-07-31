@@ -65,6 +65,7 @@ async def preview_invoice_template(
 ):
     """Render unsaved blocks as a sample invoice PDF — the builder's preview."""
     from app.core.doc_blocks import (
+        SAMPLE_CLIENT_LINES,
         SAMPLE_LINE_ITEMS,
         resolve_merge_fields_in_blocks,
         sample_invoice_values,
@@ -89,6 +90,10 @@ async def preview_invoice_template(
             tenant_name=(tenant.name if tenant else "") or "",
             primary_color=getattr(tenant, "primary_color", None),
             line_items=SAMPLE_LINE_ITEMS,
+            # Without this the preview would omit the recipient block that a
+            # real invoice always renders, so the layout being designed would
+            # not match the document that actually goes out.
+            client_lines=SAMPLE_CLIENT_LINES,
             meta_lines=[
                 ("Factuurnummer", "INV-0042"),
                 ("Factuurdatum", today.strftime("%d-%m-%Y")),
@@ -241,6 +246,10 @@ async def update_invoice(invoice_id: uuid.UUID, body: InvoiceUpdate, current_use
         invoice = await service.update_invoice(db, current_user.tenant_id, invoice_id, body)
     except service.InvoiceLockedError as e:
         raise HTTPException(status_code=409, detail=str(e))
+    except service.InvoiceComplianceError as e:
+        # Marking an invoice sent/paid issues it, so the same required field
+        # check applies as when sending.
+        raise HTTPException(status_code=422, detail=str(e))
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     return invoice

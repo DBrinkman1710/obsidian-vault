@@ -244,3 +244,69 @@ def test_line_items_without_vat_column():
     )
     data = render_blocks_pdf(doc, _invoice_ctx())
     assert data.startswith(b"%PDF")
+
+
+# ── [INV2] Recipient block + reverse charge in the shared invoice renderer ────
+# The recipient block has no block type of its own: the renderer draws it with
+# the header so every invoice carries the legally required client details. These
+# guard the builder preview against drifting from what really gets sent.
+
+
+def _pdf_text(pdf: bytes) -> str:
+    """Extract drawn text from an fpdf2 PDF (content streams are compressed)."""
+    import re
+    import zlib
+
+    chunks = []
+    for m in re.finditer(rb"stream\r?\n(.*?)endstream", pdf, re.S):
+        raw = m.group(1)
+        try:
+            raw = zlib.decompress(raw)
+        except Exception:
+            pass
+        chunks.append(raw.decode("latin-1", "ignore"))
+    return "".join(re.findall(r"\((.*?)\)\s*Tj", "".join(chunks)))
+
+
+def _header_doc():
+    return validate_blocks(
+        _doc(
+            _block("logo_header", {"title": "FACTUUR"}, "b_1"),
+            _block("line_items", {"show_vat_column": True}, "b_2"),
+            _block("totals", {"show_vat_breakdown": True}, "b_3"),
+        ),
+        "invoice",
+    )
+
+
+def test_invoice_renders_the_recipient_block_when_client_lines_given():
+    ctx = _invoice_ctx()
+    ctx.client_lines = ["Jan de Vries", "Dorpsstraat 2", "3500 BB Utrecht"]
+    text = _pdf_text(render_blocks_pdf(_header_doc(), ctx))
+    assert "FACTUUR AAN" in text
+    assert "Jan de Vries" in text
+    assert "Dorpsstraat 2" in text
+
+
+def test_invoice_without_client_lines_omits_the_recipient_block():
+    """Guards the preview fix: a context with no client must not silently print
+    an empty FACTUUR AAN heading."""
+    assert "FACTUUR AAN" not in _pdf_text(render_blocks_pdf(_header_doc(), _invoice_ctx()))
+
+
+def test_reverse_charge_prints_verlegd_not_vrijgesteld():
+    ctx = _invoice_ctx()
+    ctx.reverse_charge = True
+    ctx.reverse_charge_statement = "BTW verlegd naar BTW nummer BE0123456789"
+    text = _pdf_text(render_blocks_pdf(_header_doc(), ctx))
+    assert "BTW verlegd" in text
+    assert "BE0123456789" in text
+    # Exempt and reverse charged are different legal statements.
+    assert "BTW vrijgesteld" not in text
+
+
+def test_reverse_charge_zeroes_the_vat_column():
+    ctx = _invoice_ctx()
+    ctx.reverse_charge = True
+    text = _pdf_text(render_blocks_pdf(_header_doc(), ctx))
+    assert "21%" not in text

@@ -668,6 +668,9 @@ export default function InvoiceList() {
 
   const filteredIds = filtered.map((inv: any) => inv.id)
   const selection = useSelection(filteredIds)
+  // Issued invoices are immutable, so bulk delete is withheld the moment one is
+  // in the selection — the API would refuse the whole batch anyway.
+  const selectedInvoices = filtered.filter((inv: any) => selection.has(inv.id))
   const ctx = useContextMenu()
 
   // ── Export CSV/XLSX ───────────────────────────────────────────────────────
@@ -795,7 +798,9 @@ export default function InvoiceList() {
           { label: 'Export PDF', icon: <FileDown size={13} />, onClick: bulkDownloadPdf },
           { label: 'Export CSV', icon: <Download size={13} />, onClick: () => exportData('csv') },
           { label: 'Send', icon: <Mail size={13} />, onClick: bulkSend },
-          { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => setConfirmDelete(true) },
+          ...(selectedInvoices.some(i => i.is_issued) ? [] : [
+            { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => setConfirmDelete(true) },
+          ]),
         ]}
       />
 

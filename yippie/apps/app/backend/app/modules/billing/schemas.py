@@ -126,20 +126,34 @@ class InvoiceOut(BaseModel):
 # ── Invoice templates ([TMPL1]) ────────────────────────────────────────────────
 
 
+def _validate_optional_dutch_rate(v: Optional[int]) -> Optional[int]:
+    """Keep template defaults to the same rates a line item may carry, so a
+    template cannot prefill a rate the invoice would then reject."""
+    if v is not None and v not in DUTCH_VAT_RATES:
+        raise ValueError(
+            f"Default BTW rate must be one of {', '.join(f'{r}%' for r in DUTCH_VAT_RATES)}; got {v}%"
+        )
+    return v
+
+
 class InvoiceTemplateCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=255)
     blocks: Optional[dict] = None
-    default_tax_rate_pct: Optional[int] = Field(None, ge=0, le=100)
+    default_tax_rate_pct: Optional[int] = None
     default_due_days: Optional[int] = Field(None, ge=0, le=365)
     default_notes: Optional[str] = None
+
+    _check_rate = field_validator("default_tax_rate_pct")(_validate_optional_dutch_rate)
 
 
 class InvoiceTemplateUpdate(BaseModel):
     name: Optional[str] = Field(None, min_length=1, max_length=255)
     blocks: Optional[dict] = None
-    default_tax_rate_pct: Optional[int] = Field(None, ge=0, le=100)
+    default_tax_rate_pct: Optional[int] = None
     default_due_days: Optional[int] = Field(None, ge=0, le=365)
     default_notes: Optional[str] = None
+
+    _check_rate = field_validator("default_tax_rate_pct")(_validate_optional_dutch_rate)
 
 
 class InvoiceTemplateOut(BaseModel):

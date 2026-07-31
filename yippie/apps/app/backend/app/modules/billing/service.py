@@ -491,6 +491,15 @@ async def update_invoice(
         invoice.tax_cents = sum(b.vat_cents for b in breakdown)
         invoice.total_cents = invoice.subtotal_cents + invoice.tax_cents
 
+        # Marking an invoice sent/received/paid by hand — the normal flow for a
+        # business that posts or emails invoices itself — issues it just as
+        # sending through the app does. Without this the status dropdown would
+        # be a way around immutability: the row would read "Sent" while staying
+        # editable and deletable.
+        if changes.get("status") in _ALLOWED_ISSUED_STATUSES:
+            await db.commit()  # persist the edits before the number is claimed
+            return await issue_invoice(db, tenant_id, invoice_id)
+
     await db.commit()
     await db.refresh(invoice)
     invoice.contact_name = await _contact_name(db, tenant_id, invoice.contact_id)
