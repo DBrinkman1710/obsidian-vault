@@ -43,10 +43,11 @@ def _fmt_cents(cents: int, currency: str = "EUR") -> str:
     return f"{symbol}{cents / 100:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
 
-def _vat_breakdown(line_items: list[dict]) -> dict[int, dict[str, int]]:
+def _vat_breakdown(line_items: list[dict], reverse_charge: bool = False) -> dict[int, dict[str, int]]:
     groups: dict[int, dict[str, int]] = defaultdict(lambda: {"subtotal": 0, "vat": 0})
     for item in line_items:
-        rate = int(item.get("tax_rate_pct", 21))
+        # Under BTW verlegd the supplier charges no VAT at all.
+        rate = 0 if reverse_charge else int(item.get("tax_rate_pct", 21))
         qty = int(item.get("quantity", 1))
         price = int(item.get("unit_price_cents", 0))
         line_excl = qty * price
@@ -77,6 +78,16 @@ class RenderContext:
     meta_lines: list[tuple[str, str]] = field(default_factory=list)  # logo_header right column
     notes: str | None = None  # the document's own notes field
     signature: SignatureData | None = None  # contract
+    # BTW verlegd: zeroes every line's VAT and switches the totals wording.
+    reverse_charge: bool = False
+    # Sender/recipient as frozen at issue time. seller_lines overrides the live
+    # tenant row; client_lines drives the mandatory "FACTUUR AAN" block, which
+    # has no block type of its own and is drawn with the header.
+    seller_lines: list[str] | None = None
+    client_lines: list[str] = field(default_factory=list)
+    # Printed under the totals when reverse_charge is set; carries the client's
+    # VAT number, which the statement is legally required to name.
+    reverse_charge_statement: str = "BTW verlegd"
 
 
 def render_blocks_pdf(doc: BlockDocument, ctx: RenderContext) -> bytes:
@@ -150,7 +161,10 @@ def _render_logo_header(pdf: FPDF, cfg: dict, ctx: RenderContext, brand: tuple[i
     pdf.set_xy(MARGIN, y_start + 7)
 
     sender_lines: list[str] = []
-    if cfg.get("show_address", True) and tenant is not None:
+    if ctx.seller_lines is not None:
+        # Frozen at issue time — reprinting must not pick up a later address.
+        sender_lines = list(ctx.seller_lines)
+    elif cfg.get("show_address", True) and tenant is not None:
         if getattr(tenant, "street_address", None):
             sender_lines.append(tenant.street_address)
         postal = getattr(tenant, "postal_code", None)
@@ -162,12 +176,17 @@ def _render_logo_header(pdf: FPDF, cfg: dict, ctx: RenderContext, brand: tuple[i
             sender_lines.append(country)
         if getattr(tenant, "phone", None):
             sender_lines.append(tenant.phone)
-    if cfg.get("show_kvk_btw", True) and tenant is not None:
+    if ctx.seller_lines is None and cfg.get("show_kvk_btw", True) and tenant is not None:
         if getattr(tenant, "kvk_nummer", None):
             sender_lines.append(f"KvK: {tenant.kvk_nummer}")
         if getattr(tenant, "btw_nummer", None):
             sender_lines.append(f"BTW: {tenant.btw_nummer}")
-    if cfg.get("show_iban", True) and tenant is not None and getattr(tenant, "iban", None):
+    if (
+        ctx.seller_lines is None
+        and cfg.get("show_iban", True)
+        and tenant is not None
+        and getattr(tenant, "iban", None)
+    ):
         sender_lines.append(f"IBAN: {tenant.iban}")
 
     meta_lines = ctx.meta_lines
@@ -188,6 +207,22 @@ def _render_logo_header(pdf: FPDF, cfg: dict, ctx: RenderContext, brand: tuple[i
             pdf.set_font("Helvetica", style="B", size=9)
             pdf.cell(50, 5, _latin1(value), ln=0, align="R")
     pdf.set_xy(MARGIN, y_top + rows * 5 + 4)
+
+    # The recipient's name and address are mandatory on an invoice but have no
+    # block of their own, so they are drawn here rather than left to whether the
+    # tenant happened to add them to their template.
+    if ctx.doc_type == "invoice" and ctx.client_lines:
+        pdf.ln(2)
+        pdf.set_x(MARGIN)
+        pdf.set_font("Helvetica", style="B", size=8)
+        pdf.set_text_color(120, 120, 120)
+        pdf.cell(90, 5, "FACTUUR AAN", ln=1)
+        pdf.set_text_color(30, 30, 30)
+        for i, line in enumerate(ctx.client_lines):
+            pdf.set_x(MARGIN)
+            pdf.set_font("Helvetica", style="B" if i == 0 else "", size=10 if i == 0 else 9)
+            pdf.cell(90, 5, _latin1(line), ln=1)
+        pdf.ln(2)
 
 
 def _render_heading(pdf: FPDF, cfg: dict, brand: tuple[int, int, int]) -> None:
@@ -261,7 +296,7 @@ def _render_line_items(pdf: FPDF, cfg: dict, ctx: RenderContext, brand: tuple[in
         desc = str(item.get("description", ""))
         qty = int(item.get("quantity", 1))
         unit_price = int(item.get("unit_price_cents", 0))
-        rate = int(item.get("tax_rate_pct", 21))
+        rate = 0 if ctx.reverse_charge else int(item.get("tax_rate_pct", 21))
         line_excl = qty * unit_price
 
         fill_color = (248, 249, 251) if (zebra and i % 2 == 1) else (255, 255, 255)
@@ -278,7 +313,7 @@ def _render_line_items(pdf: FPDF, cfg: dict, ctx: RenderContext, brand: tuple[in
 
 def _render_totals(pdf: FPDF, cfg: dict, ctx: RenderContext, brand: tuple[int, int, int]) -> None:
     currency = ctx.currency
-    breakdown = _vat_breakdown(ctx.line_items or [])
+    breakdown = _vat_breakdown(ctx.line_items or [], ctx.reverse_charge)
     subtotal = sum(v["subtotal"] for v in breakdown.values())
     total_vat = sum(v["vat"] for v in breakdown.values())
     total_incl = subtotal + total_vat
@@ -303,7 +338,14 @@ def _render_totals(pdf: FPDF, cfg: dict, ctx: RenderContext, brand: tuple[int, i
         for rate_pct in sorted(breakdown.keys()):
             y_cur = pdf.get_y()
             pdf.set_xy(label_x, y_cur)
-            label = f"BTW {rate_pct}%" if rate_pct > 0 else "BTW vrijgesteld (0%)"
+            if ctx.reverse_charge:
+                # Reverse charge is not an exemption — "vrijgesteld" would be
+                # the wrong legal statement.
+                label = "BTW verlegd (0%)"
+            elif rate_pct > 0:
+                label = f"BTW {rate_pct}%"
+            else:
+                label = "BTW vrijgesteld (0%)"
             pdf.cell(value_x - label_x, row_h, label, ln=0)
             pdf.set_xy(value_x, y_cur)
             pdf.cell(value_w, row_h, _fmt_cents(breakdown[rate_pct]["vat"], currency), ln=1, align="R")
@@ -324,6 +366,18 @@ def _render_totals(pdf: FPDF, cfg: dict, ctx: RenderContext, brand: tuple[int, i
     pdf.set_xy(value_x, y_cur + 1)
     pdf.cell(value_w, 6, _fmt_cents(total_incl, currency), ln=1, align="R")
     pdf.ln(3)
+
+    # Mandatory wording on a reverse charge invoice.
+    if ctx.reverse_charge:
+        pdf.set_x(MARGIN)
+        pdf.set_text_color(30, 30, 30)
+        pdf.set_font("Helvetica", style="B", size=9)
+        pdf.multi_cell(PAGE_W, 5, _latin1(ctx.reverse_charge_statement))
+        pdf.set_font("Helvetica", size=8)
+        pdf.set_text_color(90, 90, 90)
+        pdf.set_x(MARGIN)
+        pdf.multi_cell(PAGE_W, 4, "VAT reverse charged to the recipient.")
+        pdf.ln(2)
 
 
 def _render_notes(pdf: FPDF, cfg: dict, ctx: RenderContext) -> None:

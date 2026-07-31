@@ -32,10 +32,11 @@ def _fmt_date(d: date | None) -> str:
     return d.strftime("%d-%m-%Y")
 
 
-def _vat_breakdown(line_items: list[dict]) -> dict[int, dict[str, int]]:
+def _vat_breakdown(line_items: list[dict], reverse_charge: bool = False) -> dict[int, dict[str, int]]:
     groups: dict[int, dict[str, int]] = defaultdict(lambda: {"subtotal": 0, "vat": 0})
     for item in line_items:
-        rate = int(item.get("tax_rate_pct", 21))
+        # Under BTW verlegd the supplier charges no VAT at all.
+        rate = 0 if reverse_charge else int(item.get("tax_rate_pct", 21))
         qty = int(item.get("quantity", 1))
         price = int(item.get("unit_price_cents", 0))
         line_excl = qty * price
@@ -43,6 +44,15 @@ def _vat_breakdown(line_items: list[dict]) -> dict[int, dict[str, int]]:
         groups[rate]["subtotal"] += line_excl
         groups[rate]["vat"] += line_vat
     return dict(groups)
+
+
+def _party(snapshot: dict | None, live, fields: tuple[str, ...]) -> dict:
+    """Read party details from the snapshot frozen at issue time, falling back to
+    the live row for drafts. Without this a reprint years later would show
+    today's address instead of the one the client was actually invoiced at."""
+    if snapshot:
+        return {f: snapshot.get(f) for f in fields}
+    return {f: getattr(live, f, None) for f in fields}
 
 
 def generate_invoice_pdf(
@@ -73,35 +83,43 @@ def generate_invoice_pdf(
     pdf.set_text_color(30, 30, 30)
     pdf.cell(90, 7, tenant.name or "", ln=0)
 
-    # Invoice title (right)
+    # Invoice title (right) — a credit note must be recognisable as one.
     pdf.set_font("Helvetica", style="B", size=18)
     pdf.set_text_color(brand_r, brand_g, brand_b)
-    pdf.cell(90, 7, "FACTUUR", ln=1, align="R")
+    is_credit = getattr(invoice, "credit_note_of_id", None) is not None
+    pdf.cell(90, 7, "CREDITFACTUUR" if is_credit else "FACTUUR", ln=1, align="R")
 
     pdf.set_text_color(60, 60, 60)
     pdf.set_font("Helvetica", size=9)
 
-    # Collect sender lines
+    # Sender, as frozen at issue time when available.
+    seller = _party(
+        getattr(invoice, "seller_snapshot", None), tenant,
+        ("street_address", "postal_code", "city", "country", "phone",
+         "kvk_nummer", "btw_nummer", "iban"),
+    )
     sender_lines = []
-    if tenant.street_address:
-        sender_lines.append(tenant.street_address)
-    if tenant.postal_code or tenant.city:
-        sender_lines.append(f"{tenant.postal_code or ''} {tenant.city or ''}".strip())
-    if tenant.country and tenant.country != "Nederland":
-        sender_lines.append(tenant.country)
-    if tenant.phone:
-        sender_lines.append(tenant.phone)
-    if tenant.kvk_nummer:
-        sender_lines.append(f"KvK: {tenant.kvk_nummer}")
-    if tenant.btw_nummer:
-        sender_lines.append(f"BTW: {tenant.btw_nummer}")
-    if tenant.iban:
-        sender_lines.append(f"IBAN: {tenant.iban}")
+    if seller["street_address"]:
+        sender_lines.append(seller["street_address"])
+    if seller["postal_code"] or seller["city"]:
+        sender_lines.append(f"{seller['postal_code'] or ''} {seller['city'] or ''}".strip())
+    if seller["country"] and seller["country"] != "Nederland":
+        sender_lines.append(seller["country"])
+    if seller["phone"]:
+        sender_lines.append(seller["phone"])
+    if seller["kvk_nummer"]:
+        sender_lines.append(f"KvK: {seller['kvk_nummer']}")
+    if seller["btw_nummer"]:
+        sender_lines.append(f"BTW: {seller['btw_nummer']}")
+    if seller["iban"]:
+        sender_lines.append(f"IBAN: {seller['iban']}")
 
     # Meta lines (right column)
     inv_date = invoice.invoice_date or (invoice.created_at.date() if invoice.created_at else None)
     meta_lines = [
-        ("Factuurnummer", invoice.invoice_number),
+        # A draft has no number yet — never print a blank where the legally
+        # required invoice number belongs.
+        ("Factuurnummer", invoice.invoice_number or "CONCEPT"),
         ("Factuurdatum", _fmt_date(inv_date)),
         ("Vervaldatum", _fmt_date(invoice.due_date)),
     ]
@@ -136,18 +154,42 @@ def generate_invoice_pdf(
     pdf.set_text_color(120, 120, 120)
     pdf.cell(90, 5, "FACTUUR AAN", ln=1)
 
+    client = _party(
+        getattr(invoice, "client_snapshot", None), contact,
+        ("full_name", "company_name", "street_address", "postal_code",
+         "city", "country", "btw_nummer"),
+    )
+
     pdf.set_text_color(30, 30, 30)
     pdf.set_font("Helvetica", style="B", size=10)
-    contact_name = getattr(invoice, "contact_name", None) or (contact.full_name if contact else "")
+    contact_name = (
+        client["full_name"]
+        or getattr(invoice, "contact_name", None)
+        or (contact.full_name if contact else "")
+    )
     pdf.set_x(15)
     pdf.cell(90, 5, contact_name, ln=1)
 
-    if contact:
-        company_name = getattr(contact, "company_name", None)
-        if company_name and company_name != contact_name:
-            pdf.set_font("Helvetica", size=9)
-            pdf.set_x(15)
-            pdf.cell(90, 5, company_name, ln=1)
+    pdf.set_font("Helvetica", size=9)
+    company_name = client["company_name"]
+    if company_name and company_name != contact_name:
+        pdf.set_x(15)
+        pdf.cell(90, 5, company_name, ln=1)
+
+    # The recipient's address and, for reverse charge, their VAT number are
+    # both mandatory content on a Dutch invoice.
+    if client["street_address"]:
+        pdf.set_x(15)
+        pdf.cell(90, 5, client["street_address"], ln=1)
+    if client["postal_code"] or client["city"]:
+        pdf.set_x(15)
+        pdf.cell(90, 5, f"{client['postal_code'] or ''} {client['city'] or ''}".strip(), ln=1)
+    if client["country"] and client["country"] != "Nederland":
+        pdf.set_x(15)
+        pdf.cell(90, 5, client["country"], ln=1)
+    if client["btw_nummer"]:
+        pdf.set_x(15)
+        pdf.cell(90, 5, f"BTW: {client['btw_nummer']}", ln=1)
 
     # ── Line items table ──────────────────────────────────────────────────────
     y_table = pdf.get_y() + 8
@@ -172,11 +214,12 @@ def generate_invoice_pdf(
     # Table rows
     pdf.set_text_color(30, 30, 30)
     pdf.set_font("Helvetica", size=9)
+    reverse_charge = bool(getattr(invoice, "reverse_charge", False))
     for i, item in enumerate(invoice.line_items or []):
         desc = str(item.get("description", ""))
         qty = int(item.get("quantity", 1))
         unit_price = int(item.get("unit_price_cents", 0))
-        rate = int(item.get("tax_rate_pct", 21))
+        rate = 0 if reverse_charge else int(item.get("tax_rate_pct", 21))
         line_excl = qty * unit_price
 
         fill_color = (248, 249, 251) if i % 2 == 1 else (255, 255, 255)
@@ -196,7 +239,7 @@ def generate_invoice_pdf(
 
     # ── Totals ────────────────────────────────────────────────────────────────
     y_totals = pdf.get_y() + 5
-    breakdown = _vat_breakdown(invoice.line_items or [])
+    breakdown = _vat_breakdown(invoice.line_items or [], reverse_charge)
     subtotal = sum(v["subtotal"] for v in breakdown.values())
     total_vat = sum(v["vat"] for v in breakdown.values())
     total_incl = subtotal + total_vat
@@ -221,7 +264,14 @@ def generate_invoice_pdf(
         vat_amt = breakdown[rate_pct]["vat"]
         y_cur = pdf.get_y()
         pdf.set_xy(label_x, y_cur)
-        label = f"BTW {rate_pct}%" if rate_pct > 0 else "BTW vrijgesteld (0%)"
+        if reverse_charge:
+            # Reverse charge is not an exemption — saying "vrijgesteld" here
+            # would be the wrong legal statement.
+            label = "BTW verlegd (0%)"
+        elif rate_pct > 0:
+            label = f"BTW {rate_pct}%"
+        else:
+            label = "BTW vrijgesteld (0%)"
         pdf.cell(value_x - label_x, row_h, label, ln=0)
         pdf.set_xy(value_x, y_cur)
         pdf.cell(value_w, row_h, _fmt_cents(vat_amt, currency), ln=1, align="R")
@@ -236,6 +286,35 @@ def generate_invoice_pdf(
     pdf.cell(value_x - label_x, 6, "Totaal incl. BTW", ln=0)
     pdf.set_xy(value_x, y_cur + 1)
     pdf.cell(value_w, 6, _fmt_cents(total_incl, currency), ln=1, align="R")
+
+    # ── BTW verlegd statement ─────────────────────────────────────────────────
+    # Legally required wording on a reverse charge invoice, together with the
+    # customer's VAT number (printed in the address block above).
+    if reverse_charge:
+        y_rc = pdf.get_y() + 8
+        pdf.set_xy(15, y_rc)
+        pdf.set_text_color(30, 30, 30)
+        pdf.set_font("Helvetica", style="B", size=9)
+        statement = "BTW verlegd"
+        if client["btw_nummer"]:
+            statement += f" naar BTW nummer {client['btw_nummer']}"
+        pdf.multi_cell(page_w, 5, statement)
+        pdf.set_font("Helvetica", size=8)
+        pdf.set_text_color(90, 90, 90)
+        pdf.set_x(15)
+        pdf.multi_cell(page_w, 4, "VAT reverse charged to the recipient.")
+
+    # ── Payment terms ─────────────────────────────────────────────────────────
+    payment_terms = getattr(invoice, "payment_terms", None)
+    if payment_terms:
+        y_terms = pdf.get_y() + 6
+        pdf.set_xy(15, y_terms)
+        pdf.set_text_color(60, 60, 60)
+        pdf.set_font("Helvetica", style="B", size=8)
+        pdf.cell(page_w, 5, "BETALINGSVOORWAARDEN", ln=1)
+        pdf.set_font("Helvetica", size=9)
+        pdf.set_x(15)
+        pdf.multi_cell(page_w, 5, payment_terms)
 
     # ── Notes ─────────────────────────────────────────────────────────────────
     if invoice.notes:

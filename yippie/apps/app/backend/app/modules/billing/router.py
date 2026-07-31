@@ -219,7 +219,11 @@ async def import_invoices(
 
 @router.delete("/invoices/bulk")
 async def bulk_delete_invoices(body: BulkDeleteRequest, current_user: CurrentUser, db: DB):
-    deleted = await service.bulk_delete_invoices(db, current_user.tenant_id, body.ids)
+    try:
+        deleted = await service.bulk_delete_invoices(db, current_user.tenant_id, body.ids)
+    except service.InvoiceLockedError as e:
+        # 409: the request is well formed, the invoices' legal state forbids it.
+        raise HTTPException(status_code=409, detail=str(e))
     return {"deleted": deleted}
 
 
@@ -233,10 +237,37 @@ async def get_invoice(invoice_id: uuid.UUID, current_user: CurrentUser, db: DB):
 
 @router.patch("/invoices/{invoice_id}", response_model=InvoiceOut)
 async def update_invoice(invoice_id: uuid.UUID, body: InvoiceUpdate, current_user: CurrentUser, db: DB):
-    invoice = await service.update_invoice(db, current_user.tenant_id, invoice_id, body)
+    try:
+        invoice = await service.update_invoice(db, current_user.tenant_id, invoice_id, body)
+    except service.InvoiceLockedError as e:
+        raise HTTPException(status_code=409, detail=str(e))
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
     return invoice
+
+
+@router.post("/invoices/{invoice_id}/issue", response_model=InvoiceOut)
+async def issue_invoice(invoice_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    """Finalise a draft without emailing it — for invoices handed over on paper
+    or sent through another channel. Claims the number and locks the document."""
+    try:
+        return await service.issue_invoice(db, current_user.tenant_id, invoice_id)
+    except service.InvoiceComplianceError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    except service.InvoiceSendError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.post("/invoices/{invoice_id}/credit", response_model=InvoiceOut, status_code=status.HTTP_201_CREATED)
+async def credit_invoice(invoice_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    """Reverse an issued invoice with a credit note — the lawful correction path
+    now that issued invoices can no longer be edited or deleted."""
+    try:
+        return await service.create_credit_note(db, current_user.tenant_id, invoice_id)
+    except service.InvoiceComplianceError as e:
+        raise HTTPException(status_code=409, detail=str(e))
+    except service.InvoiceSendError as e:
+        raise HTTPException(status_code=404, detail=str(e))
 
 
 @router.get("/invoices/{invoice_id}/pdf")
@@ -261,6 +292,9 @@ async def download_invoice_pdf(invoice_id: uuid.UUID, current_user: CurrentUser,
 async def send_invoice(invoice_id: uuid.UUID, current_user: CurrentUser, db: DB):
     try:
         email = await service.send_invoice(db, current_user.tenant_id, invoice_id)
+    except service.InvoiceComplianceError as e:
+        # 422: nothing was sent — the invoice is missing legally required fields.
+        raise HTTPException(status_code=422, detail=str(e))
     except service.InvoiceSendError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"sent": True, "email": email}

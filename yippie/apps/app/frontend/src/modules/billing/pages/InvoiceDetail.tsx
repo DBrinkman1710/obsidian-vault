@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Download, Mail, Bell, CreditCard, ChevronDown } from 'lucide-react'
+import { Download, Mail, Bell, CreditCard, ChevronDown, Lock, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useT } from '../../../hooks/useT'
@@ -31,6 +31,11 @@ interface Invoice {
   paid_at: string | null
   created_at: string
   vat_breakdown: VatBreakdown[]
+  issued_at: string | null
+  is_issued: boolean
+  reverse_charge: boolean
+  payment_terms: string | null
+  credit_note_of_id: string | null
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -56,6 +61,8 @@ const ALL_STATUS_OPTIONS = [
   { value: 'void',     label: 'Void' },
   { value: 'not_sent', label: 'Not Sent' },
 ]
+
+const ISSUED_STATUS_OPTIONS = ['sent', 'received', 'paid', 'overdue']
 
 function fmtCents(cents: number, currency = 'EUR') {
   return new Intl.NumberFormat('en-EU', { style: 'currency', currency }).format(cents / 100)
@@ -179,7 +186,7 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
       qc.invalidateQueries({ queryKey: ['invoice', invoiceId] })
       qc.invalidateQueries({ queryKey: ['invoices'] })
     },
-    onError: () => toast.error('Update failed'),
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Update failed'),
   })
 
   const sendMutation = useMutation({
@@ -190,6 +197,16 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
       toast.success(`Invoice sent to ${r.data.email}`)
     },
     onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Send failed'),
+  })
+
+  const creditMutation = useMutation({
+    mutationFn: () => api.post(`/billing/invoices/${invoiceId}/credit`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['invoice', invoiceId] })
+      qc.invalidateQueries({ queryKey: ['invoices'] })
+      toast.success('Credit note created')
+    },
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Could not create credit note'),
   })
 
   const remindMutation = useMutation({
@@ -224,7 +241,9 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
             {isLoading
               ? <span className="text-sm text-slate-400">Loading…</span>
               : <>
-                  <span className="text-lg font-bold text-slate-900 font-mono">{invoice?.invoice_number}</span>
+                  <span className="text-lg font-bold text-slate-900 font-mono">
+                    {invoice?.invoice_number ?? <span className="italic font-sans text-slate-400">Concept</span>}
+                  </span>
                   {invoice && (
                     <div className="relative">
                       <select
@@ -232,9 +251,11 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
                         onChange={e => patchMutation.mutate({ status: e.target.value })}
                         className={`text-xs font-semibold pl-2 pr-5 py-0.5 rounded-full border-0 cursor-pointer appearance-none focus:outline-none ${STATUS_STYLES[invoice.status] ?? STATUS_STYLES.draft}`}
                       >
-                        {ALL_STATUS_OPTIONS.map(o => (
-                          <option key={o.value} value={o.value}>{statusLabel(o.value, t)}</option>
-                        ))}
+                        {ALL_STATUS_OPTIONS
+                          .filter(o => !invoice.is_issued || ISSUED_STATUS_OPTIONS.includes(o.value) || o.value === invoice.status)
+                          .map(o => (
+                            <option key={o.value} value={o.value}>{statusLabel(o.value, t)}</option>
+                          ))}
                       </select>
                       <ChevronDown size={10} className="absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none opacity-60" />
                     </div>
@@ -259,6 +280,14 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
                     <Bell size={13} /> {remindMutation.isPending ? 'Sending…' : 'Remind'}
                   </button>
                 )}
+                {invoice.is_issued && !invoice.credit_note_of_id && (
+                  <button onClick={() => {
+                    if (confirm(`Create a credit note reversing ${invoice.invoice_number}? The original invoice stays on record.`)) creditMutation.mutate()
+                  }} disabled={creditMutation.isPending}
+                    className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50">
+                    <RotateCcw size={13} /> {creditMutation.isPending ? 'Crediting…' : 'Credit'}
+                  </button>
+                )}
                 <button onClick={() => setShowPayModal(true)}
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-yippie hover:opacity-90 text-white rounded-lg transition-opacity">
                   <CreditCard size={13} /> Payment
@@ -276,6 +305,21 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
 
           {invoice && (
             <>
+              {invoice.is_issued && (
+                <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-xs text-slate-600">
+                  <Lock size={12} className="shrink-0" />
+                  <span>
+                    Issued {fmtDate(invoice.issued_at)} — this invoice is final and cannot be edited or deleted.
+                    {!invoice.credit_note_of_id && ' Use Credit to reverse it.'}
+                  </span>
+                </div>
+              )}
+              {invoice.reverse_charge && (
+                <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 text-xs text-amber-800">
+                  BTW verlegd — VAT reverse charged to the recipient.
+                </div>
+              )}
+
               {/* Contact + dates */}
               <div className="px-6 py-4 border-b border-slate-100 grid grid-cols-4 gap-4 text-sm">
                 <div className="col-span-2">
@@ -331,7 +375,7 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
                   </div>
                   {(invoice.vat_breakdown ?? []).map((vb: VatBreakdown) => (
                     <div key={vb.rate_pct} className="flex justify-between text-sm text-slate-600">
-                      <span>{vb.rate_pct > 0 ? `VAT ${vb.rate_pct}%` : 'VAT exempt (0%)'}</span>
+                      <span>{vb.rate_pct > 0 ? `VAT ${vb.rate_pct}%` : (invoice.reverse_charge ? 'BTW verlegd (0%)' : 'VAT exempt (0%)')}</span>
                       <span>{fmtCents(vb.vat_cents, currency)}</span>
                     </div>
                   ))}
@@ -352,7 +396,7 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
               <div className="px-6 py-4 border-t border-slate-100">
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Payment info / Notes</p>
-                  {!editNotes && (
+                  {!editNotes && !invoice.is_issued && (
                     <button onClick={() => { setNotesVal(invoice.notes ?? ''); setEditNotes(true) }}
                       className="text-xs text-yippie hover:opacity-80 font-semibold">Edit</button>
                   )}
