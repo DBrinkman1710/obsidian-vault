@@ -46,13 +46,20 @@ interface Invoice {
   id: string
   contact_id: string
   contact_name: string | null
-  invoice_number: string
+  // Null until the invoice is issued — drafts display as CONCEPT.
+  invoice_number: string | null
   status: string
   total_cents: number
   currency: string
   due_date: string | null
   created_at: string
+  is_issued: boolean
+  reverse_charge: boolean
 }
+
+// An issued invoice is legally immutable: it cannot be edited or deleted, only
+// reversed with a credit note.
+const invoiceLabel = (inv: { invoice_number: string | null }) => inv.invoice_number ?? 'CONCEPT'
 
 interface ContactLite {
   id: string
@@ -475,7 +482,7 @@ function DeleteModal({ ids, onClose }: { ids: string[]; onClose: () => void }) {
       toast.success(`${ids.length} invoice${ids.length === 1 ? '' : 's'} deleted`)
       onClose()
     },
-    onError: () => toast.error('Failed to delete invoices'),
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Failed to delete invoices'),
   })
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
@@ -654,7 +661,7 @@ export default function InvoiceList() {
     const term = search.trim().toLowerCase()
     if (!term) return invoices ?? []
     return (invoices ?? []).filter((inv: any) =>
-      inv.invoice_number.toLowerCase().includes(term) ||
+      (inv.invoice_number ?? '').toLowerCase().includes(term) ||
       (inv.contact_name ?? '').toLowerCase().includes(term)
     )
   }, [invoices, search])
@@ -691,7 +698,7 @@ export default function InvoiceList() {
     if (ids.length > 5) toast.info(`Downloading ${ids.length} PDFs…`)
     for (const id of ids) {
       const inv = (invoices ?? []).find((i: any) => i.id === id)
-      await downloadPdf(id, inv?.invoice_number ?? id)
+      await downloadPdf(id, inv ? invoiceLabel(inv) : id)
       if (ids.length > 1) await new Promise(r => setTimeout(r, 120))
     }
   }
@@ -822,10 +829,10 @@ export default function InvoiceList() {
                     setPeekId(inv.id)
                   }}
                   onContextMenu={e => ctx.open(e, [
-                    { header: inv.invoice_number },
+                    { header: invoiceLabel(inv) },
                     {
                       label: 'Export PDF', icon: <FileDown size={14} />,
-                      onClick: () => downloadPdf(inv.id, inv.invoice_number),
+                      onClick: () => downloadPdf(inv.id, invoiceLabel(inv)),
                     },
                     {
                       label: 'Export CSV', icon: <Download size={14} />,
@@ -835,17 +842,19 @@ export default function InvoiceList() {
                       label: 'Send by email', icon: <Mail size={14} />,
                       onClick: () => sendSingle(inv.id),
                     },
-                    {
+                    ...(inv.is_issued ? [] : [{
                       label: 'Delete', icon: <Trash2 size={14} />, danger: true,
                       onClick: () => { setRightClickId(inv.id); setConfirmDelete(true) },
-                    },
+                    }]),
                   ])}
                 >
                   <td className="px-4 py-3">
                     <Checkbox checked={selection.has(inv.id)} onChange={e => selection.toggle(inv.id, e)}
-                      ariaLabel={`Select ${inv.invoice_number}`} />
+                      ariaLabel={`Select ${invoiceLabel(inv)}`} />
                   </td>
-                  <td className="px-4 py-3 text-sm font-medium text-slate-900 font-mono">{inv.invoice_number}</td>
+                  <td className="px-4 py-3 text-sm font-medium text-slate-900 font-mono">
+                    {inv.invoice_number ?? <span className="text-slate-400 italic font-sans">Concept</span>}
+                  </td>
                   <td className="px-4 py-3 text-sm text-slate-600">{inv.contact_name ?? '—'}</td>
                   <td className="px-4 py-3">
                     <StatusCell invoice={inv} onPatch={(id, status) => patchStatusMutation.mutate({ id, status })} />

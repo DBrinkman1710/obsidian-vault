@@ -52,6 +52,13 @@ class Contact(Base):
         UUID(as_uuid=True), ForeignKey("companies.id", ondelete="SET NULL"), nullable=True, index=True
     )
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Invoice recipient identity. Address is legally required on a Dutch invoice;
+    # btw_nummer is required whenever VAT is reverse charged to an EU business.
+    btw_nummer: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    street_address: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    postal_code: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    city: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     tags: Mapped[list[str] | None] = mapped_column(ARRAY(String), nullable=True)
     custom_fields: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     broadcast_opted_out: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")

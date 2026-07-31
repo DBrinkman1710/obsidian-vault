@@ -69,6 +69,11 @@ class ContactCreate(BaseModel):
     notes: Optional[str] = None
     tags: Optional[list[str]] = None
     custom_fields: Optional[dict] = None
+    btw_nummer: Optional[str] = None
+    street_address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     label_ids: Optional[list[uuid.UUID]] = None
 
 
@@ -80,6 +85,11 @@ class ContactUpdate(BaseModel):
     notes: Optional[str] = None
     tags: Optional[list[str]] = None
     custom_fields: Optional[dict] = None
+    btw_nummer: Optional[str] = None
+    street_address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     label_ids: Optional[list[uuid.UUID]] = None
 
 
@@ -94,6 +104,11 @@ class ContactOut(BaseModel):
     notes: Optional[str]
     tags: Optional[list[str]]
     custom_fields: Optional[dict]
+    btw_nummer: Optional[str] = None
+    street_address: Optional[str] = None
+    postal_code: Optional[str] = None
+    city: Optional[str] = None
+    country: Optional[str] = None
     labels: list[ContactLabelOut] = []
     created_at: datetime
     updated_at: datetime
