@@ -125,6 +125,33 @@ async def update_org_settings(current_user: AdminUser, db: DB, data: schemas.Org
     return schemas.OrgSettingsOut(kvk_nummer=tenant.kvk_nummer, btw_nummer=tenant.btw_nummer)
 
 
+# [WGT1] Website widgets. Any member may read — copying an embed snippet is not
+# a privileged action — but only admins may change how the widgets look or
+# whether they are switched on.
+
+
+@router.get("/widget-settings", response_model=schemas.WidgetSettingsOut)
+async def get_widget_settings(current_user: CurrentUser, db: DB):
+    try:
+        tenant = await service.get_widget_settings(db, current_user.tenant_id)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return schemas.WidgetSettingsOut(**service.build_widget_settings(tenant))
+
+
+@router.patch("/widget-settings", response_model=schemas.WidgetSettingsOut)
+async def update_widget_settings(
+    current_user: AdminUser, db: DB, data: schemas.WidgetSettingsUpdate
+):
+    try:
+        tenant = await service.update_widget_settings(db, current_user.tenant_id, data)
+    except LookupError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return schemas.WidgetSettingsOut(**service.build_widget_settings(tenant))
+
+
 @router.get("/users/{user_id}/departments", response_model=list[schemas.UserDepartmentOut])
 async def get_user_departments(current_user: AdminUser, db: DB, user_id: uuid.UUID):
     from app.core.models import User

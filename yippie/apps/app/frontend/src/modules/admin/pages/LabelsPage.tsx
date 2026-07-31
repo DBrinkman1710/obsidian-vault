@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BotMessageSquare, GripVertical, Layers, MessageSquare, Palette, Building2, Plus, RefreshCcw, Settings2, Tag, Trash2 } from 'lucide-react'
+import { BotMessageSquare, Code2, Copy, GripVertical, Layers, MessageSquare, Palette, Building2, Plus, RefreshCcw, Settings2, Tag, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
@@ -124,6 +124,186 @@ function LiveChatSettingsCard() {
         >
           {mutation.isPending ? 'Saving…' : 'Save'}
         </button>
+      </div>
+    </div>
+  )
+}
+
+interface WidgetSettings {
+  tenant_slug: string
+  accent_color: string
+  lead_widget_enabled: boolean
+  lead_widget_button_text: string
+  lead_widget_heading: string
+  booking_widget_enabled: boolean
+  booking_widget_button_text: string
+  booking_widget_heading: string
+  chat_snippet: string
+  lead_snippet: string
+  booking_snippet: string
+  booking_page_url: string
+}
+
+function SnippetRow({ label, hint, value }: { label: string; hint: string; value: string }) {
+  return (
+    <div className="mb-4 last:mb-0">
+      <div className="flex items-baseline justify-between mb-1.5">
+        <label className="text-xs font-semibold text-slate-500">{label}</label>
+        <span className="text-xs text-slate-400">{hint}</span>
+      </div>
+      <div className="flex gap-2 items-start">
+        <pre className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all font-mono text-slate-700">{value}</pre>
+        <button
+          onClick={() => {
+            navigator.clipboard.writeText(value)
+            toast.success(`${label} snippet copied`)
+          }}
+          className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors"
+        >
+          <Copy size={13} /> Copy
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * [WGT1] Embed snippets for the client's own website.
+ *
+ * Any member can see and copy a snippet — that is not a privileged action, and
+ * previously the lead snippet was only reachable from the superadmin page, so
+ * clients could not self serve. Changing how the widgets look, or switching one
+ * off, is admin only and enforced server side by PATCH /team/widget-settings.
+ */
+function WebsiteWidgetsCard({ isAdmin }: { isAdmin: boolean }) {
+  const qc = useQueryClient()
+  const [form, setForm] = useState<Partial<WidgetSettings>>({})
+
+  const { data } = useQuery<WidgetSettings>({
+    queryKey: ['widget-settings'],
+    queryFn: () => api.get('/team/widget-settings').then((r: any) => r.data),
+  })
+  useEffect(() => { if (data) setForm(data) }, [data])
+
+  const mutation = useMutation({
+    mutationFn: () => api.patch('/team/widget-settings', {
+      accent_color: form.accent_color,
+      lead_widget_enabled: form.lead_widget_enabled,
+      lead_widget_button_text: form.lead_widget_button_text,
+      lead_widget_heading: form.lead_widget_heading,
+      booking_widget_enabled: form.booking_widget_enabled,
+      booking_widget_button_text: form.booking_widget_button_text,
+      booking_widget_heading: form.booking_widget_heading,
+    }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['widget-settings'] })
+      toast.success('Widget settings saved')
+    },
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Failed to save'),
+  })
+
+  if (!data) return null
+
+  const dirty = (['accent_color', 'lead_widget_enabled', 'lead_widget_button_text', 'lead_widget_heading',
+    'booking_widget_enabled', 'booking_widget_button_text', 'booking_widget_heading'] as const)
+    .some(k => form[k] !== data[k])
+
+  const set = (patch: Partial<WidgetSettings>) => setForm(p => ({ ...p, ...patch }))
+  const inputCls = 'input-base'
+  const labelCls = 'block text-xs font-semibold text-slate-500 mb-1.5'
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+      <div className="flex items-center gap-2 mb-1">
+        <Code2 size={16} className="text-slate-400" />
+        <h2 className="text-base font-semibold text-slate-900">Website widgets</h2>
+      </div>
+      <p className="text-sm text-slate-500 mb-5">
+        Paste a snippet into your website to embed live chat, an enquiry form, or a booking
+        calendar. Styling below applies to every site using them — no need to paste again after
+        a change.
+      </p>
+
+      <SnippetRow label="Live chat" hint="chat bubble" value={data.chat_snippet} />
+      <SnippetRow label="Enquiry form" hint="contact form" value={data.lead_snippet} />
+      <SnippetRow label="Booking" hint="slot picker" value={data.booking_snippet} />
+
+      <div className="mt-4 pt-4 border-t border-slate-100">
+        <p className={labelCls}>Booking page link</p>
+        <p className="text-xs text-slate-500">
+          Prefer a plain link over an embed?{' '}
+          <a href={data.booking_page_url} target="_blank" rel="noreferrer"
+            className="text-yippie font-semibold hover:opacity-80 break-all">{data.booking_page_url}</a>
+        </p>
+      </div>
+
+      <div className="mt-5 pt-5 border-t border-slate-100">
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Appearance</p>
+
+        {!isAdmin && (
+          <p className="text-xs text-slate-500 mb-3">
+            Only admins can change these settings.
+          </p>
+        )}
+
+        <fieldset disabled={!isAdmin} className={isAdmin ? '' : 'opacity-60'}>
+          <div className="flex items-center gap-3 mb-4">
+            <input
+              type="color"
+              value={form.accent_color ?? '#5BA4F5'}
+              onChange={e => set({ accent_color: e.target.value })}
+              className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer p-0.5 disabled:cursor-not-allowed"
+            />
+            <span className="text-sm text-slate-500 font-mono">{form.accent_color}</span>
+            <span className="text-xs text-slate-400">Button and header colour</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-5">
+            <div>
+              <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.lead_widget_enabled ?? true}
+                  onChange={e => set({ lead_widget_enabled: e.target.checked })}
+                />
+                <span className="text-sm font-semibold text-slate-700">Enquiry form</span>
+              </label>
+              <label className={labelCls}>Button text</label>
+              <input className={`${inputCls} mb-2`} value={form.lead_widget_button_text ?? ''}
+                onChange={e => set({ lead_widget_button_text: e.target.value })} placeholder="Get in touch" />
+              <label className={labelCls}>Panel heading</label>
+              <input className={inputCls} value={form.lead_widget_heading ?? ''}
+                onChange={e => set({ lead_widget_heading: e.target.value })} placeholder="Contact us" />
+            </div>
+
+            <div>
+              <label className="flex items-center gap-2 mb-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.booking_widget_enabled ?? true}
+                  onChange={e => set({ booking_widget_enabled: e.target.checked })}
+                />
+                <span className="text-sm font-semibold text-slate-700">Booking</span>
+              </label>
+              <label className={labelCls}>Button text</label>
+              <input className={`${inputCls} mb-2`} value={form.booking_widget_button_text ?? ''}
+                onChange={e => set({ booking_widget_button_text: e.target.value })} placeholder="Book a meeting" />
+              <label className={labelCls}>Panel heading</label>
+              <input className={inputCls} value={form.booking_widget_heading ?? ''}
+                onChange={e => set({ booking_widget_heading: e.target.value })} placeholder="Pick a time" />
+            </div>
+          </div>
+
+          {isAdmin && (
+            <button
+              onClick={() => mutation.mutate()}
+              disabled={mutation.isPending || !dirty}
+              className="mt-5 px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
+            >
+              {mutation.isPending ? 'Saving…' : 'Save'}
+            </button>
+          )}
+        </fieldset>
       </div>
     </div>
   )
@@ -619,6 +799,7 @@ export default function LabelsPage() {
         </div>
         {mutation.isError && <p className="mt-2 text-xs text-red-500">Failed to save. Try again.</p>}
       </div>
+      <WebsiteWidgetsCard isAdmin={isAdmin} />
       {isAdmin && <AiYipCard />}
       {isAdmin && <ContactLabelsCard />}
       {isAdmin && <LiveChatSettingsCard />}

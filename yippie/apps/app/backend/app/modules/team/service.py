@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 
 from sqlalchemy import delete as sa_delete, func, select
@@ -162,6 +163,69 @@ async def update_org_settings(
         raise LookupError("Tenant not found")
     tenant.kvk_nummer = (kvk_nummer or "").strip() or None
     tenant.btw_nummer = (btw_nummer or "").strip() or None
+    await db.commit()
+    await db.refresh(tenant)
+    return tenant
+
+
+def build_widget_settings(tenant: Tenant) -> dict:
+    """[WGT1] Widget config plus the embed snippets, rendered server side.
+
+    The base URL comes from the environment's own config, so a snippet copied on
+    sandbox points at sandbox and one copied on production points at production —
+    the frontend used to hardcode app.getyippie.com either way.
+    """
+    from app.config import get_settings
+
+    base = get_settings().effective_base_url or "https://app.getyippie.com"
+    slug = tenant.slug
+
+    return {
+        "tenant_slug": slug,
+        "accent_color": tenant.widget_accent_color or tenant.primary_color or "#5BA4F5",
+        "lead_widget_enabled": bool(tenant.lead_widget_enabled),
+        "lead_widget_button_text": tenant.lead_widget_button_text or "Get in touch",
+        "lead_widget_heading": tenant.lead_widget_heading or "Contact us",
+        "booking_widget_enabled": bool(tenant.booking_widget_enabled),
+        "booking_widget_button_text": tenant.booking_widget_button_text or "Book a meeting",
+        "booking_widget_heading": tenant.booking_widget_heading or "Pick a time",
+        "chat_snippet": f'<script src="{base}/widget.js" data-tenant="{slug}" async></script>',
+        "lead_snippet": f'<script src="{base}/lead-widget.js" data-tenant="{slug}" async></script>',
+        "booking_snippet": f'<script src="{base}/booking-widget.js" data-tenant="{slug}" async></script>',
+        "booking_page_url": f"{base}/meet/{slug}",
+    }
+
+
+async def get_widget_settings(db: AsyncSession, tenant_id: uuid.UUID) -> Tenant:
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise LookupError("Tenant not found")
+    return tenant
+
+
+async def update_widget_settings(db: AsyncSession, tenant_id: uuid.UUID, data) -> Tenant:
+    tenant = await db.get(Tenant, tenant_id)
+    if tenant is None:
+        raise LookupError("Tenant not found")
+
+    changes = data.model_dump(exclude_unset=True)
+    for field in (
+        "lead_widget_enabled", "booking_widget_enabled",
+        "lead_widget_button_text", "lead_widget_heading",
+        "booking_widget_button_text", "booking_widget_heading",
+    ):
+        if field in changes:
+            value = changes[field]
+            # Blanking a label restores the built in default rather than
+            # rendering an empty button.
+            setattr(tenant, field, value.strip() or None if isinstance(value, str) else value)
+
+    if "accent_color" in changes:
+        colour = (changes["accent_color"] or "").strip()
+        if colour and not re.fullmatch(r"#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?", colour):
+            raise ValueError("Accent colour must be a hex value like #5BA4F5.")
+        tenant.widget_accent_color = colour or None
+
     await db.commit()
     await db.refresh(tenant)
     return tenant

@@ -9,6 +9,7 @@
   if (!tenantSlug) return;
 
   let isOpen = false;
+  let accent = '#2563eb';
 
   // --- Build UI ---
   const btn = document.createElement('button');
@@ -16,7 +17,7 @@
   Object.assign(btn.style, {
     position: 'fixed', bottom: '24px', right: '24px',
     padding: '12px 20px', borderRadius: '24px',
-    background: '#2563eb', color: '#fff', border: 'none',
+    background: accent, color: '#fff', border: 'none',
     fontSize: '14px', fontWeight: '600', cursor: 'pointer',
     boxShadow: '0 4px 12px rgba(0,0,0,.2)', zIndex: 9998,
     fontFamily: 'system-ui, sans-serif',
@@ -33,7 +34,7 @@
 
   const header = document.createElement('div');
   Object.assign(header.style, {
-    background: '#2563eb', color: '#fff', padding: '14px 16px',
+    background: accent, color: '#fff', padding: '14px 16px',
     fontWeight: '600', fontSize: '15px',
   });
   header.textContent = 'Contact us';
@@ -76,7 +77,7 @@
   const submitBtn = document.createElement('button');
   submitBtn.textContent = 'Send';
   Object.assign(submitBtn.style, {
-    padding: '10px', background: '#2563eb', color: '#fff', border: 'none',
+    padding: '10px', background: accent, color: '#fff', border: 'none',
     borderRadius: '8px', fontSize: '14px', fontWeight: '600', cursor: 'pointer',
   });
 
@@ -97,8 +98,33 @@
 
   panel.appendChild(header);
   panel.appendChild(body);
-  document.body.appendChild(btn);
-  document.body.appendChild(panel);
+
+  function applyAccent(colour) {
+    accent = colour;
+    btn.style.background = colour;
+    header.style.background = colour;
+    submitBtn.style.background = colour;
+  }
+
+  // [WGT1] Pull styling and copy from the tenant's widget settings so changes in
+  // Settings reach every embedding site without the snippet being re-pasted.
+  // On failure the widget still mounts with its built in defaults.
+  (async function init() {
+    let conf = null;
+    try {
+      const res = await fetch(`${apiBase}/api/v1/public/widget-config/${encodeURIComponent(tenantSlug)}`);
+      if (res.ok) conf = await res.json();
+    } catch (_) { /* fall through to defaults */ }
+
+    if (conf && conf.lead && conf.lead.enabled === false) return;
+
+    applyAccent((conf && conf.accent_color) || accent);
+    btn.textContent = (conf && conf.lead && conf.lead.button_text) || 'Get in touch';
+    header.textContent = (conf && conf.lead && conf.lead.heading) || 'Contact us';
+
+    document.body.appendChild(btn);
+    document.body.appendChild(panel);
+  })();
 
   // --- Submit ---
   submitBtn.addEventListener('click', async () => {

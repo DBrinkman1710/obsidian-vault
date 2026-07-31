@@ -140,6 +140,17 @@ class Tenant(Base):
     # and which pipeline stage they land in.
     lead_widget_save_contact: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
     lead_widget_stage_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
+    # [WGT1] Embeddable website widget styling. Served to the widget scripts at
+    # runtime by GET /public/widget-config/{slug}, so editing these updates every
+    # site that embeds the snippet without the snippet itself changing.
+    # widget_accent_color falls back to the workspace primary_color when unset.
+    widget_accent_color: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    lead_widget_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    lead_widget_button_text: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    lead_widget_heading: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    booking_widget_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true")
+    booking_widget_button_text: Mapped[str | None] = mapped_column(String(60), nullable=True)
+    booking_widget_heading: Mapped[str | None] = mapped_column(String(80), nullable=True)
     # [FLOW8] order_placed/shipped/delivered_stage_id columns removed — the ERP
     # order-status → pipeline stage move is now a flow on the order_received
     # trigger. Columns dropped by migration flows8_builtin_migration.

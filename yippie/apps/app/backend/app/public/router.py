@@ -1528,6 +1528,43 @@ async def export_user_calendar(
     )
 
 
+@router.get("/widget-config/{slug}")
+async def widget_config(
+    slug: str,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict:
+    """Styling and availability for the embeddable website widgets.
+
+    Read by lead-widget.js and booking-widget.js on load so a tenant can restyle
+    or switch off a widget from Settings without any embedding site having to
+    change the snippet it pasted. Public and deliberately non sensitive: it
+    exposes only what already renders on the customer facing widget.
+    """
+    from app.core.models import Tenant
+
+    tenant = await db.scalar(
+        select(Tenant).where(Tenant.slug == slug, Tenant.is_active == True)  # noqa: E712
+    )
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Not found.")
+
+    accent = tenant.widget_accent_color or tenant.primary_color or "#5BA4F5"
+    return {
+        "tenant_name": tenant.name,
+        "accent_color": accent,
+        "lead": {
+            "enabled": bool(tenant.lead_widget_enabled),
+            "button_text": tenant.lead_widget_button_text or "Get in touch",
+            "heading": tenant.lead_widget_heading or "Contact us",
+        },
+        "booking": {
+            "enabled": bool(tenant.booking_widget_enabled),
+            "button_text": tenant.booking_widget_button_text or "Book a meeting",
+            "heading": tenant.booking_widget_heading or "Pick a time",
+        },
+    }
+
+
 class LeadSubmit(BaseModel):
     name: str = Field(min_length=1, max_length=200)
     email: EmailStr
