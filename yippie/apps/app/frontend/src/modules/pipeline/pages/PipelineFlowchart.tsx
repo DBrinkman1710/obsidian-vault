@@ -10,7 +10,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import {
   Background, Connection, Controls, Handle, MarkerType, Position, ReactFlow,
-  ReactFlowProvider, addEdge, applyNodeChanges, useEdgesState, useNodesState,
+  ReactFlowProvider, addEdge, applyEdgeChanges, applyNodeChanges, useEdgesState, useNodesState,
   useReactFlow,
 } from '@xyflow/react'
 import type { EdgeChange, NodeChange } from '@xyflow/react'
@@ -363,6 +363,14 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
   const hydrated = useRef(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Latest canvas state, readable from stable callbacks. Serialising from these
+  // refs (never from captured state) is what keeps the debounced autosave from
+  // persisting a stale graph and wiping just-added nodes.
+  const rfNodesRef = useRef<any[]>([])
+  const rfEdgesRef = useRef<any[]>([])
+  rfNodesRef.current = rfNodes
+  rfEdgesRef.current = rfEdges
+
   const { data: chart, isLoading } = useQuery<FlowchartOut>({
     queryKey: ['pipeline-flowchart'],
     queryFn: () => api.get('/pipeline/flowchart').then((r: any) => r.data),
@@ -374,7 +382,6 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pipeline-stages'] })
       qc.invalidateQueries({ queryKey: ['pipeline-board'] })
-      qc.invalidateQueries({ queryKey: ['pipeline-flowchart'] })
     },
     onError: () => toast.error('Could not rename stage'),
   })
@@ -383,7 +390,6 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['pipeline-stages'] })
       qc.invalidateQueries({ queryKey: ['pipeline-board'] })
-      qc.invalidateQueries({ queryKey: ['pipeline-flowchart'] })
     },
     onError: () => toast.error('Could not delete stage'),
   })
@@ -398,7 +404,8 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
   })
 
   // Persist the whole graph. Reconciliation happens server side; we refresh the
-  // unplaced tray from the response.
+  // unplaced tray from the response (hydration is one-shot, so this never
+  // replaces the nodes the user is interacting with).
   const saveMut = useMutation({
     mutationFn: (graph: { nodes: FlowNode[]; edges: FlowEdge[] }) =>
       api.put('/pipeline/flowchart', graph).then((r: any) => r.data as FlowchartOut),
@@ -406,26 +413,75 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     onError: () => toast.error('Could not save the flowchart'),
   })
 
+  // Placed stage nodes need their live name/colour. The board query has them.
+  const { data: stages = [], isSuccess: stagesLoaded } = useQuery<Stage[]>({
+    queryKey: ['pipeline-stages'],
+    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
+  })
+  const stageMeta = useMemo(() => {
+    const m = new Map<string, { name: string; color: string }>()
+    for (const s of stages) m.set(s.id, { name: s.name, color: s.color })
+    return m
+  }, [stages])
+
+  // ── serialise the LATEST canvas state (via refs) back to the graph schema ──
+  const serialise = useCallback((): { nodes: FlowNode[]; edges: FlowEdge[] } => {
+    const nodes: FlowNode[] = rfNodesRef.current.map((n: any) => ({
+      id: n.id,
+      type: n.type as FlowNodeType,
+      stage_id: n.type === 'stage' ? n.data.stageId : null,
+      label: n.type === 'decision' ? (n.data.label ?? '')
+        : n.type === 'stage' ? null
+        : (n.data.label ?? null),
+      x: n.position.x,
+      y: n.position.y,
+    }))
+    const edges: FlowEdge[] = rfEdgesRef.current.map((e: any) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      label: typeof e.label === 'string' ? e.label : null,
+    }))
+    return { nodes, edges }
+  }, [])
+
+  // ── debounced autosave. Stable identity (mutate + ref-based serialise are
+  // stable), so every callback — however old its closure — schedules a save of
+  // the CURRENT graph, never a stale one. ──
+  const saveGraph = saveMut.mutate
+  const scheduleSave = useCallback(() => {
+    if (!canEdit) return
+    if (saveTimer.current) clearTimeout(saveTimer.current)
+    saveTimer.current = setTimeout(() => saveGraph(serialise()), 800)
+  }, [canEdit, saveGraph, serialise])
+  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current) }, [])
+
   // ── stage-node callbacks (stable refs so node data stays comparable) ──
+  const renameStage = renameStageMut.mutate
   const handleRename = useCallback((stageId: string, name: string) => {
-    renameStageMut.mutate({ id: stageId, name })
+    renameStage({ id: stageId, name })
     setRfNodes(nds => nds.map(n => (n.data?.stageId === stageId ? { ...n, data: { ...n.data, name } } : n)))
-  }, [renameStageMut, setRfNodes])
+  }, [renameStage, setRfNodes])
 
   const handleDeleteRequest = useCallback((stageId: string, name: string) => {
     setPendingDelete({ stageId, name })
   }, [])
 
+  const handleLabelDecision = useCallback((id: string, label: string) => {
+    setRfNodes(nds => nds.map(n => (n.id === id ? { ...n, data: { ...n.data, label } } : n)))
+    scheduleSave()
+  }, [setRfNodes, scheduleSave])
+
   // Build an RF node from a stored FlowNode.
-  const toRfNode = useCallback((n: FlowNode, stageMeta?: { name: string; color: string }) => {
+  const toRfNode = useCallback((n: FlowNode, meta?: { name: string; color: string }) => {
     const base = { id: n.id, position: { x: n.x, y: n.y } }
     if (n.type === 'stage') {
       return {
         ...base,
         type: 'stage',
         data: {
-          name: stageMeta?.name ?? n.label ?? 'Stage',
-          color: stageMeta?.color ?? YIPPIE_BLUE,
+          name: meta?.name ?? n.label ?? 'Stage',
+          color: meta?.color ?? YIPPIE_BLUE,
           stageId: n.stage_id!,
           onRename: handleRename,
           onDelete: handleDeleteRequest,
@@ -441,42 +497,7 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
       }
     }
     return { ...base, type: n.type, data: { kind: n.type, label: n.label } }
-  }, [canEdit, handleRename, handleDeleteRequest]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  const handleLabelDecision = useCallback((id: string, label: string) => {
-    setRfNodes(nds => nds.map(n => (n.id === id ? { ...n, data: { ...n.data, label } } : n)))
-    scheduleSave()
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── hydrate RF state once from the server, then reconcile stage names/colours ──
-  useEffect(() => {
-    if (!chart) return
-    // Placed stages: pull their name/colour from the board via the graph's own
-    // stage nodes — but the server only returns unplaced stage metadata, so we
-    // fetch the full stage list for placed-node labels.
-    setRfNodes(chart.graph.nodes.map(n => toRfNode(n, undefined)))
-    setRfEdges(chart.graph.edges.map(e => rfEdge(e)))
-    hydrated.current = true
-  }, [chart]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // Placed stage nodes need their live name/colour. The board query has them.
-  const { data: stages = [] } = useQuery<Stage[]>({
-    queryKey: ['pipeline-stages'],
-    queryFn: () => api.get('/pipeline/stages').then((r: any) => r.data),
-  })
-  const stageMeta = useMemo(() => {
-    const m = new Map<string, { name: string; color: string }>()
-    for (const s of stages) m.set(s.id, { name: s.name, color: s.color })
-    return m
-  }, [stages])
-  useEffect(() => {
-    if (!hydrated.current) return
-    setRfNodes(nds => nds.map(n => {
-      if (n.type !== 'stage') return n
-      const meta = stageMeta.get(n.data?.stageId)
-      return meta ? { ...n, data: { ...n.data, name: meta.name, color: meta.color } } : n
-    }))
-  }, [stageMeta, setRfNodes])
+  }, [canEdit, handleRename, handleDeleteRequest, handleLabelDecision])
 
   function rfEdge(e: FlowEdge) {
     return {
@@ -488,46 +509,50 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     }
   }
 
-  // ── serialise current RF state back to the graph schema ──
-  const serialise = useCallback((): { nodes: FlowNode[]; edges: FlowEdge[] } => {
-    const nodes: FlowNode[] = rfNodes.map((n: any) => ({
-      id: n.id,
-      type: n.type as FlowNodeType,
-      stage_id: n.type === 'stage' ? n.data.stageId : null,
-      label: n.type === 'decision' ? (n.data.label ?? '')
-        : n.type === 'stage' ? null
-        : (n.data.label ?? null),
-      x: n.position.x,
-      y: n.position.y,
-    }))
-    const edges: FlowEdge[] = rfEdges.map((e: any) => ({
-      id: e.id,
-      source: e.source,
-      target: e.target,
-      label: typeof e.label === 'string' ? e.label : null,
-    }))
-    return { nodes, edges }
-  }, [rfNodes, rfEdges])
+  // ── hydrate RF state ONCE, after both the chart and the stage list load.
+  // Re-hydrating on every save response/refetch replaced the node array mid
+  // interaction: selection reset, stage names fell back to their placeholder
+  // (the graph stores no stage names), and xyflow crashed when a dragged node
+  // vanished under the pointer. ──
+  useEffect(() => {
+    if (hydrated.current || !chart || !stagesLoaded) return
+    hydrated.current = true
+    setRfNodes(chart.graph.nodes.map(n => toRfNode(n, n.stage_id ? stageMeta.get(n.stage_id) : undefined)))
+    setRfEdges(chart.graph.edges.map(e => rfEdge(e)))
+  }, [chart, stagesLoaded, stageMeta, toRfNode, setRfNodes, setRfEdges]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── debounced autosave ──
-  const scheduleSave = useCallback(() => {
-    if (!canEdit) return
-    if (saveTimer.current) clearTimeout(saveTimer.current)
-    saveTimer.current = setTimeout(() => saveMut.mutate(serialise()), 800)
-  }, [canEdit, saveMut, serialise])
-  useEffect(() => () => { if (saveTimer.current) clearTimeout(saveTimer.current) }, [])
+  // Keep placed stage nodes in sync with the live stage list: patch renamed
+  // names/colours in place; drop nodes whose stage was deleted, plus their edges.
+  useEffect(() => {
+    if (!hydrated.current || !stagesLoaded) return
+    const dead = new Set(
+      rfNodesRef.current
+        .filter((n: any) => n.type === 'stage' && !stageMeta.has(n.data?.stageId))
+        .map((n: any) => n.id),
+    )
+    if (dead.size > 0) {
+      setRfNodes(nds => nds.filter(n => !dead.has(n.id)))
+      setRfEdges(eds => eds.filter(e => !dead.has(e.source) && !dead.has(e.target)))
+    }
+    setRfNodes(nds => nds.map(n => {
+      if (n.type !== 'stage') return n
+      const meta = stageMeta.get(n.data?.stageId)
+      return meta && (meta.name !== n.data.name || meta.color !== n.data.color)
+        ? { ...n, data: { ...n.data, name: meta.name, color: meta.color } }
+        : n
+    }))
+  }, [stageMeta, stagesLoaded, setRfNodes, setRfEdges])
 
   // ── canvas interactions ──
   const onNodesChange = useCallback((changes: NodeChange[]) => {
     setRfNodes(nds => applyNodeChanges(changes, nds))
-    if (changes.some(c => c.type === 'position' && !(c as any).dragging)) scheduleSave()
+    if (changes.some(c => (c.type === 'position' && !(c as any).dragging) || c.type === 'remove')) scheduleSave()
   }, [setRfNodes, scheduleSave])
 
   const onEdgesChange = useCallback((changes: EdgeChange[]) => {
-    setRfEdges(eds => {
-      const next = eds.filter(e => !changes.some(c => c.type === 'remove' && (c as any).id === e.id))
-      return next
-    })
+    // applyEdgeChanges also applies 'select' changes — dropping those made
+    // arrows unselectable (and therefore undeletable with the Delete key).
+    setRfEdges(eds => applyEdgeChanges(changes, eds))
     if (changes.some(c => c.type === 'remove')) scheduleSave()
   }, [setRfEdges, scheduleSave])
 
@@ -603,18 +628,32 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
   function confirmDelete() {
     if (!pendingDelete) return
     deleteStageMut.mutate(pendingDelete.stageId)
-    setRfNodes(nds => nds.filter(n => n.data?.stageId !== pendingDelete.stageId))
+    const dead = new Set(
+      rfNodesRef.current
+        .filter((n: any) => n.data?.stageId === pendingDelete.stageId)
+        .map((n: any) => n.id),
+    )
+    setRfNodes(nds => nds.filter(n => !dead.has(n.id)))
+    setRfEdges(eds => eds.filter(e => !dead.has(e.source) && !dead.has(e.target)))
     setPendingDelete(null)
     scheduleSave()
   }
 
-  function onEdgeClick(_: any, edge: any) {
+  // Single click selects an arrow (xyflow handles it; Delete/Backspace removes
+  // it) — double click opens the label editor.
+  function onEdgeDoubleClick(_: any, edge: any) {
     if (!canEdit) return
     setEditingEdge({ id: edge.id, label: typeof edge.label === 'string' ? edge.label : '' })
   }
   function commitEdgeLabel() {
     if (!editingEdge) return
     setRfEdges(eds => eds.map(e => (e.id === editingEdge.id ? { ...e, label: editingEdge.label || undefined } : e)))
+    setEditingEdge(null)
+    scheduleSave()
+  }
+  function deleteEditingEdge() {
+    if (!editingEdge) return
+    setRfEdges(eds => eds.filter(e => e.id !== editingEdge.id))
     setEditingEdge(null)
     scheduleSave()
   }
@@ -661,10 +700,18 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
                 placeholder="e.g. no reply after 5 days"
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               />
+              <p className="text-xs text-slate-400 mt-2">
+                Tip: a single click selects the arrow — press Delete to remove it.
+              </p>
             </div>
-            <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
-              <button onClick={() => setEditingEdge(null)} className="btn-secondary px-4 py-2">Cancel</button>
-              <button onClick={commitEdgeLabel} className="btn-primary px-4 py-2">Save label</button>
+            <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
+              <button onClick={deleteEditingEdge} className="btn-ghost-danger px-3 py-2 flex items-center gap-1.5">
+                <Trash2 size={13} /> Delete arrow
+              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setEditingEdge(null)} className="btn-secondary px-4 py-2">Cancel</button>
+                <button onClick={commitEdgeLabel} className="btn-primary px-4 py-2">Save label</button>
+              </div>
             </div>
           </div>
         </div>
@@ -765,9 +812,10 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
-            onEdgeClick={onEdgeClick}
+            onEdgeDoubleClick={onEdgeDoubleClick}
             nodesConnectable={canEdit}
             nodesDraggable={canEdit}
+            elementsSelectable={canEdit}
             fitView
             fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
             deleteKeyCode={canEdit ? ['Backspace', 'Delete'] : null}

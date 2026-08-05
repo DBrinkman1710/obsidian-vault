@@ -251,3 +251,17 @@
     @apply bg-warning-50 border border-warning-200 rounded-lg px-4 py-3 text-sm text-warning-600;
   }
 }
+
+/* ── [KAN_FLOW1] Pipeline flowchart edges ─────────────────────────────────
+   Make arrow selection visible (click to select, Delete removes) and hover
+   feedback obvious so arrows feel clickable. */
+.react-flow__edge:hover .react-flow__edge-path {
+  stroke: var(--brand-hover);
+  stroke-width: 2;
+}
+.react-flow__edge.selected .react-flow__edge-path,
+.react-flow__edge:focus .react-flow__edge-path,
+.react-flow__edge:focus-visible .react-flow__edge-path {
+  stroke: var(--brand);
+  stroke-width: 2.5;
+}
