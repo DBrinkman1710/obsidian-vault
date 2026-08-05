@@ -592,6 +592,7 @@ async def save_call_log(
     data: CallLogSaveRequest,
 ) -> CallLogSaveResponse:
     """Persist a reviewed call log: activity event + notes append + reminders."""
+    from app.core.flow_events import emit_flow_event
     from app.core.models import UserReminder
     from app.modules.activity import service as activity_service
 
@@ -636,6 +637,23 @@ async def save_call_log(
                 )
             )
             reminders_created += 1
+
+    # [FLOW] emit into the flow outbox in the same transaction so automations can
+    # react to a call outcome (e.g. move to a "Did not pick up" stage on no_answer).
+    await emit_flow_event(
+        db,
+        tenant_id,
+        "call_logged",
+        entity_type="contact",
+        entity_id=contact.id,
+        contact_id=contact.id,
+        actor_id=user.id,
+        payload={
+            "outcome": data.outcome,
+            "duration_minutes": data.duration_minutes,
+            "contact_id": str(contact.id),
+        },
+    )
 
     await db.commit()
     return CallLogSaveResponse(activity_event_id=event.id, reminders_created=reminders_created)

@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import { Building2, ExternalLink, Mail, Phone } from 'lucide-react'
 import { CloseButton } from '../shell/CloseButton'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '../api/client'
 import { LabelChip } from '../modules/contacts/components/LabelChip'
 import type { ContactLabel } from '../modules/contacts/components/LabelChip'
+import CallModal from '../modules/contacts/components/CallModal'
 
 interface ContactPeekData {
   full_name: string
@@ -24,6 +25,8 @@ export default function ContactPeekModal({
   onClose: () => void
   onCompose?: (email: string, name: string) => void
 }) {
+  const [callOpen, setCallOpen] = useState(false)
+
   const { data: contact, isLoading } = useQuery<ContactPeekData>({
     queryKey: ['contact', contactId],
     queryFn: () => api.get(`/contacts/${contactId}`).then((r: any) => r.data),
@@ -40,6 +43,7 @@ export default function ContactPeekModal({
   if (contactId === null) return null
 
   return (
+    <>
     <div
       className="fixed inset-0 z-50"
       onClick={onClose}
@@ -119,10 +123,19 @@ export default function ContactPeekModal({
             </div>
 
             <div className="border-t border-slate-100 px-5 py-4 flex flex-col gap-2">
+              {contact.phone && (
+                <button
+                  onClick={() => setCallOpen(true)}
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-white bg-yippie hover:opacity-90 rounded-xl transition-opacity"
+                >
+                  <Phone size={13} />
+                  Call
+                </button>
+              )}
               {onCompose && contact.email && (
                 <button
                   onClick={() => { onCompose(contact.email!, contact.full_name); onClose() }}
-                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-white bg-yippie hover:opacity-90 rounded-xl transition-opacity"
+                  className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                 >
                   <Mail size={13} />
                   Compose email
@@ -140,5 +153,17 @@ export default function ContactPeekModal({
         )}
       </div>
     </div>
+    {callOpen && contact && (
+      <CallModal
+        contact={{
+          id: contactId,
+          full_name: contact.full_name,
+          email: contact.email,
+          phone: contact.phone,
+        }}
+        onClose={() => setCallOpen(false)}
+      />
+    )}
+    </>
   )
 }

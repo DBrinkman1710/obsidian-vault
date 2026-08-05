@@ -62,4 +62,15 @@ TRIGGERS: dict[str, dict] = {
         "fetch_fields": contact_fields,
         "example_payload": {"full_name": "", "email": "", "company_id": None, "tags": []},
     },
+    "call_logged": {
+        "label": "Call logged",
+        "module": "contacts",
+        "fields": [
+            {"key": "outcome", "label": "Outcome", "type": "select",
+             "options": ["connected", "voicemail", "no_answer"]},
+            {"key": "duration_minutes", "label": "Duration (minutes)", "type": "number"},
+        ],
+        "fetch_fields": contact_fields,
+        "example_payload": {"outcome": "", "duration_minutes": None, "contact_id": ""},
+    },
 }
