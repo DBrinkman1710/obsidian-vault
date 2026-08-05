@@ -4,6 +4,7 @@ import { BotMessageSquare, Code2, Copy, GripVertical, Layers, MessageSquare, Pal
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+import { useCopy } from '../../../hooks/useCopy'
 import { useTenantConfig } from '../../../App'
 import { SendcloudSettingsCard } from '../../shipments/components/SendcloudSettingsCard'
 import YipTrainModal from '../../../components/YipTrainModal'
@@ -145,6 +146,7 @@ interface WidgetSettings {
 }
 
 function SnippetRow({ label, hint, value }: { label: string; hint: string; value: string }) {
+  const { copy } = useCopy()
   return (
     <div className="mb-4 last:mb-0">
       <div className="flex items-baseline justify-between mb-1.5">
@@ -154,10 +156,7 @@ function SnippetRow({ label, hint, value }: { label: string; hint: string; value
       <div className="flex gap-2 items-start">
         <pre className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all font-mono text-slate-700">{value}</pre>
         <button
-          onClick={() => {
-            navigator.clipboard.writeText(value)
-            toast.success(`${label} snippet copied`)
-          }}
+          onClick={() => copy(value, `${label} snippet copied`)}
           className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors"
         >
           <Copy size={13} /> Copy

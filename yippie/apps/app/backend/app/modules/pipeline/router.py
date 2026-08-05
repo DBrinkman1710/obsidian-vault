@@ -11,6 +11,9 @@ from app.database import get_db
 from app.modules.pipeline import service
 from app.modules.pipeline.schemas import (
     BulkMoveToStage,
+    FlowchartGraph,
+    FlowchartOut,
+    FlowchartSuggestion,
     MoveToStage,
     PipelineBoardColumn,
     PipelineReorder,
@@ -88,3 +91,25 @@ async def remove_from_pipeline(contact_id: uuid.UUID, current_user: CurrentUser,
 @router.get("/contacts/{contact_id}/stage", response_model=PipelineStageOut | None)
 async def get_contact_stage(contact_id: uuid.UUID, current_user: CurrentUser, db: DB):
     return await service.get_contact_stage(db, current_user.tenant_id, contact_id)
+
+
+# [KAN_FLOW1] Pipeline flowchart — the second Kanban view. The board stays the
+# source of truth for the stage list; these two endpoints only store/return the
+# visual layout, reconciled against the live stages on every read/write.
+@router.get("/flowchart", response_model=FlowchartOut)
+async def get_flowchart(current_user: CurrentUser, db: DB):
+    return await service.get_flowchart(db, current_user.tenant_id)
+
+
+@router.put("/flowchart", response_model=FlowchartOut)
+async def put_flowchart(body: FlowchartGraph, current_user: AdminUser, db: DB):
+    return await service.upsert_flowchart(db, current_user.tenant_id, body)
+
+
+# [KAN_FLOW2] Draft automation suggestions derived from the chart's edges. Each
+# maps a stage → stage transition (direct or via a decision diamond) to a
+# prefill the Flows builder can open — the chart teaches Yippie the pipeline and
+# offers to wire the automations the user already drew.
+@router.get("/flowchart/suggestions", response_model=list[FlowchartSuggestion])
+async def get_flowchart_suggestions(current_user: CurrentUser, db: DB):
+    return await service.get_flowchart_suggestions(db, current_user.tenant_id)

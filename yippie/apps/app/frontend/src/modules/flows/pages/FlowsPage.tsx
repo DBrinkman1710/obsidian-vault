@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import {
   Check, ChevronDown, ChevronRight, Copy, FlaskConical, GitBranch, MoreVertical, Pencil, Plus,
   RefreshCw, Settings2, ShieldCheck, Sparkles, Trash2, Workflow, X, Zap,
@@ -36,6 +36,17 @@ interface Recipe {
   trigger_type: string
   conditions: Condition[]
   actions: Action[]
+}
+
+// [KAN_FLOW2] Prefill delivered via router state when arriving from a pipeline
+// flowchart automation suggestion ("Create in Flows"). Seeds a NEW flow's
+// builder — never targets an existing flow, so save always POSTs a fresh flow.
+export interface FlowPrefill {
+  name?: string
+  trigger_type?: string
+  trigger_config?: Record<string, any>
+  conditions?: Condition[] | Condition[][]
+  actions?: Action[]
 }
 
 const RUN_STATUS_FILTERS = ['success', 'partial', 'failed', 'waiting', 'skipped']
@@ -202,23 +213,35 @@ function WebhookPanel({ flowId }: { flowId: string | undefined }) {
 }
 
 function BuilderModal({
-  meta, flow, onClose, onSaved,
-}: { meta: FlowsMeta; flow: Flow | null; onClose: () => void; onSaved: () => void }) {
-  const [name, setName] = useState(flow?.name ?? '')
-  const [triggerType, setTriggerType] = useState(flow?.trigger_type ?? meta.triggers[0]?.key ?? '')
-  const [groups, setGroups] = useState<Condition[][]>(toGroups(flow?.conditions ?? []))
+  meta, flow, prefill, onClose, onSaved,
+}: {
+  meta: FlowsMeta
+  flow: Flow | null
+  // [KAN_FLOW2] Seed values for a BRAND NEW flow (flow === null) — e.g. a
+  // pipeline flowchart automation suggestion opening the builder prefilled.
+  prefill?: FlowPrefill | null
+  onClose: () => void
+  onSaved: () => void
+}) {
+  // For a new flow, fall back to the prefill's seed values.
+  const seed = flow ?? prefill ?? null
+  const [name, setName] = useState(seed?.name ?? '')
+  const [triggerType, setTriggerType] = useState(seed?.trigger_type ?? meta.triggers[0]?.key ?? '')
+  const [groups, setGroups] = useState<Condition[][]>(toGroups(seed?.conditions ?? []))
   const [triggerConfig, setTriggerConfig] = useState<Record<string, any>>(
-    flow?.trigger_config && Object.keys(flow.trigger_config).length
-      ? flow.trigger_config
+    seed?.trigger_config && Object.keys(seed.trigger_config).length
+      ? seed.trigger_config
       : { frequency: 'daily', time: '09:00' }
   )
   // [FLOW6] per-flow opt-in: may flow-caused events trigger this flow?
-  const [chainable, setChainable] = useState(!!flow?.trigger_config?.chainable)
+  const [chainable, setChainable] = useState(!!seed?.trigger_config?.chainable)
   // [FLOW4] a branched flow's graph can't be edited here — openEdit routes those
   // to the canvas; this fallback guards direct paths (duplicate, install).
   const branched = flow ? isGraph(flow.actions) : false
   const [actions, setActions] = useState<Action[]>(
-    flow && !isGraph(flow.actions) ? flow.actions : []
+    flow && !isGraph(flow.actions) ? flow.actions
+      : prefill?.actions ? prefill.actions
+      : []
   )
   const [enabled, setEnabled] = useState(flow?.enabled ?? true)
   const [error, setError] = useState('')
@@ -776,7 +799,22 @@ export default function FlowsPage() {
   const flowLimit = config?.plan_limits?.flows ?? null
   const [builderOpen, setBuilderOpen] = useState(false)
   const [editingFlow, setEditingFlow] = useState<Flow | null>(null)
+  const [builderPrefill, setBuilderPrefill] = useState<FlowPrefill | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  const location = useLocation()
+
+  // [KAN_FLOW2] A pipeline flowchart suggestion deep-links here with a prefill in
+  // router state. Open the builder seeded with it, then clear the state so a
+  // refresh/back doesn't re-open it.
+  useEffect(() => {
+    const prefill = (location.state as any)?.flowPrefill as FlowPrefill | undefined
+    if (prefill && isAdmin) {
+      setEditingFlow(null)
+      setBuilderPrefill(prefill)
+      setBuilderOpen(true)
+      navigate(location.pathname, { replace: true, state: null })
+    }
+  }, [location.state]) // eslint-disable-line react-hooks/exhaustive-deps
   const [testingFlow, setTestingFlow] = useState<Flow | null>(null)
 
   const { data: meta } = useQuery<FlowsMeta>({
@@ -849,7 +887,7 @@ export default function FlowsPage() {
     setEditingFlow(flow)
     setBuilderOpen(true)
   }
-  function openNew() { setEditingFlow(null); setBuilderOpen(true) }
+  function openNew() { setEditingFlow(null); setBuilderPrefill(null); setBuilderOpen(true) }
 
   const ctx = useContextMenu()
 
@@ -1032,7 +1070,8 @@ export default function FlowsPage() {
         <BuilderModal
           meta={meta}
           flow={editingFlow}
-          onClose={() => { setBuilderOpen(false); setEditingFlow(null) }}
+          prefill={builderPrefill}
+          onClose={() => { setBuilderOpen(false); setEditingFlow(null); setBuilderPrefill(null) }}
           onSaved={invalidate}
         />
       )}

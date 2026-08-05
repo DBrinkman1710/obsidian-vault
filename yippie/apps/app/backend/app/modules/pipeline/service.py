@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -10,8 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.flow_events import emit_flow_event
 from app.modules.activity import service as activity_service
 from app.modules.contacts.models import Company, Contact
-from app.modules.pipeline.models import ContactPipelineEntry, PipelineStage
+from app.modules.pipeline.flowchart_context import flowchart_to_text
+from app.modules.pipeline.models import ContactPipelineEntry, PipelineFlowchart, PipelineStage
 from app.modules.pipeline.schemas import (
+    FlowchartGraph,
+    FlowchartOut,
+    FlowchartSuggestion,
     PipelineBoardColumn,
     PipelineBoardContact,
     PipelineStageCreate,
@@ -365,3 +370,220 @@ async def get_contact_stage(
     if not stage:
         return None
     return PipelineStageOut.model_validate(stage)
+
+
+# ──────────────────────────────────────────────────────────────
+# [KAN_FLOW1] Pipeline flowchart
+# ──────────────────────────────────────────────────────────────
+
+def reconcile_flowchart(graph: FlowchartGraph, stages: list[PipelineStageOut]) -> FlowchartOut:
+    """Reconcile a stored chart against the live board (source of truth).
+
+    Pure — no DB. Two-way sync rule:
+      * drop stage nodes whose stage no longer exists (and any edges that touch
+        them), so a deleted stage never lingers on the canvas;
+      * report stages that have no node yet as ``unplaced_stages`` so the UI can
+        offer them in the tray.
+    """
+    valid_ids = {s.id for s in stages}
+
+    kept_nodes = [
+        n for n in graph.nodes
+        if n.type != "stage" or n.stage_id in valid_ids
+    ]
+    kept_node_ids = {n.id for n in kept_nodes}
+    kept_edges = [
+        e for e in graph.edges
+        if e.source in kept_node_ids and e.target in kept_node_ids
+    ]
+
+    placed_stage_ids = {n.stage_id for n in kept_nodes if n.type == "stage"}
+    unplaced = [s for s in stages if s.id not in placed_stage_ids]
+
+    return FlowchartOut(
+        graph=FlowchartGraph(nodes=kept_nodes, edges=kept_edges),
+        unplaced_stages=unplaced,
+    )
+
+
+async def get_flowchart(db: AsyncSession, tenant_id: uuid.UUID) -> FlowchartOut:
+    """Return the tenant's chart reconciled against the current stage list, or an
+    empty chart (every stage unplaced) when none has been drawn yet."""
+    stages = await list_stages(db, tenant_id)
+    row = await db.scalar(
+        select(PipelineFlowchart).where(PipelineFlowchart.tenant_id == tenant_id)
+    )
+    stored = FlowchartGraph.model_validate(row.graph) if row else FlowchartGraph()
+    return reconcile_flowchart(stored, stages)
+
+
+async def upsert_flowchart(
+    db: AsyncSession, tenant_id: uuid.UUID, graph: FlowchartGraph
+) -> FlowchartOut:
+    """Persist the whole graph (one row per tenant), then return it reconciled.
+
+    Stage nodes are dropped on the way in if they point at a stage that no longer
+    exists, so a stale reference can't be saved back. Stage create/rename/delete
+    still flow through the existing stage CRUD endpoints — this only stores layout.
+    """
+    stages = await list_stages(db, tenant_id)
+    reconciled = reconcile_flowchart(graph, stages)
+    payload = reconciled.graph.model_dump(mode="json")
+
+    row = await db.scalar(
+        select(PipelineFlowchart).where(PipelineFlowchart.tenant_id == tenant_id)
+    )
+    if row is None:
+        row = PipelineFlowchart(tenant_id=tenant_id, graph=payload)
+        db.add(row)
+    else:
+        row.graph = payload
+    await db.commit()
+    return reconciled
+
+
+# ──────────────────────────────────────────────────────────────
+# [KAN_FLOW2] Feed the chart to the brain — Yip context + automation suggestions
+# ──────────────────────────────────────────────────────────────
+
+async def _load_graph_and_stage_names(
+    db: AsyncSession, tenant_id: uuid.UUID
+) -> tuple[FlowchartGraph, dict[uuid.UUID, str]]:
+    """Fetch the tenant's reconciled chart plus a stage_id → name map.
+
+    Shared by the Yip serialiser and the suggestion builder so they always see
+    the same reconciled view (deleted stages already dropped)."""
+    out = await get_flowchart(db, tenant_id)
+    stages = await list_stages(db, tenant_id)
+    stage_names = {s.id: s.name for s in stages}
+    return out.graph, stage_names
+
+
+async def flowchart_context_text(db: AsyncSession, tenant_id: uuid.UUID) -> str:
+    """[KAN_FLOW2] The tenant's pipeline chart as compact prompt-ready text, or an
+    empty string when no meaningful chart has been drawn. Consumed by Yip's system
+    prompt so the assistant understands how this tenant's pipeline actually works."""
+    graph, stage_names = await _load_graph_and_stage_names(db, tenant_id)
+    return flowchart_to_text(graph, stage_names)
+
+
+def build_flowchart_suggestions(
+    graph: FlowchartGraph, stage_names: dict[uuid.UUID, str]
+) -> list[FlowchartSuggestion]:
+    """[KAN_FLOW2] Deterministically map chart edges to draft automation
+    suggestions the Flows UI can open prefilled.
+
+    Pure — no DB. Mapping rules:
+      * A stage node reached FROM another stage node (directly, or via a decision
+        diamond in between) becomes a suggestion. The trigger is the real
+        ``pipeline_stage_changed`` trigger declared by the pipeline flow registry,
+        prefilled with a stage_id condition on the SOURCE stage; the target stage
+        is carried so the Flows builder can prefill a move_pipeline_stage action.
+      * A decision diamond between two stages contributes its question and the
+        edge's yes/no (or free text) label as a human readable condition
+        description, so "New lead -> [Replied?] no (5 days) -> Cold" reads back as
+        one suggestion from New lead to Cold when Replied? is no.
+      * Suggestions are de-duplicated on (source stage, target stage, condition
+        text) and ordered deterministically so the panel is stable.
+    """
+    nodes_by_id = {n.id: n for n in graph.nodes}
+    # Outgoing edges per node, so we can hop stage -> decision -> stage.
+    out_edges: dict[str, list] = {}
+    for e in graph.edges:
+        out_edges.setdefault(e.source, []).append(e)
+
+    def stage_of(node_id: str):
+        node = nodes_by_id.get(node_id)
+        if node is None or node.type != "stage" or node.stage_id is None:
+            return None
+        return node
+
+    suggestions: list[FlowchartSuggestion] = []
+    seen: set[tuple] = set()
+
+    def add(source_node, target_node, condition_bits: list[str]) -> None:
+        src_id = source_node.stage_id
+        tgt_id = target_node.stage_id
+        if src_id is None or tgt_id is None or src_id == tgt_id:
+            return
+        src_name = stage_names.get(src_id, "a stage")
+        tgt_name = stage_names.get(tgt_id, "a stage")
+        condition = " — ".join([b for b in condition_bits if b]) or None
+        key = (str(src_id), str(tgt_id), condition or "")
+        if key in seen:
+            return
+        seen.add(key)
+
+        title = f"Automate: {src_name} → {tgt_name}"
+        if condition:
+            description = (
+                f"When a contact enters the {src_name} stage and {condition}, "
+                f"move them to {tgt_name}."
+            )
+        else:
+            description = (
+                f"When a contact enters the {src_name} stage, move them to {tgt_name}."
+            )
+        # Stable, process-independent id (Python's str hash is salted per run).
+        cond_digest = hashlib.sha1(key[2].encode("utf-8")).hexdigest()[:8]
+        suggestions.append(
+            FlowchartSuggestion(
+                id=f"kanflow_{key[0]}_{key[1]}_{cond_digest}",
+                title=title,
+                description=description,
+                condition_description=condition,
+                source_stage_id=src_id,
+                source_stage_name=src_name,
+                target_stage_id=tgt_id,
+                target_stage_name=tgt_name,
+                trigger_type="pipeline_stage_changed",
+                trigger_config={},
+                conditions=[{"field": "stage_id", "op": "equals", "value": str(src_id)}],
+            )
+        )
+
+    for edge in graph.edges:
+        source = stage_of(edge.source)
+        if source is None:
+            continue
+        target_node = nodes_by_id.get(edge.target)
+        if target_node is None:
+            continue
+
+        if target_node.type == "stage":
+            # Direct stage -> stage arrow. Any free text label is the condition.
+            label = (edge.label or "").strip()
+            add(source, target_node, [label])
+        elif target_node.type == "decision":
+            # stage -> [decision] -> stage(s). Fan out over the diamond's branches.
+            question = (target_node.label or "").strip()
+            for branch in out_edges.get(target_node.id, []):
+                branch_target = stage_of(branch.target)
+                if branch_target is None:
+                    continue
+                branch_label = (branch.label or "").strip()
+                bits = []
+                if question:
+                    bits.append(
+                        f"{question} is {branch_label}" if branch_label else question
+                    )
+                elif branch_label:
+                    bits.append(branch_label)
+                # Carry the diamond's inbound edge label too (rare, but keeps
+                # "New lead (5 days) -> [Replied?]" context if drawn that way).
+                inbound = (edge.label or "").strip()
+                if inbound:
+                    bits.append(inbound)
+                add(source, branch_target, bits)
+
+    # Deterministic ordering: by title then description.
+    suggestions.sort(key=lambda s: (s.title, s.description))
+    return suggestions
+
+
+async def get_flowchart_suggestions(
+    db: AsyncSession, tenant_id: uuid.UUID
+) -> list[FlowchartSuggestion]:
+    """[KAN_FLOW2] Build automation suggestions from the tenant's live chart."""
+    graph, stage_names = await _load_graph_and_stage_names(db, tenant_id)
+    return build_flowchart_suggestions(graph, stage_names)

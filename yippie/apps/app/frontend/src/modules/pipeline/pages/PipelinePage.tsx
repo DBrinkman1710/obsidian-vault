@@ -13,6 +13,11 @@ import { useTenantConfig } from '../../../App'
 import SendBookingModal from '../../booking/components/SendBookingModal'
 import { Campaign, marketingApi } from '../../marketing/api'
 import { CloseButton } from '../../../shell/CloseButton'
+import PipelineFlowchart from './PipelineFlowchart'
+
+// [KAN_FLOW1] The Kanban module has two views: the board (today's kanban) and a
+// flowchart that teaches Yippie how the pipeline works.
+type PipelineTab = 'board' | 'flowchart'
 
 interface PipelineStage {
   id: string
@@ -497,6 +502,7 @@ export default function PipelinePage() {
   const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? false
   const ctx = useContextMenu()
 
+  const [activeTab, setActiveTab] = useState<PipelineTab>('board')
   const [showManage, setShowManage] = useState(false)
   const [addToStage, setAddToStage] = useState<string | null>(null)
   const [selectedContacts, setSelectedContacts] = useState<Set<string>>(new Set())
@@ -776,14 +782,16 @@ export default function PipelinePage() {
       )}
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-bold text-slate-900">Kanban</h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            {allContactIds.size} contact{allContactIds.size !== 1 ? 's' : ''} in kanban
+            {activeTab === 'board'
+              ? `${allContactIds.size} contact${allContactIds.size !== 1 ? 's' : ''} in kanban`
+              : 'Describe how contacts flow through your pipeline'}
           </p>
         </div>
-        {isAdmin && (
+        {isAdmin && activeTab === 'board' && (
           <button
             onClick={() => setShowManage(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 text-xs font-semibold rounded-lg transition-colors"
@@ -794,7 +802,26 @@ export default function PipelinePage() {
         )}
       </div>
 
-      {board.length === 0 ? (
+      {/* [KAN_FLOW1] Board | Flowchart tabs — inbox-style pill tabs (same as Contacts) */}
+      <div className="flex gap-2 mb-6">
+        {(['board', 'flowchart'] as PipelineTab[]).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors capitalize ${
+              activeTab === tab
+                ? 'bg-yippie text-white'
+                : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
+            }`}
+          >
+            {tab}
+          </button>
+        ))}
+      </div>
+
+      {activeTab === 'flowchart' ? (
+        <PipelineFlowchart canEdit={isAdmin} />
+      ) : board.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center">
           <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
             <GripVertical size={24} className="text-slate-300" />

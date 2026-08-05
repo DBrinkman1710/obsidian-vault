@@ -547,7 +547,12 @@ class AgentContext:
         self.actions.append({"label": label, **fields})
 
 
-def _build_system_prompt(ctx: AgentContext, route: str | None, memories: list[str]) -> str:
+def _build_system_prompt(
+    ctx: AgentContext,
+    route: str | None,
+    memories: list[str],
+    pipeline_context: str = "",
+) -> str:
     now = datetime.now(timezone.utc)
     tenant = ctx.tenant
 
@@ -583,6 +588,17 @@ def _build_system_prompt(ctx: AgentContext, route: str | None, memories: list[st
     tenant_ctx = service._build_tenant_context(tenant)
     if tenant_ctx:
         lines += ["", "Workspace context:", tenant_ctx]
+
+    # [KAN_FLOW2] The pipeline flowchart the user drew (KAN_FLOW1) — only present
+    # when they've actually laid out stages/decisions/arrows. Tells Yip how THIS
+    # tenant's Kanban is meant to flow, so it can answer "what happens after X?"
+    # and suggest sensible moves instead of guessing.
+    if pipeline_context:
+        lines += [
+            "",
+            "How this tenant's pipeline works (drawn by the user):",
+            pipeline_context,
+        ]
 
     if memories:
         lines += ["", "Things you remember about this user:"]
@@ -1814,7 +1830,18 @@ async def run_agent_stream(
     ctx = AgentContext(db, user, tenant, context_type, context_id)
     memories = await _load_memories(db, tenant.id, user.id)
 
-    messages: list[dict] = [{"role": "system", "content": _build_system_prompt(ctx, route, memories)}]
+    # [KAN_FLOW2] Feed the tenant's hand drawn pipeline chart into Yip's prompt,
+    # but only when the pipeline module is enabled AND a non-empty chart exists —
+    # otherwise the section is omitted entirely.
+    pipeline_context = ""
+    if "pipeline" in set(expand_enabled_modules(tenant.enabled_modules)):
+        from app.modules.pipeline import service as pipeline_service
+
+        pipeline_context = await pipeline_service.flowchart_context_text(db, tenant.id)
+
+    messages: list[dict] = [
+        {"role": "system", "content": _build_system_prompt(ctx, route, memories, pipeline_context)}
+    ]
     for m in (history or [])[-MAX_HISTORY:]:
         role = m.get("role")
         content = (m.get("content") or "").strip()

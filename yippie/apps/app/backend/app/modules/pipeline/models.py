@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy.sql import func
 
@@ -40,3 +40,21 @@ class ContactPipelineEntry(Base):
     # Automation (flows, webhooks, bookings, tracking) respects this and won't
     # override a human's placement — see pipeline.service._assign_stage.
     moved_by_human: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+
+
+# [KAN_FLOW1] One flowchart per tenant describing how the Kanban pipeline works:
+# stage nodes, decision diamonds and labelled arrows. The board (pipeline_stages)
+# stays the source of truth for the stage list — this table only stores the
+# visual/semantic layout so Yippie can later reason about the pipeline (KAN_FLOW2).
+class PipelineFlowchart(Base):
+    __tablename__ = "pipeline_flowcharts"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    # Exactly one chart per tenant — enforced by the unique constraint.
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, unique=True, index=True)
+    # {"nodes": [...], "edges": [...]} — validated by the FlowchartGraph schema.
+    graph: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

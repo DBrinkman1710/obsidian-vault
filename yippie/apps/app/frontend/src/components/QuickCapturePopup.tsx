@@ -514,7 +514,7 @@ function CtaRow({ actions, onAction }: { actions?: CtaAction[] | null; onAction:
 function ConfirmActionCard({ pending, append, threadId }: { pending: PendingAction; append: (m: ChatMsg) => void; threadId: string | null }) {
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'cancelled'>('idle')
 
-  async function confirm() {
+  async function confirmPending() {
     if (status !== 'idle') return
     setStatus('loading')
     try {
@@ -556,7 +556,7 @@ function ConfirmActionCard({ pending, append, threadId }: { pending: PendingActi
         <p className="text-sm font-semibold text-slate-400">Cancelled</p>
       ) : (
         <div className="flex gap-2">
-          <button onClick={confirm} disabled={status === 'loading'}
+          <button onClick={confirmPending} disabled={status === 'loading'}
             className="inline-flex items-center gap-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity">
             {status === 'loading' ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
             Confirm
