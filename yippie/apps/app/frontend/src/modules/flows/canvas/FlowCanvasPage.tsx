@@ -358,6 +358,28 @@ function FlowCanvasInner() {
     setSelection(null)
   }
 
+  // Backspace/Delete removes the selected step or condition group node (never the
+  // trigger — a flow must keep one). Ignored while a field is focused so text
+  // editing in the inspector still deletes characters normally.
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Backspace' && e.key !== 'Delete') return
+      const canDelete = isAdmin && flow && !flow.is_default
+      if (!canDelete || !selection) return
+      const el = e.target as HTMLElement | null
+      if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return
+      if (selection.kind === 'step') {
+        e.preventDefault()
+        removeStep(selection.id)
+      } else if (selection.kind === 'group') {
+        e.preventDefault()
+        removeGroup(selection.index)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [selection, isAdmin, flow, draft]) // eslint-disable-line react-hooks/exhaustive-deps
+
   function moveStep(stepId: string, dir: -1 | 1) {
     const steps = structuredClone(draft!.steps)
     const loc = findStep(steps, stepId)
