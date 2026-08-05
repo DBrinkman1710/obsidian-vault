@@ -14,14 +14,15 @@ import {
 import type { NodeChange } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
-  ArrowLeft, GitBranch, History, LayoutGrid, Plus,
+  ArrowDown, ArrowLeft, ArrowUp, GitBranch, History, LayoutGrid, Plus,
   RefreshCw, SlidersHorizontal, Timer, Trash2, X, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+import { ContextMenu, useContextMenu } from '../../../components/ContextMenu'
 import {
-  Condition, Flow, FlowRun, FlowsMeta, RUN_BADGE, Step, WEEKDAYS, apiError,
+  Condition, Flow, FlowRun, FlowsMeta, RUN_BADGE, Step, WEEKDAYS, actionLabel, apiError,
   canAppend, findStep, graphToTree, groupTriggers, newActionId,
   toGroups, treeToActions,
 } from '../lib'
@@ -203,6 +204,7 @@ function FlowCanvasInner() {
   const [replayRunId, setReplayRunId] = useState<string | null>(null)
   const [panel, setPanel] = useState<'inspect' | 'runs'>('inspect')
   const [error, setError] = useState('')
+  const menu = useContextMenu() // [FLOW-CANVAS-CTX] shared right-click menu
 
   // [FLOW-CANVAS-DD] Canvas positions — stored in localStorage, keyed by step id
   // (without the 'step:' prefix) or by node id for trigger/'group-N' nodes.
@@ -510,6 +512,128 @@ function FlowCanvasInner() {
   const selectedLoc = selection?.kind === 'step' ? findStep(draft.steps, selection.id) : null
   const selectedStep = selectedLoc ? selectedLoc.list[selectedLoc.index] : null
 
+  // [FLOW-CANVAS-CTX] Right-click menus. These only surface actions the canvas
+  // already offers through the palette / inspector — nothing new is added to the
+  // engine. Menus stay inert unless the flow is editable (view-only defaults and
+  // non-admins get no menu), matching every other edit gate on this page.
+  function onPaneContextMenu(e: any) {
+    if (!canEdit || !draft) return
+    const canAdd = canAppend(draft.steps)
+    menu.open(e, [
+      { header: 'Add to flow' },
+      {
+        label: 'Action', icon: <Plus size={14} />,
+        onClick: canAdd
+          ? () => { setPanel('inspect'); addStep(null, 'action') }
+          : () => toast.error('This flow ends in a branch — select the branch to extend its paths.'),
+      },
+      {
+        label: 'Branch (if/else)', icon: <GitBranch size={14} />,
+        onClick: canAdd
+          ? () => { setPanel('inspect'); addStep(null, 'branch') }
+          : () => toast.error('This flow ends in a branch — select the branch to extend its paths.'),
+      },
+      { separator: true },
+      {
+        label: draft.groups.length === 0 ? 'Condition' : 'OR group',
+        icon: <Plus size={14} />,
+        onClick: () => { setPanel('inspect'); addGroup() },
+      },
+    ])
+  }
+
+  function onNodeContextMenu(e: any, node: any) {
+    if (!canEdit || !draft) return
+    if (node.id.startsWith('ghost-')) return // empty-leg placeholder, no actions
+
+    // Trigger — configurable, never deletable (a flow must keep its trigger,
+    // mirroring the Delete-key guard).
+    if (node.id === 'trigger') {
+      menu.open(e, [
+        { header: 'Trigger' },
+        {
+          label: 'Configure', icon: <SlidersHorizontal size={14} />,
+          onClick: () => { setPanel('inspect'); setSelection({ kind: 'trigger' }) },
+        },
+      ])
+      return
+    }
+
+    // Condition group.
+    if (node.id.startsWith('group-')) {
+      const index = Number(node.id.split('-')[1])
+      menu.open(e, [
+        { header: `Condition group ${index + 1}` },
+        {
+          label: 'Configure', icon: <SlidersHorizontal size={14} />,
+          onClick: () => { setPanel('inspect'); setSelection({ kind: 'group', index }) },
+        },
+        { separator: true },
+        {
+          label: 'Delete group', icon: <Trash2 size={14} />, danger: true,
+          onClick: () => removeGroup(index),
+        },
+      ])
+      return
+    }
+
+    if (!node.id.startsWith('step:')) return
+    const stepId = node.id.slice('step:'.length)
+    const loc = findStep(draft.steps, stepId)
+    if (!loc) return
+    const step = loc.list[loc.index]
+
+    if (step.type === 'branch') {
+      const canMatch = canAppend(step.match ?? [])
+      const canElse = canAppend(step.else ?? [])
+      menu.open(e, [
+        { header: 'Branch' },
+        {
+          label: 'Configure', icon: <SlidersHorizontal size={14} />,
+          onClick: () => { setPanel('inspect'); setSelection({ kind: 'step', id: stepId }) },
+        },
+        {
+          label: 'Add to Yes path', icon: <Plus size={14} />,
+          onClick: canMatch
+            ? () => { setPanel('inspect'); addStep({ branchId: stepId, leg: 'match' }, 'action') }
+            : () => toast.error('That path ends in a branch — select the nested branch to extend it.'),
+        },
+        {
+          label: 'Add to No path', icon: <Plus size={14} />,
+          onClick: canElse
+            ? () => { setPanel('inspect'); addStep({ branchId: stepId, leg: 'else' }, 'action') }
+            : () => toast.error('That path ends in a branch — select the nested branch to extend it.'),
+        },
+        { separator: true },
+        {
+          label: 'Delete branch', icon: <Trash2 size={14} />, danger: true,
+          onClick: () => removeStep(stepId),
+        },
+      ])
+      return
+    }
+
+    // Action / wait step. Move up/down mirror the inspector's arrows (same
+    // bounds + no reordering past a trailing branch).
+    const canUp = loc.index > 0
+    const canDown = loc.index < loc.list.length - 1 &&
+      loc.list[loc.index + 1]?.type !== 'branch'
+    menu.open(e, [
+      { header: step.type === 'wait' ? 'Wait' : actionLabel(meta, step.type) },
+      {
+        label: 'Configure', icon: <SlidersHorizontal size={14} />,
+        onClick: () => { setPanel('inspect'); setSelection({ kind: 'step', id: stepId }) },
+      },
+      ...(canUp ? [{ label: 'Move up', icon: <ArrowUp size={14} />, onClick: () => moveStep(stepId, -1) }] : []),
+      ...(canDown ? [{ label: 'Move down', icon: <ArrowDown size={14} />, onClick: () => moveStep(stepId, 1) }] : []),
+      { separator: true },
+      {
+        label: 'Delete step', icon: <Trash2 size={14} />, danger: true,
+        onClick: () => removeStep(stepId),
+      },
+    ])
+  }
+
   function legSection(step: Step, leg: 'match' | 'else') {
     const list = (leg === 'match' ? step.match : step.else) ?? []
     const label = leg === 'match' ? 'Yes path (conditions match)' : 'No path (otherwise)'
@@ -550,6 +674,8 @@ function FlowCanvasInner() {
 
   return (
     <div className="flex flex-col h-full min-h-0">
+      {/* [FLOW-CANVAS-CTX] shared right-click menu overlay */}
+      <ContextMenu state={menu.state} onClose={menu.close} />
       {/* header */}
       <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-200 bg-white shrink-0">
         <Link to="/flows" className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg" title="Back to flows">
@@ -631,6 +757,8 @@ function FlowCanvasInner() {
             onNodesChange={handleNodesChange}
             onEdgesChange={onRfEdgesChange}
             onConnect={handleConnect}
+            onPaneContextMenu={onPaneContextMenu}
+            onNodeContextMenu={onNodeContextMenu}
             fitView
             fitViewOptions={{ padding: 0.25, maxZoom: 1 }}
             nodesConnectable={canEdit}

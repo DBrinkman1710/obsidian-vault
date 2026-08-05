@@ -16,10 +16,11 @@ import {
 import type { EdgeChange, NodeChange } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import {
-  ArrowRight, Circle, Diamond, Flag, GitBranch, Loader2, Plus, Save, Sparkles, Trash2, Zap,
+  ArrowRight, Circle, Diamond, Flag, GitBranch, Loader2, PenLine, Plus, Save, Sparkles, Trash2, X, Zap,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { ContextMenu, useContextMenu } from '../../../components/ContextMenu'
 import { CloseButton } from '../../../shell/CloseButton'
 
 const YIPPIE_BLUE = '#5BA4F5'
@@ -360,6 +361,7 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
   const [pendingDelete, setPendingDelete] = useState<{ stageId: string; name: string } | null>(null)
   const [editingEdge, setEditingEdge] = useState<{ id: string; label: string } | null>(null)
   const [showSuggestions, setShowSuggestions] = useState(false) // [KAN_FLOW2]
+  const menu = useContextMenu()
   const hydrated = useRef(false)
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -569,9 +571,13 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     scheduleSave()
   }, [canEdit, setRfEdges, scheduleSave])
 
-  // ── toolbar actions ──
-  function addDecision() {
-    const pos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+  // ── toolbar + context-menu actions. `at` is a flow position (right-click
+  // adds the node under the cursor); toolbar calls omit it → canvas centre. ──
+  function centerPos() {
+    return screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+  }
+  function addDecision(at?: { x: number; y: number }) {
+    const pos = at ?? centerPos()
     const id = newId('d')
     setRfNodes(nds => [...nds, {
       id, type: 'decision', position: pos,
@@ -579,19 +585,20 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     }])
     scheduleSave()
   }
-  function addPill(kind: 'start' | 'end') {
-    const pos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+  function addPill(kind: 'start' | 'end', at?: { x: number; y: number }) {
+    const pos = at ?? centerPos()
     setRfNodes(nds => [...nds, {
       id: newId(kind), type: kind, position: pos, data: { kind },
     }])
     scheduleSave()
   }
 
-  async function addStage() {
+  async function addStage(at?: { x: number; y: number }) {
     const name = window.prompt('Name the new stage')
     if (!name?.trim()) return
-    const stage = await createStageMut.mutateAsync(name.trim())
-    const pos = screenToFlowPosition({ x: window.innerWidth / 2, y: window.innerHeight / 2 })
+    let stage: Stage
+    try { stage = await createStageMut.mutateAsync(name.trim()) } catch { return } // onError already toasts
+    const pos = at ?? centerPos()
     setRfNodes(nds => [...nds, {
       id: newId('n'), type: 'stage', position: pos,
       data: { name: stage.name, color: stage.color, stageId: stage.id, onRename: handleRename, onDelete: handleDeleteRequest, canEdit },
@@ -658,6 +665,63 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     scheduleSave()
   }
 
+  // ── right-click menus (shared ContextMenu component) ──
+  // Removes a node from the CHART only — a removed stage node goes back to the
+  // unplaced tray; the real stage is untouched.
+  function removeNodeFromChart(nodeId: string) {
+    setRfNodes(nds => nds.filter(n => n.id !== nodeId))
+    setRfEdges(eds => eds.filter(e => e.source !== nodeId && e.target !== nodeId))
+    scheduleSave()
+  }
+
+  function onPaneContextMenu(e: any) {
+    if (!canEdit) return
+    const at = screenToFlowPosition({ x: e.clientX, y: e.clientY })
+    menu.open(e, [
+      { header: 'Add here' },
+      { label: 'Stage', icon: <Plus size={14} />, onClick: () => addStage(at) },
+      { label: 'Decision', icon: <Diamond size={14} />, onClick: () => addDecision(at) },
+      { label: 'Start', icon: <Circle size={14} />, onClick: () => addPill('start', at) },
+      { label: 'End', icon: <Flag size={14} />, onClick: () => addPill('end', at) },
+      { separator: true },
+      { label: 'Suggest automations', icon: <Sparkles size={14} />, onClick: () => setShowSuggestions(true) },
+    ])
+  }
+
+  function onNodeContextMenu(e: any, node: any) {
+    if (!canEdit) return
+    if (node.type === 'stage') {
+      menu.open(e, [
+        { header: node.data?.name ?? 'Stage' },
+        { label: 'Remove from chart', icon: <X size={14} />, onClick: () => removeNodeFromChart(node.id) },
+        { separator: true },
+        {
+          label: 'Delete stage', icon: <Trash2 size={14} />, danger: true,
+          onClick: () => setPendingDelete({ stageId: node.data.stageId, name: node.data.name }),
+        },
+      ])
+    } else {
+      const kind = node.type === 'decision' ? 'decision' : node.type === 'start' ? 'start block' : 'end block'
+      menu.open(e, [
+        { label: `Delete ${kind}`, icon: <Trash2 size={14} />, danger: true, onClick: () => removeNodeFromChart(node.id) },
+      ])
+    }
+  }
+
+  function onEdgeContextMenu(e: any, edge: any) {
+    if (!canEdit) return
+    menu.open(e, [
+      {
+        label: 'Edit label', icon: <PenLine size={14} />,
+        onClick: () => setEditingEdge({ id: edge.id, label: typeof edge.label === 'string' ? edge.label : '' }),
+      },
+      {
+        label: 'Delete arrow', icon: <Trash2 size={14} />, danger: true,
+        onClick: () => { setRfEdges(eds => eds.filter(x => x.id !== edge.id)); scheduleSave() },
+      },
+    ])
+  }
+
   const onDrop = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     const raw = e.dataTransfer.getData('application/kan-flow-stage')
@@ -680,6 +744,7 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
 
   return (
     <>
+      <ContextMenu state={menu.state} onClose={menu.close} />
       {pendingDelete && (
         <DeleteStageModal name={pendingDelete.name} onConfirm={confirmDelete} onClose={() => setPendingDelete(null)} />
       )}
@@ -723,10 +788,10 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
           <div className="w-52 shrink-0 flex flex-col gap-3">
             <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-1.5">
               <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Add</p>
-              <button onClick={addStage} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors">
+              <button onClick={() => addStage()} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors">
                 <Plus size={12} /> Stage
               </button>
-              <button onClick={addDecision} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors">
+              <button onClick={() => addDecision()} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors">
                 <Diamond size={12} /> Decision
               </button>
               <button onClick={() => addPill('start')} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors">
@@ -813,6 +878,9 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
             onEdgesChange={onEdgesChange}
             onConnect={onConnect}
             onEdgeDoubleClick={onEdgeDoubleClick}
+            onPaneContextMenu={onPaneContextMenu}
+            onNodeContextMenu={onNodeContextMenu}
+            onEdgeContextMenu={onEdgeContextMenu}
             nodesConnectable={canEdit}
             nodesDraggable={canEdit}
             elementsSelectable={canEdit}
