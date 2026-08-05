@@ -67,7 +67,7 @@ TRIGGERS: dict[str, dict] = {
         "module": "contacts",
         "fields": [
             {"key": "outcome", "label": "Outcome", "type": "select",
-             "options": ["connected", "voicemail", "no_answer"]},
+             "options": ["interested", "not_interested", "callback", "voicemail", "no_answer"]},
             {"key": "duration_minutes", "label": "Duration (minutes)", "type": "number"},
         ],
         "fetch_fields": contact_fields,

@@ -125,12 +125,16 @@ class ContactList(BaseModel):
 
 # --- Call logging (click-to-call) ---
 
-CallOutcome = Literal["connected", "voicemail", "no_answer"]
+CallOutcome = Literal["interested", "not_interested", "callback", "voicemail", "no_answer"]
+
+# Outcomes where an actual conversation took place (so a transcript is expected
+# and worth analyzing). The rest are "never reached them" dispositions.
+CALL_CONVERSATION_OUTCOMES = frozenset({"interested", "not_interested", "callback"})
 
 
 class CallAnalyzeRequest(BaseModel):
     transcript: str
-    outcome: CallOutcome = "connected"
+    outcome: CallOutcome = "interested"
     duration_minutes: Optional[int] = Field(default=None, ge=0)
 
 

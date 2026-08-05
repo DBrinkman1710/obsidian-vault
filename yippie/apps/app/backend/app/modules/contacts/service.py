@@ -520,9 +520,16 @@ async def analyze_call(contact: Contact, data: CallAnalyzeRequest) -> CallAnalyz
 
     transcript = data.transcript.strip()
 
-    # No conversation happened — nothing to analyze.
-    if data.outcome != "connected" and not transcript:
-        summary = "Voicemail left." if data.outcome == "voicemail" else "No answer."
+    # Nothing to analyze without a transcript — fall back to a per-outcome canned
+    # summary so the call can still be logged (and drive automations) in one click.
+    if not transcript:
+        summary = {
+            "interested": "Spoke with the customer — interested.",
+            "not_interested": "Spoke with the customer — not interested.",
+            "callback": "Spoke with the customer — call back later.",
+            "voicemail": "Voicemail left.",
+            "no_answer": "No answer.",
+        }.get(data.outcome, "Call logged.")
         return CallAnalyzeResponse(summary=summary, ai_ok=True)
 
     truncated = len(transcript) > MAX_CALL_TRANSCRIPT_CHARS

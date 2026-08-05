@@ -12,7 +12,7 @@ import { useCompose } from '../../../hooks/useCompose'
 // an https page as mixed content) can reach it; 'localhost' matches the cert SAN.
 const HELPER_URL = 'https://localhost:8765'
 
-type Outcome = 'connected' | 'voicemail' | 'no_answer'
+type Outcome = 'interested' | 'not_interested' | 'callback' | 'voicemail' | 'no_answer'
 
 interface ActionItem {
   text: string
@@ -27,10 +27,25 @@ interface CallContact {
 }
 
 const OUTCOMES: { value: Outcome; label: string }[] = [
-  { value: 'connected', label: 'Connected' },
+  { value: 'interested', label: 'Picked up · interested' },
+  { value: 'not_interested', label: 'Picked up · not interested' },
+  { value: 'callback', label: 'Call back later' },
   { value: 'voicemail', label: 'Voicemail' },
-  { value: 'no_answer', label: 'No answer' },
+  { value: 'no_answer', label: 'Did not pick up' },
 ]
+
+// Build a dialable tel: URL. macOS/iOS hand this to the Continuity call prompt
+// ("Call using iPhone"). Numbers stored with a country code but no + get one;
+// national numbers starting with 0 are left as-is for the local dialer.
+function telHref(phone: string): string {
+  let p = phone.replace(/[^\d+]/g, '')
+  if (p && !p.startsWith('+') && !p.startsWith('0')) p = `+${p}`
+  return `tel:${p}`
+}
+
+function dial(phone: string | null) {
+  if (phone) window.location.href = telHref(phone)
+}
 
 function isoToLocalInput(iso: string | null): string {
   if (!iso) return ''
@@ -70,7 +85,7 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
   const [helperOk, setHelperOk] = useState<boolean | null>(null)
   const [elapsed, setElapsed] = useState(0)
   const [transcript, setTranscript] = useState('')
-  const [outcome, setOutcome] = useState<Outcome>('connected')
+  const [outcome, setOutcome] = useState<Outcome>('interested')
   const [duration, setDuration] = useState<string>('')
 
   // Review-phase editable AI output
@@ -85,9 +100,11 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
   const recordingRef = useRef(false)
   recordingRef.current = recording
 
-  // Kick off recording via the helper as soon as the modal opens.
+  // Place the call (macOS/iOS Continuity prompt) and kick off recording via the
+  // helper as soon as the modal opens.
   useEffect(() => {
     let cancelled = false
+    dial(contact.phone)
     helperPost('/start').then(ok => {
       if (cancelled) return
       setHelperOk(ok)
@@ -172,7 +189,9 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
     onClose()
   }
 
-  const canAnalyze = outcome !== 'connected' || transcript.trim().length > 0
+  // Any outcome can be logged — a callless disposition falls back to a canned
+  // summary server-side, so nothing gates on having a transcript.
+  const canAnalyze = true
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
@@ -184,7 +203,15 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
           <Phone size={15} className="text-blue-500" />
           <h2 className="text-sm font-bold text-slate-900 flex-1 truncate">
             Call — {contact.full_name}
-            {contact.phone && <span className="text-slate-400 font-normal"> · +{contact.phone}</span>}
+            {contact.phone && (
+              <a
+                href={telHref(contact.phone)}
+                className="text-slate-400 font-normal hover:text-yippie"
+                title="Dial again"
+              >
+                {' · '}{contact.phone}
+              </a>
+            )}
           </h2>
           <CloseButton onClick={onClose} />
         </div>
