@@ -6,7 +6,7 @@ import { breadcrumbJsonLd } from "../jsonld";
 
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
-const TITLE = "The Two Extremes of Customer Support — and Why SMBs Are Stuck in the Middle";
+const TITLE = "The Two Extremes of Customer Support, and Why SMBs Are Stuck in the Middle";
 const DESCRIPTION =
   "Most customer support software is built for one of two extremes: shared inbox chaos or enterprise complexity. Small businesses deserve something in between. Here is what that looks like.";
 const URL = "https://getyippie.com/blog/two_extremes_customer_support_smb";

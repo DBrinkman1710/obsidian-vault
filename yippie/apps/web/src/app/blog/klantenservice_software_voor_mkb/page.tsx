@@ -6,7 +6,7 @@ import { breadcrumbJsonLd } from "../jsonld";
 
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
-const TITLE = "De twee extremen van klantenservice — en waarom het MKB er tussenin zit";
+const TITLE = "De twee extremen van klantenservice, en waarom het MKB er tussenin zit";
 const DESCRIPTION =
   "De meeste klantenservice software is gebouwd voor twee extremen: chaos in een gedeelde inbox, of enterprise-complexiteit voor grote teams. MKB verdient iets daartussenin. Dit is hoe dat eruitziet.";
 const URL = "https://getyippie.com/blog/klantenservice_software_voor_mkb";

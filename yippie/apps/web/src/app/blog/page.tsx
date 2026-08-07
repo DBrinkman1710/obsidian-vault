@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 const posts = [
   {
     slug: "two_extremes_customer_support_smb",
-    title: "The Two Extremes of Customer Support — and Why SMBs Are Stuck in the Middle",
+    title: "The Two Extremes of Customer Support, and Why SMBs Are Stuck in the Middle",
     date: "2026-07-10",
     dateLabel: "July 10, 2026",
     excerpt:
@@ -28,7 +28,7 @@ const posts = [
   },
   {
     slug: "klantenservice_software_voor_mkb",
-    title: "De twee extremen van klantenservice — en waarom het MKB er tussenin zit",
+    title: "De twee extremen van klantenservice, en waarom het MKB er tussenin zit",
     date: "2026-07-10",
     dateLabel: "10 juli 2026",
     excerpt:

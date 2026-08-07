@@ -85,7 +85,7 @@ export default function PrivacyPage() {
             interest in managing business enquiries (Art. 6(1)(f) GDPR).
           </p>
 
-          <h2>Yippie Inbox Analyser — Chrome extension</h2>
+          <h2>Yippie Inbox Analyser: Chrome extension</h2>
           <p>
             The Yippie Inbox Analyser is a free Chrome extension that reads your
             Gmail inbox metadata to estimate how much time you spend on manual
@@ -144,7 +144,7 @@ export default function PrivacyPage() {
             data immediately. No data exists anywhere else.
           </p>
 
-          <h2>Yippie platform — Gmail and Outlook integration</h2>
+          <h2>Yippie platform: Gmail and Outlook integration</h2>
           <p>
             Within the Yippie customer service platform, users can optionally
             connect their Gmail or Microsoft Outlook mailbox so that incoming
