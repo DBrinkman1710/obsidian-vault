@@ -40,7 +40,7 @@ export default function TermsPage() {
           <h2>Definitions</h2>
           <ul>
             <li>
-              <strong>Platform</strong>: the Yippie software as a service offering
+              <strong>Platform</strong>: the Yippie software-as-a-service offering
               accessible at app.getyippie.com and related services.
             </li>
             <li>
@@ -63,7 +63,7 @@ export default function TermsPage() {
 
           <h2>Access &amp; Permitted Use</h2>
           <p>
-            The Platform is provided for business to business use only. The Tenant
+            The Platform is provided for business-to-business use only. The Tenant
             may grant access to authorized Users, and is responsible for their conduct
             and compliance with these Terms. Each User account is tied to one Tenant
             and may not be shared.
@@ -83,7 +83,7 @@ export default function TermsPage() {
               functionality or security.
             </li>
             <li>
-              Reverse engineer, decompile, or attempt to derive the underlying code
+              Reverse-engineer, decompile, or attempt to derive the underlying code
               or architecture.
             </li>
             <li>Resell or redistribute the Platform without prior written consent.</li>
@@ -104,21 +104,21 @@ export default function TermsPage() {
 
           <h2>Data Processing</h2>
           <p>
-            The Tenant may store Personal Data of its own customers and end users
+            The Tenant may store Personal Data of its own customers and end-users
             within the Platform. For GDPR / AVG compliance, the Tenant is the data
             controller and Yippie is the data processor. A Data Processing Agreement
             (DPA) is available upon request and governs the processing of Personal
             Data.
           </p>
           <p>
-            The Platform uses AI assisted features (inbox classification, reply
-            drafts, and the Yip assistant) powered by Mistral AI SAS (EU hosted,
+            The Platform uses AI-assisted features (inbox classification, reply
+            drafts, and the Yip assistant) powered by Mistral AI SAS (EU-hosted,
             Paris, France). Customer message content and contact data processed
             for these features is subject to a Data Processing Agreement with
             Mistral AI and is not used for model training.
           </p>
           <p>
-            Yippie uses industry standard security measures to protect data at rest
+            Yippie uses industry-standard security measures to protect data at rest
             and in transit. However, no system is entirely secure. The Tenant remains
             responsible for the legality and appropriateness of the Personal Data it
             uploads.
@@ -128,7 +128,7 @@ export default function TermsPage() {
           <p>
             Yippie retains all intellectual property rights in the Platform, including
             its software, design, documentation, and improvements. The Tenant is
-            granted a non exclusive, non transferable license to use the Platform
+            granted a non-exclusive, non-transferable license to use the Platform
             during the subscription term solely for its authorized business purposes.
           </p>
           <p>
@@ -170,7 +170,7 @@ export default function TermsPage() {
 
           <h2>Term &amp; Termination</h2>
           <p>
-            Subscriptions are month to month. Either party may terminate with
+            Subscriptions are month-to-month. Either party may terminate with
             30 days&apos; written notice. Yippie may terminate immediately if the Tenant
             breaches these Terms and does not cure the breach within 10 days of notice.
           </p>

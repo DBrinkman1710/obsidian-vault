@@ -76,12 +76,12 @@ export default function Post() {
             Most questions repeat. Save your best answers as reusable templates so
             agents start from 80% instead of a blank page. The right help desk
             software lets you insert a template and personalize it in seconds —
-            turning a five minute reply into a thirty second one.
+            turning a five-minute reply into a thirty-second one.
           </p>
 
           <h2>2. Set SLAs and make them visible</h2>
           <p>
-            A service level agreement is only useful if your team can see the clock.
+            A service-level agreement is only useful if your team can see the clock.
             Deadline badges and SLA alerts that fire <em>before</em> a ticket goes
             overdue keep urgent requests from aging quietly in the queue. When the
             target is on screen, the whole team moves to meet it.
@@ -100,13 +100,13 @@ export default function Post() {
             Response time balloons when a ticket bounces between people who each
             have to rebuild context. A shared inbox with full customer history and
             clear ownership means whoever picks up a conversation already knows the
-            backstory. No re asking, no re explaining.
+            backstory. No re-asking, no re-explaining.
           </p>
 
           <h2>5. Let AI draft the first response</h2>
           <p>
             Suggested replies give agents a complete draft to approve or refine
-            instantly. Pair that with an improve reply pass for tone, and your team
+            instantly. Pair that with an improve-reply pass for tone, and your team
             sends polished answers faster than they could type &quot;Hi there.&quot;
           </p>
 

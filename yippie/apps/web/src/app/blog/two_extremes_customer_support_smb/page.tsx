@@ -71,7 +71,7 @@ export default function Post() {
           <p>
             Small and medium businesses sit uncomfortably in the middle. Too big for the chaos of
             a shared inbox. Too small — and too sane — to justify enterprise software designed
-            for 500 person support teams.
+            for 500-person support teams.
           </p>
           <p>
             I built Yippie because I kept seeing the same situation play out. Let me explain what
@@ -93,7 +93,7 @@ export default function Post() {
           <p>
             Or the quieter version: a message sits in the inbox for three days because everyone
             assumed someone else was handling it. Nobody owned it. Nobody asked. It just aged
-            there, a silent promise broken. The customer&apos;s follow up — &quot;did you receive my
+            there, a silent promise broken. The customer&apos;s follow-up — &quot;did you receive my
             email?&quot; — is the first sign anything was wrong.
           </p>
           <p>
@@ -111,9 +111,9 @@ export default function Post() {
             feature lists are impressive. Then you start configuring.
           </p>
           <p>
-            SLA policies with multi level approval workflows. Manager sign off before an escalation
-            fires. Skill based routing rules that assign tickets to specialists based on tag
-            combinations. These are real features that solve real problems — for a 200 person
+            SLA policies with multi-level approval workflows. Manager sign-off before an escalation
+            fires. Skill-based routing rules that assign tickets to specialists based on tag
+            combinations. These are real features that solve real problems — for a 200-person
             support organisation where a ticket escalating incorrectly genuinely creates an incident.
           </p>
           <p>
@@ -123,36 +123,36 @@ export default function Post() {
             in the subject line.
           </p>
           <p>
-            The pricing is the final insult. Per agent fees that climb every time you hire someone.
+            The pricing is the final insult. Per-agent fees that climb every time you hire someone.
             Annual contracts before you have established that the tool even fits your workflow.
-            Minimums, add ons, a &quot;Contact sales&quot; button where the price should be. I once
+            Minimums, add-ons, a &quot;Contact sales&quot; button where the price should be. I once
             opened a competitor&apos;s pricing page, tried to calculate what it would cost for a
-            ten person team with the features we needed, and gave up before I found the answer.
+            ten-person team with the features we needed, and gave up before I found the answer.
             That is not an accident.
           </p>
 
           <h2>Why the middle is so poorly served</h2>
           <p>
-            The shared inbox is free and familiar. Enterprise software is well funded and feature rich.
+            The shared inbox is free and familiar. Enterprise software is well-funded and feature-rich.
             The companies building for SMBs either start from one of those two poles and add features,
             or build something so generic it solves neither problem well.
           </p>
           <p>
-            What a ten person team actually needs is not complicated. They need to see who owns
+            What a ten-person team actually needs is not complicated. They need to see who owns
             which message. They need a single view that unifies email and WhatsApp so the same
             customer does not have two contact records. They need something that takes five minutes
             to set up, not five days. And they need a price that does not assume they are a
-            cost centre with a dedicated procurement team.
+            cost-centre with a dedicated procurement team.
           </p>
           <p>
             That is the design brief for Yippie. Flat workspace pricing — one number, regardless of
             how many agents you add. An inbox that brings email and WhatsApp together so one contact
             record exists per customer. AI that reads incoming messages and drafts the ticket
-            write up so your team reviews instead of types. No approval workflows, no skill based
+            write-up so your team reviews instead of types. No approval workflows, no skill-based
             routing trees, no &quot;Contact sales.&quot;
           </p>
           <p>
-            The goal is not to be a scaled down Zendesk. It is to be exactly the right size for
+            The goal is not to be a scaled-down Zendesk. It is to be exactly the right size for
             a team that takes customer service seriously but has ten other things to do today.
           </p>
         </div>
