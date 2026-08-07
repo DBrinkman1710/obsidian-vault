@@ -8,7 +8,7 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 const TITLE = "Why Small Businesses Are Moving Customer Service to WhatsApp";
 const DESCRIPTION =
-  "WhatsApp has 2 billion users and message open rates above 90 percent. Here is why small businesses are adding it as a support channel — and how to set it up properly.";
+  "WhatsApp has 2 billion users and message open rates above 90 percent. Here is why small businesses are adding it as a support channel, and how to set it up properly.";
 const URL = "https://getyippie.com/blog/whatsapp_customer_service_for_small_business";
 const DATE = "2026-07-03";
 
@@ -64,7 +64,7 @@ export default function Post() {
         <div className={styles.articleBody}>
           <p>
             For many small businesses, the most direct line to a customer has
-            shifted. Not to a phone, not to a contact form — to WhatsApp.
+            shifted. Not to a phone, not to a contact form, but to WhatsApp.
             The platform has over 2 billion active users globally, and messages
             sent through WhatsApp Business see open rates above 90 percent,
             compared to roughly 20 percent for email. Customers are already
@@ -74,7 +74,7 @@ export default function Post() {
           <h2>WhatsApp is where your customers already are</h2>
           <p>
             In most of Europe, Latin America, and Southeast Asia, WhatsApp is
-            the default messaging app — not an alternative to it. Asking a
+            the default messaging app, not an alternative to it. Asking a
             customer to send an email or fill out a contact form introduces
             friction they have no reason to tolerate. WhatsApp removes that
             entirely. Customers message you the same way they message their
@@ -89,8 +89,8 @@ export default function Post() {
             typically gets opened within minutes. According to Meta&apos;s own
             platform data, 175 million people message a business account on
             WhatsApp every day. That speed matters most for time-sensitive
-            cases — a shipping delay, an appointment change, a billing question
-            — where waiting for an email reply is genuinely costly for the
+            cases: a shipping delay, an appointment change, a billing question,
+            where waiting for an email reply is genuinely costly for the
             customer.
           </p>
 
@@ -101,7 +101,7 @@ export default function Post() {
             WhatsApp gives those customers a faster alternative that still
             feels personal and immediate. Several small service businesses
             report a 30 to 40 percent drop in inbound calls after adding
-            WhatsApp as a support channel — most customers prefer it when
+            WhatsApp as a support channel. Most customers prefer it when
             given the option.
           </p>
 
@@ -130,7 +130,7 @@ export default function Post() {
             Adding WhatsApp to your support operation is not about chasing a
             trend. It is about meeting customers where they already spend their
             time. For small businesses that compete on service quality, faster
-            and more personal communication is the real advantage — and
+            and more personal communication is the real advantage, and
             WhatsApp, set up properly, delivers both.
           </p>
         </div>

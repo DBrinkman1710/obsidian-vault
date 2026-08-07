@@ -8,7 +8,7 @@ const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 const TITLE = "What a Slow Customer Service Response Actually Costs You";
 const DESCRIPTION =
-  "Slow support is not just frustrating — it costs revenue, drives negative reviews, and creates more work internally. Here is what the numbers say.";
+  "Slow support is not just frustrating: it costs revenue, drives negative reviews, and creates more work internally. Here is what the numbers say.";
 const URL = "https://getyippie.com/blog/cost_of_slow_customer_service_response";
 const DATE = "2026-06-26";
 
@@ -64,7 +64,7 @@ export default function Post() {
         <div className={styles.articleBody}>
           <p>
             Most small businesses know that slow support is bad. Fewer realize
-            exactly how bad — or how quickly the cost compounds. It is not just
+            exactly how bad, or how quickly the cost compounds. It is not just
             a lost customer. It is a customer who tells others, a review that
             discourages future buyers, and a competitive advantage handed to
             whoever replies faster. Here is what the research actually shows.
@@ -77,7 +77,7 @@ export default function Post() {
             times more likely to have a meaningful follow-up conversation than
             those who waited even two hours. The window for a warm response
             closes fast. By the time a customer has been waiting half a day,
-            the odds of a productive outcome have dropped significantly — and
+            the odds of a productive outcome have dropped significantly, and
             they know it too.
           </p>
 
@@ -94,7 +94,7 @@ export default function Post() {
 
           <h2>The time cost falls on your team too</h2>
           <p>
-            Slow responses are not just a customer experience problem — they
+            Slow responses are not just a customer experience problem: they
             create more work internally. Customers who have not heard back
             follow up, sometimes multiple times. Each follow-up is another
             message to read, triage, and reply to. SuperOffice research found
@@ -110,7 +110,7 @@ export default function Post() {
             average of 17 percent more with companies that deliver excellent
             service. The inverse is also true: customers who feel their time
             was wasted often leave entirely and take their full lifetime value
-            with them. Response time is not just a service metric — it feeds
+            with them. Response time is not just a service metric: it feeds
             directly into revenue.
           </p>
 
@@ -128,7 +128,7 @@ export default function Post() {
             The math is uncomfortable but clear: slow support costs money in
             every direction. The good news is that response time is one of the
             most fixable metrics in the business. The bottleneck is almost
-            never the team — it is the tools and the workflow around them.
+            never the team. It is the tools and the workflow around them.
           </p>
         </div>
 

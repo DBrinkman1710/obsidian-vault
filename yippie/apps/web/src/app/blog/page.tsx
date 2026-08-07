@@ -24,7 +24,7 @@ const posts = [
     date: "2026-07-10",
     dateLabel: "July 10, 2026",
     excerpt:
-      "Most support software is built for chaos or enterprise. Small businesses sit in neither camp. Here is what the right middle ground looks like — and why it is so rarely built.",
+      "Most support software is built for chaos or enterprise. Small businesses sit in neither camp. Here is what the right middle ground looks like, and why it is so rarely built.",
   },
   {
     slug: "klantenservice_software_voor_mkb",
@@ -40,7 +40,7 @@ const posts = [
     date: "2026-07-03",
     dateLabel: "July 3, 2026",
     excerpt:
-      "WhatsApp has 2 billion users and message open rates above 90 percent. Here is why small businesses are adding it as a support channel — and how to set it up properly.",
+      "WhatsApp has 2 billion users and message open rates above 90 percent. Here is why small businesses are adding it as a support channel, and how to set it up properly.",
   },
   {
     slug: "cost_of_slow_customer_service_response",
@@ -48,7 +48,7 @@ const posts = [
     date: "2026-06-26",
     dateLabel: "June 26, 2026",
     excerpt:
-      "Slow support is not just frustrating — it costs revenue, drives negative reviews, and creates more work internally. Here is what the numbers say.",
+      "Slow support is not just frustrating: it costs revenue, drives negative reviews, and creates more work internally. Here is what the numbers say.",
   },
   {
     slug: "shared_inbox_vs_regular_email",
@@ -56,7 +56,7 @@ const posts = [
     date: "2026-06-19",
     dateLabel: "June 19, 2026",
     excerpt:
-      "Still running support from a regular inbox? Here is how to know when shared inbox software pays off — and what you actually gain when you make the switch.",
+      "Still running support from a regular inbox? Here is how to know when shared inbox software pays off, and what you actually gain when you make the switch.",
   },
   {
     slug: "5-ways-ai-saves-smb-customer-service-time",

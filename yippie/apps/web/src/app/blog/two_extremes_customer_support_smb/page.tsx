@@ -70,7 +70,7 @@ export default function Post() {
           </p>
           <p>
             Small and medium businesses sit uncomfortably in the middle. Too big for the chaos of
-            a shared inbox. Too small — and too sane — to justify enterprise software designed
+            a shared inbox. Too small and too sane to justify enterprise software designed
             for 500-person support teams.
           </p>
           <p>
@@ -85,7 +85,7 @@ export default function Post() {
             how it usually breaks down.
           </p>
           <p>
-            Two people reply to the same message. The customer gets contradicting answers — one
+            Two people reply to the same message. The customer gets contradicting answers: one
             from an agent who read the thread on Tuesday morning, another from someone who opened
             it fresh on Tuesday afternoon and had no idea the first reply had already gone out.
             Embarrassing to fix. Damaging to trust.
@@ -93,8 +93,8 @@ export default function Post() {
           <p>
             Or the quieter version: a message sits in the inbox for three days because everyone
             assumed someone else was handling it. Nobody owned it. Nobody asked. It just aged
-            there, a silent promise broken. The customer&apos;s follow-up — &quot;did you receive my
-            email?&quot; — is the first sign anything was wrong.
+            there, a silent promise broken. The customer&apos;s follow-up (&quot;did you receive my
+            email?&quot;) is the first sign anything was wrong.
           </p>
           <p>
             And then there is the channel fragmentation problem that gets worse every year. The
@@ -113,7 +113,7 @@ export default function Post() {
           <p>
             SLA policies with multi-level approval workflows. Manager sign-off before an escalation
             fires. Skill-based routing rules that assign tickets to specialists based on tag
-            combinations. These are real features that solve real problems — for a 200-person
+            combinations. These are real features that solve real problems, for a 200-person
             support organisation where a ticket escalating incorrectly genuinely creates an incident.
           </p>
           <p>
@@ -145,7 +145,7 @@ export default function Post() {
             cost-centre with a dedicated procurement team.
           </p>
           <p>
-            That is the design brief for Yippie. Flat workspace pricing — one number, regardless of
+            That is the design brief for Yippie. Flat workspace pricing: one number, regardless of
             how many agents you add. An inbox that brings email and WhatsApp together so one contact
             record exists per customer. AI that reads incoming messages and drafts the ticket
             write-up so your team reviews instead of types. No approval workflows, no skill-based

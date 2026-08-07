@@ -95,7 +95,7 @@ export default function PrivacyPage() {
           <h3>What the extension accesses</h3>
           <p>
             The extension requests the <strong>gmail.metadata</strong> OAuth
-            scope. This grants read-only access to email metadata only — the
+            scope. This grants read-only access to email metadata only: the
             sender address, recipient address, subject line, and date of each
             message. It does <strong>not</strong> grant access to message bodies,
             attachments, drafts, or any other content.
