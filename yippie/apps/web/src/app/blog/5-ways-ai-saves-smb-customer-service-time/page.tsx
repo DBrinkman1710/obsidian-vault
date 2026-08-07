@@ -91,8 +91,8 @@ export default function Post() {
           <h2>3. Suggested replies cut typing in half</h2>
           <p>
             Most support answers are variations on a theme. AI suggests a complete,
-            on-brand reply you can send as-is or tweak in seconds. An
-            improve-reply pass tightens tone and grammar, so even rushed responses
+            on brand reply you can send as is or tweak in seconds. An
+            improve reply pass tightens tone and grammar, so even rushed responses
             read like your best ones.
           </p>
 
@@ -104,11 +104,11 @@ export default function Post() {
             informed. No scrolling required.
           </p>
 
-          <h2>5. Automation handles the follow-ups</h2>
+          <h2>5. Automation handles the follow ups</h2>
           <p>
             Booking links, confirmation emails, and pipeline updates fire
             automatically. When a customer books a call, the confirmation sends
-            itself and the contact moves to the right stage. The follow-up work
+            itself and the contact moves to the right stage. The follow up work
             that used to slip now just happens.
           </p>
 

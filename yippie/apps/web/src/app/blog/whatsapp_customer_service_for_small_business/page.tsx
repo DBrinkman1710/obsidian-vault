@@ -82,13 +82,13 @@ export default function Post() {
             before they even start.
           </p>
 
-          <h2>Open rates change the follow-up equation</h2>
+          <h2>Open rates change the follow up equation</h2>
           <p>
             When you send an order update or support response by email, there
             is a reasonable chance it sits unread for hours. A WhatsApp message
             typically gets opened within minutes. According to Meta&apos;s own
             platform data, 175 million people message a business account on
-            WhatsApp every day. That speed matters most for time-sensitive
+            WhatsApp every day. That speed matters most for time sensitive
             cases — a shipping delay, an appointment change, a billing question
             — where waiting for an email reply is genuinely costly for the
             customer.
@@ -120,7 +120,7 @@ export default function Post() {
           <p>
             A few things matter before you open the channel: a verified WhatsApp
             Business account through Meta (the verification process takes a
-            few days), a clear response-time commitment for the channel, and a
+            few days), a clear response time commitment for the channel, and a
             shared inbox tool that receives and assigns WhatsApp messages
             alongside email. Without that last piece, volume can quickly
             overwhelm a single person managing a phone.

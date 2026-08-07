@@ -70,11 +70,11 @@ export default function Post() {
             whoever replies faster. Here is what the research actually shows.
           </p>
 
-          <h2>The first-hour window matters more than you think</h2>
+          <h2>The first hour window matters more than you think</h2>
           <p>
             A Harvard Business Review study of B2B companies found that those
             who responded to an inquiry within the first hour were nearly seven
-            times more likely to have a meaningful follow-up conversation than
+            times more likely to have a meaningful follow up conversation than
             those who waited even two hours. The window for a warm response
             closes fast. By the time a customer has been waiting half a day,
             the odds of a productive outcome have dropped significantly — and
@@ -96,7 +96,7 @@ export default function Post() {
           <p>
             Slow responses are not just a customer experience problem — they
             create more work internally. Customers who have not heard back
-            follow up, sometimes multiple times. Each follow-up is another
+            follow up, sometimes multiple times. Each follow up is another
             message to read, triage, and reply to. SuperOffice research found
             that the average first response time for customer service emails
             across industries is over 12 hours. That gap fills with chaser

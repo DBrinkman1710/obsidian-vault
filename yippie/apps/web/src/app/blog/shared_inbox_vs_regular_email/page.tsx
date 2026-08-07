@@ -74,7 +74,7 @@ export default function Post() {
 
           <h2>1. The reply collision problem</h2>
           <p>
-            Regular email was designed for one-to-one communication. When two
+            Regular email was designed for one to one communication. When two
             people share access to a support inbox — through a forwarded alias
             or a shared login — they inevitably reply to the same message, or
             each assumes the other one handled it. Per Salesforce research, 63
@@ -105,7 +105,7 @@ export default function Post() {
 
           <h2>4. SLAs need a system to enforce them</h2>
           <p>
-            Setting a response-time target is easy. Keeping it is hard without
+            Setting a response time target is easy. Keeping it is hard without
             software that tracks it. A shared inbox with SLA support shows
             deadline badges on every open ticket and fires an alert before one
             goes overdue, giving managers a clear view of where the team stands.

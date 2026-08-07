@@ -44,7 +44,9 @@ export default function PrivacyPage() {
           <p>
             <strong>GetYippie</strong>
             <br />
-            KVK-nummer: 42124040
+            KVK nummer: 42124040
+            <br />
+            BTW nummer: NL005516514B24
             <br />
             E-mail:{" "}
             <a href="mailto:support@getyippie.com">support@getyippie.com</a>
@@ -77,7 +79,7 @@ export default function PrivacyPage() {
             respond to your enquiry and follow up.
           </p>
           <p>
-            <strong>Legal basis:</strong> Pre-contractual measures at your
+            <strong>Legal basis:</strong> Pre contractual measures at your
             request (Art. 6(1)(b) GDPR), meaning processing is necessary to take
             steps before entering into an agreement, and our legitimate
             interest in managing business enquiries (Art. 6(1)(f) GDPR).
@@ -93,7 +95,7 @@ export default function PrivacyPage() {
           <h3>What the extension accesses</h3>
           <p>
             The extension requests the <strong>gmail.metadata</strong> OAuth
-            scope. This grants read-only access to email metadata only — the
+            scope. This grants read only access to email metadata only — the
             sender address, recipient address, subject line, and date of each
             message. It does <strong>not</strong> grant access to message bodies,
             attachments, drafts, or any other content.
@@ -179,7 +181,7 @@ export default function PrivacyPage() {
           <p>
             Email content (sender, recipient, subject, and body) is processed
             solely to display messages in the Yippie platform, generate
-            AI-assisted reply suggestions, and classify conversations. We do{" "}
+            AI assisted reply suggestions, and classify conversations. We do{" "}
             <strong>not</strong> use your email data to serve advertising, build
             profiles for third parties, or train AI models. Message content
             processed by our AI provider (Mistral AI SAS) is subject to a Data
@@ -247,10 +249,10 @@ export default function PrivacyPage() {
             anew.
           </p>
 
-          <h2>Third-party service providers (data processors)</h2>
+          <h2>Third party service providers (data processors)</h2>
           <p>
             We do not sell your data. However, to operate this website we share
-            data with third-party service providers (verwerkers) in the
+            data with third party service providers (verwerkers) in the
             following categories:
           </p>
           <ul>
@@ -267,11 +269,11 @@ export default function PrivacyPage() {
               and deliver messages you send us.
             </li>
             <li>
-              <strong>AI processing providers</strong>: to power AI-assisted
+              <strong>AI processing providers</strong>: to power AI assisted
               features (inbox classification, reply suggestions, and the Yip
               assistant), message content and contact data may be processed by
               Mistral AI SAS, 15 rue des Halles, 75001 Paris, France
-              (EU-hosted). Mistral AI does not use this data to train its
+              (EU hosted). Mistral AI does not use this data to train its
               models. A Data Processing Agreement with Mistral AI is in place.
             </li>
           </ul>
