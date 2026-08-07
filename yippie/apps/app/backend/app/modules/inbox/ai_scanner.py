@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
 from app.modules.ai.client import ai_completion
+
+log = logging.getLogger(__name__)
 
 LANGUAGE_NAMES = {
     "en": "English", "nl": "Dutch", "fr": "French", "de": "German",
@@ -116,6 +119,8 @@ async def generate_reply_draft(
     contact_name: Optional[str],
     language: str = "en",
     tenant_profile: dict | None = None,
+    db=None,
+    tenant_id=None,
 ) -> str:
     lang_name = LANGUAGE_NAMES.get(language, "English")
     context_block = f"\n\nCustomer context: {context_summary}" if context_summary else ""
@@ -124,12 +129,31 @@ async def generate_reply_draft(
     tone = (tenant_profile or {}).get("tone", "professional")
     tone_line = f" Use a {tone} tone." if tone else ""
 
+    # [YIP-KB] Ground the draft in the tenant's own FAQ/Q&A page when one is
+    # configured. A KB failure must never sink the draft — graceful no-op.
+    knowledge_block = ""
+    if db is not None and tenant_id is not None:
+        try:
+            from app.modules.knowledge.retrieval import build_kb_block
+
+            kb = await build_kb_block(db, tenant_id, f"{subject or ''}\n{description or ''}")
+            if kb:
+                knowledge_block = f"""
+
+Company knowledge (answer from this when relevant):
+---
+{kb}
+---
+Prefer the company knowledge above when it answers the customer's question. Do not invent facts that are not in the message, the customer context, or the company knowledge."""
+        except Exception:
+            log.exception("[YIP-KB] knowledge retrieval failed; drafting without it")
+
     prompt = f"""Write a professional, empathetic reply to this customer support request. Sign off as "{sign_off}". Max 200 words. Return plain text only, no JSON, no markdown.{tone_line}
 
 IMPORTANT: The customer wrote in {lang_name}. Your entire reply MUST be written in {lang_name}.
 
 Support request subject: {subject}
-Issue: {description}{context_block}
+Issue: {description}{context_block}{knowledge_block}
 
 Begin with: {greeting},"""
 

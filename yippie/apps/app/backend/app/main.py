@@ -45,6 +45,7 @@ from app.modules.email_accounts.router import (
     callback_router as email_accounts_callback_router,
 )
 from app.modules.booking.worker_router import router as worker_router
+from app.modules.knowledge.router import router as knowledge_router
 
 
 configure_logging()
@@ -187,6 +188,12 @@ def create_app() -> FastAPI:
 
     # Stripe auth-protected endpoints — no module gate (always accessible)
     app.include_router(stripe_router, prefix="/api/v1")
+
+    # [YIP-KB] Knowledge base — not a sellable module, ships with "ai": gated on
+    # the ai module here at mount time; admin-only is enforced inside the router.
+    app.include_router(
+        knowledge_router, prefix="/api/v1", dependencies=[Depends(require_module("ai"))]
+    )
 
     # Module routes — all mounted, each gated per-request by tenant's enabled_modules
     # and by the user's RBAC access level for that module.

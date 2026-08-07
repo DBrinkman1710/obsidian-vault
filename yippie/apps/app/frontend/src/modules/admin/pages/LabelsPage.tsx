@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { BotMessageSquare, Code2, Copy, GripVertical, Layers, MessageSquare, Palette, Building2, Plus, RefreshCcw, Settings2, Tag, Trash2 } from 'lucide-react'
+import { BookOpen, BotMessageSquare, Code2, Copy, GripVertical, Layers, MessageSquare, Palette, Building2, Plus, RefreshCcw, Settings2, Tag, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useCopy } from '../../../hooks/useCopy'
 import { useTenantConfig } from '../../../App'
+import { fmtDateTime } from '../../../lib/format'
 import { SendcloudSettingsCard } from '../../shipments/components/SendcloudSettingsCard'
 import YipTrainModal from '../../../components/YipTrainModal'
 
@@ -746,6 +747,120 @@ function AiYipCard() {
   )
 }
 
+interface KbSource {
+  id: string
+  url: string
+  status: 'pending' | 'ok' | 'failed'
+  last_fetched_at: string | null
+  error: string | null
+  char_count: number
+  chunk_count: number
+  created_at: string
+}
+
+/**
+ * [YIP-KB] Yip knowledge — the tenant's own FAQ/Q&A page as grounding for AI
+ * reply drafts. One URL; fetched server side, chunked, and injected into
+ * suggest-reply prompts when relevant.
+ */
+function YipKnowledgeCard() {
+  const qc = useQueryClient()
+  const [url, setUrl] = useState('')
+
+  const { data: source } = useQuery<KbSource | null>({
+    queryKey: ['kb_source'],
+    queryFn: () => api.get('/knowledge/source').then((r: any) => r.data),
+    // Poll while a fetch is running so the status line flips to ok/failed by itself.
+    refetchInterval: q => (q.state.data?.status === 'pending' ? 2000 : false),
+  })
+  useEffect(() => { if (source) setUrl(source.url) }, [source?.url])
+
+  const invalidate = () => qc.invalidateQueries({ queryKey: ['kb_source'] })
+
+  const saveMut = useMutation({
+    mutationFn: () => api.put('/knowledge/source', { url: url.trim() }),
+    onSuccess: () => { invalidate(); toast.success('Fetching your page…') },
+    onError: (e: any) => toast.error(e.response?.data?.detail?.[0]?.msg ?? e.response?.data?.detail ?? 'Failed to save'),
+  })
+  const refetchMut = useMutation({
+    mutationFn: () => api.post('/knowledge/source/refetch'),
+    onSuccess: () => { invalidate(); toast.success('Re-fetching your page…') },
+    onError: () => toast.error('Failed to start the re-fetch'),
+  })
+  const removeMut = useMutation({
+    mutationFn: () => api.delete('/knowledge/source'),
+    onSuccess: () => { setUrl(''); invalidate(); toast.success('Knowledge source removed') },
+    onError: () => toast.error('Failed to remove'),
+  })
+
+  const dirty = url.trim() !== (source?.url ?? '') && url.trim().length > 0
+
+  return (
+    <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
+      <div className="flex items-center gap-2 mb-1">
+        <BookOpen size={16} className="text-slate-400" />
+        <h2 className="text-base font-semibold text-slate-900">Yip knowledge</h2>
+      </div>
+      <p className="text-sm text-slate-500 mb-5">
+        Point Yip at your own FAQ or help page. Reply drafts will use the answers on that page
+        instead of guessing.
+      </p>
+
+      <label className="block text-xs font-semibold text-slate-500 mb-1.5">Q&A page URL</label>
+      <div className="flex gap-2">
+        <input
+          type="url"
+          value={url}
+          onChange={e => setUrl(e.target.value)}
+          onKeyDown={e => e.key === 'Enter' && dirty && saveMut.mutate()}
+          placeholder="https://yourcompany.nl/faq"
+          className="input-base flex-1"
+        />
+        <button
+          onClick={() => saveMut.mutate()}
+          disabled={saveMut.isPending || !dirty}
+          className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
+        >
+          {saveMut.isPending ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+
+      {source && (
+        <div className="mt-4 flex items-center gap-3 flex-wrap">
+          {source.status === 'pending' && (
+            <span className="text-xs text-slate-500">Fetching your page…</span>
+          )}
+          {source.status === 'ok' && (
+            <span className="text-xs text-slate-500">
+              Fetched · {source.chunk_count} section{source.chunk_count !== 1 ? 's' : ''}
+              {source.last_fetched_at && ` · last updated ${fmtDateTime(source.last_fetched_at)}`}
+            </span>
+          )}
+          {source.status === 'failed' && (
+            <span className="text-xs text-danger-600">Fetch failed{source.error ? ` — ${source.error}` : ''}</span>
+          )}
+          <span className="ml-auto flex gap-2">
+            <button
+              onClick={() => refetchMut.mutate()}
+              disabled={refetchMut.isPending || source.status === 'pending'}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 hover:border-slate-300 hover:bg-slate-50 disabled:opacity-50 rounded-xl transition-colors"
+            >
+              <RefreshCcw size={12} /> Re-fetch
+            </button>
+            <button
+              onClick={() => removeMut.mutate()}
+              disabled={removeMut.isPending}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-danger-600 border border-danger-200 hover:bg-danger-50 disabled:opacity-50 rounded-xl transition-colors"
+            >
+              <Trash2 size={12} /> Remove
+            </button>
+          </span>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function LabelsPage() {
   const { user } = useAuth()
   const config = useTenantConfig()
@@ -800,6 +915,7 @@ export default function LabelsPage() {
       </div>
       <WebsiteWidgetsCard isAdmin={isAdmin} />
       {isAdmin && <AiYipCard />}
+      {isAdmin && config?.enabled_modules?.includes('ai') && <YipKnowledgeCard />}
       {isAdmin && <ContactLabelsCard />}
       {isAdmin && <LiveChatSettingsCard />}
       {isAdmin && <KanbanStagesPanel />}
