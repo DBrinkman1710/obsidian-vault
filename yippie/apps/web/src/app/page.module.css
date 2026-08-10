@@ -85,7 +85,36 @@
   margin-bottom: 32px;
 }
 
-.heroActions { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+/* Column so the third button can span the exact width of the two above it. */
+.heroActions { display: inline-flex; flex-direction: column; gap: 12px; align-items: stretch; }
+.heroActionsTop { display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+
+/* "How does it work?" — full width of the two buttons combined, scrolls to the story. */
+.btnHow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 22px;
+  border-radius: var(--r-sm);
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--brand);
+  background: #eef6fe;
+  border: 1px solid rgba(91, 164, 245, 0.4);
+  transition: background 0.18s, border-color 0.18s, transform 0.15s;
+}
+.btnHow span { transition: transform 0.2s; }
+.btnHow:hover {
+  background: #e2f0fd;
+  border-color: var(--brand);
+  transform: translateY(-1px);
+}
+.btnHow:hover span { transform: translateY(2px); }
+
+/* Anchor offset so the sticky nav doesn't cover the story heading. */
+.workflowAnchor { scroll-margin-top: 88px; }
 .heroMeta {
   margin-top: 18px;
   font-family: var(--font-mono);

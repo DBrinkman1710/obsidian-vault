@@ -11,6 +11,7 @@ import SiteFooter from "./components/SiteFooter";
 import Reveal from "./components/Reveal";
 import ROICalculator from "./components/ROICalculator";
 import PricingTeaser from "./components/PricingTeaser";
+import UseCaseStories from "./components/UseCaseStories";
 import { PLAN_LIMITS } from "@/lib/config";
 // import HourCounter from "./components/HourCounter";
 import {
@@ -220,10 +221,15 @@ export default function HomePage() {
               ticket is auto-drafted for you. Review, approve, done.
             </p>
             <div className={styles.heroActions}>
-              <a href="/signup" className={styles.btnPrimary}>
-                Start your free 30 day trial <ArrowRightIcon size={17} />
+              <div className={styles.heroActionsTop}>
+                <a href="/signup" className={styles.btnPrimary}>
+                  Start your free 30 day trial <ArrowRightIcon size={17} />
+                </a>
+                <a href={DEMO_URL} className={styles.btnGhost}>Request demo</a>
+              </div>
+              <a href="#workflow" className={styles.btnHow}>
+                How does it work? <span aria-hidden="true">↓</span>
               </a>
-              <a href={DEMO_URL} className={styles.btnGhost}>Request demo</a>
             </div>
             <p className={styles.heroMeta}>30 days free · No credit card · Cancel anytime</p>
           </Reveal>
@@ -254,6 +260,11 @@ export default function HomePage() {
       </section>
 
       {/* <HourCounter statsUrl={APP_URL} /> */}
+
+      {/* Use case clickthroughs — two-button story switcher */}
+      <div id="workflow" className={styles.workflowAnchor}>
+        <UseCaseStories />
+      </div>
 
       {/* Features */}
       <section id="features" className={styles.section}>

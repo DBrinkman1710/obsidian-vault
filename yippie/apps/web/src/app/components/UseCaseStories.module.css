@@ -1,0 +1,31 @@
+.wrap { --brand:#5ba4f5; --brand-ink:#1e5a94; --ink:#0f172a; --muted:#64748b; --line:#e2e8f0; }
+
+.head { text-align:center; max-width:640px; margin:0 auto 26px; padding-top:64px; }
+.eyebrow { display:inline-block; font-size:13px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--brand-ink); background:#eaf3fe; padding:6px 14px; border-radius:999px; margin-bottom:16px; }
+.heading { font-size:clamp(28px,4vw,42px); line-height:1.1; font-weight:800; letter-spacing:-.02em; color:var(--ink); margin:0 0 10px; }
+.sub { font-size:16px; color:var(--muted); margin:0; }
+
+.selector { display:flex; gap:14px; justify-content:center; flex-wrap:wrap; max-width:1120px; margin:0 auto; padding:0 24px; }
+.storyBtn { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:280px; text-align:left; padding:16px 20px; border:1px solid var(--line); border-radius:14px; background:#fff; cursor:pointer; transition:all .18s ease; }
+.storyBtn:hover { border-color:var(--brand); transform:translateY(-2px); box-shadow:0 10px 26px -14px rgba(91,164,245,.5); }
+.storyBtn[data-on="true"] { border-color:var(--brand); background:#f2f8ff; box-shadow:0 8px 22px -12px rgba(91,164,245,.45); }
+.k { font-size:11.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color:var(--brand); }
+.t { font-size:17px; font-weight:800; color:var(--ink); }
+.d { font-size:13px; color:var(--muted); font-weight:500; }
+
+/* The nested UseCaseFlow already has its own top padding; trim it here. */
+.wrap :global(section) { padding-top:32px; }
+
+/* Trial CTA at the end of the stories. */
+.cta { text-align:center; margin-top:8px; }
+.ctaBtn {
+  display:inline-flex; align-items:center; gap:9px;
+  background:var(--ink); color:#fff;
+  padding:16px 32px; border-radius:12px;
+  font-size:16px; font-weight:700; text-decoration:none;
+  transition:transform .15s, box-shadow .2s, background .2s;
+}
+.ctaBtn span { transition:transform .18s; }
+.ctaBtn:hover { background:var(--brand); transform:translateY(-2px); box-shadow:0 14px 30px -10px rgba(91,164,245,.55); }
+.ctaBtn:hover span { transform:translateX(3px); }
+.ctaMeta { margin-top:14px; font-size:13px; color:var(--muted); }
