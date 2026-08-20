@@ -1570,6 +1570,11 @@ class LeadSubmit(BaseModel):
     email: EmailStr
     phone: str | None = Field(default=None, max_length=50)
     message: str | None = Field(default=None, max_length=2000)
+    # Optional target pipeline stage by name. When it matches one of the tenant's
+    # stages (case-insensitive) the contact lands there; otherwise we fall back to
+    # the tenant's default lead_widget_stage_id. Lets one site route different
+    # forms to different Kanban stages without exposing stage UUIDs.
+    stage: str | None = Field(default=None, max_length=100)
 
 
 @router.post("/lead/{slug}", status_code=201)
@@ -1618,15 +1623,25 @@ async def submit_lead(
         db.add(contact)
         await db.flush()
 
-    if tenant.lead_widget_stage_id is not None:
+    # Resolve target stage: an explicit stage name from the form wins, otherwise
+    # fall back to the tenant's configured default lead stage.
+    stage = None
+    if body.stage:
+        stage = await db.scalar(
+            select(PipelineStage).where(
+                PipelineStage.tenant_id == tenant.id,
+                func.lower(PipelineStage.name) == body.stage.strip().lower(),
+            )
+        )
+    if stage is None and tenant.lead_widget_stage_id is not None:
         stage = await db.scalar(
             select(PipelineStage).where(
                 PipelineStage.id == tenant.lead_widget_stage_id,
                 PipelineStage.tenant_id == tenant.id,
             )
         )
-        if stage is not None:
-            await _assign_stage(db, tenant.id, contact.id, stage.id)
+    if stage is not None:
+        await _assign_stage(db, tenant.id, contact.id, stage.id)
 
     await db.commit()
     return {"ok": True}
