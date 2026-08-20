@@ -99,6 +99,8 @@ class Settings(BaseSettings):
         "https://sandbox.getyippie.com,https://devsandbox.getyippie.com,"
         # Marketing site fetches /api/v1/public/stats for the Hour Counter
         "https://getyippie.com,https://www.getyippie.com,"
+        # My Last Bike site posts enquiry + newsletter forms to /public/lead/{slug}
+        "https://mylastbike.com,https://www.mylastbike.com,"
         "http://localhost:5173,http://localhost:3000"
     )
 
