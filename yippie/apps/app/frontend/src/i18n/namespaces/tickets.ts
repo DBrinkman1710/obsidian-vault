@@ -75,7 +75,7 @@ export const tickets: { en: Record<string, string>; nl: Record<string, string> }
     ticket_product_usage:          'Product usage',
     ticket_no_product_data:        'No product data yet.',
     ticket_health_score:           'Health score',
-    ticket_open_inbox:             'Open in inbox →',
+    ticket_open_inbox:             'Open in inbox',
     // TicketDetail — ContactSlidePanel
     ticket_contact_profile:        'Contact profile',
     ticket_full_profile:           'Full profile',
@@ -192,7 +192,7 @@ export const tickets: { en: Record<string, string>; nl: Record<string, string> }
     ticket_product_usage:          'Productgebruik',
     ticket_no_product_data:        'Nog geen productgegevens.',
     ticket_health_score:           'Gezondheidsscore',
-    ticket_open_inbox:             'Openen in postvak →',
+    ticket_open_inbox:             'Openen in postvak',
     // TicketDetail — ContactSlidePanel
     ticket_contact_profile:        'Contactprofiel',
     ticket_full_profile:           'Volledig profiel',

@@ -47,7 +47,7 @@ export const chat: { en: Record<string, string>; nl: Record<string, string> } = 
     chat_unassign_return_open:     'Unassign (return to open)',
     chat_reopen:                   'Reopen',
     chat_solve:                    'Solve',
-    chat_ticket_link:              'Ticket →',
+    chat_ticket_link:              'Ticket',
     chat_actions:                  'Actions',
     chat_close:                    'Close',
     // ChatPage — conversation tabs
@@ -92,7 +92,7 @@ export const chat: { en: Record<string, string>; nl: Record<string, string> } = 
     chat_contact_email_label:      'Email',
     chat_contact_company_label:    'Company',
     chat_contact_labels_label:     'Labels',
-    chat_open_full_profile:        'Open full profile →',
+    chat_open_full_profile:        'Open full profile',
     chat_saving:                   'Saving…',
     chat_save:                     'Save',
     // CreateContactModal
@@ -203,7 +203,7 @@ export const chat: { en: Record<string, string>; nl: Record<string, string> } = 
     chat_unassign_return_open:     'Toewijzing verwijderen (terug naar open)',
     chat_reopen:                   'Heropenen',
     chat_solve:                    'Oplossen',
-    chat_ticket_link:              'Ticket →',
+    chat_ticket_link:              'Ticket',
     chat_actions:                  'Acties',
     chat_close:                    'Sluiten',
     // ChatPage — conversation tabs
@@ -248,7 +248,7 @@ export const chat: { en: Record<string, string>; nl: Record<string, string> } = 
     chat_contact_email_label:      'E-mail',
     chat_contact_company_label:    'Bedrijf',
     chat_contact_labels_label:     'Labels',
-    chat_open_full_profile:        'Volledig profiel openen →',
+    chat_open_full_profile:        'Volledig profiel openen',
     chat_saving:                   'Opslaan…',
     chat_save:                     'Opslaan',
     // CreateContactModal

@@ -168,13 +168,13 @@ export const contacts: { en: Record<string, string>; nl: Record<string, string> 
     // CompanyPicker
     contacts_loading_companies:       'Loading companies…',
     contacts_no_companies_picker:     'No companies yet.',
-    contacts_companies_settings_link: 'Settings → Companies',
+    contacts_companies_settings_link: 'Settings > Companies',
     contacts_no_company_select:       'No company',
 
     // LabelChip / LabelPicker
     contacts_loading_labels:          'Loading labels…',
     contacts_no_labels_yet:           'No labels yet.',
-    contacts_labels_settings_link:    'Settings → Labels',
+    contacts_labels_settings_link:    'Settings > Labels',
     contacts_labels_create_below:     'or create one below.',
     contacts_label_name_ph:           'Label name',
     contacts_label_create_btn:        'Create',
@@ -390,13 +390,13 @@ export const contacts: { en: Record<string, string>; nl: Record<string, string> 
     // CompanyPicker
     contacts_loading_companies:       'Bedrijven laden…',
     contacts_no_companies_picker:     'Nog geen bedrijven.',
-    contacts_companies_settings_link: 'Instellingen → Bedrijven',
+    contacts_companies_settings_link: 'Instellingen > Bedrijven',
     contacts_no_company_select:       'Geen bedrijf',
 
     // LabelChip / LabelPicker
     contacts_loading_labels:          'Labels laden…',
     contacts_no_labels_yet:           'Nog geen labels.',
-    contacts_labels_settings_link:    'Instellingen → Labels',
+    contacts_labels_settings_link:    'Instellingen > Labels',
     contacts_labels_create_below:     'of maak er hieronder een aan.',
     contacts_label_name_ph:           'Labelnaam',
     contacts_label_create_btn:        'Aanmaken',

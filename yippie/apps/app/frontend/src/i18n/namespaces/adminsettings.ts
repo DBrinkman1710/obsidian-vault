@@ -268,7 +268,7 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
     settings_profile_workmode_hint:    "When on, the shared inbox only shows mail assigned to you (or sent to your personal address). Turn off to see all of your team's incoming mail.",
     settings_profile_helptips_label:   'Help tips',
     settings_profile_helptips_hint:    'Show contextual ? icons throughout the app with short explanations. Turn off to hide them all.',
-    settings_profile_saved_check:      '✓ Saved',
+    settings_profile_saved_check:      'Saved',
 
     // ── Platform manual ───────────────────────────────────────────────────────
     settings_manual_heading:           'Platform Manual',
@@ -285,7 +285,7 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
     settings_pw_mismatch:              'Passwords do not match',
     settings_pw_updating:              'Updating…',
     settings_pw_update_btn:            'Update password',
-    settings_pw_updated:               '✓ Password updated',
+    settings_pw_updated:               'Password updated',
     settings_pw_failed:                'Failed to change password.',
 
     // ── SignaturesSection ─────────────────────────────────────────────────────
@@ -311,7 +311,7 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
     settings_cal_desc:                 'Add iCal feed URLs from Apple Calendar or Outlook. Busy times are automatically blocked from your booking availability.',
     settings_cal_name_ph:              'Name (e.g. Apple Calendar, School)',
     settings_cal_url_ph:               'iCal URL (webcal:// or https://)',
-    settings_cal_instructions:         'Apple Calendar: right-click calendar → Share → Copy Link (webcal://…) · Outlook: Calendar settings → Share → ICS link',
+    settings_cal_instructions:         'Apple Calendar: right-click calendar > Share > Copy Link (webcal://…) · Outlook: Calendar settings > Share > ICS link',
     settings_cal_sync_now:             'Sync now',
     settings_cal_disable:              'Disable',
     settings_cal_enable:               'Enable',
@@ -324,7 +324,7 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
 
     // ── YippieCalendarFeedCard ────────────────────────────────────────────────
     settings_feed_heading:             'Your Yippie Calendar Feed',
-    settings_feed_desc:                'Subscribe to this URL in Apple Calendar (File → New Calendar Subscription) or Outlook (Add Calendar → From internet) to see your Yippie events and bookings there.',
+    settings_feed_desc:                'Subscribe to this URL in Apple Calendar (File > New Calendar Subscription) or Outlook (Add Calendar > From internet) to see your Yippie events and bookings there.',
     settings_feed_copy_title:          'Copy URL',
     settings_feed_regenerating:        'Regenerating…',
     settings_feed_regenerate:          'Regenerate URL',
@@ -599,7 +599,7 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
     settings_profile_workmode_hint:    'Als dit aan staat, toont de gedeelde inbox alleen e-mail die aan jou is toegewezen (of naar jouw persoonlijke adres gestuurd). Zet uit om alle inkomende e-mail van je team te zien.',
     settings_profile_helptips_label:   'Helptips',
     settings_profile_helptips_hint:    'Toon contextuele ?-icoontjes door de app met korte uitleg. Zet uit om ze allemaal te verbergen.',
-    settings_profile_saved_check:      '✓ Opgeslagen',
+    settings_profile_saved_check:      'Opgeslagen',
 
     // ── Platform manual ───────────────────────────────────────────────────────
     settings_manual_heading:           'Platform-handleiding',
@@ -616,7 +616,7 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
     settings_pw_mismatch:              'Wachtwoorden komen niet overeen',
     settings_pw_updating:              'Bijwerken…',
     settings_pw_update_btn:            'Wachtwoord bijwerken',
-    settings_pw_updated:               '✓ Wachtwoord bijgewerkt',
+    settings_pw_updated:               'Wachtwoord bijgewerkt',
     settings_pw_failed:                'Wachtwoord wijzigen mislukt.',
 
     // ── SignaturesSection ─────────────────────────────────────────────────────
@@ -642,7 +642,7 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
     settings_cal_desc:                 'Voeg iCal-feed-URL\'s toe van Apple Agenda of Outlook. Bezette tijden worden automatisch geblokkeerd in je boekingsbeschikbaarheid.',
     settings_cal_name_ph:              'Naam (bijv. Apple Agenda, School)',
     settings_cal_url_ph:               'iCal-URL (webcal:// of https://)',
-    settings_cal_instructions:         'Apple Agenda: rechtsklik op agenda → Deel → Kopieer link (webcal://…) · Outlook: Agenda-instellingen → Delen → ICS-link',
+    settings_cal_instructions:         'Apple Agenda: rechtsklik op agenda > Deel > Kopieer link (webcal://…) · Outlook: Agenda-instellingen > Delen > ICS-link',
     settings_cal_sync_now:             'Nu synchroniseren',
     settings_cal_disable:              'Uitschakelen',
     settings_cal_enable:               'Inschakelen',
@@ -655,7 +655,7 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
 
     // ── YippieCalendarFeedCard ────────────────────────────────────────────────
     settings_feed_heading:             'Jouw Yippie-agendafeed',
-    settings_feed_desc:                'Abonneer je op deze URL in Apple Agenda (Bestand → Nieuw agenda-abonnement) of Outlook (Agenda toevoegen → Via internet) om je Yippie-evenementen en boekingen daar te zien.',
+    settings_feed_desc:                'Abonneer je op deze URL in Apple Agenda (Bestand > Nieuw agenda-abonnement) of Outlook (Agenda toevoegen > Via internet) om je Yippie-evenementen en boekingen daar te zien.',
     settings_feed_copy_title:          'URL kopiëren',
     settings_feed_regenerating:        'Opnieuw genereren…',
     settings_feed_regenerate:          'URL opnieuw genereren',

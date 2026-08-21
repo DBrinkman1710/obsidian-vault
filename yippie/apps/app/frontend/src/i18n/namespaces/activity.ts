@@ -38,8 +38,8 @@ export const activity: { en: Record<string, string>; nl: Record<string, string> 
     activity_no_activity:        'No activity to show',
     activity_all_filter:         'All',
     activity_system:             'System',
-    activity_prev_btn:           '← Prev',
-    activity_next_btn:           'Next →',
+    activity_prev_btn:           'Prev',
+    activity_next_btn:           'Next',
     // UsersTab — intro text
     activity_users_intro:        'Team activity over the last {days} days; arrows compare with the prior {days}. Numbers are per user; shared inbox rolls up by department below.',
     // UsersTab — user section
@@ -152,8 +152,8 @@ export const activity: { en: Record<string, string>; nl: Record<string, string> 
     activity_no_activity:        'Geen activiteit om te tonen',
     activity_all_filter:         'Alles',
     activity_system:             'Systeem',
-    activity_prev_btn:           '← Vorige',
-    activity_next_btn:           'Volgende →',
+    activity_prev_btn:           'Vorige',
+    activity_next_btn:           'Volgende',
     // UsersTab — intro text
     activity_users_intro:        'Teamactiviteit over de afgelopen {days} dagen; pijlen vergelijken met de vorige {days}. Cijfers zijn per gebruiker; gedeelde inbox wordt hieronder per afdeling samengevat.',
     // UsersTab — user section
