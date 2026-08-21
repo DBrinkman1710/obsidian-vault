@@ -17,15 +17,19 @@ import { SignaturePicker } from '../components/SignaturePicker'
 import { useLinkedEmailAccounts, PROVIDER_SHORT } from '../hooks/useLinkedEmailAccounts'
 import { useCopy } from '../../../hooks/useCopy'
 import { CloseButton } from '../../../shell/CloseButton'
+import { useT } from '../../../hooks/useT'
 
 interface PipelineStage { id: string; name: string; color: string }
 
-const REJECT_REASONS = [
-  { key: 'thank_you', label: 'Thank you mail' },
-  { key: 'spam', label: 'Spam' },
-  { key: 'duplicate', label: 'Duplicate' },
-  { key: 'no_action', label: 'No action needed' },
-] as const
+type RejectReasonKey = 'thank_you' | 'spam' | 'duplicate' | 'no_action'
+const REJECT_REASON_KEYS: RejectReasonKey[] = ['thank_you', 'spam', 'duplicate', 'no_action']
+
+const REJECT_REASON_I18N: Record<RejectReasonKey, 'inbox_reject_thank_you' | 'inbox_reject_spam' | 'inbox_reject_duplicate' | 'inbox_reject_no_action'> = {
+  thank_you: 'inbox_reject_thank_you',
+  spam:      'inbox_reject_spam',
+  duplicate: 'inbox_reject_duplicate',
+  no_action: 'inbox_reject_no_action',
+}
 
 /** Reject button that first asks why — feeds first time right + triage stats ([ACTIVITY2]). */
 function RejectMenu({ onReject, disabled, wrapperClassName, buttonClassName }: {
@@ -34,29 +38,30 @@ function RejectMenu({ onReject, disabled, wrapperClassName, buttonClassName }: {
   wrapperClassName: string
   buttonClassName: string
 }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   return (
     <div className={`relative ${wrapperClassName}`}>
-      <button disabled={disabled} onClick={() => setOpen(o => !o)} className={buttonClassName}>Reject</button>
+      <button disabled={disabled} onClick={() => setOpen(o => !o)} className={buttonClassName}>{t('inbox_reject')}</button>
       {open && (
         <>
           <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
           <div className="absolute bottom-full mb-2 left-0 right-0 z-50 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
-            <p className="px-3 py-2 text-xs font-semibold text-slate-400 border-b border-slate-100">Why reject?</p>
-            {REJECT_REASONS.map(r => (
+            <p className="px-3 py-2 text-xs font-semibold text-slate-400 border-b border-slate-100">{t('inbox_why_reject')}</p>
+            {REJECT_REASON_KEYS.map(key => (
               <button
-                key={r.key}
-                onClick={() => { setOpen(false); onReject(r.key) }}
+                key={key}
+                onClick={() => { setOpen(false); onReject(key) }}
                 className="block w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
               >
-                {r.label}
+                {t(REJECT_REASON_I18N[key])}
               </button>
             ))}
             <button
               onClick={() => { setOpen(false); onReject(undefined) }}
               className="block w-full text-left px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 border-t border-slate-100 transition-colors"
             >
-              Just reject
+              {t('inbox_reject_just_reject')}
             </button>
           </div>
         </>

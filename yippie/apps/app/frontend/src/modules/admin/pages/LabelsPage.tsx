@@ -9,6 +9,7 @@ import { useTenantConfig } from '../../../App'
 import { fmtDateTime } from '../../../lib/format'
 import { SendcloudSettingsCard } from '../../shipments/components/SendcloudSettingsCard'
 import YipTrainModal from '../../../components/YipTrainModal'
+import { useT } from '../../../hooks/useT'
 
 interface PipelineStage {
   id: string
@@ -21,6 +22,7 @@ interface PipelineStage {
 const DEFAULT_COLOR = '#5BA4F5'
 
 function OrgDetailsCard() {
+  const t = useT()
   const [kvk, setKvk] = useState('')
   const [btw, setBtw] = useState('')
 
@@ -34,8 +36,8 @@ function OrgDetailsCard() {
 
   const mutation = useMutation({
     mutationFn: () => api.patch('/team/org-settings', { kvk_nummer: kvk, btw_nummer: btw }),
-    onSuccess: () => toast.success('Organisation details saved'),
-    onError: () => toast.error('Failed to save'),
+    onSuccess: () => toast.success(t('settings_org_saved')),
+    onError: () => toast.error(t('settings_failed_save')),
   })
 
   const dirty = kvk !== (data?.kvk_nummer ?? '') || btw !== (data?.btw_nummer ?? '')
@@ -44,14 +46,14 @@ function OrgDetailsCard() {
     <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
       <div className="flex items-center gap-2 mb-4">
         <Building2 size={16} className="text-slate-400" />
-        <h2 className="text-base font-semibold text-slate-900">Organisation details</h2>
+        <h2 className="text-base font-semibold text-slate-900">{t('settings_org_heading')}</h2>
       </div>
       <p className="text-sm text-slate-500 mb-4">
-        Your Dutch registration numbers. These appear on invoice exports.
+        {t('settings_org_desc')}
       </p>
       <div className="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">KvK-nummer</label>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_org_kvk')}</label>
           <input
             value={kvk}
             onChange={e => setKvk(e.target.value)}
@@ -60,7 +62,7 @@ function OrgDetailsCard() {
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Btw-nummer</label>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_org_btw')}</label>
           <input
             value={btw}
             onChange={e => setBtw(e.target.value)}
@@ -74,13 +76,14 @@ function OrgDetailsCard() {
         disabled={mutation.isPending || !dirty}
         className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
       >
-        {mutation.isPending ? 'Saving…' : 'Save'}
+        {mutation.isPending ? t('settings_saving') : t('settings_save_done').replace('!', '')}
       </button>
     </div>
   )
 }
 
 function LiveChatSettingsCard() {
+  const t = useT()
   const [hours, setHours] = useState('')
 
   const { data } = useQuery({
@@ -93,8 +96,8 @@ function LiveChatSettingsCard() {
 
   const mutation = useMutation({
     mutationFn: () => api.patch('/chat/settings', { hide_solved_chats_hours: Number(hours) }),
-    onSuccess: () => toast.success('Live chat settings saved'),
-    onError: () => toast.error('Failed to save'),
+    onSuccess: () => toast.success(t('settings_chat_saved')),
+    onError: () => toast.error(t('settings_failed_save')),
   })
 
   const dirty = hours !== String(data?.hide_solved_chats_hours ?? '')
@@ -103,14 +106,14 @@ function LiveChatSettingsCard() {
     <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
       <div className="flex items-center gap-2 mb-4">
         <MessageSquare size={16} className="text-slate-400" />
-        <h2 className="text-base font-semibold text-slate-900">Live Chat</h2>
+        <h2 className="text-base font-semibold text-slate-900">{t('settings_chat_heading')}</h2>
       </div>
       <p className="text-sm text-slate-500 mb-4">
-        Solved conversations drop off the active list after this window. Messages are kept permanently. This only hides them from view.
+        {t('settings_chat_desc')}
       </p>
       <div className="flex items-end gap-3">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Hide solved chats after (hours)</label>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_chat_hide_label')}</label>
           <input
             type="number"
             min={1}
@@ -124,7 +127,7 @@ function LiveChatSettingsCard() {
           disabled={mutation.isPending || !dirty || !hours}
           className="px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
         >
-          {mutation.isPending ? 'Saving…' : 'Save'}
+          {mutation.isPending ? t('settings_saving') : t('settings_save_done').replace('!', '')}
         </button>
       </div>
     </div>
@@ -147,6 +150,7 @@ interface WidgetSettings {
 }
 
 function SnippetRow({ label, hint, value }: { label: string; hint: string; value: string }) {
+  const t = useT()
   const { copy } = useCopy()
   return (
     <div className="mb-4 last:mb-0">
@@ -160,7 +164,7 @@ function SnippetRow({ label, hint, value }: { label: string; hint: string; value
           onClick={() => copy(value, `${label} snippet copied`)}
           className="shrink-0 inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors"
         >
-          <Copy size={13} /> Copy
+          <Copy size={13} /> {t('settings_copy_btn')}
         </button>
       </div>
     </div>
@@ -176,6 +180,7 @@ function SnippetRow({ label, hint, value }: { label: string; hint: string; value
  * off, is admin only and enforced server side by PATCH /team/widget-settings.
  */
 function WebsiteWidgetsCard({ isAdmin }: { isAdmin: boolean }) {
+  const t = useT()
   const qc = useQueryClient()
   const [form, setForm] = useState<Partial<WidgetSettings>>({})
 
@@ -197,9 +202,9 @@ function WebsiteWidgetsCard({ isAdmin }: { isAdmin: boolean }) {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['widget-settings'] })
-      toast.success('Widget settings saved')
+      toast.success(t('settings_widgets_saved'))
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Failed to save'),
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? t('settings_failed_save')),
   })
 
   if (!data) return null
@@ -216,33 +221,31 @@ function WebsiteWidgetsCard({ isAdmin }: { isAdmin: boolean }) {
     <div className="bg-white border border-slate-200 rounded-2xl p-6 mb-8">
       <div className="flex items-center gap-2 mb-1">
         <Code2 size={16} className="text-slate-400" />
-        <h2 className="text-base font-semibold text-slate-900">Website widgets</h2>
+        <h2 className="text-base font-semibold text-slate-900">{t('settings_widgets_heading')}</h2>
       </div>
       <p className="text-sm text-slate-500 mb-5">
-        Paste a snippet into your website to embed live chat, an enquiry form, or a booking
-        calendar. Styling below applies to every site using them — no need to paste again after
-        a change.
+        {t('settings_widgets_desc')}
       </p>
 
-      <SnippetRow label="Live chat" hint="chat bubble" value={data.chat_snippet} />
-      <SnippetRow label="Enquiry form" hint="contact form" value={data.lead_snippet} />
-      <SnippetRow label="Booking" hint="slot picker" value={data.booking_snippet} />
+      <SnippetRow label={t('settings_widgets_snippet_chat')} hint={t('settings_widgets_hint_chat')} value={data.chat_snippet} />
+      <SnippetRow label={t('settings_widgets_snippet_enquiry')} hint={t('settings_widgets_hint_enquiry')} value={data.lead_snippet} />
+      <SnippetRow label={t('settings_widgets_snippet_booking')} hint={t('settings_widgets_hint_booking')} value={data.booking_snippet} />
 
       <div className="mt-4 pt-4 border-t border-slate-100">
-        <p className={labelCls}>Booking page link</p>
+        <p className={labelCls}>{t('settings_widgets_booking_link')}</p>
         <p className="text-xs text-slate-500">
-          Prefer a plain link over an embed?{' '}
+          {t('settings_widgets_plain_link')}{' '}
           <a href={data.booking_page_url} target="_blank" rel="noreferrer"
             className="text-yippie font-semibold hover:opacity-80 break-all">{data.booking_page_url}</a>
         </p>
       </div>
 
       <div className="mt-5 pt-5 border-t border-slate-100">
-        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">Appearance</p>
+        <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-3">{t('settings_widgets_appearance')}</p>
 
         {!isAdmin && (
           <p className="text-xs text-slate-500 mb-3">
-            Only admins can change these settings.
+            {t('settings_widgets_admin_only')}
           </p>
         )}
 
@@ -255,7 +258,7 @@ function WebsiteWidgetsCard({ isAdmin }: { isAdmin: boolean }) {
               className="w-9 h-9 rounded-lg border border-slate-200 cursor-pointer p-0.5 disabled:cursor-not-allowed"
             />
             <span className="text-sm text-slate-500 font-mono">{form.accent_color}</span>
-            <span className="text-xs text-slate-400">Button and header colour</span>
+            <span className="text-xs text-slate-400">{t('settings_widgets_colour_hint')}</span>
           </div>
 
           <div className="grid grid-cols-2 gap-5">
@@ -266,14 +269,14 @@ function WebsiteWidgetsCard({ isAdmin }: { isAdmin: boolean }) {
                   checked={form.lead_widget_enabled ?? true}
                   onChange={e => set({ lead_widget_enabled: e.target.checked })}
                 />
-                <span className="text-sm font-semibold text-slate-700">Enquiry form</span>
+                <span className="text-sm font-semibold text-slate-700">{t('settings_widgets_enquiry_label')}</span>
               </label>
-              <label className={labelCls}>Button text</label>
+              <label className={labelCls}>{t('settings_widgets_btn_text')}</label>
               <input className={`${inputCls} mb-2`} value={form.lead_widget_button_text ?? ''}
-                onChange={e => set({ lead_widget_button_text: e.target.value })} placeholder="Get in touch" />
-              <label className={labelCls}>Panel heading</label>
+                onChange={e => set({ lead_widget_button_text: e.target.value })} placeholder={t('settings_widgets_ph_get_in_touch')} />
+              <label className={labelCls}>{t('settings_widgets_panel_heading')}</label>
               <input className={inputCls} value={form.lead_widget_heading ?? ''}
-                onChange={e => set({ lead_widget_heading: e.target.value })} placeholder="Contact us" />
+                onChange={e => set({ lead_widget_heading: e.target.value })} placeholder={t('settings_widgets_ph_contact_us')} />
             </div>
 
             <div>
@@ -283,14 +286,14 @@ function WebsiteWidgetsCard({ isAdmin }: { isAdmin: boolean }) {
                   checked={form.booking_widget_enabled ?? true}
                   onChange={e => set({ booking_widget_enabled: e.target.checked })}
                 />
-                <span className="text-sm font-semibold text-slate-700">Booking</span>
+                <span className="text-sm font-semibold text-slate-700">{t('settings_widgets_booking_label')}</span>
               </label>
-              <label className={labelCls}>Button text</label>
+              <label className={labelCls}>{t('settings_widgets_btn_text')}</label>
               <input className={`${inputCls} mb-2`} value={form.booking_widget_button_text ?? ''}
-                onChange={e => set({ booking_widget_button_text: e.target.value })} placeholder="Book a meeting" />
-              <label className={labelCls}>Panel heading</label>
+                onChange={e => set({ booking_widget_button_text: e.target.value })} placeholder={t('settings_widgets_ph_book')} />
+              <label className={labelCls}>{t('settings_widgets_panel_heading')}</label>
               <input className={inputCls} value={form.booking_widget_heading ?? ''}
-                onChange={e => set({ booking_widget_heading: e.target.value })} placeholder="Pick a time" />
+                onChange={e => set({ booking_widget_heading: e.target.value })} placeholder={t('settings_widgets_ph_pick_time')} />
             </div>
           </div>
 
@@ -300,7 +303,7 @@ function WebsiteWidgetsCard({ isAdmin }: { isAdmin: boolean }) {
               disabled={mutation.isPending || !dirty}
               className="mt-5 px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
-              {mutation.isPending ? 'Saving…' : 'Save'}
+              {mutation.isPending ? t('settings_saving') : t('settings_save_done').replace('!', '')}
             </button>
           )}
         </fieldset>
@@ -310,6 +313,7 @@ function WebsiteWidgetsCard({ isAdmin }: { isAdmin: boolean }) {
 }
 
 function KanbanStagesPanel() {
+  const t = useT()
   const qc = useQueryClient()
   const [editId, setEditId] = useState<string | null>(null)
   const [name, setName] = useState('')
@@ -330,12 +334,12 @@ function KanbanStagesPanel() {
   const createMut = useMutation({
     mutationFn: (b: object) => api.post('/pipeline/stages', b),
     onSuccess: () => { invalidate(); resetForm() },
-    onError: () => setError('Save failed'),
+    onError: () => setError(t('settings_save_failed')),
   })
   const updateMut = useMutation({
     mutationFn: ({ id, b }: { id: string; b: object }) => api.patch(`/pipeline/stages/${id}`, b),
     onSuccess: () => { invalidate(); resetForm() },
-    onError: () => setError('Save failed'),
+    onError: () => setError(t('settings_save_failed')),
   })
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/pipeline/stages/${id}`),
@@ -349,7 +353,7 @@ function KanbanStagesPanel() {
   function resetForm() { setEditId(null); setName(''); setColor('#64748b'); setError('') }
   function startEdit(s: PipelineStage) { setEditId(s.id); setName(s.name); setColor(s.color); setError('') }
   function handleSave() {
-    if (!name.trim()) { setError('Name required'); return }
+    if (!name.trim()) { setError(t('settings_name_required')); return }
     const body = { name: name.trim(), color }
     if (editId) updateMut.mutate({ id: editId, b: body })
     else createMut.mutate(body)
@@ -370,14 +374,16 @@ function KanbanStagesPanel() {
       {/* Header */}
       <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-100">
         <Layers size={16} className="text-slate-400" />
-        <h2 className="text-base font-semibold text-slate-900">Kanban stages</h2>
-        <span className="ml-auto text-xs text-slate-400">{stages.length} stage{stages.length !== 1 ? 's' : ''}</span>
+        <h2 className="text-base font-semibold text-slate-900">{t('settings_kanban_heading')}</h2>
+        <span className="ml-auto text-xs text-slate-400">
+          {stages.length} {stages.length !== 1 ? t('settings_kanban_stages') : t('settings_kanban_stage')}
+        </span>
       </div>
 
       {/* Stage list */}
       <div className="divide-y divide-slate-50">
         {stages.length === 0 && (
-          <p className="px-6 py-8 text-sm text-slate-400 text-center">No stages yet. Add one below.</p>
+          <p className="px-6 py-8 text-sm text-slate-400 text-center">{t('settings_kanban_no_stages')}</p>
         )}
         {stages.map((s: any, i: any) => (
           <div
@@ -393,16 +399,18 @@ function KanbanStagesPanel() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-semibold text-slate-800 truncate">{s.name}</p>
             </div>
-            <span className="text-xs text-slate-400 shrink-0">{s.contact_count} contact{s.contact_count !== 1 ? 's' : ''}</span>
+            <span className="text-xs text-slate-400 shrink-0">
+              {s.contact_count} {s.contact_count !== 1 ? t('settings_kanban_contacts') : t('settings_kanban_contact')}
+            </span>
             <button
               onClick={() => startEdit(s)}
               className="shrink-0 p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-              title="Edit"
+              title={t('settings_action_edit')}
             >
               <Settings2 size={13} />
             </button>
             <button
-              onClick={() => { if (confirm(`Delete "${s.name}"? Contacts will be removed from this stage.`)) deleteMut.mutate(s.id) }}
+              onClick={() => { if (confirm(t('settings_kanban_delete_confirm').replace('{name}', s.name))) deleteMut.mutate(s.id) }}
               className="shrink-0 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
               title="Delete"
             >
@@ -415,14 +423,14 @@ function KanbanStagesPanel() {
       {/* Add / edit form */}
       <div className="border-t border-slate-100 px-6 py-5 bg-slate-50 space-y-3">
         <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-          {editId ? 'Edit stage' : 'New stage'}
+          {editId ? t('settings_kanban_edit_stage') : t('settings_kanban_new_stage')}
         </p>
         <div className="flex gap-2">
           <input
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && handleSave()}
-            placeholder="Stage name…"
+            placeholder={t('settings_kanban_stage_ph')}
             className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
           <input
@@ -430,7 +438,7 @@ function KanbanStagesPanel() {
             value={color}
             onChange={e => setColor(e.target.value)}
             className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5"
-            title="Stage colour"
+            title={t('settings_kanban_colour_title')}
           />
         </div>
         {error && <p className="text-xs text-red-500">{error}</p>}
@@ -441,7 +449,7 @@ function KanbanStagesPanel() {
             className="flex items-center gap-1.5 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             <Plus size={14} />
-            {editId ? 'Update stage' : 'Add stage'}
+            {editId ? t('settings_kanban_update_stage') : t('settings_kanban_add_stage')}
           </button>
           {editId && (
             <button

@@ -22,9 +22,10 @@ import { contracts } from './contracts'
 import { calendar } from './calendar'
 import { publicPages } from './publicpages'
 import { tour } from './tour'
+import { shared } from './shared'
 
 export const extraNamespaces: { en: Record<string, string>; nl: Record<string, string> }[] = [
   shell, inbox, contacts, tickets, marketing, admin, adminSettings, shipments,
   templates, flows, booking, chat, activity, sales, saas, pipeline, billing,
-  contracts, calendar, publicPages, tour,
+  contracts, calendar, publicPages, tour, shared,
 ]

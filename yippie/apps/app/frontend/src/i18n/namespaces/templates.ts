@@ -54,6 +54,9 @@ export const templates: { en: Record<string, string>; nl: Record<string, string>
     tpl_payment_notes:            'Default payment notes',
     // BlockStack — empty state
     tpl_drag_to_start:            'Drag a block from the left to start building this template',
+    // BlockStack — aria labels
+    tpl_drag_to_reorder:          'Drag to reorder',
+    tpl_delete_block:             'Delete {label} block',
     // BlockStack — block preview (Dutch invoice preview strings are deliberately left in Dutch)
     tpl_empty_heading:            'Empty heading',
     tpl_empty_text:               'Empty text block',
@@ -64,6 +67,8 @@ export const templates: { en: Record<string, string>; nl: Record<string, string>
     tpl_blocks_header:            'Blocks',
     tpl_palette_hint:             'Drag onto the document or click to add at the bottom.',
     // TemplateBuilderPage
+    tpl_back_btn:                 'Back',
+    tpl_template_name_label:      'Template name',
     tpl_invoice_label:            'Invoice template',
     tpl_contract_label:           'Contract template',
     tpl_preview_btn:              'Preview',
@@ -218,6 +223,9 @@ export const templates: { en: Record<string, string>; nl: Record<string, string>
     tpl_payment_notes:            'Standaard betalingsnotities',
     // BlockStack — empty state
     tpl_drag_to_start:            'Sleep een blok van links om dit sjabloon op te bouwen',
+    // BlockStack — aria labels
+    tpl_drag_to_reorder:          'Slepen om te herordenen',
+    tpl_delete_block:             '{label} blok verwijderen',
     // BlockStack — block preview
     tpl_empty_heading:            'Lege kop',
     tpl_empty_text:               'Leeg tekstblok',
@@ -228,6 +236,8 @@ export const templates: { en: Record<string, string>; nl: Record<string, string>
     tpl_blocks_header:            'Blokken',
     tpl_palette_hint:             'Sleep naar het document of klik om onderaan toe te voegen.',
     // TemplateBuilderPage
+    tpl_back_btn:                 'Terug',
+    tpl_template_name_label:      'Sjabloonnaam',
     tpl_invoice_label:            'Factuursjabloon',
     tpl_contract_label:           'Contractsjabloon',
     tpl_preview_btn:              'Voorbeeld',
