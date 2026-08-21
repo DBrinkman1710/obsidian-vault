@@ -9,6 +9,7 @@ import { EmailAccountsCard } from '../../inbox/components/EmailAccountsCard'
 import { useTenantConfig } from '../../../App'
 import { toast } from 'sonner'
 import { WeekAvailabilityEditor, type SlotEntry } from '../../booking/components/WeekAvailabilityEditor'
+import { useT } from '../../../hooks/useT'
 
 interface TeamUser {
   id: string
@@ -44,6 +45,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
   const qc = useQueryClient()
   const config = useTenantConfig()
   const enabledModules = config?.enabled_modules ?? []
+  const t = useT()
 
   const [tab, setTab] = useState<'settings' | 'members' | 'permissions'>(dept ? 'settings' : 'settings')
   const [form, setForm] = useState<DeptForm>(dept
@@ -62,12 +64,12 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
       return dept ? api.patch(`/departments/${dept.id}`, payload) : api.post('/departments', payload)
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['departments'] }); if (!dept) onClose() },
-    onError: () => setError('Failed to save'),
+    onError: () => setError(t('settings_dept_failed_save')),
   })
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.name.trim() || !form.email.trim()) { setError('Name and email are required'); return }
+    if (!form.name.trim() || !form.email.trim()) { setError(t('settings_name_email_required')); return }
     setError('')
     saveMutation.mutate()
   }
@@ -97,15 +99,15 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
   const addableUsers = allUsers.filter((u: any) => !memberIds.has(u.id) && u.is_active)
 
   const tabs = dept
-    ? [{ key: 'settings', label: 'Settings' }, { key: 'members', label: 'Members' }, { key: 'permissions', label: 'Permissions' }] as const
-    : [{ key: 'settings', label: 'Settings' }] as const
+    ? [{ key: 'settings', label: t('settings_dept_tab_settings') }, { key: 'members', label: t('settings_dept_tab_members') }, { key: 'permissions', label: t('settings_dept_tab_permissions') }] as const
+    : [{ key: 'settings', label: t('settings_dept_tab_settings') }] as const
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[85vh]">
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
-          <h2 className="text-lg font-bold text-slate-900">{dept ? dept.name : 'New Department'}</h2>
+          <h2 className="text-lg font-bold text-slate-900">{dept ? dept.name : t('settings_new_department')}</h2>
           <button onClick={onClose} className="text-slate-400 hover:text-slate-600 transition-colors"><X size={18} /></button>
         </div>
 
@@ -128,19 +130,19 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
         {tab === 'settings' && (
           <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4 overflow-y-auto">
             <div>
-              <label className={labelCls}>Name *</label>
+              <label className={labelCls}>{t('settings_dept_label_name')}</label>
               <input className={inputCls} value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} placeholder="Finance" autoFocus />
             </div>
             <div>
-              <label className={labelCls}>Email *</label>
+              <label className={labelCls}>{t('settings_dept_label_email')}</label>
               <input className={inputCls} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="finance@company.nl" />
             </div>
             <div>
-              <label className={labelCls}>SLA (working days)</label>
+              <label className={labelCls}>{t('settings_dept_label_sla')}</label>
               <input className={`${inputCls} w-24`} type="number" min={1} max={90} value={form.sla_working_days} onChange={e => setForm(p => ({ ...p, sla_working_days: e.target.value }))} />
             </div>
             <div>
-              <label className={labelCls}>Default reply template</label>
+              <label className={labelCls}>{t('settings_dept_label_reply_template')}</label>
               <div className="flex items-center gap-2 mb-1.5">
                 <TemplatePicker
                   onSelect={(body) => setForm(p => ({ ...p, reply_template: body.replace(/<[^>]*>/g, '').trim() }))}
@@ -148,20 +150,20 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
                 />
                 {form.reply_template && (
                   <button type="button" onClick={() => setForm(p => ({ ...p, reply_template: '' }))}
-                    className="text-xs text-red-500 hover:text-red-700 font-medium">Clear</button>
+                    className="text-xs text-red-500 hover:text-red-700 font-medium">{t('settings_dept_clear_template')}</button>
                 )}
               </div>
               {form.reply_template
                 ? <p className="text-xs text-slate-600 bg-slate-50 rounded-lg p-2 border border-slate-200 line-clamp-3">{form.reply_template}</p>
-                : <p className="text-xs text-slate-400">No template selected</p>
+                : <p className="text-xs text-slate-400">{t('settings_dept_no_template')}</p>
               }
             </div>
             {error && <p className="error-text">{error}</p>}
             <div className="flex gap-3 pt-1">
               <button type="submit" disabled={saveMutation.isPending} className="btn-primary px-5 py-2">
-                {saveMutation.isPending ? 'Saving…' : 'Save'}
+                {saveMutation.isPending ? t('settings_saving') : t('save')}
               </button>
-              <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">Cancel</button>
+              <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">{t('cancel')}</button>
             </div>
           </form>
         )}
@@ -171,10 +173,10 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
           <div className="p-6 flex flex-col gap-5 overflow-y-auto">
             {/* Current members */}
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Current members</p>
-              {membersLoading && <p className="text-xs text-slate-400">Loading…</p>}
+              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t('settings_dept_current_members')}</p>
+              {membersLoading && <p className="text-xs text-slate-400">{t('settings_loading')}</p>}
               {!membersLoading && members.length === 0 && (
-                <p className="text-xs text-slate-400">No members yet.</p>
+                <p className="text-xs text-slate-400">{t('settings_dept_no_members')}</p>
               )}
               <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
                 {members.map((m: any) => (
@@ -187,7 +189,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
                       onClick={() => removeMemberMutation.mutate(m.user_id)}
                       disabled={removeMemberMutation.isPending}
                       className="p-1.5 text-slate-400 hover:text-red-500 rounded hover:bg-red-50 transition-colors"
-                      title="Remove from department"
+                      title={t('settings_dept_remove_member')}
                     >
                       <UserMinus size={14} />
                     </button>
@@ -199,7 +201,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
             {/* Add existing users */}
             {addableUsers.length > 0 && (
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Add member</p>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t('settings_dept_add_member')}</p>
                 <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden">
                   {addableUsers.map((u: any) => (
                     <div key={u.id} className="flex items-center justify-between px-4 py-2.5">
@@ -212,7 +214,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
                         disabled={addMemberMutation.isPending}
                         className="px-2.5 py-1 text-xs font-semibold bg-yippie hover:opacity-90 disabled:opacity-50 text-white rounded-lg transition-opacity"
                       >
-                        Add
+                        {t('settings_add')}
                       </button>
                     </div>
                   ))}
@@ -225,7 +227,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
         {/* Permissions tab */}
         {tab === 'permissions' && dept && (
           <div className="p-6 overflow-y-auto">
-            <p className="text-xs text-slate-500 mb-3">Set module access for everyone in <strong>{dept.name}</strong>. Full is the default.</p>
+            <p className="text-xs text-slate-500 mb-3">{t('settings_dept_permissions_desc').replace('{name}', dept.name)}</p>
             <ModulePermissionsGrid
               subjectType="department"
               subjectId={dept.id}
@@ -240,6 +242,7 @@ function DeptDetailModal({ dept, onClose }: { dept?: Dept; onClose: () => void }
 
 function DepartmentsPanel() {
   const qc = useQueryClient()
+  const t = useT()
   const [showNew, setShowNew] = useState(false)
   const [selected, setSelected] = useState<Dept | null>(null)
 
@@ -257,15 +260,15 @@ function DepartmentsPanel() {
     <div className="w-96 flex-shrink-0">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold text-slate-900 mb-1">Departments</h2>
-          <p className="text-sm text-slate-500">Route messages to specialist teams.</p>
+          <h2 className="text-2xl font-bold text-slate-900 mb-1">{t('departments')}</h2>
+          <p className="text-sm text-slate-500">{t('settings_departments_desc')}</p>
         </div>
         <button
           onClick={() => setShowNew(true)}
           className="inline-flex items-center gap-2 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
         >
           <Plus size={15} />
-          Add
+          {t('settings_add')}
         </button>
       </div>
 

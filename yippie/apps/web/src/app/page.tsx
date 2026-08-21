@@ -29,6 +29,7 @@ import SiteFooter from "./components/SiteFooter";
 import Reveal from "./components/Reveal";
 import ROICalculator from "./components/ROICalculator";
 import PricingTeaser from "./components/PricingTeaser";
+import UseCaseStories from "./components/UseCaseStories";
 import { PLAN_LIMITS } from "@/lib/config";
 import {
   InboxIcon,
@@ -282,6 +283,11 @@ export default function NlHomePage() {
           </Reveal>
         ))}
       </section>
+
+      {/* Use case clickthroughs — two-button story switcher */}
+      <div id="workflow" className={styles.workflowAnchor}>
+        <UseCaseStories />
+      </div>
 
       {/* Features */}
       <section id="functies" className={styles.section}>

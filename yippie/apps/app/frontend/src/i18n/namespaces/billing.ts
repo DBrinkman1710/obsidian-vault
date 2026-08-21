@@ -1,0 +1,6 @@
+// billing namespace — owned by the billing translation agent.
+// Add keys as: 'prefix_key': 'English' / 'Nederlands'. Keep en and nl in lockstep.
+export const billing: { en: Record<string, string>; nl: Record<string, string> } = {
+  en: {},
+  nl: {},
+}
