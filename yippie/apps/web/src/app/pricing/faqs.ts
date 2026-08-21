@@ -1,21 +1,21 @@
-/* Pricing FAQs — single source for the on page accordion and the
+/* Prijzen veelgestelde vragen — single source for the on page accordion and the
    FAQPage JSON-LD rendered by pricing/layout.tsx. */
 
 export const faqs = [
   {
-    q: "Why unlimited contacts on every plan?",
-    a: "Your contact list growing shouldn't be a reason to pay more. We believe in being a real growth partner, so we removed contact limits entirely. Plans differ by team size (users) and AI processing volume (scans per month), not by how many customers you have.",
+    q: "Waarom onbeperkte contacten op elk abonnement?",
+    a: "Een groeiende contactenlijst is geen reden om meer te betalen. We geloven in echt groeipartnerschap, dus we hebben contactlimieten volledig afgeschaft. Abonnementen verschillen per teamgrootte (gebruikers) en AI-verwerkingsvolume (scans per maand), niet op basis van hoeveel klanten je hebt.",
   },
   {
-    q: "Can I change my plan?",
-    a: "Yes, upgrade or downgrade at any time. Changes take effect immediately and we prorate the difference on your next invoice.",
+    q: "Kan ik mijn abonnement wijzigen?",
+    a: "Ja, je kunt op elk moment upgraden of downgraden. Wijzigingen gaan direct in en we verrekenen het verschil pro rata op je volgende factuur.",
   },
   {
-    q: "Are add-on prices per user or per workspace?",
-    a: "Add-ons are priced per workspace, not per user. One flat monthly price unlocks the feature for your whole team.",
+    q: "Zijn add-on prijzen per gebruiker of per workspace?",
+    a: "Add-ons zijn geprijsd per workspace, niet per gebruiker. Één vast maandbedrag ontgrendelt de functie voor je hele team.",
   },
   {
-    q: "Is there a free trial?",
-    a: "Yes. Every new account starts with a 30 day free trial of the full product. No credit card needed, and everything you set up stays when you upgrade. Prefer to look around first? Try the instant demo workspace or book a call.",
+    q: "Is er een gratis proefperiode?",
+    a: "Ja. Elk nieuw account start met een gratis proefperiode van 30 dagen van het volledige product. Geen creditcard nodig en alles wat je instelt blijft bewaard als je upgradet. Liever eerst rondkijken? Probeer de instant demo-workspace of plan een gesprek.",
   },
 ];

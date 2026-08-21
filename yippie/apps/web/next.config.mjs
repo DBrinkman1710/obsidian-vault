@@ -18,6 +18,10 @@ const nextConfig = {
       // One onboarding flow: the package builder lives at /signup now.
       // Query strings (?plan=founder, ?token=…) are passed through.
       { source: "/custom", destination: "/signup", permanent: false },
+      // Dutch is now the default language and lives at the root. The old /nl
+      // mirror is retired — send its two indexed URLs to their root equivalents.
+      { source: "/nl", destination: "/", permanent: true },
+      { source: "/nl/pricing", destination: "/pricing", permanent: true },
     ];
   },
 

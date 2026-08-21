@@ -17,6 +17,9 @@ import {
   PAIN_POINTS,
   computeRecommendations,
   TOP_MODULES,
+  INDUSTRY_LABELS_NL,
+  TOOL_LABELS_NL,
+  PAIN_POINT_LABELS_NL,
 } from "@/lib/recommendations";
 import { faqs } from "./faqs";
 
@@ -34,6 +37,26 @@ const MODULE_PRICE_MAP: Record<string, number> = {
   "Sales":             MODULE_PRICES.sales,
   "SaaS Analytics":      MODULE_PRICES.saas,
 };
+
+// The module keys above stay English because the recommendation engine and
+// price lookups are keyed on them. These are the Dutch display labels shown on
+// the (Dutch) root pricing page — the English mirror lives under /en/pricing.
+const MODULE_LABEL_NL: Record<string, string> = {
+  "AI Inbox": "AI Inbox",
+  "Tickets": "Tickets",
+  "Live Chat": "Live chat",
+  "Calendar": "Agenda",
+  "Calendar + Booking": "Agenda + Boekingen",
+  "Pipeline": "Pipeline",
+  "Marketing": "Marketing",
+  "Departments": "Afdelingen",
+  "Billing": "Facturatie",
+  "Contracts": "Contracten",
+  "Shipment Tracking": "Zendingtracking",
+  "Sales": "Sales",
+  "SaaS Analytics": "SaaS Analytics",
+};
+const moduleLabel = (name: string) => MODULE_LABEL_NL[name] ?? name;
 
 const TEAM_RANK_MAP: Record<string, number> = {
   "1–3": 0, "4–10": 1, "11–25": 2, "25+": 3,
@@ -61,68 +84,68 @@ type Plan = {
 };
 
 // Modules included in every plan — everything else is a paid add on.
-const CORE_FEATURES = ["Inbox", "Contacts"];
+const CORE_FEATURES = ["Inbox", "Contacten"];
 
 const plans: Plan[] = [
   {
     tier: "Starter",
-    tagline: "For small teams getting started",
+    tagline: "Voor kleine teams die beginnen",
     monthly: PLAN_LIMITS.starter.priceMonthly,
     annual: PLAN_LIMITS.starter.priceAnnual,
-    users: `${PLAN_LIMITS.starter.users} users`,
-    aiScans: "2,000 AI scans/mo",
+    users: `${PLAN_LIMITS.starter.users} gebruikers`,
+    aiScans: "2.000 AI-scans/mnd",
     included: [
       ...CORE_FEATURES,
-      `${PLAN_LIMITS.starter.users} users`,
-      "Unlimited contacts",
-      "2,000 AI scans/mo",
+      `${PLAN_LIMITS.starter.users} gebruikers`,
+      "Onbeperkte contacten",
+      "2.000 AI-scans/mnd",
       "Add-ons à la carte",
     ],
   },
   {
     tier: "Growth",
-    tagline: "For growing teams handling real volume",
+    tagline: "Voor groeiende teams met echt volume",
     monthly: PLAN_LIMITS.growth.priceMonthly,
     annual: PLAN_LIMITS.growth.priceAnnual,
-    users: `${PLAN_LIMITS.growth.users} users`,
-    aiScans: "5,000 AI scans/mo",
+    users: `${PLAN_LIMITS.growth.users} gebruikers`,
+    aiScans: "5.000 AI-scans/mnd",
     included: [
       ...CORE_FEATURES,
-      `${PLAN_LIMITS.growth.users} users`,
-      "Unlimited contacts",
-      "5,000 AI scans/mo",
+      `${PLAN_LIMITS.growth.users} gebruikers`,
+      "Onbeperkte contacten",
+      "5.000 AI-scans/mnd",
       "Add-ons à la carte",
     ],
   },
   {
     tier: "Pro",
-    tagline: "For established support operations",
+    tagline: "Voor gevestigde klantenservice-operaties",
     monthly: PLAN_LIMITS.pro.priceMonthly,
     annual: PLAN_LIMITS.pro.priceAnnual,
-    users: `${PLAN_LIMITS.pro.users} users`,
-    aiScans: "10,000 AI scans/mo",
+    users: `${PLAN_LIMITS.pro.users} gebruikers`,
+    aiScans: "10.000 AI-scans/mnd",
     included: [
       ...CORE_FEATURES,
-      `${PLAN_LIMITS.pro.users} users`,
-      "Unlimited contacts",
-      "10,000 AI scans/mo",
+      `${PLAN_LIMITS.pro.users} gebruikers`,
+      "Onbeperkte contacten",
+      "10.000 AI-scans/mnd",
       "Add-ons à la carte",
     ],
     featured: true,
   },
   {
     tier: "Enterprise",
-    tagline: "Dedicated growth partnership",
+    tagline: "Toegewijde groeipartnership",
     monthly: null,
     annual: null,
-    users: "Unlimited users",
-    aiScans: "Unlimited AI scans",
+    users: "Onbeperkte gebruikers",
+    aiScans: "Onbeperkte AI-scans",
     included: [
-      "All core features + every module",
-      "Unlimited users",
-      "Unlimited contacts",
-      "Unlimited AI scans",
-      "Dedicated support + SLA",
+      "Alle kernfuncties + elke module",
+      "Onbeperkte gebruikers",
+      "Onbeperkte contacten",
+      "Onbeperkte AI-scans",
+      "Toegewijde support + SLA",
     ],
     allModules: true,
     enterprise: true,
@@ -130,18 +153,18 @@ const plans: Plan[] = [
 ];
 
 const addOns = [
-  { Icon: TicketIcon, name: "Tickets", desc: "Track, assign, and close support requests with SLA alerts and bulk actions.", price: MODULE_PRICES.tickets },
-  { Icon: AiIcon, name: "AI Inbox", desc: "Auto-draft tickets and replies from incoming messages.", price: MODULE_PRICES.ai },
-  { Icon: CalendarIcon, name: "Calendar + Booking", desc: "Share booking links and manage appointments.", price: MODULE_PRICES.calendar },
-  { Icon: KanbanIcon, name: "Pipeline", desc: "Visual Kanban boards to move contacts through custom stages.", price: MODULE_PRICES.pipeline },
-  { Icon: ChatIcon, name: "Live Chat", desc: "Embed a chat widget and manage WhatsApp conversations.", price: MODULE_PRICES.chat },
-  { Icon: MailTrackIcon, name: "Marketing", desc: "Email campaigns, A/B testing, open tracking, and drip sequences.", price: MODULE_PRICES.marketing },
-  { Icon: TeamIcon, name: "Departments", desc: "Route tickets and chats to the right team automatically.", price: MODULE_PRICES.departments },
-  { Icon: BillingIcon, name: "Billing", desc: "Issue invoices, track payments, and manage subscriptions.", price: MODULE_PRICES.billing },
-  { Icon: ContractIcon, name: "Contracts", desc: "Store signed contracts, track renewals and notice periods, get reminded in time.", price: MODULE_PRICES.contracts },
-  { Icon: TrackingIcon, name: "Shipment Tracking", desc: "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts.", price: MODULE_PRICES.tracking },
-  { Icon: SalesIcon, name: "Sales", desc: "Track product views, add-to-cart, and purchases. Identify high-intent buyers.", price: MODULE_PRICES.sales },
-  { Icon: SaasIcon, name: "SaaS Analytics", desc: "Recurring subscriptions, MRR/churn tracking, linked to contacts.", price: MODULE_PRICES.saas },
+  { Icon: TicketIcon, name: "Tickets", desc: "Volg, wijs toe en sluit supportverzoeken af met SLA-meldingen en bulkacties.", price: MODULE_PRICES.tickets },
+  { Icon: AiIcon, name: "AI Inbox", desc: "Maak automatisch concepttickets en antwoorden van binnenkomende berichten.", price: MODULE_PRICES.ai },
+  { Icon: CalendarIcon, name: "Calendar + Booking", desc: "Deel boekingslinks en beheer afspraken.", price: MODULE_PRICES.calendar },
+  { Icon: KanbanIcon, name: "Pipeline", desc: "Visuele Kanban-borden om contacten door aangepaste fases te bewegen.", price: MODULE_PRICES.pipeline },
+  { Icon: ChatIcon, name: "Live Chat", desc: "Integreer een chatwidget en beheer WhatsApp-gesprekken.", price: MODULE_PRICES.chat },
+  { Icon: MailTrackIcon, name: "Marketing", desc: "E-mailcampagnes, A/B-testen, open-tracking en drip-reeksen.", price: MODULE_PRICES.marketing },
+  { Icon: TeamIcon, name: "Departments", desc: "Stuur tickets en chats automatisch door naar het juiste team.", price: MODULE_PRICES.departments },
+  { Icon: BillingIcon, name: "Billing", desc: "Stuur facturen, volg betalingen en beheer abonnementen.", price: MODULE_PRICES.billing },
+  { Icon: ContractIcon, name: "Contracts", desc: "Sla getekende contracten op, volg verlengingen en opzegtermijnen, en ontvang tijdig herinneringen.", price: MODULE_PRICES.contracts },
+  { Icon: TrackingIcon, name: "Shipment Tracking", desc: "Live vervoerdersupdates voor DHL, UPS, PostNL en FedEx, gekoppeld aan contacten.", price: MODULE_PRICES.tracking },
+  { Icon: SalesIcon, name: "Sales", desc: "Volg productweergaven, toevoegingen aan winkelwagen en aankopen. Identificeer kopers met hoge koopintentie.", price: MODULE_PRICES.sales },
+  { Icon: SaasIcon, name: "SaaS Analytics", desc: "Terugkerende abonnementen, MRR/churn-tracking, gekoppeld aan contacten.", price: MODULE_PRICES.saas },
 ];
 
 const PLAN_RANK = ["Starter", "Growth", "Pro", "Enterprise"] as const;
@@ -198,13 +221,13 @@ export default function PricingPage() {
         <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={contentStyles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
-          Transparent pricing, no games
+          Transparante prijzen, geen verborgen kosten
         </div>
-        <h1 className={styles.heroTitle}>Scale without limits.</h1>
+        <h1 className={styles.heroTitle}>Schaal zonder limieten.</h1>
         <p className={styles.heroSub}>
-          Every plan includes unlimited contacts. Pay for the team size and AI
-          power you need. Add modules à la carte as you grow. No hidden fees,
-          cancel anytime.
+          Elk abonnement bevat onbeperkte contacten. Betaal voor de teamgrootte
+          en AI-capaciteit die je nodig hebt. Voeg modules à la carte toe
+          naarmate je groeit. Geen verborgen kosten, op elk moment opzegbaar.
         </p>
 
         <div className={styles.toggle}>
@@ -213,26 +236,26 @@ export default function PricingPage() {
             className={`${styles.toggleOption} ${!annual ? styles.toggleActive : ""}`}
             onClick={() => setAnnual(false)}
           >
-            Monthly
+            Maandelijks
           </button>
           <button
             type="button"
             className={`${styles.toggleOption} ${annual ? styles.toggleActive : ""}`}
             onClick={() => setAnnual(true)}
           >
-            Annual
-            <span className={styles.toggleSave}>Save 10%</span>
+            Jaarlijks
+            <span className={styles.toggleSave}>Bespaar 10%</span>
           </button>
         </div>
       </section>
 
       <section className={styles.plansSection}>
         <div className={styles.founderBanner}>
-          <span className={styles.founderBadge}>Limited offer</span>
+          <span className={styles.founderBadge}>Beperkt aanbod</span>
           <p className={styles.founderText}>
-            <strong>Founding Member: {FOUNDER_SPOTS_LEFT} of {FOUNDER_SPOTS_TOTAL} spots left</strong> at €{PLAN_LIMITS.founder.priceMonthly}/mo for up to 10 users, all core features, and 50% off all paid add-on modules.
+            <strong>Founding Member: nog {FOUNDER_SPOTS_LEFT} van de {FOUNDER_SPOTS_TOTAL} plekken beschikbaar</strong> voor €{PLAN_LIMITS.founder.priceMonthly}/mnd voor tot 10 gebruikers, alle kernfuncties en 50% korting op alle betaalde add-on modules.
           </p>
-          <a href="/signup?plan=founder" className={styles.founderBtn}>Claim a founder spot →</a>
+          <a href="/signup?plan=founder" className={styles.founderBtn}>Claim een foundersplek →</a>
         </div>
 
         <div className={styles.plansGrid}>
@@ -250,29 +273,29 @@ export default function PricingPage() {
               key={plan.tier}
               className={`${styles.planCard} ${plan.featured ? styles.featured : ""}`}
             >
-              {plan.featured && <span className={styles.popularBadge}>Most popular</span>}
+              {plan.featured && <span className={styles.popularBadge}>Meest gekozen</span>}
               <p className={styles.planTier}>{plan.tier}</p>
               <p className={styles.planTagline}>{plan.tagline}</p>
               {plan.enterprise ? (
-                <p className={styles.planPrice}>Custom</p>
+                <p className={styles.planPrice}>Op maat</p>
               ) : (
                 <p className={styles.planPrice}>
                   €{annual ? plan.annual : plan.monthly}
-                  <sub>{annual ? "/yr" : "/mo"}</sub>
+                  <sub>{annual ? "/jr" : "/mnd"}</sub>
                 </p>
               )}
               {annual && !plan.enterprise && plan.monthly != null && plan.annual != null && (
                 <p className={styles.planDiscount}>
-                  Save €{plan.monthly * 12 - plan.annual}/yr (was €{plan.monthly * 12})
+                  Bespaar €{plan.monthly * 12 - plan.annual}/jr (was €{plan.monthly * 12})
                 </p>
               )}
               {!plan.enterprise && (
                 <p className={styles.planBilling}>
-                  {annual ? "billed annually" : "billed monthly"}
+                  {annual ? "jaarlijks gefactureerd" : "maandelijks gefactureerd"}
                 </p>
               )}
               {inheritsFrom && (
-                <p className={styles.planInherits}>Everything in {inheritsFrom}, plus:</p>
+                <p className={styles.planInherits}>Alles van {inheritsFrom}, plus:</p>
               )}
               <ul className={styles.planFeatures}>
                 {deltaFeatures.map((f) => (
@@ -286,7 +309,7 @@ export default function PricingPage() {
                 href={plan.enterprise ? TALK_PATH : "/signup"}
                 className={`${styles.planBtn} ${plan.featured ? styles.featuredBtn : ""}`}
               >
-                {plan.enterprise ? "Book a call" : "Start free trial"}
+                {plan.enterprise ? "Plan een gesprek" : "Start je gratis proefperiode"}
               </a>
             </div>
             );
@@ -295,17 +318,17 @@ export default function PricingPage() {
       </section>
 
       <section className={styles.quizSection}>
-        <p className={styles.eyebrow}>Find your plan</p>
-        <h2 className={styles.sectionTitle}>Tell us about your business</h2>
+        <p className={styles.eyebrow}>Vind je abonnement</p>
+        <h2 className={styles.sectionTitle}>Vertel ons over je bedrijf</h2>
         <p className={styles.sectionSub}>
-          Answer a few quick questions and we&apos;ll recommend the plan and
-          add-ons that fit, with an estimated {annual ? "annual" : "monthly"} price.
+          Beantwoord een paar korte vragen en we raden je het passende abonnement
+          en de bijpassende add-ons aan, inclusief een geschatte {annual ? "jaarprijs" : "maandprijs"}.
         </p>
 
         <div className={styles.quiz}>
           <div className={styles.quizForm}>
             <div className={styles.quizQuestion}>
-              <p className={styles.quizLabel}>How big is your team?</p>
+              <p className={styles.quizLabel}>Hoe groot is je team?</p>
               <div className={styles.quizOptions}>
                 {TEAM_SIZES.map((o) => (
                   <button
@@ -314,14 +337,14 @@ export default function PricingPage() {
                     className={`${styles.quizOption} ${teamSize === o ? styles.quizSelected : ""}`}
                     onClick={() => setTeamSize(teamSize === o ? "" : o)}
                   >
-                    {o} people
+                    {o} mensen
                   </button>
                 ))}
               </div>
             </div>
 
             <div className={styles.quizQuestion}>
-              <p className={styles.quizLabel}>What industry are you in?</p>
+              <p className={styles.quizLabel}>In welke branche zit je?</p>
               <div className={styles.quizOptions}>
                 {INDUSTRIES.map((o) => (
                   <button
@@ -330,14 +353,14 @@ export default function PricingPage() {
                     className={`${styles.quizOption} ${industry === o ? styles.quizSelected : ""}`}
                     onClick={() => setIndustry(industry === o ? "" : o)}
                   >
-                    {o}
+                    {INDUSTRY_LABELS_NL[o] ?? o}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className={styles.quizQuestion}>
-              <p className={styles.quizLabel}>What tools do you use today?</p>
+              <p className={styles.quizLabel}>Welke tools gebruik je nu?</p>
               <div className={styles.quizOptions}>
                 {TOOLS.map((o) => (
                   <button
@@ -346,14 +369,14 @@ export default function PricingPage() {
                     className={`${styles.quizOption} ${currentTools.includes(o) ? styles.quizSelected : ""}`}
                     onClick={() => toggleMulti(o, currentTools, setCurrentTools)}
                   >
-                    {o}
+                    {TOOL_LABELS_NL[o] ?? o}
                   </button>
                 ))}
               </div>
             </div>
 
             <div className={styles.quizQuestion}>
-              <p className={styles.quizLabel}>Biggest pain points?</p>
+              <p className={styles.quizLabel}>Grootste knelpunten?</p>
               <div className={styles.quizOptions}>
                 {PAIN_POINTS.map((o) => {
                   const selected = painPoints.includes(o);
@@ -364,7 +387,7 @@ export default function PricingPage() {
                       className={`${styles.quizOption} ${selected ? styles.quizSelected : ""}`}
                       onClick={() => toggleMulti(o, painPoints, setPainPoints)}
                     >
-                      {o}
+                      {PAIN_POINT_LABELS_NL[o] ?? o}
                     </button>
                   );
                 })}
@@ -375,48 +398,48 @@ export default function PricingPage() {
           <div className={styles.quizResult}>
             {answered && recommendedPlan ? (
               <>
-                <p className={styles.quizResultEyebrow}>We recommend</p>
+                <p className={styles.quizResultEyebrow}>Ons advies</p>
                 <p className={styles.quizResultPlan}>{recommendedPlan.tier}</p>
                 <p className={styles.quizResultTagline}>{recommendedPlan.tagline}</p>
                 {isEnterprise ? (
                   <p className={styles.quizResultNote}>
-                    Enterprise pricing is custom. Let&apos;s talk about what fits your business.
+                    Enterprise-prijzen zijn op maat. Laten we bespreken wat bij jouw bedrijf past.
                   </p>
                 ) : (
                   <div className={styles.quizBreakdown}>
                     <div className={styles.quizRow}>
-                      <span>{recommendedPlan.tier} plan</span>
-                      <span>€{planPrice}{annual ? "/yr" : "/mo"}</span>
+                      <span>{recommendedPlan.tier} abonnement</span>
+                      <span>€{planPrice}{annual ? "/jr" : "/mnd"}</span>
                     </div>
                     {recommendations.map((m) =>
                       MODULE_PRICE_MAP[m] != null ? (
                         <div key={m} className={styles.quizRow}>
-                          <span>+ {m}</span>
-                          <span>€{addOnPrice(m)}{annual ? "/yr" : "/mo"}</span>
+                          <span>+ {moduleLabel(m)}</span>
+                          <span>€{addOnPrice(m)}{annual ? "/jr" : "/mnd"}</span>
                         </div>
                       ) : null
                     )}
                     <div className={`${styles.quizRow} ${styles.quizTotal}`}>
-                      <span>Estimated total</span>
-                      <span>€{estimatedTotal}{annual ? "/yr" : "/mo"}</span>
+                      <span>Geschat totaal</span>
+                      <span>€{estimatedTotal}{annual ? "/jr" : "/mnd"}</span>
                     </div>
                   </div>
                 )}
                 {!isEnterprise && (
                   <p className={styles.quizResultNote}>
-                    {annual ? "Billed annually (10% off)." : "Billed monthly."}{" "}
-                    Add-ons are per workspace. Modules based on your answers.
+                    {annual ? "Jaarlijks gefactureerd (10% korting)." : "Maandelijks gefactureerd."}{" "}
+                    Add-ons zijn per workspace. Modules gebaseerd op je antwoorden.
                   </p>
                 )}
                 <a href={isEnterprise ? TALK_PATH : "/signup"} className={styles.quizResultBtn}>
-                  {isEnterprise ? "Book a call →" : "Start free trial →"}
+                  {isEnterprise ? "Plan een gesprek →" : "Start je gratis proefperiode →"}
                 </a>
               </>
             ) : (
               <div className={styles.quizEmpty}>
                 <div className={styles.quizEmptyIcon}><LayersIcon size={30} /></div>
                 <p className={styles.quizEmptyText}>
-                  Tell us about your team to see your recommended plan and estimated price.
+                  Vertel ons over je team om je aanbevolen abonnement en geschatte prijs te zien.
                 </p>
               </div>
             )}
@@ -426,20 +449,20 @@ export default function PricingPage() {
 
       <section className={styles.addOnsSection}>
         <p className={styles.eyebrow}>Add-ons</p>
-        <h2 className={styles.sectionTitle}>Add the features you need</h2>
+        <h2 className={styles.sectionTitle}>Voeg de functies toe die je nodig hebt</h2>
         <p className={styles.sectionSub}>
-          Start with the core and switch on any module à la carte. Each add-on is
-          one flat price per workspace, {annual ? "per year (10% off vs monthly)." : "per month."}
+          Begin met de kern en activeer elke module à la carte. Elke add-on heeft
+          één vaste prijs per workspace, {annual ? "per jaar (10% korting ten opzichte van maandelijks)." : "per maand."}
         </p>
         <div className={styles.addOnsGrid}>
           {addOns.map((a) => (
             <div key={a.name} className={styles.addOnCard}>
               <div className={styles.addOnIcon}><a.Icon size={22} /></div>
-              <h3 className={styles.addOnName}>{a.name}</h3>
+              <h3 className={styles.addOnName}>{moduleLabel(a.name)}</h3>
               <p className={styles.addOnDesc}>{a.desc}</p>
               <p className={styles.addOnPrice}>
                 €{annual ? Math.round(a.price * 12 * 0.9) : a.price}
-                <span>{annual ? "/yr" : "/mo"}</span>
+                <span>{annual ? "/jr" : "/mnd"}</span>
               </p>
             </div>
           ))}
@@ -447,8 +470,8 @@ export default function PricingPage() {
       </section>
 
       <section className={styles.faqSection}>
-        <p className={styles.eyebrow}>FAQ</p>
-        <h2 className={styles.sectionTitle}>Questions, answered</h2>
+        <p className={styles.eyebrow}>Veelgestelde vragen</p>
+        <h2 className={styles.sectionTitle}>Vragen, beantwoord</h2>
         <div className={styles.faqList}>
           {faqs.map((item, i) => (
             <div
@@ -471,17 +494,17 @@ export default function PricingPage() {
       </section>
 
       <section className={styles.ctaSection}>
-        <h2 className={styles.ctaTitle}>Ready to build your workspace?</h2>
+        <h2 className={styles.ctaTitle}>Klaar om je workspace te bouwen?</h2>
         <p className={styles.ctaSub}>
-          Answer a few quick questions, pick your modules, and step in through
-          the link we mail you. First 30 days free — no payment details needed.
+          Beantwoord een paar korte vragen, kies je modules en stap in via
+          de link die we je mailen. De eerste 30 dagen gratis – geen betaalgegevens nodig.
         </p>
         <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", justifyContent: "center" }}>
           <a href="/signup" className={styles.btnPrimary}>
-            Start free trial →
+            Start je gratis proefperiode →
           </a>
           <a href={TALK_PATH} className={contentStyles.btnGhost}>
-            Book a call
+            Plan een gesprek
           </a>
         </div>
       </section>

@@ -7,14 +7,14 @@ import customStyles from "../custom/custom.module.css";
 import OnboardingForm from "../custom/CustomForm";
 
 export const metadata: Metadata = {
-  title: "Start your free 30 day trial | Yippie",
+  title: "Start je gratis proefperiode van 30 dagen | Yippie",
   description:
-    "Build your own Yippie workspace in minutes. First 30 days free, no payment details needed.",
+    "Bouw je eigen Yippie-werkruimte in een paar minuten. De eerste 30 dagen gratis, geen betaalgegevens nodig.",
   alternates: { canonical: "/signup" },
   openGraph: {
-    title: "Start your free 30 day trial | Yippie",
+    title: "Start je gratis proefperiode van 30 dagen | Yippie",
     description:
-      "Build your own Yippie workspace in minutes. First 30 days free, no payment details needed.",
+      "Bouw je eigen Yippie-werkruimte in een paar minuten. De eerste 30 dagen gratis, geen betaalgegevens nodig.",
     url: "https://getyippie.com/signup",
     type: "website",
     images: ["/og.png"],
@@ -31,13 +31,13 @@ export default function SignupPage() {
         <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
-          Get started
+          Aan de slag
         </div>
-        <h1 className={styles.heroTitle}>Build your workspace</h1>
+        <h1 className={styles.heroTitle}>Bouw je werkruimte</h1>
         <p className={styles.heroSub}>
-          Answer a few quick questions, watch your workspace take shape, and
-          step in through the link we mail you. First 30 days free, no payment
-          details needed.
+          Beantwoord een paar snelle vragen, zie je werkruimte vorm krijgen en
+          stap er via de link die we je mailen direct in. De eerste 30 dagen
+          gratis, geen betaalgegevens nodig.
         </p>
       </section>
 

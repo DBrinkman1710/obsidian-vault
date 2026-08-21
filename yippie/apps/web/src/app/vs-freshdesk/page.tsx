@@ -6,14 +6,14 @@ import styles from "../components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie vs Freshdesk | The SMB-Friendly Freshdesk Alternative",
+  title: "Yippie vs Freshdesk | Het MKB-vriendelijke Freshdesk-alternatief",
   description:
-    "Looking for a Freshdesk alternative for small business? Yippie is purpose-built help desk software for SMBs with booking and flat workspace pricing from €19/month.",
+    "Op zoek naar een Freshdesk-alternatief voor je kleine bedrijf? Yippie is helpdesksoftware speciaal voor het MKB, met boekingen en vaste werkruimteprijzen vanaf €19 per maand.",
   alternates: { canonical: "/vs-freshdesk" },
   openGraph: {
-    title: "Yippie vs Freshdesk | The SMB-Friendly Alternative",
+    title: "Yippie vs Freshdesk | Het MKB-vriendelijke alternatief",
     description:
-      "A simpler, flat-priced Freshdesk alternative built for SMBs. Booking and easy onboarding included, from €19/month.",
+      "Een eenvoudiger Freshdesk-alternatief met vaste prijs, gebouwd voor het MKB. Boekingen en eenvoudige onboarding inbegrepen, vanaf €19 per maand.",
     url: "https://getyippie.com/vs-freshdesk",
     type: "website",
   },
@@ -21,17 +21,17 @@ export const metadata: Metadata = {
 
 type Cell = "yes" | "no" | string;
 const rows: { feature: string; yippie: Cell; other: Cell }[] = [
-  { feature: "Flat workspace pricing", yippie: "yes", other: "no" },
-  { feature: "Built-in booking system", yippie: "yes", other: "no" },
-  { feature: "Easy onboarding (live in a day)", yippie: "yes", other: "Complex setup" },
-  { feature: "Purpose-built for SMBs", yippie: "yes", other: "Enterprise-first" },
-  { feature: "Kanban pipeline", yippie: "yes", other: "no" },
-  { feature: "Starting price", yippie: "from €19 / month", other: "~€15 / agent / mo" },
+  { feature: "Vaste werkruimteprijs", yippie: "yes", other: "no" },
+  { feature: "Ingebouwd boekingssysteem", yippie: "yes", other: "no" },
+  { feature: "Eenvoudige onboarding (dezelfde dag live)", yippie: "yes", other: "Complexe installatie" },
+  { feature: "Speciaal gebouwd voor het MKB", yippie: "yes", other: "Enterprise-eerst" },
+  { feature: "Kanban-pipeline", yippie: "yes", other: "no" },
+  { feature: "Startprijs", yippie: "vanaf €19 / mnd", other: "~€15 / gebruiker / mnd" },
 ];
 
 function CellView({ value }: { value: Cell }) {
-  if (value === "yes") return <span className={styles.yes} aria-label="Yes">Yes</span>;
-  if (value === "no") return <span className={styles.no} aria-label="No">No</span>;
+  if (value === "yes") return <span className={styles.yes} aria-label="Ja">Ja</span>;
+  if (value === "no") return <span className={styles.no} aria-label="Nee">Nee</span>;
   return <span className={styles.partial}>{value}</span>;
 }
 
@@ -46,40 +46,40 @@ export default function VsFreshdeskPage() {
           <span className={styles.heroTagDot} />
           Yippie vs Freshdesk
         </div>
-        <h1 className={styles.heroTitle}>Yippie vs Freshdesk: the SMB-friendly alternative</h1>
+        <h1 className={styles.heroTitle}>Yippie vs Freshdesk: het MKB-vriendelijke alternatief</h1>
         <p className={styles.heroSub}>
-          Freshdesk offers a broad feature set built for complex support
-          operations, but that breadth comes with a learning curve and per-agent
-          pricing that grows with every new hire. Yippie is purpose-built for
-          small and medium businesses: simpler, faster to set up, and flat
-          workspace pricing instead of per-agent fees.
+          Freshdesk biedt een breed functiepakket voor complexe supportoperaties,
+          maar die breedte gaat gepaard met een leercurve en kosten per gebruiker
+          die toenemen bij elke nieuwe aanstelling. Yippie is speciaal gebouwd
+          voor kleine en middelgrote bedrijven: eenvoudiger, sneller op te zetten
+          en een vaste werkruimteprijs in plaats van kosten per gebruiker.
         </p>
         <p className={styles.heroSub}>
-          In short: Yippie is a Freshdesk alternative for small teams with flat
-          workspace pricing from €19 per month, unlimited contacts on every plan,
-          AI drafted tickets, and booking built in — while Freshdesk charges
-          roughly €15 per agent per month and is designed with enterprise
-          complexity in mind.
+          Kortom: Yippie is een Freshdesk-alternatief voor kleine teams met een
+          vaste werkruimteprijs vanaf €19 per maand, onbeperkte contacten op
+          elk abonnement, AI-opgestelde tickets en boekingen ingebouwd — terwijl
+          Freshdesk ongeveer €15 per gebruiker per maand rekent en is ontworpen
+          met enterprise-complexiteit in gedachten.
         </p>
         <div className={styles.heroActions}>
-          <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
-          <a href="/modules" className={styles.btnGhost}>See all features</a>
+          <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>
+          <a href="/modules" className={styles.btnGhost}>Alle functies bekijken</a>
         </div>
       </section>
 
       <section className={styles.section}>
         <div className={styles.sectionInner}>
-          <p className={styles.eyebrow}>Side by side</p>
-          <h2 className={styles.sectionTitle}>How Yippie compares to Freshdesk</h2>
+          <p className={styles.eyebrow}>Naast elkaar</p>
+          <h2 className={styles.sectionTitle}>Hoe Yippie zich verhoudt tot Freshdesk</h2>
           <p className={styles.sectionSub}>
-            Same core help desk capabilities, without the per-agent pricing or
-            setup overhead.
+            Dezelfde kernfunctionaliteit van een helpdesk, zonder de kosten per
+            gebruiker of de installatielast.
           </p>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Feature</th>
+                  <th>Functie</th>
                   <th className={styles.colYippie}>Yippie</th>
                   <th>Freshdesk</th>
                 </tr>
@@ -100,21 +100,22 @@ export default function VsFreshdeskPage() {
 
       <section className={styles.sectionLight}>
         <div className={styles.sectionInner}>
-          <p className={styles.eyebrow}>Why SMBs switch</p>
-          <h2 className={styles.sectionTitle}>Built for your size, not theirs</h2>
+          <p className={styles.eyebrow}>Waarom MKB-bedrijven overstappen</p>
+          <h2 className={styles.sectionTitle}>Gebouwd voor jouw formaat, niet voor dat van hen</h2>
           <div className={styles.grid}>
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Flat, predictable pricing</h3>
+              <h3 className={styles.cardTitle}>Vaste, voorspelbare prijs</h3>
               <p className={styles.cardDesc}>
-                Pay per workspace from €19/month, not €15+ per agent. Add teammates
-                without watching the bill climb every time you hire.
+                Betaal per werkruimte vanaf €19 per maand, niet €15+ per gebruiker.
+                Voeg teamleden toe zonder te zien hoe de rekening oploopt elke
+                keer dat je iemand aanneemt.
               </p>
             </div>
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Live in a day, not a quarter</h3>
+              <h3 className={styles.cardTitle}>Dezelfde dag live, niet na een kwartaal</h3>
               <p className={styles.cardDesc}>
-                No complex configuration required. Connect your inbox, invite
-                your team, and you are answering tickets the same afternoon.
+                Geen complexe configuratie nodig. Verbind je inbox, nodig je
+                team uit en je beantwoordt tickets nog dezelfde middag.
               </p>
             </div>
           </div>
@@ -122,12 +123,12 @@ export default function VsFreshdeskPage() {
       </section>
 
       <section className={styles.ctaSection}>
-        <h2 className={styles.ctaTitle}>Switch to support that fits your business</h2>
+        <h2 className={styles.ctaTitle}>Stap over naar support die bij je bedrijf past</h2>
         <p className={styles.ctaSub}>
-          See why SMBs choose Yippie over Freshdesk. Try the instant demo. No
-          credit card required.
+          Zie waarom MKB-bedrijven kiezen voor Yippie boven Freshdesk. Probeer
+          de directe demo. Geen creditcard nodig.
         </p>
-        <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
+        <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>
       </section>
 
       <SiteFooter />

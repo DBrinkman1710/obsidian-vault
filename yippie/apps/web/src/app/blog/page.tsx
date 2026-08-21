@@ -4,14 +4,14 @@ import SiteFooter from "../components/SiteFooter";
 import styles from "../components/content.module.css";
 
 export const metadata: Metadata = {
-  title: "Yippie Blog | Customer support software tips for SMBs",
+  title: "Yippie Blog | Klantenservice software tips voor het MKB",
   description:
-    "Practical guides on AI customer service, help desk software, response times, and shared inbox workflows for small businesses and agencies.",
+    "Praktische gidsen over AI klantenservice, helpdesk software, reactietijden en gedeelde inbox workflows voor kleine ondernemingen en bureaus.",
   alternates: { canonical: "/blog" },
   openGraph: {
-    title: "Yippie Blog | Customer support software tips for SMBs",
+    title: "Yippie Blog | Klantenservice software tips voor het MKB",
     description:
-      "Practical guides on AI customer service, help desk software, and faster response times for SMBs.",
+      "Praktische gidsen over AI klantenservice, helpdesk software en snellere reactietijden voor het MKB.",
     url: "https://getyippie.com/blog",
     type: "website",
   },
@@ -20,11 +20,11 @@ export const metadata: Metadata = {
 const posts = [
   {
     slug: "two_extremes_customer_support_smb",
-    title: "The Two Extremes of Customer Support, and Why SMBs Are Stuck in the Middle",
+    title: "De twee extremen van klantenservice, en waarom het MKB er tussenin zit",
     date: "2026-07-10",
-    dateLabel: "July 10, 2026",
+    dateLabel: "10 juli 2026",
     excerpt:
-      "Most support software is built for chaos or enterprise. Small businesses sit in neither camp. Here is what the right middle ground looks like, and why it is so rarely built.",
+      "De meeste klantenservice software is gebouwd voor chaos of enterprise. Kleine ondernemingen vallen in geen van beide kampen. Dit is hoe het juiste midden eruitziet, en waarom het zo zelden gebouwd wordt.",
   },
   {
     slug: "klantenservice_software_voor_mkb",
@@ -36,43 +36,43 @@ const posts = [
   },
   {
     slug: "whatsapp_customer_service_for_small_business",
-    title: "Why Small Businesses Are Moving Customer Service to WhatsApp",
+    title: "Waarom kleine ondernemingen klantenservice verplaatsen naar WhatsApp",
     date: "2026-07-03",
-    dateLabel: "July 3, 2026",
+    dateLabel: "3 juli 2026",
     excerpt:
-      "WhatsApp has 2 billion users and message open rates above 90 percent. Here is why small businesses are adding it as a support channel, and how to set it up properly.",
+      "WhatsApp heeft 2 miljard gebruikers en berichtopenpercentages boven de 90 procent. Dit is waarom kleine ondernemingen het als supportkanaal toevoegen, en hoe je het goed inricht.",
   },
   {
     slug: "cost_of_slow_customer_service_response",
-    title: "What a Slow Customer Service Response Actually Costs You",
+    title: "Wat een trage klantenservice reactie je echt kost",
     date: "2026-06-26",
-    dateLabel: "June 26, 2026",
+    dateLabel: "26 juni 2026",
     excerpt:
-      "Slow support is not just frustrating: it costs revenue, drives negative reviews, and creates more work internally. Here is what the numbers say.",
+      "Trage support is niet alleen frustrerend: het kost omzet, leidt tot negatieve reviews en creëert meer werk intern. Dit is wat de cijfers zeggen.",
   },
   {
     slug: "shared_inbox_vs_regular_email",
-    title: "Shared Inbox vs. Regular Email: When to Make the Switch",
+    title: "Gedeelde inbox vs. gewone e-mail: wanneer maak je de overstap?",
     date: "2026-06-19",
-    dateLabel: "June 19, 2026",
+    dateLabel: "19 juni 2026",
     excerpt:
-      "Still running support from a regular inbox? Here is how to know when shared inbox software pays off, and what you actually gain when you make the switch.",
+      "Regel je support nog vanuit een gewone inbox? Zo weet je wanneer gedeelde inbox software loont, en wat je er echt mee wint als je de overstap maakt.",
   },
   {
     slug: "5-ways-ai-saves-smb-customer-service-time",
-    title: "5 Ways AI Is Saving SMBs 10+ Hours a Week on Customer Service",
+    title: "5 manieren waarop AI het MKB 10+ uur per week bespaart op klantenservice",
     date: "2026-06-12",
-    dateLabel: "June 12, 2026",
+    dateLabel: "12 juni 2026",
     excerpt:
-      "From inbox triage to drafting replies, AI customer service for small business is quietly giving owners back their week. Here are five concrete ways it adds up.",
+      "Van inbox triage tot het opstellen van reacties: AI klantenservice voor kleine ondernemingen geeft eigenaren stilletjes hun week terug. Vijf concrete manieren waarop het oploopt.",
   },
   {
     slug: "how-to-reduce-customer-service-response-time",
-    title: "How to Cut Your Customer Service Response Time in Half",
+    title: "Hoe je je klantenservice reactietijd halveert",
     date: "2026-06-05",
-    dateLabel: "June 5, 2026",
+    dateLabel: "5 juni 2026",
     excerpt:
-      "Want to reduce customer service response time without hiring? These five tactics do the heavy lifting: templates, SLAs, inbox triage, and clean handoffs.",
+      "Reactietijd verkorten zonder extra personeel? Deze vijf tactieken doen het zware werk: templates, SLA's, inbox triage en nette overdrachten.",
   },
 ];
 
@@ -88,11 +88,11 @@ export default function BlogIndexPage() {
           <span className={styles.heroTagDot} />
           Yippie blog
         </div>
-        <h1 className={styles.heroTitle}>Customer support, made smarter</h1>
+        <h1 className={styles.heroTitle}>Klantenservice, slimmer gemaakt</h1>
         <p className={styles.heroSub}>
-          Practical guides on AI customer service, help desk software, and faster
-          response times, written for small businesses and the agencies that
-          serve them.
+          Praktische gidsen over AI klantenservice, helpdesk software en snellere
+          reactietijden, geschreven voor kleine ondernemingen en de bureaus die
+          ze ondersteunen.
         </p>
       </section>
 
@@ -104,7 +104,7 @@ export default function BlogIndexPage() {
                 <div className={styles.blogDate}>{post.dateLabel}</div>
                 <h2 className={styles.blogTitle}>{post.title}</h2>
                 <p className={styles.blogExcerpt}>{post.excerpt}</p>
-                <span className={styles.blogReadMore}>Read more →</span>
+                <span className={styles.blogReadMore}>Lees meer →</span>
               </a>
             ))}
           </div>

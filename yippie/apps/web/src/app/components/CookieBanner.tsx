@@ -1,13 +1,37 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 import styles from "./CookieBanner.module.css";
+import { getLocale, localizeHref } from "@/lib/i18n";
 
 const STORAGE_KEY = "yippie_consent";
+
+const copy = {
+  nl: {
+    label: "Cookietoestemming",
+    title: "Cookies",
+    text: "We gebruiken anonieme analyses om te begrijpen hoe de site wordt gebruikt en om hem te blijven verbeteren. Accepteer je cookies om ons te helpen?",
+    privacyLink: "Privacybeleid",
+    decline: "Weigeren",
+    accept: "Accepteren",
+  },
+  en: {
+    label: "Cookie consent",
+    title: "Cookies",
+    text: "We use anonymous analytics to understand how the site is used and keep improving it. Accept cookies to help us out?",
+    privacyLink: "Privacy policy",
+    decline: "Decline",
+    accept: "Accept",
+  },
+} as const;
 
 export default function CookieBanner() {
   const [mounted, setMounted] = useState(false);
   const [visible, setVisible] = useState(false);
+  const pathname = usePathname();
+  const locale = getLocale(pathname);
+  const t = copy[locale];
 
   useEffect(() => {
     setMounted(true);
@@ -37,20 +61,19 @@ export default function CookieBanner() {
       className={styles.banner}
       role="dialog"
       aria-live="polite"
-      aria-label="Cookie consent"
+      aria-label={t.label}
     >
-      <p className={styles.eyebrow}>Cookies</p>
+      <p className={styles.eyebrow}>{t.title}</p>
       <p className={styles.text}>
-        We use anonymous analytics to understand how the site is used and keep
-        improving it. Accept cookies to help us out?{" "}
-        <a href="/privacy">Privacy policy</a>.
+        {t.text}{" "}
+        <a href={localizeHref("/privacy", locale)}>{t.privacyLink}</a>.
       </p>
       <div className={styles.buttons}>
         <button type="button" className={styles.decline} onClick={decline}>
-          Decline
+          {t.decline}
         </button>
         <button type="button" className={styles.accept} onClick={accept}>
-          Accept
+          {t.accept}
         </button>
       </div>
     </div>

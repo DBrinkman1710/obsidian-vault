@@ -1,5 +1,5 @@
 // Copy for the installation-company use case clickthrough.
-// EN lives on `/`, NL lives on `/nl` — same component, different content prop.
+// NL lives on `/` (default), EN lives under `/en` — same component, different content prop.
 
 export type EmailOverlay = {
   /** "out" = Yippie sends it automatically; "in" = customer replies. */
@@ -196,6 +196,90 @@ export const USECASE2_EN: UseCaseContent = {
         from: "Jan de Vries",
         subject: "Re: Is it fixed?",
         body: "Perfect, the creak is completely gone, thanks for the quick help! Happy to leave a review.",
+      },
+    },
+  ],
+};
+
+export const USECASE2_NL: UseCaseContent = {
+  eyebrow: "Voor installatie & buitendienst",
+  heading: "Eén probleem, nul gemiste kansen",
+  sub: "Een klant loopt vast na de klus. Kijk hoe Yippie het oppakt van WhatsApp tot opgelost, zonder de chaos.",
+  prev: "Terug",
+  next: "Volgende",
+  sentLabel: "Automatisch verstuurd",
+  replyLabel: "Reactie van klant",
+  steps: [
+    {
+      tag: "WhatsApp",
+      callout: "WhatsApp → Yip stelt antwoord op",
+      title: "Het probleem komt via WhatsApp binnen",
+      desc: "Jan stuurt een bericht dat er iets mis is na zijn montage. Yip leest het en stelt een antwoord op voor je medewerker om te controleren, geen lege pagina om naar te staren.",
+      img: "/usecase2/s2_1_whatsapp.png",
+      w: 1440,
+      h: 900,
+    },
+    {
+      tag: "Ticket",
+      callout: "Concept → Operaties",
+      title: "Het wordt automatisch een ticket",
+      desc: "Geen snelle oplossing? Eén klik zet de chat om in een ticket. Yip schrijft de omschrijving, stelt de prioriteit in en routeert het naar Operaties met een SLA.",
+      img: "/usecase2/s2_2_ticket.png",
+      w: 1440,
+      h: 900,
+    },
+    {
+      tag: "In behandeling",
+      callout: "Automatische faseverschuiving",
+      title: "De klant blijft op de hoogte",
+      desc: "Het contact schuift naar In behandeling en er gaat een update uit met de stappen en een realistische schatting, voordat iemand ernaar hoeft te vragen.",
+      img: "/usecase2/s2_3_kanban.png",
+      w: 1440,
+      h: 900,
+      email: {
+        direction: "out",
+        from: "My Last Bike",
+        subject: "Update over je reparatie",
+        body: "Hoi Jan, we hebben je krakend geluid bij ons Operatieteam gemeld. Verwachte oplossing: binnen 4 werkdagen. We nemen contact op om een bezoek in te plannen.",
+      },
+    },
+    {
+      tag: "Afspraak",
+      callout: "Vragen + zelf boeken",
+      title: "Operaties plant het bezoek in",
+      desc: "Twee korte diagnosevragen en een boekingslink. Jan beantwoordt ze en kiest een moment dat hem uitkomt, geen telefonisch heen en weer.",
+      img: "/usecase2/s2_4_booking.png",
+      w: 1440,
+      h: 900,
+    },
+    {
+      tag: "Uitrijden",
+      callout: "Monteur claimt zelf",
+      title: "Een monteur claimt de klus",
+      desc: "De beschikbare monteur wijst de boeking aan zichzelf toe en ontvangt automatisch het volledige ticket, de probleemdetails en de antwoorden van Jan.",
+      img: "/usecase2/s2_5_claim.png",
+      w: 1440,
+      h: 900,
+      email: {
+        direction: "out",
+        from: "Yippie → Monteur",
+        subject: "Jij hebt geclaimd: krakend geluid (Jan de Vries)",
+        body: "Ticket, adres, de twee antwoorden en de volledige geschiedenis, alles wat de monteur nodig heeft, verstuurd op het moment dat hij het claimt.",
+      },
+    },
+    {
+      tag: "Opgelost",
+      callout: "Opgelost → automatisch reviewverzoek",
+      title: "Opgelost, bevestigd, beoordeeld",
+      desc: "Jan bevestigt met één knop dat het is opgelost en het contact keert terug naar After sales. Yippie vraagt hem automatisch de service te beoordelen, waarmee de cirkel rond is.",
+      img: "/usecase2/s2_6_resolved.png",
+      w: 1440,
+      h: 900,
+      email: {
+        direction: "in",
+        from: "Jan de Vries",
+        subject: "Re: Is het opgelost?",
+        body: "Perfect, het kraken is helemaal weg, bedankt voor de snelle hulp! Ik laat graag een review achter.",
       },
     },
   ],

@@ -16,14 +16,14 @@ const MANUAL_RAW_URL =
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Documentation | Yippie",
+  title: "Documentatie | Yippie",
   description:
-    "Complete product manual for the Yippie customer service platform.",
+    "Compleet producthandboek voor het Yippie klantenserviceplatform.",
   alternates: { canonical: "/docs" },
   openGraph: {
-    title: "Documentation | Yippie",
+    title: "Documentatie | Yippie",
     description:
-      "Complete product manual for the Yippie customer service platform.",
+      "Compleet producthandboek voor het Yippie klantenserviceplatform.",
     url: "https://getyippie.com/docs",
     type: "website",
   },
@@ -52,11 +52,11 @@ export default async function DocsPage() {
 
       <main className={styles.main}>
         <div className={styles.header}>
-          <p className={styles.eyebrow}>// documentation</p>
-          <h1 className={styles.title}>Yippie Platform Manual</h1>
+          <p className={styles.eyebrow}>// documentatie</p>
+          <h1 className={styles.title}>Yippie Platformhandboek</h1>
           <p className={styles.sub}>
-            Complete reference for everything in the Yippie platform. Always
-            reflects the latest shipped version.
+            Volledige referentie voor alles in het Yippie platform. Altijd
+            bijgewerkt naar de laatste beschikbare versie.
           </p>
           <DownloadPdfButton />
         </div>
@@ -64,9 +64,9 @@ export default async function DocsPage() {
         <div className={styles.content}>
           {fetchError ? (
             <p className={styles.error}>
-              Could not load the manual. Please try again in a moment or{" "}
+              Het handboek kon niet worden geladen. Probeer het over een moment opnieuw of{" "}
               <a href={MANUAL_RAW_URL} target="_blank" rel="noopener noreferrer">
-                view it directly on GitHub
+                bekijk het direct op GitHub
               </a>
               .
             </p>

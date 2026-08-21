@@ -6,14 +6,14 @@ import styles from "../components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie vs Zendesk | The SMB-Friendly Zendesk Alternative",
+  title: "Yippie vs Zendesk | Het MKB-vriendelijke Zendesk-alternatief",
   description:
-    "Looking for a Zendesk alternative for small business? Yippie is purpose-built help desk software for SMBs with booking and flat workspace pricing from €19/month.",
+    "Op zoek naar een Zendesk-alternatief voor je kleine bedrijf? Yippie is helpdesksoftware speciaal voor het MKB, met boekingen en vaste werkruimteprijzen vanaf €19 per maand.",
   alternates: { canonical: "/vs-zendesk" },
   openGraph: {
-    title: "Yippie vs Zendesk | The SMB-Friendly Alternative",
+    title: "Yippie vs Zendesk | Het MKB-vriendelijke alternatief",
     description:
-      "A simpler, flat-priced Zendesk alternative built for SMBs. Booking and easy onboarding included, from €19/month.",
+      "Een eenvoudiger Zendesk-alternatief met vaste prijs, gebouwd voor het MKB. Boekingen en eenvoudige onboarding inbegrepen, vanaf €19 per maand.",
     url: "https://getyippie.com/vs-zendesk",
     type: "website",
   },
@@ -21,17 +21,17 @@ export const metadata: Metadata = {
 
 type Cell = "yes" | "no" | string;
 const rows: { feature: string; yippie: Cell; other: Cell }[] = [
-  { feature: "Flat workspace pricing", yippie: "yes", other: "no" },
-  { feature: "Built-in booking system", yippie: "yes", other: "no" },
-  { feature: "Easy onboarding (live in a day)", yippie: "yes", other: "Complex setup" },
-  { feature: "Purpose-built for SMBs", yippie: "yes", other: "Enterprise-first" },
-  { feature: "Kanban pipeline", yippie: "yes", other: "no" },
-  { feature: "Starting price", yippie: "from €19 / month", other: "~€55 / agent / mo" },
+  { feature: "Vaste werkruimteprijs", yippie: "yes", other: "no" },
+  { feature: "Ingebouwd boekingssysteem", yippie: "yes", other: "no" },
+  { feature: "Eenvoudige onboarding (dezelfde dag live)", yippie: "yes", other: "Complexe installatie" },
+  { feature: "Speciaal gebouwd voor het MKB", yippie: "yes", other: "Enterprise-eerst" },
+  { feature: "Kanban-pipeline", yippie: "yes", other: "no" },
+  { feature: "Startprijs", yippie: "vanaf €19 / mnd", other: "~€55 / gebruiker / mnd" },
 ];
 
 function CellView({ value }: { value: Cell }) {
-  if (value === "yes") return <span className={styles.yes} aria-label="Yes">Yes</span>;
-  if (value === "no") return <span className={styles.no} aria-label="No">No</span>;
+  if (value === "yes") return <span className={styles.yes} aria-label="Ja">Ja</span>;
+  if (value === "no") return <span className={styles.no} aria-label="Nee">Nee</span>;
   return <span className={styles.partial}>{value}</span>;
 }
 
@@ -46,38 +46,40 @@ export default function VsZendeskPage() {
           <span className={styles.heroTagDot} />
           Yippie vs Zendesk
         </div>
-        <h1 className={styles.heroTitle}>Yippie vs Zendesk: the SMB-friendly alternative</h1>
+        <h1 className={styles.heroTitle}>Yippie vs Zendesk: het MKB-vriendelijke alternatief</h1>
         <p className={styles.heroSub}>
-          Zendesk is powerful, enterprise-grade customer support software, and
-          priced like it. Yippie is purpose-built for small and medium businesses:
-          simpler, faster to set up, and flat workspace pricing instead of
-          per-agent fees that climb as you grow.
+          Zendesk is krachtige klantenservicesoftware op enterprise-niveau — en
+          zo geprijsd. Yippie is speciaal gebouwd voor kleine en middelgrote
+          bedrijven: eenvoudiger, sneller op te zetten en een vaste
+          werkruimteprijs in plaats van kosten per gebruiker die oplopen naarmate
+          je groeit.
         </p>
         <p className={styles.heroSub}>
-          In short: Yippie is a Zendesk alternative for small teams with flat
-          workspace pricing from €19 per month, unlimited contacts on every plan,
-          AI drafted tickets, and booking built in — while Zendesk charges roughly
-          €55 per agent per month and is designed for enterprise support teams.
+          Kortom: Yippie is een Zendesk-alternatief voor kleine teams met een
+          vaste werkruimteprijs vanaf €19 per maand, onbeperkte contacten op
+          elk abonnement, AI-opgestelde tickets en boekingen ingebouwd — terwijl
+          Zendesk ongeveer €55 per gebruiker per maand rekent en is ontworpen
+          voor enterprise-supportteams.
         </p>
         <div className={styles.heroActions}>
-          <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
-          <a href="/modules" className={styles.btnGhost}>See all features</a>
+          <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>
+          <a href="/modules" className={styles.btnGhost}>Alle functies bekijken</a>
         </div>
       </section>
 
       <section className={styles.section}>
         <div className={styles.sectionInner}>
-          <p className={styles.eyebrow}>Side by side</p>
-          <h2 className={styles.sectionTitle}>How Yippie compares to Zendesk</h2>
+          <p className={styles.eyebrow}>Naast elkaar</p>
+          <h2 className={styles.sectionTitle}>Hoe Yippie zich verhoudt tot Zendesk</h2>
           <p className={styles.sectionSub}>
-            Same core help desk capabilities, without the enterprise price tag or
-            setup overhead.
+            Dezelfde kernfunctionaliteit van een helpdesk, zonder de
+            enterprise-prijskaartje of de installatielast.
           </p>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Feature</th>
+                  <th>Functie</th>
                   <th className={styles.colYippie}>Yippie</th>
                   <th>Zendesk</th>
                 </tr>
@@ -98,21 +100,22 @@ export default function VsZendeskPage() {
 
       <section className={styles.sectionLight}>
         <div className={styles.sectionInner}>
-          <p className={styles.eyebrow}>Why SMBs switch</p>
-          <h2 className={styles.sectionTitle}>Built for your size, not theirs</h2>
+          <p className={styles.eyebrow}>Waarom MKB-bedrijven overstappen</p>
+          <h2 className={styles.sectionTitle}>Gebouwd voor jouw formaat, niet voor dat van hen</h2>
           <div className={styles.grid}>
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Flat, predictable pricing</h3>
+              <h3 className={styles.cardTitle}>Vaste, voorspelbare prijs</h3>
               <p className={styles.cardDesc}>
-                Pay per workspace from €19/month, not €55+ per agent. Add teammates
-                without watching the bill balloon every time you hire.
+                Betaal per werkruimte vanaf €19 per maand, niet €55+ per gebruiker.
+                Voeg teamleden toe zonder te zien hoe de rekening oploopt elke
+                keer dat je iemand aanneemt.
               </p>
             </div>
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Live in a day, not a quarter</h3>
+              <h3 className={styles.cardTitle}>Dezelfde dag live, niet na een kwartaal</h3>
               <p className={styles.cardDesc}>
-                No implementation consultant required. Connect your inbox, invite
-                your team, and you are answering tickets the same afternoon.
+                Geen implementatieconsultant nodig. Verbind je inbox, nodig je
+                team uit en je beantwoordt tickets nog dezelfde middag.
               </p>
             </div>
           </div>
@@ -120,12 +123,12 @@ export default function VsZendeskPage() {
       </section>
 
       <section className={styles.ctaSection}>
-        <h2 className={styles.ctaTitle}>Switch to support that fits your business</h2>
+        <h2 className={styles.ctaTitle}>Stap over naar support die bij je bedrijf past</h2>
         <p className={styles.ctaSub}>
-          See why SMBs choose Yippie over Zendesk. Try the instant demo. No
-          credit card required.
+          Zie waarom MKB-bedrijven kiezen voor Yippie boven Zendesk. Probeer de
+          directe demo. Geen creditcard nodig.
         </p>
-        <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
+        <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>
       </section>
 
       <SiteFooter />

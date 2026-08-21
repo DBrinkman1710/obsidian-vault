@@ -8,7 +8,7 @@ import styles from "./UseCaseFlow.module.css";
 /**
  * Interactive clickthrough of the installer workflow, driven by real Yippie
  * screenshots (in /public/usecase). Copy is passed in so the same component
- * serves EN (on /) and NL (on /nl).
+ * serves NL (on /) and EN (on /en).
  */
 export default function UseCaseFlow({ content }: { content: UseCaseContent }) {
   const [active, setActive] = useState(0);

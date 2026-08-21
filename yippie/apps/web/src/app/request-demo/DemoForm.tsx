@@ -25,6 +25,11 @@ import {
   MODULE_INFO,
   TOP_MODULES,
   computeRecommendations,
+  INDUSTRY_LABELS_NL,
+  TOOL_LABELS_NL,
+  PAIN_POINT_LABELS_NL,
+  MODULE_LABEL_NL,
+  MODULE_DESC_NL,
 } from "../../lib/recommendations";
 
 type IconComponent = React.ComponentType<{ size?: number }>;
@@ -122,11 +127,11 @@ export default function DemoForm() {
       const msg =
         typeof data?.error === "string"
           ? data.error
-          : "Something went wrong. Please try again.";
+          : "Er is iets misgegaan. Probeer het opnieuw.";
       setErrorMsg(msg);
       setState("error");
     } catch {
-      setErrorMsg("Network error. Please check your connection and try again.");
+      setErrorMsg("Netwerkfout. Controleer je verbinding en probeer het opnieuw.");
       setState("error");
     }
   }
@@ -138,10 +143,10 @@ export default function DemoForm() {
           <div className={styles.successIcon}>
             <CheckIcon size={24} />
           </div>
-          <h2 className={styles.successTitle}>Demo sent</h2>
+          <h2 className={styles.successTitle}>Demo verzonden</h2>
           <p className={styles.successSub}>
-            Check your inbox. We&apos;ve emailed you a one-click link to enter your
-            Yippie demo workspace.
+            Controleer je inbox. We hebben je een link gestuurd waarmee je met één klik
+            je Yippie-demoruimte kunt openen.
           </p>
         </div>
       </div>
@@ -160,11 +165,11 @@ export default function DemoForm() {
           <span className={styles.stepDot}>2</span>
         </div>
         <p className={styles.stepHint}>
-          A few quick questions so we can tailor your demo. All optional.
+          Een paar snelle vragen zodat we je demo kunnen afstemmen. Allemaal optioneel.
         </p>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>How big is your team?</span>
+          <span className={styles.qLabel}>Hoe groot is je team?</span>
           <div className={styles.chips}>
             {TEAM_SIZES.map((opt) => (
               <button
@@ -180,7 +185,7 @@ export default function DemoForm() {
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>What industry are you in?</span>
+          <span className={styles.qLabel}>In welke branche zit je?</span>
           <div className={styles.chips}>
             {INDUSTRIES.map((opt) => (
               <button
@@ -189,14 +194,14 @@ export default function DemoForm() {
                 className={`${styles.chip} ${industry === opt ? styles.chipActive : ""}`}
                 onClick={() => setIndustry(industry === opt ? "" : opt)}
               >
-                {opt}
+                {INDUSTRY_LABELS_NL[opt] ?? opt}
               </button>
             ))}
           </div>
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>What tools do you use today?</span>
+          <span className={styles.qLabel}>Welke tools gebruik je nu?</span>
           <div className={styles.chips}>
             {TOOLS.map((opt) => (
               <button
@@ -205,14 +210,14 @@ export default function DemoForm() {
                 className={`${styles.chip} ${currentTools.includes(opt) ? styles.chipActive : ""}`}
                 onClick={() => toggleMulti(opt, currentTools, setCurrentTools)}
               >
-                {opt}
+                {TOOL_LABELS_NL[opt] ?? opt}
               </button>
             ))}
           </div>
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>Biggest pain points?</span>
+          <span className={styles.qLabel}>Grootste uitdagingen?</span>
           <div className={styles.chips}>
             {PAIN_POINTS.map((opt) => {
               const selected = painPoints.includes(opt);
@@ -223,7 +228,7 @@ export default function DemoForm() {
                   className={`${styles.chip} ${selected ? styles.chipActive : ""}`}
                   onClick={() => toggleMulti(opt, painPoints, setPainPoints)}
                 >
-                  {opt}
+                  {PAIN_POINT_LABELS_NL[opt] ?? opt}
                 </button>
               );
             })}
@@ -235,7 +240,7 @@ export default function DemoForm() {
           type="button"
           onClick={() => setStep(2)}
         >
-          Continue →
+          Doorgaan →
         </button>
       </div>
     );
@@ -249,7 +254,7 @@ export default function DemoForm() {
           type="button"
           className={`${styles.stepDot} ${styles.stepDotDone}`}
           onClick={() => setStep(1)}
-          aria-label="Back to questions"
+          aria-label="Terug naar vragen"
         >
           1
         </button>
@@ -259,12 +264,12 @@ export default function DemoForm() {
 
       <div className={styles.moduleSection}>
         <p className={styles.moduleSectionLabel}>
-          {hasAnyAnswer ? "Modules we'll show you" : "What's inside Yippie"}
+          {hasAnyAnswer ? "Modules die we je laten zien" : "Wat zit er in Yippie"}
         </p>
         <p className={styles.moduleSectionSub}>
           {hasAnyAnswer
-            ? "We'll focus on the highlighted modules based on your answers. You'll also get a full tour."
-            : "Pick a demo to see any of these modules in action."}
+            ? "We focussen op de gemarkeerde modules op basis van je antwoorden. Je krijgt ook een volledige rondleiding."
+            : "Kies een demo om een van deze modules in actie te zien."}
         </p>
         <div className={styles.moduleGrid}>
           {ALL_MODULES.map((m) => {
@@ -277,13 +282,13 @@ export default function DemoForm() {
                 className={`${styles.moduleCard} ${isRec ? styles.moduleCardRec : ""}`}
               >
                 {isRec && (
-                  <span className={styles.moduleRecBadge}>Recommended</span>
+                  <span className={styles.moduleRecBadge}>Aanbevolen</span>
                 )}
                 <div className={`${styles.moduleCardIcon} ${isRec ? styles.moduleCardIconRec : ""}`}>
                   {Icon && <Icon size={18} />}
                 </div>
-                <p className={styles.moduleCardName}>{m}</p>
-                <p className={styles.moduleCardDesc}>{info?.desc}</p>
+                <p className={styles.moduleCardName}>{MODULE_LABEL_NL[m] ?? m}</p>
+                <p className={styles.moduleCardDesc}>{MODULE_DESC_NL[m] ?? info?.desc}</p>
               </div>
             );
           })}
@@ -293,13 +298,13 @@ export default function DemoForm() {
       <div className={styles.fieldGroup}>
         <div className={styles.field}>
           <label className={styles.label} htmlFor="demo-name">
-            Your name
+            Jouw naam
           </label>
           <input
             id="demo-name"
             className={styles.input}
             type="text"
-            placeholder="Jane Smith"
+            placeholder="Jan de Vries"
             required
             autoComplete="name"
             value={name}
@@ -310,7 +315,7 @@ export default function DemoForm() {
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="demo-company">
-            Company name
+            Bedrijfsnaam
           </label>
           <input
             id="demo-company"
@@ -327,13 +332,13 @@ export default function DemoForm() {
 
         <div className={styles.field}>
           <label className={styles.label} htmlFor="demo-email">
-            Work email
+            Werk e-mail
           </label>
           <input
             id="demo-email"
             className={styles.input}
             type="email"
-            placeholder="jane@acme.com"
+            placeholder="jan@acme.com"
             required
             autoComplete="email"
             value={email}
@@ -359,7 +364,7 @@ export default function DemoForm() {
       />
 
       <button className={styles.submit} type="submit" disabled={busy}>
-        {busy ? "Sending…" : "Request demo →"}
+        {busy ? "Versturen…" : "Demo aanvragen →"}
       </button>
 
       {state === "error" && errorMsg && (
@@ -367,12 +372,12 @@ export default function DemoForm() {
       )}
 
       <p className={styles.finePrint}>
-        By submitting you agree to our{" "}
-        <a href="/privacy" style={{ color: "#5BA4F5" }}>Privacy Policy</a>
+        Door te versturen ga je akkoord met ons{" "}
+        <a href="/privacy" style={{ color: "#5BA4F5" }}>Privacybeleid</a>
       </p>
 
       <p className={styles.finePrint}>
-        No credit card required · Your demo link lands in your inbox within a minute
+        Geen creditcard nodig · Je demolink is binnen een minuut in je inbox
       </p>
     </form>
   );

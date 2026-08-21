@@ -6,9 +6,9 @@ import { breadcrumbJsonLd } from "../jsonld";
 
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
-const TITLE = "How to Cut Your Customer Service Response Time in Half";
+const TITLE = "Hoe je je klantenservice reactietijd halveert";
 const DESCRIPTION =
-  "Want to reduce customer service response time without hiring? Use templates, SLAs, inbox triage, and clean team handoffs in your help desk software to answer faster.";
+  "Reactietijd verkorten zonder extra personeel? Gebruik templates, SLA's, inbox triage en nette teamoverdrachten in je helpdesk software om sneller te reageren.";
 const URL = "https://getyippie.com/blog/how-to-reduce-customer-service-response-time";
 const DATE = "2026-06-05";
 
@@ -56,71 +56,70 @@ export default function Post() {
       />
 
       <article className={styles.article}>
-        <a href="/blog" className={styles.backLink}>← Back to blog</a>
-        <div className={styles.articleDate}>June 5, 2026</div>
+        <a href="/blog" className={styles.backLink}>← Terug naar blog</a>
+        <div className={styles.articleDate}>5 juni 2026</div>
         <h1 className={styles.articleTitle}>{TITLE}</h1>
-        <div className={styles.articleByline}>By Diederik Brinkman</div>
+        <div className={styles.articleByline}>Door Diederik Brinkman</div>
 
         <div className={styles.articleBody}>
           <p>
-            Response time is the metric customers feel first. A fast reply signals
-            that you care; a slow one quietly erodes trust. The good news is you
-            can <strong>reduce customer service response time</strong> dramatically
-            without hiring a single extra person. It comes down to removing
-            friction from your support workflow. Here are five tactics that
-            consistently cut response time in half.
+            Reactietijd is de maatstaf die klanten als eerste voelen. Een snelle reactie
+            geeft aan dat je er om geeft; een trage ondermijnt stilletjes het vertrouwen.
+            Het goede nieuws: je kunt de <strong>klantenservice reactietijd</strong> drastisch
+            verkorten zonder één extra persoon in te huren. Het draait om wrijving uit je
+            supportworkflow te verwijderen. Vijf tactieken die de reactietijd consequent
+            halveren.
           </p>
 
-          <h2>1. Build a library of reply templates</h2>
+          <h2>1. Bouw een bibliotheek met reactie-templates</h2>
           <p>
-            Most questions repeat. Save your best answers as reusable templates so
-            agents start from 80% instead of a blank page. The right help desk
-            software lets you insert a template and personalize it in seconds —
-            turning a five-minute reply into a thirty-second one.
+            De meeste vragen herhalen zich. Sla je beste antwoorden op als herbruikbare
+            templates zodat medewerkers starten vanaf 80% in plaats van een leeg scherm.
+            De juiste helpdesk software laat je een template invoegen en personaliseren
+            in seconden — een reactie van vijf minuten wordt er één van dertig seconden.
           </p>
 
-          <h2>2. Set SLAs and make them visible</h2>
+          <h2>2. Stel SLA's in en maak ze zichtbaar</h2>
           <p>
-            A service-level agreement is only useful if your team can see the clock.
-            Deadline badges and SLA alerts that fire <em>before</em> a ticket goes
-            overdue keep urgent requests from aging quietly in the queue. When the
-            target is on screen, the whole team moves to meet it.
+            Een serviceniveau-afspraak is alleen nuttig als je team de klok ziet. Deadlinebadges
+            en SLA-waarschuwingen die afgaan <em>voordat</em> een ticket te laat is, voorkomen
+            dat urgente verzoeken stil verouderen in de wachtrij. Als het doel op het scherm
+            staat, beweegt het hele team om het te halen.
           </p>
 
-          <h2>3. Triage the inbox before you answer</h2>
+          <h2>3. Triage de inbox voordat je antwoordt</h2>
           <p>
-            Answering in the order things arrive is slow and unfair to urgent
-            cases. Sort by priority first. AI inbox triage can read each incoming
-            message, flag what is urgent, and route it to the right person, so the
-            important tickets get answered first, automatically.
+            Beantwoorden in de volgorde van binnenkomst is traag en oneerlijk voor urgente
+            gevallen. Sorteer eerst op prioriteit. AI inbox triage kan elk inkomend bericht
+            lezen, urgente zaken markeren en naar de juiste persoon routeren, zodat de
+            belangrijke tickets als eerste worden beantwoord, automatisch.
           </p>
 
-          <h2>4. Make team handoffs clean</h2>
+          <h2>4. Zorg voor nette teamoverdrachten</h2>
           <p>
-            Response time balloons when a ticket bounces between people who each
-            have to rebuild context. A shared inbox with full customer history and
-            clear ownership means whoever picks up a conversation already knows the
-            backstory. No re-asking, no re-explaining.
+            Reactietijd loopt op wanneer een ticket tussen mensen stuitert die elk de context
+            opnieuw moeten opbouwen. Een gedeelde inbox met volledige klanthistorie en
+            duidelijk eigenaarschap betekent dat wie een gesprek oppakt de achtergrond al
+            kent. Niet opnieuw vragen, niet opnieuw uitleggen.
           </p>
 
-          <h2>5. Let AI draft the first response</h2>
+          <h2>5. Laat AI de eerste reactie opstellen</h2>
           <p>
-            Suggested replies give agents a complete draft to approve or refine
-            instantly. Pair that with an improve-reply pass for tone, and your team
-            sends polished answers faster than they could type &quot;Hi there.&quot;
+            Voorgestelde reacties geven medewerkers een compleet concept om direct goed te
+            keuren of bij te schaven. Combineer dat met een verbeteringsronde voor toon, en
+            je team stuurt verzorgde antwoorden sneller dan ze &quot;Goedemiddag&quot; kunnen typen.
           </p>
 
           <p>
-            Put these together and the math is simple: less time hunting, less time
-            typing, and less time waiting in the queue. Faster responses mean
-            happier customers, and a support team that finally feels ahead of the
-            inbox instead of buried under it.
+            Zet dit samen en de rekensom is simpel: minder tijd zoeken, minder tijd typen,
+            minder tijd wachten in de wachtrij. Snellere reacties betekenen tevredener klanten,
+            en een supportteam dat eindelijk voor de inbox loopt in plaats van eronder bedolven.
           </p>
         </div>
 
         <div className={styles.articleCta}>
-          <p className={styles.articleCtaTitle}>Answer faster with Yippie</p>
-          <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
+          <p className={styles.articleCtaTitle}>Reageer sneller met Yippie</p>
+          <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>
         </div>
       </article>
 
