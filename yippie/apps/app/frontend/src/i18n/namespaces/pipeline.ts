@@ -107,6 +107,8 @@ export const pipeline: { en: Record<string, string>; nl: Record<string, string> 
     // DecisionNode
     pipeline_question_placeholder:   'Question?',
     pipeline_edit_question_tip:      'Double click to edit the question',
+    // PipelinePage — bulk context menu header
+    pipeline_n_contacts:             '{count} contacts',
   },
   nl: {
     // PipelinePage — header
@@ -214,5 +216,7 @@ export const pipeline: { en: Record<string, string>; nl: Record<string, string> 
     // DecisionNode
     pipeline_question_placeholder:   'Vraag?',
     pipeline_edit_question_tip:      'Dubbelklik om de vraag te bewerken',
+    // PipelinePage — bulk context menu header
+    pipeline_n_contacts:             '{count} contacten',
   },
 }

@@ -117,6 +117,12 @@ export const tickets: { en: Record<string, string>; nl: Record<string, string> }
     ticket_close_ticket:           'Close ticket',
     ticket_delete_confirm_msg:     'Delete this ticket? This cannot be undone.',
     ticket_delete_bulk_confirm:    'Delete {count} ticket(s)? This cannot be undone.',
+    // TicketDetail — contact history + draft viewer
+    ticket_internal_badge:         'Internal',
+    ticket_view_ticket:            'View ticket',
+    ticket_no_preview:             '(no preview available)',
+    ticket_open_in_inbox:          'Open in inbox',
+    ticket_tickets_total:          '{count} ticket(s) total',
   },
   nl: {
     // TicketDetail — delete confirm modal
@@ -234,5 +240,11 @@ export const tickets: { en: Record<string, string>; nl: Record<string, string> }
     ticket_close_ticket:           'Ticket sluiten',
     ticket_delete_confirm_msg:     'Dit ticket verwijderen? Dit kan niet ongedaan worden gemaakt.',
     ticket_delete_bulk_confirm:    '{count} ticket(s) verwijderen? Dit kan niet ongedaan worden gemaakt.',
+    // TicketDetail — contact history + draft viewer
+    ticket_internal_badge:         'Intern',
+    ticket_view_ticket:            'Ticket bekijken',
+    ticket_no_preview:             '(geen voorvertoning beschikbaar)',
+    ticket_open_in_inbox:          'Openen in postvak',
+    ticket_tickets_total:          '{count} ticket(s) totaal',
   },
 }

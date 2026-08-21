@@ -698,7 +698,7 @@ export default function InboxQueue() {
       <div className="shrink-0 px-4 pt-4 pb-0 md:px-8 md:pt-8 bg-slate-50">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2 md:gap-4 flex-wrap">
-            <h1 className="heading-xl text-slate-900">Inbox</h1>
+            <h1 className="heading-xl text-slate-900">{t('inbox_heading')}</h1>
             {/* Mailbox switch: shared (whole team) vs personal (mail to your own address) */}
             <div className="flex rounded-lg border border-slate-200 bg-white p-0.5">
               {([
@@ -739,7 +739,7 @@ export default function InboxQueue() {
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors"
                 >
                   <Building2 size={13} />
-                  {(myDepts ?? []).find((d: any) => d.id === activeDeptId)?.name ?? 'Select department'}
+                  {(myDepts ?? []).find((d: any) => d.id === activeDeptId)?.name ?? t('inbox_dept_select_fallback')}
                   <ChevronDown size={12} />
                 </button>
                 {showDeptDropdown && (
@@ -831,7 +831,7 @@ export default function InboxQueue() {
             <button
               onClick={() => setSearch('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
-              aria-label="Clear search"
+              aria-label={t('inbox_clear_search')}
             >
               <X size={14} />
             </button>
@@ -841,7 +841,7 @@ export default function InboxQueue() {
         {/* Trending topics — shown when the search box is empty */}
         {!search && trending && trending.length > 0 && (
           <div className="flex items-center flex-wrap gap-x-2 gap-y-1 mt-2">
-            <span className="text-xs text-slate-300">Trending:</span>
+            <span className="text-xs text-slate-300">{t('inbox_trending')}</span>
             {trending.map((topic: any) => (
               <button
                 key={topic}
@@ -857,11 +857,11 @@ export default function InboxQueue() {
         {/* Personal mailbox without an address configured */}
         {mailbox === 'personal' && !user?.inbound_email && !hasPersonalLinkedAccount && (
           <div className="mt-3 px-4 py-2.5 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
-            No personal inbox address set yet.{' '}
+            {t('inbox_no_personal_address')}{' '}
             <Link to="/settings/profile" className="font-semibold underline">
-              Add one in Profile settings
+              {t('inbox_add_in_profile')}
             </Link>{' '}
-            and forward your work email to it.
+            {t('inbox_forward_work_email')}
           </div>
         )}
 
@@ -971,15 +971,15 @@ export default function InboxQueue() {
                           <span className="text-sm font-semibold text-slate-900 truncate">{subject}</span>
                           {statusBadge(item.status, t)}
                           <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${isCompose ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                            {isCompose ? 'Composed' : 'Reply'}
+                            {isCompose ? t('inbox_composed_badge') : t('inbox_reply_badge')}
                           </span>
                         </div>
-                        {toAddr && <p className="text-xs text-slate-500">To: {toAddr}</p>}
+                        {toAddr && <p className="text-xs text-slate-500">{t('inbox_sent_to_label').replace('{addr}', toAddr)}</p>}
                         {item.delivered_at && (
-                          <p className="text-xs text-slate-400 mt-0.5">Delivered: {new Date(item.delivered_at).toLocaleString()}</p>
+                          <p className="text-xs text-slate-400 mt-0.5">{t('inbox_delivered_at').replace('{date}', new Date(item.delivered_at).toLocaleString())}</p>
                         )}
                         {item.opened_at && (
-                          <p className="text-xs text-blue-500 mt-0.5">Opened: {new Date(item.opened_at).toLocaleString()}</p>
+                          <p className="text-xs text-blue-500 mt-0.5">{t('inbox_opened_at').replace('{date}', new Date(item.opened_at).toLocaleString())}</p>
                         )}
                       </div>
                       <p className="text-xs text-slate-400 shrink-0">{new Date(item.created_at).toLocaleString()}</p>
@@ -998,17 +998,17 @@ export default function InboxQueue() {
                   className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft size={14} />
-                  Prev
+                  {t('inbox_prev')}
                 </button>
                 <span className="text-xs text-slate-500 font-medium">
-                  Page {sentSafePage + 1} of {sentPageCount}
+                  {t('inbox_page_of').replace('{cur}', String(sentSafePage + 1)).replace('{total}', String(sentPageCount))}
                 </span>
                 <button
                   onClick={() => setPage(p => Math.min(sentPageCount - 1, p + 1))}
                   disabled={sentSafePage >= sentPageCount - 1}
                   className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Next
+                  {t('inbox_next')}
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -1043,9 +1043,9 @@ export default function InboxQueue() {
                     checked={selected.size === visibleDrafts.length && visibleDrafts.length > 0}
                     indeterminate={selected.size > 0 && selected.size < visibleDrafts.length}
                     onChange={toggleSelectAll}
-                    ariaLabel="Select all"
+                    ariaLabel={t('inbox_select_all').replace(' ({n})', '')}
                   />
-                  {selected.size === visibleDrafts.length && visibleDrafts.length > 0 ? 'Deselect all' : `Select all (${visibleDrafts.length})`}
+                  {selected.size === visibleDrafts.length && visibleDrafts.length > 0 ? t('inbox_deselect_all') : t('inbox_select_all').replace('{n}', String(visibleDrafts.length))}
                 </button>
                 <button
                   onClick={() => { setAssignedToMe(v => !v); setAssignedToUser(null); setPage(0) }}
@@ -1056,7 +1056,7 @@ export default function InboxQueue() {
                     color: assignedToMe ? 'var(--brand-deep)' : 'var(--text-muted)',
                   }}
                 >
-                  Assigned to me
+                  {t('inbox_assigned_to_me')}
                   {assignedToMeCount > 0 && (
                     <span
                       className="inline-flex items-center justify-center w-4 h-4 rounded-full text-[10px] font-bold"
@@ -1081,7 +1081,7 @@ export default function InboxQueue() {
                         color: assignedToUser ? 'var(--brand-deep)' : 'var(--text-muted)',
                       }}
                     >
-                      {assignedToUser ? memberMap[assignedToUser] ?? 'User' : 'Assigned to…'}
+                      {assignedToUser ? (memberMap[assignedToUser] ?? t('assign_to')) : t('inbox_assigned_to_user')}
                       <ChevronDown size={11} className={`transition-transform ${showAssignedFilter ? 'rotate-180' : ''}`} />
                     </button>
                     {showAssignedFilter && (
@@ -1090,7 +1090,7 @@ export default function InboxQueue() {
                           onClick={() => { setAssignedToUser(null); setAssignedToMe(false); setPage(0); setShowAssignedFilter(false) }}
                           className={`w-full text-left px-3 py-1.5 text-xs font-semibold transition-colors ${!assignedToUser ? 'bg-yippie text-white' : 'text-slate-600 hover:bg-slate-50'}`}
                         >
-                          All users
+                          {t('inbox_all_users')}
                         </button>
                         {inboxTeamMembers.map((m: any) => (
                           <button
@@ -1151,9 +1151,9 @@ export default function InboxQueue() {
                     }}
                     onContextMenu={e => ctx.open(e, [
                       { header: d.sender_name || d.sender },
-                      { label: 'Assign to me', icon: <UserPlus size={14} />, onClick: () => assignDraftMutation.mutate({ id: d.id, userId: user!.id }) },
+                      { label: t('inbox_assign_to_me'), icon: <UserPlus size={14} />, onClick: () => assignDraftMutation.mutate({ id: d.id, userId: user!.id }) },
                       {
-                        label: 'Assign to…',
+                        label: t('inbox_assigned_to_user'),
                         icon: <User size={14} />,
                         submenu: inboxTeamMembers.map((m: any) => ({
                           label: m.full_name,
@@ -1161,7 +1161,7 @@ export default function InboxQueue() {
                         })),
                       },
                       {
-                        label: 'Assign to department…',
+                        label: t('inbox_assign_to_dept'),
                         icon: <Building2 size={14} />,
                         submenu: allDepartments.map((dept: any) => ({
                           label: dept.name,
@@ -1169,7 +1169,7 @@ export default function InboxQueue() {
                         })),
                       },
                       { separator: true },
-                      { label: 'Reject', icon: <XCircle size={14} />, danger: true, onClick: () => rejectWithMotion(d.id) },
+                      { label: t('inbox_reject'), icon: <XCircle size={14} />, danger: true, onClick: () => rejectWithMotion(d.id) },
                     ])}
                   >
                     {/* Checkbox — desktop only */}
@@ -1223,13 +1223,13 @@ export default function InboxQueue() {
                           )}
                           {isFollowUp && (
                             <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${isUrgent ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>
-                              {isUrgent ? '⚠ Follow-up due' : 'Follow-up'}
+                              {isUrgent ? t('inbox_follow_up_urgent') : t('inbox_follow_up')}
                             </span>
                           )}
                         </div>
                         {d.inbound_subject && d.inbound_subject !== d.ai_suggested_subject && (
                           <p className="text-xs text-slate-400 mb-0.5 truncate">
-                            Subject: {d.inbound_subject}
+                            {t('inbox_subject_prefix')} {d.inbound_subject}
                           </p>
                         )}
                         <p className="text-xs text-slate-500 mb-1 line-clamp-2">
@@ -1237,7 +1237,7 @@ export default function InboxQueue() {
                         </p>
                         <p className="text-xs text-slate-400">
                           {new Date(d.created_at).toLocaleString()}
-                          {d.inbound_to && <span className="ml-2">· to {d.inbound_to}</span>}
+                          {d.inbound_to && <span className="ml-2">{t('inbox_inbound_to').replace('{addr}', d.inbound_to)}</span>}
                         </p>
                       </div>
                       <ArrowRight size={16} className="text-slate-300 group-hover:text-blue-500 transition-colors flex-shrink-0 mt-0.5" />
@@ -1256,17 +1256,17 @@ export default function InboxQueue() {
                   className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                   <ChevronLeft size={14} />
-                  Prev
+                  {t('inbox_prev')}
                 </button>
                 <span className="text-xs text-slate-500 font-medium">
-                  Page {safePage + 1} of {pageCount}
+                  {t('inbox_page_of').replace('{cur}', String(safePage + 1)).replace('{total}', String(pageCount))}
                 </span>
                 <button
                   onClick={() => setPage(p => Math.min(pageCount - 1, p + 1))}
                   disabled={safePage >= pageCount - 1}
                   className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                 >
-                  Next
+                  {t('inbox_next')}
                   <ChevronRight size={14} />
                 </button>
               </div>
@@ -1314,7 +1314,7 @@ export default function InboxQueue() {
               <div className="bg-slate-50 rounded-lg p-4 border border-slate-200 max-h-64 overflow-y-auto">
                 {selectedSentItem.body
                   ? <p className="text-sm text-slate-800 whitespace-pre-wrap leading-relaxed">{selectedSentItem.body}</p>
-                  : <p className="text-sm text-slate-400 italic">Body not available for this email</p>
+                  : <p className="text-sm text-slate-400 italic">{t('inbox_body_unavailable')}</p>
                 }
               </div>
               {selectedSentItem.kind === 'reply' && selectedSentItem.draft_id && (
@@ -1324,7 +1324,7 @@ export default function InboxQueue() {
                     onClick={() => setSelectedSentItem(null)}
                     className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                   >
-                    View original email →
+                    {t('inbox_view_original')}
                   </Link>
                 </div>
               )}
@@ -1339,13 +1339,13 @@ export default function InboxQueue() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="font-bold text-slate-900 text-sm">Yippie</p>
-              <p className="text-xs text-slate-400">sending to {pendingCompose.recipientCount} recipient{pendingCompose.recipientCount !== 1 ? 's' : ''}…</p>
+              <p className="text-xs text-slate-400">{pendingCompose.recipientCount === 1 ? t('inbox_sending_to_n').replace('{n}', '1') : t('inbox_sending_to_n_plural').replace('{n}', String(pendingCompose.recipientCount))}</p>
             </div>
             <button
               onClick={handleUndoCompose}
               className="px-3 py-1.5 text-xs font-semibold text-red-500 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors cursor-pointer"
             >
-              Undo
+              {t('inbox_undo_compose')}
             </button>
           </div>
           <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">

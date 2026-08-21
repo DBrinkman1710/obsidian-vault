@@ -242,8 +242,11 @@ export const inbox: { en: Record<string, string>; nl: Record<string, string> } =
     inbox_email_acct_dc_err:        'Could not disconnect the account.',
     inbox_email_acct_addr_updated:  'Shared inbox address updated',
     inbox_email_acct_addr_err:      'Could not update the address.',
+    // InboxQueue — misc aria
+    inbox_clear_search:             'Clear search',
     // SignaturePicker
     inbox_signature_title:          'Insert signature',
+    inbox_signature_label:          'Signature',
     inbox_signature_default:        'default',
   },
   nl: {
@@ -487,8 +490,11 @@ export const inbox: { en: Record<string, string>; nl: Record<string, string> } =
     inbox_email_acct_dc_err:        'Account ontkoppelen mislukt.',
     inbox_email_acct_addr_updated:  'Gedeeld postvak-adres bijgewerkt',
     inbox_email_acct_addr_err:      'Adres kon niet worden bijgewerkt.',
+    // InboxQueue — misc aria
+    inbox_clear_search:             'Zoeken wissen',
     // SignaturePicker
     inbox_signature_title:          'Handtekening invoegen',
+    inbox_signature_label:          'Handtekening',
     inbox_signature_default:        'standaard',
   },
 }

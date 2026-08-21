@@ -120,9 +120,9 @@ export default function TicketList() {
   function ticketMenuItems(t: any) {
     return [
       { header: t.subject.length > 32 ? t.subject.slice(0, 32) + '…' : t.subject },
-      { label: 'Assign to me', icon: <UserPlus size={14} />, onClick: () => assignMutation.mutate({ id: t.id, userId: user!.id }) },
+      { label: t('ticket_assign_to_me'), icon: <UserPlus size={14} />, onClick: () => assignMutation.mutate({ id: t.id, userId: user!.id }) },
       {
-        label: 'Assign to…',
+        label: t('ticket_assign_to_dots'),
         icon: <User size={14} />,
         submenu: teamMembers.map((m: any) => ({
           label: m.full_name,
@@ -130,15 +130,15 @@ export default function TicketList() {
         })),
       },
       { separator: true },
-      { label: 'Mark resolved', icon: <Check size={14} />, onClick: () => resolveWithMotion(t.id, 'resolved') },
-      { label: 'Close ticket', icon: <Archive size={14} />, onClick: () => resolveWithMotion(t.id, 'closed') },
+      { label: t('ticket_mark_resolved'), icon: <Check size={14} />, onClick: () => resolveWithMotion(t.id, 'resolved') },
+      { label: t('ticket_close_ticket'), icon: <Archive size={14} />, onClick: () => resolveWithMotion(t.id, 'closed') },
       { separator: true },
       {
         label: 'Delete',
         icon: <Trash2 size={14} />,
         danger: true,
         onClick: () => {
-          if (confirm('Delete this ticket? This cannot be undone.'))
+          if (confirm(t('ticket_delete_confirm_msg')))
             deleteMutation.mutate([t.id])
         },
       },
@@ -161,14 +161,14 @@ export default function TicketList() {
     <div>
       <div className="flex items-center justify-between mb-6">
         <h1 className="heading-xl" style={{ color: 'var(--ink)' }}>
-          Tickets
+          {t('ticket_list_title')}
         </h1>
         <Link
           to="/tickets/new"
           className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
         >
           <Plus size={14} strokeWidth={2.5} />
-          New Ticket
+          {t('ticket_new_btn')}
         </Link>
       </div>
 
@@ -179,12 +179,12 @@ export default function TicketList() {
           className="px-3 py-2 border text-sm bg-white outline-none"
           style={{ borderRadius: 'var(--radius-sm)', borderColor: 'var(--border-default)', color: 'var(--text-body)' }}
         >
-          <option value="">All statuses</option>
-          <option value="open">Open</option>
-          <option value="in_progress">In progress</option>
-          <option value="waiting">Waiting for customer</option>
-          <option value="resolved">Resolved</option>
-          <option value="closed">Closed</option>
+          <option value="">{t('ticket_all_statuses')}</option>
+          <option value="open">{t('ticket_status_open_opt')}</option>
+          <option value="in_progress">{t('ticket_status_in_progress_opt')}</option>
+          <option value="waiting">{t('ticket_status_waiting_opt')}</option>
+          <option value="resolved">{t('ticket_status_resolved_opt')}</option>
+          <option value="closed">{t('ticket_status_closed_opt')}</option>
         </select>
       </div>
 
@@ -202,7 +202,7 @@ export default function TicketList() {
             icon: <Trash2 size={13} />,
             danger: true,
             onClick: () => {
-              if (confirm(`Delete ${selection.count} ticket(s)? This cannot be undone.`))
+              if (confirm(t('ticket_delete_bulk_confirm').replace('{count}', String(selection.count))))
                 deleteMutation.mutate([...selection.sel])
             },
           },
@@ -225,7 +225,7 @@ export default function TicketList() {
               onChange={selection.toggleAll}
               ariaLabel="Select all tickets"
             />
-            {selection.all ? 'Deselect all' : `Select all (${items.length})`}
+            {selection.all ? t('ticket_deselect_all') : t('ticket_select_all').replace('{count}', String(items.length))}
           </button>
           <button
             type="button"
@@ -237,7 +237,7 @@ export default function TicketList() {
               color: assignedToMe ? 'var(--brand-deep)' : 'var(--text-muted)',
             }}
           >
-            Assigned to me
+            {t('ticket_assigned_to_me')}
           </button>
         </div>
       )}
@@ -327,13 +327,13 @@ export default function TicketList() {
       {!isLoading && items.length === 0 && (
         <div className="py-12 text-center">
           <Ticket size={32} className="mx-auto mb-3" style={{ color: 'var(--border-strong)' }} />
-          <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-muted)' }}>No tickets yet</p>
+          <p className="text-sm font-medium mb-4" style={{ color: 'var(--text-muted)' }}>{t('ticket_no_tickets')}</p>
           <Link
             to="/tickets/new"
             className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             <Plus size={14} strokeWidth={2.5} />
-            Create first ticket
+            {t('ticket_create_first')}
           </Link>
         </div>
       )}
@@ -349,9 +349,9 @@ export default function TicketList() {
             className="bg-white rounded-2xl shadow-2xl p-6 max-w-md w-full mx-4"
             onClick={e => e.stopPropagation()}
           >
-            <h2 className="font-semibold text-base mb-1" style={{ color: 'var(--ink)' }}>Merge tickets</h2>
+            <h2 className="font-semibold text-base mb-1" style={{ color: 'var(--ink)' }}>{t('ticket_merge_dialog_title')}</h2>
             <p className="text-sm mb-5" style={{ color: 'var(--text-muted)' }}>
-              Pick which ticket to keep. The other will be closed and its history moved over.
+              {t('ticket_merge_dialog_desc')}
             </p>
             <div className="flex flex-col gap-3 mb-6">
               <button
@@ -360,7 +360,7 @@ export default function TicketList() {
                 onClick={() => mergeMutation.mutate({ primaryId: mergeDialog.primary.id, secondaryId: mergeDialog.secondary.id })}
                 disabled={mergeMutation.isPending}
               >
-                <span className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--text-muted)' }}>Keep this ticket</span>
+                <span className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--text-muted)' }}>{t('ticket_keep_this')}</span>
                 {mergeDialog.primary.subject}
               </button>
               <button
@@ -369,7 +369,7 @@ export default function TicketList() {
                 onClick={() => mergeMutation.mutate({ primaryId: mergeDialog.secondary.id, secondaryId: mergeDialog.primary.id })}
                 disabled={mergeMutation.isPending}
               >
-                <span className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--text-muted)' }}>Keep this ticket</span>
+                <span className="block text-xs font-semibold mb-0.5" style={{ color: 'var(--text-muted)' }}>{t('ticket_keep_this')}</span>
                 {mergeDialog.secondary.subject}
               </button>
             </div>
@@ -378,7 +378,7 @@ export default function TicketList() {
               style={{ color: 'var(--text-muted)' }}
               onClick={() => setMergeDialog(null)}
             >
-              Cancel
+              {t('cancel')}
             </button>
           </div>
         </div>
