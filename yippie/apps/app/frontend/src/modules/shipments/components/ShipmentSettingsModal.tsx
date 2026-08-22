@@ -5,6 +5,7 @@ import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useCopy } from '../../../hooks/useCopy'
+import { useT } from '../../../hooks/useT'
 
 interface Props {
   onClose: () => void
@@ -13,6 +14,7 @@ interface Props {
 type Tab = 'overview' | 'erp' | 'sendcloud'
 
 function CopyButton({ text }: { text: string }) {
+  const t = useT()
   const { copy, copied } = useCopy({ useToast: false })
   return (
     <button
@@ -20,16 +22,17 @@ function CopyButton({ text }: { text: string }) {
       className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg transition-colors"
     >
       {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-      {copied ? 'Copied' : 'Copy'}
+      {copied ? t('ship_copied') : t('ship_copy')}
     </button>
   )
 }
 
 function OverviewTab() {
+  const t = useT()
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
-        Track &amp; Trace collects shipment data from three sources. You can use any combination.
+        {t('ship_overview_intro')}
       </p>
       <div className="space-y-3">
         <div className="flex gap-4 p-4 bg-slate-50 rounded-xl border border-slate-100">
@@ -37,10 +40,9 @@ function OverviewTab() {
             <Package size={16} className="text-yippie" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">Manual entry</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('ship_overview_manual_title')}</p>
             <p className="text-sm text-slate-500">
-              Agents add shipments directly in this screen: tracking number, carrier, and order reference.
-              Useful for one-offs or when automation isn't set up yet.
+              {t('ship_overview_manual_desc')}
             </p>
           </div>
         </div>
@@ -50,7 +52,7 @@ function OverviewTab() {
             <Webhook size={16} className="text-blue-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">ERP / order system webhook</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('ship_overview_erp_title')}</p>
             <p className="text-sm text-slate-500">
               Your ERP or webshop (Exact, AFAS, WooCommerce, Shopify, …) posts an order event to a Yippie
               URL whenever a shipment is created or its status changes. Yippie matches on{' '}
@@ -65,11 +67,9 @@ function OverviewTab() {
             <Truck size={16} className="text-orange-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">Sendcloud (carrier events)</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('ship_overview_sendcloud_title')}</p>
             <p className="text-sm text-slate-500">
-              If you ship via Sendcloud, connect your account in the <strong>Sendcloud</strong> tab.
-              Sendcloud pushes live carrier events (picked up, in transit, delivered) directly to Yippie —
-              no polling needed. You can also manually refresh any shipment from its detail page.
+              {t('ship_overview_sendcloud_desc')}
             </p>
           </div>
         </div>
@@ -79,6 +79,7 @@ function OverviewTab() {
 }
 
 function ErpTab() {
+  const t = useT()
   const qc = useQueryClient()
 
   const { data } = useQuery({
@@ -89,10 +90,10 @@ function ErpTab() {
   const rotate = useMutation({
     mutationFn: () => api.post('/shipments/settings/webhook/rotate'),
     onSuccess: () => {
-      toast.success('Webhook secret rotated')
+      toast.success(t('ship_erp_rotated_toast'))
       qc.invalidateQueries({ queryKey: ['shipments-webhook-settings'] })
     },
-    onError: () => toast.error('Failed to rotate secret'),
+    onError: () => toast.error(t('ship_erp_rotate_error_toast')),
   })
 
   const examplePayload = JSON.stringify({
@@ -110,12 +111,11 @@ function ErpTab() {
   return (
     <div className="space-y-5">
       <p className="text-sm text-slate-500">
-        Give your ERP or webshop this webhook URL. It should POST a JSON body whenever an order is
-        shipped or its status changes. Yippie creates or updates the matching shipment automatically.
+        {t('ship_erp_intro')}
       </p>
 
       <div>
-        <p className="text-xs font-semibold text-slate-500 mb-1.5">Webhook URL</p>
+        <p className="text-xs font-semibold text-slate-500 mb-1.5">{t('ship_erp_webhook_url_label')}</p>
         <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
           <p className="flex-1 text-xs font-mono text-slate-700 break-all">
             {data?.orders_webhook_url ?? '—'}
@@ -126,9 +126,9 @@ function ErpTab() {
 
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <p className="text-xs font-semibold text-slate-500">Shared secret (optional)</p>
+          <p className="text-xs font-semibold text-slate-500">{t('ship_erp_secret_label')}</p>
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${data?.orders_webhook_secret_set ? 'bg-green-50 text-green-600' : 'bg-slate-100 text-slate-400'}`}>
-            {data?.orders_webhook_secret_set ? 'Configured' : 'Not set'}
+            {data?.orders_webhook_secret_set ? t('ship_erp_secret_configured') : t('ship_erp_secret_not_set')}
           </span>
         </div>
         <p className="text-xs text-slate-400 mb-3">
@@ -142,18 +142,18 @@ function ErpTab() {
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 rounded-xl transition-colors disabled:opacity-50"
         >
           <RefreshCw size={12} className={rotate.isPending ? 'animate-spin' : ''} />
-          {data?.orders_webhook_secret_set ? 'Rotate secret' : 'Generate secret'}
+          {data?.orders_webhook_secret_set ? t('ship_erp_rotate_btn') : t('ship_erp_generate_btn')}
         </button>
         {data?.orders_webhook_secret_set && (
           <p className="text-xs text-slate-400 mt-2">
-            Rotating generates a new secret. Update your ERP immediately after.
+            {t('ship_erp_rotate_hint')}
           </p>
         )}
       </div>
 
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <p className="text-xs font-semibold text-slate-500">Payload format</p>
+          <p className="text-xs font-semibold text-slate-500">{t('ship_erp_payload_label')}</p>
           <CopyButton text={examplePayload} />
         </div>
         <pre className="text-xs font-mono bg-slate-900 text-slate-200 rounded-xl p-4 overflow-x-auto leading-relaxed">
@@ -188,6 +188,7 @@ function ErpTab() {
 }
 
 function SendcloudTab() {
+  const t = useT()
   const qc = useQueryClient()
   const [apiKey, setApiKey] = useState('')
   const [apiSecret, setApiSecret] = useState('')
@@ -212,10 +213,10 @@ function SendcloudTab() {
       return api.patch('/shipments/settings/sendcloud', payload)
     },
     onSuccess: () => {
-      toast.success('Sendcloud settings saved')
+      toast.success(t('ship_sc_saved_toast'))
       qc.invalidateQueries({ queryKey: ['shipments-sendcloud-settings'] })
     },
-    onError: () => toast.error('Failed to save Sendcloud settings'),
+    onError: () => toast.error(t('ship_sc_save_error_toast')),
   })
 
   const dirty =
@@ -225,30 +226,30 @@ function SendcloudTab() {
   return (
     <div className="space-y-5">
       <p className="text-sm text-slate-500">
-        Connect your Sendcloud account to receive live carrier status updates. Find your API keys
-        in Sendcloud under <span className="font-medium text-slate-700">Settings → Integrations → Sendcloud API</span>.
+        {t('ship_sc_intro').replace('{path}', '')}
+        <span className="font-medium text-slate-700">Settings → Integrations → Sendcloud API</span>.
       </p>
 
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Public key</label>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('ship_sc_public_key_label')}</label>
           <input
             type="password"
             value={apiKey}
             onFocus={() => { if (apiKey === '••••••••') setApiKey('') }}
             onChange={e => setApiKey(e.target.value)}
-            placeholder="Sendcloud public key"
+            placeholder={t('ship_sc_public_key_ph')}
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
         </div>
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Secret key</label>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('ship_sc_secret_key_label')}</label>
           <input
             type="password"
             value={apiSecret}
             onFocus={() => { if (apiSecret === '••••••••') setApiSecret('') }}
             onChange={e => setApiSecret(e.target.value)}
-            placeholder="Sendcloud secret key"
+            placeholder={t('ship_sc_secret_key_ph')}
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
         </div>
@@ -259,12 +260,12 @@ function SendcloudTab() {
         disabled={save.isPending || !dirty}
         className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
       >
-        {save.isPending ? 'Saving…' : 'Save'}
+        {save.isPending ? t('ship_sc_saving') : t('ship_sc_save')}
       </button>
 
       {data?.sendcloud_webhook_url && (
         <div>
-          <p className="text-xs font-semibold text-slate-500 mb-1.5">Sendcloud webhook URL</p>
+          <p className="text-xs font-semibold text-slate-500 mb-1.5">{t('ship_sc_webhook_url_label')}</p>
           <div className="flex items-center gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
             <p className="flex-1 text-xs font-mono text-slate-700 break-all">
               {data.sendcloud_webhook_url}
@@ -286,6 +287,7 @@ function SendcloudTab() {
 // moves are now configured as flows on the order_received trigger.
 
 export function ShipmentSettingsModal({ onClose }: Props) {
+  const t = useT()
   const [tab, setTab] = useState<Tab>('overview')
   const ref = useRef<HTMLDivElement>(null)
 
@@ -297,32 +299,32 @@ export function ShipmentSettingsModal({ onClose }: Props) {
   }, [onClose])
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview',  label: 'How it works', icon: <Zap size={13} /> },
-    { id: 'erp',       label: 'ERP webhook',  icon: <Webhook size={13} /> },
-    { id: 'sendcloud', label: 'Sendcloud',     icon: <Truck size={13} /> },
+    { id: 'overview',  label: t('ship_tab_how_it_works'), icon: <Zap size={13} /> },
+    { id: 'erp',       label: t('ship_tab_erp_webhook'),  icon: <Webhook size={13} /> },
+    { id: 'sendcloud', label: t('ship_tab_sendcloud'),     icon: <Truck size={13} /> },
   ]
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={e => { if (e.target === e.currentTarget) onClose() }}>
       <div ref={ref} tabIndex={-1} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-900">Track &amp; Trace: Settings</h2>
+          <h2 className="text-base font-semibold text-slate-900">{t('ship_settings_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex gap-1 px-6 pt-4">
-          {tabs.map(t => (
+          {tabs.map(tb => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={tb.id}
+              onClick={() => setTab(tb.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                tab === t.id
+                tab === tb.id
                   ? 'bg-yippie/10 text-yippie'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
-              {t.icon}
-              {t.label}
+              {tb.icon}
+              {tb.label}
             </button>
           ))}
         </div>
@@ -338,7 +340,7 @@ export function ShipmentSettingsModal({ onClose }: Props) {
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
           >
-            Close
+            {t('ship_close')}
           </button>
         </div>
       </div>

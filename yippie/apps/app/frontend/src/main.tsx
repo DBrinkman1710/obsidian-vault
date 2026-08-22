@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import * as Sentry from '@sentry/react'
 import App from './App'
 import './index.css'
+import { useT } from './hooks/useT'
 
 // Error monitoring — only active on deployed hosts, never on localhost.
 // DSN is public by design (it ships to every browser); EU (de) ingest region.
@@ -32,15 +33,16 @@ export const queryClient = new QueryClient({
 })
 
 function ErrorFallback() {
+  const t = useT()
   return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-3 text-slate-600">
-      <p className="text-lg font-semibold text-slate-800">Something went wrong</p>
-      <p className="text-sm">The error has been reported. Please reload the page.</p>
+      <p className="text-lg font-semibold text-slate-800">{t('shell_error_title')}</p>
+      <p className="text-sm">{t('shell_error_desc')}</p>
       <button
         onClick={() => window.location.reload()}
         className="mt-2 px-4 py-2 rounded-lg bg-yippie text-white text-sm font-medium"
       >
-        Reload
+        {t('shell_error_reload')}
       </button>
     </div>
   )

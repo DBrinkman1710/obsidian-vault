@@ -16,6 +16,7 @@ import { BottomNav } from './shell/BottomNav'
 import { DesktopOnly } from './shell/DesktopOnly'
 import QuickCapturePopup from './components/QuickCapturePopup'
 import HotkeyOverlay from './components/HotkeyOverlay'
+import { useT } from './hooks/useT'
 
 const ContactDetail = lazy(() => import('./modules/contacts/pages/ContactDetail'))
 const ContactNew    = lazy(() => import('./modules/contacts/pages/ContactNew'))
@@ -92,9 +93,11 @@ function PagePad({ children }: { children: React.ReactNode }) {
 // deadline comes from tenant config (trial_ends_at); cleared on conversion.
 function TrialBanner({ endsAt }: { endsAt: string }) {
   const navigate = useNavigate()
+  const t = useT()
   const msLeft = new Date(endsAt).getTime() - Date.now()
   const daysLeft = Math.max(0, Math.ceil(msLeft / 86_400_000))
   const urgent = daysLeft <= 5
+  const unit = daysLeft === 1 ? t('shell_trial_day') : t('shell_trial_days')
   return (
     <div
       className={`shrink-0 text-white text-xs font-semibold text-center py-1.5 px-4 ${
@@ -103,18 +106,18 @@ function TrialBanner({ endsAt }: { endsAt: string }) {
     >
       {urgent ? (
         <>
-          Your free trial ends in {daysLeft} {daysLeft === 1 ? 'day' : 'days'}. Your contacts, tickets and settings stay when you upgrade.{' '}
+          {t('shell_trial_urgent').replace('{days}', String(daysLeft)).replace('{unit}', unit)}{' '}
         </>
       ) : (
         <>
-          Free trial: {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left.{' '}
+          {t('shell_trial_days_left').replace('{days}', String(daysLeft)).replace('{unit}', unit)}{' '}
         </>
       )}
       <button
         onClick={() => navigate('/settings/subscription')}
         className={`underline underline-offset-2 ${urgent ? 'hover:text-amber-100' : 'hover:text-blue-100'}`}
       >
-        Upgrade now
+        {t('shell_trial_upgrade_now')}
       </button>
     </div>
   )
@@ -123,12 +126,13 @@ function TrialBanner({ endsAt }: { endsAt: string }) {
 function DemoBanner({ expiresAt }: { expiresAt: string | null }) {
   // Loss aversion: a concrete deadline ("ends Friday") beats a vague "may be
   // reset". Falls back to the old copy when no expiry is set.
+  const t = useT()
   if (!expiresAt) {
     return (
       <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4">
-        Demo environment. Data may be reset at any time.{' '}
-        <a href="mailto:hello@getyippie.com" className="underline hover:text-amber-100">Contact support</a>
-        {' '}to go live.
+        {t('shell_demo_no_expiry')}{' '}
+        <a href="mailto:hello@getyippie.com" className="underline hover:text-amber-100">{t('shell_demo_contact_support')}</a>
+        {' '}{t('shell_demo_go_live')}
       </div>
     )
   }
@@ -140,10 +144,10 @@ function DemoBanner({ expiresAt }: { expiresAt: string | null }) {
   return (
     <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4">
       {daysLeft <= 0
-        ? 'Your demo has ended. Your setup is still here.'
-        : `Your demo ends ${deadline}. Everything you build stays when you go live.`}{' '}
-      <a href="mailto:hello@getyippie.com" className="underline hover:text-amber-100">Contact us</a>
-      {' '}to keep it.
+        ? t('shell_demo_ended')
+        : t('shell_demo_ends_on').replace('{deadline}', deadline)}{' '}
+      <a href="mailto:hello@getyippie.com" className="underline hover:text-amber-100">{t('shell_contact_us')}</a>
+      {' '}{t('shell_demo_keep_it')}
     </div>
   )
 }
@@ -181,6 +185,7 @@ function useGlobalHotkeys() {
 
 export default function App() {
   const { user, refreshUser, impersonating, exitImpersonation } = useAuth()
+  const t = useT()
   const [config, setConfig] = useState<TenantConfig | null>(null)
   const [configError, setConfigError] = useState(false)
   // Session local dismissal for SetPasswordModal's error escape hatch: the
@@ -331,17 +336,17 @@ export default function App() {
     const warnedKey = `ai_usage_warned_${config.tenant_id}`
     if (sessionStorage.getItem(warnedKey)) return
     sessionStorage.setItem(warnedKey, '1')
-    toast.warning(`You’ve used ${Math.min(100, pct)}% of your AI scans this month`, {
-      description: 'When they run out, incoming messages stop getting auto-drafted until next month.',
+    toast.warning(t('shell_ai_scans_used').replace('{pct}', String(Math.min(100, pct))), {
+      description: t('shell_ai_scans_desc'),
       duration: 8000,
       action: {
-        label: 'Upgrade',
+        label: t('shell_ai_scans_upgrade'),
         onClick: () => { window.location.href = '/settings/subscription' },
       },
       // Loss-aversion dismissal: acknowledge the choice rather than a soft
       // "maybe later" out.
       cancel: {
-        label: "I'll risk it",
+        label: t('shell_ai_scans_risk'),
         onClick: () => {},
       },
     })
@@ -401,12 +406,12 @@ export default function App() {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50 p-8 text-center">
         <div>
-          <p className="text-slate-700 font-medium">Couldn’t load your workspace.</p>
+          <p className="text-slate-700 font-medium">{t('shell_workspace_load_error')}</p>
           <button
             onClick={() => window.location.reload()}
             className="mt-3 rounded bg-slate-800 px-4 py-2 text-sm text-white"
           >
-            Retry
+            {t('shell_retry')}
           </button>
         </div>
       </div>
@@ -442,20 +447,20 @@ export default function App() {
           {impersonating && (
             <div className="shrink-0 bg-amber-500 text-white text-xs font-semibold text-center py-1.5 px-4 flex items-center justify-center gap-3">
               <span>
-                Viewing as {impersonating.tenantName} ({impersonating.userEmail})
+                {t('shell_impersonating_viewing_as')} {impersonating.tenantName} ({impersonating.userEmail})
               </span>
               <button
                 onClick={() => exitImpersonation()}
                 className="underline underline-offset-2 hover:text-amber-100"
               >
-                Exit
+                {t('shell_impersonating_exit')}
               </button>
             </div>
           )}
           {config?.is_demo && <DemoBanner expiresAt={config.demo_expires_at} />}
           {config && !config.is_demo && config.trial_ends_at && <TrialBanner endsAt={config.trial_ends_at} />}
           <ErrorBoundary>
-          <Suspense fallback={<div className="p-8 text-slate-400">Loading…</div>}>
+          <Suspense fallback={<div className="p-8 text-slate-400">{t('shell_loading')}</div>}>
             <Routes>
               <Route path="/" element={<Navigate to="/inbox" replace />} />
 

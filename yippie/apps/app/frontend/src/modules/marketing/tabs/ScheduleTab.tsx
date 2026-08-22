@@ -3,8 +3,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Calendar, FlaskConical, Mail, MessageCircle, Send } from 'lucide-react'
 import { Campaign, Channel, marketingApi } from '../api'
+import { useT } from '../../../hooks/useT'
 
 export function ScheduleTab({ campaign }: { campaign: Campaign }) {
+  const t = useT()
   const qc = useQueryClient()
   const [enableAb, setEnableAb] = useState(true)
   const [channel, setChannel] = useState<Channel>(campaign.dispatch_channel)
@@ -24,26 +26,27 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
 
   const testSend = useMutation({
     mutationFn: () => marketingApi.testSend(campaign.id),
-    onSuccess: (r: any) => toast.success(`Test sent to ${r.to}`),
-    onError: () => toast.error('Test send failed'),
+    onSuccess: (r: any) => toast.success(`${t('mkt_test_sent_to')} ${r.to}`),
+    onError: () => toast.error(t('mkt_test_send_err')),
   })
 
   const launch = useMutation({
     mutationFn: () => marketingApi.launch(campaign.id, { enable_ab: enableAb }),
     onSuccess: (r: any) => {
-      toast.success(`Launched to ${r.recipients} recipient${r.recipients === 1 ? '' : 's'}`)
+      const recipientLabel = r.recipients === 1 ? t('mkt_launched_recipients') : t('mkt_launched_recipients_pl')
+      toast.success(`Launched to ${r.recipients} ${recipientLabel}`)
       invalidate()
     },
-    onError: () => toast.error('Could not launch campaign'),
+    onError: () => toast.error(t('mkt_launch_err')),
   })
 
   const schedule = useMutation({
     mutationFn: () => marketingApi.schedule(campaign.id, new Date(when).toISOString()),
     onSuccess: () => {
-      toast.success('Campaign scheduled')
+      toast.success(t('mkt_campaign_scheduled'))
       invalidate()
     },
-    onError: () => toast.error('Could not schedule campaign'),
+    onError: () => toast.error(t('mkt_schedule_err')),
   })
 
   function pickChannel(c: Channel) {
@@ -56,8 +59,8 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
       <div className="mx-auto max-w-2xl space-y-5">
         {/* Channel */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-900">Channel</h3>
-          <p className="mt-0.5 text-xs text-slate-400">How this campaign goes out.</p>
+          <h3 className="text-sm font-semibold text-slate-900">{t('mkt_channel_heading')}</h3>
+          <p className="mt-0.5 text-xs text-slate-400">{t('mkt_channel_desc')}</p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             {(['email', 'whatsapp'] as Channel[]).map((c) => (
               <button
@@ -79,10 +82,8 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-sm font-semibold text-slate-900">A/B test</h3>
-              <p className="mt-0.5 text-xs text-slate-400">
-                Send variants A and B to the first half. The winner (by open rate) goes to the rest 2 hours later.
-              </p>
+              <h3 className="text-sm font-semibold text-slate-900">{t('mkt_ab_test_heading')}</h3>
+              <p className="mt-0.5 text-xs text-slate-400">{t('mkt_ab_test_desc')}</p>
             </div>
             <label className="relative inline-flex cursor-pointer items-center">
               <input
@@ -99,36 +100,36 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
 
         {/* Test send */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-900">Send test to myself</h3>
-          <p className="mt-0.5 text-xs text-slate-400">Preview the email in your inbox before going live. Not tracked.</p>
+          <h3 className="text-sm font-semibold text-slate-900">{t('mkt_test_send_heading')}</h3>
+          <p className="mt-0.5 text-xs text-slate-400">{t('mkt_test_send_desc')}</p>
           <button
             onClick={() => testSend.mutate()}
             disabled={testSend.isPending}
             className="mt-3 flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-50"
           >
-            <FlaskConical size={15} /> {testSend.isPending ? 'Sending…' : 'Send test'}
+            <FlaskConical size={15} /> {testSend.isPending ? t('mkt_sending') : t('mkt_send_test')}
           </button>
         </section>
 
         {/* Launch now */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-900">Launch now</h3>
-          <p className="mt-0.5 text-xs text-slate-400">Send to your saved audience immediately.</p>
+          <h3 className="text-sm font-semibold text-slate-900">{t('mkt_launch_now_heading')}</h3>
+          <p className="mt-0.5 text-xs text-slate-400">{t('mkt_launch_now_desc')}</p>
           <button
             onClick={() => {
-              if (confirm('Send this campaign now?')) launch.mutate()
+              if (confirm(t('mkt_launch_confirm'))) launch.mutate()
             }}
             disabled={locked || launch.isPending}
             className="mt-3 flex items-center gap-2 rounded-xl bg-yippie px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
           >
-            <Send size={15} /> {launch.isPending ? 'Launching…' : 'Launch now'}
+            <Send size={15} /> {launch.isPending ? t('mkt_launching') : t('mkt_launch_now')}
           </button>
         </section>
 
         {/* Schedule */}
         <section className="rounded-2xl border border-slate-200 bg-white p-5">
-          <h3 className="text-sm font-semibold text-slate-900">Schedule for later</h3>
-          <p className="mt-0.5 text-xs text-slate-400">Pick a date and time. It sends automatically.</p>
+          <h3 className="text-sm font-semibold text-slate-900">{t('mkt_schedule_heading')}</h3>
+          <p className="mt-0.5 text-xs text-slate-400">{t('mkt_schedule_desc')}</p>
           <div className="mt-3 flex items-center gap-2">
             <div className="relative flex-1">
               <Calendar size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -145,19 +146,19 @@ export function ScheduleTab({ campaign }: { campaign: Campaign }) {
               disabled={locked || !when || schedule.isPending}
               className="rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700 hover:bg-blue-100 disabled:opacity-50"
             >
-              {schedule.isPending ? 'Scheduling…' : 'Schedule'}
+              {schedule.isPending ? t('mkt_scheduling') : t('mkt_schedule_btn')}
             </button>
           </div>
           {campaign.status === 'scheduled' && campaign.scheduled_at && (
             <p className="mt-2 text-xs font-medium text-blue-600">
-              Scheduled for {new Date(campaign.scheduled_at).toLocaleString()}
+              {t('mkt_scheduled_for')} {new Date(campaign.scheduled_at).toLocaleString()}
             </p>
           )}
         </section>
 
         {locked && (
           <p className="text-center text-xs text-slate-400">
-            This campaign is {campaign.status}. Scheduling and channel are locked.
+            {t('mkt_locked_notice').replace('{status}', campaign.status)}
           </p>
         )}
       </div>

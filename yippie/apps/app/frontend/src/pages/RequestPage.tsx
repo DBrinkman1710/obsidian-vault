@@ -3,11 +3,17 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Plus, X, CheckCircle2 } from 'lucide-react'
 import { api } from '../api/client'
+import { translations } from '../i18n/translations'
 
 interface RequestInfo {
   tenant_name: string
   min_notice_days: number
   booking_window_days: number
+}
+
+// Dutch-by-default translation helper for this public page.
+function tNl(key: string): string {
+  return translations.nl[key] ?? translations.en[key] ?? key
 }
 
 function Shell({ children }: { children: React.ReactNode }) {
@@ -62,7 +68,7 @@ export default function RequestPage() {
     setError(null)
     const filled = slots.filter(Boolean)
     if (!name.trim() || !email.trim() || filled.length === 0) {
-      setError('Please add your name, email and at least one preferred time.')
+      setError(tNl('public_request_err_fill'))
       return
     }
     // Each requested slot is a 1-hour window starting at the chosen time.
@@ -81,18 +87,18 @@ export default function RequestPage() {
       })
       setSuccess(true)
     } catch (err: any) {
-      setError(err?.response?.data?.detail ?? 'Something went wrong. Please try again.')
+      setError(err?.response?.data?.detail ?? tNl('public_request_err_failed'))
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (isLoading) return <Shell><p className="text-sm text-slate-400 text-center">Loading…</p></Shell>
+  if (isLoading) return <Shell><p className="text-sm text-slate-400 text-center">{tNl('public_request_loading')}</p></Shell>
   if (isError || !data) {
     return (
       <Shell>
-        <p className="text-center text-slate-700 font-medium">This request page isn't available.</p>
-        <p className="text-center text-sm text-slate-400 mt-1">The organisation may not be accepting requests right now.</p>
+        <p className="text-center text-slate-700 font-medium">{tNl('public_request_unavailable_body')}</p>
+        <p className="text-center text-sm text-slate-400 mt-1">{tNl('public_request_unavailable_hint')}</p>
       </Shell>
     )
   }
@@ -101,9 +107,9 @@ export default function RequestPage() {
       <Shell>
         <div className="text-center py-4">
           <CheckCircle2 className="h-12 w-12 text-yippie mx-auto mb-3" />
-          <h1 className="font-display text-xl font-bold text-ink">Request sent</h1>
+          <h1 className="font-display text-xl font-bold text-ink">{tNl('public_request_success_title')}</h1>
           <p className="text-sm text-slate-500 mt-2">
-            Thanks! {data.tenant_name} will confirm a time with you by email shortly.
+            {tNl('public_request_success_body').replace('{tenant}', data.tenant_name)}
           </p>
         </div>
       </Shell>
@@ -112,9 +118,9 @@ export default function RequestPage() {
 
   return (
     <Shell>
-      <h1 className="font-display text-xl font-bold text-ink">Request an appointment</h1>
+      <h1 className="font-display text-xl font-bold text-ink">{tNl('public_request_title')}</h1>
       <p className="text-sm text-slate-500 mt-1">
-        Tell {data.tenant_name} when suits you. They'll confirm a time by email.
+        {tNl('public_request_subtitle').replace('{tenant}', data.tenant_name)}
       </p>
 
       <form onSubmit={submit} className="mt-5 space-y-4">
@@ -122,20 +128,20 @@ export default function RequestPage() {
           <input
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Your name"
+            placeholder={tNl('public_request_placeholder_name')}
             className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yippie/40 focus:border-yippie"
           />
           <input
             type="email"
             value={email}
             onChange={e => setEmail(e.target.value)}
-            placeholder="Your email"
+            placeholder={tNl('public_request_placeholder_email')}
             className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yippie/40 focus:border-yippie"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-semibold text-slate-500 mb-1.5">Preferred time(s)</label>
+          <label className="block text-xs font-semibold text-slate-500 mb-1.5">{tNl('public_request_label_times')}</label>
           <div className="space-y-2">
             {slots.map((s, i) => (
               <div key={i} className="flex items-center gap-2">
@@ -155,7 +161,7 @@ export default function RequestPage() {
           </div>
           {slots.length < 5 && (
             <button type="button" onClick={addSlot} className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-yippie hover:opacity-80">
-              <Plus className="h-3 w-3" /> Add another option
+              <Plus className="h-3 w-3" /> {tNl('public_request_add_option')}
             </button>
           )}
         </div>
@@ -163,7 +169,7 @@ export default function RequestPage() {
         <textarea
           value={message}
           onChange={e => setMessage(e.target.value)}
-          placeholder="Anything we should know? (optional)"
+          placeholder={tNl('public_request_placeholder_message')}
           rows={3}
           className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-yippie/40 focus:border-yippie"
         />
@@ -175,7 +181,7 @@ export default function RequestPage() {
           disabled={submitting}
           className="w-full py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
         >
-          {submitting ? 'Sending…' : 'Send request'}
+          {submitting ? tNl('public_request_btn_sending') : tNl('public_request_btn_send')}
         </button>
       </form>
     </Shell>

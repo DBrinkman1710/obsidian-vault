@@ -5,6 +5,7 @@ import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useCopy } from '../../../hooks/useCopy'
+import { useT } from '../../../hooks/useT'
 
 interface Props {
   onClose: () => void
@@ -13,6 +14,7 @@ interface Props {
 type Tab = 'overview' | 'snippet'
 
 function CopyButton({ text }: { text: string }) {
+  const t = useT()
   const { copy, copied } = useCopy({ useToast: false })
   return (
     <button
@@ -20,18 +22,17 @@ function CopyButton({ text }: { text: string }) {
       className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg transition-colors"
     >
       {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-      {copied ? 'Copied' : 'Copy'}
+      {copied ? t('sales_copied') : t('sales_copy')}
     </button>
   )
 }
 
 function OverviewTab() {
+  const t = useT()
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
-        The Sales tracking snippet collects visitor behaviour on your clients' websites and surfaces it
-        inside Yippie, so when a customer contacts support, agents already know what they browsed,
-        clicked, or purchased.
+        {t('sales_overview_intro')}
       </p>
 
       <div className="space-y-3">
@@ -40,7 +41,7 @@ function OverviewTab() {
             <Code size={16} className="text-yippie" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">1. Copy your snippet</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('sales_overview_step1_title')}</p>
             <p className="text-sm text-slate-500">
               Go to the <strong>Install snippet</strong> tab, copy the one-line{' '}
               <code className="text-xs bg-slate-200 px-1 rounded">&lt;script&gt;</code> tag, and paste it
@@ -55,7 +56,7 @@ function OverviewTab() {
             <Globe size={16} className="text-blue-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">2. It tracks automatically</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('sales_overview_step2_title')}</p>
             <p className="text-sm text-slate-500">
               Once the tag is live, every page view is recorded automatically. No extra code needed.
               To track purchases or button clicks, call{' '}
@@ -70,7 +71,7 @@ function OverviewTab() {
             <MousePointerClick size={16} className="text-green-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">3. Link visitors to contacts</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('sales_overview_step3_title')}</p>
             <p className="text-sm text-slate-500">
               When a visitor logs in or places an order, call{' '}
               <code className="text-xs bg-slate-200 px-1 rounded">yippie.identify('email@example.com')</code>.
@@ -85,7 +86,7 @@ function OverviewTab() {
             <TrendingUp size={16} className="text-orange-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">4. Agents see it on every ticket</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('sales_overview_step4_title')}</p>
             <p className="text-sm text-slate-500">
               The last 5 website events appear in the <strong>Website activity</strong> card on the right
               side of every ticket from that contact. Agents know what the customer browsed before they
@@ -99,6 +100,7 @@ function OverviewTab() {
 }
 
 function SnippetTab() {
+  const t = useT()
   const qc = useQueryClient()
 
   const { data } = useQuery({
@@ -109,10 +111,10 @@ function SnippetTab() {
   const rotate = useMutation({
     mutationFn: () => api.post('/sales/token/rotate'),
     onSuccess: () => {
-      toast.success('Tracking token rotated. Update your snippet.')
+      toast.success(t('sales_rotate_toast'))
       qc.invalidateQueries({ queryKey: ['sales-token'] })
     },
-    onError: () => toast.error('Failed to rotate token'),
+    onError: () => toast.error(t('sales_rotate_error_toast')),
   })
 
   const token = data?.tracking_token ?? ''
@@ -144,10 +146,10 @@ ${scriptTag}
       </p>
 
       <div>
-        <p className="text-xs font-semibold text-slate-500 mb-1.5">Script tag</p>
+        <p className="text-xs font-semibold text-slate-500 mb-1.5">{t('sales_snippet_script_label')}</p>
         <div className="flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
           <p className="flex-1 text-xs font-mono text-slate-700 break-all leading-relaxed">
-            {scriptTag || 'Loading…'}
+            {scriptTag || t('sales_snippet_loading')}
           </p>
           {scriptTag && <CopyButton text={scriptTag} />}
         </div>
@@ -155,7 +157,7 @@ ${scriptTag}
 
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <p className="text-xs font-semibold text-slate-500">Full example with event tracking</p>
+          <p className="text-xs font-semibold text-slate-500">{t('sales_snippet_example_label')}</p>
           {usageExample && <CopyButton text={usageExample} />}
         </div>
         <pre className="text-xs font-mono bg-slate-900 text-slate-200 rounded-xl p-4 overflow-x-auto leading-relaxed">
@@ -165,12 +167,11 @@ ${scriptTag}
 
       <div className="pt-1 border-t border-slate-100">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-xs font-semibold text-slate-500">Tracking token</p>
+          <p className="text-xs font-semibold text-slate-500">{t('sales_token_label')}</p>
           <span className="text-xs font-mono text-slate-400">{token || '—'}</span>
         </div>
         <p className="text-xs text-slate-400 mb-3">
-          Your token authenticates events from your client's website. Rotate it if it is ever leaked —
-          you'll need to update the snippet on the website immediately after.
+          {t('sales_token_hint')}
         </p>
         <button
           onClick={() => rotate.mutate()}
@@ -178,7 +179,7 @@ ${scriptTag}
           className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-slate-900 border border-slate-200 hover:border-slate-300 rounded-xl transition-colors disabled:opacity-50"
         >
           <RefreshCw size={12} className={rotate.isPending ? 'animate-spin' : ''} />
-          Rotate token
+          {t('sales_rotate_btn')}
         </button>
       </div>
     </div>
@@ -186,6 +187,7 @@ ${scriptTag}
 }
 
 export function SalesSettingsModal({ onClose }: Props) {
+  const t = useT()
   const [tab, setTab] = useState<Tab>('overview')
   const ref = useRef<HTMLDivElement>(null)
 
@@ -197,8 +199,8 @@ export function SalesSettingsModal({ onClose }: Props) {
   }, [onClose])
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'How it works', icon: <Zap size={13} /> },
-    { id: 'snippet',  label: 'Install snippet', icon: <Code size={13} /> },
+    { id: 'overview', label: t('sales_tab_how_it_works'),    icon: <Zap size={13} /> },
+    { id: 'snippet',  label: t('sales_tab_install_snippet'), icon: <Code size={13} /> },
   ]
 
   return (
@@ -208,23 +210,23 @@ export function SalesSettingsModal({ onClose }: Props) {
     >
       <div ref={ref} tabIndex={-1} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-900">Sales Tracking: Settings</h2>
+          <h2 className="text-base font-semibold text-slate-900">{t('sales_modal_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex gap-1 px-6 pt-4">
-          {tabs.map(t => (
+          {tabs.map(tb => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={tb.id}
+              onClick={() => setTab(tb.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                tab === t.id
+                tab === tb.id
                   ? 'bg-yippie/10 text-yippie'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
-              {t.icon}
-              {t.label}
+              {tb.icon}
+              {tb.label}
             </button>
           ))}
         </div>
@@ -239,7 +241,7 @@ export function SalesSettingsModal({ onClose }: Props) {
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
           >
-            Close
+            {t('sales_modal_close')}
           </button>
         </div>
       </div>

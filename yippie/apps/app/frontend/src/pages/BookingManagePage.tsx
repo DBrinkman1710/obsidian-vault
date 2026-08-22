@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../api/client'
+import { translations } from '../i18n/translations'
 
 interface Slot { start: string; end: string }
 interface AvailableSlot extends Slot { available: boolean }
@@ -17,7 +18,12 @@ interface ManageBookingOut {
   cancel_edit_hours_before: number
 }
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+// Dutch-by-default translation helper for this public page.
+function tNl(key: string): string {
+  return translations.nl[key] ?? translations.en[key] ?? key
+}
+
+const WEEKDAYS_NL = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo']
 const pad = (n: number) => String(n).padStart(2, '0')
 const dateKey = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
@@ -35,7 +41,7 @@ function fmtTime(iso: string) {
 
 function fmtSlotLong(start: string, end: string) {
   const d = new Date(start)
-  const day = d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+  const day = d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
   return `${day}, ${fmtTime(start)}–${fmtTime(end)}`
 }
 
@@ -92,7 +98,7 @@ export default function BookingManagePage() {
   }, [isError])
 
   const days = useMemo(() => monthGrid(year, month), [year, month])
-  const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const monthLabel = new Date(year, month, 1).toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })
   const todayKey = dateKey(today)
 
   const slotsByDay = useMemo(() => {
@@ -122,7 +128,7 @@ export default function BookingManagePage() {
       })
       setPageState('rescheduled')
     } catch (e: any) {
-      setActionError(e?.response?.data?.detail || 'Could not reschedule. Please try again.')
+      setActionError(e?.response?.data?.detail || tNl('public_manage_err_reschedule'))
     } finally {
       setSubmitting(false)
     }
@@ -130,14 +136,14 @@ export default function BookingManagePage() {
 
   async function handleCancel() {
     if (!manageToken) return
-    if (!window.confirm('Are you sure you want to cancel this appointment?')) return
+    if (!window.confirm(tNl('public_manage_confirm_cancel'))) return
     setSubmitting(true)
     setActionError(null)
     try {
       await api.post(`/public/booking/manage/${manageToken}/cancel`)
       setPageState('cancelled')
     } catch (e: any) {
-      setActionError(e?.response?.data?.detail || 'Could not cancel. Please try again.')
+      setActionError(e?.response?.data?.detail || tNl('public_manage_err_cancel'))
     } finally {
       setSubmitting(false)
     }
@@ -151,16 +157,16 @@ export default function BookingManagePage() {
     : pageState
 
   if (effectiveState === 'loading') {
-    return <Shell><p className="text-sm text-slate-400 text-center">Loading…</p></Shell>
+    return <Shell><p className="text-sm text-slate-400 text-center">{tNl('public_manage_loading')}</p></Shell>
   }
 
   if (effectiveState === 'error' || !data) {
     return (
       <Shell>
         <div className="text-center">
-          <h1 className="text-lg font-bold text-slate-900 mb-2">Link unavailable</h1>
+          <h1 className="text-lg font-bold text-slate-900 mb-2">{tNl('public_manage_unavailable_title')}</h1>
           <p className="text-sm text-slate-500">
-            This manage link is invalid or the booking has been cancelled.
+            {tNl('public_manage_unavailable_body')}
           </p>
         </div>
       </Shell>
@@ -176,8 +182,8 @@ export default function BookingManagePage() {
               <path d="M6 18L18 6M6 6l12 12" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-lg font-bold text-slate-900 mb-2">Appointment cancelled</h1>
-          <p className="text-sm text-slate-500">Your appointment has been cancelled.</p>
+          <h1 className="text-lg font-bold text-slate-900 mb-2">{tNl('public_manage_cancelled_title')}</h1>
+          <p className="text-sm text-slate-500">{tNl('public_manage_cancelled_body')}</p>
         </div>
       </Shell>
     )
@@ -192,8 +198,8 @@ export default function BookingManagePage() {
               <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-lg font-bold text-slate-900 mb-2">Appointment rescheduled</h1>
-          <p className="text-sm text-slate-500">Your appointment has been rescheduled. Check your email for the updated details.</p>
+          <h1 className="text-lg font-bold text-slate-900 mb-2">{tNl('public_manage_rescheduled_title')}</h1>
+          <p className="text-sm text-slate-500">{tNl('public_manage_rescheduled_body')}</p>
         </div>
       </Shell>
     )
@@ -204,17 +210,17 @@ export default function BookingManagePage() {
       <Shell>
         <div className="text-center mb-5">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{data.tenant_name}</p>
-          <h1 className="text-xl font-bold text-slate-900 mt-1">Manage appointment</h1>
+          <h1 className="text-xl font-bold text-slate-900 mt-1">{tNl('public_manage_locked_title')}</h1>
         </div>
         <div className="bg-slate-50 border border-slate-200 rounded-xl p-5 text-center">
           <p className="text-sm font-semibold text-slate-700 mb-1">
             {fmtSlotLong(data.start_at, data.end_at)}
           </p>
           <p className="text-sm text-slate-500 mt-3">
-            Changes can no longer be made. Please contact us directly.
+            {tNl('public_manage_locked_body')}
           </p>
           <p className="text-xs text-slate-400 mt-1">
-            Changes must be made more than {data.cancel_edit_hours_before}h before the appointment.
+            {tNl('public_manage_locked_hint').replace('{hours}', String(data.cancel_edit_hours_before))}
           </p>
         </div>
       </Shell>
@@ -228,9 +234,9 @@ export default function BookingManagePage() {
       <Shell>
         <div className="text-center mb-5">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{data.tenant_name}</p>
-          <h1 className="text-xl font-bold text-slate-900 mt-1">Pick a new time</h1>
+          <h1 className="text-xl font-bold text-slate-900 mt-1">{tNl('public_manage_reschedule_title')}</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Current: {fmtSlotLong(data.start_at, data.end_at)}
+            {tNl('public_manage_reschedule_current').replace('{slot}', fmtSlotLong(data.start_at, data.end_at))}
           </p>
         </div>
 
@@ -238,7 +244,7 @@ export default function BookingManagePage() {
           onClick={() => { setPageState('ready'); setPicked(null); setActiveDay(null); setActionError(null) }}
           className="text-xs text-slate-400 hover:text-slate-600 transition-colors mb-4 block"
         >
-          ← Back
+          {tNl('public_manage_back')}
         </button>
 
         {actionError && (
@@ -260,7 +266,7 @@ export default function BookingManagePage() {
             </div>
           </div>
           <div className="grid grid-cols-7 px-2 pt-2">
-            {WEEKDAYS.map(d => (
+            {WEEKDAYS_NL.map(d => (
               <div key={d} className="text-center text-[10px] font-semibold text-slate-400 uppercase py-1">{d}</div>
             ))}
           </div>
@@ -292,7 +298,7 @@ export default function BookingManagePage() {
 
         {activeDay && (
           <div className="mt-4">
-            <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">Available times</p>
+            <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">{tNl('public_manage_available_times')}</p>
             <div className="flex flex-wrap gap-1.5">
               {dayChips.map(chip => {
                 const isPicked = picked?.start === chip.start
@@ -312,7 +318,7 @@ export default function BookingManagePage() {
                   </button>
                 )
               })}
-              {dayChips.length === 0 && <p className="text-xs text-slate-400">No times for this day.</p>}
+              {dayChips.length === 0 && <p className="text-xs text-slate-400">{tNl('public_manage_no_times')}</p>}
             </div>
           </div>
         )}
@@ -323,7 +329,9 @@ export default function BookingManagePage() {
             disabled={submitting}
             className="w-full mt-5 py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
-            {submitting ? 'Rescheduling…' : `Confirm reschedule to ${fmtSlotLong(picked.start, picked.end)}`}
+            {submitting
+              ? tNl('public_manage_btn_rescheduling')
+              : tNl('public_manage_btn_confirm_reschedule').replace('{slot}', fmtSlotLong(picked.start, picked.end))}
           </button>
         )}
       </Shell>
@@ -335,8 +343,10 @@ export default function BookingManagePage() {
     <Shell>
       <div className="text-center mb-5">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{data.tenant_name}</p>
-        <h1 className="text-xl font-bold text-slate-900 mt-1">Manage appointment</h1>
-        <p className="text-sm text-slate-500 mt-1">Hi {data.contact_first_name}</p>
+        <h1 className="text-xl font-bold text-slate-900 mt-1">{tNl('public_manage_title')}</h1>
+        <p className="text-sm text-slate-500 mt-1">
+          {tNl('public_manage_greeting').replace('{name}', data.contact_first_name)}
+        </p>
       </div>
 
       <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 mb-5 text-center">
@@ -357,19 +367,19 @@ export default function BookingManagePage() {
           disabled={submitting}
           className="w-full py-2.5 border border-slate-300 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
         >
-          Reschedule
+          {tNl('public_manage_btn_reschedule')}
         </button>
         <button
           onClick={handleCancel}
           disabled={submitting}
           className="w-full py-2.5 border border-red-200 text-red-600 text-sm font-semibold rounded-lg hover:bg-red-50 transition-colors disabled:opacity-50"
         >
-          {submitting ? 'Cancelling…' : 'Cancel appointment'}
+          {submitting ? tNl('public_manage_btn_cancelling') : tNl('public_manage_btn_cancel')}
         </button>
       </div>
 
       <p className="mt-4 text-xs text-slate-400 text-center">
-        Changes can be made up to {data.cancel_edit_hours_before}h before the appointment.
+        {tNl('public_manage_changes_hint').replace('{hours}', String(data.cancel_edit_hours_before))}
       </p>
     </Shell>
   )

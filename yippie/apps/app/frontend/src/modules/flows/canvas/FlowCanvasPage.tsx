@@ -21,6 +21,7 @@ import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { ContextMenu, useContextMenu } from '../../../components/ContextMenu'
+import { useT } from '../../../hooks/useT'
 import {
   Condition, Flow, FlowRun, FlowsMeta, RUN_BADGE, Step, WEEKDAYS, actionLabel, apiError,
   canAppend, findStep, graphToTree, groupTriggers, newActionId,
@@ -112,15 +113,16 @@ function saveBody(draft: FlowDraft): object {
 // --- node palette ---
 
 function NodePalette({ meta, canEdit }: { meta: FlowsMeta | undefined; canEdit: boolean }) {
+  const t = useT()
   if (!canEdit) return null
   return (
     <div className="w-40 shrink-0 border-r border-slate-200 bg-slate-50 flex flex-col">
       <div className="flex items-center gap-1.5 px-3 py-2 border-b border-slate-200">
         <LayoutGrid size={11} className="text-slate-400" />
-        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">Add node</p>
+        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide">{t('flow_add_node')}</p>
       </div>
       <div className="flex-1 overflow-y-auto p-2 space-y-1">
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-1 pt-1">Actions</p>
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-1 pt-1">{t('flow_actions_group')}</p>
         {meta?.actions.filter(a => a.key !== 'wait').map(action => (
           <div
             key={action.key}
@@ -135,8 +137,8 @@ function NodePalette({ meta, canEdit }: { meta: FlowsMeta | undefined; canEdit: 
             <span className="truncate">{action.label}</span>
           </div>
         ))}
-        {!meta && <p className="text-xs text-slate-400 px-1">Loading…</p>}
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-1 pt-2">Special</p>
+        {!meta && <p className="text-xs text-slate-400 px-1">{t('flow_palette_loading')}</p>}
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide px-1 pt-2">{t('flow_special_group')}</p>
         <div
           draggable
           onDragStart={e => {
@@ -146,7 +148,7 @@ function NodePalette({ meta, canEdit }: { meta: FlowsMeta | undefined; canEdit: 
           className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white border border-slate-200 text-xs text-slate-700 cursor-grab active:cursor-grabbing hover:border-blue-300 hover:shadow-sm transition-all select-none"
         >
           <Timer size={10} className="text-slate-400 shrink-0" />
-          Wait
+          {t('flow_ctx_wait')}
         </div>
         <div
           draggable
@@ -157,7 +159,7 @@ function NodePalette({ meta, canEdit }: { meta: FlowsMeta | undefined; canEdit: 
           className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg bg-white border border-slate-200 text-xs text-violet-600 cursor-grab active:cursor-grabbing hover:border-violet-300 hover:shadow-sm transition-all select-none"
         >
           <GitBranch size={10} className="text-violet-400 shrink-0" />
-          Branch
+          {t('flow_branch_label')}
         </div>
       </div>
     </div>
@@ -175,6 +177,7 @@ export default function FlowCanvasPage() {
 }
 
 function FlowCanvasInner() {
+  const t = useT()
   const { id } = useParams()
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -277,7 +280,7 @@ function FlowCanvasInner() {
       qc.invalidateQueries({ queryKey: ['flows'] })
       setDraft(draftFrom(r.data))
       setError('')
-      toast.success('Flow saved')
+      toast.success(t('flow_saved'))
     },
     onError: (err: any) => setError(apiError(err)),
   })
@@ -425,7 +428,7 @@ function FlowCanvasInner() {
 
     const steps = structuredClone(draft.steps)
     if (!canAppend(steps)) {
-      toast.error('This flow ends in a branch — select the branch to extend its paths.')
+      toast.error(t('flow_drop_branch_err'))
       return
     }
     steps.push(newStep)
@@ -460,7 +463,7 @@ function FlowCanvasInner() {
       const sourceId = source.slice('step:'.length)
       const sourceLoc = findStep(steps, sourceId)
       if (!sourceLoc) {
-        toast.error('Cannot connect these nodes — try using the inspector to reorder.')
+        toast.error(t('flow_connect_err'))
         return
       }
       const sourceStep = sourceLoc.list[sourceLoc.index]
@@ -481,14 +484,14 @@ function FlowCanvasInner() {
   }
 
   if (isLoading || (!flow && flows.length === 0)) {
-    return <p className="p-8 text-sm text-slate-400">Loading…</p>
+    return <p className="p-8 text-sm text-slate-400">{t('flow_loading')}</p>
   }
   if (!flow) {
     return (
       <div className="p-8">
-        <p className="text-sm text-slate-500">Flow not found.</p>
+        <p className="text-sm text-slate-500">{t('flow_not_found')}</p>
         <button onClick={() => navigate('/flows')} className="mt-2 text-sm font-semibold text-blue-600">
-          Back to flows
+          {t('flow_back_link')}
         </button>
       </div>
     )
@@ -497,10 +500,10 @@ function FlowCanvasInner() {
     return (
       <div className="p-8">
         <p className="text-sm text-slate-500">
-          This flow's graph was created outside the builder in a shape the canvas can't display.
+          {t('flow_unsupported_desc')}
         </p>
         <button onClick={() => navigate('/flows')} className="mt-2 text-sm font-semibold text-blue-600">
-          Back to flows
+          {t('flow_back_link')}
         </button>
       </div>
     )
@@ -508,7 +511,7 @@ function FlowCanvasInner() {
   if (!draft) return null
 
   const canEdit = isAdmin && !flow.is_default
-  const trigger = meta?.triggers.find(t => t.key === draft.trigger_type)
+  const trigger = meta?.triggers.find(trig => trig.key === draft.trigger_type)
   const selectedLoc = selection?.kind === 'step' ? findStep(draft.steps, selection.id) : null
   const selectedStep = selectedLoc ? selectedLoc.list[selectedLoc.index] : null
 
@@ -520,22 +523,22 @@ function FlowCanvasInner() {
     if (!canEdit || !draft) return
     const canAdd = canAppend(draft.steps)
     menu.open(e, [
-      { header: 'Add to flow' },
+      { header: t('flow_ctx_add_to_flow') },
       {
-        label: 'Action', icon: <Plus size={14} />,
+        label: t('flow_ctx_action'), icon: <Plus size={14} />,
         onClick: canAdd
           ? () => { setPanel('inspect'); addStep(null, 'action') }
-          : () => toast.error('This flow ends in a branch — select the branch to extend its paths.'),
+          : () => toast.error(t('flow_branch_ends_err')),
       },
       {
-        label: 'Branch (if/else)', icon: <GitBranch size={14} />,
+        label: t('flow_ctx_branch_ifelse'), icon: <GitBranch size={14} />,
         onClick: canAdd
           ? () => { setPanel('inspect'); addStep(null, 'branch') }
-          : () => toast.error('This flow ends in a branch — select the branch to extend its paths.'),
+          : () => toast.error(t('flow_branch_ends_err')),
       },
       { separator: true },
       {
-        label: draft.groups.length === 0 ? 'Condition' : 'OR group',
+        label: draft.groups.length === 0 ? t('flow_ctx_condition') : t('flow_ctx_or_group'),
         icon: <Plus size={14} />,
         onClick: () => { setPanel('inspect'); addGroup() },
       },
@@ -550,9 +553,9 @@ function FlowCanvasInner() {
     // mirroring the Delete-key guard).
     if (node.id === 'trigger') {
       menu.open(e, [
-        { header: 'Trigger' },
+        { header: t('flow_ctx_trigger') },
         {
-          label: 'Configure', icon: <SlidersHorizontal size={14} />,
+          label: t('flow_ctx_configure'), icon: <SlidersHorizontal size={14} />,
           onClick: () => { setPanel('inspect'); setSelection({ kind: 'trigger' }) },
         },
       ])
@@ -563,14 +566,14 @@ function FlowCanvasInner() {
     if (node.id.startsWith('group-')) {
       const index = Number(node.id.split('-')[1])
       menu.open(e, [
-        { header: `Condition group ${index + 1}` },
+        { header: `${t('flow_ctx_condition_group')} ${index + 1}` },
         {
-          label: 'Configure', icon: <SlidersHorizontal size={14} />,
+          label: t('flow_ctx_configure'), icon: <SlidersHorizontal size={14} />,
           onClick: () => { setPanel('inspect'); setSelection({ kind: 'group', index }) },
         },
         { separator: true },
         {
-          label: 'Delete group', icon: <Trash2 size={14} />, danger: true,
+          label: t('flow_ctx_delete_group'), icon: <Trash2 size={14} />, danger: true,
           onClick: () => removeGroup(index),
         },
       ])
@@ -587,26 +590,26 @@ function FlowCanvasInner() {
       const canMatch = canAppend(step.match ?? [])
       const canElse = canAppend(step.else ?? [])
       menu.open(e, [
-        { header: 'Branch' },
+        { header: t('flow_branch_label') },
         {
-          label: 'Configure', icon: <SlidersHorizontal size={14} />,
+          label: t('flow_ctx_configure'), icon: <SlidersHorizontal size={14} />,
           onClick: () => { setPanel('inspect'); setSelection({ kind: 'step', id: stepId }) },
         },
         {
-          label: 'Add to Yes path', icon: <Plus size={14} />,
+          label: t('flow_ctx_add_yes'), icon: <Plus size={14} />,
           onClick: canMatch
             ? () => { setPanel('inspect'); addStep({ branchId: stepId, leg: 'match' }, 'action') }
-            : () => toast.error('That path ends in a branch — select the nested branch to extend it.'),
+            : () => toast.error(t('flow_nested_branch_err')),
         },
         {
-          label: 'Add to No path', icon: <Plus size={14} />,
+          label: t('flow_ctx_add_no'), icon: <Plus size={14} />,
           onClick: canElse
             ? () => { setPanel('inspect'); addStep({ branchId: stepId, leg: 'else' }, 'action') }
-            : () => toast.error('That path ends in a branch — select the nested branch to extend it.'),
+            : () => toast.error(t('flow_nested_branch_err')),
         },
         { separator: true },
         {
-          label: 'Delete branch', icon: <Trash2 size={14} />, danger: true,
+          label: t('flow_ctx_delete_branch'), icon: <Trash2 size={14} />, danger: true,
           onClick: () => removeStep(stepId),
         },
       ])
@@ -619,16 +622,16 @@ function FlowCanvasInner() {
     const canDown = loc.index < loc.list.length - 1 &&
       loc.list[loc.index + 1]?.type !== 'branch'
     menu.open(e, [
-      { header: step.type === 'wait' ? 'Wait' : actionLabel(meta, step.type) },
+      { header: step.type === 'wait' ? t('flow_ctx_wait') : actionLabel(meta, step.type) },
       {
-        label: 'Configure', icon: <SlidersHorizontal size={14} />,
+        label: t('flow_ctx_configure'), icon: <SlidersHorizontal size={14} />,
         onClick: () => { setPanel('inspect'); setSelection({ kind: 'step', id: stepId }) },
       },
-      ...(canUp ? [{ label: 'Move up', icon: <ArrowUp size={14} />, onClick: () => moveStep(stepId, -1) }] : []),
-      ...(canDown ? [{ label: 'Move down', icon: <ArrowDown size={14} />, onClick: () => moveStep(stepId, 1) }] : []),
+      ...(canUp ? [{ label: t('flow_ctx_move_up'), icon: <ArrowUp size={14} />, onClick: () => moveStep(stepId, -1) }] : []),
+      ...(canDown ? [{ label: t('flow_ctx_move_down'), icon: <ArrowDown size={14} />, onClick: () => moveStep(stepId, 1) }] : []),
       { separator: true },
       {
-        label: 'Delete step', icon: <Trash2 size={14} />, danger: true,
+        label: t('flow_ctx_delete_step'), icon: <Trash2 size={14} />, danger: true,
         onClick: () => removeStep(stepId),
       },
     ])
@@ -636,18 +639,18 @@ function FlowCanvasInner() {
 
   function legSection(step: Step, leg: 'match' | 'else') {
     const list = (leg === 'match' ? step.match : step.else) ?? []
-    const label = leg === 'match' ? 'Yes path (conditions match)' : 'No path (otherwise)'
+    const label = leg === 'match' ? t('flow_yes_path') : t('flow_no_path')
     return (
       <div className="space-y-1.5 pt-1">
         <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wide">{label}</p>
-        {list.length === 0 && <p className="text-xs text-slate-400">Flow ends here.</p>}
+        {list.length === 0 && <p className="text-xs text-slate-400">{t('flow_ends_here')}</p>}
         {list.map(s => (
           <button
             key={s.id}
             onClick={() => setSelection({ kind: 'step', id: s.id })}
             className="block w-full text-left text-xs text-slate-600 border border-slate-200 rounded-lg px-2 py-1.5 hover:bg-slate-50 truncate"
           >
-            {s.type === 'branch' ? 'Branch' : (meta?.actions.find(a => a.key === s.type)?.label ?? s.type)}
+            {s.type === 'branch' ? t('flow_branch_label') : (meta?.actions.find(a => a.key === s.type)?.label ?? s.type)}
           </button>
         ))}
         {canAppend(list) ? (
@@ -656,17 +659,17 @@ function FlowCanvasInner() {
               onClick={() => addStep({ branchId: step.id, leg }, 'action')}
               className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
             >
-              <Plus size={12} /> Action
+              <Plus size={12} /> {t('flow_ctx_action')}
             </button>
             <button
               onClick={() => addStep({ branchId: step.id, leg }, 'branch')}
               className="flex items-center gap-1 text-xs font-semibold text-violet-600 hover:text-violet-700"
             >
-              <GitBranch size={12} /> Branch
+              <GitBranch size={12} /> {t('flow_branch_label')}
             </button>
           </div>
         ) : (
-          <p className="text-[11px] text-slate-400">Select the nested branch to extend this path.</p>
+          <p className="text-[11px] text-slate-400">{t('flow_select_nested')}</p>
         )}
       </div>
     )
@@ -678,7 +681,7 @@ function FlowCanvasInner() {
       <ContextMenu state={menu.state} onClose={menu.close} />
       {/* header */}
       <div className="flex items-center gap-3 px-6 py-3 border-b border-slate-200 bg-white shrink-0">
-        <Link to="/flows" className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg" title="Back to flows">
+        <Link to="/flows" className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg" title={t('flow_back_to_flows')}>
           <ArrowLeft size={16} />
         </Link>
         <Zap size={16} className="text-slate-400 shrink-0" />
@@ -694,15 +697,15 @@ function FlowCanvasInner() {
         {flow.is_default && (
           <span
             className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full"
-            title="Included with Yippie — view only. Duplicate it from the Flows page to customise."
+            title={t('flow_default_view_title')}
           >
-            Default · view only
+            {t('flow_default_view_only')}
           </span>
         )}
         {replayRun && (
           <span className="flex items-center gap-1.5 text-xs text-slate-500 bg-slate-100 rounded-full px-3 py-1">
-            Replaying run from {new Date(replayRun.created_at).toLocaleString()}
-            <button onClick={() => setReplayRunId(null)} className="text-slate-400 hover:text-slate-600" title="Stop replay">
+            {t('flow_replaying_run')} {new Date(replayRun.created_at).toLocaleString()}
+            <button onClick={() => setReplayRunId(null)} className="text-slate-400 hover:text-slate-600" title={t('flow_stop_replay')}>
               <X size={12} />
             </button>
           </span>
@@ -712,7 +715,7 @@ function FlowCanvasInner() {
           {/* [FLOW-CANVAS-DD] Re-layout button */}
           <button
             onClick={relayout}
-            title="Reset to auto-layout"
+            title={t('flow_reset_layout')}
             className="p-1.5 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
           >
             <RefreshCw size={14} />
@@ -726,14 +729,14 @@ function FlowCanvasInner() {
                   onChange={e => patchDraft({ enabled: e.target.checked })}
                   className="accent-blue-600"
                 />
-                Enabled
+                {t('flow_enabled_label')}
               </label>
               <button
                 onClick={() => saveMut.mutate()}
                 disabled={!dirty || saveMut.isPending}
                 className="px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
               >
-                Save flow
+                {t('flow_save_flow_btn')}
               </button>
             </>
           )}
@@ -787,13 +790,13 @@ function FlowCanvasInner() {
               onClick={() => setPanel('inspect')}
               className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold ${panel === 'inspect' ? 'text-blue-600 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <SlidersHorizontal size={12} /> Inspect
+              <SlidersHorizontal size={12} /> {t('flow_inspect_tab')}
             </button>
             <button
               onClick={() => setPanel('runs')}
               className={`flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-semibold ${panel === 'runs' ? 'text-blue-600 border-b-2 border-blue-500' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              <History size={12} /> Runs
+              <History size={12} /> {t('flow_runs_tab')}
             </button>
           </div>
 
@@ -801,10 +804,10 @@ function FlowCanvasInner() {
             {panel === 'runs' && (
               <>
                 {runs.length === 0 && (
-                  <p className="text-xs text-slate-400">No runs yet — the flow hasn't been triggered.</p>
+                  <p className="text-xs text-slate-400">{t('flow_no_runs_yet2')}</p>
                 )}
                 {runs.length > 0 && (
-                  <p className="text-xs text-slate-400">Pick a run to replay its path on the canvas.</p>
+                  <p className="text-xs text-slate-400">{t('flow_pick_run_replay')}</p>
                 )}
                 {runs.map(run => (
                   <button
@@ -826,39 +829,39 @@ function FlowCanvasInner() {
             {panel === 'inspect' && !canEdit && (
               <p className="text-xs text-slate-400">
                 {flow.is_default
-                  ? 'This default flow comes with Yippie and is view only — duplicate it from the Flows page to make your own editable version.'
-                  : 'Only admins can edit flows. Pick a run under Runs to replay it.'}
+                  ? t('flow_view_only_default')
+                  : t('flow_view_only_non_admin')}
               </p>
             )}
 
             {panel === 'inspect' && canEdit && selection === null && (
               <>
                 <p className="text-xs text-slate-400">
-                  Drag nodes to rearrange. Select a node to configure it, or add a step:
+                  {t('flow_drag_hint')}
                 </p>
                 {canAppend(draft.steps) ? (
                   <>
                     <button onClick={() => addStep(null, 'action')} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700">
-                      <Plus size={13} /> Add action
+                      <Plus size={13} /> {t('flow_add_action_btn')}
                     </button>
                     <button onClick={() => addStep(null, 'branch')} className="flex items-center gap-1.5 text-xs font-semibold text-violet-600 hover:text-violet-700">
-                      <GitBranch size={13} /> Add branch (if/else)
+                      <GitBranch size={13} /> {t('flow_add_branch_btn')}
                     </button>
                   </>
                 ) : (
                   <p className="text-[11px] text-slate-400">
-                    This flow ends in a branch — select it to extend its paths.
+                    {t('flow_ends_in_branch')}
                   </p>
                 )}
                 <button onClick={addGroup} className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700">
-                  <Plus size={13} /> Add {draft.groups.length === 0 ? 'condition' : 'OR group'}
+                  <Plus size={13} /> {draft.groups.length === 0 ? t('flow_add_condition') : t('flow_add_or_group_btn')}
                 </button>
               </>
             )}
 
             {panel === 'inspect' && canEdit && selection?.kind === 'trigger' && meta && (
               <div className="space-y-2">
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">When</p>
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('flow_when_label')}</p>
                 <select
                   value={draft.trigger_type}
                   onChange={e => { patchDraft({ trigger_type: e.target.value, groups: [] }) }}
@@ -866,7 +869,7 @@ function FlowCanvasInner() {
                 >
                   {groupTriggers(meta.triggers).map(([group, triggers]) => (
                     <optgroup key={group} label={group}>
-                      {triggers.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                      {triggers.map(trig => <option key={trig.key} value={trig.key}>{trig.label}</option>)}
                     </optgroup>
                   ))}
                 </select>
@@ -884,8 +887,8 @@ function FlowCanvasInner() {
                       }}
                       className="w-full px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                     >
-                      <option value="daily">Every day</option>
-                      <option value="weekly">Every week</option>
+                      <option value="daily">{t('flow_every_day')}</option>
+                      <option value="weekly">{t('flow_every_week')}</option>
                     </select>
                     {draft.trigger_config.frequency === 'weekly' && (
                       <select
@@ -916,7 +919,7 @@ function FlowCanvasInner() {
                       })}
                       className="accent-blue-600 mt-0.5"
                     />
-                    Other flows may trigger this one (when their actions cause this event)
+                    {t('flow_chainable_label')}
                   </label>
                 )}
               </div>
@@ -926,12 +929,12 @@ function FlowCanvasInner() {
               <div className="space-y-2">
                 <div className="flex items-center">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                    Condition group {selection.index + 1}
+                    {t('flow_condition_group_label')} {selection.index + 1}
                   </p>
                   <button
                     onClick={() => removeGroup(selection.index)}
                     className="ml-auto p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                    title="Delete group"
+                    title={t('flow_delete_group')}
                   >
                     <Trash2 size={13} />
                   </button>
@@ -950,7 +953,7 @@ function FlowCanvasInner() {
                   onClick={() => addCondition(selection.index)}
                   className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
                 >
-                  <Plus size={13} /> Add condition
+                  <Plus size={13} /> {t('flow_add_condition')}
                 </button>
               </div>
             )}
@@ -960,23 +963,22 @@ function FlowCanvasInner() {
               <div className="space-y-2">
                 <div className="flex items-center">
                   <p className="text-xs font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
-                    <GitBranch size={11} /> Branch
+                    <GitBranch size={11} /> {t('flow_branch_label')}
                   </p>
                   <button
                     onClick={() => removeStep(selectedStep.id)}
                     className="ml-auto p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                    title="Delete branch (and both paths)"
+                    title={t('flow_delete_branch_title')}
                   >
                     <Trash2 size={13} />
                   </button>
                 </div>
                 <p className="text-[11px] text-slate-400">
-                  Checked against the record's current data when the run gets here — after a wait,
-                  "status is open" means still open.
+                  {t('flow_branch_checked_info')}
                 </p>
                 {(((selectedStep.config?.conditions as Condition[][]) ?? [])).map((group, gi) => (
                   <div key={gi} className="space-y-1.5">
-                    {gi > 0 && <p className="text-[10px] font-bold text-slate-400 text-center uppercase">or</p>}
+                    {gi > 0 && <p className="text-[10px] font-bold text-slate-400 text-center uppercase">{t('flow_or')}</p>}
                     {group.map((c, ci) => (
                       <ConditionRow
                         key={ci}
@@ -995,7 +997,7 @@ function FlowCanvasInner() {
                         gIdx === gi ? [...g, { field: '', op: 'equals', value: '' }] : g))}
                       className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
                     >
-                      <Plus size={12} /> Add condition
+                      <Plus size={12} /> {t('flow_add_condition')}
                     </button>
                   </div>
                 ))}
@@ -1004,7 +1006,7 @@ function FlowCanvasInner() {
                     [...gs, [{ field: '', op: 'equals', value: '' }]])}
                   className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
                 >
-                  <Plus size={13} /> Add OR group
+                  <Plus size={13} /> {t('flow_add_or_group_btn')}
                 </button>
                 {legSection(selectedStep, 'match')}
                 {legSection(selectedStep, 'else')}
@@ -1016,14 +1018,14 @@ function FlowCanvasInner() {
               <div className="space-y-2">
                 <div className="flex items-center gap-1">
                   <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-                    Step {selectedLoc.index + 1} of {selectedLoc.list.length}
-                    {selectedLoc.parent ? ' (in branch)' : ''}
+                    {t('flow_step_label')} {selectedLoc.index + 1} {t('flow_of')} {selectedLoc.list.length}
+                    {selectedLoc.parent ? ` ${t('flow_in_branch')}` : ''}
                   </p>
                   <button
                     onClick={() => moveStep(selectedStep.id, -1)}
                     disabled={selectedLoc.index === 0}
                     className="ml-auto px-1.5 py-0.5 text-slate-400 hover:text-slate-600 disabled:opacity-30 text-xs"
-                    title="Move up"
+                    title={t('flow_move_up')}
                   >
                     ↑
                   </button>
@@ -1032,14 +1034,14 @@ function FlowCanvasInner() {
                     disabled={selectedLoc.index >= selectedLoc.list.length - 1 ||
                       selectedLoc.list[selectedLoc.index + 1]?.type === 'branch'}
                     className="px-1.5 py-0.5 text-slate-400 hover:text-slate-600 disabled:opacity-30 text-xs"
-                    title="Move down"
+                    title={t('flow_move_down')}
                   >
                     ↓
                   </button>
                   <button
                     onClick={() => removeStep(selectedStep.id)}
                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                    title="Delete action"
+                    title={t('flow_delete_action')}
                   >
                     <Trash2 size={13} />
                   </button>
@@ -1070,7 +1072,7 @@ function FlowCanvasInner() {
                       />
                     ))}
                     <p className="text-xs text-slate-400">
-                      Tip: use {'{subject}'}, {'{full_name}'} or {'{stage_name}'} in texts to insert event details.
+                      {t('flow_tip_placeholders')}
                     </p>
                   </div>
                 )}

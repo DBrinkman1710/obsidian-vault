@@ -11,6 +11,7 @@ import { useIsViewOnly } from '../../../shell/ModuleGate'
 import { useAuth } from '../../../auth/useAuth'
 import { EmptyState } from '../../../components/EmptyState'
 import { fmtDate } from '../../../lib/format'
+import { useT } from '../../../hooks/useT'
 
 interface Shipment {
   id: string
@@ -25,31 +26,34 @@ interface Shipment {
   created_at: string
 }
 
-const STATUS_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: 'All statuses' },
-  { value: 'registered', label: 'Registered' },
-  { value: 'in_transit', label: 'In transit' },
-  { value: 'out_for_delivery', label: 'Out for delivery' },
-  { value: 'delivered', label: 'Delivered' },
-  { value: 'exception', label: 'Exception' },
-  { value: 'returned', label: 'Returned' },
-  { value: 'cancelled', label: 'Cancelled' },
+// Status and carrier codes are data — keys are backend values, not translated.
+// Labels are resolved at render via t().
+const STATUS_KEYS: { value: string; tKey: string }[] = [
+  { value: '', tKey: 'ship_filter_all_statuses' },
+  { value: 'registered',       tKey: 'ship_filter_registered' },
+  { value: 'in_transit',       tKey: 'ship_filter_in_transit' },
+  { value: 'out_for_delivery', tKey: 'ship_filter_out_for_delivery' },
+  { value: 'delivered',        tKey: 'ship_filter_delivered' },
+  { value: 'exception',        tKey: 'ship_filter_exception' },
+  { value: 'returned',         tKey: 'ship_filter_returned' },
+  { value: 'cancelled',        tKey: 'ship_filter_cancelled' },
 ]
 
-const CARRIER_OPTIONS: { value: string; label: string }[] = [
-  { value: '', label: 'All carriers' },
+const CARRIER_KEYS: { value: string; label: string; tKey?: string }[] = [
+  { value: '',          label: '',          tKey: 'ship_filter_all_carriers' },
   { value: 'sendcloud', label: 'Sendcloud' },
-  { value: 'postnl', label: 'PostNL' },
-  { value: 'dhl', label: 'DHL' },
-  { value: 'dpd', label: 'DPD' },
-  { value: 'ups', label: 'UPS' },
-  { value: 'fedex', label: 'FedEx' },
-  { value: 'other', label: 'Other' },
+  { value: 'postnl',   label: 'PostNL' },
+  { value: 'dhl',      label: 'DHL' },
+  { value: 'dpd',      label: 'DPD' },
+  { value: 'ups',      label: 'UPS' },
+  { value: 'fedex',    label: 'FedEx' },
+  { value: 'other',    label: 'other',      tKey: 'ship_carrier_other' },
 ]
 
 const formatDate = fmtDate
 
 export default function ShipmentList() {
+  const t = useT()
   const navigate = useNavigate()
   const isViewOnly = useIsViewOnly()
   const { user } = useAuth()
@@ -70,21 +74,24 @@ export default function ShipmentList() {
   })
 
   const shipments = data?.items ?? []
+  const total = data?.total ?? 0
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="heading-lg text-slate-900">Track & Trace</h1>
+          <h1 className="heading-lg text-slate-900">{t('ship_list_title')}</h1>
           <p className="text-sm text-slate-500 mt-0.5">
-            {data?.total ?? 0} shipment{data?.total !== 1 ? 's' : ''}
+            {total === 1
+              ? t('ship_list_count_one').replace('{n}', String(total))
+              : t('ship_list_count_many').replace('{n}', String(total))}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => refetch()}
             className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
-            title="Refresh"
+            title={t('ship_refresh_title')}
           >
             <RefreshCw size={16} className={isFetching ? 'animate-spin' : ''} />
           </button>
@@ -92,7 +99,7 @@ export default function ShipmentList() {
             <button
               onClick={() => setShowSettings(true)}
               className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
-              title="Settings"
+              title={t('ship_settings_title_btn')}
             >
               <Settings size={16} />
             </button>
@@ -103,7 +110,7 @@ export default function ShipmentList() {
               className="flex items-center gap-2 px-3 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               <Plus size={15} />
-              New shipment
+              {t('ship_new_btn')}
             </button>
           )}
         </div>
@@ -116,14 +123,20 @@ export default function ShipmentList() {
           onChange={e => setFilterStatus(e.target.value)}
           className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
         >
-          {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {STATUS_KEYS.map(o => (
+            <option key={o.value} value={o.value}>{t(o.tKey)}</option>
+          ))}
         </select>
         <select
           value={filterCarrier}
           onChange={e => setFilterCarrier(e.target.value)}
           className="px-3 py-2 text-sm border border-slate-200 rounded-xl bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
         >
-          {CARRIER_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+          {CARRIER_KEYS.map(o => (
+            <option key={o.value} value={o.value}>
+              {o.tKey ? t(o.tKey) : o.label}
+            </option>
+          ))}
         </select>
       </div>
 
@@ -131,9 +144,9 @@ export default function ShipmentList() {
       {shipments.length === 0 ? (
         <EmptyState
           icon={Package}
-          title="No shipments yet"
-          subtitle={isViewOnly ? 'Shipments your team tracks will appear here.' : 'Track your first delivery and keep customers informed automatically.'}
-          ctaLabel={isViewOnly ? undefined : 'New shipment'}
+          title={t('ship_empty_title')}
+          subtitle={isViewOnly ? t('ship_empty_subtitle_agent') : t('ship_empty_subtitle_admin')}
+          ctaLabel={isViewOnly ? undefined : t('ship_new_btn')}
           ctaIcon={Plus}
           onCta={isViewOnly ? undefined : () => setShowCreate(true)}
         />
@@ -142,13 +155,13 @@ export default function ShipmentList() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Tracking #</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Carrier</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Status</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Order ref</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">ETA</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Last event</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">Added</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('ship_col_tracking')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('ship_col_carrier')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('ship_col_status')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('ship_col_order_ref')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('ship_col_eta')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('ship_col_last_event')}</th>
+                <th className="text-left px-4 py-3 text-xs font-semibold text-slate-500">{t('ship_col_added')}</th>
               </tr>
             </thead>
             <tbody>

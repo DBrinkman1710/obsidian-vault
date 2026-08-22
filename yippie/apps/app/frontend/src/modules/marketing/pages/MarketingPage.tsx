@@ -5,6 +5,7 @@ import { BarChart2, Calendar, Copy, GitBranch, Megaphone, Pencil, Plus, Trash2, 
 import { Campaign, CampaignStatus, Channel, marketingApi, Unsubscribe } from '../api'
 import { CloseButton } from '../../../shell/CloseButton'
 import { CampaignDetail, TabKey } from './CampaignDetail'
+import { useT } from '../../../hooks/useT'
 
 const STATUS_STYLES: Record<CampaignStatus, string> = {
   draft: 'bg-slate-100 text-slate-600 border-slate-200',
@@ -13,17 +14,26 @@ const STATUS_STYLES: Record<CampaignStatus, string> = {
   completed: 'bg-emerald-50 text-emerald-700 border-emerald-200',
 }
 
+const STATUS_KEYS: Record<CampaignStatus, string> = {
+  draft:     'mkt_status_draft',
+  scheduled: 'mkt_status_scheduled',
+  sending:   'mkt_status_sending',
+  completed: 'mkt_status_completed',
+}
+
 export function StatusBadge({ status }: { status: CampaignStatus }) {
+  const t = useT()
   return (
     <span
       className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide ${STATUS_STYLES[status]}`}
     >
-      {status}
+      {t(STATUS_KEYS[status])}
     </span>
   )
 }
 
 function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreated: (c: Campaign) => void }) {
+  const t = useT()
   const [name, setName] = useState('')
   const [subject, setSubject] = useState('')
   const [subjectEdited, setSubjectEdited] = useState(false)
@@ -32,10 +42,10 @@ function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreat
   const create = useMutation({
     mutationFn: () => marketingApi.createCampaign({ name: name.trim(), subject: subject.trim(), dispatch_channel: channel }),
     onSuccess: (c: any) => {
-      toast.success('Campaign created')
+      toast.success(t('mkt_campaign_created'))
       onCreated(c)
     },
-    onError: () => toast.error('Could not create campaign'),
+    onError: () => toast.error(t('mkt_campaign_create_err')),
   })
 
   const valid = name.trim().length > 0 && subject.trim().length > 0
@@ -44,25 +54,25 @@ function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreat
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">New campaign</h2>
+          <h2 className="text-lg font-semibold text-slate-900">{t('mkt_new_campaign_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Name</label>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('mkt_name_label')}</label>
         <input
           autoFocus
           value={name}
           onChange={(e) => { setName(e.target.value); if (!subjectEdited) setSubject(e.target.value) }}
-          placeholder="Spring re-engagement"
+          placeholder={t('mkt_name_ph')}
           className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
         />
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Subject line</label>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('mkt_subject_label')}</label>
         <input
           value={subject}
           onChange={(e) => { setSubject(e.target.value); setSubjectEdited(true) }}
-          placeholder="We've missed you. Here's 25% off."
+          placeholder={t('mkt_subject_ph')}
           className="mb-4 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
         />
-        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Channel</label>
+        <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('mkt_channel_label')}</label>
         <div className="mb-6 grid grid-cols-2 gap-2">
           {(['email', 'whatsapp'] as Channel[]).map((c) => (
             <button
@@ -82,7 +92,7 @@ function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreat
           onClick={() => create.mutate()}
           className="w-full rounded-xl bg-yippie py-2.5 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
-          {create.isPending ? 'Creating…' : 'Create campaign'}
+          {create.isPending ? t('mkt_creating') : t('mkt_create_campaign')}
         </button>
       </div>
     </div>
@@ -90,6 +100,7 @@ function NewCampaignModal({ onClose, onCreated }: { onClose: () => void; onCreat
 }
 
 function UnsubscribesPanel() {
+  const t = useT()
   const qc = useQueryClient()
   const { data: list = [], isLoading } = useQuery<Unsubscribe[]>({
     queryKey: ['marketing', 'unsubscribes'],
@@ -98,27 +109,27 @@ function UnsubscribesPanel() {
   const reenable = useMutation({
     mutationFn: (id: string) => marketingApi.removeUnsubscribe(id),
     onSuccess: () => {
-      toast.success('Re-enabled')
+      toast.success(t('mkt_re_enabled'))
       qc.invalidateQueries({ queryKey: ['marketing', 'unsubscribes'] })
     },
-    onError: () => toast.error('Could not re-enable'),
+    onError: () => toast.error(t('mkt_re_enable_err')),
   })
-  if (isLoading) return <div className="p-6 text-sm text-slate-400">Loading…</div>
+  if (isLoading) return <div className="p-6 text-sm text-slate-400">{t('mkt_loading')}</div>
   return (
     <div className="h-full overflow-y-auto p-6">
       <div className="mx-auto max-w-3xl">
-        <h2 className="mb-4 text-sm font-semibold text-slate-900">Opted-out contacts</h2>
+        <h2 className="mb-4 text-sm font-semibold text-slate-900">{t('mkt_opted_out_contacts')}</h2>
         {list.length === 0 ? (
-          <p className="text-sm text-slate-400">No opt-outs yet.</p>
+          <p className="text-sm text-slate-400">{t('mkt_no_opt_outs')}</p>
         ) : (
           <section className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                  <th className="px-4 py-2.5">Contact</th>
-                  <th className="px-4 py-2.5">Email</th>
-                  <th className="px-4 py-2.5">Date</th>
-                  <th className="px-4 py-2.5">Campaign</th>
+                  <th className="px-4 py-2.5">{t('mkt_col_contact')}</th>
+                  <th className="px-4 py-2.5">{t('mkt_col_email')}</th>
+                  <th className="px-4 py-2.5">{t('mkt_col_date')}</th>
+                  <th className="px-4 py-2.5">{t('mkt_col_campaign')}</th>
                   <th className="px-4 py-2.5" />
                 </tr>
               </thead>
@@ -132,11 +143,11 @@ function UnsubscribesPanel() {
                     <td className="px-4 py-2.5 text-right">
                       <button
                         onClick={() => {
-                          if (confirm('Re-enable this contact for future campaigns?')) reenable.mutate(u.contact_id)
+                          if (confirm(t('mkt_re_enable_confirm'))) reenable.mutate(u.contact_id)
                         }}
                         className="rounded border border-slate-200 px-2.5 py-1 text-xs font-medium text-slate-600 hover:border-emerald-300 hover:text-emerald-700 transition-colors"
                       >
-                        Re-enable
+                        {t('mkt_re_enable')}
                       </button>
                     </td>
                   </tr>
@@ -152,16 +163,8 @@ function UnsubscribesPanel() {
 
 type ContextMenu = { x: number; y: number; campaign: Campaign }
 
-const CONTEXT_ITEMS: { tab: TabKey; label: string; icon: React.ReactNode }[] = [
-  { tab: 'design',    label: 'Edit design',     icon: <Pencil size={13} /> },
-  { tab: 'actions',   label: 'Actions',          icon: <Zap size={13} /> },
-  { tab: 'audience',  label: 'Audience',         icon: <Users size={13} /> },
-  { tab: 'schedule',  label: 'Schedule',         icon: <Calendar size={13} /> },
-  { tab: 'analytics', label: 'Analytics',        icon: <BarChart2 size={13} /> },
-  { tab: 'drip',      label: 'Drip sequences',   icon: <GitBranch size={13} /> },
-]
-
 export default function MarketingPage() {
+  const t = useT()
   const qc = useQueryClient()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [selectedTab, setSelectedTab] = useState<TabKey>('design')
@@ -169,6 +172,15 @@ export default function MarketingPage() {
   const [view, setView] = useState<'campaigns' | 'unsubscribes'>('campaigns')
   const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null)
   const menuRef = useRef<HTMLDivElement>(null)
+
+  const CONTEXT_ITEMS: { tab: TabKey; label: string; icon: React.ReactNode }[] = [
+    { tab: 'design',    label: t('mkt_ctx_edit_design'),  icon: <Pencil size={13} /> },
+    { tab: 'actions',   label: t('mkt_ctx_actions'),       icon: <Zap size={13} /> },
+    { tab: 'audience',  label: t('mkt_ctx_audience'),      icon: <Users size={13} /> },
+    { tab: 'schedule',  label: t('mkt_ctx_schedule'),      icon: <Calendar size={13} /> },
+    { tab: 'analytics', label: t('mkt_ctx_analytics'),     icon: <BarChart2 size={13} /> },
+    { tab: 'drip',      label: t('mkt_ctx_drip'),          icon: <GitBranch size={13} /> },
+  ]
 
   const { data: campaigns = [], isLoading } = useQuery({
     queryKey: ['marketing', 'campaigns'],
@@ -183,21 +195,21 @@ export default function MarketingPage() {
   const duplicate = useMutation({
     mutationFn: (id: string) => marketingApi.duplicateCampaign(id),
     onSuccess: (c: any) => {
-      toast.success('Campaign duplicated')
+      toast.success(t('mkt_campaign_duplicated'))
       qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
       setSelectedId(c.id)
     },
-    onError: () => toast.error('Could not duplicate'),
+    onError: () => toast.error(t('mkt_duplicate_err')),
   })
 
   const deleteCampaign = useMutation({
     mutationFn: (id: string) => marketingApi.deleteCampaign(id),
     onSuccess: () => {
-      toast.success('Campaign deleted')
+      toast.success(t('mkt_campaign_deleted'))
       qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
       if (selectedId === contextMenu?.campaign.id) setSelectedId(null)
     },
-    onError: () => toast.error('Only draft campaigns can be deleted.'),
+    onError: () => toast.error(t('mkt_delete_only_draft')),
   })
 
   useEffect(() => {
@@ -241,13 +253,13 @@ export default function MarketingPage() {
         <div className="flex items-center justify-between border-b border-slate-100 px-4 py-4">
           <div className="flex items-center gap-2">
             <Megaphone size={18} className="text-blue-600" />
-            <h1 className="text-sm font-bold tracking-tight text-slate-900">Marketing</h1>
+            <h1 className="text-sm font-bold tracking-tight text-slate-900">{t('mkt_marketing')}</h1>
           </div>
           <button
             onClick={() => setShowNew(true)}
             className="flex items-center gap-1 rounded-lg bg-yippie px-2.5 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity"
           >
-            <Plus size={14} /> New
+            <Plus size={14} /> {t('mkt_new')}
           </button>
         </div>
 
@@ -257,31 +269,31 @@ export default function MarketingPage() {
             onClick={() => setView('campaigns')}
             className={`flex-1 py-2 text-xs font-semibold transition-colors ${view === 'campaigns' ? 'border-b-2 border-blue-500 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            Campaigns
+            {t('mkt_campaigns')}
           </button>
           <button
             onClick={() => setView('unsubscribes')}
             className={`flex-1 flex items-center justify-center gap-1 py-2 text-xs font-semibold transition-colors ${view === 'unsubscribes' ? 'border-b-2 border-blue-500 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`}
           >
-            <UserMinus size={12} /> Opt-outs
+            <UserMinus size={12} /> {t('mkt_opt_outs')}
           </button>
         </div>
 
         <div className="flex-1 overflow-y-auto p-2">
           {view === 'unsubscribes' ? null : isLoading ? (
-            <p className="px-2 py-4 text-sm text-slate-400">Loading…</p>
+            <p className="px-2 py-4 text-sm text-slate-400">{t('mkt_loading')}</p>
           ) : campaigns.length === 0 ? (
             <div className="px-3 py-10 text-center">
               <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: 'var(--brand-subtle)' }}>
                 <Megaphone size={22} strokeWidth={1.5} style={{ color: 'var(--brand)' }} />
               </div>
-              <p className="text-sm font-medium text-slate-600">No campaigns yet</p>
-              <p className="mt-1 text-xs text-slate-400">Create your first campaign to reach your contacts.</p>
+              <p className="text-sm font-medium text-slate-600">{t('mkt_no_campaigns_title')}</p>
+              <p className="mt-1 text-xs text-slate-400">{t('mkt_no_campaigns_desc')}</p>
               <button
                 onClick={() => setShowNew(true)}
                 className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
               >
-                <Plus size={14} strokeWidth={2.5} /> New campaign
+                <Plus size={14} strokeWidth={2.5} /> {t('mkt_new_campaign')}
               </button>
             </div>
           ) : (
@@ -301,7 +313,7 @@ export default function MarketingPage() {
                       <div className="flex shrink-0 items-center gap-1">
                         <button
                           onClick={(e) => { e.stopPropagation(); duplicate.mutate(c.id) }}
-                          title="Duplicate"
+                          title={t('mkt_duplicate')}
                           className="rounded p-0.5 text-slate-300 opacity-0 transition-opacity hover:text-slate-600 group-hover:opacity-100"
                         >
                           <Copy size={12} />
@@ -335,10 +347,10 @@ export default function MarketingPage() {
             {stats && (
               <div className="grid grid-cols-4 gap-3 border-b border-slate-200 bg-white px-6 py-3">
                 {[
-                  { label: 'Sent (30d)', value: stats.campaigns_sent },
-                  { label: 'Open rate', value: `${stats.open_rate}%` },
-                  { label: 'Response rate', value: `${stats.response_rate}%` },
-                  { label: 'Total opt-outs', value: stats.total_opt_outs },
+                  { label: t('mkt_kpi_sent_30d'),        value: stats.campaigns_sent },
+                  { label: t('mkt_kpi_open_rate'),        value: `${stats.open_rate}%` },
+                  { label: t('mkt_kpi_response_rate'),    value: `${stats.response_rate}%` },
+                  { label: t('mkt_kpi_total_opt_outs'),   value: stats.total_opt_outs },
                 ].map((s) => (
                   <div key={s.label} className="text-center">
                     <p className="text-xs text-slate-400">{s.label}</p>
@@ -358,8 +370,8 @@ export default function MarketingPage() {
               ) : (
                 <div className="flex h-full flex-col items-center justify-center text-center">
                   <Megaphone size={36} className="text-slate-300" />
-                  <p className="mt-3 text-sm font-medium text-slate-500">Select a campaign</p>
-                  <p className="mt-1 text-xs text-slate-400">or create a new one to get started.</p>
+                  <p className="mt-3 text-sm font-medium text-slate-500">{t('mkt_select_campaign')}</p>
+                  <p className="mt-1 text-xs text-slate-400">{t('mkt_select_campaign_desc')}</p>
                 </div>
               )}
             </div>
@@ -391,11 +403,11 @@ export default function MarketingPage() {
           <button
             onClick={() => {
               if (contextMenu.campaign.status !== 'draft') {
-                toast.error('Only draft campaigns can be deleted.')
+                toast.error(t('mkt_delete_only_draft'))
                 setContextMenu(null)
                 return
               }
-              if (confirm(`Delete "${contextMenu.campaign.name}"?`)) {
+              if (confirm(`${t('mkt_delete_campaign')} "${contextMenu.campaign.name}"?`)) {
                 deleteCampaign.mutate(contextMenu.campaign.id)
                 setContextMenu(null)
               }
@@ -403,7 +415,7 @@ export default function MarketingPage() {
             className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-red-600 hover:bg-red-50"
           >
             <span><Trash2 size={13} /></span>
-            Delete campaign
+            {t('mkt_delete_campaign')}
           </button>
         </div>
       )}

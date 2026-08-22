@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../api/client'
+import { translations } from '../i18n/translations'
 
 interface Slot { start: string; end: string }
 interface AvailableSlot extends Slot { available: boolean }
@@ -12,7 +13,12 @@ interface MeetInfo {
   available_slots: AvailableSlot[]
 }
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+// Dutch-by-default translation helper for this public page.
+function tNl(key: string): string {
+  return translations.nl[key] ?? translations.en[key] ?? key
+}
+
+const WEEKDAYS_NL = ['Ma', 'Di', 'Wo', 'Do', 'Vr', 'Za', 'Zo']
 const dateKey = (d: Date, tz: string) => {
   const parts = new Intl.DateTimeFormat('en-CA', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(d)
   const y = parts.find(p => p.type === 'year')!.value
@@ -34,7 +40,7 @@ function fmtTime(iso: string, tz: string) {
 }
 function fmtSlotLong(start: string, end: string, tz: string) {
   const d = new Date(start)
-  const day = d.toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', timeZone: tz })
+  const day = d.toLocaleDateString('nl-NL', { weekday: 'long', day: 'numeric', month: 'long', timeZone: tz })
   return `${day}, ${fmtTime(start, tz)}–${fmtTime(end, tz)}`
 }
 
@@ -85,7 +91,7 @@ export default function MeetPage() {
 
   const tz = data?.tenant_timezone ?? 'Europe/Amsterdam'
   const days = useMemo(() => monthGrid(year, month), [year, month])
-  const monthLabel = new Date(year, month, 1).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+  const monthLabel = new Date(year, month, 1).toLocaleDateString('nl-NL', { month: 'long', year: 'numeric' })
   const todayKey = dateKey(today, tz)
 
   const slotsByDay = useMemo(() => {
@@ -120,22 +126,22 @@ export default function MeetPage() {
       })
       setSuccess(true)
     } catch (e: any) {
-      setSubmitError(e?.response?.data?.detail || 'Could not book this time. Please try again.')
+      setSubmitError(e?.response?.data?.detail || tNl('public_meet_err_book'))
     } finally {
       setSubmitting(false)
     }
   }
 
   if (isLoading) {
-    return <Shell><p className="text-sm text-slate-400 text-center">Loading…</p></Shell>
+    return <Shell><p className="text-sm text-slate-400 text-center">{tNl('public_meet_loading')}</p></Shell>
   }
 
   if (isError || !data) {
     return (
       <Shell>
         <div className="text-center">
-          <h1 className="text-lg font-bold text-slate-900 mb-2">Page not found</h1>
-          <p className="text-sm text-slate-500">This booking page is not available.</p>
+          <h1 className="text-lg font-bold text-slate-900 mb-2">{tNl('public_meet_not_found_title')}</h1>
+          <p className="text-sm text-slate-500">{tNl('public_meet_not_found_body')}</p>
         </div>
       </Shell>
     )
@@ -150,11 +156,11 @@ export default function MeetPage() {
               <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </div>
-          <h1 className="text-lg font-bold text-slate-900 mb-2">You're booked!</h1>
+          <h1 className="text-lg font-bold text-slate-900 mb-2">{tNl('public_meet_success_title')}</h1>
           <p className="text-sm text-slate-500 mb-1">
             {picked ? fmtSlotLong(picked.start, picked.end, tz) : ''}
           </p>
-          <p className="text-sm text-slate-500">Check your email for confirmation.</p>
+          <p className="text-sm text-slate-500">{tNl('public_meet_success_email')}</p>
         </div>
       </Shell>
     )
@@ -170,11 +176,11 @@ export default function MeetPage() {
           onClick={() => { setStep('pick'); setSubmitError(null) }}
           className="text-xs text-slate-400 hover:text-slate-600 transition-colors mb-4"
         >
-          ← Back
+          {tNl('public_meet_back')}
         </button>
         <div className="mb-5">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{data.tenant_name}</p>
-          <h1 className="text-xl font-bold text-slate-900 mt-1">Confirm your booking</h1>
+          <h1 className="text-xl font-bold text-slate-900 mt-1">{tNl('public_meet_confirm_title')}</h1>
           <p className="mt-2 text-sm font-semibold text-slate-700">
             {fmtSlotLong(picked.start, picked.end, tz)}
           </p>
@@ -183,7 +189,7 @@ export default function MeetPage() {
         <form onSubmit={handleBook} className="flex flex-col gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5" htmlFor="meet-name">
-              Your name
+              {tNl('public_meet_label_name')}
             </label>
             <input
               id="meet-name"
@@ -193,13 +199,13 @@ export default function MeetPage() {
               value={name}
               onChange={e => setName(e.target.value)}
               disabled={submitting}
-              placeholder="Jane Smith"
+              placeholder={tNl('public_meet_placeholder_name')}
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50"
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5" htmlFor="meet-email">
-              Email address
+              {tNl('public_meet_label_email')}
             </label>
             <input
               id="meet-email"
@@ -209,13 +215,14 @@ export default function MeetPage() {
               value={email}
               onChange={e => setEmail(e.target.value)}
               disabled={submitting}
-              placeholder="jane@acme.com"
+              placeholder={tNl('public_meet_placeholder_email')}
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50"
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5" htmlFor="meet-company">
-              Company <span className="font-normal text-slate-400">(optional)</span>
+              {tNl('public_meet_label_company')}{' '}
+              <span className="font-normal text-slate-400">{tNl('public_meet_label_company_optional')}</span>
             </label>
             <input
               id="meet-company"
@@ -224,13 +231,14 @@ export default function MeetPage() {
               value={company}
               onChange={e => setCompany(e.target.value)}
               disabled={submitting}
-              placeholder="Acme BV"
+              placeholder={tNl('public_meet_placeholder_company')}
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50"
             />
           </div>
           <div>
             <label className="block text-xs font-semibold text-slate-600 mb-1.5" htmlFor="meet-msg">
-              Message <span className="font-normal text-slate-400">(optional)</span>
+              {tNl('public_meet_label_message')}{' '}
+              <span className="font-normal text-slate-400">{tNl('public_meet_label_message_optional')}</span>
             </label>
             <textarea
               id="meet-msg"
@@ -238,7 +246,7 @@ export default function MeetPage() {
               value={message}
               onChange={e => setMessage(e.target.value)}
               disabled={submitting}
-              placeholder="Anything you'd like to discuss…"
+              placeholder={tNl('public_meet_placeholder_message')}
               className="w-full px-3 py-2.5 border border-slate-300 rounded-lg text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50 resize-none"
             />
           </div>
@@ -252,7 +260,7 @@ export default function MeetPage() {
             disabled={submitting}
             className="w-full py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
-            {submitting ? 'Booking…' : 'Confirm booking'}
+            {submitting ? tNl('public_meet_btn_booking') : tNl('public_meet_btn_confirm')}
           </button>
         </form>
       </Shell>
@@ -264,8 +272,8 @@ export default function MeetPage() {
     <Shell>
       <div className="text-center mb-5">
         <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{data.tenant_name}</p>
-        <h1 className="text-xl font-bold text-slate-900 mt-1">Book a call</h1>
-        <p className="text-sm text-slate-500 mt-1">Pick a time that works for you.</p>
+        <h1 className="text-xl font-bold text-slate-900 mt-1">{tNl('public_meet_title')}</h1>
+        <p className="text-sm text-slate-500 mt-1">{tNl('public_meet_subtitle')}</p>
       </div>
 
       <div className="border border-slate-200 rounded-xl overflow-hidden">
@@ -281,7 +289,7 @@ export default function MeetPage() {
           </div>
         </div>
         <div className="grid grid-cols-7 px-2 pt-2">
-          {WEEKDAYS.map(d => (
+          {WEEKDAYS_NL.map(d => (
             <div key={d} className="text-center text-[10px] font-semibold text-slate-400 uppercase py-1">{d}</div>
           ))}
         </div>
@@ -313,7 +321,7 @@ export default function MeetPage() {
 
       {activeDay && (
         <div className="mt-4">
-          <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">Available times</p>
+          <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">{tNl('public_meet_available_times')}</p>
           <div className="flex flex-wrap gap-1.5">
             {dayChips.map(chip => {
               const isPicked = picked?.start === chip.start
@@ -333,7 +341,7 @@ export default function MeetPage() {
                 </button>
               )
             })}
-            {dayChips.length === 0 && <p className="text-xs text-slate-400">No times for this day.</p>}
+            {dayChips.length === 0 && <p className="text-xs text-slate-400">{tNl('public_meet_no_times')}</p>}
           </div>
         </div>
       )}
@@ -343,7 +351,7 @@ export default function MeetPage() {
           onClick={() => setStep('details')}
           className="w-full mt-5 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
         >
-          Continue: {fmtSlotLong(picked.start, picked.end, tz)}
+          {tNl('public_meet_continue').replace('{slot}', fmtSlotLong(picked.start, picked.end, tz))}
         </button>
       )}
     </Shell>

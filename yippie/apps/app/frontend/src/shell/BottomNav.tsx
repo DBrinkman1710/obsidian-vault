@@ -8,20 +8,22 @@ import {
 import { useTenantConfig } from '../App'
 import { useAuth } from '../auth/useAuth'
 import { api } from '../api/client'
+import { useT } from '../hooks/useT'
+import type { TKey } from '../i18n/translations'
 
-const MODULE_MAP: Record<string, { label: string; Icon: LucideIcon; path: string }> = {
-  inbox:     { label: 'Inbox',     Icon: Inbox,         path: '/inbox' },
-  contacts:  { label: 'Contacts',  Icon: Users,         path: '/contacts' },
-  tickets:   { label: 'Tickets',   Icon: ClipboardList, path: '/tickets' },
-  calendar:  { label: 'Calendar',  Icon: Calendar,      path: '/calendar' },
-  pipeline:  { label: 'Kanban',    Icon: Kanban,        path: '/pipeline' },
-  activity:  { label: 'Activity',  Icon: Activity,      path: '/activity' },
-  billing:   { label: 'Billing',   Icon: CreditCard,    path: '/billing' },
-  chat:      { label: 'Chat',      Icon: MessageSquare, path: '/chat' },
-  marketing: { label: 'Marketing', Icon: Megaphone,     path: '/marketing' },
-  tracking:  { label: 'Tracking',  Icon: Package,       path: '/tracking' },
-  sales:     { label: 'Sales',     Icon: TrendingUp,    path: '/sales' },
-  saas:      { label: 'Analytics', Icon: BarChart3,     path: '/saas' },
+const MODULE_MAP: Record<string, { labelKey: TKey; Icon: LucideIcon; path: string }> = {
+  inbox:     { labelKey: 'inbox',     Icon: Inbox,         path: '/inbox' },
+  contacts:  { labelKey: 'contacts',  Icon: Users,         path: '/contacts' },
+  tickets:   { labelKey: 'tickets',   Icon: ClipboardList, path: '/tickets' },
+  calendar:  { labelKey: 'calendar',  Icon: Calendar,      path: '/calendar' },
+  pipeline:  { labelKey: 'kanban',    Icon: Kanban,        path: '/pipeline' },
+  activity:  { labelKey: 'activity',  Icon: Activity,      path: '/activity' },
+  billing:   { labelKey: 'billing',   Icon: CreditCard,    path: '/billing' },
+  chat:      { labelKey: 'livechat',  Icon: MessageSquare, path: '/chat' },
+  marketing: { labelKey: 'marketing', Icon: Megaphone,     path: '/marketing' },
+  tracking:  { labelKey: 'tracking',  Icon: Package,       path: '/tracking' },
+  sales:     { labelKey: 'sales',     Icon: TrendingUp,    path: '/sales' },
+  saas:      { labelKey: 'saas',      Icon: BarChart3,     path: '/saas' },
 }
 
 function resolveOrder(savedOrder: string[] | null | undefined, enabledMods: string[]): string[] {
@@ -35,6 +37,7 @@ function resolveOrder(savedOrder: string[] | null | undefined, enabledMods: stri
 export function BottomNav() {
   const config = useTenantConfig()
   const { user } = useAuth()
+  const t = useT()
 
   const { data: draftCount } = useQuery({
     queryKey: ['drafts', 'count'],
@@ -68,7 +71,7 @@ export function BottomNav() {
       style={primaryColor ? { borderColor: `${primaryColor}30` } : undefined}
     >
       {modules.map(mod => {
-        const { label, Icon, path } = MODULE_MAP[mod]
+        const { labelKey, Icon, path } = MODULE_MAP[mod]
         return (
           <NavLink
             key={mod}
@@ -95,7 +98,7 @@ export function BottomNav() {
                 </span>
               )}
             </div>
-            <span>{label}</span>
+            <span>{t(labelKey)}</span>
           </NavLink>
         )
       })}
@@ -110,7 +113,7 @@ export function BottomNav() {
         }
       >
         <Settings size={20} strokeWidth={1.8} />
-        <span>Settings</span>
+        <span>{t('shell_settings')}</span>
       </NavLink>
     </nav>
   )

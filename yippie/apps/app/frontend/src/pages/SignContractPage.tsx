@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CheckCircle2, Eraser } from 'lucide-react'
 import { api } from '../api/client'
 import { fmtDate as libFmtDate } from '../lib/format'
+import { translations } from '../i18n/translations'
 
 interface PublicContract {
   tenant_name: string
@@ -20,6 +21,11 @@ interface PublicContract {
 }
 
 const fmtDate = libFmtDate
+
+// Dutch-by-default translation helper for this public page.
+function tNl(key: string): string {
+  return translations.nl[key] ?? translations.en[key] ?? key
+}
 
 function Shell({ children }: { children: React.ReactNode }) {
   return (
@@ -102,7 +108,7 @@ function SignatureCanvas({ onChange }: { onChange: (dataUrl: string | null) => v
         onPointerDown={start} onPointerMove={move} onPointerUp={end} onPointerLeave={end} />
       <button type="button" onClick={clear}
         className="mt-1.5 inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600">
-        <Eraser size={12} /> Clear signature
+        <Eraser size={12} /> {tNl('public_contract_clear_signature')}
       </button>
     </div>
   )
@@ -127,8 +133,8 @@ export default function SignContractPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (signerName.trim().length < 2) { setError('Please enter your full name.'); return }
-    if (!agree) { setError('Please confirm you agree to the terms.'); return }
+    if (signerName.trim().length < 2) { setError(tNl('public_contract_err_name')); return }
+    if (!agree) { setError(tNl('public_contract_err_agree')); return }
     setError(''); setSubmitting(true)
     try {
       await api.post(`/public/contracts/sign/${token}`, {
@@ -138,20 +144,20 @@ export default function SignContractPage() {
       })
       setJustSigned(true)
     } catch (err: any) {
-      setError(err.response?.data?.detail ?? 'Signing failed. Please try again.')
+      setError(err.response?.data?.detail ?? tNl('public_contract_err_sign'))
     } finally {
       setSubmitting(false)
     }
   }
 
-  if (isLoading) return <Shell><p className="text-sm text-slate-400 text-center">Loading…</p></Shell>
+  if (isLoading) return <Shell><p className="text-sm text-slate-400 text-center">{tNl('public_contract_loading')}</p></Shell>
 
   if (loadError || !contract) {
     return (
       <Shell>
-        <h1 className="text-lg font-bold text-slate-900 mb-2 text-center">Link not available</h1>
+        <h1 className="text-lg font-bold text-slate-900 mb-2 text-center">{tNl('public_contract_unavailable_title')}</h1>
         <p className="text-sm text-slate-500 text-center">
-          This signing link has expired or has already been used. Please contact the sender for a new link.
+          {tNl('public_contract_unavailable_body')}
         </p>
       </Shell>
     )
@@ -169,19 +175,19 @@ export default function SignContractPage() {
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5">
           {contract.start_date && (
             <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Start</p>
+              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">{tNl('public_contract_key_start')}</p>
               <p className="text-sm font-medium text-slate-800">{fmtDate(contract.start_date)}</p>
             </div>
           )}
           {contract.end_date && (
             <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">End</p>
+              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">{tNl('public_contract_key_end')}</p>
               <p className="text-sm font-medium text-slate-800">{fmtDate(contract.end_date)}</p>
             </div>
           )}
           {contract.value_amount != null && (
             <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">Value</p>
+              <p className="text-xs text-slate-400 font-semibold uppercase tracking-wide">{tNl('public_contract_key_value')}</p>
               <p className="text-sm font-medium text-slate-800">
                 {new Intl.NumberFormat('nl-NL', { style: 'currency', currency: contract.currency }).format(contract.value_amount)}
                 {contract.value_interval === 'monthly' ? ' /mo' : contract.value_interval === 'yearly' ? ' /yr' : ''}
@@ -199,37 +205,41 @@ export default function SignContractPage() {
       {signed ? (
         <div className="text-center py-4">
           <CheckCircle2 size={40} className="text-green-500 mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-slate-900 mb-1">Contract signed</h2>
+          <h2 className="text-lg font-bold text-slate-900 mb-1">{tNl('public_contract_signed_title')}</h2>
           <p className="text-sm text-slate-500">
-            Signed by {justSigned ? signerName : contract.signer_name}
-            {!justSigned && contract.signed_at ? ` on ${fmtDate(contract.signed_at)}` : ''}.
-            {' '}Both parties will receive confirmation from {contract.tenant_name}.
+            {tNl('public_contract_signed_by').replace('{name}', justSigned ? signerName : (contract.signer_name ?? ''))}
+            {!justSigned && contract.signed_at ? tNl('public_contract_signed_on').replace('{date}', fmtDate(contract.signed_at)) : ''}.
+            {' '}{tNl('public_contract_signed_confirm').replace('{tenant}', contract.tenant_name)}
           </p>
         </div>
       ) : (
         <form onSubmit={submit} className="flex flex-col gap-4">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Your full name *</label>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+              {tNl('public_contract_label_name')}
+            </label>
             <input value={signerName} onChange={e => setSignerName(e.target.value)}
-              placeholder="First and last name"
+              placeholder={tNl('public_contract_placeholder_name')}
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-300 focus:border-blue-400" />
           </div>
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Signature (draw below)</label>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
+              {tNl('public_contract_label_signature')}
+            </label>
             <SignatureCanvas onChange={setSignature} />
           </div>
           <label className="inline-flex items-start gap-2.5 text-sm text-slate-700 cursor-pointer">
             <input type="checkbox" checked={agree} onChange={e => setAgree(e.target.checked)}
               className="mt-0.5 rounded border-slate-300" />
-            <span>I have read and agree to the terms of this contract, and I am authorised to sign it.</span>
+            <span>{tNl('public_contract_agree')}</span>
           </label>
           {error && <p className="text-xs text-red-500">{error}</p>}
           <button type="submit" disabled={submitting}
             className="w-full py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-colors">
-            {submitting ? 'Signing…' : 'Sign contract'}
+            {submitting ? tNl('public_contract_btn_signing') : tNl('public_contract_btn_sign')}
           </button>
           <p className="text-xs text-slate-400 text-center">
-            Your name, signature, the date, and your IP address are recorded as proof of signing.
+            {tNl('public_contract_proof')}
           </p>
         </form>
       )}
