@@ -101,9 +101,11 @@ async def track_unsubscribe(token: uuid.UUID, db: DB):
             Contact.deleted_at.is_(None),
         )
     )
-    contact = contact_result.scalar_one_or_none()
+    # Email is not unique per tenant — unsubscribe every matching contact so a
+    # duplicate can't keep receiving campaigns after opting out.
+    contacts = contact_result.scalars().all()
     try:
-        if contact is not None:
+        for contact in contacts:
             await service.create_unsubscribe(db, contact.id, row.tenant_id)
         await db.commit()
     except Exception:

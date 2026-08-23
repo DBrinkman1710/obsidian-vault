@@ -408,6 +408,10 @@ async def _update_engagement_score(
     delta = _ENGAGEMENT_DELTA.get(event, 0)
     if delta == 0:
         return
+    # Contact email is not unique per tenant — a CRM can hold several contacts
+    # with the same address. Update every match rather than assuming one row
+    # (scalar_one_or_none would raise MultipleResultsFound on duplicates, and
+    # this runs on every campaign open/click).
     result = await db.execute(
         select(Contact).where(
             Contact.tenant_id == tenant_id,
@@ -415,11 +419,12 @@ async def _update_engagement_score(
             Contact.deleted_at.is_(None),
         )
     )
-    contact = result.scalar_one_or_none()
-    if contact is None:
+    contacts = result.scalars().all()
+    if not contacts:
         return
-    new_score = max(0, min(100, (contact.engagement_score or 0) + delta))
-    contact.engagement_score = new_score
+    for contact in contacts:
+        new_score = max(0, min(100, (contact.engagement_score or 0) + delta))
+        contact.engagement_score = new_score
     await db.flush()
 
 
