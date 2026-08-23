@@ -222,6 +222,30 @@ export const contacts: { en: Record<string, string>; nl: Record<string, string> 
     contacts_call_save_failed:        'Failed to save the call log.',
     contacts_call_stop_failed:        'Call helper unreachable — stop Handy manually (its transcript will land in the box below).',
     contacts_call_duration_unit:      'min',
+
+    // CompanyPeekModal contact count
+    contacts_peek_contact_count_one:      '{n} contact',
+    contacts_peek_contact_count_many:     '{n} contacts',
+
+    // ColumnPicker / CallModal tooltip titles
+    contacts_columns_tooltip:             'Customise columns',
+    contacts_call_dial_again:             'Dial again',
+
+    // ColumnPicker column labels
+    contacts_col_name:                    'Name',
+    contacts_col_email:                   'Email',
+    contacts_col_company_label:           'Company',
+    contacts_col_phone:                   'Phone',
+    contacts_col_notes:                   'Notes',
+    contacts_col_added:                   'Added',
+    contacts_col_last_updated:            'Last updated',
+
+    // CallModal outcome labels
+    contacts_call_outcome_interested:     'Picked up · interested',
+    contacts_call_outcome_not_interested: 'Picked up · not interested',
+    contacts_call_outcome_callback:       'Call back later',
+    contacts_call_outcome_voicemail:      'Voicemail',
+    contacts_call_outcome_no_answer:      'Did not pick up',
   },
   nl: {
     // CompanyForm
@@ -444,5 +468,29 @@ export const contacts: { en: Record<string, string>; nl: Record<string, string> 
     contacts_call_save_failed:        'Gesprekslog opslaan mislukt.',
     contacts_call_stop_failed:        'Call helper niet bereikbaar — stop Handy handmatig (het transcript verschijnt in het veld hieronder).',
     contacts_call_duration_unit:      'min',
+
+    // CompanyPeekModal contact count
+    contacts_peek_contact_count_one:      '{n} contact',
+    contacts_peek_contact_count_many:     '{n} contacten',
+
+    // ColumnPicker / CallModal tooltip titles
+    contacts_columns_tooltip:             'Kolommen aanpassen',
+    contacts_call_dial_again:             'Opnieuw bellen',
+
+    // ColumnPicker column labels
+    contacts_col_name:                    'Naam',
+    contacts_col_email:                   'E-mail',
+    contacts_col_company_label:           'Bedrijf',
+    contacts_col_phone:                   'Telefoon',
+    contacts_col_notes:                   'Notities',
+    contacts_col_added:                   'Toegevoegd',
+    contacts_col_last_updated:            'Laatst bijgewerkt',
+
+    // CallModal outcome labels
+    contacts_call_outcome_interested:     'Opgenomen · geinteresseerd',
+    contacts_call_outcome_not_interested: 'Opgenomen · niet geinteresseerd',
+    contacts_call_outcome_callback:       'Later terugbellen',
+    contacts_call_outcome_voicemail:      'Voicemail',
+    contacts_call_outcome_no_answer:      'Niet opgenomen',
   },
 }

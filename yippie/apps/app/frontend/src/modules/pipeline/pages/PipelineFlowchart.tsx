@@ -22,6 +22,7 @@ import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { ContextMenu, useContextMenu } from '../../../components/ContextMenu'
 import { CloseButton } from '../../../shell/CloseButton'
+import { useT } from '../../../hooks/useT'
 
 const YIPPIE_BLUE = '#5BA4F5'
 
@@ -89,6 +90,7 @@ interface StageNodeData {
 }
 
 function StageNode({ data }: { data: StageNodeData }) {
+  const t = useT()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(data.name)
   useEffect(() => setValue(data.name), [data.name])
@@ -121,7 +123,7 @@ function StageNode({ data }: { data: StageNodeData }) {
           <p
             className="flex-1 min-w-0 text-sm font-semibold text-slate-800 truncate cursor-text"
             onDoubleClick={() => data.canEdit && setEditing(true)}
-            title={data.canEdit ? 'Double click to rename this stage' : data.name}
+            title={data.canEdit ? t('pipeline_rename_tip') : data.name}
           >
             {data.name}
           </p>
@@ -130,7 +132,7 @@ function StageNode({ data }: { data: StageNodeData }) {
           <button
             onClick={() => data.onDelete(data.stageId, data.name)}
             className="opacity-0 group-hover:opacity-100 p-0.5 text-slate-300 hover:text-danger-500 rounded transition-all"
-            title="Delete stage"
+            title={t('pipeline_delete_stage_node_tip')}
           >
             <Trash2 size={13} />
           </button>
@@ -149,6 +151,7 @@ interface DecisionNodeData {
 }
 
 function DecisionNode({ data }: { data: DecisionNodeData }) {
+  const t = useT()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(data.label)
   useEffect(() => setValue(data.label), [data.label])
@@ -181,22 +184,23 @@ function DecisionNode({ data }: { data: DecisionNodeData }) {
           <p
             className="text-xs font-semibold text-violet-800 cursor-text break-words"
             onDoubleClick={() => data.canEdit && setEditing(true)}
-            title={data.canEdit ? 'Double click to edit the question' : undefined}
+            title={data.canEdit ? t('pipeline_edit_question_tip') : undefined}
           >
-            {data.label || 'Question?'}
+            {data.label || t('pipeline_question_placeholder')}
           </p>
         )}
       </div>
       {/* Two labelled source handles — yes (bottom-left) / no (bottom-right). */}
       <Handle id="yes" type="source" position={Position.Bottom} style={{ left: '30%' }} className="!bg-success-500" />
       <Handle id="no" type="source" position={Position.Bottom} style={{ left: '70%' }} className="!bg-danger-500" />
-      <span className="absolute bottom-1 left-[22%] text-[9px] font-bold text-success-600">yes</span>
-      <span className="absolute bottom-1 left-[64%] text-[9px] font-bold text-danger-500">no</span>
+      <span className="absolute bottom-1 left-[22%] text-[9px] font-bold text-success-600">{t('pipeline_yes')}</span>
+      <span className="absolute bottom-1 left-[64%] text-[9px] font-bold text-danger-500">{t('pipeline_no')}</span>
     </div>
   )
 }
 
 function PillNode({ data }: { data: { kind: 'start' | 'end'; label?: string | null } }) {
+  const t = useT()
   const isStart = data.kind === 'start'
   return (
     <div
@@ -207,7 +211,7 @@ function PillNode({ data }: { data: { kind: 'start' | 'end'; label?: string | nu
       {isStart
         ? <Handle type="source" position={Position.Right} className="!bg-slate-400" />
         : <Handle type="target" position={Position.Left} className="!bg-slate-400" />}
-      {data.label || (isStart ? 'Start' : 'End')}
+      {data.label || (isStart ? t('pipeline_start_label') : t('pipeline_end_label'))}
     </div>
   )
 }
@@ -225,27 +229,26 @@ const nodeTypes = {
 function DeleteStageModal({
   name, onConfirm, onClose,
 }: { name: string; onConfirm: () => void; onClose: () => void }) {
+  const t = useT()
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-[520px] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">Delete stage</h2>
+          <h2 className="text-sm font-bold text-slate-900">{t('pipeline_delete_stage_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="px-6 py-5">
           <p className="text-sm text-slate-600">
-            Delete the <span className="font-semibold text-slate-800">{name}</span> stage? This removes
-            it from the board, its cards lose this stage, and its node disappears from the flowchart. This
-            cannot be undone.
+            {t('pipeline_delete_stage_body').replace('{name}', name)}
           </p>
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
-          <button onClick={onClose} className="btn-secondary px-4 py-2">Cancel</button>
+          <button onClick={onClose} className="btn-secondary px-4 py-2">{t('pipeline_cancel_btn')}</button>
           <button
             onClick={onConfirm}
             className="btn-danger px-4 py-2"
           >
-            Delete stage
+            {t('pipeline_delete_stage_btn')}
           </button>
         </div>
       </div>
@@ -258,6 +261,7 @@ function DeleteStageModal({
 // Same size/shape as the other Yippie modals in this file.
 // ──────────────────────────────────────────────────────────────
 function SuggestAutomationsModal({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const navigate = useNavigate()
 
   const { data: suggestions = [], isLoading } = useQuery<FlowchartSuggestion[]>({
@@ -287,7 +291,7 @@ function SuggestAutomationsModal({ onClose }: { onClose: () => void }) {
       <div className="bg-white rounded-2xl w-full max-w-[520px] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Sparkles size={15} style={{ color: YIPPIE_BLUE }} /> Suggested automations
+            <Sparkles size={15} style={{ color: YIPPIE_BLUE }} /> {t('pipeline_suggestions_title')}
           </h2>
           <CloseButton onClick={onClose} />
         </div>
@@ -301,17 +305,15 @@ function SuggestAutomationsModal({ onClose }: { onClose: () => void }) {
               <div className="w-12 h-12 bg-slate-100 rounded-2xl flex items-center justify-center mx-auto mb-3">
                 <Zap size={20} className="text-slate-300" />
               </div>
-              <p className="text-sm font-semibold text-slate-600 mb-1">Nothing to suggest yet</p>
+              <p className="text-sm font-semibold text-slate-600 mb-1">{t('pipeline_suggestions_empty')}</p>
               <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                Draw arrows between your stages (directly, or through a decision) and Yippie will
-                suggest automations that move contacts along for you.
+                {t('pipeline_suggestions_empty_desc')}
               </p>
             </div>
           ) : (
             <div className="space-y-3">
               <p className="text-xs text-slate-500">
-                Turn the arrows you drew into automations. Each opens in Flows prefilled — review and
-                enable it there.
+                {t('pipeline_suggestions_intro')}
               </p>
               {suggestions.map(s => (
                 <div key={s.id} className="rounded-xl border border-slate-200 bg-white p-4">
@@ -326,7 +328,7 @@ function SuggestAutomationsModal({ onClose }: { onClose: () => void }) {
                     className="flex items-center gap-1.5 text-xs font-semibold hover:opacity-80 transition-opacity"
                     style={{ color: YIPPIE_BLUE }}
                   >
-                    <Zap size={12} /> Create in Flows
+                    <Zap size={12} /> {t('pipeline_create_in_flows')}
                   </button>
                 </div>
               ))}
@@ -334,7 +336,7 @@ function SuggestAutomationsModal({ onClose }: { onClose: () => void }) {
           )}
         </div>
         <div className="flex items-center justify-end gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
-          <button onClick={onClose} className="btn-secondary px-4 py-2">Close</button>
+          <button onClick={onClose} className="btn-secondary px-4 py-2">{t('pipeline_close_btn')}</button>
         </div>
       </div>
     </div>
@@ -353,6 +355,7 @@ export default function PipelineFlowchart({ canEdit }: { canEdit: boolean }) {
 }
 
 function FlowchartInner({ canEdit }: { canEdit: boolean }) {
+  const t = useT()
   const qc = useQueryClient()
   const { screenToFlowPosition } = useReactFlow()
 
@@ -385,7 +388,7 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
       qc.invalidateQueries({ queryKey: ['pipeline-stages'] })
       qc.invalidateQueries({ queryKey: ['pipeline-board'] })
     },
-    onError: () => toast.error('Could not rename stage'),
+    onError: () => toast.error(t('pipeline_err_rename_stage')),
   })
   const deleteStageMut = useMutation({
     mutationFn: (id: string) => api.delete(`/pipeline/stages/${id}`),
@@ -393,7 +396,7 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
       qc.invalidateQueries({ queryKey: ['pipeline-stages'] })
       qc.invalidateQueries({ queryKey: ['pipeline-board'] })
     },
-    onError: () => toast.error('Could not delete stage'),
+    onError: () => toast.error(t('pipeline_err_delete_stage')),
   })
   const createStageMut = useMutation({
     mutationFn: (name: string) =>
@@ -402,7 +405,7 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
       qc.invalidateQueries({ queryKey: ['pipeline-stages'] })
       qc.invalidateQueries({ queryKey: ['pipeline-board'] })
     },
-    onError: () => toast.error('Could not create stage'),
+    onError: () => toast.error(t('pipeline_err_create_stage')),
   })
 
   // Persist the whole graph. Reconciliation happens server side; we refresh the
@@ -412,7 +415,7 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     mutationFn: (graph: { nodes: FlowNode[]; edges: FlowEdge[] }) =>
       api.put('/pipeline/flowchart', graph).then((r: any) => r.data as FlowchartOut),
     onSuccess: (out) => qc.setQueryData(['pipeline-flowchart'], out),
-    onError: () => toast.error('Could not save the flowchart'),
+    onError: () => toast.error(t('pipeline_err_save_flowchart')),
   })
 
   // Placed stage nodes need their live name/colour. The board query has them.
@@ -678,13 +681,13 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     if (!canEdit) return
     const at = screenToFlowPosition({ x: e.clientX, y: e.clientY })
     menu.open(e, [
-      { header: 'Add here' },
-      { label: 'Stage', icon: <Plus size={14} />, onClick: () => addStage(at) },
-      { label: 'Decision', icon: <Diamond size={14} />, onClick: () => addDecision(at) },
-      { label: 'Start', icon: <Circle size={14} />, onClick: () => addPill('start', at) },
-      { label: 'End', icon: <Flag size={14} />, onClick: () => addPill('end', at) },
+      { header: t('pipeline_add_here') },
+      { label: t('pipeline_stage_label'), icon: <Plus size={14} />, onClick: () => addStage(at) },
+      { label: t('pipeline_decision_label'), icon: <Diamond size={14} />, onClick: () => addDecision(at) },
+      { label: t('pipeline_start_label'), icon: <Circle size={14} />, onClick: () => addPill('start', at) },
+      { label: t('pipeline_end_label'), icon: <Flag size={14} />, onClick: () => addPill('end', at) },
       { separator: true },
-      { label: 'Suggest automations', icon: <Sparkles size={14} />, onClick: () => setShowSuggestions(true) },
+      { label: t('pipeline_suggest_automations'), icon: <Sparkles size={14} />, onClick: () => setShowSuggestions(true) },
     ])
   }
 
@@ -693,17 +696,17 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     if (node.type === 'stage') {
       menu.open(e, [
         { header: node.data?.name ?? 'Stage' },
-        { label: 'Remove from chart', icon: <X size={14} />, onClick: () => removeNodeFromChart(node.id) },
+        { label: t('pipeline_remove_from_chart'), icon: <X size={14} />, onClick: () => removeNodeFromChart(node.id) },
         { separator: true },
         {
-          label: 'Delete stage', icon: <Trash2 size={14} />, danger: true,
+          label: t('pipeline_delete_stage_ctx'), icon: <Trash2 size={14} />, danger: true,
           onClick: () => setPendingDelete({ stageId: node.data.stageId, name: node.data.name }),
         },
       ])
     } else {
-      const kind = node.type === 'decision' ? 'decision' : node.type === 'start' ? 'start block' : 'end block'
+      const kindLabel = node.type === 'decision' ? t('pipeline_decision_label') : node.type === 'start' ? t('pipeline_start_label') : t('pipeline_end_label')
       menu.open(e, [
-        { label: `Delete ${kind}`, icon: <Trash2 size={14} />, danger: true, onClick: () => removeNodeFromChart(node.id) },
+        { label: t('pipeline_delete_node').replace('{kind}', kindLabel), icon: <Trash2 size={14} />, danger: true, onClick: () => removeNodeFromChart(node.id) },
       ])
     }
   }
@@ -712,11 +715,11 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
     if (!canEdit) return
     menu.open(e, [
       {
-        label: 'Edit label', icon: <PenLine size={14} />,
+        label: t('pipeline_edit_label_ctx'), icon: <PenLine size={14} />,
         onClick: () => setEditingEdge({ id: edge.id, label: typeof edge.label === 'string' ? edge.label : '' }),
       },
       {
-        label: 'Delete arrow', icon: <Trash2 size={14} />, danger: true,
+        label: t('pipeline_delete_arrow_ctx'), icon: <Trash2 size={14} />, danger: true,
         onClick: () => { setRfEdges(eds => eds.filter(x => x.id !== edge.id)); scheduleSave() },
       },
     ])
@@ -753,7 +756,7 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl w-full max-w-[520px] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
             <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-              <h2 className="text-sm font-bold text-slate-900">Edit arrow label</h2>
+              <h2 className="text-sm font-bold text-slate-900">{t('pipeline_edge_label_title')}</h2>
               <CloseButton onClick={() => setEditingEdge(null)} />
             </div>
             <div className="px-6 py-5">
@@ -766,16 +769,16 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               />
               <p className="text-xs text-slate-400 mt-2">
-                Tip: a single click selects the arrow — press Delete to remove it.
+                {t('pipeline_edge_label_tip')}
               </p>
             </div>
             <div className="flex items-center justify-between gap-2 px-6 py-4 border-t border-slate-100 bg-slate-50 shrink-0">
               <button onClick={deleteEditingEdge} className="btn-ghost-danger px-3 py-2 flex items-center gap-1.5">
-                <Trash2 size={13} /> Delete arrow
+                <Trash2 size={13} /> {t('pipeline_delete_arrow')}
               </button>
               <div className="flex items-center gap-2">
-                <button onClick={() => setEditingEdge(null)} className="btn-secondary px-4 py-2">Cancel</button>
-                <button onClick={commitEdgeLabel} className="btn-primary px-4 py-2">Save label</button>
+                <button onClick={() => setEditingEdge(null)} className="btn-secondary px-4 py-2">{t('pipeline_cancel_btn')}</button>
+                <button onClick={commitEdgeLabel} className="btn-primary px-4 py-2">{t('pipeline_save_label')}</button>
               </div>
             </div>
           </div>
@@ -787,18 +790,18 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
         {canEdit && (
           <div className="w-52 shrink-0 flex flex-col gap-3">
             <div className="rounded-xl border border-slate-200 bg-white p-3 space-y-1.5">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">Add</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-1">{t('pipeline_add_label')}</p>
               <button onClick={() => addStage()} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors">
-                <Plus size={12} /> Stage
+                <Plus size={12} /> {t('pipeline_stage_label')}
               </button>
               <button onClick={() => addDecision()} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-violet-700 bg-violet-50 hover:bg-violet-100 transition-colors">
-                <Diamond size={12} /> Decision
+                <Diamond size={12} /> {t('pipeline_decision_label')}
               </button>
               <button onClick={() => addPill('start')} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors">
-                <Circle size={12} /> Start
+                <Circle size={12} /> {t('pipeline_start_label')}
               </button>
               <button onClick={() => addPill('end')} className="w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 transition-colors">
-                <Flag size={12} /> End
+                <Flag size={12} /> {t('pipeline_end_label')}
               </button>
             </div>
 
@@ -809,13 +812,13 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 border text-sm font-semibold rounded-xl transition-colors hover:bg-blue-50"
               style={{ borderColor: YIPPIE_BLUE, color: YIPPIE_BLUE }}
             >
-              <Sparkles size={14} /> Suggest automations
+              <Sparkles size={14} /> {t('pipeline_suggest_automations')}
             </button>
 
             <div className="rounded-xl border border-slate-200 bg-white p-3 flex-1 overflow-y-auto">
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">Unplaced stages</p>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide mb-2">{t('pipeline_unplaced_stages')}</p>
               {unplaced.length === 0 ? (
-                <p className="text-xs text-slate-400">Every stage is on the canvas.</p>
+                <p className="text-xs text-slate-400">{t('pipeline_all_on_canvas')}</p>
               ) : (
                 <div className="space-y-1.5">
                   {unplaced.map(s => (
@@ -839,7 +842,7 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
               className="flex items-center justify-center gap-1.5 px-3 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               {saveMut.isPending ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
-              Save
+              {t('pipeline_save_btn')}
             </button>
           </div>
         )}
@@ -855,17 +858,16 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
               <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-4">
                 <GitBranch size={24} className="text-slate-300" />
               </div>
-              <p className="text-sm font-semibold text-slate-600 mb-1">Teach Yippie how your pipeline works</p>
+              <p className="text-sm font-semibold text-slate-600 mb-1">{t('pipeline_flowchart_teach')}</p>
               <p className="text-xs text-slate-400 max-w-sm mb-4 px-6">
-                Lay out your stages, decisions and the arrows between them so Yippie understands how
-                contacts should flow through the Kanban.
+                {t('pipeline_flowchart_teach_desc')}
               </p>
               {canEdit && (
                 <button
                   onClick={seedFromStages}
                   className="pointer-events-auto flex items-center gap-1.5 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
                 >
-                  <GitBranch size={14} /> Start from your stages
+                  <GitBranch size={14} /> {t('pipeline_start_from_stages')}
                 </button>
               )}
             </div>

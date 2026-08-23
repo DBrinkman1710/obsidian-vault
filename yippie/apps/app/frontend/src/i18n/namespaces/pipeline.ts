@@ -109,6 +109,16 @@ export const pipeline: { en: Record<string, string>; nl: Record<string, string> 
     pipeline_edit_question_tip:      'Double click to edit the question',
     // PipelinePage — bulk context menu header
     pipeline_n_contacts:             '{count} contacts',
+    // PipelineFlowchart — toast errors
+    pipeline_err_rename_stage:       'Could not rename stage',
+    pipeline_err_delete_stage:       'Could not delete stage',
+    pipeline_err_create_stage:       'Could not create stage',
+    pipeline_err_save_flowchart:     'Could not save the flowchart',
+    // PipelineFlowchart — delete non-stage node context menu
+    pipeline_delete_node:            'Delete {kind}',
+    // DecisionNode — yes/no handle labels
+    pipeline_yes:                    'yes',
+    pipeline_no:                     'no',
   },
   nl: {
     // PipelinePage — header
@@ -218,5 +228,15 @@ export const pipeline: { en: Record<string, string>; nl: Record<string, string> 
     pipeline_edit_question_tip:      'Dubbelklik om de vraag te bewerken',
     // PipelinePage — bulk context menu header
     pipeline_n_contacts:             '{count} contacten',
+    // PipelineFlowchart — toast errors
+    pipeline_err_rename_stage:       'Fase kon niet worden hernoemd',
+    pipeline_err_delete_stage:       'Fase kon niet worden verwijderd',
+    pipeline_err_create_stage:       'Fase kon niet worden aangemaakt',
+    pipeline_err_save_flowchart:     'Stroomdiagram kon niet worden opgeslagen',
+    // PipelineFlowchart — delete non-stage node context menu
+    pipeline_delete_node:            '{kind} verwijderen',
+    // DecisionNode — yes/no handle labels
+    pipeline_yes:                    'ja',
+    pipeline_no:                     'nee',
   },
 }

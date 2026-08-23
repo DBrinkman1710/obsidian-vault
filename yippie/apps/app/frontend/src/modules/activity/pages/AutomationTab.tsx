@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle } from 'lucide-react'
 import { api } from '../../../api/client'
 import { timeAgo } from '../../../lib/format'
+import { useT } from '../../../hooks/useT'
 import { Skeleton } from '../../../shell/Skeleton'
 
 const CARD = 'bg-white rounded-xl border border-slate-200 shadow-sm p-6'
@@ -78,6 +79,7 @@ function StatusBar({ f }: { f: FlowStat }) {
 }
 
 export default function AutomationTab() {
+  const t = useT()
   const [days, setDays] = useState<number>(7)
 
   const { data, isLoading } = useQuery<FlowPerf>({
@@ -94,7 +96,7 @@ export default function AutomationTab() {
       {/* Period toggle */}
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-slate-500">
-          How your automations performed over the last {days} days.
+          {t('activity_automation_intro').replace('{days}', String(days))}
         </p>
         <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden shrink-0">
           {PERIODS.map(p => (
@@ -113,15 +115,15 @@ export default function AutomationTab() {
 
       {/* Flows performance */}
       <section>
-        <p className={SECTION_HEADER}>Flows</p>
+        <p className={SECTION_HEADER}>{t('activity_flows_heading')}</p>
 
         {/* Totals */}
         <div className={`${CARD} mb-4`}>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-            <Hero label="Fires" value={isLoading ? '—' : String(totals?.fires ?? 0)} sub="runs that did something" />
-            <Hero label="Success rate" value={isLoading ? '—' : pct(totals?.success_rate ?? null)} tone={rateTone(totals?.success_rate ?? null)} />
-            <Hero label="Est. hours saved" value={isLoading ? '—' : `${totals?.est_hours_saved ?? 0}h`} sub="~3 min per run" />
-            <Hero label="Failed" value={isLoading ? '—' : String(totals?.failed ?? 0)} tone={(totals?.failed ?? 0) > 0 ? 'bad' : 'none'} />
+            <Hero label={t('activity_fires_label')} value={isLoading ? '—' : String(totals?.fires ?? 0)} sub={t('activity_fires_sub')} />
+            <Hero label={t('activity_success_rate_label')} value={isLoading ? '—' : pct(totals?.success_rate ?? null)} tone={rateTone(totals?.success_rate ?? null)} />
+            <Hero label={t('activity_hours_saved_label')} value={isLoading ? '—' : `${totals?.est_hours_saved ?? 0}h`} sub={t('activity_hours_saved_sub')} />
+            <Hero label={t('activity_failed_label')} value={isLoading ? '—' : String(totals?.failed ?? 0)} tone={(totals?.failed ?? 0) > 0 ? 'bad' : 'none'} />
           </div>
         </div>
 
@@ -132,19 +134,19 @@ export default function AutomationTab() {
               {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-6 w-full" />)}
             </div>
           ) : flows.length === 0 ? (
-            <p className="text-sm text-slate-400">No flows yet</p>
+            <p className="text-sm text-slate-400">{t('activity_no_flows')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                    <th className="pb-3 font-semibold">Flow</th>
-                    <th className="pb-3 font-semibold w-40">Health</th>
-                    <th className="pb-3 font-semibold text-right">Fires</th>
-                    <th className="pb-3 font-semibold text-right">Success</th>
-                    <th className="pb-3 font-semibold text-right">Skipped</th>
-                    <th className="pb-3 font-semibold text-right">Saved</th>
-                    <th className="pb-3 font-semibold text-right">Last run</th>
+                    <th className="pb-3 font-semibold">{t('activity_col_flow')}</th>
+                    <th className="pb-3 font-semibold w-40">{t('activity_col_health')}</th>
+                    <th className="pb-3 font-semibold text-right">{t('activity_col_fires')}</th>
+                    <th className="pb-3 font-semibold text-right">{t('activity_col_success')}</th>
+                    <th className="pb-3 font-semibold text-right">{t('activity_col_skipped')}</th>
+                    <th className="pb-3 font-semibold text-right">{t('activity_col_saved')}</th>
+                    <th className="pb-3 font-semibold text-right">{t('activity_col_last_run')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -153,7 +155,7 @@ export default function AutomationTab() {
                       <td className="py-2.5 pr-4">
                         <div className="flex items-center gap-1.5">
                           <span className="font-semibold text-slate-800 truncate">{f.name}</span>
-                          {!f.enabled && <span className="text-xs text-slate-400">(off)</span>}
+                          {!f.enabled && <span className="text-xs text-slate-400">{t('activity_flow_off')}</span>}
                           {f.last_error && (
                             <AlertTriangle size={12} className="text-danger-500 shrink-0" aria-label={f.last_error} />
                           )}

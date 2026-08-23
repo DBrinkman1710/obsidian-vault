@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { ArrowDown, ArrowUp } from 'lucide-react'
 import { api } from '../../../api/client'
 import { fmtDate, timeAgo } from '../../../lib/format'
+import { useT } from '../../../hooks/useT'
 import { Skeleton } from '../../../shell/Skeleton'
 import { Sparkline } from '../../../shell/Sparkline'
 
@@ -110,9 +111,10 @@ const ROLE_STYLE: Record<string, string> = {
 
 /** Week over week delta vs the previous period. */
 function DeltaChip({ cur, prev, lowerBetter = false }: { cur: number | null; prev: number | null; lowerBetter?: boolean }) {
+  const t = useT()
   if (cur === null || prev === null) return null
   const diff = Math.round((cur - prev) * 10) / 10
-  if (diff === 0) return <span className="text-xs text-slate-400">no change</span>
+  if (diff === 0) return <span className="text-xs text-slate-400">{t('activity_no_change')}</span>
   const improved = lowerBetter ? diff < 0 : diff > 0
   const Icon = diff > 0 ? ArrowUp : ArrowDown
   return (
@@ -168,17 +170,19 @@ function SparkCard({ label, value, data, color, delta }: { label: string; value:
 }
 
 type CompareKey = 'tickets_resolved' | 'tickets_open' | 'emails_sent' | 'first_response_minutes'
-const COMPARE: { key: CompareKey; label: string; color: string; get: (u: UserStat) => number; lowerBetter?: boolean }[] = [
-  { key: 'tickets_resolved', label: 'Tickets resolved', color: C_SUCCESS, get: u => u.tickets_resolved },
-  { key: 'tickets_open', label: 'Open workload', color: C_WARNING, get: u => u.tickets_open },
-  { key: 'emails_sent', label: 'Emails sent', color: C_BRAND, get: u => u.emails_sent },
-  { key: 'first_response_minutes', label: 'First response', color: C_BRAND, get: u => u.first_response_minutes ?? 0, lowerBetter: true },
-]
 
 export default function UsersTab() {
+  const t = useT()
   const [days, setDays] = useState<number>(7)
   const [selectedUserId, setSelectedUserId] = useState<string>('')
   const [compareKey, setCompareKey] = useState<CompareKey>('tickets_resolved')
+
+  const COMPARE: { key: CompareKey; label: string; color: string; get: (u: UserStat) => number; lowerBetter?: boolean }[] = [
+    { key: 'tickets_resolved', label: t('activity_compare_resolved'), color: C_SUCCESS, get: u => u.tickets_resolved },
+    { key: 'tickets_open', label: t('activity_compare_open'), color: C_WARNING, get: u => u.tickets_open },
+    { key: 'emails_sent', label: t('activity_compare_emails'), color: C_BRAND, get: u => u.emails_sent },
+    { key: 'first_response_minutes', label: t('activity_compare_response'), color: C_BRAND, get: u => u.first_response_minutes ?? 0, lowerBetter: true },
+  ]
 
   const { data: userStats, isLoading: usersLoading } = useQuery<UserStatsResp>({
     queryKey: ['activity-user-stats', days],
@@ -229,7 +233,7 @@ export default function UsersTab() {
       {/* Period toggle */}
       <div className="flex items-center justify-between gap-4">
         <p className="text-sm text-slate-500">
-          Team activity over the last {days} days; arrows compare with the prior {days}. Numbers are per user; shared inbox rolls up by department below.
+          {t('activity_users_intro').replace(/\{days\}/g, String(days))}
         </p>
         <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden shrink-0">
           {PERIODS.map(p => (
@@ -249,7 +253,7 @@ export default function UsersTab() {
       {/* Per user dashboard */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <p className={SECTION_HEADER} style={{ marginBottom: 0 }}>User</p>
+          <p className={SECTION_HEADER} style={{ marginBottom: 0 }}>{t('activity_user_heading')}</p>
           {users.length > 0 && (
             <select
               value={activeUserId}
@@ -276,7 +280,7 @@ export default function UsersTab() {
             </div>
           </div>
         ) : !selected ? (
-          <div className={`${CARD} text-sm text-slate-400`}>No users to show</div>
+          <div className={`${CARD} text-sm text-slate-400`}>{t('activity_no_users')}</div>
         ) : (
           <div className="space-y-4">
             <div className={CARD}>
@@ -286,41 +290,41 @@ export default function UsersTab() {
                   {selected.role}
                 </span>
                 <span className="text-xs text-slate-400">
-                  {selected.last_login_at ? `active ${timeAgo(selected.last_login_at)}` : 'never signed in'}
+                  {selected.last_login_at ? t('activity_active_ago').replace('{ago}', timeAgo(selected.last_login_at)) : t('activity_never_signed_in')}
                 </span>
               </div>
 
               {/* Headline service metrics */}
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 pb-6 mb-6 border-b border-slate-100">
-                <Hero label="First response" value={mins(selected.first_response_minutes)} sub="avg to first reply" tone={responseTone(selected.first_response_minutes)} delta={<DeltaChip cur={selected.first_response_minutes} prev={selected.prev.first_response_minutes} lowerBetter />} />
-                <Hero label="First time right" value={pct(selected.first_time_right)} sub={`${selected.tickets_reopened} reopened`} tone={ftrTone(selected.first_time_right)} />
-                <Hero label="Avg resolution" value={hrs(selected.avg_resolution_hours)} sub="created to resolved" tone={resolutionTone(selected.avg_resolution_hours)} />
-                <Hero label="Open workload" value={num(selected.tickets_open)} sub="assigned right now" />
+                <Hero label={t('activity_first_response')} value={mins(selected.first_response_minutes)} sub={t('activity_first_response_sub')} tone={responseTone(selected.first_response_minutes)} delta={<DeltaChip cur={selected.first_response_minutes} prev={selected.prev.first_response_minutes} lowerBetter />} />
+                <Hero label={t('activity_first_time_right')} value={pct(selected.first_time_right)} sub={t('activity_reopened_sub').replace('{count}', String(selected.tickets_reopened))} tone={ftrTone(selected.first_time_right)} />
+                <Hero label={t('activity_avg_resolution')} value={hrs(selected.avg_resolution_hours)} sub={t('activity_resolution_sub')} tone={resolutionTone(selected.avg_resolution_hours)} />
+                <Hero label={t('activity_open_workload')} value={num(selected.tickets_open)} sub={t('activity_workload_sub')} />
               </div>
 
               {/* Time to open, mail quality, chats */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-6 pb-6 mb-6 border-b border-slate-100">
-                <Stat label="Time to open (shared)" value={mins(selected.time_to_open_shared_minutes)} sub="shared inbox" tone={openTone(selected.time_to_open_shared_minutes)} />
-                <Stat label="Time to open (personal)" value={mins(selected.time_to_open_personal_minutes)} sub="own mailbox" tone={openTone(selected.time_to_open_personal_minutes)} />
-                <Stat label="Emails received" value={num(selected.emails_received_personal)} sub="personal mailbox" />
-                <Stat label="Open rate" value={pct(selected.open_rate)} tone={rateTone(selected.open_rate)} />
-                <Stat label="Chats handled" value={num(selected.chats_handled)} />
-                <Stat label="Chats solved" value={num(selected.chats_solved)} />
+                <Stat label={t('activity_time_to_open_shared')} value={mins(selected.time_to_open_shared_minutes)} sub={t('activity_shared_inbox_sub')} tone={openTone(selected.time_to_open_shared_minutes)} />
+                <Stat label={t('activity_time_to_open_personal')} value={mins(selected.time_to_open_personal_minutes)} sub={t('activity_own_mailbox_sub')} tone={openTone(selected.time_to_open_personal_minutes)} />
+                <Stat label={t('activity_emails_received')} value={num(selected.emails_received_personal)} sub={t('activity_personal_mailbox_sub')} />
+                <Stat label={t('activity_email_open_rate')} value={pct(selected.open_rate)} tone={rateTone(selected.open_rate)} />
+                <Stat label={t('activity_chats_handled')} value={num(selected.chats_handled)} />
+                <Stat label={t('activity_chats_solved')} value={num(selected.chats_solved)} />
               </div>
 
               {/* Trend cards with micro charts */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <SparkCard label="Activity" value={num(series?.activity.reduce((a, b) => a + b, 0))} data={series?.activity} color={C_BRAND} />
-                <SparkCard label="Tickets resolved" value={num(selected.tickets_resolved)} data={series?.tickets_resolved} color={C_SUCCESS} delta={<DeltaChip cur={selected.tickets_resolved} prev={selected.prev.tickets_resolved} />} />
-                <SparkCard label="Tickets created" value={num(selected.tickets_created)} data={series?.tickets_created} color={C_WARNING} delta={<DeltaChip cur={selected.tickets_created} prev={selected.prev.tickets_created} />} />
-                <SparkCard label="Emails sent" value={num(selected.emails_sent)} data={series?.emails_sent} color={C_BRAND} delta={<DeltaChip cur={selected.emails_sent} prev={selected.prev.emails_sent} />} />
+                <SparkCard label={t('activity_spark_activity')} value={num(series?.activity.reduce((a, b) => a + b, 0))} data={series?.activity} color={C_BRAND} />
+                <SparkCard label={t('activity_spark_tickets_resolved')} value={num(selected.tickets_resolved)} data={series?.tickets_resolved} color={C_SUCCESS} delta={<DeltaChip cur={selected.tickets_resolved} prev={selected.prev.tickets_resolved} />} />
+                <SparkCard label={t('activity_spark_tickets_created')} value={num(selected.tickets_created)} data={series?.tickets_created} color={C_WARNING} delta={<DeltaChip cur={selected.tickets_created} prev={selected.prev.tickets_created} />} />
+                <SparkCard label={t('activity_spark_emails_sent')} value={num(selected.emails_sent)} data={series?.emails_sent} color={C_BRAND} delta={<DeltaChip cur={selected.emails_sent} prev={selected.prev.emails_sent} />} />
               </div>
             </div>
 
             {/* Team comparison chart */}
             <div className={CARD}>
               <div className="flex items-center justify-between mb-4">
-                <p className={SECTION_HEADER} style={{ marginBottom: 0 }}>Team comparison</p>
+                <p className={SECTION_HEADER} style={{ marginBottom: 0 }}>{t('activity_team_comparison')}</p>
                 <div className="flex rounded-lg border border-slate-200 bg-white overflow-hidden shrink-0">
                   {COMPARE.map(m => (
                     <button
@@ -371,9 +375,9 @@ export default function UsersTab() {
 
             {/* Timeline */}
             <div className={CARD}>
-              <p className={SECTION_HEADER}>Recent activity</p>
+              <p className={SECTION_HEADER}>{t('activity_recent_activity')}</p>
               {eventsByDay.length === 0 ? (
-                <p className="text-sm text-slate-400">No activity in this period</p>
+                <p className="text-sm text-slate-400">{t('activity_no_activity_period')}</p>
               ) : (
                 <div className="space-y-5">
                   {eventsByDay.map(([day, evs]) => (
@@ -405,30 +409,30 @@ export default function UsersTab() {
       {/* Department statistics */}
       <section>
         <div className="flex items-center justify-between mb-4">
-          <p className={SECTION_HEADER} style={{ marginBottom: 0 }}>Department statistics</p>
+          <p className={SECTION_HEADER} style={{ marginBottom: 0 }}>{t('activity_dept_heading')}</p>
           {deptStats && (
             <span className="text-xs text-slate-400">
-              Shared inbox: <span className="font-semibold text-slate-600">{deptStats.shared_emails_received}</span> received
+              {t('activity_shared_inbox')} <span className="font-semibold text-slate-600">{deptStats.shared_emails_received}</span> {t('activity_received')}
               {deptStats.shared_time_to_open_minutes !== null && (
-                <> · <span className="font-semibold text-slate-600">{mins(deptStats.shared_time_to_open_minutes)}</span> to open</>
+                <> · <span className="font-semibold text-slate-600">{mins(deptStats.shared_time_to_open_minutes)}</span> {t('activity_to_open')}</>
               )}
             </span>
           )}
         </div>
         <div className={CARD}>
           {!deptStats || deptStats.departments.length === 0 ? (
-            <p className="text-sm text-slate-400">No departments yet</p>
+            <p className="text-sm text-slate-400">{t('activity_no_departments')}</p>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs font-semibold text-slate-400 uppercase tracking-wide">
-                    <th className="pb-3 font-semibold">Department</th>
-                    <th className="pb-3 font-semibold text-right">Members</th>
-                    <th className="pb-3 font-semibold text-right">Created</th>
-                    <th className="pb-3 font-semibold text-right">Open</th>
-                    <th className="pb-3 font-semibold text-right">Resolved</th>
-                    <th className="pb-3 font-semibold text-right">Avg resolution</th>
+                    <th className="pb-3 font-semibold">{t('activity_dept_col')}</th>
+                    <th className="pb-3 font-semibold text-right">{t('activity_members_col')}</th>
+                    <th className="pb-3 font-semibold text-right">{t('activity_created_col')}</th>
+                    <th className="pb-3 font-semibold text-right">{t('activity_open_col')}</th>
+                    <th className="pb-3 font-semibold text-right">{t('activity_resolved_col')}</th>
+                    <th className="pb-3 font-semibold text-right">{t('activity_avg_resolution_col')}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">

@@ -433,6 +433,14 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
 
     // ResendDiagnosticPanel
     admin_resend_diag:            'API diagnostics',
+
+    // Shared / common
+    admin_cancel:                 'Cancel',
+    admin_save:                   'Save',
+    admin_done:                   'Done',
+    admin_something_wrong:        'Something went wrong. Try again.',
+    admin_invite_sent_check:      'Invite sent to',
+    admin_they_appear_password:   'They appear in the list once they set their password.',
   },
   nl: {
     // GrapesEditor — block labels / traits
@@ -866,5 +874,13 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
 
     // ResendDiagnosticPanel
     admin_resend_diag:            'API-diagnose',
+
+    // Shared / common
+    admin_cancel:                 'Annuleren',
+    admin_save:                   'Opslaan',
+    admin_done:                   'Klaar',
+    admin_something_wrong:        'Er ging iets mis. Probeer het opnieuw.',
+    admin_invite_sent_check:      'Uitnodiging verstuurd naar',
+    admin_they_appear_password:   'Ze verschijnen in de lijst zodra ze hun wachtwoord hebben ingesteld.',
   },
 }

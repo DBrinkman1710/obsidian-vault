@@ -13,6 +13,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
 import { useCopy } from '../../../hooks/useCopy'
 import { CloseButton } from '../../../shell/CloseButton'
+import { useT } from '../../../hooks/useT'
 
 const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'flows', 'billing', 'contracts', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai']
 
@@ -137,13 +138,13 @@ function slugify(s: string) {
 /** Inline validation for invite/admin email fields: format + already-in-use,
  * checked ~500ms after the user stops typing instead of failing on submit.
  * Returns null while typing or when the address is fine. */
-function useEmailCheckError(email: string): string | null {
+function useEmailCheckError(email: string, t: (key: string) => string): string | null {
   const trimmed = email.trim().toLowerCase()
   const [debounced, setDebounced] = useState('')
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(trimmed), 500)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebounced(trimmed), 500)
+    return () => clearTimeout(timer)
   }, [trimmed])
 
   const settled = debounced === trimmed && trimmed.length > 0
@@ -157,20 +158,20 @@ function useEmailCheckError(email: string): string | null {
   })
 
   if (!settled) return null
-  if (!validFormat) return 'Not a valid email address'
-  if (data && !data.available) return data.reason ?? 'This email is not available'
+  if (!validFormat) return t('admin_email_not_valid')
+  if (data && !data.available) return data.reason ?? t('admin_email_unavailable')
   return null
 }
 
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/
 
-function useSlugCheckError(slug: string): string | null {
+function useSlugCheckError(slug: string, t: (key: string) => string): string | null {
   const trimmed = slug.trim().toLowerCase()
   const [debounced, setDebounced] = useState('')
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(trimmed), 400)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebounced(trimmed), 400)
+    return () => clearTimeout(timer)
   }, [trimmed])
 
   const settled = debounced === trimmed && trimmed.length > 0
@@ -183,9 +184,9 @@ function useSlugCheckError(slug: string): string | null {
   })
 
   if (!settled) return null
-  if (trimmed.length < 2) return 'Minimum 2 characters'
-  if (!SLUG_RE.test(trimmed)) return 'Only lowercase letters, numbers, and hyphens. No leading/trailing hyphens.'
-  if (data && !data.available) return data.reason ?? 'Slug is not available'
+  if (trimmed.length < 2) return t('admin_slug_min2')
+  if (!SLUG_RE.test(trimmed)) return t('admin_slug_format')
+  if (data && !data.available) return data.reason ?? t('admin_slug_unavailable')
   return null
 }
 
@@ -244,6 +245,7 @@ function ModuleToggle({ mod, active, onClick }: { mod: string; active: boolean; 
 }
 
 function CreateClientModal({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM)
@@ -254,9 +256,9 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
   const [dnsViewTenant, setDnsViewTenant] = useState<Tenant | null>(null)
   const { copy: copyUrl, copied: copiedLoginUrl } = useCopy({ useToast: false })
 
-  const adminEmailError = useEmailCheckError(form.admin_email)
-  const extraEmailError = useEmailCheckError(extraEmail)
-  const slugError = useSlugCheckError(form.slug)
+  const adminEmailError = useEmailCheckError(form.admin_email, t)
+  const extraEmailError = useEmailCheckError(extraEmail, t)
+  const slugError = useSlugCheckError(form.slug, t)
 
   const set = (field: keyof CreateForm) =>
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -307,19 +309,19 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
     },
     onError: (err: any) => {
       const detail = err.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Failed to create client')
+      setError(typeof detail === 'string' ? detail : t('admin_failed_create_client'))
     },
   })
 
   function stepError(): string {
     if (step === 0) {
-      if (!form.name.trim()) return 'Company name is required'
-      if (!form.slug.trim()) return 'Slug is required'
+      if (!form.name.trim()) return t('admin_company_required')
+      if (!form.slug.trim()) return t('admin_slug_required')
       if (slugError) return slugError
-      if (!EMAIL_RE.test(form.admin_email.trim())) return 'A valid admin email is required'
+      if (!EMAIL_RE.test(form.admin_email.trim())) return t('admin_admin_email_required')
       if (adminEmailError) return adminEmailError
     }
-    if (step === 1 && form.enabled_modules.length === 0) return 'Enable at least one module'
+    if (step === 1 && form.enabled_modules.length === 0) return t('admin_modules_required')
     return ''
   }
 
@@ -334,10 +336,10 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
 
   function addExtraEmail() {
     const email = extraEmail.trim().toLowerCase()
-    if (!EMAIL_RE.test(email)) { setError('Enter a valid email address'); return }
+    if (!EMAIL_RE.test(email)) { setError(t('admin_enter_valid_email')); return }
     if (extraEmailError) { setError(extraEmailError); return }
     if (email === form.admin_email.trim().toLowerCase() || form.extra_admin_emails.includes(email)) {
-      setError('That email is already on the list'); return
+      setError(t('admin_email_already_list')); return
     }
     setError('')
     setForm(p => ({ ...p, extra_admin_emails: [...p.extra_admin_emails, email] }))
@@ -382,8 +384,8 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <Check size={16} className="text-emerald-600" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-900">{form.name} is ready</h2>
-              <p className="text-xs text-slate-400">Here's what to do next before handing it over.</p>
+              <h2 className="text-base font-bold text-slate-900">{t('admin_client_ready').replace('{name}', form.name)}</h2>
+              <p className="text-xs text-slate-400">{t('admin_client_ready_desc')}</p>
             </div>
           </div>
           <div className="p-6 flex flex-col gap-3">
@@ -392,8 +394,10 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <Check size={14} className="text-emerald-500 mt-0.5 flex-shrink-0" />
               <div className="text-sm text-slate-700">
                 {allInvited.length > 0
-                  ? <>Invite email{allInvited.length > 1 ? 's' : ''} sent to <strong>{allInvited.join(', ')}</strong></>
-                  : <>Admin account ready. Password was set.</>
+                  ? (allInvited.length > 1
+                      ? t('admin_invite_sent_multi').replace('{emails}', allInvited.join(', '))
+                      : t('admin_invite_sent_one').replace('{emails}', allInvited.join(', ')))
+                  : t('admin_admin_ready')
                 }
               </div>
             </div>
@@ -402,13 +406,13 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
             <div className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
               <Globe size={14} className="text-slate-400 flex-shrink-0" />
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold text-slate-500 mb-0.5">Login URL to share with client</p>
+                <p className="text-xs font-semibold text-slate-500 mb-0.5">{t('admin_login_url_label')}</p>
                 <p className="text-sm font-mono text-slate-700 truncate">{loginUrl}</p>
               </div>
               <button
                 onClick={copyLoginUrl}
                 className="flex-shrink-0 p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
-                title="Copy URL"
+                title={t('admin_copy_url_title')}
               >
                 {copiedLoginUrl ? <Check size={14} className="text-emerald-500" /> : <Copy size={14} />}
               </button>
@@ -425,18 +429,18 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-slate-900">
                   {hasDomain && domainVerified
-                    ? `Sending domain verified (${created.tenant.resend_domain_name})`
+                    ? t('admin_domain_verified').replace('{domain}', created.tenant.resend_domain_name ?? '')
                     : hasDomain
-                      ? `DNS pending. Add records for ${created.tenant.resend_domain_name}.`
-                      : 'Sending domain not set up'
+                      ? t('admin_domain_pending').replace('{domain}', created.tenant.resend_domain_name ?? '')
+                      : t('admin_domain_not_set')
                   }
                 </p>
                 <p className="text-xs text-slate-500 mt-0.5">
                   {hasDomain && domainVerified
-                    ? 'Emails will come from their own domain.'
+                    ? t('admin_domain_verified_desc')
                     : hasDomain
-                      ? 'Share DNS records with the client to complete setup.'
-                      : 'Without this, emails come from the shared Yippie domain.'}
+                      ? t('admin_domain_pending_desc')
+                      : t('admin_domain_not_set_desc')}
                 </p>
               </div>
               {!domainVerified && (
@@ -444,7 +448,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                   onClick={() => hasDomain ? setDnsViewTenant(created.tenant) : setDomainSetupTenant(created.tenant)}
                   className="flex-shrink-0 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
                 >
-                  {hasDomain ? 'View DNS' : 'Set up'}
+                  {hasDomain ? t('admin_view_dns_btn') : t('admin_setup_btn')}
                 </button>
               )}
             </div>
@@ -454,14 +458,14 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
               <div className="flex items-start gap-3 p-3 rounded-xl bg-slate-50 border border-slate-200">
                 <Inbox size={14} className="text-slate-400 mt-0.5 flex-shrink-0" />
                 <div className="min-w-0">
-                  <p className="text-xs font-semibold text-slate-500 mb-0.5">Inbound email (configure in Resend)</p>
+                  <p className="text-xs font-semibold text-slate-500 mb-0.5">{t('admin_inbound_reminder_label')}</p>
                   <p className="text-sm font-mono text-slate-700 truncate">{form.inbound_email.trim()}</p>
                 </div>
               </div>
             )}
           </div>
           <div className="px-6 pb-5 flex justify-end">
-            <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">Done</button>
+            <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">{t('admin_done')}</button>
           </div>
         </div>
       </div>
@@ -472,7 +476,7 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">New client</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('admin_new_client_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
 
@@ -495,11 +499,11 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
             <>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Company name *</label>
+                  <label className={labelCls}>{t('admin_company_name_label')}</label>
                   <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme Ltd" autoFocus />
                 </div>
                 <div>
-                  <label className={labelCls}>Slug *</label>
+                  <label className={labelCls}>{t('admin_slug_label')}</label>
                   <input
                     className={`${inputCls} ${slugError ? 'border-red-400 focus:ring-red-400' : form.slug && !slugError ? 'border-emerald-400' : ''}`}
                     value={form.slug}
@@ -508,22 +512,22 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                   />
                   {slugError
                     ? <p className="mt-1 text-xs text-red-500">{slugError}</p>
-                    : form.slug && <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1"><Check size={11} /> Available</p>
+                    : form.slug && <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1"><Check size={11} /> {t('admin_slug_available')}</p>
                   }
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Inbound email</label>
+                <label className={labelCls}>{t('admin_inbound_email_label')}</label>
                 <input className={inputCls} type="email" value={form.inbound_email} onChange={set('inbound_email')} placeholder="acme-bv-support@getyippie.com" />
-                <p className="mt-1 text-xs text-slate-400">Auto-generated from slug. You'll configure this address in Resend after creation.</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_inbound_email_hint')}</p>
               </div>
               <div className="border-t border-slate-100 pt-4 grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Admin name</label>
+                  <label className={labelCls}>{t('admin_admin_name_label')}</label>
                   <input className={inputCls} value={form.admin_full_name} onChange={set('admin_full_name')} placeholder="Alex Johnson" />
                 </div>
                 <div>
-                  <label className={labelCls}>Admin email *</label>
+                  <label className={labelCls}>{t('admin_admin_email_label')}</label>
                   <input
                     className={`${inputCls} ${adminEmailError ? 'border-red-400 focus:ring-red-400' : ''}`}
                     type="email"
@@ -535,11 +539,11 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Admin password</label>
+                <label className={labelCls}>{t('admin_admin_password_label')}</label>
                 <input className={inputCls} type="password" value={form.admin_password} onChange={set('admin_password')} placeholder="••••••••" />
                 {form.admin_password.trim()
-                  ? <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1"><Check size={11} /> Password set. Admin can log in directly.</p>
-                  : <p className="mt-1 text-xs text-slate-400">Leave empty to send an invite link. The admin sets their own password.</p>
+                  ? <p className="mt-1 text-xs text-emerald-600 flex items-center gap-1"><Check size={11} /> {t('admin_password_set_hint')}</p>
+                  : <p className="mt-1 text-xs text-slate-400">{t('admin_password_empty_hint')}</p>
                 }
               </div>
             </>
@@ -547,20 +551,22 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
 
           {step === 1 && (
             <div>
-              <label className={labelCls}>Enabled modules</label>
+              <label className={labelCls}>{t('admin_enabled_modules_label')}</label>
               <div className="flex flex-wrap gap-2 mt-1">
                 {ALL_MODULES.map(mod => (
                   <ModuleToggle key={mod} mod={mod} active={form.enabled_modules.includes(mod)} onClick={() => toggleModule(mod)} />
                 ))}
               </div>
-              <p className="mt-2 text-xs text-slate-400">{form.enabled_modules.length} of {ALL_MODULES.length} enabled. You can change this any time.</p>
+              <p className="mt-2 text-xs text-slate-400">
+                {t('admin_modules_count_hint').replace('{n}', String(form.enabled_modules.length)).replace('{total}', String(ALL_MODULES.length))}
+              </p>
             </div>
           )}
 
           {step === 2 && (
             <>
               <div>
-                <label className={labelCls}>Brand color</label>
+                <label className={labelCls}>{t('admin_brand_color_label')}</label>
                 <div className="flex items-center gap-3">
                   <input type="color" value={form.primary_color}
                     onChange={e => setForm(p => ({ ...p, primary_color: e.target.value }))}
@@ -570,12 +576,12 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Logo URL</label>
+                <label className={labelCls}>{t('admin_logo_url_label')}</label>
                 <input className={inputCls} value={form.logo_url} onChange={set('logo_url')} placeholder="https://acme.nl/logo.png" />
                 {form.logo_url.trim() && (
                   <img src={form.logo_url.trim()} alt="Logo preview" className="mt-2 h-10 object-contain rounded border border-slate-200 bg-slate-50 p-1" onError={e => (e.currentTarget.style.display = 'none')} />
                 )}
-                <p className="mt-1 text-xs text-slate-400">Optional. Shown in the client's sidebar.</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_logo_url_hint')}</p>
               </div>
             </>
           )}
@@ -583,16 +589,16 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
           {step === 3 && (
             <div className="flex flex-col gap-3">
               <div>
-                <label className={labelCls}>Extra admin users</label>
+                <label className={labelCls}>{t('admin_extra_admins_label')}</label>
                 <div className="flex gap-2">
                   <input className={inputCls} type="email" value={extraEmail}
                     onChange={e => setExtraEmail(e.target.value)}
                     onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addExtraEmail() } }}
-                    placeholder="collega@acme.nl" />
-                  <button type="button" onClick={addExtraEmail} className="px-4 py-2 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">Add</button>
+                    placeholder={t('admin_extra_email_ph')} />
+                  <button type="button" onClick={addExtraEmail} className="px-4 py-2 text-sm font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors">{t('admin_add_btn')}</button>
                 </div>
                 {extraEmailError && <p className="mt-1 text-xs text-red-500">{extraEmailError}</p>}
-                <p className="mt-1 text-xs text-slate-400">Optional. Each gets an invite email to set their own password.</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_extra_admins_hint')}</p>
               </div>
               {form.extra_admin_emails.length > 0 && (
                 <div className="flex flex-wrap gap-2">
@@ -616,15 +622,15 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                 <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${form.is_demo ? 'border-amber-300 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                   <input type="radio" checked={form.is_demo} onChange={() => setForm(p => ({ ...p, is_demo: true }))} className="mt-0.5" />
                   <span>
-                    <span className="block text-sm font-semibold text-slate-900">Start as demo</span>
-                    <span className="block text-xs text-slate-500">Outbound email suppressed; client sees an amber demo banner. Flip to active when ready.</span>
+                    <span className="block text-sm font-semibold text-slate-900">{t('admin_start_demo')}</span>
+                    <span className="block text-xs text-slate-500">{t('admin_start_demo_desc')}</span>
                   </span>
                 </label>
                 <label className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-colors ${!form.is_demo ? 'border-emerald-300 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}>
                   <input type="radio" checked={!form.is_demo} onChange={() => setForm(p => ({ ...p, is_demo: false }))} className="mt-0.5" />
                   <span>
-                    <span className="block text-sm font-semibold text-slate-900">Go live immediately</span>
-                    <span className="block text-xs text-slate-500">Fully active. Real emails are sent from day one.</span>
+                    <span className="block text-sm font-semibold text-slate-900">{t('admin_go_live_now')}</span>
+                    <span className="block text-xs text-slate-500">{t('admin_go_live_now_desc')}</span>
                   </span>
                 </label>
               </div>
@@ -638,30 +644,30 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
                 </div>
                 {form.inbound_email.trim() && (
                   <div className="px-4 py-2 flex gap-2 text-xs">
-                    <span className="text-slate-400 w-28 flex-shrink-0">Inbound email</span>
+                    <span className="text-slate-400 w-28 flex-shrink-0">{t('admin_inbound_email_col')}</span>
                     <span className="text-slate-700 font-mono truncate">{form.inbound_email.trim()}</span>
                   </div>
                 )}
                 <div className="px-4 py-2 flex gap-2 text-xs">
-                  <span className="text-slate-400 w-28 flex-shrink-0">Modules</span>
+                  <span className="text-slate-400 w-28 flex-shrink-0">{t('admin_modules_col')}</span>
                   <span className="text-slate-700">{form.enabled_modules.map(moduleLabel).join(', ') || '—'}</span>
                 </div>
                 {form.logo_url.trim() && (
                   <div className="px-4 py-2 flex gap-2 text-xs items-center">
-                    <span className="text-slate-400 w-28 flex-shrink-0">Logo</span>
+                    <span className="text-slate-400 w-28 flex-shrink-0">{t('admin_logo_col')}</span>
                     <img src={form.logo_url.trim()} alt="" className="h-5 object-contain" onError={e => (e.currentTarget.style.display = 'none')} />
                   </div>
                 )}
                 <div className="px-4 py-2 flex gap-2 text-xs">
-                  <span className="text-slate-400 w-28 flex-shrink-0">Admin</span>
+                  <span className="text-slate-400 w-28 flex-shrink-0">{t('admin_admin_col')}</span>
                   <span className="text-slate-700">
                     {form.admin_full_name.trim() || 'Admin'} &lt;{form.admin_email.trim()}&gt;
-                    {form.admin_password.trim() ? ' · password set' : ' · invite email'}
+                    {form.admin_password.trim() ? t('admin_password_set_col') : t('admin_invite_email_col')}
                   </span>
                 </div>
                 {form.extra_admin_emails.length > 0 && (
                   <div className="px-4 py-2 flex gap-2 text-xs">
-                    <span className="text-slate-400 w-28 flex-shrink-0">+ Admins</span>
+                    <span className="text-slate-400 w-28 flex-shrink-0">{t('admin_extra_admins_col')}</span>
                     <span className="text-slate-700">{form.extra_admin_emails.join(', ')}</span>
                   </div>
                 )}
@@ -673,11 +679,11 @@ function CreateClientModal({ onClose }: { onClose: () => void }) {
 
           <div className="flex gap-3 justify-end pt-2">
             {step > 0 && (
-              <button type="button" onClick={() => { setError(''); setStep(step - 1) }} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors mr-auto">Back</button>
+              <button type="button" onClick={() => { setError(''); setStep(step - 1) }} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors mr-auto">{t('admin_back_btn')}</button>
             )}
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{t('admin_cancel')}</button>
             <button type="submit" disabled={mutation.isPending || (step === 0 && !!slugError)} className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed">
-              {step < WIZARD_STEPS.length - 1 ? 'Next' : mutation.isPending ? 'Creating…' : 'Create client'}
+              {step < WIZARD_STEPS.length - 1 ? t('admin_next_btn') : mutation.isPending ? t('admin_creating') : t('admin_create_client_btn')}
             </button>
           </div>
         </form>
@@ -713,6 +719,7 @@ function EditClientModal({
   isOwnTenant?: boolean
   defaultTab?: EditTab
 }) {
+  const t = useT()
   const qc = useQueryClient()
   const { user } = useAuth()
   const isRootOwner = user?.is_root_owner ?? false
@@ -748,7 +755,7 @@ function EditClientModal({
     mutationFn: (patch: Record<string, unknown>) =>
       api.patch(`/admin/tenants/${tenant.id}`, patch).then((r: any) => r.data),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
-    onError: () => setError('Failed to save changes'),
+    onError: () => setError(t('admin_failed_save')),
   })
 
   const { data: usersData, isLoading: usersLoading } = useQuery<TenantUser[]>({
@@ -818,13 +825,13 @@ function EditClientModal({
   }
 
   const TABS: { key: EditTab; label: string }[] = [
-    { key: 'info', label: 'Info' },
-    { key: 'modules', label: 'Modules' },
-    { key: 'branding', label: 'Branding' },
-    { key: 'whatsapp', label: 'WhatsApp' },
-    { key: 'users', label: 'Users' },
-    { key: 'actions', label: 'Actions' },
-    { key: 'developer_tools', label: 'Developer tools' },
+    { key: 'info', label: t('admin_tab_info') },
+    { key: 'modules', label: t('admin_tab_modules') },
+    { key: 'branding', label: t('admin_tab_branding') },
+    { key: 'whatsapp', label: t('admin_tab_whatsapp') },
+    { key: 'users', label: t('admin_tab_users') },
+    { key: 'actions', label: t('admin_tab_actions') },
+    { key: 'developer_tools', label: t('admin_tab_developer_tools') },
   ]
 
   return (
@@ -832,7 +839,7 @@ function EditClientModal({
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Edit client</h2>
+            <h2 className="text-lg font-bold text-slate-900">{t('admin_edit_client_title')}</h2>
             <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
           </div>
           <CloseButton onClick={onClose} />
@@ -856,7 +863,7 @@ function EditClientModal({
           {tab === 'info' && (
             <>
               <div>
-                <label className={labelCls}>Company name</label>
+                <label className={labelCls}>{t('admin_company_name_field')}</label>
                 <input
                   className={inputCls}
                   value={form.name}
@@ -866,7 +873,7 @@ function EditClientModal({
                 />
               </div>
               <div>
-                <label className={labelCls}>Inbound email</label>
+                <label className={labelCls}>{t('admin_inbound_email_field')}</label>
                 <div className="flex gap-2">
                   <input
                     className={inputCls}
@@ -878,21 +885,21 @@ function EditClientModal({
                   {tenant.inbound_email && (
                     <button type="button" onClick={onCopyEmail}
                       className="px-3 py-2 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors shrink-0"
-                      title="Copy inbound email"
+                      title={t('admin_copy_inbound')}
                     >
                       {copied ? <Check size={13} className="text-emerald-500" /> : <Clipboard size={13} />}
                     </button>
                   )}
                 </div>
-                <p className="mt-1 text-xs text-slate-400">Address Resend routes to this client. Leave empty to disable inbound routing.</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_inbound_email_field_hint')}</p>
               </div>
               <div>
-                <label className={labelCls}>Slug</label>
+                <label className={labelCls}>{t('admin_slug_field')}</label>
                 <input className={`${inputCls} opacity-50 cursor-not-allowed`} value={tenant.slug} disabled />
-                <p className="mt-1 text-xs text-slate-400">Slug cannot be changed after creation.</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_slug_cannot_change')}</p>
               </div>
               <div>
-                <label className={labelCls}>Plan</label>
+                <label className={labelCls}>{t('admin_plan_field')}</label>
                 <select
                   className={inputCls}
                   value={form.plan}
@@ -902,11 +909,11 @@ function EditClientModal({
                     <option key={p} value={p}>{planLabel(p)}</option>
                   ))}
                 </select>
-                <p className="mt-1 text-xs text-slate-400">Higher tiers unlock advanced features (chat, calendar, pipeline, email tracking, AI).</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_plan_hint')}</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>KvK-nummer</label>
+                  <label className={labelCls}>{t('admin_kvk_label')}</label>
                   <input
                     className={inputCls}
                     value={form.kvk_nummer}
@@ -915,7 +922,7 @@ function EditClientModal({
                   />
                 </div>
                 <div>
-                  <label className={labelCls}>Btw-nummer</label>
+                  <label className={labelCls}>{t('admin_btw_label')}</label>
                   <input
                     className={inputCls}
                     value={form.btw_nummer}
@@ -924,22 +931,22 @@ function EditClientModal({
                   />
                 </div>
               </div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mt-1">Factuuradres (verschijnt op PDF)</p>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mt-1">{t('admin_invoice_address')}</p>
               <div>
-                <label className={labelCls}>Straat + huisnummer</label>
+                <label className={labelCls}>{t('admin_street_label')}</label>
                 <input className={inputCls} value={form.street_address}
                   onChange={e => setForm(p => ({ ...p, street_address: e.target.value }))}
                   placeholder="Keizersgracht 123" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Postcode</label>
+                  <label className={labelCls}>{t('admin_postal_label')}</label>
                   <input className={inputCls} value={form.postal_code}
                     onChange={e => setForm(p => ({ ...p, postal_code: e.target.value }))}
                     placeholder="1234 AB" />
                 </div>
                 <div>
-                  <label className={labelCls}>Stad</label>
+                  <label className={labelCls}>{t('admin_city_label')}</label>
                   <input className={inputCls} value={form.city}
                     onChange={e => setForm(p => ({ ...p, city: e.target.value }))}
                     placeholder="Amsterdam" />
@@ -947,28 +954,28 @@ function EditClientModal({
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={labelCls}>Land</label>
+                  <label className={labelCls}>{t('admin_country_label')}</label>
                   <input className={inputCls} value={form.country}
                     onChange={e => setForm(p => ({ ...p, country: e.target.value }))}
                     placeholder="Nederland" />
                 </div>
                 <div>
-                  <label className={labelCls}>Telefoonnummer</label>
+                  <label className={labelCls}>{t('admin_phone_label')}</label>
                   <input className={inputCls} value={form.phone}
                     onChange={e => setForm(p => ({ ...p, phone: e.target.value }))}
                     placeholder="+31 20 123 4567" />
                 </div>
               </div>
               <div>
-                <label className={labelCls}>IBAN</label>
+                <label className={labelCls}>{t('admin_iban_label')}</label>
                 <input className={inputCls} value={form.iban}
                   onChange={e => setForm(p => ({ ...p, iban: e.target.value }))}
                   placeholder="NL12 BANK 0123 4567 89" />
-                <p className="mt-1 text-xs text-slate-400">Wordt afgedrukt op factuur-PDF's als betaalinstructie.</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_iban_hint')}</p>
               </div>
               {tenant.is_demo && (
                 <div>
-                  <label className={labelCls}>Demo days remaining</label>
+                  <label className={labelCls}>{t('admin_demo_days_label')}</label>
                   <input
                     type="number"
                     min={1}
@@ -981,9 +988,9 @@ function EditClientModal({
                     }))}
                   />
                   <p className="mt-1 text-xs text-slate-400">
-                    Extends or shortens this demo from today.
+                    {t('admin_demo_days_hint')}
                     {tenant.demo_expires_at && (
-                      <> Current expiry: {new Date(tenant.demo_expires_at).toLocaleDateString()}.</>
+                      <> {t('admin_current_expiry')} {new Date(tenant.demo_expires_at).toLocaleDateString()}.</>
                     )}
                   </p>
                 </div>
@@ -996,10 +1003,9 @@ function EditClientModal({
                   className="mt-0.5"
                 />
                 <span>
-                  <span className="block text-sm font-semibold text-slate-800">Auto-run inbox AI</span>
+                  <span className="block text-sm font-semibold text-slate-800">{t('admin_ai_auto_scan_label')}</span>
                   <span className="block text-xs text-slate-400 mt-0.5">
-                    When on, AI scans &amp; briefs every incoming thread automatically. When off (default),
-                    agents click Generate per draft. Requires the AI module.
+                    {t('admin_ai_auto_scan_hint')}
                   </span>
                 </span>
               </label>
@@ -1031,7 +1037,7 @@ function EditClientModal({
           {tab === 'branding' && (
             <>
               <div>
-                <label className={labelCls}>Brand color</label>
+                <label className={labelCls}>{t('admin_brand_color_label')}</label>
                 <div className="flex items-center gap-3">
                   <input
                     type="color"
@@ -1045,19 +1051,19 @@ function EditClientModal({
                     onClick={() => setForm(p => ({ ...p, primary_color: '#5BA4F5' }))}
                     className="text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 px-2.5 py-1 rounded-lg transition-colors"
                   >
-                    Reset to default
+                    {t('admin_reset_to_default')}
                   </button>
                 </div>
               </div>
               <div>
-                <label className={labelCls}>Logo URL</label>
+                <label className={labelCls}>{t('admin_logo_url_label')}</label>
                 <input
                   className={inputCls}
                   value={form.logo_url}
                   onChange={e => setForm(p => ({ ...p, logo_url: e.target.value }))}
                   placeholder="https://company.nl/logo.png"
                 />
-                <p className="mt-1 text-xs text-slate-400">Shown in the client's sidebar. Leave empty for the default Yippie logo.</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_logo_hint')}</p>
               </div>
               {(form.logo_url || form.primary_color !== tenant.primary_color) && (
                 <div className="flex items-center gap-3 bg-slate-50 rounded-xl p-3">
@@ -1080,21 +1086,21 @@ function EditClientModal({
           {tab === 'whatsapp' && (
             <>
               <p className="text-xs text-slate-400 -mt-1 mb-1">
-                Meta Cloud API credentials for this client's WhatsApp Business account.
-                Webhook URL to register in Meta: <span className="font-mono">https://app.getyippie.com/api/v1/chat/webhooks/{tenant.slug}/whatsapp</span>
+                {t('admin_wa_credentials_desc')}
+                {' '}Webhook URL to register in Meta: <span className="font-mono">https://app.getyippie.com/api/v1/chat/webhooks/{tenant.slug}/whatsapp</span>
               </p>
               <div>
-                <label className={labelCls}>Phone Number ID</label>
+                <label className={labelCls}>{t('admin_wa_phone_id_label')}</label>
                 <input
                   className={inputCls}
                   value={form.whatsapp_phone_number_id}
                   onChange={e => setForm(p => ({ ...p, whatsapp_phone_number_id: e.target.value }))}
                   placeholder="123456789012345"
                 />
-                <p className="mt-1 text-xs text-slate-400">From Meta Developer Console → WhatsApp → API Setup.</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_wa_phone_id_hint')}</p>
               </div>
               <div>
-                <label className={labelCls}>Access Token</label>
+                <label className={labelCls}>{t('admin_wa_access_token_label')}</label>
                 <input
                   className={inputCls}
                   type="password"
@@ -1102,17 +1108,17 @@ function EditClientModal({
                   onChange={e => setForm(p => ({ ...p, whatsapp_access_token: e.target.value }))}
                   placeholder="EAAxxxxx…"
                 />
-                <p className="mt-1 text-xs text-slate-400">Permanent system user token from Meta Business Manager.</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_wa_access_token_hint')}</p>
               </div>
               <div>
-                <label className={labelCls}>Verify Token</label>
+                <label className={labelCls}>{t('admin_wa_verify_token_label')}</label>
                 <input
                   className={inputCls}
                   value={form.whatsapp_verify_token}
                   onChange={e => setForm(p => ({ ...p, whatsapp_verify_token: e.target.value }))}
                   placeholder="any-secret-string-you-choose"
                 />
-                <p className="mt-1 text-xs text-slate-400">Any string you set when configuring the webhook in Meta.</p>
+                <p className="mt-1 text-xs text-slate-400">{t('admin_wa_verify_token_hint')}</p>
               </div>
             </>
           )}
@@ -1120,18 +1126,18 @@ function EditClientModal({
           {tab === 'users' && (
             <>
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Team members</span>
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('admin_team_members')}</span>
                 <button
                   type="button"
                   onClick={() => setShowAddAdmin(true)}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
                 >
                   <UserPlus size={12} />
-                  Add admin
+                  {t('admin_add_admin_btn')}
                 </button>
               </div>
-              {usersLoading && <p className="text-sm text-slate-400">Loading…</p>}
-              {usersData && usersData.length === 0 && <p className="text-sm text-slate-400">No users yet.</p>}
+              {usersLoading && <p className="text-sm text-slate-400">{t('admin_users_loading')}</p>}
+              {usersData && usersData.length === 0 && <p className="text-sm text-slate-400">{t('admin_no_users')}</p>}
               {usersData && usersData.length > 0 && (
                 <div className="max-h-60 overflow-y-auto rounded-xl border border-slate-200 divide-y divide-slate-100">
                   {usersData.map((u: any) => (
@@ -1146,7 +1152,7 @@ function EditClientModal({
                         onClick={() => toggleUserMutation.mutate({ userId: u.id, is_active: !u.is_active })}
                         disabled={toggleUserMutation.isPending || u.role === 'superadmin'}
                         className="text-slate-400 hover:text-slate-600 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
-                        title={u.role === 'superadmin' ? 'Superadmins cannot be deactivated' : u.is_active ? 'Deactivate' : 'Activate'}
+                        title={u.role === 'superadmin' ? t('admin_superadmin_no_deactivate') : u.is_active ? t('admin_deactivate_user') : t('admin_activate_user')}
                       >
                         {u.is_active
                           ? <ToggleRight size={16} className="text-emerald-500" />
@@ -1164,15 +1170,15 @@ function EditClientModal({
               {isOwnTenant ? (
                 <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl p-4">
                   <Lock size={14} className="text-slate-400 shrink-0" />
-                  <p className="text-sm text-slate-500">This is your own environment. It cannot be deactivated, set to demo, or deleted.</p>
+                  <p className="text-sm text-slate-500">{t('admin_own_env_locked')}</p>
                 </div>
               ) : (
                 <>
                   {tenant.is_demo && (
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-sm font-semibold text-emerald-700">Go live</p>
-                        <p className="text-xs text-slate-400">Ends demo mode and enables real email sending.</p>
+                        <p className="text-sm font-semibold text-emerald-700">{t('admin_go_live_label')}</p>
+                        <p className="text-xs text-slate-400">{t('admin_go_live_desc')}</p>
                       </div>
                       <button
                         onClick={() => { onGoLive?.(); onClose() }}
@@ -1180,14 +1186,14 @@ function EditClientModal({
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-emerald-600 border border-emerald-200 rounded-lg hover:bg-emerald-50 transition-colors disabled:opacity-50"
                       >
                         <Rocket size={13} />
-                        Go live
+                        {t('admin_go_live_btn')}
                       </button>
                     </div>
                   )}
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-slate-700">{tenant.is_active ? 'Active' : 'Inactive'}</p>
-                      <p className="text-xs text-slate-400">{tenant.is_active ? 'Users can log in and send mail.' : 'Login is blocked for this client.'}</p>
+                      <p className="text-sm font-semibold text-slate-700">{tenant.is_active ? t('admin_active_label') : t('admin_inactive_label')}</p>
+                      <p className="text-xs text-slate-400">{tenant.is_active ? t('admin_active_desc') : t('admin_inactive_desc')}</p>
                     </div>
                     <button
                       onClick={() => { onToggleActive(); onClose() }}
@@ -1195,23 +1201,23 @@ function EditClientModal({
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-50"
                     >
                       {tenant.is_active
-                        ? <><ToggleRight size={14} className="text-emerald-500" /> Deactivate</>
-                        : <><ToggleLeft size={14} className="text-slate-400" /> Activate</>}
+                        ? <><ToggleRight size={14} className="text-emerald-500" /> {t('admin_deactivate_user')}</>
+                        : <><ToggleLeft size={14} className="text-slate-400" /> {t('admin_activate_user')}</>}
                     </button>
                   </div>
 
                   {isRootOwner && (
                     <div className="flex items-center justify-between border-t border-slate-100 pt-4">
                       <div>
-                        <p className="text-sm font-semibold text-red-600">Delete client</p>
-                        <p className="text-xs text-slate-400">Removes this client and all its data. Irreversible.</p>
+                        <p className="text-sm font-semibold text-red-600">{t('admin_delete_client_label')}</p>
+                        <p className="text-xs text-slate-400">{t('admin_delete_client_desc')}</p>
                       </div>
                       <button
                         onClick={onRequestDelete}
                         className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
                       >
                         <Trash2 size={13} />
-                        Delete
+                        {t('admin_delete_btn')}
                       </button>
                     </div>
                   )}
@@ -1230,40 +1236,40 @@ function EditClientModal({
                   className="mt-0.5"
                 />
                 <span>
-                  <span className="block text-sm font-semibold text-slate-800">Save submitted contacts</span>
+                  <span className="block text-sm font-semibold text-slate-800">{t('admin_save_contacts_label')}</span>
                   <span className="block text-xs text-slate-400 mt-0.5">
-                    When on, visitors who submit the lead form are saved as contacts in this client's account.
+                    {t('admin_save_contacts_hint')}
                   </span>
                 </span>
               </label>
 
               {form.lead_widget_save_contact && (
                 <div>
-                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Pipeline stage</label>
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('admin_pipeline_stage_label')}</label>
                   <select
                     className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-200"
                     value={form.lead_widget_stage_id ?? ''}
                     onChange={e => setForm(p => ({ ...p, lead_widget_stage_id: e.target.value || null }))}
                   >
-                    <option value="">None: don't add to pipeline</option>
+                    <option value="">{t('admin_pipeline_none')}</option>
                     {(pipelineStages ?? []).map((s: any) => (
                       <option key={s.id} value={s.id}>{s.name}</option>
                     ))}
                   </select>
-                  <p className="mt-1 text-xs text-slate-400">Submitted contacts will be placed in this stage automatically.</p>
+                  <p className="mt-1 text-xs text-slate-400">{t('admin_pipeline_stage_hint')}</p>
                 </div>
               )}
 
               <div>
-                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Lead capture widget</label>
-                <p className="text-xs text-slate-400 mb-2">Paste this snippet anywhere on the client's website to add a "Get in touch" button.</p>
+                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('admin_lead_widget_label')}</label>
+                <p className="text-xs text-slate-400 mb-2">{t('admin_lead_widget_hint')}</p>
                 <div className="flex items-start gap-2">
                   <pre className="flex-1 text-xs bg-slate-50 border border-slate-200 rounded-lg p-3 overflow-x-auto whitespace-pre-wrap break-all font-mono text-slate-700">{`<script src="https://app.getyippie.com/lead-widget.js" data-tenant="${tenant.slug}"></script>`}</pre>
                   <button
                     type="button"
                     onClick={() => copyEmbed(`<script src="https://app.getyippie.com/lead-widget.js" data-tenant="${tenant.slug}"></script>`)}
                     className="shrink-0 px-3 py-2 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                    title="Copy embed code"
+                    title={t('admin_copy_embed')}
                   >
                     {embedCopied ? <Check size={13} className="text-emerald-500" /> : <Clipboard size={13} />}
                   </button>
@@ -1280,7 +1286,7 @@ function EditClientModal({
               onClick={onClose}
               className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              {tab === 'actions' || tab === 'users' ? 'Close' : 'Cancel'}
+              {tab === 'actions' || tab === 'users' ? t('admin_close') : t('admin_cancel')}
             </button>
             {tab !== 'actions' && tab !== 'users' && (
               <button
@@ -1288,7 +1294,7 @@ function EditClientModal({
                 disabled={mutation.isPending}
                 className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
               >
-                {mutation.isPending ? 'Saving…' : 'Save changes'}
+                {mutation.isPending ? t('admin_saving') : t('admin_save_changes')}
               </button>
             )}
           </div>
@@ -1300,6 +1306,7 @@ function EditClientModal({
 }
 
 function DeleteClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -1309,13 +1316,13 @@ function DeleteClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () =>
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
     onError: (err: any) => {
       const detail = err.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Failed to delete client')
+      setError(typeof detail === 'string' ? detail : t('admin_failed_delete_client'))
     },
   })
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!password.trim()) { setError('Password required'); return }
+    if (!password.trim()) { setError(t('admin_password_required')); return }
     setError('')
     mutation.mutate()
   }
@@ -1325,7 +1332,7 @@ function DeleteClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () =>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-bold text-red-600">Delete client</h2>
+            <h2 className="text-lg font-bold text-red-600">{t('admin_delete_client_title')}</h2>
             <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
           </div>
           <CloseButton onClick={onClose} />
@@ -1333,18 +1340,18 @@ function DeleteClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () =>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="bg-red-50 border border-red-200 rounded-xl p-3">
             <p className="text-sm text-red-700">
-              This permanently wipes <strong>{tenant.name}</strong>. All users, contacts, tickets, messages and invoices will be deleted. <strong>This cannot be undone.</strong>
+              {t('admin_delete_client_body').replace('{name}', tenant.name)}
             </p>
           </div>
           <div>
-            <label className={labelCls}>Your password</label>
-            <input className={inputCls} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Confirm with your password" autoFocus />
+            <label className={labelCls}>{t('admin_your_password')}</label>
+            <input className={inputCls} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t('admin_confirm_password_ph')} autoFocus />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 justify-end pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{t('admin_cancel')}</button>
             <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
-              {mutation.isPending ? 'Deleting…' : 'Delete forever'}
+              {mutation.isPending ? t('admin_deleting') : t('admin_delete_forever')}
             </button>
           </div>
         </form>
@@ -1354,11 +1361,12 @@ function DeleteClientModal({ tenant, onClose }: { tenant: Tenant; onClose: () =>
 }
 
 function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const [form, setForm] = useState({ email: '', password: '', full_name: 'Admin' })
   const [error, setError] = useState('')
   const [invited, setInvited] = useState<string | null>(null)
-  const emailError = useEmailCheckError(form.email)
+  const emailError = useEmailCheckError(form.email, t)
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -1375,13 +1383,13 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
     },
     onError: (err: any) => {
       const detail = err.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Failed to add admin')
+      setError(typeof detail === 'string' ? detail : t('admin_failed_add_admin'))
     },
   })
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!EMAIL_RE.test(form.email.trim())) { setError('A valid email is required'); return }
+    if (!EMAIL_RE.test(form.email.trim())) { setError(t('admin_valid_email_required')); return }
     if (emailError) { setError(emailError); return }
     setError('')
     mutation.mutate()
@@ -1392,7 +1400,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Add admin</h2>
+            <h2 className="text-lg font-bold text-slate-900">{t('admin_add_admin_title')}</h2>
             <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
           </div>
           <CloseButton onClick={onClose} />
@@ -1400,33 +1408,33 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
         {invited ? (
           <div className="p-6 flex flex-col gap-4">
             <p className="text-sm text-emerald-600 font-medium">
-              ✓ Invite sent to <strong>{invited}</strong>. They appear in the list once they set their password.
+              {t('admin_admin_invite_sent').replace('{email}', invited)}
             </p>
             <div className="flex justify-end">
-              <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">Done</button>
+              <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">{t('admin_done')}</button>
             </div>
           </div>
         ) : (
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div>
-            <label className={labelCls}>Full name</label>
+            <label className={labelCls}>{t('admin_full_name_label')}</label>
             <input className={inputCls} value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Admin" />
           </div>
           <div>
-            <label className={labelCls}>Email *</label>
+            <label className={labelCls}>{t('admin_email_label')}</label>
             <input className={inputCls} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="admin@company.nl" autoFocus />
             {emailError && <p className="mt-1 text-xs text-red-500">{emailError}</p>}
           </div>
           <div>
-            <label className={labelCls}>Password</label>
+            <label className={labelCls}>{t('admin_admin_password_field')}</label>
             <input className={inputCls} type="password" value={form.password} onChange={e => setForm(p => ({ ...p, password: e.target.value }))} placeholder="••••••••" />
-            <p className="mt-1 text-xs text-slate-400">Leave empty to email an invite link. The admin sets their own password.</p>
+            <p className="mt-1 text-xs text-slate-400">{t('admin_admin_password_hint')}</p>
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 justify-end pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{t('admin_cancel')}</button>
             <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed">
-              {mutation.isPending ? 'Adding…' : form.password.trim() ? 'Add admin' : 'Send invite'}
+              {mutation.isPending ? t('admin_adding') : form.password.trim() ? t('admin_add_admin_submit') : t('admin_send_invite')}
             </button>
           </div>
         </form>
@@ -1437,6 +1445,7 @@ function AddAdminModal({ tenant, onClose }: { tenant: Tenant; onClose: () => voi
 }
 
 function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -1444,7 +1453,7 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
   const mutation = useMutation({
     mutationFn: async () => {
       const results = await Promise.allSettled(
-        tenants.map(t => api.post(`/admin/tenants/${t.id}/delete`, { current_password: password }))
+        tenants.map(tenant => api.post(`/admin/tenants/${tenant.id}/delete`, { current_password: password }))
       )
       const failures = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
       if (failures.length > 0) {
@@ -1457,13 +1466,13 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
     onError: (err: any) => {
-      setError(err.message ?? 'Failed to delete. Check your password.')
+      setError(err.message ?? t('admin_failed_delete'))
     },
   })
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!password.trim()) { setError('Password required'); return }
+    if (!password.trim()) { setError(t('admin_password_required')); return }
     setError('')
     mutation.mutate()
   }
@@ -1473,26 +1482,32 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-bold text-red-600">Delete {tenants.length} client{tenants.length !== 1 ? 's' : ''}</h2>
-            <p className="text-sm text-slate-400 mt-0.5">This cannot be undone</p>
+            <h2 className="text-lg font-bold text-red-600">
+              {tenants.length !== 1
+                ? t('admin_bulk_delete_title_pl').replace('{n}', String(tenants.length))
+                : t('admin_bulk_delete_title').replace('{n}', String(tenants.length))}
+            </h2>
+            <p className="text-sm text-slate-400 mt-0.5">{t('admin_bulk_cannot_undo')}</p>
           </div>
           <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="bg-red-50 border border-red-200 rounded-xl p-3 max-h-32 overflow-y-auto">
-            {tenants.map(t => (
-              <p key={t.id} className="text-sm text-red-700"><strong>{t.name}</strong>: all users, contacts and data will be wiped.</p>
+            {tenants.map(tenant => (
+              <p key={tenant.id} className="text-sm text-red-700">
+                {t('admin_bulk_wipe_desc').replace('{name}', tenant.name)}
+              </p>
             ))}
           </div>
           <div>
-            <label className={labelCls}>Your password</label>
-            <input className={inputCls} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Confirm with your password" autoFocus />
+            <label className={labelCls}>{t('admin_your_password')}</label>
+            <input className={inputCls} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t('admin_confirm_password_ph')} autoFocus />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 justify-end pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{t('admin_cancel')}</button>
             <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
-              {mutation.isPending ? 'Deleting…' : 'Delete forever'}
+              {mutation.isPending ? t('admin_deleting') : t('admin_delete_forever')}
             </button>
           </div>
         </form>
@@ -1503,6 +1518,7 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
 
 
 function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const t = useT()
   const { data, isLoading } = useQuery<TenantUser[]>({
     queryKey: ['tenant-users', tenant.id],
     queryFn: () => api.get(`/admin/tenants/${tenant.id}/users`).then((r: any) => r.data),
@@ -1513,7 +1529,7 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
     const d = new Date(val)
     const diff = Date.now() - d.getTime()
     const mins = Math.floor(diff / 60_000)
-    if (mins < 2) return 'Just now'
+    if (mins < 2) return t('admin_users_just_now')
     if (mins < 60) return `${mins}m ago`
     const hrs = Math.floor(mins / 60)
     if (hrs < 24) return `${hrs}h ago`
@@ -1527,23 +1543,23 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div>
-            <h2 className="text-lg font-bold text-slate-900">Users</h2>
+            <h2 className="text-lg font-bold text-slate-900">{t('admin_users_modal_title')}</h2>
             <p className="text-sm text-slate-400 mt-0.5">{tenant.name}</p>
           </div>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6">
-          {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+          {isLoading && <p className="text-sm text-slate-400">{t('admin_loading')}</p>}
           {!isLoading && (!data || data.length === 0) && (
-            <p className="text-sm text-slate-400">No users yet.</p>
+            <p className="text-sm text-slate-400">{t('admin_users_no_users')}</p>
           )}
           {data && data.length > 0 && (
             <div className="rounded-xl border border-slate-200 divide-y divide-slate-100 overflow-hidden">
               <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 px-4 py-2 bg-slate-50 text-[10px] font-semibold uppercase tracking-wide text-slate-400">
-                <span>Name / Email</span>
-                <span>Role</span>
-                <span>Last active</span>
-                <span>Status</span>
+                <span>{t('admin_users_col_name_email')}</span>
+                <span>{t('admin_users_col_role')}</span>
+                <span>{t('admin_users_col_last_active')}</span>
+                <span>{t('admin_col_status')}</span>
               </div>
               {data.map((u: any) => (
                 <div key={u.id} className={`grid grid-cols-[1fr_auto_auto_auto] gap-x-4 items-center px-4 py-3 ${!u.is_active ? 'opacity-50' : ''}`}>
@@ -1554,7 +1570,7 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
                   <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${ROLE_STYLES[u.role] ?? ROLE_STYLES.viewer}`}>{u.role}</span>
                   <span className="text-xs text-slate-400 tabular-nums shrink-0">{fmtLastActive(u.last_login_at)}</span>
                   <span className={`px-2 py-0.5 rounded-full text-xs font-semibold shrink-0 ${u.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                    {u.is_active ? 'Active' : 'Inactive'}
+                    {u.is_active ? t('admin_status_active') : t('admin_status_inactive')}
                   </span>
                 </div>
               ))}
@@ -1562,7 +1578,7 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
           )}
           <div className="flex justify-end mt-4">
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-              Close
+              {t('admin_close')}
             </button>
           </div>
         </div>
@@ -1572,6 +1588,7 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
 }
 
 function EvolutionDiagnosticPanel() {
+  const t = useT()
   const [result, setResult] = useState<any>(null)
   const [sendResult, setSendResult] = useState<any>(null)
   const { copy: copyJson, copied } = useCopy({ useToast: false })
@@ -1605,14 +1622,14 @@ function EvolutionDiagnosticPanel() {
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="flex items-center gap-2 px-4 py-2.5">
         <FlaskConical size={14} className="text-slate-400 shrink-0" />
-        <span className="text-sm font-semibold text-slate-700 flex-1">Evolution API diagnostics</span>
+        <span className="text-sm font-semibold text-slate-700 flex-1">{t('admin_evolution_diag')}</span>
         {combined && (
           <button
             onClick={copyAll}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
           >
             {copied ? <Check size={12} className="text-emerald-500" /> : <Clipboard size={12} />}
-            {copied ? 'Copied' : 'Copy all'}
+            {copied ? t('admin_copied') : t('admin_copy_all')}
           </button>
         )}
         <button
@@ -1620,12 +1637,12 @@ function EvolutionDiagnosticPanel() {
           disabled={mutation.isPending}
           className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-semibold rounded-lg transition-colors"
         >
-          {mutation.isPending ? 'Checking…' : 'Run check'}
+          {mutation.isPending ? t('admin_checking') : t('admin_run_check')}
         </button>
       </div>
       {/* Test send row */}
       <div className="flex items-center gap-2 px-4 py-2 border-t border-slate-100">
-        <span className="text-xs text-slate-500 shrink-0">Test send to:</span>
+        <span className="text-xs text-slate-500 shrink-0">{t('admin_test_send_to')}</span>
         <input
           value={testNumber}
           onChange={e => setTestNumber(e.target.value)}
@@ -1637,7 +1654,7 @@ function EvolutionDiagnosticPanel() {
           disabled={sendMutation.isPending || !testNumber.trim()}
           className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white text-xs font-semibold rounded-lg transition-colors"
         >
-          {sendMutation.isPending ? 'Sending…' : 'Send test'}
+          {sendMutation.isPending ? t('admin_sending_test') : t('admin_send_test')}
         </button>
       </div>
       {(result || sendResult) && (
@@ -1657,6 +1674,7 @@ function EvolutionDiagnosticPanel() {
 }
 
 function ResendDiagnosticPanel() {
+  const t = useT()
   const [result, setResult] = useState<any>(null)
   const { copy: copyJson, copied } = useCopy({ useToast: false })
 
@@ -1673,14 +1691,14 @@ function ResendDiagnosticPanel() {
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
       <div className="flex items-center gap-2 px-4 py-2.5">
         <FlaskConical size={14} className="text-slate-400 shrink-0" />
-        <span className="text-sm font-semibold text-slate-700 flex-1">API diagnostics</span>
+        <span className="text-sm font-semibold text-slate-700 flex-1">{t('admin_resend_diag')}</span>
         {result && (
           <button
             onClick={copyAll}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
           >
             {copied ? <Check size={12} className="text-emerald-500" /> : <Clipboard size={12} />}
-            {copied ? 'Copied' : 'Copy all'}
+            {copied ? t('admin_copied') : t('admin_copy_all')}
           </button>
         )}
         <button
@@ -1688,7 +1706,7 @@ function ResendDiagnosticPanel() {
           disabled={mutation.isPending}
           className="px-3 py-1.5 bg-slate-700 hover:bg-slate-800 disabled:bg-slate-400 text-white text-xs font-semibold rounded-lg transition-colors"
         >
-          {mutation.isPending ? 'Checking…' : 'Run check'}
+          {mutation.isPending ? t('admin_checking') : t('admin_run_check')}
         </button>
       </div>
       {result && (
@@ -1734,15 +1752,12 @@ interface SuperAdminStats {
 
 type DateRange = '7d' | '30d' | 'all'
 
-const RANGE_TABS: { key: DateRange; label: string }[] = [
-  { key: '7d', label: '7 days' },
-  { key: '30d', label: '30 days' },
-  { key: 'all', label: 'All time' },
-]
+// RANGE_TABS labels are built inside DashboardTab using t() to avoid top-level hook calls
 
 function DnsRecordsModal({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const t = useT()
   const [copied, setCopied] = useState<string | null>(null)
-  const { copy: copyDns } = useCopy({ useToast: false, successMessage: 'Copied ✓' })
+  const { copy: copyDns } = useCopy({ useToast: false, successMessage: 'Copied' })
 
   function copyValue(key: string, value: string) {
     copyDns(value)
@@ -1760,14 +1775,14 @@ function DnsRecordsModal({ tenant, onClose }: { tenant: Tenant; onClose: () => v
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
           <div>
-            <h2 className="text-base font-bold text-slate-900">DNS Records: {tenant.resend_domain_name}</h2>
-            <p className="text-xs text-slate-400 mt-0.5">Add these records to your DNS provider, then click Verify.</p>
+            <h2 className="text-base font-bold text-slate-900">{t('admin_dns_title').replace('{domain}', tenant.resend_domain_name ?? '')}</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{t('admin_dns_desc')}</p>
           </div>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 flex flex-col gap-3">
           {records.length === 0 && (
-            <p className="text-sm text-slate-400">No records found.</p>
+            <p className="text-sm text-slate-400">{t('admin_dns_no_records')}</p>
           )}
           {records.map((rec, i) => {
             const copyKey = `${i}-name`
@@ -1779,35 +1794,35 @@ function DnsRecordsModal({ tenant, onClose }: { tenant: Tenant; onClose: () => v
                   <span className="px-2 py-0.5 bg-blue-50 text-blue-600 text-xs font-semibold rounded">{rec.type}</span>
                   {rec.status === 'verified' && (
                     <span className="px-2 py-0.5 bg-emerald-50 text-emerald-600 text-xs font-semibold rounded flex items-center gap-1">
-                      <ShieldCheck size={10} /> Verified
+                      <ShieldCheck size={10} /> {t('admin_dns_verified')}
                     </span>
                   )}
                 </div>
                 <div className="grid grid-cols-[80px_1fr_32px] items-center gap-2 text-xs">
-                  <span className="text-slate-400 font-medium">Name</span>
+                  <span className="text-slate-400 font-medium">{t('admin_dns_col_name')}</span>
                   <code className="bg-slate-50 px-2 py-1 rounded text-slate-700 font-mono truncate">{rec.name}</code>
                   <button
                     onClick={() => copyValue(copyKey, rec.name)}
                     className="text-slate-400 hover:text-blue-600 transition-colors"
-                    title="Copy name"
+                    title={t('admin_dns_copy_name')}
                   >
                     {copied === copyKey ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
                   </button>
                 </div>
                 <div className="grid grid-cols-[80px_1fr_32px] items-start gap-2 text-xs">
-                  <span className="text-slate-400 font-medium pt-1">Value</span>
+                  <span className="text-slate-400 font-medium pt-1">{t('admin_dns_col_value')}</span>
                   <code className="bg-slate-50 px-2 py-1 rounded text-slate-700 font-mono break-all">{rec.value}</code>
                   <button
                     onClick={() => copyValue(valueKey, rec.value)}
                     className="text-slate-400 hover:text-blue-600 transition-colors pt-1"
-                    title="Copy value"
+                    title={t('admin_dns_copy_value')}
                   >
                     {copied === valueKey ? <Check size={13} className="text-emerald-500" /> : <Copy size={13} />}
                   </button>
                 </div>
                 {rec.priority != null && (
                   <div className="grid grid-cols-[80px_1fr] gap-2 text-xs">
-                    <span className="text-slate-400 font-medium">Priority</span>
+                    <span className="text-slate-400 font-medium">{t('admin_dns_col_priority')}</span>
                     <span className="text-slate-600">{rec.priority}</span>
                   </div>
                 )}
@@ -1825,6 +1840,7 @@ function ProvisionDomainModal({ tenant, onClose, onSuccess }: {
   onClose: () => void
   onSuccess: (updated: Tenant) => void
 }) {
+  const t = useT()
   const [domain, setDomain] = useState(
     tenant.inbound_email ? tenant.inbound_email.split('@')[1] ?? '' : ''
   )
@@ -1833,7 +1849,7 @@ function ProvisionDomainModal({ tenant, onClose, onSuccess }: {
   const mutation = useMutation({
     mutationFn: () => api.post(`/admin/tenants/${tenant.id}/resend-domain`, { domain }).then((r: any) => r.data),
     onSuccess: (data: any) => onSuccess(data),
-    onError: (e: any) => setError(e?.response?.data?.detail ?? 'Failed to provision domain'),
+    onError: (e: any) => setError(e?.response?.data?.detail ?? t('admin_failed_provision')),
   })
 
   return (
@@ -1843,15 +1859,15 @@ function ProvisionDomainModal({ tenant, onClose, onSuccess }: {
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
-          <h2 className="text-base font-bold text-slate-900">Set up sending domain</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('admin_provision_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 flex flex-col gap-4">
           <p className="text-sm text-slate-500">
-            Register a custom domain in Resend so emails to this client's contacts come from their own domain (e.g. <span className="font-mono text-slate-700">support@acme.com</span>).
+            {t('admin_provision_desc')}
           </p>
           <div>
-            <label className="block text-xs font-semibold text-slate-600 mb-1.5">Domain name</label>
+            <label className="block text-xs font-semibold text-slate-600 mb-1.5">{t('admin_domain_name_label')}</label>
             <input
               value={domain}
               onChange={e => { setDomain(e.target.value); setError(null) }}
@@ -1863,14 +1879,14 @@ function ProvisionDomainModal({ tenant, onClose, onSuccess }: {
           {error && <p className="text-xs text-red-600">{error}</p>}
           <div className="flex justify-end gap-2 pt-1">
             <button onClick={onClose} className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50">
-              Cancel
+              {t('admin_cancel')}
             </button>
             <button
               onClick={() => mutation.mutate()}
               disabled={mutation.isPending || !domain.trim()}
               className="px-4 py-2 text-sm font-semibold text-white bg-yippie rounded-xl hover:opacity-90 disabled:opacity-50"
             >
-              {mutation.isPending ? 'Registering…' : 'Register domain'}
+              {mutation.isPending ? t('admin_registering') : t('admin_register_domain')}
             </button>
           </div>
         </div>
@@ -1907,8 +1923,15 @@ function StatCard({ icon, label, value, tone }: {
 }
 
 function DashboardTab({ tenants }: { tenants: Tenant[] }) {
+  const t = useT()
   const [range, setRange] = useState<DateRange>('7d')
   const [tenantFilter, setTenantFilter] = useState<string>('')
+
+  const RANGE_TABS: { key: DateRange; label: string }[] = [
+    { key: '7d', label: t('admin_range_7d') },
+    { key: '30d', label: t('admin_range_30d') },
+    { key: 'all', label: t('admin_range_all') },
+  ]
 
   const params: Record<string, string> = {}
   const start = rangeStart(range)
@@ -1946,35 +1969,35 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
           onChange={e => setTenantFilter(e.target.value)}
           className="px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-1 focus:ring-blue-300"
         >
-          <option value="">All tenants</option>
-          {tenants.map(t => (
-            <option key={t.id} value={t.id}>{t.name}</option>
+          <option value="">{t('admin_all_tenants')}</option>
+          {tenants.map(tenant => (
+            <option key={tenant.id} value={tenant.id}>{tenant.name}</option>
           ))}
         </select>
         {tenantFilter && (
           <button onClick={() => setTenantFilter('')} className="text-xs font-semibold text-slate-400 hover:text-slate-600">
-            Clear filter
+            {t('admin_clear_filter')}
           </button>
         )}
-        <span className="text-xs text-slate-300 ml-auto">Auto-refreshes every 60s</span>
+        <span className="text-xs text-slate-300 ml-auto">{t('admin_auto_refresh')}</span>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 md:grid-cols-6 gap-3">
-        <StatCard icon={<Building2 size={16} />} label="Total tenants" value={summary?.total_tenants ?? 0} />
-        <StatCard icon={<Check size={16} />} label="Active tenants" value={summary?.active_tenants ?? 0} />
-        <StatCard icon={<TicketIcon size={16} />} label="Open tickets" value={summary?.total_tickets_open ?? 0} />
-        <StatCard icon={<AlertTriangle size={16} />} label="Overdue tickets" value={summary?.total_tickets_overdue ?? 0} tone={summary && summary.total_tickets_overdue > 0 ? 'red' : 'default'} />
-        <StatCard icon={<Inbox size={16} />} label="Inbox pending" value={summary?.total_inbox_pending ?? 0} />
-        <StatCard icon={<Globe size={16} />} label={`SaaS events (${range})`} value={rows.reduce((s: any, r: any) => s + r.saas_events_period, 0)} />
+        <StatCard icon={<Building2 size={16} />} label={t('admin_stat_total_tenants')} value={summary?.total_tenants ?? 0} />
+        <StatCard icon={<Check size={16} />} label={t('admin_stat_active_tenants')} value={summary?.active_tenants ?? 0} />
+        <StatCard icon={<TicketIcon size={16} />} label={t('admin_stat_open_tickets')} value={summary?.total_tickets_open ?? 0} />
+        <StatCard icon={<AlertTriangle size={16} />} label={t('admin_stat_overdue_tickets')} value={summary?.total_tickets_overdue ?? 0} tone={summary && summary.total_tickets_overdue > 0 ? 'red' : 'default'} />
+        <StatCard icon={<Inbox size={16} />} label={t('admin_stat_inbox_pending')} value={summary?.total_inbox_pending ?? 0} />
+        <StatCard icon={<Globe size={16} />} label={t('admin_stat_saas_events').replace('{range}', range)} value={rows.reduce((s: any, row: any) => s + row.saas_events_period, 0)} />
       </div>
 
-      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-slate-400">{t('admin_loading')}</p>}
 
       {!isLoading && rows.length === 0 && (
         <div className="text-center py-12 bg-white rounded-xl border-2 border-dashed border-slate-200">
           <LayoutDashboard size={28} className="text-slate-300 mx-auto mb-2" />
-          <p className="text-sm text-slate-400 font-medium">No tenant activity to show.</p>
+          <p className="text-sm text-slate-400 font-medium">{t('admin_no_tenant_activity')}</p>
         </div>
       )}
 
@@ -1985,12 +2008,12 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Tenant</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Open</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Overdue</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Pending inbox</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">AI uses today</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">Contacts ({range === 'all' ? 'all' : range === '7d' ? '7d' : '30d'})</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">SaaS events ({range === 'all' ? 'all' : range})</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_open')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_overdue')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_inbox_pending')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_ai_today')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_contacts')} ({range === 'all' ? 'all' : range === '7d' ? '7d' : '30d'})</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_saas_events')} ({range === 'all' ? 'all' : range})</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -2035,6 +2058,7 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
 }
 
 export default function SuperAdminPage() {
+  const t = useT()
   const qc = useQueryClient()
   const config = useTenantConfig()
   const navigate = useNavigate()
@@ -2169,9 +2193,9 @@ export default function SuperAdminPage() {
 
   const FILTER_TABS: { key: FilterStatus; label: string }[] = [
     { key: 'all', label: 'All' },
-    { key: 'active', label: 'Active' },
-    { key: 'demo', label: 'Demo' },
-    { key: 'inactive', label: 'Inactive' },
+    { key: 'active', label: t('admin_filter_active') },
+    { key: 'demo', label: t('admin_filter_demo') },
+    { key: 'inactive', label: t('admin_filter_inactive') },
   ]
 
   return (
@@ -2179,10 +2203,10 @@ export default function SuperAdminPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="heading-xl text-slate-900">
-            {pageTab === 'dashboard' ? 'Activity dashboard' : 'Client environments'}
+            {pageTab === 'dashboard' ? t('admin_page_dashboard_title') : t('admin_page_clients_title')}
           </h1>
           <p className="text-sm text-slate-400 mt-0.5">
-            {pageTab === 'dashboard' ? 'Live activity across all tenants' : 'Manage all tenant environments'}
+            {pageTab === 'dashboard' ? t('admin_page_dashboard_desc') : t('admin_page_clients_desc')}
           </p>
         </div>
         {pageTab === 'clients' && (
@@ -2191,7 +2215,7 @@ export default function SuperAdminPage() {
             className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
             <Plus size={15} strokeWidth={2.5} />
-            New client
+            {t('admin_new_client_btn')}
           </button>
         )}
       </div>
@@ -2199,8 +2223,8 @@ export default function SuperAdminPage() {
       {/* Top-level tabs */}
       <div className="flex items-center gap-1 border-b border-slate-200 -mt-4">
         {([
-          { key: 'clients', label: 'Clients', icon: <Building2 size={14} /> },
-          { key: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={14} /> },
+          { key: 'clients', label: t('admin_tab_clients'), icon: <Building2 size={14} /> },
+          { key: 'dashboard', label: t('admin_tab_dashboard'), icon: <LayoutDashboard size={14} /> },
         ] as const).map(({ key, label, icon }) => (
           <button
             key={key}
@@ -2240,13 +2264,13 @@ export default function SuperAdminPage() {
         ))}
       </div>
 
-      {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+      {isLoading && <p className="text-sm text-slate-400">{t('admin_loading')}</p>}
 
       {!isLoading && visible.length === 0 && (
         <div className="text-center py-16 bg-white rounded-xl border-2 border-dashed border-slate-200">
           <Building2 size={32} className="text-slate-300 mx-auto mb-3" />
           <p className="text-sm text-slate-400 font-medium">
-            {filter === 'all' ? 'No clients yet. Create the first one.' : `No ${filter} clients.`}
+            {filter === 'all' ? t('admin_no_clients') : t('admin_no_clients_filter').replace('{filter}', filter)}
           </p>
         </div>
       )}
@@ -2256,28 +2280,28 @@ export default function SuperAdminPage() {
           {/* Bulk action bar */}
           {someSelected && (
             <div className="flex items-center gap-3 px-4 py-2.5 bg-blue-50 border-b border-blue-200">
-              <span className="text-sm font-semibold text-blue-700">{selectedIds.size} selected</span>
+              <span className="text-sm font-semibold text-blue-700">{t('admin_bulk_selected').replace('{n}', String(selectedIds.size))}</span>
               <div className="flex items-center gap-2 ml-auto">
                 <button
                   onClick={() => bulkMutation.mutate({ is_active: true, is_demo: false })}
                   disabled={bulkMutation.isPending}
                   className="px-3 py-1.5 text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg hover:bg-emerald-100 transition-colors disabled:opacity-50"
                 >
-                  Set Active
+                  {t('admin_bulk_set_active')}
                 </button>
                 <button
                   onClick={() => bulkMutation.mutate({ is_demo: true, is_active: true })}
                   disabled={bulkMutation.isPending}
                   className="px-3 py-1.5 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 rounded-lg hover:bg-amber-100 transition-colors disabled:opacity-50"
                 >
-                  Set Demo
+                  {t('admin_bulk_set_demo')}
                 </button>
                 <button
                   onClick={() => bulkMutation.mutate({ is_active: false })}
                   disabled={bulkMutation.isPending}
                   className="px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg hover:bg-slate-100 transition-colors disabled:opacity-50"
                 >
-                  Set Inactive
+                  {t('admin_bulk_set_inactive')}
                 </button>
                 {isRootOwner && (
                   <button
@@ -2303,42 +2327,42 @@ export default function SuperAdminPage() {
                     {allSelected ? <CheckSquare size={15} className="text-blue-600" /> : <Square size={15} />}
                   </button>
                 </th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Client</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Status</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Plan</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-center">AI</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Modules</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Users</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Created</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Sending domain</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_client')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_status')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_plan')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-center">{t('admin_col_ai')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_modules')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_users')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_created')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_sending_domain')}</th>
                 <th className="px-4 py-3"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {visible.map((t: any) => {
-                const status = statusOf(t)
-                const isSelected = selectedIds.has(t.id)
-                const own = isOwnTenant(t)
+              {visible.map((tenant: any) => {
+                const status = statusOf(tenant)
+                const isSelected = selectedIds.has(tenant.id)
+                const own = isOwnTenant(tenant)
                 return (
                   <tr
-                    key={t.id}
-                    className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50/40' : ''} ${!t.is_active ? 'opacity-60' : ''}`}
+                    key={tenant.id}
+                    className={`hover:bg-slate-50 transition-colors ${isSelected ? 'bg-blue-50/40' : ''} ${!tenant.is_active ? 'opacity-60' : ''}`}
                   >
                     <td className="pl-4 pr-2 py-3 w-8">
                       {own ? (
                         <Lock size={13} className="text-slate-300 mx-auto" />
                       ) : (
-                        <button onClick={() => toggleRow(t.id)} className="text-slate-400 hover:text-slate-600 transition-colors">
+                        <button onClick={() => toggleRow(tenant.id)} className="text-slate-400 hover:text-slate-600 transition-colors">
                           {isSelected ? <CheckSquare size={15} className="text-blue-600" /> : <Square size={15} />}
                         </button>
                       )}
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: t.primary_color }} />
+                        <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: tenant.primary_color }} />
                         <div>
-                          <div className="text-sm font-semibold text-slate-900">{t.name}</div>
-                          <div className="text-xs text-slate-400">{t.slug}</div>
+                          <div className="text-sm font-semibold text-slate-900">{tenant.name}</div>
+                          <div className="text-xs text-slate-400">{tenant.slug}</div>
                         </div>
                       </div>
                     </td>
@@ -2348,7 +2372,7 @@ export default function SuperAdminPage() {
                       ) : (
                         <select
                           value={status}
-                          onChange={e => setStatusMutation.mutate({ id: t.id, status: e.target.value as 'active' | 'demo' | 'inactive' })}
+                          onChange={e => setStatusMutation.mutate({ id: tenant.id, status: e.target.value as 'active' | 'demo' | 'inactive' })}
                           disabled={setStatusMutation.isPending}
                           className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize border-0 cursor-pointer focus:outline-none focus:ring-1 focus:ring-slate-300 disabled:opacity-50 ${STATUS_PILL[status]}`}
                         >
@@ -2359,78 +2383,78 @@ export default function SuperAdminPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${PLAN_BADGE[t.plan] ?? 'bg-slate-100 text-slate-600'}`}>{planLabel(t.plan)}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-xs font-semibold capitalize ${PLAN_BADGE[tenant.plan] ?? 'bg-slate-100 text-slate-600'}`}>{planLabel(tenant.plan)}</span>
                     </td>
                     <td className="px-4 py-3 text-center">
                       <DonutChart
-                        used={aiUsageByTenant[t.id] ?? 0}
-                        limit={PLAN_AI_LIMITS[t.plan] ?? null}
+                        used={aiUsageByTenant[tenant.id] ?? 0}
+                        limit={PLAN_AI_LIMITS[tenant.plan] ?? null}
                       />
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => { setEditingTenant(t); setEditingTab('modules') }}
+                        onClick={() => { setEditingTenant(tenant); setEditingTab('modules') }}
                         className="inline-flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
                       >
-                        {t.enabled_modules.length} modules
+                        {t('admin_modules_count').replace('{n}', String(tenant.enabled_modules.length))}
                       </button>
                     </td>
                     <td className="px-4 py-3">
                       <button
-                        onClick={() => setViewingUsersTenant(t)}
+                        onClick={() => setViewingUsersTenant(tenant)}
                         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 transition-colors"
                         title="View users"
                       >
                         <Users size={13} />
-                        {t.user_count}
+                        {tenant.user_count}
                       </button>
                     </td>
                     <td className="px-4 py-3 text-xs text-slate-400">
-                      {new Date(t.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
+                      {new Date(tenant.created_at).toLocaleDateString('nl-NL', { day: 'numeric', month: 'short', year: 'numeric' })}
                     </td>
                     <td className="px-4 py-3">
-                      {!t.resend_domain_id ? (
+                      {!tenant.resend_domain_id ? (
                         <button
-                          onClick={() => setProvisionModalTenant(t)}
+                          onClick={() => setProvisionModalTenant(tenant)}
                           className="inline-flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-blue-600 transition-colors"
                         >
                           <Globe size={12} />
-                          Set up
+                          {t('admin_set_up_domain')}
                         </button>
                       ) : (
                         <div className="flex flex-col gap-1.5">
                           <div className="flex items-center gap-1.5">
-                            {t.resend_domain_status === 'verified' ? (
+                            {tenant.resend_domain_status === 'verified' ? (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">
-                                <ShieldCheck size={10} /> Verified
+                                <ShieldCheck size={10} /> {t('admin_verified_domain')}
                               </span>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full">
-                                Pending
+                                {t('admin_pending_domain')}
                               </span>
                             )}
-                            <span className="text-xs text-slate-400 font-mono truncate max-w-[120px]" title={t.resend_domain_name ?? ''}>
-                              {t.resend_domain_name}
+                            <span className="text-xs text-slate-400 font-mono truncate max-w-[120px]" title={tenant.resend_domain_name ?? ''}>
+                              {tenant.resend_domain_name}
                             </span>
                           </div>
                           <div className="flex items-center gap-1">
                             <button
-                              onClick={() => setDnsModalTenant(t)}
+                              onClick={() => setDnsModalTenant(tenant)}
                               className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                               title="View DNS records"
                             >
                               <Copy size={10} />
-                              DNS
+                              {t('admin_view_dns')}
                             </button>
-                            {t.resend_domain_status !== 'verified' && (
+                            {tenant.resend_domain_status !== 'verified' && (
                               <button
-                                onClick={() => { setVerifyingId(t.id); verifyDomainMutation.mutate(t.id) }}
-                                disabled={verifyingId === t.id}
+                                onClick={() => { setVerifyingId(tenant.id); verifyDomainMutation.mutate(tenant.id) }}
+                                disabled={verifyingId === tenant.id}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50"
                                 title="Check DNS and verify"
                               >
-                                <RefreshCw size={10} className={verifyingId === t.id ? 'animate-spin' : ''} />
-                                Verify
+                                <RefreshCw size={10} className={verifyingId === tenant.id ? 'animate-spin' : ''} />
+                                {t('admin_verify_btn')}
                               </button>
                             )}
                           </div>
@@ -2439,23 +2463,23 @@ export default function SuperAdminPage() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center gap-2 justify-end">
-                        {t.is_active && !own && (
+                        {tenant.is_active && !own && (
                           <button
-                            onClick={() => impersonateMutation.mutate(t.id)}
+                            onClick={() => impersonateMutation.mutate(tenant.id)}
                             disabled={impersonateMutation.isPending}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors disabled:opacity-50"
                             title="Log in as this client's admin (read/write, be careful)"
                           >
                             <Eye size={11} />
-                            View as
+                            {t('admin_view_as')}
                           </button>
                         )}
                         <button
-                          onClick={() => { setEditingTenant(t); setEditingTab(undefined) }}
+                          onClick={() => { setEditingTenant(tenant); setEditingTab(undefined) }}
                           className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                         >
                           <Pencil size={11} />
-                          Edit
+                          {t('admin_edit')}
                         </button>
                       </div>
                     </td>
