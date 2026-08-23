@@ -1707,13 +1707,17 @@ async def track_events(
     if body.contact_email:
         await set_tenant_context(db, str(tenant.id))
         contact_row = await db.execute(
-            select(Contact).where(
+            select(Contact)
+            .where(
                 Contact.tenant_id == tenant.id,
                 Contact.email == body.contact_email.lower().strip(),
                 Contact.deleted_at.is_(None),
             )
+            .order_by(Contact.created_at.asc())
+            .limit(1)
         )
-        contact = contact_row.scalar_one_or_none()
+        # Email is not unique per tenant — link the oldest match deterministically.
+        contact = contact_row.scalars().first()
         if contact and body.anonymous_id:
             # Upsert identity mapping — use on_conflict_do_nothing to avoid a
             # race condition where two concurrent requests both pass the SELECT

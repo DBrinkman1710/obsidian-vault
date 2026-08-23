@@ -35,14 +35,20 @@ SEND_RETRY_DELAY = timedelta(minutes=10)
 
 async def _match_contact(db: AsyncSession, tenant_id: uuid.UUID, sender: str) -> Optional[Contact]:
     """Try to find an existing contact by sender email or phone number."""
+    # Email is not unique per tenant — match the oldest existing contact
+    # deterministically rather than assuming a single row (this runs on every
+    # inbound message; scalar_one_or_none would raise on duplicates).
     result = await db.execute(
-        select(Contact).where(
+        select(Contact)
+        .where(
             Contact.tenant_id == tenant_id,
             func.lower(Contact.email) == sender.lower().strip(),
             Contact.deleted_at.is_(None),
         )
+        .order_by(Contact.created_at.asc())
+        .limit(1)
     )
-    return result.scalar_one_or_none()
+    return result.scalars().first()
 
 
 async def _build_context(

@@ -103,13 +103,18 @@ async def _handle_bounce(db: AsyncSession, resend_id: str, data: dict[str, Any])
         return
 
     contact_q = await db.execute(
-        _select(_Contact).where(
+        _select(_Contact)
+        .where(
             _Contact.tenant_id == tenant_id,
             _Contact.email == to_email,
             _Contact.deleted_at.is_(None),
         )
+        .order_by(_Contact.created_at.asc())
+        .limit(1)
     )
-    contact = contact_q.scalar_one_or_none()
+    # Email is not unique per tenant — take the oldest match deterministically
+    # instead of assuming a single row (scalar_one_or_none raises on duplicates).
+    contact = contact_q.scalars().first()
     bounce_type = data.get("bounce", {}).get("type", "hard") if isinstance(data.get("bounce"), dict) else "hard"
     await record_bounce(
         db,

@@ -76,21 +76,27 @@ async def handle_inbound_reply(
                 Contact.deleted_at.is_(None),
             )
         )
-        contact = result.scalar_one_or_none()
-        if contact is not None:
+        # Email is not unique per tenant — unsubscribe every matching contact so
+        # a duplicate doesn't keep receiving campaigns after opting out.
+        for contact in result.scalars().all():
             await service.create_unsubscribe(db, tenant_id, contact.id)
     elif campaign is not None and campaign.reply_received_stage_id is not None:
         from app.modules.contacts.models import Contact
         from app.modules.pipeline.service import _assign_stage
 
         result = await db.execute(
-            select(Contact).where(
+            select(Contact)
+            .where(
                 Contact.tenant_id == tenant_id,
                 Contact.email == sender_email,
                 Contact.deleted_at.is_(None),
             )
+            .order_by(Contact.created_at.asc())
+            .limit(1)
         )
-        contact = result.scalar_one_or_none()
+        # Email is not unique per tenant; move the oldest matching contact
+        # deterministically rather than assuming a single row.
+        contact = result.scalars().first()
         if contact is not None:
             try:
                 await _assign_stage(db, tenant_id, contact.id, campaign.reply_received_stage_id)
