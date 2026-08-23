@@ -251,6 +251,11 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
     settings_brand_reset:              'Reset to default',
     settings_brand_error:              'Failed to save. Try again.',
 
+    // ── Generic actions ───────────────────────────────────────────────────────
+    settings_save:                     'Save',
+    settings_cancel:                   'Cancel',
+    settings_action_delete:            'Delete',
+
     // ── ProfileSettingsPage ───────────────────────────────────────────────────
     settings_profile_desc:             'Manage your personal email address, signature and password.',
     settings_profile_email_label:      'Email',
@@ -581,6 +586,11 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
     settings_brand_desc:               'De accentkleur die door de zijbalk en interface van je werkruimte wordt gebruikt.',
     settings_brand_reset:              'Standaard herstellen',
     settings_brand_error:              'Opslaan mislukt. Probeer het opnieuw.',
+
+    // ── Generic actions ───────────────────────────────────────────────────────
+    settings_save:                     'Opslaan',
+    settings_cancel:                   'Annuleren',
+    settings_action_delete:            'Verwijderen',
 
     // ── ProfileSettingsPage ───────────────────────────────────────────────────
     settings_profile_desc:             'Beheer je persoonlijke e-mailadres, handtekening en wachtwoord.',

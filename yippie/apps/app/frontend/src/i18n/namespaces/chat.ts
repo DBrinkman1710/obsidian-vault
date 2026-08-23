@@ -156,6 +156,18 @@ export const chat: { en: Record<string, string>; nl: Record<string, string> } = 
     chat_broadcast_insert_booking: 'Insert booking link for each recipient',
     chat_broadcast_sending:        'Sending…',
     chat_broadcast_send_btn:       'Send Broadcast',
+    // Shared actions
+    chat_cancel:                   'Cancel',
+    // ActionsModal — toast / inline messages
+    chat_ticket_created:           'Ticket created',
+    chat_booking_sent:             'Booking link sent!',
+    chat_booking_send_error:       'Could not send booking link.',
+    chat_booking_select_contact:   'Select a contact first.',
+    chat_booking_add_slot:         'Add at least one proposed time.',
+    chat_email_save_error:         'Could not save email address.',
+    // BroadcastModal — toast messages
+    chat_broadcast_queued:         'Broadcast queued',
+    chat_broadcast_send_error:     'Could not send broadcast',
   },
   nl: {
     // ChatPage — session list header
@@ -312,5 +324,17 @@ export const chat: { en: Record<string, string>; nl: Record<string, string> } = 
     chat_broadcast_insert_booking: 'Voeg een boekingslink in voor elke ontvanger',
     chat_broadcast_sending:        'Verzenden…',
     chat_broadcast_send_btn:       'Broadcast versturen',
+    // Shared actions
+    chat_cancel:                   'Annuleren',
+    // ActionsModal — toast / inline messages
+    chat_ticket_created:           'Ticket aangemaakt',
+    chat_booking_sent:             'Boekingslink verstuurd!',
+    chat_booking_send_error:       'Kon boekingslink niet versturen.',
+    chat_booking_select_contact:   'Selecteer eerst een contact.',
+    chat_booking_add_slot:         'Voeg minimaal een voorgesteld tijdstip toe.',
+    chat_email_save_error:         'Kon e-mailadres niet opslaan.',
+    // BroadcastModal — toast messages
+    chat_broadcast_queued:         'Broadcast in wachtrij',
+    chat_broadcast_send_error:     'Kon broadcast niet versturen',
   },
 }

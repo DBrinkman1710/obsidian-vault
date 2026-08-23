@@ -12,6 +12,7 @@ import SendBookingModal from '../../booking/components/SendBookingModal'
 import ContactPeekModal from '../../../components/ContactPeekModal'
 import TicketPeekModal from '../../../components/TicketPeekModal'
 import { useCompose } from '../../../hooks/useCompose'
+import { useT } from '../../../hooks/useT'
 
 interface CalendarItem {
   kind: 'event' | 'deadline'
@@ -74,7 +75,7 @@ type CalendarTypeFilter = 'shared' | 'personal'
 
 interface PickerOption { id: string; label: string }
 
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const WEEKDAYS = ['cal_wd_mon', 'cal_wd_tue', 'cal_wd_wed', 'cal_wd_thu', 'cal_wd_fri', 'cal_wd_sat', 'cal_wd_sun']
 const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
@@ -116,6 +117,7 @@ function Picker({ label, placeholder, selected, onSelect, options, loading, onQu
   loading?: boolean
   onQueryChange: (q: string) => void
 }) {
+  const t = useT()
   const [query, setQuery] = useState('')
   const [open, setOpen] = useState(false)
   const blurTimer = useRef<number | undefined>(undefined)
@@ -144,9 +146,9 @@ function Picker({ label, placeholder, selected, onSelect, options, loading, onQu
       {open && !selected && query.trim().length > 0 && (
         <div className="absolute z-10 mt-1 w-full max-h-44 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
           {loading ? (
-            <p className="px-3 py-2 text-sm text-slate-400">Searching…</p>
+            <p className="px-3 py-2 text-sm text-slate-400">{t('cal_searching')}</p>
           ) : options.length === 0 ? (
-            <p className="px-3 py-2 text-sm text-slate-400">No matches</p>
+            <p className="px-3 py-2 text-sm text-slate-400">{t('cal_no_matches')}</p>
           ) : options.map(opt => (
             <button key={opt.id} type="button"
               onMouseDown={() => { window.clearTimeout(blurTimer.current); onSelect(opt); setOpen(false) }}
@@ -164,6 +166,7 @@ function ContactPicker({ selected, onSelect }: {
   selected: PickerOption | null
   onSelect: (opt: PickerOption | null) => void
 }) {
+  const t = useT()
   const [q, setQ] = useState('')
   const { data, isFetching } = useQuery({
     queryKey: ['calendar-contact-search', q],
@@ -172,7 +175,7 @@ function ContactPicker({ selected, onSelect }: {
     enabled: q.trim().length > 0,
   })
   const options = (data ?? []).map((c: any) => ({ id: c.id, label: c.email ? `${c.full_name} (${c.email})` : c.full_name }))
-  return <Picker label="Contact (optional)" placeholder="Search contacts…"
+  return <Picker label={t('cal_label_contact')} placeholder={t('cal_placeholder_contact')}
     selected={selected} onSelect={onSelect} options={options} loading={isFetching} onQueryChange={setQ} />
 }
 
@@ -180,6 +183,7 @@ function TicketPicker({ selected, onSelect }: {
   selected: PickerOption | null
   onSelect: (opt: PickerOption | null) => void
 }) {
+  const t = useT()
   const [q, setQ] = useState('')
   const { data, isFetching } = useQuery({
     queryKey: ['calendar-ticket-options'],
@@ -188,10 +192,10 @@ function TicketPicker({ selected, onSelect }: {
   })
   const term = q.trim().toLowerCase()
   const options = (data ?? [])
-    .filter((t: any) => t.subject.toLowerCase().includes(term))
+    .filter((tk: any) => tk.subject.toLowerCase().includes(term))
     .slice(0, 10)
-    .map((t: any) => ({ id: t.id, label: t.subject }))
-  return <Picker label="Ticket (optional)" placeholder="Search tickets…"
+    .map((tk: any) => ({ id: tk.id, label: tk.subject }))
+  return <Picker label={t('cal_label_ticket')} placeholder={t('cal_placeholder_ticket')}
     selected={selected} onSelect={onSelect} options={options} loading={isFetching} onQueryChange={setQ} />
 }
 
@@ -200,6 +204,7 @@ function UserPicker({ selected, onSelect, excludeIds }: {
   onSelect: (opts: PickerOption[]) => void
   excludeIds?: string[]
 }) {
+  const t = useT()
   const [q, setQ] = useState('')
   const [open, setOpen] = useState(false)
   const blurTimer = useRef<number | undefined>(undefined)
@@ -229,11 +234,11 @@ function UserPicker({ selected, onSelect, excludeIds }: {
 
   return (
     <div>
-      <label className={labelCls}>Invite teammates</label>
+      <label className={labelCls}>{t('cal_label_invite_teammates')}</label>
       <div className="relative">
         <input
           className={inputCls}
-          placeholder="Search teammates…"
+          placeholder={t('cal_placeholder_teammates')}
           value={q}
           onChange={e => { setQ(e.target.value); setOpen(true) }}
           onFocus={() => setOpen(true)}
@@ -242,7 +247,7 @@ function UserPicker({ selected, onSelect, excludeIds }: {
         {open && (
           <div className="absolute z-10 mt-1 w-full max-h-44 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
             {options.length === 0 ? (
-              <p className="px-3 py-2 text-sm text-slate-400">{term ? 'No matches' : 'No teammates to invite'}</p>
+              <p className="px-3 py-2 text-sm text-slate-400">{term ? t('cal_no_matches') : t('cal_no_teammates')}</p>
             ) : options.map(opt => (
               <button key={opt.id} type="button"
                 onMouseDown={() => { window.clearTimeout(blurTimer.current); add(opt) }}
@@ -280,10 +285,10 @@ const STATUS_CHIP: Record<string, string> = {
   counter_proposed: 'bg-amber-50 text-amber-700',
 }
 const STATUS_LABEL: Record<string, string> = {
-  proposed: 'Invited',
-  accepted: 'Accepted',
-  declined: 'Declined',
-  counter_proposed: 'New time proposed',
+  proposed: 'cal_status_invited',
+  accepted: 'cal_status_accepted',
+  declined: 'cal_status_declined',
+  counter_proposed: 'cal_status_counter_proposed',
 }
 
 function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
@@ -293,6 +298,7 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
   defaultDate?: Date
   bookingEnabled?: boolean
 }) {
+  const t = useT()
   const { user } = useAuth()
   const qc = useQueryClient()
   const isCreate = !event
@@ -381,8 +387,8 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
   }
 
   async function handleBookingSend() {
-    if (!bContact) { setError('Please select a contact'); return }
-    if (bMode === 'propose' && bSlots.length === 0) { setError('Add at least one proposed time'); return }
+    if (!bContact) { setError(t('cal_bk_err_select_contact')); return }
+    if (bMode === 'propose' && bSlots.length === 0) { setError(t('cal_bk_err_add_time')); return }
     setBSending(true); setError('')
     try {
       await api.post('/booking/send', {
@@ -393,11 +399,11 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
         stage_id_override: bStageId || undefined,
         from_email: bFromPersonal && (user as any)?.reply_from_email ? (user as any).reply_from_email : undefined,
       })
-      toast.success('Booking link sent!')
+      toast.success(t('cal_bk_success_sent'))
       qc.invalidateQueries({ queryKey: ['booking-tokens'] })
       onClose()
     } catch {
-      setError('Could not send booking link. Please try again.')
+      setError(t('cal_bk_err_send_failed'))
     } finally {
       setBSending(false)
     }
@@ -432,15 +438,15 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
 
   function submit(ev: React.FormEvent) {
     ev.preventDefault()
-    if (!title.trim()) { setError('Title is required'); return }
-    if (!date) { setError('Date is required'); return }
-    if (!allDay && !time) { setError('Time is required'); return }
+    if (!title.trim()) { setError(t('cal_error_title_required')); return }
+    if (!date) { setError(t('cal_error_date_required')); return }
+    if (!allDay && !time) { setError(t('cal_error_time_required')); return }
 
     const startAt = new Date(`${date}T${allDay ? '00:00' : time}`)
     let endAt: Date | null = null
     if (endDate) {
       endAt = new Date(`${endDate}T${allDay ? '23:59' : (endTime || time)}`)
-      if (endAt < startAt) { setError('End must be after start'); return }
+      if (endAt < startAt) { setError(t('cal_error_end_after_start')); return }
     }
     setError('')
     saveMutation.mutate({
@@ -461,23 +467,23 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
 
         {/* Header */}
         <div className="flex items-center justify-between px-8 pt-7 pb-0 shrink-0">
-          <h2 className="text-lg font-bold text-slate-900">{event ? 'Edit event' : 'New'}</h2>
+          <h2 className="text-lg font-bold text-slate-900">{event ? t('cal_modal_edit_title') : t('cal_modal_new_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
 
         {/* Tabs — only for create mode when booking module is on */}
         {showTabs && (
           <div className="flex px-8 mt-3 shrink-0 border-b border-slate-200">
-            {(['event', 'booking'] as const).map(t => (
+            {(['event', 'booking'] as const).map(tabKey => (
               <button
-                key={t}
+                key={tabKey}
                 type="button"
-                onClick={() => { setTab(t); setError('') }}
+                onClick={() => { setTab(tabKey); setError('') }}
                 className={`px-4 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-                  tab === t ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
+                  tab === tabKey ? 'border-blue-600 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700'
                 }`}
               >
-                {t === 'event' ? 'Event' : 'Booking link'}
+                {tabKey === 'event' ? t('cal_tab_event') : t('cal_tab_booking_link')}
               </button>
             ))}
           </div>
@@ -487,18 +493,18 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
         {tab === 'event' && (
           <form onSubmit={submit} className="flex flex-col gap-4 overflow-y-auto px-8 pb-8 pt-5">
             <div>
-              <label className={labelCls}>Title *</label>
+              <label className={labelCls}>{t('cal_label_title')}</label>
               <input className={inputCls} value={title} onChange={e => setTitle(e.target.value)}
-                placeholder="Call with customer…" maxLength={255} autoFocus />
+                placeholder={t('cal_placeholder_title')} maxLength={255} autoFocus />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelCls}>Date *</label>
+                <label className={labelCls}>{t('cal_label_date')}</label>
                 <input type="date" className={inputCls} value={date} onChange={e => setDate(e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>Time {allDay ? '' : '*'}</label>
+                <label className={labelCls}>{allDay ? t('cal_label_time') : t('cal_label_time_required')}</label>
                 <input type="time" className={`${inputCls} disabled:bg-slate-50 disabled:text-slate-400`}
                   value={time} onChange={e => setTime(e.target.value)} disabled={allDay} />
               </div>
@@ -506,11 +512,11 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className={labelCls}>End date</label>
+                <label className={labelCls}>{t('cal_label_end_date')}</label>
                 <input type="date" className={inputCls} value={endDate} onChange={e => setEndDate(e.target.value)} />
               </div>
               <div>
-                <label className={labelCls}>End time</label>
+                <label className={labelCls}>{t('cal_label_end_time')}</label>
                 <input type="time" className={`${inputCls} disabled:bg-slate-50 disabled:text-slate-400`}
                   value={endTime} onChange={e => setEndTime(e.target.value)} disabled={allDay || !endDate} />
               </div>
@@ -519,27 +525,27 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <input type="checkbox" checked={allDay} onChange={e => setAllDay(e.target.checked)}
                 className="h-4 w-4 rounded border-slate-300 text-yippie focus:ring-yippie/30 cursor-pointer" />
-              <span className="text-sm text-slate-700 font-medium">All day</span>
+              <span className="text-sm text-slate-700 font-medium">{t('cal_label_all_day')}</span>
             </label>
 
             <div>
-              <label className={labelCls}>Visibility</label>
+              <label className={labelCls}>{t('cal_label_visibility')}</label>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setCalendarType('shared')}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${calendarType === 'shared' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                  Shared (team)
+                  {t('cal_visibility_shared')}
                 </button>
                 <button type="button" onClick={() => setCalendarType('personal')}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${calendarType === 'personal' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                  Personal (only me)
+                  {t('cal_visibility_personal')}
                 </button>
               </div>
             </div>
 
             <div>
-              <label className={labelCls}>Description</label>
+              <label className={labelCls}>{t('cal_label_description')}</label>
               <textarea className={`${inputCls} resize-vertical min-h-[70px] font-[inherit]`}
-                value={description} onChange={e => setDescription(e.target.value)} placeholder="Any context…" />
+                value={description} onChange={e => setDescription(e.target.value)} placeholder={t('cal_placeholder_description')} />
             </div>
 
             <ContactPicker selected={contact} onSelect={setContact} />
@@ -553,13 +559,13 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
               />
             ) : existingInvitations.length > 0 && (
               <div>
-                <label className={labelCls}>Teammates invited</label>
+                <label className={labelCls}>{t('cal_label_teammates_invited')}</label>
                 <div className="flex flex-wrap gap-1.5">
                   {existingInvitations.map((inv: InvitationOut) => (
                     <span key={inv.id}
                       className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-semibold rounded-lg border ${STATUS_CHIP[inv.status] ?? 'bg-slate-100 text-slate-600'}`}>
                       {inv.invitee_name}
-                      <span className="opacity-60 font-normal">· {STATUS_LABEL[inv.status] ?? inv.status}</span>
+                      <span className="opacity-60 font-normal">· {t(STATUS_LABEL[inv.status] ?? inv.status)}</span>
                     </span>
                   ))}
                 </div>
@@ -571,17 +577,17 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
             <div className="flex items-center gap-3 pt-1">
               <button type="submit" disabled={saveMutation.isPending}
                 className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
-                {saveMutation.isPending ? 'Saving…' : event ? 'Save changes' : 'Create event'}
+                {saveMutation.isPending ? t('cal_btn_saving') : event ? t('cal_btn_save_changes') : t('cal_btn_create_event')}
               </button>
               <button type="button" onClick={onClose}
                 className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                Cancel
+                {t('cal_btn_cancel')}
               </button>
               {event && (
                 <button type="button" disabled={deleteMutation.isPending}
                   onClick={() => { if (confirm(`Delete "${event.title}"?`)) deleteMutation.mutate() }}
                   className="ml-auto inline-flex items-center gap-1.5 px-3 py-2 text-sm font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors disabled:opacity-50">
-                  <Trash2 size={13} /> Delete
+                  <Trash2 size={13} /> {t('cal_btn_delete')}
                 </button>
               )}
             </div>
@@ -598,11 +604,11 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
             <div className="flex gap-2">
               <button type="button" onClick={() => setBMode('open')}
                 className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${bMode === 'open' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                Customer picks time
+                {t('cal_bk_tab_pick')}
               </button>
               <button type="button" onClick={() => setBMode('propose')}
                 className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${bMode === 'propose' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                Propose times
+                {t('cal_bk_tab_propose')}
               </button>
             </div>
 
@@ -617,8 +623,8 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
                   </div>
                 </div>
                 <div className="grid grid-cols-7 px-2 pt-2">
-                  {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
-                    <div key={d} className="text-center text-[10px] font-semibold text-slate-400 uppercase py-1">{d}</div>
+                  {WEEKDAYS.map(wk => (
+                    <div key={wk} className="text-center text-[10px] font-semibold text-slate-400 uppercase py-1">{t(wk)}</div>
                   ))}
                 </div>
                 <div className="grid grid-cols-7 px-2 pb-2 gap-0.5">
@@ -642,9 +648,9 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
 
                 {bActiveDay && (
                   <div className="px-3 py-3 border-t border-slate-100">
-                    <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">Tap to add times</p>
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">{t('cal_bk_tap_add')}</p>
                     <div className="flex flex-wrap gap-1.5">
-                      {bDayChips.length === 0 && <p className="text-xs text-slate-400">No slots for this day.</p>}
+                      {bDayChips.length === 0 && <p className="text-xs text-slate-400">{t('cal_bk_no_slots_day')}</p>}
                       {bDayChips.map(chip => {
                         const selected = bSlots.some(s => s.start === chip.start)
                         return (
@@ -660,7 +666,7 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
 
                 {bSlots.length > 0 && (
                   <div className="px-3 py-3 border-t border-slate-100">
-                    <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">Proposed ({bSlots.length})</p>
+                    <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">{t('cal_bk_proposed_count')} ({bSlots.length})</p>
                     <div className="flex flex-wrap gap-1.5">
                       {bSlots.slice().sort((a, b) => a.start.localeCompare(b.start)).map(s => {
                         const sd = new Date(s.start); const ed = new Date(s.end)
@@ -681,9 +687,9 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
             {/* Stage override */}
             {bStages.length > 0 && (
               <div>
-                <label className={labelCls}>Move to stage after booking (optional)</label>
+                <label className={labelCls}>{t('cal_bk_stage_label')}</label>
                 <select className={inputCls} value={bStageId} onChange={e => setBStageId(e.target.value)}>
-                  <option value="">— Use default —</option>
+                  <option value="">{t('cal_bk_stage_default')}</option>
                   {bStages.map((s: { id: string; name: string }) => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
@@ -695,16 +701,16 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
                 <input type="checkbox" checked={bFromPersonal} onChange={e => setBFromPersonal(e.target.checked)}
                   className="h-4 w-4 rounded border-slate-300 text-yippie focus:ring-yippie/30 cursor-pointer" />
                 <span className="text-sm text-slate-700 font-medium">
-                  Send from <span className="text-slate-500 font-normal">{(user as any).reply_from_email}</span>
+                  {t('cal_bk_send_from')} <span className="text-slate-500 font-normal">{(user as any).reply_from_email}</span>
                 </span>
               </label>
             )}
 
             {/* Message */}
             <div>
-              <label className={labelCls}>Message (optional)</label>
+              <label className={labelCls}>{t('cal_bk_message_label')}</label>
               <textarea value={bMessage} onChange={e => setBMessage(e.target.value)}
-                placeholder="Add a short note for the customer…"
+                placeholder={t('cal_bk_message_placeholder')}
                 className={`${inputCls} resize-vertical min-h-[70px] font-[inherit]`} />
             </div>
 
@@ -714,11 +720,11 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
               <button type="button" onClick={handleBookingSend}
                 disabled={bSending || !bContact}
                 className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
-                {bSending ? 'Sending…' : 'Send booking link'}
+                {bSending ? t('cal_bk_btn_sending') : t('cal_bk_btn_send')}
               </button>
               <button type="button" onClick={onClose}
                 className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                Cancel
+                {t('cal_btn_cancel')}
               </button>
             </div>
           </div>
@@ -733,6 +739,7 @@ function EventModal({ event, onClose, onSaved, defaultDate, bookingEnabled }: {
 // ---------------------------------------------------------------------------
 
 function InvitationsPanel({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const [counterFor, setCounterFor] = useState<string | null>(null)
   const [counterStart, setCounterStart] = useState('')
@@ -759,7 +766,7 @@ function InvitationsPanel({ onClose }: { onClose: () => void }) {
   function fmtEvent(inv: PendingInvitation) {
     const s = new Date(inv.event_start_at)
     const day = s.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
-    if (inv.event_all_day) return `${day} (all day)`
+    if (inv.event_all_day) return `${day} (${t('cal_inv_all_day')})`
     const t1 = s.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
     if (!inv.event_end_at) return `${day}, ${t1}`
     const t2 = new Date(inv.event_end_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
@@ -783,21 +790,21 @@ function InvitationsPanel({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-            <UserPlus size={16} className="text-slate-400" /> Invitations
+            <UserPlus size={16} className="text-slate-400" /> {t('cal_inv_panel_title')}
           </h2>
           <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
-          {isLoading && <p className="px-5 py-8 text-sm text-slate-400 text-center">Loading…</p>}
+          {isLoading && <p className="px-5 py-8 text-sm text-slate-400 text-center">{t('cal_inv_loading')}</p>}
           {!isLoading && invitations.length === 0 && (
-            <p className="px-5 py-8 text-sm text-slate-400 text-center">No pending invitations.</p>
+            <p className="px-5 py-8 text-sm text-slate-400 text-center">{t('cal_inv_none_pending')}</p>
           )}
           {invitations.map((inv: PendingInvitation) => (
             <div key={inv.id} className="px-5 py-4">
               <p className="text-sm font-semibold text-slate-800 truncate">{inv.event_title}</p>
               <p className="text-xs text-slate-500 mt-0.5">{fmtEvent(inv)}</p>
-              <p className="text-xs text-slate-400 mt-0.5">Invited by {inv.organiser_name}</p>
+              <p className="text-xs text-slate-400 mt-0.5">{t('cal_inv_invited_by')} {inv.organiser_name}</p>
 
               {counterFor !== inv.id ? (
                 <div className="flex gap-2 mt-3">
@@ -806,43 +813,43 @@ function InvitationsPanel({ onClose }: { onClose: () => void }) {
                     disabled={respondMut.isPending}
                     className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
                   >
-                    <Check size={12} /> Accept
+                    <Check size={12} /> {t('cal_inv_btn_accept')}
                   </button>
                   <button
                     onClick={() => respondMut.mutate({ id: inv.id, status: 'declined' })}
                     disabled={respondMut.isPending}
                     className="flex-1 px-3 py-1.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
                   >
-                    Decline
+                    {t('cal_inv_btn_decline')}
                   </button>
                   <button
                     onClick={() => setCounterFor(inv.id)}
                     className="flex-1 px-3 py-1.5 bg-amber-50 border border-amber-200 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition-colors"
                   >
-                    Propose time
+                    {t('cal_inv_btn_propose_time')}
                   </button>
                 </div>
               ) : (
                 <div className="mt-3 flex flex-col gap-2">
-                  <p className="text-xs font-semibold text-slate-600">Propose an alternative time:</p>
+                  <p className="text-xs font-semibold text-slate-600">{t('cal_inv_propose_alt')}</p>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Start date</label>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{t('cal_inv_start_date')}</label>
                       <input type="date" value={counterStart} onChange={e => setCounterStart(e.target.value)}
                         className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yippie/30" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Start time</label>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{t('cal_inv_start_time')}</label>
                       <input type="time" value={counterStartTime} onChange={e => setCounterStartTime(e.target.value)}
                         className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yippie/30" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">End date</label>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{t('cal_inv_end_date')}</label>
                       <input type="date" value={counterEnd} onChange={e => setCounterEnd(e.target.value)}
                         className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yippie/30" />
                     </div>
                     <div>
-                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">End time</label>
+                      <label className="block text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{t('cal_inv_end_time')}</label>
                       <input type="time" value={counterEndTime} onChange={e => setCounterEndTime(e.target.value)}
                         className="w-full px-2 py-1.5 border border-slate-300 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-yippie/30" />
                     </div>
@@ -853,13 +860,13 @@ function InvitationsPanel({ onClose }: { onClose: () => void }) {
                       disabled={respondMut.isPending || !counterStart || !counterEnd}
                       className="flex-1 px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors disabled:opacity-50"
                     >
-                      Send proposal
+                      {t('cal_inv_btn_send_proposal')}
                     </button>
                     <button
                       onClick={() => setCounterFor(null)}
                       className="px-3 py-1.5 text-xs text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50"
                     >
-                      Cancel
+                      {t('cal_inv_btn_cancel')}
                     </button>
                   </div>
                 </div>
@@ -1154,7 +1161,7 @@ function RequestRow({ req, workers, onDone }: { req: OpenRequest; workers: Worke
   )
 }
 
-const DAY_LABELS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday']
+const DAY_LABELS = ['cal_wd_monday', 'cal_wd_tuesday', 'cal_wd_wednesday', 'cal_wd_thursday', 'cal_wd_friday', 'cal_wd_saturday', 'cal_wd_sunday']
 
 function WeeklyGrid({
   slots,
