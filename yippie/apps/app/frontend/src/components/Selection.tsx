@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X } from 'lucide-react'
+import { useT } from '../hooks/useT'
 
 /* ── useSelection — shared list-selection state ─────────────────────── */
 export function useSelection(ids: string[]) {
@@ -98,11 +99,12 @@ interface BulkBarProps {
 }
 
 export function BulkBar({ count, onClear, actions = [] }: BulkBarProps) {
+  const t = useT()
   if (!count) return null
   return (
     <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-40 flex items-center gap-3 px-4 py-2.5 bg-blue-50 border border-blue-200 rounded-xl shadow-lg whitespace-nowrap">
       <span className="text-sm font-semibold text-blue-900 shrink-0">
-        {count} selected
+        {count} {t('shared_selected')}
       </span>
       <div className="h-4 w-px bg-blue-200 shrink-0" />
       <div className="flex gap-4 flex-wrap">
@@ -119,7 +121,7 @@ export function BulkBar({ count, onClear, actions = [] }: BulkBarProps) {
       </div>
       <button
         onClick={onClear}
-        aria-label="Clear selection"
+        aria-label={t('shared_clear_selection')}
         className="text-slate-400 hover:text-slate-600 ml-2 shrink-0"
       >
         <X size={16} />

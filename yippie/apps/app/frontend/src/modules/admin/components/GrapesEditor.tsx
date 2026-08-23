@@ -4,6 +4,7 @@ import 'grapesjs/dist/css/grapes.min.css'
 // @ts-ignore — no types package
 import grapesjsNewsletterPlugin from 'grapesjs-preset-newsletter'
 import { type ContactLabel } from '../../contacts/components/LabelChip'
+import { useT } from '../../../hooks/useT'
 
 export interface PipelineStage { id: string; name: string; color: string }
 export { type ContactLabel }
@@ -31,30 +32,38 @@ interface GrapesEditorProps {
   onReady?: () => void
 }
 
-const ACTION_OPTIONS = [
-  { id: 'pipeline_stage', label: 'Move to pipeline stage' },
-  { id: 'apply_label',    label: 'Apply label' },
-  { id: 'open_website',   label: 'Open website' },
-  { id: 'send_email',     label: 'Send email' },
-  { id: 'call_phone',     label: 'Call phone' },
-]
+type TFn = (key: string) => string
 
-const ACTION_TYPE_TRAIT = {
-  type: 'select',
-  name: 'data-action-type',
-  label: 'Action type',
-  options: ACTION_OPTIONS,
+function makeActionOptions(t: TFn) {
+  return [
+    { id: 'pipeline_stage', label: t('admin_action_move_pipeline') },
+    { id: 'apply_label',    label: t('admin_action_apply_label') },
+    { id: 'open_website',   label: t('admin_action_open_website') },
+    { id: 'send_email',     label: t('admin_action_send_email') },
+    { id: 'call_phone',     label: t('admin_action_call_phone') },
+  ]
 }
 
-const ALIGN_TRAIT = {
-  type: 'select',
-  name: 'data-align',
-  label: 'Alignment',
-  options: [
-    { id: 'center', label: 'Center' },
-    { id: 'left',   label: 'Left' },
-    { id: 'right',  label: 'Right' },
-  ],
+function makeActionTypeTrait(t: TFn) {
+  return {
+    type: 'select',
+    name: 'data-action-type',
+    label: t('admin_action_type_label'),
+    options: makeActionOptions(t),
+  }
+}
+
+function makeAlignTrait(t: TFn) {
+  return {
+    type: 'select',
+    name: 'data-align',
+    label: t('admin_align_label'),
+    options: [
+      { id: 'center', label: t('admin_align_center') },
+      { id: 'left',   label: t('admin_align_left') },
+      { id: 'right',  label: t('admin_align_right') },
+    ],
+  }
 }
 
 function secondaryName(actionType: string) {
@@ -63,20 +72,22 @@ function secondaryName(actionType: string) {
   return 'data-action-value'
 }
 
-const REDIRECT_URL_TRAIT = {
-  type: 'text',
-  name: 'data-redirect-url',
-  label: 'Redirect URL (optional)',
-  placeholder: 'https://',
+function makeRedirectUrlTrait(t: TFn) {
+  return {
+    type: 'text',
+    name: 'data-redirect-url',
+    label: t('admin_redirect_url_label'),
+    placeholder: 'https://',
+  }
 }
 
-function buildSecondaryTrait(actionType: string, _stages: PipelineStage[], labels: ContactLabel[]) {
+function buildSecondaryTrait(actionType: string, _stages: PipelineStage[], labels: ContactLabel[], t: TFn) {
   if (actionType === 'pipeline_stage') {
     return {
       type: 'text',
       name: 'data-stage-id',
-      label: 'Stage → set in Actions tab',
-      placeholder: 'Assigned in Actions tab',
+      label: t('admin_stage_set_in_actions'),
+      placeholder: t('admin_stage_assigned_tab'),
       attributes: { readonly: 'true', style: 'color:#94a3b8;background:#f8fafc;cursor:not-allowed' },
     }
   }
@@ -85,7 +96,7 @@ function buildSecondaryTrait(actionType: string, _stages: PipelineStage[], label
       type: 'select',
       name: 'data-label-id',
       label: 'Label',
-      options: [{ id: '', label: '— pick a label' }, ...labels.map(l => ({ id: l.id, label: l.name }))],
+      options: [{ id: '', label: t('admin_label_pick') }, ...labels.map(l => ({ id: l.id, label: l.name }))],
     }
   }
   const labelMap: Record<string, string> = {
@@ -129,6 +140,9 @@ function extractButtons(data: object): CampaignButton[] {
 }
 
 const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages = [], labels = [], onReady }, ref) => {
+  const t = useT()
+  const tRef = useRef(t)
+  tRef.current = t
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<Editor | null>(null)
   const stagesRef = useRef(stages)
@@ -140,6 +154,8 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
 
   useEffect(() => {
     if (!containerRef.current || editorRef.current) return
+
+    const t = tRef.current
 
     const editor = grapesjs.init({
       container: containerRef.current,
@@ -159,6 +175,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
       },
     })
 
+    const ACTION_TYPE_TRAIT = makeActionTypeTrait(t)
+    const ALIGN_TRAIT = makeAlignTrait(t)
+    const REDIRECT_URL_TRAIT = makeRedirectUrlTrait(t)
+
     editor.DomComponents.addType('yippie-button', {
       isComponent: (el: HTMLElement) =>
         el.tagName === 'A' && el.hasAttribute('data-yippie-button'),
@@ -170,7 +190,7 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
           attributes: { 'data-yippie-button': '1', 'data-action-type': 'pipeline_stage', 'data-align': 'center', href: '#', id: crypto.randomUUID() },
           traits: [
             ACTION_TYPE_TRAIT,
-            buildSecondaryTrait('pipeline_stage', [], []),
+            buildSecondaryTrait('pipeline_stage', [], [], t),
             REDIRECT_URL_TRAIT,
             ALIGN_TRAIT,
           ],
@@ -214,20 +234,23 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
       const traitsModels = component.get('traits')?.models
       const currentSecondary: string | undefined = traitsModels?.[1]?.get?.('name')
       if (currentSecondary === secondaryName(actionType)) return
-      const extraTraits = actionType === 'pipeline_stage' ? [REDIRECT_URL_TRAIT] : []
+      const _redir = makeRedirectUrlTrait(t)
+      const _align = makeAlignTrait(t)
+      const _actionType = makeActionTypeTrait(t)
+      const extraTraits = actionType === 'pipeline_stage' ? [_redir] : []
       component.set('traits', [
-        ACTION_TYPE_TRAIT,
-        buildSecondaryTrait(actionType, stagesRef.current, labelsRef.current),
+        _actionType,
+        buildSecondaryTrait(actionType, stagesRef.current, labelsRef.current, t),
         ...extraTraits,
-        ALIGN_TRAIT,
+        _align,
       ])
     })
 
     // Remove the newsletter preset's generic button block so ours is the only one
     editor.BlockManager.remove('button')
     editor.BlockManager.add('yippie-button', {
-      label: 'Action Button',
-      category: 'Basic',
+      label: t('admin_block_action_button'),
+      category: t('admin_block_basic'),
       media: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <rect x="2" y="7" width="20" height="10" rx="2"/>
         <polyline points="9 10 12 12 9 14"/>
@@ -246,8 +269,8 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
     })
 
     editor.BlockManager.add('yippie-signature', {
-      label: 'Signature',
-      category: 'Basic',
+      label: t('admin_block_signature'),
+      category: t('admin_block_basic'),
       media: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 20h9"/>
         <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>

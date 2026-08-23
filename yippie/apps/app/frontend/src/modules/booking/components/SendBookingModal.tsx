@@ -5,6 +5,7 @@ import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+import { useT } from '../../../hooks/useT'
 
 interface CalendarSettings {
   work_start_hour: number
@@ -67,6 +68,7 @@ function computeNextSlots(settings: CalendarSettings, count: number): SlotPropos
 }
 
 export default function SendBookingModal({ contacts = [], bulk = false, open, onClose }: Props) {
+  const t = useT()
   const today = new Date()
   const user = useAuth((s: any) => s.user)
   const [mode, setMode] = useState<'open' | 'propose'>('open')
@@ -159,12 +161,12 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
 
   async function handleSend() {
     if (effectiveContacts.length === 0) {
-      toast.error('Please select a contact first.')
+      toast.error(t('booking_err_select_contact'))
       return
     }
     const useMode = bulk ? 'open' : mode
     if (useMode === 'propose' && slots.length === 0) {
-      toast.error('Add at least one proposed time first.')
+      toast.error(t('booking_err_add_time'))
       return
     }
     setSending(true)
@@ -181,11 +183,11 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
       await Promise.all(
         effectiveContacts.map(c => api.post('/booking/send', { ...payload, contact_id: c.id })),
       )
-      toast.success('Booking link sent!')
+      toast.success(t('booking_success_sent'))
       reset()
       onClose()
     } catch {
-      toast.error('Could not send booking link. Please try again.')
+      toast.error(t('booking_err_send_failed'))
     } finally {
       setSending(false)
     }
@@ -209,7 +211,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[85vh] flex flex-col"
         onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-lg font-bold text-slate-900">Send booking link</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('booking_modal_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
 
@@ -218,7 +220,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
           {needsPicker && (
             <div className="relative">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Contact *
+                {t('booking_label_contact')}
               </label>
               {pickedContact ? (
                 <div className="flex items-center justify-between gap-2 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50">
@@ -234,7 +236,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
               ) : (
                 <input
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
-                  placeholder="Search contacts…"
+                  placeholder={t('booking_placeholder_contact')}
                   value={contactQuery}
                   onChange={e => { setContactQuery(e.target.value); setContactDropOpen(true) }}
                   onFocus={() => setContactDropOpen(true)}
@@ -245,9 +247,9 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
               {contactDropOpen && !pickedContact && contactQuery.trim().length > 0 && (
                 <div className="absolute z-10 mt-1 w-full max-h-44 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
                   {searchingContacts ? (
-                    <p className="px-3 py-2 text-sm text-slate-400">Searching…</p>
+                    <p className="px-3 py-2 text-sm text-slate-400">{t('booking_searching')}</p>
                   ) : (contactResults ?? []).length === 0 ? (
-                    <p className="px-3 py-2 text-sm text-slate-400">No matches</p>
+                    <p className="px-3 py-2 text-sm text-slate-400">{t('booking_no_matches')}</p>
                   ) : (contactResults ?? []).map((c: any) => (
                     <button key={c.id} type="button"
                       onMouseDown={() => {
@@ -267,7 +269,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
           {/* Sending-to label — when contact is pre-selected */}
           {!needsPicker && sendingTo && (
             <p className="text-sm text-slate-600">
-              Sending to: <span className="font-semibold text-slate-900">{sendingTo}</span>
+              {t('booking_sending_to')} <span className="font-semibold text-slate-900">{sendingTo}</span>
             </p>
           )}
 
@@ -280,7 +282,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
               >
-                Customer picks time
+                {t('booking_mode_open')}
               </button>
               <button
                 onClick={enterProposeMode}
@@ -289,7 +291,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                     ? 'bg-blue-600 text-white border-blue-600'
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}
               >
-                Propose times
+                {t('booking_mode_propose')}
               </button>
             </div>
           )}
@@ -337,7 +339,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
 
               {activeDay && (
                 <div className="px-3 py-3 border-t border-slate-100">
-                  <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">Tap to add times</p>
+                  <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">{t('booking_tap_add_times')}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {dayChips.map(chip => {
                       const selected = slots.some(s => s.start === chip.start)
@@ -355,7 +357,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                       )
                     })}
                     {dayChips.length === 0 && (
-                      <p className="text-xs text-slate-400">No slots for this day.</p>
+                      <p className="text-xs text-slate-400">{t('booking_no_slots_day')}</p>
                     )}
                   </div>
                 </div>
@@ -364,7 +366,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
               {slots.length > 0 && (
                 <div className="px-3 py-3 border-t border-slate-100">
                   <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">
-                    Proposed ({slots.length})
+                    {t('booking_proposed_count')} ({slots.length})
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {slots
@@ -388,14 +390,14 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
           {stages.length > 0 && (
             <div>
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Move to stage after booking (optional)
+                {t('booking_label_stage')}
               </label>
               <select
                 value={stageIdOverride}
                 onChange={e => setStageIdOverride(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               >
-                <option value="">— Use default —</option>
+                <option value="">{t('booking_stage_default')}</option>
                 {stages.map((s: any) => (
                   <option key={s.id} value={s.id}>{s.name}</option>
                 ))}
@@ -412,19 +414,19 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
                 className="h-4 w-4 rounded border-slate-300 text-yippie focus:ring-yippie/30 cursor-pointer"
               />
               <span className="text-sm text-slate-700 font-medium">
-                Send from <span className="text-slate-500 font-normal">{user.reply_from_email}</span>
+                {t('booking_send_from')} <span className="text-slate-500 font-normal">{user.reply_from_email}</span>
               </span>
             </label>
           )}
 
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-              Message (optional)
+              {t('booking_label_message')}
             </label>
             <textarea
               value={message}
               onChange={e => setMessage(e.target.value)}
-              placeholder="Add a short note for the customer…"
+              placeholder={t('booking_placeholder_message')}
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-vertical min-h-[70px] focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
           </div>
@@ -436,11 +438,11 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
             disabled={sending || effectiveContacts.length === 0}
             className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
-            {sending ? 'Sending…' : 'Send booking link'}
+            {sending ? t('booking_btn_sending') : t('booking_btn_send')}
           </button>
           <button onClick={onClose}
             className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-            Cancel
+            {t('booking_btn_cancel')}
           </button>
         </div>
       </div>

@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react'
+import { useT } from '../../../hooks/useT'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import GrapesEditor, { GrapesEditorHandle, type PipelineStage, type CampaignButton } from '../components/GrapesEditor'
 import { Copy, FileText, Loader2, Palette, Pencil, Plus, Tag, Trash2, X } from 'lucide-react'
@@ -31,6 +32,7 @@ interface Template {
 }
 
 export default function TemplatesPage() {
+  const t = useT()
   const qc = useQueryClient()
   const editorRef = useRef<GrapesEditorHandle>(null)
   const pendingDesignRef = useRef<string | null | undefined>(undefined)
@@ -122,7 +124,7 @@ export default function TemplatesPage() {
       setSelectedId(created.id)
       setSaving(false)
     },
-    onError: () => { setSaving(false); setSaveError('Save failed. Please try again.') },
+    onError: () => { setSaving(false); setSaveError(t('admin_templates_save_err')) },
   })
 
   const updateMutation = useMutation({
@@ -132,7 +134,7 @@ export default function TemplatesPage() {
       qc.invalidateQueries({ queryKey: ['templates'] })
       setSaving(false)
     },
-    onError: () => { setSaving(false); setSaveError('Save failed. Please try again.') },
+    onError: () => { setSaving(false); setSaveError(t('admin_templates_save_err')) },
   })
 
   const ctx = useContextMenu()
@@ -148,28 +150,28 @@ export default function TemplatesPage() {
   // [UX-PSYCH] Friction reduction: no confirm modal — delete immediately and
   // offer a 5s Undo that recreates the template from its full payload (same
   // reconstruction the Duplicate action already uses).
-  function deleteWithUndo(t: Template) {
-    deleteMutation.mutate(t.id, {
+  function deleteWithUndo(tmpl: Template) {
+    deleteMutation.mutate(tmpl.id, {
       onSuccess: () => {
-        toast(`Deleted "${t.name}"`, {
+        toast(`Deleted "${tmpl.name}"`, {
           duration: 5000,
           action: {
             label: 'Undo',
             onClick: () => {
               api.post('/tickets/templates', {
-                name: t.name,
-                body: t.body ?? '',
-                design_json: t.design_json ?? null,
-                html_body: t.html_body ?? null,
-                campaign_buttons: t.campaign_buttons ?? null,
+                name: tmpl.name,
+                body: tmpl.body ?? '',
+                design_json: tmpl.design_json ?? null,
+                html_body: tmpl.html_body ?? null,
+                campaign_buttons: tmpl.campaign_buttons ?? null,
               })
-                .then(() => { qc.invalidateQueries({ queryKey: ['templates'] }); toast.success('Template restored') })
-                .catch(() => toast.error('Could not restore template'))
+                .then(() => { qc.invalidateQueries({ queryKey: ['templates'] }); toast.success(t('admin_templates_restored')) })
+                .catch(() => toast.error(t('admin_templates_restore_err')))
             },
           },
         })
       },
-      onError: () => toast.error('Failed to delete template'),
+      onError: () => toast.error(t('admin_templates_delete_err')),
     })
   }
 
@@ -190,7 +192,7 @@ export default function TemplatesPage() {
   function handleSave() {
     const editor = editorRef.current
     if (!editor || saving) return
-    if (!name.trim()) { setSaveError('Template name is required'); return }
+    if (!name.trim()) { setSaveError(t('admin_templates_name_req')); return }
     setSaveError('')
     setSaving(true)
     editor.exportHtml(({ design, html, campaignButtons }: { design: object; html: string; campaignButtons: CampaignButton[] }) => {

@@ -3,6 +3,7 @@ import { useMutation, useQueries, useQuery } from '@tanstack/react-query'
 import { FileText, Loader2, Megaphone, Palette, Settings2, Sparkles, X } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useTenantConfig } from '../../../App'
+import { useT } from '../../../hooks/useT'
 
 const TemplatesPageLazy = lazy(() => import('../../admin/pages/TemplatesPage'))
 
@@ -46,6 +47,7 @@ export function htmlToText(html: string): string {
 }
 
 export function TemplatePicker({ onSelect, context, triggerClassName, triggerIconSize, direction = 'up' }: Props) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [search, setSearch] = useState('')
   const [showManager, setShowManager] = useState(false)
@@ -118,9 +120,9 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
     return () => document.removeEventListener('mousedown', handler)
   }, [open])
 
-  function handleSelect(t: Template) {
-    if (t.html_body) onSelect(t.html_body, true, t.campaign_buttons)
-    else onSelect(t.body, false, null)
+  function handleSelect(tmpl: Template) {
+    if (tmpl.html_body) onSelect(tmpl.html_body, true, tmpl.campaign_buttons)
+    else onSelect(tmpl.body, false, null)
     setOpen(false)
     setSearch('')
     suggestMutation.reset()
@@ -134,14 +136,14 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
         className={triggerClassName ?? 'px-3 py-1.5 bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg hover:bg-slate-200 disabled:opacity-40 transition-colors cursor-pointer flex items-center gap-1.5'}
       >
         <FileText size={triggerIconSize ?? 12} />
-        Templates
+        {t('inbox_templates')}
       </button>
 
       {/* Full-screen template manager overlay */}
       {showManager && (
         <div className="fixed inset-0 z-[60] flex flex-col bg-white">
           <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-8 py-4">
-            <h2 className="text-sm font-bold text-slate-900">Templates</h2>
+            <h2 className="text-sm font-bold text-slate-900">{t('inbox_templates')}</h2>
             <button
               onClick={() => setShowManager(false)}
               className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
@@ -170,7 +172,7 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
               autoFocus
               value={search}
               onChange={e => { setSearch(e.target.value); suggestMutation.reset() }}
-              placeholder="Search templates…"
+              placeholder={t('inbox_templates_search_ph')}
               className="flex-1 text-sm px-2 py-1.5 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
             {context !== undefined && aiEnabled && (
@@ -192,39 +194,39 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
 
           {suggestMutation.data && (
             <div className="px-3 pt-2">
-              <span className="text-[10px] font-bold tracking-widest text-violet-500 uppercase">AI Suggested</span>
+              <span className="text-[10px] font-bold tracking-widest text-violet-500 uppercase">{t('inbox_templates_ai_title')}</span>
             </div>
           )}
 
           <div className="max-h-64 overflow-y-auto">
             {displayed.length === 0 && (
               <p className="text-xs text-slate-400 text-center py-6">
-                {allTemplates.length === 0 ? 'No templates yet' : 'No matches'}
+                {allTemplates.length === 0 ? t('inbox_templates_no_templates') : t('inbox_templates_no_matches')}
               </p>
             )}
-            {displayed.map(t => (
+            {displayed.map(tmpl => (
               <button
-                key={t.id}
+                key={tmpl.id}
                 type="button"
-                onClick={() => handleSelect(t)}
+                onClick={() => handleSelect(tmpl)}
                 className="w-full text-left px-3 py-2.5 hover:bg-slate-50 transition-colors border-b border-slate-100 last:border-0"
               >
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <p className="text-sm font-semibold text-slate-800 truncate flex-1">{t.name}</p>
-                  {t.source === 'campaign' && (
+                  <p className="text-sm font-semibold text-slate-800 truncate flex-1">{tmpl.name}</p>
+                  {tmpl.source === 'campaign' && (
                     <span className="shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 bg-blue-50 text-blue-600 rounded text-[10px] font-semibold">
                       <Megaphone size={9} />
-                      Campaign
+                      {t('inbox_templates_campaign')}
                     </span>
                   )}
                 </div>
-                {t.html_body ? (
+                {tmpl.html_body ? (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-violet-50 text-violet-600 rounded text-[10px] font-semibold">
                     <Palette size={9} />
-                    Visual
+                    {t('inbox_templates_visual')}
                   </span>
                 ) : (
-                  <p className="text-xs text-slate-400 line-clamp-2">{t.body}</p>
+                  <p className="text-xs text-slate-400 line-clamp-2">{tmpl.body}</p>
                 )}
               </button>
             ))}
@@ -236,7 +238,7 @@ export function TemplatePicker({ onSelect, context, triggerClassName, triggerIco
             className="flex w-full items-center gap-1.5 px-3 py-2.5 border-t border-slate-100 text-xs font-semibold text-slate-500 hover:text-blue-600 hover:bg-slate-50 transition-colors"
           >
             <Settings2 size={12} />
-            Manage templates
+            {t('inbox_templates_manage')}
           </button>
         </div>
       )}

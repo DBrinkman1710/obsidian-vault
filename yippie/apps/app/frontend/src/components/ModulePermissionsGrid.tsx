@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../api/client'
 import type { AccessLevel } from '../hooks/useRbacPermissions'
+import { useT } from '../hooks/useT'
 
 type SubjectType = 'user' | 'role' | 'department'
 
@@ -39,6 +40,7 @@ const LEVEL_CLS: Record<AccessLevel, string> = {
 }
 
 export function ModulePermissionsGrid({ subjectType, subjectId, enabledModules }: Props) {
+  const t = useT()
   const qc = useQueryClient()
 
   const { data: allPerms = [] } = useQuery<Permission[]>({
@@ -85,8 +87,8 @@ export function ModulePermissionsGrid({ subjectType, subjectId, enabledModules }
       <table className="w-full text-xs">
         <thead className="bg-slate-50 border-b border-slate-200">
           <tr>
-            <th className="px-3 py-2 text-left font-semibold text-slate-500 uppercase tracking-wide">Module</th>
-            <th className="px-3 py-2 text-left font-semibold text-slate-500 uppercase tracking-wide">Access</th>
+            <th className="px-3 py-2 text-left font-semibold text-slate-500 uppercase tracking-wide">{t('shared_module_col')}</th>
+            <th className="px-3 py-2 text-left font-semibold text-slate-500 uppercase tracking-wide">{t('shared_access_col')}</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100">

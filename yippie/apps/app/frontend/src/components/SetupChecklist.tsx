@@ -7,6 +7,7 @@ import { useAuth } from '../auth/useAuth'
 import { useTenantConfig } from '../App'
 import YipTrainModal from './YipTrainModal'
 import MakeItYoursModal from './MakeItYoursModal'
+import { useT } from '../hooks/useT'
 
 const DEFAULT_BRAND_COLOR = '#5BA4F5'
 
@@ -27,6 +28,7 @@ interface Gate {
 
 export default function SetupChecklist() {
   const { user, refreshUser } = useAuth()
+  const t = useT()
   const navigate = useNavigate()
   const config = useTenantConfig()
   const tourActive = !user?.tour_completed
@@ -104,59 +106,59 @@ export default function SetupChecklist() {
       // Always done gate: keeps the "X of Y complete" header count above zero
       // so the checklist never opens with no visible momentum.
       id: 'account',
-      label: 'Account created',
+      label: t('shared_gate_account'),
       detail: '',
       done: true,
     },
     {
       id: 'profile',
-      label: 'Set up your profile',
-      detail: 'Add your personal email address so replies go out in your name.',
+      label: t('shared_gate_profile'),
+      detail: t('shared_gate_profile_detail'),
       route: '/settings/profile',
       done: !!user?.reply_from_email,
     },
     ...(isAdmin && departmentsEnabled && profileReached ? [{
       id: 'departments',
-      label: 'Set up departments',
-      detail: 'Group your team into departments like Sales or Support so conversations reach the right people.',
+      label: t('shared_gate_departments'),
+      detail: t('shared_gate_departments_detail'),
       route: '/settings/team',
       done: (departmentsQuery.data?.length ?? 0) > 0,
       optional: true,
     }] : []),
     ...(isAdmin && profileReached ? [{
       id: 'roles',
-      label: 'Set up roles',
-      detail: 'Create access roles to control who can see and do what, then assign them to your team.',
+      label: t('shared_gate_roles'),
+      detail: t('shared_gate_roles_detail'),
       route: '/settings/team',
       done: (rolesQuery.data?.length ?? 0) > DEFAULT_RBAC_ROLE_COUNT,
       optional: true,
     }] : []),
     {
       id: 'signature',
-      label: 'Add your email signature',
-      detail: 'Give your replies a professional sign-off.',
+      label: t('shared_gate_signature'),
+      detail: t('shared_gate_signature_detail'),
       route: '/settings/profile',
       done: (signatureQuery.data?.length ?? 0) > 0,
       optional: true,
     },
     ...(isAdmin && aiEnabled ? [{
       id: 'yip-train',
-      label: 'Train Yip',
-      detail: 'Help Yip learn your business so AI replies fit your brand.',
+      label: t('shared_gate_yip_train'),
+      detail: t('shared_gate_yip_train_detail'),
       action: () => setShowYipTrain(true),
       done: yipTrainDone || !!(config?.ai_profile),
     }] : []),
     ...(isAdmin ? [{
       id: 'make-it-yours',
-      label: 'Make it yours',
-      detail: 'Add your brand colour and logo so the workspace feels like home.',
+      label: t('shared_gate_make_it_yours'),
+      detail: t('shared_gate_make_it_yours_detail'),
       action: () => setShowMakeItYours(true),
       done: brandingCustomised,
     }] : []),
     ...(isAdmin ? [{
       id: 'team',
-      label: 'Invite your team',
-      detail: 'Teammates get their own login and can claim tickets.',
+      label: t('shared_gate_team'),
+      detail: t('shared_gate_team_detail'),
       route: '/settings/team',
       done: (teamQuery.data?.length ?? 0) > 1,
       optional: true,
@@ -200,24 +202,24 @@ export default function SetupChecklist() {
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
         <div>
           <p className="text-sm font-semibold text-slate-900">
-            {allDone ? 'All done!' : 'Get started'}
+            {allDone ? t('shared_all_done') : t('shared_get_started')}
           </p>
           <p className="text-xs text-slate-400 mt-0.5">
-            {allDone ? 'Your workspace is ready.' : `${completedCount} of ${requiredGates.length} complete`}
+            {allDone ? t('shared_workspace_ready') : `${completedCount} ${t('shared_of_complete')} ${requiredGates.length} ${t('shared_complete')}`}
           </p>
         </div>
         <div className="flex items-center gap-1">
           <button
             onClick={() => setCollapsed(c => !c)}
             className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-            aria-label={collapsed ? 'Expand' : 'Collapse'}
+            aria-label={collapsed ? t('shared_expand') : t('shared_collapse')}
           >
             {collapsed ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
           </button>
           <button
             onClick={() => dismissMutation.mutate()}
             className="p-1 text-slate-400 hover:text-slate-600 rounded-lg hover:bg-slate-100 transition-colors"
-            aria-label="Dismiss"
+            aria-label={t('shared_dismiss')}
           >
             <X size={15} />
           </button>
@@ -253,7 +255,7 @@ export default function SetupChecklist() {
                   <p className={`text-xs font-semibold ${gate.done ? 'text-slate-400 line-through' : 'text-slate-800'}`}>
                     {gate.label}
                     {gate.optional && !gate.done && (
-                      <span className="text-[10px] text-slate-400 font-normal ml-1">Optional</span>
+                      <span className="text-[10px] text-slate-400 font-normal ml-1">{t('shared_optional')}</span>
                     )}
                   </p>
                   {!gate.done && (

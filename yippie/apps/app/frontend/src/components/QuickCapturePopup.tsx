@@ -7,6 +7,7 @@ import { streamCapture } from '../api/jarvisStream'
 import { useAuth, type JarvisPrefs, type User as AuthUser } from '../auth/useAuth'
 import { useQuickCapture, openQuickCapture } from '../hooks/useQuickCapture'
 import { useCompose } from '../hooks/useCompose'
+import { useT } from '../hooks/useT'
 
 interface CtaAction {
   label: string
@@ -100,6 +101,7 @@ const STATUS_LABELS: Record<string, string> = {
 }
 
 function useReminderSocket(userId: string | undefined, navigate: (path: string) => void) {
+  const t = useT()
   useEffect(() => {
     if (!userId) return
     let ws: WebSocket | null = null
@@ -120,16 +122,16 @@ function useReminderSocket(userId: string | undefined, navigate: (path: string) 
             toast.warning(data.body, {
               duration: 10000,
               action: {
-                label: 'Dismiss',
+                label: t('shared_dismiss'),
                 onClick: () => api.patch(`/jarvis/reminders/${data.reminder_id}/dismiss`).catch(() => {}),
               },
             })
           }
           // [YIP5] morning briefing ready — opening the popup lands on it
           if (data.type === 'jarvis_briefing' && data.user_id === userId) {
-            toast.info(data.body || 'Your morning briefing is ready', {
+            toast.info(data.body || t('shared_briefing_ready'), {
               duration: 15000,
-              action: { label: 'Open', onClick: () => openQuickCapture() },
+              action: { label: t('shared_open'), onClick: () => openQuickCapture() },
             })
           }
           // [YIP5] SLA near breach nudge — assigned user, or everyone when unassigned
@@ -138,7 +140,7 @@ function useReminderSocket(userId: string | undefined, navigate: (path: string) 
             toast.warning(`SLA deadline in ${mins} min: ${data.subject}`, {
               duration: 15000,
               action: data.ticket_id
-                ? { label: 'Open ticket', onClick: () => navigate(`/tickets/${data.ticket_id}`) }
+                ? { label: t('shared_open_ticket'), onClick: () => navigate(`/tickets/${data.ticket_id}`) }
                 : undefined,
             })
           }
@@ -205,6 +207,7 @@ export default function QuickCapturePopup() {
   const { user, refreshUser } = useAuth()
   const { openCompose } = useCompose()
   const navigate = useNavigate()
+  const t = useT()
   const inputRef = useRef<HTMLInputElement>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -289,7 +292,7 @@ export default function QuickCapturePopup() {
       setMessages(msgs.map(threadMessageToChatMsg))
       setShowThreads(false)
     } catch {
-      toast.error('Could not load that conversation')
+      toast.error(t('shared_could_not_load_conversation'))
     }
   }
 
@@ -342,7 +345,7 @@ export default function QuickCapturePopup() {
     setMessages(prev => [
       ...prev,
       { role: 'user', content: text },
-      { role: 'assistant', content: '', streaming: true, status: 'Yip is thinking…' },
+      { role: 'assistant', content: '', streaming: true, status: t('shared_yip_thinking') },
     ])
     setBody('')
     setLoading(true)
@@ -365,7 +368,7 @@ export default function QuickCapturePopup() {
         onStatus: tool => setMessages(prev => updateStreaming(prev, m => ({
           // Providers may stream preamble text before calling tools — discard it;
           // the terminal result is authoritative.
-          ...m, content: '', status: STATUS_LABELS[tool] ?? 'Working…',
+          ...m, content: '', status: STATUS_LABELS[tool] ?? t('shared_working'),
         }))),
         onDelta: t => setMessages(prev => updateStreaming(prev, m => ({
           ...m, status: null, content: m.content + t,
@@ -388,7 +391,7 @@ export default function QuickCapturePopup() {
         } catch (e: any) {
           setMessages(prev => replaceStreaming(prev, {
             role: 'assistant',
-            content: e?.response?.data?.detail ?? 'Something went wrong.',
+            content: e?.response?.data?.detail ?? t('something_went_wrong'),
             data: { action_taken: 'error', summary: '' },
           }))
         }
@@ -411,32 +414,32 @@ export default function QuickCapturePopup() {
             Yip
           </span>
           {context.context_type === 'contact' && (
-            <button onClick={clearContext} title="Clear context"
+            <button onClick={clearContext} title={t('shared_clear_context')}
               className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors">
               <User size={12} /> Contact <X size={11} className="opacity-60" />
             </button>
           )}
           {context.context_type === 'ticket' && (
-            <button onClick={clearContext} title="Clear context"
+            <button onClick={clearContext} title={t('shared_clear_context')}
               className="inline-flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 hover:bg-amber-100 transition-colors">
               <Ticket size={12} /> Ticket <X size={11} className="opacity-60" />
             </button>
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button onClick={startNewThread} title="New conversation"
+          <button onClick={startNewThread} title={t('shared_new_conversation_btn')}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
             <Plus size={15} />
           </button>
-          <button onClick={toggleThreads} title="Recent conversations"
+          <button onClick={toggleThreads} title={t('shared_recent_conversations')}
             className={`p-1.5 rounded-lg transition-colors ${showThreads ? 'text-yippie bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}>
             <History size={15} />
           </button>
-          <button onClick={() => setShowPrefs(s => !s)} title="Preferences"
+          <button onClick={() => setShowPrefs(s => !s)} title={t('shared_preferences')}
             className={`p-1.5 rounded-lg transition-colors ${showPrefs ? 'text-yippie bg-blue-50' : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'}`}>
             <Settings size={15} />
           </button>
-          <button onClick={close} title="Close"
+          <button onClick={close} title={t('shared_close')}
             className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors">
             <X size={15} />
           </button>
@@ -446,15 +449,15 @@ export default function QuickCapturePopup() {
       {showThreads && !showPrefs && (
         <div className="px-4 pb-2 max-h-[240px] overflow-y-auto flex flex-col gap-1">
           {threads.length === 0 && (
-            <p className="text-xs text-slate-400 px-1 py-2">No conversations yet.</p>
+            <p className="text-xs text-slate-400 px-1 py-2">{t('shared_no_conversations_yet')}</p>
           )}
-          {threads.map(t => (
-            <button key={t.id} onClick={() => openThread(t.id)}
-              className={`flex items-center justify-between gap-2 text-left px-2.5 py-2 rounded-lg text-sm transition-colors ${t.id === threadId ? 'bg-blue-50 text-blue-800' : 'hover:bg-slate-50 text-slate-700'}`}>
+          {threads.map(th => (
+            <button key={th.id} onClick={() => openThread(th.id)}
+              className={`flex items-center justify-between gap-2 text-left px-2.5 py-2 rounded-lg text-sm transition-colors ${th.id === threadId ? 'bg-blue-50 text-blue-800' : 'hover:bg-slate-50 text-slate-700'}`}>
               <span className="truncate">
-                {t.kind === 'briefing' ? '☀️ ' : ''}{t.title || 'New conversation'}
+                {th.kind === 'briefing' ? '☀️ ' : ''}{th.title || t('shared_new_conversation')}
               </span>
-              <span className="shrink-0 text-[11px] text-slate-400">{relativeTime(t.updated_at)}</span>
+              <span className="shrink-0 text-[11px] text-slate-400">{relativeTime(th.updated_at)}</span>
             </button>
           ))}
         </div>
@@ -480,10 +483,10 @@ export default function QuickCapturePopup() {
               if (e.key === 'Enter') { e.preventDefault(); submit() }
               else if (e.key === 'Escape') { e.preventDefault(); close() }
             }}
-            placeholder={messages.length ? 'Reply to Yip…' : 'Ask Yip anything — notes, reminders, lookups…'}
+            placeholder={messages.length ? t('shared_reply_to_yip') : t('shared_ask_yip')}
             className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
-          <button onClick={submit} disabled={loading || !body.trim()} title="Send"
+          <button onClick={submit} disabled={loading || !body.trim()} title={t('shared_send')}
             className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-lg bg-yippie text-white hover:opacity-90 disabled:opacity-40 transition-opacity">
             {loading ? <Loader2 size={16} className="animate-spin" /> : <ArrowRight size={16} />}
           </button>
@@ -512,6 +515,7 @@ function CtaRow({ actions, onAction }: { actions?: CtaAction[] | null; onAction:
 // [YIP3] Proposal card for a write action — the write only runs when the user
 // presses Confirm, which posts the staged payload to /jarvis/confirm.
 function ConfirmActionCard({ pending, append, threadId }: { pending: PendingAction; append: (m: ChatMsg) => void; threadId: string | null }) {
+  const t = useT()
   const [status, setStatus] = useState<'idle' | 'loading' | 'done' | 'cancelled'>('idle')
 
   async function confirmPending() {
@@ -525,7 +529,7 @@ function ConfirmActionCard({ pending, append, threadId }: { pending: PendingActi
       setStatus('idle')
       append({
         role: 'assistant',
-        content: e?.response?.data?.detail ?? 'That action failed. Nothing was changed.',
+        content: e?.response?.data?.detail ?? t('something_went_wrong'),
         data: { action_taken: 'error', summary: '' },
       })
     }
@@ -534,7 +538,7 @@ function ConfirmActionCard({ pending, append, threadId }: { pending: PendingActi
   function cancel() {
     if (status !== 'idle') return
     setStatus('cancelled')
-    append({ role: 'assistant', content: 'Cancelled. Nothing was changed.', data: { action_taken: 'answer', summary: '' } })
+    append({ role: 'assistant', content: t('shared_cancelled') + '. Nothing was changed.', data: { action_taken: 'answer', summary: '' } })
   }
 
   return (
@@ -551,19 +555,19 @@ function ConfirmActionCard({ pending, append, threadId }: { pending: PendingActi
         </div>
       )}
       {status === 'done' ? (
-        <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700"><Check size={15} /> Confirmed</p>
+        <p className="inline-flex items-center gap-1.5 text-sm font-semibold text-green-700"><Check size={15} /> {t('shared_confirmed')}</p>
       ) : status === 'cancelled' ? (
-        <p className="text-sm font-semibold text-slate-400">Cancelled</p>
+        <p className="text-sm font-semibold text-slate-400">{t('shared_cancelled')}</p>
       ) : (
         <div className="flex gap-2">
           <button onClick={confirmPending} disabled={status === 'loading'}
             className="inline-flex items-center gap-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity">
             {status === 'loading' ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
-            Confirm
+            {t('shared_confirm')}
           </button>
           <button onClick={cancel} disabled={status === 'loading'}
             className="bg-white border border-slate-300 hover:bg-slate-50 disabled:opacity-50 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors">
-            Cancel
+            {t('cancel')}
           </button>
         </div>
       )}
@@ -574,6 +578,7 @@ function ConfirmActionCard({ pending, append, threadId }: { pending: PendingActi
 function MessageBubble({ msg, onDone, onAction, append, threadId }: {
   msg: ChatMsg; onDone: () => void; onAction: (a: CtaAction) => void; append: (m: ChatMsg) => void; threadId: string | null
 }) {
+  const t = useT()
   if (msg.role === 'user') {
     return (
       <div className="self-end max-w-[85%] bg-yippie text-white text-sm rounded-2xl rounded-br-sm px-3 py-2">
@@ -587,7 +592,7 @@ function MessageBubble({ msg, onDone, onAction, append, threadId }: {
     if (!msg.content) {
       return (
         <div className="self-start inline-flex items-center gap-2 text-xs text-slate-400 px-3 py-2">
-          <Loader2 size={13} className="animate-spin" /> {msg.status || 'Yip is thinking…'}
+          <Loader2 size={13} className="animate-spin" /> {msg.status || t('shared_yip_thinking')}
         </div>
       )
     }
@@ -659,6 +664,7 @@ function MessageBubble({ msg, onDone, onAction, append, threadId }: {
 function ContextCard({ data, summary, onDone }: {
   data: Record<string, any>; summary: string; onDone: () => void
 }) {
+  const t = useT()
   const [form, setForm] = useState({
     full_name: data.full_name ?? '',
     email: data.email ?? '',
@@ -683,7 +689,7 @@ function ContextCard({ data, summary, onDone }: {
       })
       setSaved(true)
     } catch {
-      toast.error('Failed to save contact')
+      toast.error(t('shared_failed_save_contact'))
     } finally {
       setSaving(false)
     }
@@ -697,30 +703,30 @@ function ContextCard({ data, summary, onDone }: {
       <p className="text-sm text-slate-600 leading-snug">{summary}</p>
       <div className="grid grid-cols-2 gap-2">
         <div className="col-span-2">
-          <label className={labelCls}>Name</label>
+          <label className={labelCls}>{t('shared_context_name')}</label>
           <input className={inputCls} value={form.full_name} onChange={set('full_name')} />
         </div>
         <div>
-          <label className={labelCls}>Email</label>
+          <label className={labelCls}>{t('shared_context_email')}</label>
           <input className={inputCls} value={form.email} onChange={set('email')} />
         </div>
         <div>
-          <label className={labelCls}>Phone</label>
+          <label className={labelCls}>{t('shared_context_phone')}</label>
           <input className={inputCls} value={form.phone} onChange={set('phone')} />
         </div>
         <div className="col-span-2">
-          <label className={labelCls}>Notes</label>
+          <label className={labelCls}>{t('shared_context_notes')}</label>
           <textarea className={`${inputCls} resize-vertical min-h-[56px]`} value={form.notes} onChange={set('notes')} />
         </div>
       </div>
       <div className="flex gap-2">
         <button onClick={save} disabled={saving}
           className="bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity">
-          {saving ? 'Saving…' : saved ? 'Saved ✓' : 'Save'}
+          {saving ? t('shared_saving') : saved ? t('shared_saved') : t('save')}
         </button>
         <button onClick={onDone}
           className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-3 py-1.5 rounded-lg text-sm font-semibold transition-colors">
-          Done
+          {t('done')}
         </button>
       </div>
     </div>
@@ -730,6 +736,7 @@ function ContextCard({ data, summary, onDone }: {
 function PrefsPanel({ user, refreshUser, onClose }: {
   user: AuthUser | null; refreshUser: () => Promise<void>; onClose: () => void
 }) {
+  const t = useT()
   const prefs = user?.jarvis_prefs
   const [hotkey, setHotkey] = useState(prefs?.hotkey_display ?? DEFAULT_HOTKEY)
   const [enabled, setEnabled] = useState<string[]>(
@@ -757,7 +764,7 @@ function PrefsPanel({ user, refreshUser, onClose }: {
       await refreshUser()
       onClose()
     } catch {
-      toast.error('Failed to save preferences')
+      toast.error(t('shared_failed_save_prefs'))
     } finally {
       setSaving(false)
     }
@@ -768,7 +775,7 @@ function PrefsPanel({ user, refreshUser, onClose }: {
   return (
     <div className="border-t border-slate-100 px-4 py-3 flex flex-col gap-3">
       <div>
-        <label className={labelCls}>Hotkey</label>
+        <label className={labelCls}>{t('shared_hotkey_label')}</label>
         <input
           value={hotkey}
           onChange={e => setHotkey(e.target.value)}
@@ -776,7 +783,7 @@ function PrefsPanel({ user, refreshUser, onClose }: {
         />
       </div>
       <div>
-        <label className={labelCls}>Enabled actions</label>
+        <label className={labelCls}>{t('shared_enabled_actions_label')}</label>
         <div className="flex flex-col gap-1.5">
           {ACTION_OPTIONS.map(opt => (
             <label key={opt.key} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
@@ -792,7 +799,7 @@ function PrefsPanel({ user, refreshUser, onClose }: {
         </div>
       </div>
       <div>
-        <label className={labelCls}>Morning briefing</label>
+        <label className={labelCls}>{t('shared_morning_briefing_label')}</label>
         <div className="flex items-center gap-3">
           <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
             <input
@@ -801,7 +808,7 @@ function PrefsPanel({ user, refreshUser, onClose }: {
               onChange={() => setBriefingEnabled(v => !v)}
               className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-yippie/30 cursor-pointer"
             />
-            Daily digest at
+            {t('shared_daily_digest_at')}
           </label>
           <input
             type="time"
@@ -814,7 +821,7 @@ function PrefsPanel({ user, refreshUser, onClose }: {
       </div>
       <button onClick={save} disabled={saving}
         className="self-start bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-3 py-1.5 rounded-lg text-sm font-semibold transition-opacity">
-        {saving ? 'Saving…' : 'Save preferences'}
+        {saving ? t('shared_saving') : t('shared_save_preferences')}
       </button>
     </div>
   )

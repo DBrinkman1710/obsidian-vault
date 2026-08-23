@@ -4,6 +4,7 @@ import { useMutation } from '@tanstack/react-query'
 import { Palette } from 'lucide-react'
 import { CloseButton } from '../shell/CloseButton'
 import { api } from '../api/client'
+import { useT } from '../hooks/useT'
 
 const DEFAULT_COLOR = '#5BA4F5'
 
@@ -18,6 +19,7 @@ interface Props {
  * into the workspace, the more they value it. Picks a brand colour and an
  * optional logo, reusing the existing PATCH /team/branding endpoint. */
 export default function MakeItYoursModal({ tenantId, initialColor, initialLogoUrl, onDismiss }: Props) {
+  const t = useT()
   const [color, setColor] = useState(initialColor || DEFAULT_COLOR)
   const [logoUrl, setLogoUrl] = useState(initialLogoUrl || '')
   // Track the load failure in state (not by mutating the img's style) so the
@@ -49,8 +51,8 @@ export default function MakeItYoursModal({ tenantId, initialColor, initialLogoUr
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100">
           <Palette size={18} className="text-yippie shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900">Make it yours</p>
-            <p className="text-xs text-slate-400">Pick a brand colour and logo so this workspace feels like home</p>
+            <p className="text-sm font-semibold text-slate-900">{t('shared_make_it_yours')}</p>
+            <p className="text-xs text-slate-400">{t('shared_make_it_yours_subtitle')}</p>
           </div>
           <CloseButton onClick={onDismiss} />
         </div>
@@ -58,7 +60,7 @@ export default function MakeItYoursModal({ tenantId, initialColor, initialLogoUr
         <div className="px-5 py-5 flex flex-col gap-5">
           {/* Brand colour */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Brand colour</label>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('shared_brand_colour_label')}</label>
             <div className="flex items-center gap-3">
               <input
                 type="color"
@@ -72,34 +74,34 @@ export default function MakeItYoursModal({ tenantId, initialColor, initialLogoUr
                 onClick={() => setColor(DEFAULT_COLOR)}
                 className="ml-auto text-xs text-slate-500 hover:text-slate-700 border border-slate-200 hover:border-slate-300 px-2.5 py-1 rounded-lg transition-colors"
               >
-                Reset
+                {t('shared_reset')}
               </button>
             </div>
           </div>
 
           {/* Logo */}
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Logo URL <span className="text-slate-400 font-normal normal-case">(optional)</span></label>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('shared_logo_url_label')} <span className="text-slate-400 font-normal normal-case">{t('shared_logo_url_optional')}</span></label>
             <div className="flex items-center gap-3">
               <input
                 value={logoUrl}
                 onChange={e => { setLogoUrl(e.target.value); setLogoError(false) }}
-                placeholder="https://yourbrand.com/logo.png"
+                placeholder={t('shared_logo_url_placeholder')}
                 className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               />
               {previewOk && (
                 <img
                   src={logoUrl.trim()}
-                  alt="Logo preview"
+                  alt={t('shared_logo_preview_alt')}
                   className="h-10 w-10 rounded-lg object-contain border border-slate-200 bg-slate-50 shrink-0"
                   onError={() => setLogoError(true)}
                 />
               )}
             </div>
-            <p className="text-xs text-slate-400 mt-1.5">Paste a link to your logo. It shows in the sidebar and on your customer-facing pages.</p>
+            <p className="text-xs text-slate-400 mt-1.5">{t('shared_logo_url_hint')}</p>
           </div>
 
-          {mutation.isError && <p className="text-xs text-red-500">Could not save. Please try again.</p>}
+          {mutation.isError && <p className="text-xs text-red-500">{t('shared_could_not_save_branding')}</p>}
         </div>
 
         {/* Footer */}
@@ -109,13 +111,13 @@ export default function MakeItYoursModal({ tenantId, initialColor, initialLogoUr
             disabled={mutation.isPending}
             className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
-            {mutation.isPending ? 'Saving…' : 'Save my branding'}
+            {mutation.isPending ? t('shared_saving') : t('shared_save_my_branding')}
           </button>
           <button
             onClick={onDismiss}
             className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
           >
-            Skip for now
+            {t('shared_skip_for_now')}
           </button>
         </div>
       </div>
