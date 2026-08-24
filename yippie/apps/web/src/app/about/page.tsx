@@ -4,6 +4,7 @@ import SiteFooter from "../components/SiteFooter";
 import Reveal from "../components/Reveal";
 import styles from "../components/content.module.css";
 import aboutStyles from "./about.module.css";
+import FounderPhoto from "./FounderPhoto";
 import { BoltIcon, LayersIcon, UsersIcon, InboxIcon, CalendarIcon, TeamIcon, ArrowRightIcon } from "../components/icons";
 
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
@@ -80,7 +81,7 @@ export default function AboutPage() {
             dingen te optimaliseren. Yippie is het hulpmiddel dat ik altijd al had gewild.
           </p>
           <div className={aboutStyles.founderPill}>
-            <span className={aboutStyles.founderAvatar}>DB</span>
+            <FounderPhoto />
             <span className={aboutStyles.founderName}>
               <strong>Diederik Brinkman</strong> · Oprichter
             </span>
