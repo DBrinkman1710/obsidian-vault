@@ -1,10 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import styles from "./about.module.css";
 
 export default function FounderPhoto() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (!open) return;
@@ -31,26 +35,28 @@ export default function FounderPhoto() {
         <img src="/founder.jpg" alt="Diederik Brinkman, founder of Yippie" />
       </button>
 
-      {open && (
-        <div
-          className={styles.lightbox}
-          onClick={() => setOpen(false)}
-          role="dialog"
-          aria-modal="true"
-          aria-label="Photo of Diederik Brinkman"
-        >
-          <button type="button" className={styles.lightboxClose} aria-label="Close">
-            &times;
-          </button>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/founder.jpg"
-            alt="Diederik Brinkman, founder of Yippie"
-            className={styles.lightboxImg}
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
-      )}
+      {open && mounted &&
+        createPortal(
+          <div
+            className={styles.lightbox}
+            onClick={() => setOpen(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Photo of Diederik Brinkman"
+          >
+            <button type="button" className={styles.lightboxClose} aria-label="Close">
+              &times;
+            </button>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/founder.jpg"
+              alt="Diederik Brinkman, founder of Yippie"
+              className={styles.lightboxImg}
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>,
+          document.body,
+        )}
     </>
   );
 }
