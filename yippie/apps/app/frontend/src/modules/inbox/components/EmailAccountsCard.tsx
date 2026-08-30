@@ -154,7 +154,7 @@ export function EmailAccountsCard({ level }: { level: 'tenant' | 'user' }) {
               disabled={connectMutation.isPending}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-sm font-semibold text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
             >
-              <Mail size={15} className="text-red-500" /> Connect Gmail
+              <Mail size={15} className="text-red-500" /> {t('inbox_email_acct_connect_gmail')}
             </button>
           )}
           {providers?.outlook && (
@@ -164,7 +164,7 @@ export function EmailAccountsCard({ level }: { level: 'tenant' | 'user' }) {
               disabled={connectMutation.isPending}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 text-sm font-semibold text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 cursor-pointer"
             >
-              <Mail size={15} className="text-sky-600" /> Connect Outlook
+              <Mail size={15} className="text-sky-600" /> {t('inbox_email_acct_connect_outlook')}
             </button>
           )}
         </div>
@@ -177,6 +177,7 @@ export function EmailAccountsCard({ level }: { level: 'tenant' | 'user' }) {
 // from the workspace name; admins can override it. When a Gmail/Outlook account
 // is linked above, that account takes over and this address is a fallback.
 function SharedInboxAddress({ hasLinkedAccount }: { hasLinkedAccount: boolean }) {
+  const t = useT()
   const qc = useQueryClient()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin'
@@ -195,19 +196,19 @@ function SharedInboxAddress({ hasLinkedAccount }: { hasLinkedAccount: boolean })
     mutationFn: (addr: string) =>
       api.patch('/team/workspace-prefs', { inbound_email: addr }).then((r: any) => r.data),
     onSuccess: () => {
-      toast.success('Shared inbox address updated')
+      toast.success(t('inbox_email_acct_addr_updated'))
       qc.invalidateQueries({ queryKey: ['workspace-prefs'] })
       setEditing(false)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Could not update the address.'),
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? t('inbox_email_acct_addr_err')),
   })
 
   return (
     <div className="mb-4 rounded-xl border border-slate-200 bg-slate-50/60 px-3.5 py-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-xs font-semibold text-slate-500">Shared inbox address</p>
-          <p className="text-[11px] text-slate-400 mt-0.5">Mail sent here lands in your shared inbox. Created automatically from your workspace name.</p>
+          <p className="text-xs font-semibold text-slate-500">{t('inbox_email_acct_address_title')}</p>
+          <p className="text-[11px] text-slate-400 mt-0.5">{t('inbox_email_acct_address_desc')}</p>
         </div>
         {isAdmin && !editing && (
           <button
@@ -215,7 +216,7 @@ function SharedInboxAddress({ hasLinkedAccount }: { hasLinkedAccount: boolean })
             onClick={() => { setValue(current); setEditing(true) }}
             className="shrink-0 text-xs font-semibold text-yippie hover:underline cursor-pointer"
           >
-            Edit
+            {t('inbox_email_acct_edit')}
           </button>
         )}
       </div>
@@ -235,25 +236,25 @@ function SharedInboxAddress({ hasLinkedAccount }: { hasLinkedAccount: boolean })
             disabled={saveMut.isPending}
             className="shrink-0 px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
-            Save
+            {t('inbox_email_acct_save')}
           </button>
           <button
             type="button"
             onClick={() => setEditing(false)}
             className="shrink-0 px-2.5 py-1.5 text-xs font-semibold text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-100 cursor-pointer"
           >
-            Cancel
+            {t('cancel')}
           </button>
         </div>
       ) : (
         <p className={`mt-1.5 text-sm font-mono truncate ${hasLinkedAccount ? 'text-slate-400' : 'text-slate-800'}`}>
-          {current || <span className="font-sans text-slate-400">Not set</span>}
+          {current || <span className="font-sans text-slate-400">{t('inbox_email_acct_not_set')}</span>}
         </p>
       )}
 
       {hasLinkedAccount && (
         <p className="mt-2 text-[11px] text-warning-600">
-          A connected account below is active, so incoming mail syncs from it and replies go out from that address. This Yippie address stays as a fallback.
+          {t('inbox_email_acct_fallback_note')}
         </p>
       )}
     </div>
@@ -261,8 +262,9 @@ function SharedInboxAddress({ hasLinkedAccount }: { hasLinkedAccount: boolean })
 }
 
 function StatusBadge({ account }: { account: EmailAccount }) {
+  const t = useT()
   if (account.status === 'active') {
-    return <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full font-semibold">Active</span>
+    return <span className="text-[10px] px-1.5 py-0.5 bg-emerald-50 text-emerald-600 rounded-full font-semibold">{t('inbox_email_acct_status_active')}</span>
   }
   if (account.status === 'error') {
     return (
@@ -270,16 +272,16 @@ function StatusBadge({ account }: { account: EmailAccount }) {
         className="text-[10px] px-1.5 py-0.5 bg-amber-50 text-amber-600 rounded-full font-semibold"
         title={account.last_error ?? undefined}
       >
-        Sync error
+        {t('inbox_email_acct_status_error')}
       </span>
     )
   }
   return (
     <span
       className="text-[10px] px-1.5 py-0.5 bg-red-50 text-red-500 rounded-full font-semibold"
-      title={account.last_error ?? 'Access was revoked — reconnect to resume syncing.'}
+      title={account.last_error ?? undefined}
     >
-      Disconnected
+      {t('inbox_email_acct_status_dc')}
     </span>
   )
 }

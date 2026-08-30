@@ -175,6 +175,7 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
     admin_tab_dashboard:          'Dashboard',
 
     // SuperAdminPage — filter tabs
+    admin_filter_all:             'All',
     admin_filter_active:          'Active',
     admin_filter_demo:            'Demo',
     admin_filter_inactive:        'Inactive',
@@ -184,6 +185,7 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
     admin_no_clients_filter:      'No {filter} clients.',
 
     // SuperAdminPage — table headers
+    admin_col_tenant:             'Tenant',
     admin_col_client:             'Client',
     admin_col_plan:               'Plan',
     admin_col_ai:                 'AI',
@@ -201,12 +203,22 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
     // SuperAdminPage — inline actions
     admin_modules_count:          '{n} modules',
     admin_view_as:                'View as',
+    admin_view_as_hint:           "Log in as this client's admin (read/write, be careful)",
     admin_edit:                   'Edit',
     admin_set_up_domain:          'Set up',
     admin_verified_domain:        'Verified',
     admin_pending_domain:         'Pending',
     admin_view_dns:               'DNS',
     admin_verify_btn:             'Verify',
+
+    // SuperAdminPage — DonutChart / AI usage
+    admin_unlimited_ai_scans:     'Unlimited AI scans',
+    admin_ai_scans_used:          '{used} / {limit} AI scans this month',
+
+    // SuperAdminPage — relative time
+    admin_time_m_ago:             '{n}m ago',
+    admin_time_h_ago:             '{n}h ago',
+    admin_time_d_ago:             '{n}d ago',
 
     // SuperAdminPage — stats / dashboard
     admin_stat_total_tenants:     'Total tenants',
@@ -393,6 +405,7 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
     admin_bulk_cannot_undo:       'This cannot be undone',
     admin_bulk_wipe_desc:         '{name}: all users, contacts and data will be wiped.',
     admin_failed_delete:          'Failed to delete. Check your password.',
+    admin_bulk_partial_delete:    '{done} of {total} deleted. Errors: {msg}',
 
     // TenantUsersModal
     admin_users_modal_title:      'Users',
@@ -616,6 +629,7 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
     admin_tab_dashboard:          'Dashboard',
 
     // SuperAdminPage — filter tabs
+    admin_filter_all:             'Alle',
     admin_filter_active:          'Actief',
     admin_filter_demo:            'Demo',
     admin_filter_inactive:        'Inactief',
@@ -625,6 +639,7 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
     admin_no_clients_filter:      'Geen {filter}-klanten.',
 
     // SuperAdminPage — table headers
+    admin_col_tenant:             'Tenant',
     admin_col_client:             'Klant',
     admin_col_plan:               'Abonnement',
     admin_col_ai:                 'AI',
@@ -642,12 +657,22 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
     // SuperAdminPage — inline actions
     admin_modules_count:          '{n} modules',
     admin_view_as:                'Bekijken als',
+    admin_view_as_hint:           'Log in als admin van deze klant (lees/schrijf, wees voorzichtig)',
     admin_edit:                   'Bewerken',
     admin_set_up_domain:          'Instellen',
     admin_verified_domain:        'Geverifieerd',
     admin_pending_domain:         'In behandeling',
     admin_view_dns:               'DNS',
     admin_verify_btn:             'Verifiëren',
+
+    // SuperAdminPage — DonutChart / AI usage
+    admin_unlimited_ai_scans:     'Onbeperkte AI-scans',
+    admin_ai_scans_used:          '{used} / {limit} AI-scans deze maand',
+
+    // SuperAdminPage — relative time
+    admin_time_m_ago:             '{n}m geleden',
+    admin_time_h_ago:             '{n}u geleden',
+    admin_time_d_ago:             '{n}d geleden',
 
     // SuperAdminPage — stats / dashboard
     admin_stat_total_tenants:     'Totaal tenants',
@@ -834,6 +859,7 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
     admin_bulk_cannot_undo:       'Dit kan niet ongedaan worden gemaakt',
     admin_bulk_wipe_desc:         '{name}: alle gebruikers, contacten en gegevens worden gewist.',
     admin_failed_delete:          'Verwijderen mislukt. Controleer je wachtwoord.',
+    admin_bulk_partial_delete:    '{done} van {total} verwijderd. Fout: {msg}',
 
     // TenantUsersModal
     admin_users_modal_title:      'Gebruikers',

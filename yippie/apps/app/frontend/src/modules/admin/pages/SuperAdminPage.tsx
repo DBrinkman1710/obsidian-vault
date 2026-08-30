@@ -122,7 +122,7 @@ const EMPTY_FORM: CreateForm = {
   enabled_modules: [...ALL_MODULES], is_demo: false, inbound_email: '',
 }
 
-const WIZARD_STEPS = ['Company', 'Modules', 'Branding', 'Admins', 'Go live']
+const WIZARD_STEP_KEYS = ['admin_wizard_company', 'admin_wizard_modules', 'admin_wizard_branding', 'admin_wizard_admins', 'admin_wizard_golive'] as const
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 function demoDaysRemaining(expiresAt: string | null): number {
@@ -206,9 +206,10 @@ const STATUS_PILL: Record<string, string> = {
 }
 
 function DonutChart({ used, limit }: { used: number; limit: number | null }) {
+  const t = useT()
   if (limit === null) {
     return (
-      <span className="text-xs text-slate-400" title="Unlimited AI scans">∞</span>
+      <span className="text-xs text-slate-400" title={t('admin_unlimited_ai_scans')}>&#8734;</span>
     )
   }
   const pct = Math.min(used / Math.max(limit, 1), 1)
@@ -218,7 +219,7 @@ function DonutChart({ used, limit }: { used: number; limit: number | null }) {
   const circ = 2 * Math.PI * r
   const dash = pct * circ
   return (
-    <div className="flex flex-col items-center gap-0.5" title={`${used} / ${limit} AI scans this month`}>
+    <div className="flex flex-col items-center gap-0.5" title={t('admin_ai_scans_used').replace('{used}', String(used)).replace('{limit}', String(limit))}>
       <svg width={40} height={40} viewBox="0 0 40 40">
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="#e2e8f0" strokeWidth={4} />
         <circle
@@ -247,6 +248,7 @@ function ModuleToggle({ mod, active, onClick }: { mod: string; active: boolean; 
 function CreateClientModal({ onClose }: { onClose: () => void }) {
   const t = useT()
   const qc = useQueryClient()
+  const WIZARD_STEPS = WIZARD_STEP_KEYS.map(k => t(k))
   const [step, setStep] = useState(0)
   const [form, setForm] = useState<CreateForm>(EMPTY_FORM)
   const [extraEmail, setExtraEmail] = useState('')
@@ -1014,7 +1016,7 @@ function EditClientModal({
 
           {tab === 'modules' && (
             <div>
-              <label className={labelCls}>Enabled modules</label>
+              <label className={labelCls}>{t('admin_enabled_modules_label')}</label>
               <div className="flex flex-wrap gap-2 mt-1">
                 {ALL_MODULES.map(mod => (
                   <ModuleToggle
@@ -1458,10 +1460,10 @@ function BulkDeleteClientsModal({ tenants, onClose }: { tenants: Tenant[]; onClo
       const failures = results.filter(r => r.status === 'rejected') as PromiseRejectedResult[]
       if (failures.length > 0) {
         const first = (failures[0].reason as any)?.response?.data?.detail
-        const msg = typeof first === 'string' ? first : 'Delete failed'
+        const msg = typeof first === 'string' ? first : t('admin_failed_delete')
         throw new Error(failures.length === tenants.length
           ? msg
-          : `${tenants.length - failures.length} of ${tenants.length} deleted. Errors: ${msg}`)
+          : t('admin_bulk_partial_delete').replace('{done}', String(tenants.length - failures.length)).replace('{total}', String(tenants.length)).replace('{msg}', msg))
       }
     },
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmin-tenants'] }); onClose() },
@@ -1530,11 +1532,11 @@ function TenantUsersModal({ tenant, onClose }: { tenant: Tenant; onClose: () => 
     const diff = Date.now() - d.getTime()
     const mins = Math.floor(diff / 60_000)
     if (mins < 2) return t('admin_users_just_now')
-    if (mins < 60) return `${mins}m ago`
+    if (mins < 60) return t('admin_time_m_ago').replace('{n}', String(mins))
     const hrs = Math.floor(mins / 60)
-    if (hrs < 24) return `${hrs}h ago`
+    if (hrs < 24) return t('admin_time_h_ago').replace('{n}', String(hrs))
     const days = Math.floor(hrs / 24)
-    if (days < 7) return `${days}d ago`
+    if (days < 7) return t('admin_time_d_ago').replace('{n}', String(days))
     return d.toLocaleDateString('nl-NL', { day: 'numeric', month: 'short' })
   }
 
@@ -2007,13 +2009,13 @@ function DashboardTab({ tenants }: { tenants: Tenant[] }) {
           <table className="w-full">
             <thead className="bg-slate-50 border-b border-slate-200">
               <tr>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Tenant</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_tenant')}</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_open')}</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_overdue')}</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_inbox_pending')}</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_ai_today')}</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_contacts')} ({range === 'all' ? 'all' : range === '7d' ? '7d' : '30d'})</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_saas_events')} ({range === 'all' ? 'all' : range})</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_contacts')} ({range === 'all' ? t('admin_range_all') : range === '7d' ? t('admin_range_7d') : t('admin_range_30d')})</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right">{t('admin_table_saas_events')} ({range === 'all' ? t('admin_range_all') : range === '7d' ? t('admin_range_7d') : t('admin_range_30d')})</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -2105,17 +2107,17 @@ export default function SuperAdminPage() {
   }, [monthlyStats])
 
   const ownSlug = config?.tenant_id
-  const isOwnTenant = (t: Tenant) => !!ownSlug && t.slug === ownSlug
+  const isOwnTenant = (tn: Tenant) => !!ownSlug && tn.slug === ownSlug
   const tenants = (allTenants ?? [])
 
   const counts = {
     all: tenants.length,
-    active: tenants.filter((t: any) => statusOf(t) === 'active').length,
-    demo: tenants.filter((t: any) => statusOf(t) === 'demo').length,
-    inactive: tenants.filter((t: any) => statusOf(t) === 'inactive').length,
+    active: tenants.filter((tn: any) => statusOf(tn) === 'active').length,
+    demo: tenants.filter((tn: any) => statusOf(tn) === 'demo').length,
+    inactive: tenants.filter((tn: any) => statusOf(tn) === 'inactive').length,
   }
 
-  const visible = filter === 'all' ? tenants : tenants.filter((t: any) => statusOf(t) === filter)
+  const visible = filter === 'all' ? tenants : tenants.filter((tn: any) => statusOf(tn) === filter)
 
   const toggleActiveMutation = useMutation({
     mutationFn: ({ id, is_active }: { id: string; is_active: boolean }) =>
@@ -2172,13 +2174,13 @@ export default function SuperAdminPage() {
     })
   }
 
-  const selectableVisible = visible.filter((t: any) => !isOwnTenant(t))
+  const selectableVisible = visible.filter((tn: any) => !isOwnTenant(tn))
 
   function toggleAll() {
     if (selectedIds.size === selectableVisible.length && selectableVisible.length > 0) {
       setSelectedIds(new Set())
     } else {
-      setSelectedIds(new Set(selectableVisible.map((t: any) => t.id)))
+      setSelectedIds(new Set(selectableVisible.map((tn: any) => tn.id)))
     }
   }
 
@@ -2192,7 +2194,7 @@ export default function SuperAdminPage() {
   }
 
   const FILTER_TABS: { key: FilterStatus; label: string }[] = [
-    { key: 'all', label: 'All' },
+    { key: 'all', label: t('admin_filter_all') },
     { key: 'active', label: t('admin_filter_active') },
     { key: 'demo', label: t('admin_filter_demo') },
     { key: 'inactive', label: t('admin_filter_inactive') },
@@ -2305,11 +2307,11 @@ export default function SuperAdminPage() {
                 </button>
                 {isRootOwner && (
                   <button
-                    onClick={() => setBulkDeletingTenants(visible.filter((t: any) => selectedIds.has(t.id)))}
+                    onClick={() => setBulkDeletingTenants(visible.filter((ten: any) => selectedIds.has(ten.id)))}
                     disabled={bulkMutation.isPending}
                     className="px-3 py-1.5 text-xs font-semibold text-red-600 bg-red-50 border border-red-200 rounded-lg hover:bg-red-100 transition-colors disabled:opacity-50"
                   >
-                    Delete
+                    {t('admin_delete_btn')}
                   </button>
                 )}
                 <button onClick={() => setSelectedIds(new Set())} className="text-slate-400 hover:text-slate-600 ml-1">
@@ -2403,7 +2405,7 @@ export default function SuperAdminPage() {
                       <button
                         onClick={() => setViewingUsersTenant(tenant)}
                         className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-blue-600 transition-colors"
-                        title="View users"
+                        title={t('admin_users_modal_title')}
                       >
                         <Users size={13} />
                         {tenant.user_count}
@@ -2441,7 +2443,7 @@ export default function SuperAdminPage() {
                             <button
                               onClick={() => setDnsModalTenant(tenant)}
                               className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
-                              title="View DNS records"
+                              title={t('admin_view_dns')}
                             >
                               <Copy size={10} />
                               {t('admin_view_dns')}
@@ -2451,7 +2453,7 @@ export default function SuperAdminPage() {
                                 onClick={() => { setVerifyingId(tenant.id); verifyDomainMutation.mutate(tenant.id) }}
                                 disabled={verifyingId === tenant.id}
                                 className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors disabled:opacity-50"
-                                title="Check DNS and verify"
+                                title={t('admin_verify_btn')}
                               >
                                 <RefreshCw size={10} className={verifyingId === tenant.id ? 'animate-spin' : ''} />
                                 {t('admin_verify_btn')}
@@ -2468,7 +2470,7 @@ export default function SuperAdminPage() {
                             onClick={() => impersonateMutation.mutate(tenant.id)}
                             disabled={impersonateMutation.isPending}
                             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-amber-600 border border-amber-200 rounded-lg hover:bg-amber-50 transition-colors disabled:opacity-50"
-                            title="Log in as this client's admin (read/write, be careful)"
+                            title={t('admin_view_as_hint')}
                           >
                             <Eye size={11} />
                             {t('admin_view_as')}

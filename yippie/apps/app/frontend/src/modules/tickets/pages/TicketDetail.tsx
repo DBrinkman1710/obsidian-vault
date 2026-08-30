@@ -145,7 +145,7 @@ export default function TicketDetail() {
     },
     onError: (_err: any, _status: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
-      toast.error('Failed to update status.')
+      toast.error(tl('ticket_err_update_status'))
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['ticket', id] })
@@ -178,7 +178,7 @@ export default function TicketDetail() {
     },
     onError: (_err: any, _priority: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
-      toast.error('Failed to update priority.')
+      toast.error(tl('ticket_err_update_priority'))
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
   })
@@ -194,7 +194,7 @@ export default function TicketDetail() {
     },
     onError: (_err: any, _vars: void, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
-      toast.error('Failed to snooze ticket.')
+      toast.error(tl('ticket_err_snooze'))
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
   })
@@ -210,7 +210,7 @@ export default function TicketDetail() {
     },
     onError: (_err: any, _vars: void, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(['ticket-comments', id], ctx.prev)
-      toast.error('Failed to save note.')
+      toast.error(tl('ticket_err_save_note'))
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ticket-comments', id] })
@@ -228,7 +228,7 @@ export default function TicketDetail() {
       return api.post(`/tickets/${id}/send-reply`, fd, { headers: { 'Content-Type': undefined } }).then((r: any) => r.data)
     },
     onSuccess: (data: any) => {
-      toast.success(`Email sent to ${data?.to ?? replyContact?.email}`)
+      toast.success(tl('ticket_success_sent_to').replace('{email}', data?.to ?? replyContact?.email ?? ''))
       qc.invalidateQueries({ queryKey: ['ticket-comments', id] })
       setReplyBody('')
       setReplyFiles([])
@@ -238,7 +238,7 @@ export default function TicketDetail() {
     },
     onError: (err: any) => {
       const detail = err?.response?.data?.detail
-      setReplySendError(typeof detail === 'string' ? detail : 'Failed to send. Check your email settings.')
+      setReplySendError(typeof detail === 'string' ? detail : tl('ticket_err_send_email'))
     },
   })
 
@@ -250,14 +250,14 @@ export default function TicketDetail() {
     },
     onError: (err: any) => {
       const detail = err.response?.data?.detail
-      setDeleteError(typeof detail === 'string' ? detail : 'Failed to delete ticket')
+      setDeleteError(typeof detail === 'string' ? detail : tl('ticket_err_delete'))
     },
   })
 
   const assignDeptMutation = useMutation({
     mutationFn: (department_id: string) => api.patch(`/tickets/${id}`, { department_id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
-    onError: () => toast.error('Failed to assign department.'),
+    onError: () => toast.error(tl('ticket_err_assign_dept')),
   })
 
   const pipelineStageMutation = useMutation({
@@ -265,7 +265,7 @@ export default function TicketDetail() {
       ticket?.contact_id
         ? api.put(`/pipeline/contacts/${ticket.contact_id}/stage`, { stage_id })
         : Promise.reject('No contact'),
-    onError: () => toast.error('Failed to update pipeline stage.'),
+    onError: () => toast.error(tl('ticket_err_update_stage')),
   })
 
   function handleReplyFocus() {
@@ -294,7 +294,7 @@ export default function TicketDetail() {
 
   const t = tl
 
-  if (!ticket) return <p className="text-sm text-slate-400">Loading…</p>
+  if (!ticket) return <p className="text-sm text-slate-400">{tl('ticket_loading')}</p>
 
   return (
     <div className="flex gap-8 items-start">
@@ -379,7 +379,7 @@ export default function TicketDetail() {
               <button
                 onClick={() => thankYouMutation.mutate({ status: ticket.status, thank_you: !ticket.thank_you })}
                 disabled={thankYouMutation.isPending}
-                title="Mark this close as a pure thank you — excluded from first time right"
+                title={t('ticket_thank_you_title')}
                 className={`text-xs px-2 py-1 rounded-lg border font-semibold transition-colors disabled:opacity-50 ${
                   ticket.thank_you
                     ? 'bg-yippie-50 text-yippie-700 border-yippie-200'
@@ -515,7 +515,7 @@ export default function TicketDetail() {
                   type="text"
                   value={replySubject}
                   onChange={e => setReplySubject(e.target.value)}
-                  placeholder="Subject"
+                  placeholder={t('ticket_subject_ph')}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
                 />
                 {/* Toolbar */}
@@ -541,7 +541,7 @@ export default function TicketDetail() {
                     type="button"
                     onClick={() => replyFileInputRef.current?.click()}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                    title="Attach file"
+                    title={t('ticket_attach_title')}
                   >
                     <Paperclip size={12} /> {t('ticket_attach_btn')}
                   </button>
@@ -567,12 +567,12 @@ export default function TicketDetail() {
                             const r: any = await api.post(`/tickets/${id}/suggest-reply`)
                             setReplyBody(r.data.suggestion)
                             setImproveSuggestions([])
-                            toast.success('Reply generated.')
-                          } catch { toast.error('Failed to generate reply.') }
+                            toast.success(t('ticket_success_reply_generated'))
+                          } catch { toast.error(t('ticket_err_generate_reply')) }
                           finally { setGenerateLoading(false) }
                         }}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-violet-600 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors disabled:opacity-50"
-                        title="Generate AI reply"
+                        title={t('ticket_generate_ai_title')}
                       >
                         {generateLoading
                           ? <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -587,11 +587,11 @@ export default function TicketDetail() {
                           try {
                             const r: any = await api.post(`/tickets/${id}/improve-reply`, { current_text: replyBody.trim() })
                             setImproveSuggestions(r.data.suggestions ?? [])
-                          } catch { toast.error('Failed to get suggestions.') }
+                          } catch { toast.error(t('ticket_err_suggestions')) }
                           finally { setImproveLoading(false) }
                         }}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
-                        title="Improve reply with AI"
+                        title={t('ticket_improve_ai_title')}
                       >
                         {improveLoading
                           ? <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
@@ -787,13 +787,13 @@ function MergeModal({
       qc.invalidateQueries({ queryKey: ['ticket-comments', primaryId] })
       qc.invalidateQueries({ queryKey: ['tickets'] })
       qc.invalidateQueries({ queryKey: ['contact-tickets', contactId] })
-      toast.success('Tickets merged.')
+      toast.success(t('ticket_success_merged'))
       onClose()
     },
     onError: (err: unknown) => {
       const detail =
         (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : 'Failed to merge tickets.')
+      toast.error(typeof detail === 'string' ? detail : t('ticket_err_merge'))
     },
   })
 
@@ -879,8 +879,8 @@ function initials(name?: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function draftSubject(d: any): string {
-  return d.final_subject ?? d.ai_suggested_subject ?? d.inbound_subject ?? '(no subject)'
+function draftSubject(d: any, noSubjectLabel: string): string {
+  return d.final_subject ?? d.ai_suggested_subject ?? d.inbound_subject ?? noSubjectLabel
 }
 
 function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; onLinked: () => void; onClose: () => void }) {
@@ -902,10 +902,10 @@ function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; o
     mutationFn: (contactId: string) => api.patch(`/tickets/${ticketId}`, { contact_id: contactId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ticket', ticketId] })
-      toast.success('Contact linked.')
+      toast.success(t('ticket_success_contact_linked'))
       onLinked()
     },
-    onError: () => toast.error('Failed to link contact.'),
+    onError: () => toast.error(t('ticket_err_link_contact')),
   })
 
   return (
@@ -1009,19 +1009,19 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
   const panelStatusMutation = useMutation({
     mutationFn: (st: string) => api.patch(`/tickets/${ticket.id}/status`, { status: st }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', ticket.id] }),
-    onError: () => toast.error('Failed to update status.'),
+    onError: () => toast.error(t('ticket_err_update_status')),
   })
   const panelDeptMutation = useMutation({
     mutationFn: (dept_id: string) => api.patch(`/tickets/${ticket.id}`, { department_id: dept_id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', ticket.id] }),
-    onError: () => toast.error('Failed to assign department.'),
+    onError: () => toast.error(t('ticket_err_assign_dept')),
   })
   const panelStageMutation = useMutation({
     mutationFn: (stage_id: string) =>
       ticket.contact_id
         ? api.put(`/pipeline/contacts/${ticket.contact_id}/stage`, { stage_id })
         : Promise.reject('No contact'),
-    onError: () => toast.error('Failed to update pipeline stage.'),
+    onError: () => toast.error(t('ticket_err_update_stage')),
   })
 
   function generateBriefing() {
@@ -1031,9 +1031,9 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       .then((r: any) => {
         setBriefingData(r.data)
         setBriefingReady(true)
-        toast.success('Customer briefing generated.')
+        toast.success(t('ticket_success_briefing'))
       })
-      .catch(() => toast.error('Failed to generate briefing.'))
+      .catch(() => toast.error(t('ticket_err_generate_briefing')))
       .finally(() => setBriefingLoading(false))
   }
 
@@ -1218,7 +1218,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                   onClick={() => setOpenDraft(d)}
                   className="w-full text-left hover:bg-slate-50 px-4 py-3 flex items-center justify-between gap-3"
                 >
-                  <span className="text-xs text-slate-700 truncate">{draftSubject(d)}</span>
+                  <span className="text-xs text-slate-700 truncate">{draftSubject(d, t('ticket_no_subject'))}</span>
                   <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(d.created_at)}</span>
                 </button>
               ))}
@@ -1348,7 +1348,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                         onClick={e => { e.stopPropagation(); navigate(`/tickets/${item.ticket_id}`) }}
                         className="text-[10px] font-semibold text-blue-600 hover:text-blue-700"
                       >
-                        View ticket →
+                        {t('ticket_view_ticket')}
                       </button>
                     </div>
                   )}
@@ -1363,10 +1363,10 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       {contactId && shipmentsEnabled && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
           <div className="px-4 py-3 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Orders</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('ticket_orders_heading')}</h3>
           </div>
           {(shipmentsData?.items ?? []).length === 0 ? (
-            <p className="text-xs text-slate-400 px-4 py-4">No orders found.</p>
+            <p className="text-xs text-slate-400 px-4 py-4">{t('ticket_no_orders')}</p>
           ) : (
             <div className="divide-y divide-slate-100">
               {(shipmentsData?.items ?? []).map((s: any) => (
@@ -1391,10 +1391,10 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       {contactId && salesEnabled && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
           <div className="px-4 py-3 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Website activity</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('ticket_website_activity')}</h3>
           </div>
           {(commerceEvents ?? []).length === 0 ? (
-            <p className="text-xs text-slate-400 px-4 py-4">No browsing data yet.</p>
+            <p className="text-xs text-slate-400 px-4 py-4">{t('ticket_no_browsing')}</p>
           ) : (
             <div className="divide-y divide-slate-100">
               {(commerceEvents ?? []).map((ev: any) => (
@@ -1419,7 +1419,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       {contactId && saasEnabled && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Product usage</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('ticket_product_usage')}</h3>
             {saasHealth && (
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                 saasHealth.color === 'green' ? 'bg-green-100 text-green-700' :
@@ -1431,12 +1431,12 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
             )}
           </div>
           {!saasHealth && (saasEvents ?? []).length === 0 ? (
-            <p className="text-xs text-slate-400 px-4 py-4">No product data yet.</p>
+            <p className="text-xs text-slate-400 px-4 py-4">{t('ticket_no_product_data')}</p>
           ) : (
             <div className="px-4 py-3 space-y-2">
               {saasHealth && (
                 <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <span className="flex-shrink-0">Health score</span>
+                  <span className="flex-shrink-0">{t('ticket_health_score')}</span>
                   <div className="flex-1 bg-slate-100 rounded-full h-1.5">
                     <div
                       className={`h-1.5 rounded-full ${saasHealth.color === 'green' ? 'bg-green-500' : saasHealth.color === 'amber' ? 'bg-amber-400' : 'bg-red-500'}`}
@@ -1467,7 +1467,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-              <h2 className="text-base font-bold text-slate-900 truncate pr-2">{draftSubject(openDraft)}</h2>
+              <h2 className="text-base font-bold text-slate-900 truncate pr-2">{draftSubject(openDraft, t('ticket_no_subject'))}</h2>
               <CloseButton onClick={() => setOpenDraft(null)} />
             </div>
             <div className="p-6 flex flex-col gap-4">
@@ -1479,14 +1479,14 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
               <p className="text-sm text-slate-700 whitespace-pre-wrap">
                 {openDraft.ai_suggested_description
                   ? openDraft.ai_suggested_description.slice(0, 500)
-                  : '(no preview available)'}
+                  : t('ticket_no_preview')}
               </p>
               <div className="flex justify-end pt-2 border-t border-slate-100">
                 <button
                   onClick={() => navigate(`/inbox/drafts/${openDraft.id}`)}
                   className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                 >
-                  Open in inbox →
+                  {t('ticket_open_in_inbox')}
                 </button>
               </div>
             </div>
@@ -1524,6 +1524,7 @@ function ContactSlidePanel({
   onNavigate: () => void
 }) {
   const qc = useQueryClient()
+  const t = useT()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ full_name: '', email: '', phone: '' })
 
@@ -1549,9 +1550,9 @@ function ContactSlidePanel({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact', contactId] })
       setEditing(false)
-      toast.success('Contact updated.')
+      toast.success(t('ticket_success_contact_updated'))
     },
-    onError: () => toast.error('Failed to update contact.'),
+    onError: () => toast.error(t('ticket_err_update_contact')),
   })
 
   return (
@@ -1562,13 +1563,13 @@ function ContactSlidePanel({
       />
       <div className="fixed right-0 top-0 h-full w-96 max-w-full z-50 flex flex-col bg-white shadow-2xl border-l border-slate-200 animate-slide-in-right">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h2 className="text-sm font-semibold text-slate-900">Contact profile</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{t('ticket_contact_profile')}</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={onNavigate}
               className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
             >
-              Full profile
+              {t('ticket_full_profile')}
               <ExternalLink size={11} />
             </button>
             <CloseButton onClick={onClose} className="ml-1" />
@@ -1599,7 +1600,7 @@ function ContactSlidePanel({
               {editing ? (
                 <div className="flex flex-col gap-3">
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 mb-1 block">Name</label>
+                    <label className="text-xs font-semibold text-slate-500 mb-1 block">{t('ticket_contact_name_label')}</label>
                     <input
                       autoFocus
                       type="text"
@@ -1609,7 +1610,7 @@ function ContactSlidePanel({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 mb-1 block">Email</label>
+                    <label className="text-xs font-semibold text-slate-500 mb-1 block">{t('ticket_contact_email_label')}</label>
                     <input
                       type="email"
                       value={form.email}
@@ -1618,7 +1619,7 @@ function ContactSlidePanel({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 mb-1 block">Phone</label>
+                    <label className="text-xs font-semibold text-slate-500 mb-1 block">{t('ticket_contact_phone_label')}</label>
                     <input
                       type="tel"
                       value={form.phone}
@@ -1631,14 +1632,14 @@ function ContactSlidePanel({
                       onClick={() => { setEditing(false); setForm({ full_name: contact?.full_name ?? '', email: contact?.email ?? '', phone: contact?.phone ?? '' }) }}
                       className="flex-1 border border-slate-200 text-slate-700 text-sm font-semibold py-2 rounded-lg hover:bg-slate-50 transition-colors"
                     >
-                      Cancel
+                      {t('ticket_cancel_btn')}
                     </button>
                     <button
                       onClick={() => saveMutation.mutate()}
                       disabled={saveMutation.isPending || !form.full_name.trim()}
                       className="flex-1 bg-yippie text-white text-sm font-semibold py-2 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
                     >
-                      {saveMutation.isPending ? 'Saving…' : 'Save'}
+                      {saveMutation.isPending ? t('ticket_saving') : t('ticket_save_btn')}
                     </button>
                   </div>
                 </div>
@@ -1646,27 +1647,27 @@ function ContactSlidePanel({
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Email</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">{t('ticket_contact_email_label')}</p>
                       <p className="text-sm text-slate-800 truncate">{contact?.email ?? '—'}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Phone</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">{t('ticket_contact_phone_label')}</p>
                       <p className="text-sm text-slate-800 truncate">{contact?.phone ?? '—'}</p>
                     </div>
                   </div>
                   {contact?.company?.name && (
                     <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
                       <div className="min-w-0">
-                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Company</p>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">{t('ticket_contact_company_label')}</p>
                         <p className="text-sm text-slate-800 truncate">{contact.company.name}</p>
                       </div>
                     </div>
                   )}
                   {contact?.labels && contact.labels.length > 0 && (
                     <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Labels</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">{t('ticket_contact_labels_label')}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {contact.labels.map((l: any) => (
                           <span
@@ -1684,7 +1685,7 @@ function ContactSlidePanel({
                     onClick={() => setEditing(true)}
                     className="mt-2 w-full border border-slate-200 text-slate-600 text-sm font-semibold py-2 rounded-lg hover:bg-slate-50 transition-colors"
                   >
-                    Edit contact
+                    {t('ticket_edit_contact_btn')}
                   </button>
                 </div>
               )}

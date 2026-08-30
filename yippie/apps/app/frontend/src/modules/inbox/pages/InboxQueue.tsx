@@ -634,7 +634,7 @@ export default function InboxQueue() {
       markClosureShown('inbox_cleared')
       const total = getDailyActions('inbox_processed')
       if (total > 0) {
-        toast.success(`All caught up — ${total} message${total !== 1 ? 's' : ''} handled today`)
+        toast.success(t('inbox_caught_up_toast').replace('{n}', String(total)).replace('{s}', total !== 1 ? 's' : ''))
       }
     }
   }, [pendingDrafts, pendingLoading, activeTab])
@@ -1202,7 +1202,7 @@ export default function InboxQueue() {
                           {d.ai_status === 'queued' && (
                             <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-violet-50 text-violet-600 animate-pulse">
                               <Sparkles size={11} />
-                              Analyzing…
+                              {t('inbox_analyzing')}
                             </span>
                           )}
                           {d.ai_suggested_category && (
@@ -1307,7 +1307,7 @@ export default function InboxQueue() {
             </div>
             <div className="p-6 flex flex-col gap-4">
               <div className="text-xs text-slate-500 flex flex-wrap gap-3">
-                <span>To: <strong className="text-slate-700">{selectedSentItem.to_email}</strong></span>
+                <span>{t('inbox_sent_to_label').replace('{addr}', selectedSentItem.to_email ?? '')}</span>
                 <span>{new Date(selectedSentItem.created_at).toLocaleString()}</span>
                 {statusBadge(selectedSentItem.status, t)}
               </div>

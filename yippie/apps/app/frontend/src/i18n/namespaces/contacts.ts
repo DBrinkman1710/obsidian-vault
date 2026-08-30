@@ -246,6 +246,20 @@ export const contacts: { en: Record<string, string>; nl: Record<string, string> 
     contacts_call_outcome_callback:       'Call back later',
     contacts_call_outcome_voicemail:      'Voicemail',
     contacts_call_outcome_no_answer:      'Did not pick up',
+
+    // ContactsPage — search & import flow
+    contacts_search_ph:                   'Search by name, email, or company…',
+    contacts_import_title:                'Import contacts',
+    contacts_download_template:           'Download template',
+    contacts_choose_file:                 'Choose file',
+    contacts_importing:                   'Importing…',
+    contacts_import_btn:                  'Import',
+    contacts_import_done:                 'Done',
+    contacts_import_imported:             '{n} imported',
+    contacts_import_skipped:              '{n} skipped (duplicates)',
+    contacts_send_email:                  'Send email',
+    contacts_company_col_header:          'Company',
+    contacts_new_btn:                     'New',
   },
   nl: {
     // CompanyForm
@@ -492,5 +506,19 @@ export const contacts: { en: Record<string, string>; nl: Record<string, string> 
     contacts_call_outcome_callback:       'Later terugbellen',
     contacts_call_outcome_voicemail:      'Voicemail',
     contacts_call_outcome_no_answer:      'Niet opgenomen',
+
+    // ContactsPage — search & import flow
+    contacts_search_ph:                   'Zoek op naam, e-mail of bedrijf…',
+    contacts_import_title:                'Contacten importeren',
+    contacts_download_template:           'Template downloaden',
+    contacts_choose_file:                 'Bestand kiezen',
+    contacts_importing:                   'Importeren…',
+    contacts_import_btn:                  'Importeren',
+    contacts_import_done:                 'Klaar',
+    contacts_import_imported:             '{n} geïmporteerd',
+    contacts_import_skipped:              '{n} overgeslagen (duplicaten)',
+    contacts_send_email:                  'E-mail sturen',
+    contacts_company_col_header:          'Bedrijf',
+    contacts_new_btn:                     'Nieuw',
   },
 }

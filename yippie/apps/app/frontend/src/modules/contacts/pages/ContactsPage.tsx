@@ -294,7 +294,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
                   <input type="checkbox" checked={allSelected} onChange={toggleAll}
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-yippie/30 cursor-pointer" />
                 </th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('contacts_company_col_header')}</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left hidden md:table-cell">{t('contacts_col_domain')}</th>
                 <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left hidden md:table-cell">{t('contacts_col_contacts')}</th>
                 {isAdmin && <th className="px-4 py-3 w-32"></th>}
@@ -614,7 +614,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         <div className="relative flex-1 max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
-            placeholder="Search by name, email, or company…"
+            placeholder={t('contacts_search_ph')}
             value={search} onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
@@ -763,7 +763,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                       { label: t('contacts_open_full_page'), icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
                       { label: t('contacts_open_new_tab'), icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${c.id}`, '_blank') },
                       { separator: true },
-                      { label: 'Send email', icon: <Mail size={13} />, onClick: () => openCompose({ recipients: [{ email: c.email!, label: c.full_name || c.email! }], subject: '', body: '', fromEmail: null }) },
+                      { label: t('contacts_send_email'), icon: <Mail size={13} />, onClick: () => openCompose({ recipients: [{ email: c.email!, label: c.full_name || c.email! }], subject: '', body: '', fromEmail: null }) },
                       { separator: true },
                       { label: t('contacts_delete_companies'), icon: <Trash2 size={13} />, danger: true, onClick: () => deleteWithUndo([c.id]) },
                     ])}>
@@ -1018,7 +1018,7 @@ export default function ContactsPage() {
               <div className="relative" ref={newMenuRef}>
                 <button onClick={() => setNewMenuOpen(v => !v)}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
-                  <Plus size={15} strokeWidth={2.5} /> New <ChevronDown size={14} />
+                  <Plus size={15} strokeWidth={2.5} /> {t('contacts_new_btn')} <ChevronDown size={14} />
                 </button>
                 {newMenuOpen && (
                   <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50">
@@ -1079,7 +1079,7 @@ export default function ContactsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeImport}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-lg font-bold text-slate-900">Import contacts</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t('contacts_import_title')}</h2>
               <CloseButton onClick={closeImport} />
             </div>
             <p className="text-sm text-slate-400 mb-5">{t('contacts_upload_desc')}</p>
@@ -1092,7 +1092,7 @@ export default function ContactsPage() {
                   </p>
                   <button onClick={() => downloadBlob(TEMPLATE_CSV, 'contacts-template.csv', 'text/csv')}
                     className="text-xs font-medium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
-                    <Download size={12} strokeWidth={2.5} /> Download template
+                    <Download size={12} strokeWidth={2.5} /> {t('contacts_download_template')}
                   </button>
                 </div>
                 {importError && (
@@ -1101,7 +1101,7 @@ export default function ContactsPage() {
                 <button onClick={() => fileRef.current?.click()} disabled={previewMutation.isPending}
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity disabled:opacity-50">
                   <Upload size={15} strokeWidth={2.5} />
-                  {previewMutation.isPending ? t('contacts_reading') : 'Choose file'}
+                  {previewMutation.isPending ? t('contacts_reading') : t('contacts_choose_file')}
                 </button>
               </>
             ) : !importResult && preview ? (
@@ -1117,7 +1117,16 @@ export default function ContactsPage() {
                         onChange={e => setMapping(p => ({ ...p, [h]: e.target.value }))}
                         className="w-40 shrink-0 px-2 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie">
                         <option value="">{t('contacts_skip_column')}</option>
-                        {IMPORT_TARGET_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                        {IMPORT_TARGET_FIELDS.map(f => {
+                          const labelMap: Record<string, string> = {
+                            full_name: t('contacts_import_full_name_field'),
+                            email: t('contacts_field_email'),
+                            phone: t('contacts_field_phone'),
+                            company: t('contacts_field_company'),
+                            notes: t('contacts_notes_label'),
+                          }
+                          return <option key={f.value} value={f.value}>{labelMap[f.value] ?? f.label}</option>
+                        })}
                       </select>
                     </div>
                   ))}
@@ -1134,7 +1143,7 @@ export default function ContactsPage() {
                   <button onClick={runImport} disabled={!mappedToFullName || importMutation.isPending}
                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
                     <Upload size={15} strokeWidth={2.5} />
-                    {importMutation.isPending ? 'Importing…' : 'Import'}
+                    {importMutation.isPending ? t('contacts_importing') : t('contacts_import_btn')}
                   </button>
                   <button onClick={() => { setPreview(null); setPendingFile(null); setImportError(null); previewMutation.reset() }}
                     className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
@@ -1145,8 +1154,8 @@ export default function ContactsPage() {
             ) : importResult ? (
               <>
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4 text-sm text-slate-700">
-                  <span className="font-semibold text-green-700">{importResult.imported} imported</span>{', '}
-                  <span className="font-semibold text-amber-700">{importResult.skipped} skipped (duplicates)</span>{', '}
+                  <span className="font-semibold text-green-700">{t('contacts_import_imported').replace('{n}', String(importResult.imported))}</span>{', '}
+                  <span className="font-semibold text-amber-700">{t('contacts_import_skipped').replace('{n}', String(importResult.skipped))}</span>{', '}
                   <span className="font-semibold text-red-700">{importResult.errors} {importResult.errors === 1 ? t('contacts_import_errors_label') : t('contacts_import_errors_plural')}</span>
                 </div>
                 {importResult.error_details.length > 0 && (
@@ -1156,7 +1165,7 @@ export default function ContactsPage() {
                 )}
                 <button onClick={closeImport}
                   className="w-full px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
-                  Done
+                  {t('contacts_import_done')}
                 </button>
               </>
             ) : null}

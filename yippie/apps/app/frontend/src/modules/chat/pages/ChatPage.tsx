@@ -887,7 +887,7 @@ export default function ChatPage() {
             <button
               onClick={() => setShowReassign(v => !v)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors"
-              title="Re-assign"
+              title={t('chat_reassign')}
             >
               <Users size={12} />
               {selectedSession.assigned_to_name ?? t('chat_unassigned')}
@@ -1111,7 +1111,7 @@ export default function ChatPage() {
               <button
                 onClick={clearAttachment}
                 className="text-slate-400 hover:text-slate-600 flex-shrink-0"
-                title="Remove attachment"
+                title={t('chat_remove_attachment')}
               >
                 <X size={14} />
               </button>
@@ -1145,13 +1145,13 @@ export default function ChatPage() {
               className="px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-sm rounded-xl transition-colors flex items-center gap-1.5"
             >
               <Send size={14} />
-              {!isMobile && 'Send'}
+              {!isMobile && t('chat_send')}
             </button>
           </div>
         </div>
       ) : (
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 text-center text-sm text-slate-400">
-          This session is closed.
+          {t('chat_session_closed')}
         </div>
       )}
     </div>
@@ -1163,16 +1163,16 @@ export default function ChatPage() {
           className="text-left border border-slate-200 rounded-xl p-6 bg-white hover:border-blue-300 hover:shadow-sm transition-all"
         >
           <SquarePen size={20} className="text-blue-600 mb-3" />
-          <p className="text-sm font-bold text-slate-900 mb-1">Want to message someone directly?</p>
-          <p className="text-xs text-slate-500">Start a new conversation</p>
+          <p className="text-sm font-bold text-slate-900 mb-1">{t('chat_direct_message_title')}</p>
+          <p className="text-xs text-slate-500">{t('chat_direct_message_desc')}</p>
         </button>
         <button
           onClick={() => setShowBroadcastModal(true)}
           className="text-left border border-slate-200 rounded-xl p-6 bg-white hover:border-blue-300 hover:shadow-sm transition-all"
         >
           <Megaphone size={20} className="text-blue-600 mb-3" />
-          <p className="text-sm font-bold text-slate-900 mb-1">Send a group update?</p>
-          <p className="text-xs text-slate-500">Create a multi-contact broadcast</p>
+          <p className="text-sm font-bold text-slate-900 mb-1">{t('chat_broadcast_title')}</p>
+          <p className="text-xs text-slate-500">{t('chat_broadcast_desc')}</p>
         </button>
         {config?.tenant_id && <WidgetSnippetCard tenantSlug={config.tenant_id} />}
       </div>
@@ -1233,13 +1233,14 @@ export default function ChatPage() {
 }
 
 function HistoryPanel({ contactId, currentId, onView }: { contactId: string; currentId: string; onView: (id: string) => void }) {
+  const t = useT()
   const { data: past = [] } = useQuery({
     queryKey: ['chat-history', contactId],
     queryFn: () => api.get('/chat/sessions', { params: { contact_id: contactId, status_filter: 'solved' } }).then((r: any) => r.data),
   })
   const items = (past as any[]).filter(s => s.id !== currentId)
   if (items.length === 0) {
-    return <p className="text-xs text-slate-400 pb-2">No previous conversations.</p>
+    return <p className="text-xs text-slate-400 pb-2">{t('chat_no_prev_conversations')}</p>
   }
   return (
     <div className="pb-2 flex flex-col gap-1">
@@ -1250,7 +1251,7 @@ function HistoryPanel({ contactId, currentId, onView }: { contactId: string; cur
           className="text-left text-xs text-slate-600 hover:text-blue-600 hover:underline"
         >
           {new Date(s.started_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-          {s.solved_at && `, solved ${new Date(s.solved_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+          {s.solved_at && `, ${t('chat_solved')} ${new Date(s.solved_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
         </button>
       ))}
     </div>
@@ -1258,6 +1259,7 @@ function HistoryPanel({ contactId, currentId, onView }: { contactId: string; cur
 }
 
 function HistoryViewModal({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+  const t = useT()
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['chat-messages', sessionId],
     queryFn: () => api.get(`/chat/sessions/${sessionId}/messages`).then((r: any) => r.data),
@@ -1266,11 +1268,11 @@ function HistoryViewModal({ sessionId, onClose }: { sessionId: string; onClose: 
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-900">Past conversation</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('chat_past_conversation')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 overflow-y-auto flex flex-col gap-3 bg-slate-50">
-          {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+          {isLoading && <p className="text-sm text-slate-400">{t('chat_msgs_loading')}</p>}
           {(messages as any[]).filter(m => m.sender_type !== 'note').map((m: any) => {
             const isAgent = m.sender_type === 'agent'
             return (
@@ -1310,26 +1312,27 @@ function ContactModal({ contactId, onClose, navigate }: { contactId: string; onC
     },
   })
 
+  const t = useT()
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-900">Contact</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('chat_contact_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 space-y-4">
-          <Field label="Name" value={fullName} onChange={setFullName} />
-          <Field label="Phone" value={phone} onChange={setPhone} />
-          <Field label="Email" value={email} onChange={setEmail} />
+          <Field label={t('chat_contact_name_label')} value={fullName} onChange={setFullName} />
+          <Field label={t('chat_contact_phone_label')} value={phone} onChange={setPhone} />
+          <Field label={t('chat_contact_email_label')} value={email} onChange={setEmail} />
           {contact?.company?.name && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1">Company</p>
+              <p className="text-xs font-semibold text-slate-500 mb-1">{t('chat_contact_company_label')}</p>
               <p className="text-sm text-slate-800">{contact.company.name}</p>
             </div>
           )}
           {contact?.labels?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1">Labels</p>
+              <p className="text-xs font-semibold text-slate-500 mb-1">{t('chat_contact_labels_label')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {contact.labels.map((l: any) => (
                   <span key={l.id} className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: l.color }}>{l.name}</span>
@@ -1340,14 +1343,14 @@ function ContactModal({ contactId, onClose, navigate }: { contactId: string; onC
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
           <button onClick={() => navigate(`/contacts/${contactId}`)} className="text-xs font-semibold text-slate-500 hover:text-slate-700">
-            Open full profile →
+            {t('chat_open_full_profile')} →
           </button>
           <button
             onClick={() => save.mutate()}
             disabled={save.isPending}
             className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
-            {save.isPending ? 'Saving…' : 'Save'}
+            {save.isPending ? t('chat_saving') : t('chat_save')}
           </button>
         </div>
       </div>
@@ -1356,6 +1359,7 @@ function ContactModal({ contactId, onClose, navigate }: { contactId: string; onC
 }
 
 function CreateContactModal({ phone, name, onClose, onCreated }: { phone: string | null; name: string | null; onClose: () => void; onCreated: (c: any) => void }) {
+  const t = useT()
   const [fullName, setFullName] = useState(name ?? '')
   const [email, setEmail] = useState('')
   const [phoneVal, setPhoneVal] = useState(phone ?? '')
@@ -1367,13 +1371,13 @@ function CreateContactModal({ phone, name, onClose, onCreated }: { phone: string
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-900">New contact</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('chat_new_contact')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 space-y-4">
-          <Field label="Name" value={fullName} onChange={setFullName} />
-          <Field label="Phone" value={phoneVal} onChange={setPhoneVal} />
-          <Field label="Email" value={email} onChange={setEmail} />
+          <Field label={t('chat_contact_name_label')} value={fullName} onChange={setFullName} />
+          <Field label={t('chat_contact_phone_label')} value={phoneVal} onChange={setPhoneVal} />
+          <Field label={t('chat_contact_email_label')} value={email} onChange={setEmail} />
         </div>
         <div className="flex items-center justify-end px-6 py-4 border-t border-slate-100">
           <button
@@ -1381,7 +1385,7 @@ function CreateContactModal({ phone, name, onClose, onCreated }: { phone: string
             disabled={create.isPending || !fullName.trim()}
             className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
-            {create.isPending ? 'Creating…' : 'Create & link'}
+            {create.isPending ? t('chat_creating') : t('chat_create_link')}
           </button>
         </div>
       </div>
