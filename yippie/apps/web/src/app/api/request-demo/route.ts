@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
   }
 
-  const { name, company_name, email, questionnaire, website } = body as Record<string, unknown>;
+  const { name, company_name, email, questionnaire, website, lang } = body as Record<string, unknown>;
 
   if (
     typeof name !== "string" || !name.trim() ||
@@ -31,6 +31,11 @@ export async function POST(req: NextRequest) {
   // Honeypot field — forwarded as-is; the backend drops non-empty submissions.
   if (typeof website === "string") {
     payload.website = website;
+  }
+  // Visitor language from the marketing site (nl at root, en at /en) — the backend
+  // uses it to pick the demo email language and seed the new user's ui_language.
+  if (lang === "en" || lang === "nl") {
+    payload.lang = lang;
   }
 
   let upstream: Response;

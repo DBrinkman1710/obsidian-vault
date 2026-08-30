@@ -413,6 +413,7 @@ export default function CustomForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          lang: "nl",
           name: name.trim(),
           company_name: company.trim(),
           email: email.trim(),

@@ -151,6 +151,8 @@ class RequestDemo(BaseModel):
     email: EmailStr
     slug: Optional[str] = None
     questionnaire: Optional[Questionnaire] = None
+    # Language for the demo-ready email. 'en' or 'nl'; anything else → 'nl'.
+    lang: str = "nl"
     # Honeypot — hidden field on the marketing form. Humans never fill it;
     # a non-empty value means a bot, and the endpoint fakes success.
     website: Optional[str] = None
@@ -714,7 +716,7 @@ async def request_demo(
     # If the magic-link email cannot be sent, the tenant would exist with no way
     # in and every retry would 409. Purge it and tell the prospect to retry.
     try:
-        await send_demo_ready_email(email, body.name.strip(), magic_link)
+        await send_demo_ready_email(email, body.name.strip(), magic_link, lang=body.lang)
     except Exception:
         logger.exception(
             "Failed to send demo ready email to %s — purging demo tenant %s so a retry can succeed",
@@ -1861,6 +1863,8 @@ class SignupRequest(BaseModel):
     enabled_modules: list[str] = Field(default=[], max_length=20)
     questionnaire: Optional[Questionnaire] = None
     from_demo_token: Optional[str] = None
+    # Language for transactional emails and ui_language. 'en' or 'nl'; anything else → 'nl'.
+    lang: str = "nl"
     # Honeypot — see RequestDemo.website.
     website: Optional[str] = None
 
@@ -2065,6 +2069,12 @@ async def signup(
         if password_auto:
             new_user.needs_password = True
 
+        # Persist the signup language as the user's UI language so in-app copy
+        # and future emails render in the right locale. 'nl' is the default;
+        # 'en' is accepted; anything else falls back to 'nl'.
+        from app.core.email_i18n import pick as _pick_lang
+        new_user.ui_language = _pick_lang(body.lang)
+
         await db.flush()
 
         await set_tenant_context(db, str(root_tenant_id))
@@ -2146,7 +2156,7 @@ async def signup(
     verify_url = f"{base}/api/v1/public/verify-email?token={verify_token}"
 
     try:
-        await send_verification_email(email, body.name.strip(), verify_url, auto_password=password_auto)
+        await send_verification_email(email, body.name.strip(), verify_url, auto_password=password_auto, lang=body.lang)
     except Exception:
         # Without this email the (inactive) account is unreachable and a retry
         # would 409 — purge so the visitor can simply sign up again.
@@ -2294,7 +2304,9 @@ async def resend_verification(
     try:
         # auto_password only switches the email copy — mirror the DB flag so
         # signups that chose a password don't get "we generated one for you".
-        await send_verification_email(email, user.full_name, verify_url, auto_password=user.needs_password)
+        # Use the stored ui_language so the resent email matches the original.
+        _resend_lang = (user.ui_language or "nl") if (user.ui_language or "nl") in ("en", "nl") else "nl"
+        await send_verification_email(email, user.full_name, verify_url, auto_password=user.needs_password, lang=_resend_lang)
     except Exception:
         logger.exception("resend_verification: failed to send entry link to %s", email)
         raise HTTPException(

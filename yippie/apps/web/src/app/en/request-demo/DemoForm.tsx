@@ -99,6 +99,7 @@ export default function DemoForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          lang: "en",
           name,
           company_name: company,
           email,
