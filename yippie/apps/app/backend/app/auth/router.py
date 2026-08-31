@@ -56,6 +56,11 @@ _RESET_WINDOW = 5 * 60
 _RESET_LIMIT = 5
 _REGISTER_WINDOW = 15 * 60
 _REGISTER_LIMIT = 10
+# The consume half of the reset flow. More generous than _RESET_LIMIT because a
+# legitimate user may retry after failing the length check, but still bounded:
+# this endpoint takes a token and sets a password, so it must not be unlimited.
+_RESET_CONSUME_WINDOW = 15 * 60
+_RESET_CONSUME_LIMIT = 10
 
 
 class LoginRequest(BaseModel):
@@ -295,7 +300,20 @@ class ResetPasswordRequest(BaseModel):
 
 
 @router.post("/reset-password")
-async def reset_password(body: ResetPasswordRequest, db: Annotated[AsyncSession, Depends(get_db)]):
+async def reset_password(
+    body: ResetPasswordRequest,
+    request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    # /forgot-password was rate limited but this, the endpoint that actually
+    # consumes a token and sets a password, was not — the more valuable half of
+    # the pair. Recorded on every attempt (not just failures) because unlike
+    # login there is no legitimate high-volume caller.
+    _ip = get_client_ip(request)
+    if await rl_is_blocked(f"reset-consume:{_ip}", _RESET_CONSUME_LIMIT, _RESET_CONSUME_WINDOW):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many password reset attempts. Try again later.")
+    await rl_hit(f"reset-consume:{_ip}", _RESET_CONSUME_WINDOW)
     claims = verify_signed_token(body.token, "reset")
     if not claims:
         raise HTTPException(status_code=400, detail="Invalid or expired reset link")

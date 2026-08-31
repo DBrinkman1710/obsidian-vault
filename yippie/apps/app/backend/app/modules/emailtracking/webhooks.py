@@ -26,9 +26,12 @@ def _verify_signature(
     if not secret:
         # Only skip verification in local/dev/test; in any deployed environment a
         # missing secret must hard-fail rather than accept unsigned webhooks.
-        if settings.environment in ("development", "local", "test"):
-            return True
-        return False
+        # is_development() treats an unset ENVIRONMENT as deployed — the field
+        # defaults to "development", so a plain string comparison here would
+        # accept unsigned webhooks on a service that is merely misconfigured.
+        from app.config import is_development
+
+        return is_development(settings)
     if not svix_id or not svix_timestamp or not svix_signature:
         return False
     try:

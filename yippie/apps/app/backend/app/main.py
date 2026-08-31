@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 from typing import Annotated
 
@@ -11,7 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import CurrentUser, check_module_access, require_feature, require_module
 from app.auth.router import router as auth_router
-from app.config import ALL_MODULES, expand_enabled_modules, get_settings
+from app.config import ALL_MODULES, expand_enabled_modules, get_settings, is_development
 from app.core.logging_config import RequestIDMiddleware, configure_logging
 from app.core.models import Tenant
 from app.core.plans import ADVANCED_FEATURES, features_for_plan, limits_for_plan, module_prices_for_plan
@@ -77,6 +78,19 @@ def create_app() -> FastAPI:
             environment=settings.environment,
             send_default_pii=False,
             traces_sample_rate=0.0,
+        )
+
+    # EMAIL_TOKEN_ENCRYPTION_KEY is only read lazily, the first time a mailbox
+    # token is encrypted (app/core/crypto.py), so a deploy missing it looks
+    # perfectly healthy until someone links an inbox and gets a 500. Surface it
+    # at boot instead. A warning rather than a hard failure: the key is not
+    # needed unless email accounts are used, and taking production down over an
+    # unused feature would be worse than the bug. /readyz reports it too.
+    if not is_development(settings) and not settings.email_token_encryption_key:
+        logging.getLogger(__name__).warning(
+            "EMAIL_TOKEN_ENCRYPTION_KEY is not set in environment '%s' — linking "
+            "an email account will fail at runtime until it is configured.",
+            settings.environment,
         )
 
     app = FastAPI(
@@ -210,11 +224,20 @@ def create_app() -> FastAPI:
         )
 
     # Jarvis quick-capture — a feature of the AI module, not a standalone module.
-    # Gated behind the tenant having "ai" enabled and plan-unlocked.
+    # Gated behind the tenant having "ai" enabled and plan-unlocked, AND the
+    # user's own RBAC level. The last one is not optional: Jarvis reads contacts,
+    # tickets and full ticket threads, and /capture, /confirm and /train create
+    # entities. Mounted outside the MODULES loop, it would otherwise be the one
+    # data-bearing router with no per-user check — letting a 'worker' (restricted
+    # from every module by resolve_module_access) read what RBAC denies them.
     app.include_router(
         jarvis_router,
         prefix="/api/v1",
-        dependencies=[Depends(require_module("ai")), Depends(require_feature("ai"))],
+        dependencies=[
+            Depends(require_module("ai")),
+            Depends(require_feature("ai")),
+            Depends(check_module_access("ai")),
+        ],
     )
 
     return app

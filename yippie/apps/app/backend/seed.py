@@ -200,7 +200,11 @@ async def main():
         # never seed it with a guessable default password outside development.
         # (Mirrors the SECRET_KEY guard in app/config.py.)
         if not admin_password:
-            if os.getenv("ENVIRONMENT", "development") == "development":
+            # Explicitly set, and a dev value — an unset ENVIRONMENT must not
+            # earn a guessable password (see app.config.is_development).
+            from app.config import DEV_ENVIRONMENTS
+
+            if os.getenv("ENVIRONMENT", "") in DEV_ENVIRONMENTS:
                 admin_password = "changeme123"
             else:
                 raise RuntimeError(

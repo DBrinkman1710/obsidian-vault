@@ -154,19 +154,46 @@ class Settings(BaseSettings):
 
 _DEFAULT_SECRET_KEY = "change-me-in-production"
 
+# Values of ENVIRONMENT that relax a security control.
+DEV_ENVIRONMENTS = ("development", "local", "test")
+
 _settings: Optional[Settings] = None
+
+
+def is_development(settings: "Settings") -> bool:
+    """True only when ENVIRONMENT was *explicitly* set to a development value.
+
+    ``environment`` defaults to "development", so every guard phrased as
+    ``if environment != "development"`` disables itself when the variable is
+    simply missing. A deploy with no ENVIRONMENT would boot on the published
+    default SECRET_KEY, skip webhook signature verification, and seed a known
+    admin password — each failing open, silently.
+
+    Treating "not set" as "deployed" makes all of them fail closed. It is safe
+    for real development: docker-compose.yml, .env.example and tests/conftest.py
+    all set ENVIRONMENT explicitly. ``model_fields_set`` is what distinguishes a
+    value that came from the environment or .env from the field default.
+    """
+    if "environment" not in settings.model_fields_set:
+        return False
+    return settings.environment in DEV_ENVIRONMENTS
 
 
 def get_settings() -> Settings:
     global _settings
     if _settings is None:
         _settings = Settings()
-        if (
-            _settings.environment != "development"
-            and _settings.secret_key == _DEFAULT_SECRET_KEY
-        ):
+        if not is_development(_settings) and _settings.secret_key == _DEFAULT_SECRET_KEY:
             raise RuntimeError(
                 "SECRET_KEY is still the insecure default. Set a real SECRET_KEY "
-                f"(e.g. `openssl rand -base64 32`) for environment '{_settings.environment}'."
+                f"(e.g. `openssl rand -base64 32`) for environment "
+                f"'{_settings.environment}'"
+                + (
+                    " (ENVIRONMENT is not set, so this is treated as a deployed "
+                    "environment — set ENVIRONMENT=development for local work)"
+                    if "environment" not in _settings.model_fields_set
+                    else ""
+                )
+                + "."
             )
     return _settings

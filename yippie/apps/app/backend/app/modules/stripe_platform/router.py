@@ -7,7 +7,7 @@ from fastapi.routing import APIRouter
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentUser
+from app.auth.dependencies import AdminUser, CurrentUser
 from app.config import get_settings
 from app.core.models import Tenant
 from app.database import get_db
@@ -48,9 +48,10 @@ class SubscriptionStatusResponse(BaseModel):
 @router.post("/checkout", response_model=CheckoutResponse)
 async def create_checkout(
     body: CheckoutRequest,
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DB,
 ):
+    """Admin-only: this changes what the whole workspace is billed."""
     _require_stripe()
     tenant = await db.get(Tenant, current_user.tenant_id)
     if tenant is None:
@@ -78,9 +79,10 @@ async def create_checkout(
 
 @router.post("/portal", response_model=PortalResponse)
 async def create_portal(
-    current_user: CurrentUser,
+    current_user: AdminUser,
     db: DB,
 ):
+    """Admin-only: the Stripe portal can cancel the subscription and change cards."""
     _require_stripe()
     tenant = await db.get(Tenant, current_user.tenant_id)
     if tenant is None:

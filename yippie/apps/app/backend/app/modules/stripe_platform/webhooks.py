@@ -34,7 +34,10 @@ async def stripe_platform_webhook(request: Request):
             log.warning("Stripe webhook signature verification failed")
             return Response(status_code=400)
     else:
-        if settings.environment not in ("development", "local", "test"):
+        from app.config import is_development
+
+        # Unset ENVIRONMENT counts as deployed — see app.config.is_development.
+        if not is_development(settings):
             log.warning(
                 "Stripe webhook secret not configured — rejecting unsigned event in environment '%s'",
                 settings.environment,

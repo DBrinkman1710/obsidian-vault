@@ -88,6 +88,33 @@ async def _public_rate_limit_record(ip: str, bucket: str) -> None:
     await rl_hit(f"{bucket}:{ip}", DEMO_RATE_WINDOW)
 
 
+# Token-guessing budget. Mirror image of the provisioning pair above: there only
+# a *success* is recorded, so a visitor's typos don't burn their budget. Here
+# only a *failure* is recorded, because a valid token is legitimate traffic
+# (a calendar client polls on a schedule, and a whole office can share one
+# egress IP) while a failed lookup is a guess.
+#
+# Record only on branches reachable WITHOUT a token we issued. A rejection that
+# required a valid signature carries no guessing signal — it is a real user with
+# a real token hitting a real error, and counting it would penalise them.
+_TOKEN_GUESS_WINDOW = 15 * 60
+_TOKEN_GUESS_LIMIT = 30
+
+
+async def _token_guess_check(ip: str, bucket: str) -> None:
+    """Raise 429 once an IP has burned its budget of *failed* token lookups."""
+    if await rl_is_blocked(f"{bucket}:{ip}", _TOKEN_GUESS_LIMIT, _TOKEN_GUESS_WINDOW):
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                            detail="Too many requests. Please try again later.")
+
+
+async def _token_guess_record(ip: str, bucket: str) -> None:
+    """Count one failed lookup. Only failures count, mirroring the login limiter:
+    a valid token is legitimate traffic (a calendar client polls on a schedule,
+    and many users can share one office IP), while an invalid one is a guess."""
+    await rl_hit(f"{bucket}:{ip}", _TOKEN_GUESS_WINDOW)
+
+
 # Global provisioning cap. Per IP limiting alone cannot stop an attacker who
 # rotates IPs from provisioning unbounded tenants (each demo/signup creates a
 # real tenant row, seeds demo data, and sends outbound email via Resend). This
@@ -827,7 +854,16 @@ async def request_demo(
 
 
 @router.get("/demo-enter")
-async def demo_enter(token: str, response: Response, db: Annotated[AsyncSession, Depends(get_db)]):
+async def demo_enter(
+    token: str,
+    request: Request,
+    response: Response,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    # This exchanges a token for an auth cookie, so an unlimited guess budget
+    # here is an unlimited attempt to mint a session.
+    _ip = get_client_ip(request)
+    await _token_guess_check(_ip, "demo_enter")
     from app.auth.tokens import verify_signed_token
     from app.auth.router import create_access_token, _set_auth_cookie
     from app.core.models import Tenant, User
@@ -835,11 +871,16 @@ async def demo_enter(token: str, response: Response, db: Annotated[AsyncSession,
 
     claims = verify_signed_token(token, "demo_magic")
     if not claims:
+        # The only branch reachable without a token we signed — i.e. the only
+        # one that represents a guess.
         logger.warning("demo_enter: invalid or expired token (first 20 chars: %s…)", token[:20])
+        await _token_guess_record(_ip, "demo_enter")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid or expired demo link.")
 
     user = await db.get(User, uuid.UUID(claims["user_id"]))
     if not user or not user.is_active:
+        # No _token_guess_record here: reaching this line required a validly
+        # signed token, so it cannot be produced by guessing.
         logger.warning("demo_enter: user %s not found or inactive", claims.get("user_id"))
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Demo account not found.")
 
@@ -1439,10 +1480,17 @@ async def public_confirm_booking(
 @router.get("/calendar/{feed_token}.ics")
 async def export_user_calendar(
     feed_token: uuid.UUID,
+    request: Request,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
     """Personal iCal feed — unauthenticated. Returns the user's Yippie calendar events
-    and confirmed bookings as a .ics file for subscription in Apple Calendar / Outlook."""
+    and confirmed bookings as a .ics file for subscription in Apple Calendar / Outlook.
+
+    Rate limited: possession of the token returns a user's entire calendar, so
+    guessing must be bounded even though the token is a UUID."""
+    _ip = get_client_ip(request)
+    await _token_guess_check(_ip, "calendar_feed")
+
     import icalendar as _ical
 
     from app.core.models import User
@@ -1453,6 +1501,7 @@ async def export_user_calendar(
         select(User).where(User.calendar_feed_token == feed_token)
     )
     if user is None:
+        await _token_guess_record(_ip, "calendar_feed")
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Feed not found.")
 
     await set_tenant_context(db, str(user.tenant_id))
