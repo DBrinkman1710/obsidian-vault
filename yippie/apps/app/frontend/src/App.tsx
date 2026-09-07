@@ -364,6 +364,11 @@ export default function App() {
   }, [location.pathname, user?.id])
 
   if (!user) {
+    // Preserve the intended destination through login so deep links (e.g. the
+    // trial "Upgrade now" email → /settings/subscription) survive the bounce
+    // to /login instead of dumping the user on /inbox.
+    const dest = location.pathname + location.search
+    const loginTarget = dest && dest !== '/' ? `/login?next=${encodeURIComponent(dest)}` : '/login'
     return (
       <ErrorBoundary>
         <Suspense fallback={null}>
@@ -377,7 +382,7 @@ export default function App() {
             <Route path="/demo-enter" element={<DemoEnterPage />} />
             <Route path="/book/manage/:manageToken" element={<BookingManagePage />} />
             <Route path="/book/:token" element={<BookingPage />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
+            <Route path="*" element={<Navigate to={loginTarget} replace />} />
           </Routes>
         </Suspense>
       </ErrorBoundary>
