@@ -142,6 +142,30 @@ def require_feature(feature: str):
     return _check
 
 
+async def require_active_subscription(
+    current_user: Annotated[User, Depends(get_current_user)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> None:
+    """Walls module APIs when a tenant's trial/subscription has lapsed.
+
+    A lapsed tenant stays active and loginable (so the user can pay) but has
+    access_locked_at stamped. Module routes get this dependency so a locked user
+    can't bypass the frontend subscribe modal by calling the API directly.
+
+    Returns 402 subscription_required when locked. Superadmins have no single
+    tenant context (they manage all tenants) so they're never locked; demo
+    tenants are exempt because they never carry a subscription lock.
+    """
+    if current_user.role == UserRole.superadmin:
+        return
+    tenant = await db.get(Tenant, current_user.tenant_id)
+    if tenant is not None and tenant.access_locked_at is not None and not tenant.is_demo:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED,
+            detail="subscription_required",
+        )
+
+
 CurrentUser = Annotated[User, Depends(get_current_user)]
 AdminUser = Annotated[User, Depends(require_admin)]
 SuperAdminUser = Annotated[User, Depends(require_superadmin)]

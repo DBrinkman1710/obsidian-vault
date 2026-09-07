@@ -192,6 +192,9 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
     # (TenantUpdate uses exclude_none, so trial_ends_at can't be nulled directly.)
     if data.go_live_at is not None:
         tenant.trial_ends_at = None
+        # Going live is a conversion — clear any access lock so the subscribe
+        # modal drops away and the workspace unlocks.
+        tenant.access_locked_at = None
     await db.commit()
     await db.refresh(tenant)
     user_count = await db.scalar(select(func.count(User.id)).where(User.tenant_id == tenant.id))

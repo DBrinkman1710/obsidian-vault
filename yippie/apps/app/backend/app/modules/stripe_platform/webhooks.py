@@ -107,6 +107,10 @@ async def _handle_checkout_completed(db, session: dict) -> None:
     # superadmin setting go_live_at. This path goes live with the webhook.
     if tenant.trial_ends_at is not None:
         updates["trial_ends_at"] = None
+    # A completed checkout unlocks the workspace — clear any access lock so the
+    # subscribe modal drops away.
+    if tenant.access_locked_at is not None:
+        updates["access_locked_at"] = None
 
     if updates:
         await db.execute(update(Tenant).where(Tenant.id == tenant.id).values(**updates))
@@ -173,8 +177,10 @@ async def _handle_invoice_paid(db, invoice: dict) -> None:
         .values(
             ai_scans_used_this_period=0,
             ai_scans_period_start=datetime.now(timezone.utc),
-            # [TRIAL30] Any paid invoice confirms conversion — clear the trial.
+            # [TRIAL30] Any paid invoice confirms conversion — clear the trial and
+            # any access lock so the subscribe modal drops away.
             trial_ends_at=None,
+            access_locked_at=None,
         )
     )
     await db.commit()

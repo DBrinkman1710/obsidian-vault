@@ -81,6 +81,11 @@ async def sync_subscription_to_tenant(
     if new_status in ("active", "trialing") and tenant.trial_ends_at is not None:
         updates["trial_ends_at"] = None
 
+    # A live subscription unlocks the workspace — clear any access lock set by the
+    # trial/subscription expiry jobs so the subscribe modal drops away.
+    if new_status in ("active", "trialing"):
+        updates["access_locked_at"] = None
+
     await db.execute(update(Tenant).where(Tenant.id == tenant.id).values(**updates))
     await db.commit()
     log.info("Synced Stripe subscription %s to tenant %s (plan=%s status=%s)", subscription.get("id"), tenant.slug, new_plan, new_status)

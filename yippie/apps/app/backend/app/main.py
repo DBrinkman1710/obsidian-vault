@@ -9,7 +9,13 @@ from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.auth.dependencies import CurrentUser, check_module_access, require_feature, require_module
+from app.auth.dependencies import (
+    CurrentUser,
+    check_module_access,
+    require_active_subscription,
+    require_feature,
+    require_module,
+)
 from app.auth.router import router as auth_router
 from app.config import ALL_MODULES, expand_enabled_modules, get_settings
 from app.core.logging_config import RequestIDMiddleware, configure_logging
@@ -179,6 +185,7 @@ def create_app() -> FastAPI:
             module_prices=module_prices_for_plan(tenant.plan),
             ai_auto_scan=tenant.ai_auto_scan,
             pipeline_nudge_enabled=tenant.pipeline_nudge_enabled,
+            subscription_required=tenant.access_locked_at is not None and not tenant.is_demo,
             stripe_subscription_status=tenant.stripe_subscription_status,
             stripe_publishable_key=settings.stripe_publishable_key,
             ai_scans_used_this_period=tenant.ai_scans_used_this_period,
@@ -192,7 +199,9 @@ def create_app() -> FastAPI:
     # [YIP-KB] Knowledge base — not a sellable module, ships with "ai": gated on
     # the ai module here at mount time; admin-only is enforced inside the router.
     app.include_router(
-        knowledge_router, prefix="/api/v1", dependencies=[Depends(require_module("ai"))]
+        knowledge_router,
+        prefix="/api/v1",
+        dependencies=[Depends(require_active_subscription), Depends(require_module("ai"))],
     )
 
     # Module routes — all mounted, each gated per-request by tenant's enabled_modules
@@ -200,7 +209,15 @@ def create_app() -> FastAPI:
     # Advanced modules also get a plan gate: require_feature returns 402 when the
     # tenant's plan doesn't unlock the feature, on top of the 403 module gate.
     for name, module_router in MODULES.items():
-        deps = [Depends(require_module(name)), Depends(check_module_access(name))]
+        # require_active_subscription (402) walls every module route when the
+        # tenant's trial/subscription has lapsed, so the frontend subscribe modal
+        # can't be bypassed by calling the API directly. Auth, tenant/config and
+        # Stripe routes stay open so a locked user can still pay.
+        deps = [
+            Depends(require_active_subscription),
+            Depends(require_module(name)),
+            Depends(check_module_access(name)),
+        ]
         if name in ADVANCED_FEATURES:
             deps.append(Depends(require_feature(name)))
         app.include_router(
