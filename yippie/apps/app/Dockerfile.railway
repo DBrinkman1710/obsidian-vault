@@ -1,7 +1,10 @@
 ## Stage 1: build the Vite/React frontend
 FROM node:20-slim AS frontend-builder
 WORKDIR /frontend
-RUN npm install -g pnpm
+# Pin pnpm to the project's version. Unpinned installs pull pnpm 10, which turns
+# ignored dependency build scripts (esbuild's postinstall) into a hard
+# ERR_PNPM_IGNORED_BUILDS failure and breaks every deploy.
+RUN npm install -g pnpm@9.15.4
 COPY frontend/package.json ./
 RUN pnpm install
 COPY frontend/ .
