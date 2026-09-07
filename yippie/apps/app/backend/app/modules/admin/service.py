@@ -29,7 +29,7 @@ DEFAULT_DEMO_DAYS = 7
 
 TENANT_SAFE_FIELDS = {
     "name", "enabled_modules", "plan", "primary_color", "logo_url",
-    "is_active", "is_demo", "demo_expires_at", "go_live_at", "trial_ends_at", "inbound_email",
+    "is_active", "is_demo", "demo_expires_at", "go_live_at", "trial_ends_at", "access_locked_at", "inbound_email",
     "kvk_nummer", "btw_nummer",
     "street_address", "postal_code", "city", "country", "iban", "phone",
     "whatsapp_phone_number_id", "whatsapp_access_token", "whatsapp_verify_token",
