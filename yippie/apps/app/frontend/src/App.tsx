@@ -1,6 +1,7 @@
 import WelcomeTour from './components/WelcomeTour'
 import SetupChecklist from './components/SetupChecklist'
 import SetPasswordModal from './components/SetPasswordModal'
+import SubscriptionRequiredModal from './components/SubscriptionRequiredModal'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { createContext, lazy, Suspense, useContext, useEffect, useRef, useState } from 'react'
 import { ComposeProvider } from './hooks/useCompose'
@@ -445,6 +446,14 @@ export default function App() {
           server flag (still true) would otherwise keep the modal mounted. */}
       {user && user.needs_password && !impersonating && !pwModalDismissed && (
         <SetPasswordModal onDone={() => { setPwModalDismissed(true); refreshUser() }} />
+      )}
+      {/* Lapsed trial/subscription: config.subscription_required is a durable
+          server side flag (access_locked_at). The tenant can log in but the app
+          is walled behind this non dismissable modal until they subscribe.
+          Suppressed while impersonating so a superadmin can still inspect a
+          locked tenant. */}
+      {user && config?.subscription_required && !impersonating && (
+        <SubscriptionRequiredModal />
       )}
       <div className="flex flex-col md:flex-row h-screen overflow-hidden bg-slate-50">
         <Sidebar />
