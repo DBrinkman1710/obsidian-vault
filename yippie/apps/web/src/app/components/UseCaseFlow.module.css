@@ -1,0 +1,278 @@
+.section {
+  --brand: #5ba4f5;
+  --brand-ink: #1e5a94;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 72px 24px 88px;
+}
+
+.head {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 40px;
+}
+
+.eyebrow {
+  display: inline-block;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--brand-ink);
+  background: #eaf3fe;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 18px;
+}
+
+.heading {
+  font-size: clamp(28px, 4vw, 42px);
+  line-height: 1.1;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 0 0 12px;
+  letter-spacing: -0.02em;
+}
+
+.sub {
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--muted);
+  margin: 0;
+}
+
+/* ── Step tabs ─────────────────────────────────────────── */
+.tabs {
+  display: flex;
+  gap: 6px;
+  list-style: none;
+  padding: 0;
+  margin: 0 0 28px;
+  counter-reset: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+
+.tabItem { flex: 1 1 0; min-width: 128px; }
+
+.tab {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  text-align: left;
+}
+.tab:hover { border-color: var(--brand); }
+
+.tab[data-state="active"] {
+  border-color: var(--brand);
+  background: #f2f8ff;
+  box-shadow: 0 4px 14px rgba(91, 164, 245, 0.18);
+}
+.tab[data-state="done"] { opacity: 0.9; }
+
+.tabNum {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 700;
+  background: #eef2f7;
+  color: var(--muted);
+  transition: all 0.18s ease;
+}
+.tab[data-state="active"] .tabNum { background: var(--brand); color: #fff; }
+.tab[data-state="done"] .tabNum { background: var(--brand-ink); color: #fff; }
+
+.tabLabel {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+/* ── Stage ─────────────────────────────────────────────── */
+.stage {
+  display: grid;
+  grid-template-columns: 1.55fr 1fr;
+  gap: 32px;
+  align-items: center;
+}
+
+.frame {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 24px 60px -24px rgba(15, 23, 42, 0.28);
+}
+
+.frameBar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 11px 16px;
+  background: #f8fafc;
+  border-bottom: 1px solid var(--line);
+}
+.dot { width: 11px; height: 11px; border-radius: 50%; background: #d7dee7; }
+.dot:nth-child(1) { background: #f87171; }
+.dot:nth-child(2) { background: #fbbf24; }
+.dot:nth-child(3) { background: #34d399; }
+.frameUrl {
+  margin-left: 12px;
+  font-size: 12px;
+  color: #94a3b8;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 3px 12px;
+}
+
+/* Callout sits at the far right of the browser bar so it never covers the UI. */
+.callout {
+  margin-left: auto;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--brand);
+  padding: 6px 14px;
+  border-radius: 999px;
+  box-shadow: 0 4px 12px rgba(91, 164, 245, 0.4);
+  white-space: nowrap;
+  animation: pop 0.35s ease;
+}
+
+.shotWrap { position: relative; line-height: 0; }
+
+.shot {
+  width: 100%;
+  height: auto;
+  display: block;
+  animation: fade 0.4s ease;
+}
+
+/* ── Floating mini email window ────────────────────────── */
+.emailCard {
+  position: absolute;
+  right: 4%;
+  bottom: 8%;
+  z-index: 3;
+  width: min(320px, 62%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 16px 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  border-top: 3px solid var(--brand);
+  box-shadow: 0 18px 44px -12px rgba(15, 23, 42, 0.45);
+  line-height: 1.4;
+  animation: slideIn 0.4s ease;
+}
+.emailCard[data-dir="in"] { border-top-color: #22c55e; }
+
+.emailTag {
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--brand);
+  margin-bottom: 2px;
+}
+.emailCard[data-dir="in"] .emailTag { color: #16a34a; }
+
+.emailFrom { font-size: 12px; font-weight: 700; color: var(--muted); }
+.emailSubject { font-size: 14px; font-weight: 700; color: var(--ink); }
+.emailBody { font-size: 12.5px; color: var(--muted); }
+
+/* ── Caption ───────────────────────────────────────────── */
+.caption { padding: 4px 4px 4px 8px; }
+
+.stepOf {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--brand);
+}
+
+.capTitle {
+  font-size: 26px;
+  font-weight: 800;
+  color: var(--ink);
+  margin: 8px 0 12px;
+  letter-spacing: -0.01em;
+  animation: fade 0.35s ease;
+}
+
+.capDesc {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--muted);
+  margin: 0 0 28px;
+  animation: fade 0.45s ease;
+}
+
+.controls { display: flex; align-items: center; gap: 14px; }
+
+.ctrl {
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 16px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--ink);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.ctrl:hover:not(:disabled) { border-color: var(--brand); }
+.ctrl:disabled { opacity: 0.4; cursor: default; }
+
+.ctrlPrimary {
+  background: var(--brand);
+  border-color: var(--brand);
+  color: #fff;
+  margin-left: auto;
+}
+.ctrlPrimary:hover:not(:disabled) { background: #4a93e4; }
+
+.progress { display: flex; gap: 7px; }
+.pip {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: #d7dee7;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.pip[data-on="true"] { background: var(--brand); transform: scale(1.35); }
+
+@keyframes fade { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes pop { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: none; } }
+@keyframes slideIn { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+
+/* ── Responsive ────────────────────────────────────────── */
+@media (max-width: 860px) {
+  .stage { grid-template-columns: 1fr; gap: 22px; }
+  .caption { padding: 0 4px; }
+  .tabItem { min-width: 116px; }
+  .ctrlPrimary { margin-left: auto; }
+}

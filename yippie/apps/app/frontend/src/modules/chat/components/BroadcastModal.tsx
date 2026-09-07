@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { useT } from '../../../hooks/useT'
 
 interface Props {
   open: boolean
@@ -10,6 +11,7 @@ interface Props {
 }
 
 export default function BroadcastModal({ open, onClose }: Props) {
+  const t = useT()
   const qc = useQueryClient()
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [labelFilter, setLabelFilter] = useState('')
@@ -64,13 +66,13 @@ export default function BroadcastModal({ open, onClose }: Props) {
         append_booking_link: appendBookingLink,
       }),
     onSuccess: () => {
-      toast.success('Broadcast queued')
+      toast.success(t('chat_broadcast_queued'))
       reset()
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
       onClose()
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.detail || 'Could not send broadcast')
+      toast.error(err?.response?.data?.detail || t('chat_broadcast_send_error'))
     },
   })
 
@@ -95,7 +97,7 @@ export default function BroadcastModal({ open, onClose }: Props) {
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-lg font-bold text-slate-900">New broadcast</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('chat_broadcast_modal_title')}</h2>
           <CloseButton onClick={handleClose} />
         </div>
 
@@ -104,14 +106,14 @@ export default function BroadcastModal({ open, onClose }: Props) {
             {/* Left column: contact selection */}
             <div className="flex flex-col min-h-0">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Filter by label
+                {t('chat_broadcast_filter_label')}
               </label>
               <select
                 value={labelFilter}
                 onChange={e => handleLabelFilterChange(e.target.value)}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm mb-3 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               >
-                <option value="">Select a label to bulk-select…</option>
+                <option value="">{t('chat_broadcast_filter_ph')}</option>
                 {labels.map((l: any) => (
                   <option key={l.id} value={l.id}>{l.name}</option>
                 ))}
@@ -119,7 +121,7 @@ export default function BroadcastModal({ open, onClose }: Props) {
 
               <div className="flex-1 overflow-y-auto border border-slate-200 rounded-lg max-h-64">
                 {eligibleContacts.length === 0 && (
-                  <p className="px-3 py-4 text-sm text-slate-400 text-center">No contacts with a phone number</p>
+                  <p className="px-3 py-4 text-sm text-slate-400 text-center">{t('chat_broadcast_no_contacts')}</p>
                 )}
                 {eligibleContacts.map((c: any) => (
                   <label
@@ -137,18 +139,18 @@ export default function BroadcastModal({ open, onClose }: Props) {
                   </label>
                 ))}
               </div>
-              <p className="text-xs text-slate-500 mt-2">{selectedIds.size} contacts selected</p>
+              <p className="text-xs text-slate-500 mt-2">{t('chat_broadcast_selected').replace('{n}', String(selectedIds.size))}</p>
             </div>
 
             {/* Right column: message */}
             <div className="flex flex-col">
               <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">
-                Message
+                {t('chat_broadcast_message_label')}
               </label>
               <textarea
                 value={message}
                 onChange={e => setMessage(e.target.value)}
-                placeholder="Write your broadcast message…"
+                placeholder={t('chat_broadcast_message_ph')}
                 rows={8}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-vertical focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               />
@@ -159,7 +161,7 @@ export default function BroadcastModal({ open, onClose }: Props) {
                   onChange={e => setAppendBookingLink(e.target.checked)}
                   className="rounded border-slate-300"
                 />
-                Insert booking link for each recipient
+                {t('chat_broadcast_insert_booking')}
               </label>
             </div>
           </div>
@@ -171,13 +173,13 @@ export default function BroadcastModal({ open, onClose }: Props) {
             disabled={selectedIds.size === 0 || !message.trim() || broadcastMutation.isPending}
             className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
-            {broadcastMutation.isPending ? 'Sending…' : 'Send Broadcast'}
+            {broadcastMutation.isPending ? t('chat_broadcast_sending') : t('chat_broadcast_send_btn')}
           </button>
           <button
             onClick={handleClose}
             className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
           >
-            Cancel
+            {t('chat_cancel')}
           </button>
         </div>
       </div>

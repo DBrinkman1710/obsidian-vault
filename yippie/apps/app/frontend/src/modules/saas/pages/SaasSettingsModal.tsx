@@ -4,6 +4,7 @@ import { BarChart3, Check, Code, Copy, Layers, UserCheck, Zap } from 'lucide-rea
 import { CloseButton } from '../../../shell/CloseButton'
 import { api } from '../../../api/client'
 import { useCopy } from '../../../hooks/useCopy'
+import { useT } from '../../../hooks/useT'
 
 interface Props {
   onClose: () => void
@@ -12,6 +13,7 @@ interface Props {
 type Tab = 'overview' | 'snippet'
 
 function CopyButton({ text }: { text: string }) {
+  const t = useT()
   const { copy, copied } = useCopy({ useToast: false })
   return (
     <button
@@ -19,18 +21,17 @@ function CopyButton({ text }: { text: string }) {
       className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 border border-slate-200 rounded-lg transition-colors"
     >
       {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
-      {copied ? 'Copied' : 'Copy'}
+      {copied ? t('saas_copied') : t('saas_copy')}
     </button>
   )
 }
 
 function OverviewTab() {
+  const t = useT()
   return (
     <div className="space-y-4">
       <p className="text-sm text-slate-500">
-        The Product Analytics snippet tracks how customers use your SaaS product: feature adoption,
-        onboarding completion, and errors. Every ticket from a tracked customer arrives with a silent
-        briefing: what they've done, what they've skipped, where they got stuck.
+        {t('saas_overview_intro')}
       </p>
 
       <div className="space-y-3">
@@ -39,7 +40,7 @@ function OverviewTab() {
             <Code size={16} className="text-yippie" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">1. Add the snippet</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('saas_overview_step1_title')}</p>
             <p className="text-sm text-slate-500">
               Copy the one-line{' '}
               <code className="text-xs bg-slate-200 px-1 rounded">&lt;script&gt;</code> tag from the{' '}
@@ -55,7 +56,7 @@ function OverviewTab() {
             <UserCheck size={16} className="text-blue-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">2. Identify users after login</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('saas_overview_step2_title')}</p>
             <p className="text-sm text-slate-500">
               Call{' '}
               <code className="text-xs bg-slate-200 px-1 rounded">
@@ -72,7 +73,7 @@ function OverviewTab() {
             <Layers size={16} className="text-green-600" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">3. Track what matters</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('saas_overview_step3_title')}</p>
             <p className="text-sm text-slate-500">
               Call <code className="text-xs bg-slate-200 px-1 rounded">yippie.track(eventType, props)</code>{' '}
               for the moments that matter: feature usage, onboarding steps completed or skipped, errors
@@ -87,7 +88,7 @@ function OverviewTab() {
             <BarChart3 size={16} className="text-orange-500" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-slate-800 mb-0.5">4. Health scores + agent context</p>
+            <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('saas_overview_step4_title')}</p>
             <p className="text-sm text-slate-500">
               Yippie computes a health score (0–100) for each tracked customer every hour, based on
               how recently they were active, how many features they use, and how many errors they hit.
@@ -102,6 +103,7 @@ function OverviewTab() {
 }
 
 function SnippetTab() {
+  const t = useT()
   const { data } = useQuery({
     queryKey: ['saas-token'],
     queryFn: () => api.get('/saas/token').then((r: any) => r.data),
@@ -155,10 +157,10 @@ ${scriptTag}
       </p>
 
       <div>
-        <p className="text-xs font-semibold text-slate-500 mb-1.5">Script tag</p>
+        <p className="text-xs font-semibold text-slate-500 mb-1.5">{t('saas_snippet_script_label')}</p>
         <div className="flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
           <p className="flex-1 text-xs font-mono text-slate-700 break-all leading-relaxed">
-            {scriptTag || 'Loading…'}
+            {scriptTag || t('saas_snippet_loading')}
           </p>
           {scriptTag && <CopyButton text={scriptTag} />}
         </div>
@@ -166,7 +168,7 @@ ${scriptTag}
 
       <div>
         <div className="flex items-center justify-between mb-1.5">
-          <p className="text-xs font-semibold text-slate-500">Full example</p>
+          <p className="text-xs font-semibold text-slate-500">{t('saas_snippet_example_label')}</p>
           {usageExample && <CopyButton text={usageExample} />}
         </div>
         <pre className="text-xs font-mono bg-slate-900 text-slate-200 rounded-xl p-4 overflow-x-auto leading-relaxed">
@@ -175,7 +177,7 @@ ${scriptTag}
       </div>
 
       <div>
-        <p className="text-xs font-semibold text-slate-500 mb-2">Supported event types</p>
+        <p className="text-xs font-semibold text-slate-500 mb-2">{t('saas_snippet_events_label')}</p>
         <div className="space-y-1.5">
           {eventTypes.map(e => (
             <div key={e.name} className="flex items-start gap-3 text-xs">
@@ -187,7 +189,7 @@ ${scriptTag}
           ))}
         </div>
         <p className="text-xs text-slate-400 mt-3">
-          Your token: <code className="font-mono">{token || '—'}</code>
+          {t('saas_token_label')} <code className="font-mono">{token || '—'}</code>
         </p>
       </div>
     </div>
@@ -195,6 +197,7 @@ ${scriptTag}
 }
 
 export function SaasSettingsModal({ onClose }: Props) {
+  const t = useT()
   const [tab, setTab] = useState<Tab>('overview')
   const ref = useRef<HTMLDivElement>(null)
 
@@ -206,8 +209,8 @@ export function SaasSettingsModal({ onClose }: Props) {
   }, [onClose])
 
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-    { id: 'overview', label: 'How it works',   icon: <Zap size={13} /> },
-    { id: 'snippet',  label: 'Install snippet', icon: <Code size={13} /> },
+    { id: 'overview', label: t('saas_tab_how_it_works'),    icon: <Zap size={13} /> },
+    { id: 'snippet',  label: t('saas_tab_install_snippet'), icon: <Code size={13} /> },
   ]
 
   return (
@@ -217,23 +220,23 @@ export function SaasSettingsModal({ onClose }: Props) {
     >
       <div ref={ref} tabIndex={-1} className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col outline-none">
         <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-slate-100">
-          <h2 className="text-base font-semibold text-slate-900">Product Analytics: Settings</h2>
+          <h2 className="text-base font-semibold text-slate-900">{t('saas_modal_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex gap-1 px-6 pt-4">
-          {tabs.map(t => (
+          {tabs.map(tb => (
             <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
+              key={tb.id}
+              onClick={() => setTab(tb.id)}
               className={`flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${
-                tab === t.id
+                tab === tb.id
                   ? 'bg-yippie/10 text-yippie'
                   : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50'
               }`}
             >
-              {t.icon}
-              {t.label}
+              {tb.icon}
+              {tb.label}
             </button>
           ))}
         </div>
@@ -248,7 +251,7 @@ export function SaasSettingsModal({ onClose }: Props) {
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 transition-colors"
           >
-            Close
+            {t('saas_modal_close')}
           </button>
         </div>
       </div>

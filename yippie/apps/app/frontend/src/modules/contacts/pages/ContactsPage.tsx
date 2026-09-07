@@ -17,6 +17,7 @@ import ContactPeekModal from '../../../components/ContactPeekModal'
 import CompanyPeekModal from '../../../components/CompanyPeekModal'
 import { EmptyState } from '../../../components/EmptyState'
 import { CloseButton } from '../../../shell/CloseButton'
+import { useT } from '../../../hooks/useT'
 
 interface ImportResult {
   imported: number
@@ -69,37 +70,38 @@ function CompanyForm({ initial, onSave, onCancel, isPending, serverError }: {
   initial: FormState; onSave: (f: FormState) => void; onCancel: () => void
   isPending: boolean; serverError: string | null
 }) {
+  const t = useT()
   const [form, setForm] = useState(initial)
   const [error, setError] = useState('')
   const set = (k: keyof FormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm(p => ({ ...p, [k]: e.target.value }))
 
   return (
-    <form onSubmit={ev => { ev.preventDefault(); if (!form.name.trim()) { setError('Name is required'); return } setError(''); onSave(form) }}
+    <form onSubmit={ev => { ev.preventDefault(); if (!form.name.trim()) { setError(t('contacts_name_required')); return } setError(''); onSave(form) }}
       className="bg-slate-50 border border-slate-200 rounded-xl p-5 flex flex-col gap-4 mb-4">
       <div className="grid grid-cols-2 gap-4">
         <div>
-          <label className={labelCls}>Company name *</label>
+          <label className={labelCls}>{t('contacts_company_name_label')}</label>
           <input className={inputCls} value={form.name} onChange={set('name')} placeholder="Acme Ltd" maxLength={255} autoFocus />
         </div>
         <div>
-          <label className={labelCls}>Domain</label>
+          <label className={labelCls}>{t('contacts_domain_label')}</label>
           <input className={inputCls} value={form.domain} onChange={set('domain')} placeholder="acme.nl" maxLength={255} />
         </div>
       </div>
       <div>
-        <label className={labelCls}>Notes</label>
-        <textarea className={`${inputCls} resize-vertical min-h-[70px] font-[inherit]`} value={form.notes} onChange={set('notes')} placeholder="Any context…" />
+        <label className={labelCls}>{t('contacts_notes_label')}</label>
+        <textarea className={`${inputCls} resize-vertical min-h-[70px] font-[inherit]`} value={form.notes} onChange={set('notes')} placeholder={t('contacts_notes_ph')} />
       </div>
       {(error || serverError) && <p className="text-sm text-red-500">{error || serverError}</p>}
       <div className="flex gap-3">
         <button type="submit" disabled={isPending}
           className="bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-opacity">
-          {isPending ? 'Saving…' : 'Save'}
+          {isPending ? t('contacts_saving') : t('contacts_save')}
         </button>
         <button type="button" onClick={onCancel}
           className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-          Cancel
+          {t('contacts_field_cancel_btn')}
         </button>
       </div>
     </form>
@@ -111,6 +113,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
   onCreateHandled: () => void
   onCompanyClick: (companyId: string) => void
 }) {
+  const t = useT()
   const { openCompose } = useCompose()
   const { user } = useAuth()
   const qc = useQueryClient()
@@ -150,9 +153,9 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
       setShowMoveStage(false)
       setSelected(new Set())
       qc.invalidateQueries({ queryKey: ['pipeline-board'] })
-      toast.success('Contacts moved to stage')
+      toast.success(t('contacts_contacts_moved'))
     },
-    onError: () => toast.error('Failed to move contacts'),
+    onError: () => toast.error(t('contacts_move_failed')),
   })
 
   const displayed = search
@@ -189,10 +192,10 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
       const recipients = contacts
         .filter(c => c.email && !seen.has(c.email) && seen.add(c.email!))
         .map(c => ({ email: c.email!, label: c.full_name || c.email! }))
-      if (recipients.length === 0) { toast.error('No contacts with email in selected companies'); return }
+      if (recipients.length === 0) { toast.error(t('contacts_no_email_in_companies')); return }
       openCompose({ recipients, subject: '', body: '', fromEmail: null })
     } catch {
-      toast.error('Failed to fetch contacts')
+      toast.error(t('contacts_fetch_contacts_failed'))
     } finally {
       setFetchingForAction(false)
     }
@@ -209,7 +212,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
       <div className="relative mb-5 max-w-sm">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input
-          placeholder="Filter companies…"
+          placeholder={t('contacts_filter_companies_ph')}
           value={search} onChange={e => setSearch(e.target.value)}
           className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
         />
@@ -227,25 +230,25 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
         onClear={() => setSelected(new Set())}
         actions={[
           {
-            label: fetchingForAction ? 'Loading…' : 'Compose',
+            label: fetchingForAction ? t('contacts_loading') : t('contacts_compose'),
             icon: <Send size={14} strokeWidth={2.5} />,
             onClick: composeForSelected,
           },
           {
-            label: 'Move to stage',
+            label: t('contacts_move_to_stage'),
             icon: <Kanban size={14} strokeWidth={2.5} />,
             onClick: openMoveStageForSelected,
           },
           {
-            label: 'Export CSV',
+            label: t('contacts_export_csv'),
             icon: <Download size={14} strokeWidth={2.5} />,
             onClick: exportSelectedCsv,
           },
           {
-            label: 'Delete',
+            label: t('contacts_delete_companies'),
             icon: <Trash2 size={14} strokeWidth={2.5} />,
             danger: true,
-            onClick: () => { if (confirm(`Delete ${selected.size} company/companies? Contacts will remain.`)) deleteMutation.mutate([...selected]) },
+            onClick: () => { if (confirm(t('contacts_delete_companies_confirm').replace('{n}', String(selected.size)))) deleteMutation.mutate([...selected]) },
           },
         ]}
       />
@@ -254,7 +257,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowMoveStage(false)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-slate-900">Move contacts to stage</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t('contacts_move_contacts_to_stage')}</h2>
               <CloseButton onClick={() => setShowMoveStage(false)} />
             </div>
             <div className="p-4 flex flex-col gap-1.5">
@@ -265,7 +268,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
                   onClick={async () => {
                     const contacts = await fetchContactsForSelected()
                     const contactIds = contacts.map(c => c.id)
-                    if (!contactIds.length) { toast.error('No contacts in selected companies'); setShowMoveStage(false); return }
+                    if (!contactIds.length) { toast.error(t('contacts_no_contacts_in_companies')); setShowMoveStage(false); return }
                     bulkMoveStageForCompaniesMutation.mutate({ contactIds, stageId: stage.id })
                   }}
                   className="flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-slate-50 transition-colors text-left disabled:opacity-50"
@@ -275,7 +278,7 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
                 </button>
               ))}
               {!stages?.length && (
-                <p className="text-sm text-slate-400 text-center py-4">No stages configured yet.</p>
+                <p className="text-sm text-slate-400 text-center py-4">{t('contacts_no_stages')}</p>
               )}
             </div>
           </div>
@@ -291,9 +294,9 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
                   <input type="checkbox" checked={allSelected} onChange={toggleAll}
                     className="h-4 w-4 rounded border-slate-300 text-blue-600 focus:ring-yippie/30 cursor-pointer" />
                 </th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Company</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left hidden md:table-cell">Domain</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left hidden md:table-cell">Contacts</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('contacts_company_col_header')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left hidden md:table-cell">{t('contacts_col_domain')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left hidden md:table-cell">{t('contacts_col_contacts')}</th>
                 {isAdmin && <th className="px-4 py-3 w-32"></th>}
               </tr>
             </thead>
@@ -316,13 +319,13 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
                     onClick={() => setPeekCompany(company)}
                     onContextMenu={e => ctx.open(e, [
                       { header: company.name },
-                      { label: 'View contacts', icon: <Building2 size={13} />, onClick: () => onCompanyClick(company.id) },
-                      { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts?company=${company.id}`, '_blank') },
+                      { label: t('contacts_view_contacts'), icon: <Building2 size={13} />, onClick: () => onCompanyClick(company.id) },
+                      { label: t('contacts_open_new_tab'), icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts?company=${company.id}`, '_blank') },
                       { separator: true },
                       ...(isAdmin ? [
-                        { label: 'Edit', icon: <Pencil size={13} />, onClick: () => { setEditingId(company.id); setShowCreate(false) } },
+                        { label: t('contacts_edit'), icon: <Pencil size={13} />, onClick: () => { setEditingId(company.id); setShowCreate(false) } },
                         { separator: true },
-                        { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${company.name}"? Contacts will remain without a company.`)) deleteMutation.mutate([company.id]) } },
+                        { label: t('contacts_delete_companies'), icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(t('contacts_company_delete_confirm').replace('{name}', company.name))) deleteMutation.mutate([company.id]) } },
                       ] : []),
                     ])}
                   >
@@ -347,11 +350,11 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
                         <div className="flex gap-2 justify-end">
                           <button onClick={() => { setEditingId(company.id); setShowCreate(false) }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors">
-                            <Pencil size={11} /> Edit
+                            <Pencil size={11} /> {t('contacts_edit')}
                           </button>
-                          <button onClick={() => { if (confirm(`Delete "${company.name}"? Contacts will remain without a company.`)) deleteMutation.mutate([company.id]) }}
+                          <button onClick={() => { if (confirm(t('contacts_company_delete_confirm').replace('{name}', company.name))) deleteMutation.mutate([company.id]) }}
                             className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 bg-white border border-red-200 hover:bg-red-50 rounded-lg transition-colors">
-                            <Trash2 size={11} /> Delete
+                            <Trash2 size={11} /> {t('contacts_delete_companies')}
                           </button>
                         </div>
                       </td>
@@ -365,9 +368,9 @@ function CompaniesTab({ triggerCreate, onCreateHandled, onCompanyClick }: {
         {displayed.length === 0 && !showCreate && (
           <EmptyState
             icon={Building2}
-            title={search ? 'No matching companies' : 'No companies yet'}
-            subtitle={isAdmin ? 'Group your contacts by company to see everything an organisation has going on in one place.' : 'Ask an admin to create the first company.'}
-            ctaLabel={isAdmin && !search ? 'New company' : undefined}
+            title={search ? t('contacts_no_matching_companies') : t('contacts_no_companies_yet')}
+            subtitle={isAdmin ? t('contacts_no_companies_subtitle') : t('contacts_no_companies_admin')}
+            ctaLabel={isAdmin && !search ? t('contacts_new_company') : undefined}
             ctaIcon={Plus}
             onCta={isAdmin && !search ? () => setShowCreate(true) : undefined}
           />
@@ -390,6 +393,7 @@ interface EditContactForm { full_name: string; email: string; phone: string; not
 function EditContactModal({ contact, companies, onClose }: {
   contact: Contact; companies: Company[]; onClose: () => void
 }) {
+  const t = useT()
   const qc = useQueryClient()
   const [form, setForm] = useState<EditContactForm>({
     full_name: contact.full_name,
@@ -411,36 +415,36 @@ function EditContactModal({ contact, companies, onClose }: {
       company_id: form.company_id || null,
     }),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['contacts'] }); onClose() },
-    onError: () => setError('Failed to save'),
+    onError: () => setError(t('contacts_failed_save')),
   })
 
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Edit contact</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('contacts_edit_contact')}</h2>
           <CloseButton onClick={onClose} />
         </div>
-        <form onSubmit={e => { e.preventDefault(); if (!form.full_name.trim()) { setError('Name is required'); return } setError(''); mutation.mutate() }}
+        <form onSubmit={e => { e.preventDefault(); if (!form.full_name.trim()) { setError(t('contacts_name_required')); return } setError(''); mutation.mutate() }}
           className="p-6 flex flex-col gap-4">
           <div>
-            <label className={labelCls}>Name *</label>
+            <label className={labelCls}>{t('contacts_field_name')}</label>
             <input className={inputCls} value={form.full_name} onChange={set('full_name')} autoFocus />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className={labelCls}>Email</label>
+              <label className={labelCls}>{t('contacts_field_email')}</label>
               <input className={inputCls} type="email" value={form.email} onChange={set('email')} />
             </div>
             <div>
-              <label className={labelCls}>Phone</label>
+              <label className={labelCls}>{t('contacts_field_phone')}</label>
               <input className={inputCls} value={form.phone} onChange={set('phone')} />
             </div>
           </div>
           <div>
-            <label className={labelCls}>Company</label>
+            <label className={labelCls}>{t('contacts_field_company')}</label>
             <select className={inputCls} value={form.company_id} onChange={set('company_id')}>
-              <option value="">— No company —</option>
+              <option value="">{t('contacts_no_company_option')}</option>
               {companies.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
             </select>
           </div>
@@ -448,11 +452,11 @@ function EditContactModal({ contact, companies, onClose }: {
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={mutation.isPending}
               className="bg-yippie hover:opacity-90 disabled:opacity-50 text-white px-4 py-2 rounded-xl text-sm font-semibold transition-opacity">
-              {mutation.isPending ? 'Saving…' : 'Save'}
+              {mutation.isPending ? t('contacts_saving') : t('contacts_save')}
             </button>
             <button type="button" onClick={onClose}
               className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-              Cancel
+              {t('contacts_field_cancel_btn')}
             </button>
           </div>
         </form>
@@ -478,6 +482,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   companyFilter: string | null
   setCompanyFilter: (id: string | null) => void
 }) {
+  const t = useT()
   const navigate = useNavigate()
   const { openCompose } = useCompose()
   const qc = useQueryClient()
@@ -549,23 +554,23 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
       : `${ids.length} contacts`
     deleteMutation.mutate(ids, {
       onSuccess: () => {
-        toast(`Deleted ${label}`, {
+        toast(t('contacts_deleted_label').replace('{label}', label), {
           duration: 5000,
           action: {
-            label: 'Undo',
+            label: t('contacts_undo'),
             onClick: async () => {
               try {
                 await Promise.all(ids.map(id => api.post(`/contacts/${id}/restore`)))
                 qc.invalidateQueries({ queryKey: ['contacts'] })
-                toast.success(ids.length === 1 ? 'Contact restored' : `${ids.length} contacts restored`)
+                toast.success(ids.length === 1 ? t('contacts_contact_restored') : t('contacts_contacts_restored').replace('{n}', String(ids.length)))
               } catch {
-                toast.error('Could not restore')
+                toast.error(t('contacts_could_not_restore'))
               }
             },
           },
         })
       },
-      onError: () => toast.error('Failed to delete'),
+      onError: () => toast.error(t('contacts_failed_delete')),
     })
   }
 
@@ -577,7 +582,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
   const permanentDeleteMutation = useMutation({
     mutationFn: (id: string) => api.delete(`/contacts/${id}/permanent`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['contacts'] }),
-    onError: () => toast.error('Failed to permanently delete contact'),
+    onError: () => toast.error(t('contacts_failed_permanent_delete')),
   })
 
   const bulkMoveStageMutation = useMutation({
@@ -587,9 +592,9 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
       setShowMoveStage(false)
       clearSelection()
       qc.invalidateQueries({ queryKey: ['pipeline-stages'] })
-      toast.success('Contacts moved to stage')
+      toast.success(t('contacts_contacts_moved'))
     },
-    onError: () => toast.error('Failed to move contacts'),
+    onError: () => toast.error(t('contacts_move_failed')),
   })
 
   const selectedIds = [...selected]
@@ -599,7 +604,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
     const recipients = activeItems
       .filter((c: any) => selected.has(c.id) && c.email && !seen.has(c.email) && seen.add(c.email!))
       .map((c: any) => ({ email: c.email!, label: c.full_name || c.email! }))
-    if (recipients.length === 0) { toast.error('No selected contacts have an email address'); return }
+    if (recipients.length === 0) { toast.error(t('contacts_no_email_selected')); return }
     openCompose({ recipients, subject: '', body: '', fromEmail: null })
   }
 
@@ -609,7 +614,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         <div className="relative flex-1 max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
-            placeholder="Search by name, email, or company…"
+            placeholder={t('contacts_search_ph')}
             value={search} onChange={e => setSearch(e.target.value)}
             className="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
@@ -654,7 +659,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
 
       {companyFilter && companies && (
         <div className="flex items-center gap-1.5 mb-4">
-          <span className="text-xs text-slate-400 font-medium">Company:</span>
+          <span className="text-xs text-slate-400 font-medium">{t('contacts_company_filter_label')}</span>
           <button
             onClick={() => setCompanyFilter(null)}
             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold border bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-100">
@@ -670,22 +675,22 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         onClear={clearSelection}
         actions={[
           {
-            label: 'Compose',
+            label: t('contacts_compose'),
             icon: <Send size={14} strokeWidth={2.5} />,
             onClick: composeForSelectedContacts,
           },
           {
-            label: 'Move to stage',
+            label: t('contacts_move_to_stage'),
             icon: <Kanban size={14} strokeWidth={2.5} />,
             onClick: () => setShowMoveStage(true),
           },
           {
-            label: 'Export selected',
+            label: t('contacts_export_selected'),
             icon: <Download size={14} strokeWidth={2.5} />,
             onClick: () => exportSelected(selectedIds),
           },
           {
-            label: 'Delete selected',
+            label: t('contacts_delete_selected'),
             icon: <Trash2 size={14} strokeWidth={2.5} />,
             danger: true,
             onClick: () => deleteWithUndo(selectedIds),
@@ -697,7 +702,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowMoveStage(false)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-slate-900">Move {selected.size} contact{selected.size !== 1 ? 's' : ''} to stage</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t('contacts_move_contacts_to_stage')}</h2>
               <CloseButton onClick={() => setShowMoveStage(false)} />
             </div>
             <div className="p-4 flex flex-col gap-1.5">
@@ -713,7 +718,7 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                 </button>
               ))}
               {!stages?.length && (
-                <p className="text-sm text-slate-400 text-center py-4">No stages configured yet.</p>
+                <p className="text-sm text-slate-400 text-center py-4">{t('contacts_no_stages')}</p>
               )}
             </div>
           </div>
@@ -750,17 +755,17 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                     onClick={() => !isDeleted && setPeekContactId(c.id)}
                     onContextMenu={e => ctx.open(e, isDeleted ? [
                       { header: c.full_name },
-                      { label: 'Restore', icon: <User size={13} />, onClick: () => restoreMutation.mutate(c.id) },
-                      ...(isAdmin ? [{ label: 'Delete permanently', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) permanentDeleteMutation.mutate(c.id) } }] : []),
+                      { label: t('contacts_restore'), icon: <User size={13} />, onClick: () => restoreMutation.mutate(c.id) },
+                      ...(isAdmin ? [{ label: t('contacts_delete_permanently'), icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(t('contacts_permanent_delete_confirm').replace('{name}', c.full_name))) permanentDeleteMutation.mutate(c.id) } }] : []),
                     ] : [
                       { header: c.full_name },
-                      { label: 'View contact', icon: <ExternalLink size={13} />, onClick: () => setPeekContactId(c.id) },
-                      { label: 'Open full page', icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
-                      { label: 'Open in new tab', icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${c.id}`, '_blank') },
+                      { label: t('contacts_view_contact'), icon: <ExternalLink size={13} />, onClick: () => setPeekContactId(c.id) },
+                      { label: t('contacts_open_full_page'), icon: <ExternalLink size={13} />, onClick: () => navigate(`/contacts/${c.id}`) },
+                      { label: t('contacts_open_new_tab'), icon: <ExternalLink size={13} />, onClick: () => window.open(`/contacts/${c.id}`, '_blank') },
                       { separator: true },
-                      { label: 'Send email', icon: <Mail size={13} />, onClick: () => openCompose({ recipients: [{ email: c.email!, label: c.full_name || c.email! }], subject: '', body: '', fromEmail: null }) },
+                      { label: t('contacts_send_email'), icon: <Mail size={13} />, onClick: () => openCompose({ recipients: [{ email: c.email!, label: c.full_name || c.email! }], subject: '', body: '', fromEmail: null }) },
                       { separator: true },
-                      { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => deleteWithUndo([c.id]) },
+                      { label: t('contacts_delete_companies'), icon: <Trash2 size={13} />, danger: true, onClick: () => deleteWithUndo([c.id]) },
                     ])}>
                     <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
                       {!isDeleted && (
@@ -817,21 +822,21 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
                             disabled={restoreMutation.isPending || permanentDeleteMutation.isPending}
                             className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors disabled:opacity-50"
                           >
-                            Restore
+                            {t('contacts_restore')}
                           </button>
                           {isAdmin && (
                             <button
-                              onClick={() => { if (confirm(`Permanently delete "${c.full_name}"? This cannot be undone.`)) permanentDeleteMutation.mutate(c.id) }}
+                              onClick={() => { if (confirm(t('contacts_permanent_delete_confirm').replace('{name}', c.full_name))) permanentDeleteMutation.mutate(c.id) }}
                               disabled={restoreMutation.isPending || permanentDeleteMutation.isPending}
                               className="inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition-colors disabled:opacity-50"
                             >
-                              Delete
+                              {t('contacts_delete_permanently')}
                             </button>
                           )}
                         </div>
                       ) : (
                         <button onClick={e => { e.stopPropagation(); setEditingContact(c) }}
-                          className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title="Edit">
+                          className="p-1.5 text-slate-400 hover:text-blue-600 rounded hover:bg-blue-50 transition-colors" title={t('contacts_edit')}>
                           <Pencil size={13} />
                         </button>
                       )}
@@ -846,14 +851,14 @@ function ContactsTab({ companyFilter, setCompanyFilter }: {
         {!isLoading && items.length === 0 && (
           <div className="py-12 text-center">
             <User size={32} className="text-slate-300 mx-auto mb-3" />
-            <p className="text-sm text-slate-400 font-medium mb-1">No contacts yet</p>
-            <p className="text-xs text-slate-400 mb-4">Add your first contact to start creating tickets.</p>
+            <p className="text-sm text-slate-400 font-medium mb-1">{t('contacts_no_contacts_yet')}</p>
+            <p className="text-xs text-slate-400 mb-4">{t('contacts_add_first_desc')}</p>
             <Link
               to="/contacts/new"
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
             >
               <Plus size={14} />
-              Add contact
+              {t('contacts_add_contact')}
             </Link>
           </div>
         )}
@@ -901,6 +906,7 @@ function autoMap(headers: string[]): Record<string, string> {
 }
 
 export default function ContactsPage() {
+  const t = useT()
   const { user } = useAuth()
   const qc = useQueryClient()
   const navigate = useNavigate()
@@ -985,42 +991,47 @@ export default function ContactsPage() {
     setActiveTab('contacts')
   }
 
+  const TAB_LABELS: Record<Tab, string> = {
+    contacts: t('contacts_tab_contacts'),
+    companies: t('contacts_tab_companies'),
+  }
+
   return (
     <div className="flex flex-col flex-1 min-h-0 overflow-hidden">
       {/* Fixed header */}
       <div className="shrink-0 px-8 pt-8 pb-0 bg-slate-50">
         <div className="flex items-start justify-between mb-5">
-          <h1 className="heading-xl text-slate-900">Contacts</h1>
+          <h1 className="heading-xl text-slate-900">{t('contacts_page_title')}</h1>
           <div className="flex gap-2">
             <button onClick={exportAll}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-              <Download size={15} strokeWidth={2.5} /> Export
+              <Download size={15} strokeWidth={2.5} /> {t('contacts_export_btn_label')}
             </button>
             <MutationGate>
               {isAdmin && (
                 <button onClick={() => setShowImport(true)}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-                  <Upload size={15} strokeWidth={2.5} /> Import
+                  <Upload size={15} strokeWidth={2.5} /> {t('contacts_import_btn_label')}
                 </button>
               )}
               {/* + New dropdown — contact or company */}
               <div className="relative" ref={newMenuRef}>
                 <button onClick={() => setNewMenuOpen(v => !v)}
                   className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
-                  <Plus size={15} strokeWidth={2.5} /> New <ChevronDown size={14} />
+                  <Plus size={15} strokeWidth={2.5} /> {t('contacts_new_btn')} <ChevronDown size={14} />
                 </button>
                 {newMenuOpen && (
                   <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl shadow-xl border border-slate-200 py-1 z-50">
                     <button
                       onClick={() => { setNewMenuOpen(false); navigate('/contacts/new') }}
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                      <User size={14} className="text-slate-400" /> New contact
+                      <User size={14} className="text-slate-400" /> {t('contacts_new_contact')}
                     </button>
                     {isAdmin && (
                       <button
                         onClick={() => { setNewMenuOpen(false); handleNewCompany() }}
                         className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                        <Building2 size={14} className="text-slate-400" /> New company
+                        <Building2 size={14} className="text-slate-400" /> {t('contacts_new_company_menu')}
                       </button>
                     )}
                   </div>
@@ -1042,7 +1053,7 @@ export default function ContactsPage() {
                   : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
               }`}
             >
-              {tab}
+              {TAB_LABELS[tab]}
             </button>
           ))}
         </div>
@@ -1068,20 +1079,20 @@ export default function ContactsPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={closeImport}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-8" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
-              <h2 className="text-lg font-bold text-slate-900">Import contacts</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t('contacts_import_title')}</h2>
               <CloseButton onClick={closeImport} />
             </div>
-            <p className="text-sm text-slate-400 mb-5">Upload a CSV, JSON, or XLSX file.</p>
+            <p className="text-sm text-slate-400 mb-5">{t('contacts_upload_desc')}</p>
 
             {!importResult && !preview ? (
               <>
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4">
                   <p className="text-xs text-slate-400 mb-2">
-                    Columns: <span className="font-mono text-slate-700">full_name*</span>, email, phone, company, notes
+                    Columns: <span className="font-mono text-slate-700">{t('contacts_import_col_hint')}</span>
                   </p>
                   <button onClick={() => downloadBlob(TEMPLATE_CSV, 'contacts-template.csv', 'text/csv')}
                     className="text-xs font-medium text-blue-600 hover:text-blue-800 inline-flex items-center gap-1">
-                    <Download size={12} strokeWidth={2.5} /> Download template
+                    <Download size={12} strokeWidth={2.5} /> {t('contacts_download_template')}
                   </button>
                 </div>
                 {importError && (
@@ -1090,30 +1101,39 @@ export default function ContactsPage() {
                 <button onClick={() => fileRef.current?.click()} disabled={previewMutation.isPending}
                   className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity disabled:opacity-50">
                   <Upload size={15} strokeWidth={2.5} />
-                  {previewMutation.isPending ? 'Reading…' : 'Choose file'}
+                  {previewMutation.isPending ? t('contacts_reading') : t('contacts_choose_file')}
                 </button>
               </>
             ) : !importResult && preview ? (
               <>
-                <p className="text-xs text-slate-400 mb-3">Match each column in your file to a Yippie field.</p>
+                <p className="text-xs text-slate-400 mb-3">{t('contacts_import_map_hint')}</p>
                 <div className="max-h-64 overflow-y-auto flex flex-col gap-2 mb-4 pr-1">
                   {preview.headers.map(h => (
                     <div key={h} className="flex items-center gap-2">
                       <span className="flex-1 min-w-0 truncate text-sm font-medium text-slate-700" title={h}>{h}</span>
-                      <span className="text-slate-300 text-xs">→</span>
+                      <span className="text-slate-300 text-xs">...</span>
                       <select
                         value={mapping[h] ?? ''}
                         onChange={e => setMapping(p => ({ ...p, [h]: e.target.value }))}
                         className="w-40 shrink-0 px-2 py-1.5 border border-slate-300 rounded-lg text-sm text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie">
-                        <option value="">— skip —</option>
-                        {IMPORT_TARGET_FIELDS.map(f => <option key={f.value} value={f.value}>{f.label}</option>)}
+                        <option value="">{t('contacts_skip_column')}</option>
+                        {IMPORT_TARGET_FIELDS.map(f => {
+                          const labelMap: Record<string, string> = {
+                            full_name: t('contacts_import_full_name_field'),
+                            email: t('contacts_field_email'),
+                            phone: t('contacts_field_phone'),
+                            company: t('contacts_field_company'),
+                            notes: t('contacts_notes_label'),
+                          }
+                          return <option key={f.value} value={f.value}>{labelMap[f.value] ?? f.label}</option>
+                        })}
                       </select>
                     </div>
                   ))}
                 </div>
                 {!mappedToFullName && (
                   <div className="mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700">
-                    Map one column to <span className="font-semibold">Full name</span> to continue.
+                    {t('contacts_map_full_name_required').replace('{field}', t('contacts_import_full_name_field'))}
                   </div>
                 )}
                 {importError && (
@@ -1123,20 +1143,20 @@ export default function ContactsPage() {
                   <button onClick={runImport} disabled={!mappedToFullName || importMutation.isPending}
                     className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity">
                     <Upload size={15} strokeWidth={2.5} />
-                    {importMutation.isPending ? 'Importing…' : 'Import'}
+                    {importMutation.isPending ? t('contacts_importing') : t('contacts_import_btn')}
                   </button>
                   <button onClick={() => { setPreview(null); setPendingFile(null); setImportError(null); previewMutation.reset() }}
                     className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors">
-                    Back
+                    {t('contacts_back')}
                   </button>
                 </div>
               </>
             ) : importResult ? (
               <>
                 <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 mb-4 text-sm text-slate-700">
-                  <span className="font-semibold text-green-700">{importResult.imported} imported</span>{', '}
-                  <span className="font-semibold text-amber-700">{importResult.skipped} skipped (duplicates)</span>{', '}
-                  <span className="font-semibold text-red-700">{importResult.errors} error{importResult.errors === 1 ? '' : 's'}</span>
+                  <span className="font-semibold text-green-700">{t('contacts_import_imported').replace('{n}', String(importResult.imported))}</span>{', '}
+                  <span className="font-semibold text-amber-700">{t('contacts_import_skipped').replace('{n}', String(importResult.skipped))}</span>{', '}
+                  <span className="font-semibold text-red-700">{importResult.errors} {importResult.errors === 1 ? t('contacts_import_errors_label') : t('contacts_import_errors_plural')}</span>
                 </div>
                 {importResult.error_details.length > 0 && (
                   <ul className="mb-4 max-h-40 overflow-y-auto text-xs text-red-600 list-disc pl-5 space-y-0.5">
@@ -1145,7 +1165,7 @@ export default function ContactsPage() {
                 )}
                 <button onClick={closeImport}
                   className="w-full px-4 py-2.5 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
-                  Done
+                  {t('contacts_import_done')}
                 </button>
               </>
             ) : null}

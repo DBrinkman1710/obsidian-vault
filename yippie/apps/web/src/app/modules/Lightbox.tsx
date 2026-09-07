@@ -44,7 +44,7 @@ export default function Lightbox({
           onClick={() => setOpen(false)}
           className={styles.lightboxClose}
         >
-          Close ✕
+          Sluiten ✕
         </button>
         <Image
           src={src}
@@ -64,7 +64,7 @@ export default function Lightbox({
         type="button"
         onClick={() => setOpen(true)}
         className={styles.lightboxTrigger}
-        aria-label={`Zoom in: ${alt}`}
+        aria-label={`Inzoomen: ${alt}`}
       >
         <Image
           src={src}

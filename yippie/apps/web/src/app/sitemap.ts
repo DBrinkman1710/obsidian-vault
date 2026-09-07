@@ -26,8 +26,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/vs-zendesk", priority: 0.8, changeFrequency: "monthly" },
     { path: "/vs-freshdesk", priority: 0.8, changeFrequency: "monthly" },
     { path: "/vs-front", priority: 0.8, changeFrequency: "monthly" },
-    { path: "/nl", priority: 0.9, changeFrequency: "weekly" },
-    { path: "/nl/pricing", priority: 0.8, changeFrequency: "monthly" },
     { path: "/request-demo", priority: 0.8, changeFrequency: "monthly" },
     { path: "/docs", priority: 0.7, changeFrequency: "monthly" },
     { path: "/about", priority: 0.7, changeFrequency: "monthly" },
@@ -43,10 +41,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/terms", priority: 0.3, changeFrequency: "yearly" },
   ];
 
-  return staticRoutes.map((r) => ({
-    url: `${SITE}${r.path}`,
-    lastModified: BLOG_DATES[r.path] ? new Date(BLOG_DATES[r.path] as string) : lastModified,
-    changeFrequency: r.changeFrequency,
-    priority: r.priority,
-  }));
+  // Dutch lives at the root; English mirrors every route under /en at a
+  // slightly lower priority. The homepage maps to "/en" (no trailing path).
+  const withEnglish = staticRoutes.flatMap((r) => {
+    const enPath = r.path === "/" ? "/en" : `/en${r.path}`;
+    return [
+      r,
+      { path: enPath, priority: Math.max(0.1, r.priority - 0.1), changeFrequency: r.changeFrequency },
+    ];
+  });
+
+  return withEnglish.map((r) => {
+    const canonicalPath = r.path.startsWith("/en/") ? r.path.slice(3) : r.path === "/en" ? "/" : r.path;
+    return {
+      url: `${SITE}${r.path}`,
+      lastModified: BLOG_DATES[canonicalPath] ? new Date(BLOG_DATES[canonicalPath] as string) : lastModified,
+      changeFrequency: r.changeFrequency,
+      priority: r.priority,
+    };
+  });
 }

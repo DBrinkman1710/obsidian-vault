@@ -5,6 +5,7 @@ import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { useCompose } from '../../../hooks/useCompose'
+import { useT } from '../../../hooks/useT'
 
 // Local call helper daemon (personal setup — starts/stops Handy recording and
 // switches audio devices). When unreachable the modal degrades to manual mode.
@@ -26,13 +27,7 @@ interface CallContact {
   phone: string | null
 }
 
-const OUTCOMES: { value: Outcome; label: string }[] = [
-  { value: 'interested', label: 'Picked up · interested' },
-  { value: 'not_interested', label: 'Picked up · not interested' },
-  { value: 'callback', label: 'Call back later' },
-  { value: 'voicemail', label: 'Voicemail' },
-  { value: 'no_answer', label: 'Did not pick up' },
-]
+const OUTCOME_VALUES: Outcome[] = ['interested', 'not_interested', 'callback', 'voicemail', 'no_answer']
 
 // Build a dialable tel: URL. macOS/iOS hand this to the Continuity call prompt
 // ("Call using iPhone"). Numbers stored with a country code but no + get one;
@@ -77,6 +72,7 @@ async function helperPost(path: string): Promise<boolean> {
 }
 
 export default function CallModal({ contact, onClose }: { contact: CallContact; onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const { openCompose } = useCompose()
 
@@ -132,7 +128,7 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
     setRecording(false)
     if (!duration) setDuration(String(Math.max(1, Math.round(elapsed / 60))))
     const ok = await helperPost('/stop')
-    if (!ok) toast.error('Call helper unreachable — stop Handy manually (its transcript will land in the box below).')
+    if (!ok) toast.error(t('contacts_call_stop_failed'))
   }
 
   const analyzeMut = useMutation({
@@ -152,7 +148,7 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
       setAiOk(data.ai_ok ?? true)
       setPhase('review')
     },
-    onError: () => toast.error('Failed to analyze the call. Try again.'),
+    onError: () => toast.error(t('contacts_call_analyze_failed')),
   })
 
   const saveMut = useMutation({
@@ -173,9 +169,9 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
       qc.invalidateQueries({ queryKey: ['contact-activity', contact.id] })
       setRemindersCreated(data.reminders_created ?? 0)
       setPhase('done')
-      toast.success('Call logged.')
+      toast.success(t('contacts_call_logged'))
     },
-    onError: () => toast.error('Failed to save the call log.'),
+    onError: () => toast.error(t('contacts_call_save_failed')),
   })
 
   function openEmailDraft() {
@@ -202,12 +198,12 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
         <div className="px-5 py-4 border-b border-slate-100 flex items-center gap-2">
           <Phone size={15} className="text-blue-500" />
           <h2 className="text-sm font-bold text-slate-900 flex-1 truncate">
-            Call — {contact.full_name}
+            {t('contacts_call_title').replace('{name}', contact.full_name)}
             {contact.phone && (
               <a
                 href={telHref(contact.phone)}
                 className="text-slate-400 font-normal hover:text-yippie"
-                title="Dial again"
+                title={t('contacts_call_dial_again')}
               >
                 {' · '}{contact.phone}
               </a>
@@ -220,8 +216,7 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
           <div className="p-5 flex flex-col gap-4">
             {helperOk === false && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                Call helper not reachable — recording did not start automatically. Start Handy manually
-                (toggle hotkey) or type your notes below.
+                {t('contacts_call_helper_missing')}
               </p>
             )}
 
@@ -232,20 +227,20 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500" />
                   </span>
-                  <span className="text-sm font-semibold text-slate-700">Recording… {formatElapsed(elapsed)}</span>
+                  <span className="text-sm font-semibold text-slate-700">{t('contacts_call_recording').replace('{elapsed}', formatElapsed(elapsed))}</span>
                   <button
                     onClick={stopRecording}
                     className="ml-auto inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-600 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
                   >
                     <Square size={11} />
-                    Stop &amp; transcribe
+                    {t('contacts_call_stop_transcribe')}
                   </button>
                 </>
               ) : (
                 <span className="text-xs text-slate-500">
                   {transcript
-                    ? 'Transcript captured — review below, then analyze.'
-                    : 'Waiting for transcript… Handy types it into the box below when transcription finishes (keep it focused).'}
+                    ? t('contacts_call_transcript_ready')
+                    : t('contacts_call_transcript_waiting')}
                 </span>
               )}
             </div>
@@ -255,22 +250,22 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
               autoFocus
               value={transcript}
               onChange={e => setTranscript(e.target.value)}
-              placeholder="Call transcript lands here after you hit Stop & transcribe…"
+              placeholder={t('contacts_call_transcript_ph')}
               rows={8}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-400 font-mono"
             />
 
             <div className="flex items-center gap-3 flex-wrap">
               <div className="inline-flex rounded-lg border border-slate-200 overflow-hidden">
-                {OUTCOMES.map(o => (
+                {OUTCOME_VALUES.map(v => (
                   <button
-                    key={o.value}
-                    onClick={() => setOutcome(o.value)}
+                    key={v}
+                    onClick={() => setOutcome(v)}
                     className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
-                      outcome === o.value ? 'bg-yippie text-white' : 'text-slate-600 hover:bg-slate-50'
+                      outcome === v ? 'bg-yippie text-white' : 'text-slate-600 hover:bg-slate-50'
                     }`}
                   >
-                    {o.label}
+                    {t('contacts_call_outcome_' + v)}
                   </button>
                 ))}
               </div>
@@ -283,7 +278,7 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
                   placeholder="0"
                   className="w-16 px-2 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
-                <span className="text-xs text-slate-400">min</span>
+                <span className="text-xs text-slate-400">{t('contacts_call_duration_unit')}</span>
               </div>
             </div>
 
@@ -293,7 +288,7 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
               className="inline-flex items-center justify-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
             >
               <Sparkles size={14} />
-              {analyzeMut.isPending ? 'Analyzing…' : 'Analyze call'}
+              {analyzeMut.isPending ? t('contacts_call_analyzing') : t('contacts_call_analyze')}
             </button>
           </div>
         )}
@@ -302,12 +297,12 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
           <div className="p-5 flex flex-col gap-4">
             {!aiOk && (
               <p className="text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
-                AI summary unavailable — the raw transcript was used. Edit everything below before saving.
+                {t('contacts_call_ai_unavailable')}
               </p>
             )}
 
             <div>
-              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Summary</p>
+              <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{t('contacts_call_summary_label')}</p>
               <textarea
                 value={summary}
                 onChange={e => setSummary(e.target.value)}
@@ -318,7 +313,7 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
 
             <div>
               <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">
-                Action items <span className="normal-case font-normal">(items with a due date become reminders)</span>
+                {t('contacts_call_action_items_label')} <span className="normal-case font-normal">{t('contacts_call_action_items_hint')}</span>
               </p>
               <div className="flex flex-col gap-2">
                 {actionItems.map((item, i) => (
@@ -353,18 +348,18 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
                   className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-blue-600 transition-colors self-start"
                 >
                   <Plus size={12} />
-                  Add action item
+                  {t('contacts_call_add_action')}
                 </button>
               </div>
             </div>
 
             {(emailSubject || emailBody) && (
               <div>
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Follow-up email draft</p>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{t('contacts_call_followup_email')}</p>
                 <input
                   value={emailSubject}
                   onChange={e => setEmailSubject(e.target.value)}
-                  placeholder="Subject"
+                  placeholder={t('contacts_call_subject_ph')}
                   className="w-full px-3 py-1.5 border border-slate-200 rounded-t-lg text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
                 />
                 <textarea
@@ -383,13 +378,13 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
                 className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
               >
                 <Check size={14} />
-                {saveMut.isPending ? 'Saving…' : 'Approve & save'}
+                {saveMut.isPending ? t('contacts_call_saving') : t('contacts_call_approve_save')}
               </button>
               <button
                 onClick={() => setPhase('capture')}
                 className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
               >
-                Back
+                {t('contacts_call_back')}
               </button>
             </div>
           </div>
@@ -399,12 +394,14 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
           <div className="p-5 flex flex-col gap-4">
             <div className="flex items-center gap-2 text-sm font-semibold text-emerald-700">
               <Check size={15} />
-              Call logged to the timeline and notes.
+              {t('contacts_call_logged')}
             </div>
             {remindersCreated > 0 && (
               <p className="inline-flex items-center gap-1.5 text-xs text-slate-500">
                 <AlarmClock size={12} />
-                {remindersCreated} reminder{remindersCreated !== 1 ? 's' : ''} set.
+                {remindersCreated !== 1
+                  ? t('contacts_call_reminders_plural').replace('{n}', String(remindersCreated))
+                  : t('contacts_call_reminders').replace('{n}', String(remindersCreated))}
               </p>
             )}
             <div className="flex gap-2">
@@ -414,14 +411,14 @@ export default function CallModal({ contact, onClose }: { contact: CallContact; 
                   className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
                 >
                   <Mail size={14} />
-                  Open email in composer
+                  {t('contacts_call_open_email')}
                 </button>
               )}
               <button
                 onClick={onClose}
                 className="px-4 py-2 text-sm font-semibold text-slate-600 border border-slate-200 rounded-xl hover:bg-slate-50 transition-colors"
               >
-                Close
+                {t('contacts_call_close')}
               </button>
             </div>
           </div>

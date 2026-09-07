@@ -3,9 +3,9 @@ import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "../components/content.module.css";
 
-const TITLE = "Terms of Service | Yippie";
+const TITLE = "Algemene Voorwaarden | Yippie";
 const DESCRIPTION =
-  "Terms and conditions for using Yippie, our B2B SaaS customer service platform. Including subscription terms, data processing, and liability.";
+  "Algemene voorwaarden voor het gebruik van Yippie, ons B2B SaaS-klantenserviceplatform. Inclusief abonnementsvoorwaarden, gegevensverwerking en aansprakelijkheid.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -25,187 +25,212 @@ export default function TermsPage() {
       <SiteNav />
 
       <article className={styles.article}>
-        <div className={styles.articleDate}>Last updated: July 1, 2026</div>
-        <h1 className={styles.articleTitle}>Terms of Service</h1>
+        {/* NL VERTALING — juridische tekst automatisch vertaald. Laten controleren door een jurist voordat je hierop vertrouwt. */}
+        <div className={styles.articleDate}>Laatst bijgewerkt: 1 juli 2026</div>
+        <h1 className={styles.articleTitle}>Algemene Voorwaarden</h1>
 
         <div className={styles.articleBody}>
-          <h2>Introduction</h2>
+          <h2>Inleiding</h2>
           <p>
-            These Terms of Service ("Terms") govern your access to and use of Yippie
-            (getyippie.com), a B2B customer service platform operated by Yippie,
-            a Dutch company. By accessing or using the Platform, you agree to be bound
-            by these Terms. If you do not agree, you may not use the Platform.
+            Deze Algemene Voorwaarden (&quot;Voorwaarden&quot;) zijn van toepassing op
+            je toegang tot en gebruik van Yippie (getyippie.com), een B2B
+            klantenserviceplatform dat wordt beheerd door Yippie, een Nederlands
+            bedrijf. Door het Platform te benaderen of te gebruiken, ga je
+            akkoord met deze Voorwaarden. Als je niet akkoord gaat, mag je het
+            Platform niet gebruiken.
           </p>
 
-          <h2>Definitions</h2>
+          <h2>Definities</h2>
           <ul>
             <li>
-              <strong>Platform</strong>: the Yippie software-as-a-service offering
-              accessible at app.getyippie.com and related services.
+              <strong>Platform</strong>: het software-as-a-service aanbod van
+              Yippie, toegankelijk via app.getyippie.com en aanverwante diensten.
             </li>
             <li>
-              <strong>Tenant</strong>: the organization or legal entity subscribing to
-              the Platform and responsible for payment and compliance.
+              <strong>Tenant</strong>: de organisatie of rechtspersoon die een
+              abonnement neemt op het Platform en verantwoordelijk is voor
+              betaling en naleving.
             </li>
             <li>
-              <strong>Services</strong>: the functionality provided by Yippie,
-              including customer communication management, ticket routing, and reporting.
+              <strong>Diensten</strong>: de functionaliteit die Yippie biedt,
+              waaronder beheer van klantcommunicatie, ticketroutering en
+              rapportage.
             </li>
             <li>
-              <strong>User</strong>: an individual authorized by the Tenant to access
-              and use the Platform on the Tenant&apos;s behalf.
+              <strong>Gebruiker</strong>: een persoon die door de Tenant is
+              gemachtigd om het Platform te gebruiken namens de Tenant.
             </li>
             <li>
-              <strong>Personal Data</strong>: any information relating to an identified
-              or identifiable natural person, as defined in the GDPR / AVG.
+              <strong>Persoonsgegevens</strong>: alle informatie betreffende een
+              geïdentificeerde of identificeerbare natuurlijke persoon, zoals
+              omschreven in de AVG (GDPR).
             </li>
           </ul>
 
-          <h2>Access &amp; Permitted Use</h2>
+          <h2>Toegang &amp; toegestaan gebruik</h2>
           <p>
-            The Platform is provided for business-to-business use only. The Tenant
-            may grant access to authorized Users, and is responsible for their conduct
-            and compliance with these Terms. Each User account is tied to one Tenant
-            and may not be shared.
+            Het Platform is uitsluitend bestemd voor zakelijk gebruik
+            (business-to-business). De Tenant kan toegang verlenen aan
+            gemachtigde Gebruikers en is verantwoordelijk voor hun gedrag en
+            naleving van deze Voorwaarden. Elk gebruikersaccount is gekoppeld
+            aan één Tenant en mag niet worden gedeeld.
           </p>
           <p>
-            You agree to use the Platform only for lawful business purposes and in
-            compliance with applicable law. You may not:
+            Je stemt ermee in het Platform uitsluitend te gebruiken voor
+            rechtmatige zakelijke doeleinden en in overeenstemming met de
+            toepasselijke wetgeving. Het is niet toegestaan om:
           </p>
           <ul>
-            <li>Use the Platform to engage in illegal, fraudulent, or harmful activity.</li>
+            <li>Het Platform te gebruiken voor illegale, frauduleuze of schadelijke activiteiten.</li>
             <li>
-              Attempt to gain unauthorized access to the Platform, its systems, or
-              other Users&apos; data.
+              Ongeautoriseerde toegang te proberen te verkrijgen tot het Platform,
+              de systemen ervan, of de gegevens van andere Gebruikers.
             </li>
             <li>
-              Use the Platform in a way that could disrupt, damage, or impair its
-              functionality or security.
+              Het Platform te gebruiken op een wijze die de werking of beveiliging
+              ervan kan verstoren, beschadigen of aantasten.
             </li>
             <li>
-              Reverse-engineer, decompile, or attempt to derive the underlying code
-              or architecture.
+              De onderliggende code of architectuur te reverse-engineeren,
+              decompileren of anderszins te proberen te achterhalen.
             </li>
-            <li>Resell or redistribute the Platform without prior written consent.</li>
+            <li>Het Platform door te verkopen of te distribueren zonder voorafgaande schriftelijke toestemming.</li>
           </ul>
 
-          <h2>Subscription &amp; Payment</h2>
+          <h2>Abonnement &amp; betaling</h2>
           <p>
-            The Platform is provided on a monthly subscription basis. Pricing and
-            available modules are displayed at the time of purchase. Payment is due
-            within 14 days of invoice issuance. Subscriptions renew automatically on
-            the anniversary date unless cancelled.
+            Het Platform wordt aangeboden op basis van een maandelijks
+            abonnement. Prijzen en beschikbare modules worden weergegeven op het
+            moment van aankoop. Betaling dient te geschieden binnen 14 dagen na
+            factuurdatum. Abonnementen worden automatisch verlengd op de
+            verlengingsdatum, tenzij opgezegd.
           </p>
           <p>
-            The Tenant is responsible for all costs incurred under its subscription,
-            including overage fees if applicable. We reserve the right to suspend
-            access if payment is not received within 30 days of the due date.
-          </p>
-
-          <h2>Data Processing</h2>
-          <p>
-            The Tenant may store Personal Data of its own customers and end-users
-            within the Platform. For GDPR / AVG compliance, the Tenant is the data
-            controller and Yippie is the data processor. A Data Processing Agreement
-            (DPA) is available upon request and governs the processing of Personal
-            Data.
-          </p>
-          <p>
-            The Platform uses AI-assisted features (inbox classification, reply
-            drafts, and the Yip assistant) powered by Mistral AI SAS (EU-hosted,
-            Paris, France). Customer message content and contact data processed
-            for these features is subject to a Data Processing Agreement with
-            Mistral AI and is not used for model training.
-          </p>
-          <p>
-            Yippie uses industry-standard security measures to protect data at rest
-            and in transit. However, no system is entirely secure. The Tenant remains
-            responsible for the legality and appropriateness of the Personal Data it
-            uploads.
+            De Tenant is verantwoordelijk voor alle kosten die zijn gemaakt onder
+            zijn abonnement, inclusief eventuele meerverbruikskosten. We behouden
+            ons het recht voor om toegang op te schorten als de betaling niet
+            binnen 30 dagen na de vervaldatum is ontvangen.
           </p>
 
-          <h2>Intellectual Property</h2>
+          <h2>Gegevensverwerking</h2>
           <p>
-            Yippie retains all intellectual property rights in the Platform, including
-            its software, design, documentation, and improvements. The Tenant is
-            granted a non-exclusive, non-transferable license to use the Platform
-            during the subscription term solely for its authorized business purposes.
+            De Tenant kan persoonsgegevens van zijn eigen klanten en
+            eindgebruikers opslaan binnen het Platform. In het kader van de AVG
+            (GDPR) is de Tenant de verwerkingsverantwoordelijke en is Yippie de
+            verwerker. Een verwerkersovereenkomst (DPA) is beschikbaar op
+            verzoek en regelt de verwerking van persoonsgegevens.
           </p>
           <p>
-            The Tenant retains ownership of all data, customer lists, and content it
-            uploads to the Platform. Upon termination, the Tenant may request an
-            export of its data in standard formats; however, we are not obligated to
-            retain it beyond the data retention period in the DPA.
+            Het Platform maakt gebruik van door AI ondersteunde functies
+            (inboxclassificatie, conceptantwoorden en de Yip-assistent) via
+            Mistral AI SAS (gehost in de EU, Parijs, Frankrijk). Berichtinhoud
+            en contactgegevens van klanten die voor deze functies worden
+            verwerkt, vallen onder een verwerkersovereenkomst met Mistral AI en
+            worden niet gebruikt voor modeltraining.
+          </p>
+          <p>
+            Yippie maakt gebruik van industriestandaard beveiligingsmaatregelen
+            om gegevens in rust en tijdens overdracht te beschermen. Geen enkel
+            systeem is echter volledig veilig. De Tenant blijft verantwoordelijk
+            voor de rechtmatigheid en geschiktheid van de persoonsgegevens die
+            hij uploadt.
           </p>
 
-          <h2>Confidentiality</h2>
+          <h2>Intellectueel eigendom</h2>
           <p>
-            Each party agrees to maintain the confidentiality of the other&apos;s
-            confidential information and use it only for purposes authorized by these
-            Terms. This obligation does not apply to information that is publicly
-            available or independently developed.
+            Yippie behoudt alle intellectueel-eigendomsrechten op het Platform,
+            waaronder de software, het ontwerp, de documentatie en verbeteringen.
+            Aan de Tenant wordt een niet-exclusieve, niet-overdraagbare licentie
+            verleend om het Platform te gebruiken gedurende de
+            abonnementsperiode, uitsluitend voor de gemachtigde zakelijke
+            doeleinden.
+          </p>
+          <p>
+            De Tenant behoudt de eigendom van alle gegevens, klantenlijsten en
+            inhoud die hij naar het Platform uploadt. Bij beëindiging kan de
+            Tenant een export van zijn gegevens in standaardformaten opvragen;
+            we zijn echter niet verplicht deze te bewaren buiten de
+            bewaartermijn zoals vastgelegd in de verwerkersovereenkomst.
           </p>
 
-          <h2>Liability Limitations</h2>
+          <h2>Vertrouwelijkheid</h2>
           <p>
-            <strong>To the fullest extent permitted by law:</strong>
+            Beide partijen verbinden zich ertoe de vertrouwelijke informatie van
+            de andere partij geheim te houden en deze uitsluitend te gebruiken
+            voor doeleinden die door deze Voorwaarden zijn toegestaan. Deze
+            verplichting is niet van toepassing op informatie die openbaar
+            beschikbaar is of onafhankelijk is ontwikkeld.
+          </p>
+
+          <h2>Beperking van aansprakelijkheid</h2>
+          <p>
+            <strong>Voor zover maximaal toegestaan door de wet:</strong>
           </p>
           <ul>
             <li>
-              Yippie&apos;s total liability arising from or related to the Platform shall
-              not exceed the fees paid by the Tenant in the 3 months preceding the
+              De totale aansprakelijkheid van Yippie die voortvloeit uit of
+              verband houdt met het Platform bedraagt niet meer dan de vergoedingen
+              die de Tenant heeft betaald in de 3 maanden voorafgaand aan de
               claim.
             </li>
             <li>
-              Yippie is not liable for indirect, incidental, consequential, special,
-              or punitive damages, including lost profits, even if advised of the
-              possibility of such damages.
+              Yippie is niet aansprakelijk voor indirecte, incidentele,
+              gevolgschade, bijzondere of exemplaire schadevergoeding,
+              waaronder gederfde winst, ook niet als Yippie op de hoogte is
+              gesteld van de mogelijkheid van dergelijke schade.
             </li>
             <li>
-              These limitations do not apply to either party&apos;s liability for
-              fraudulent misrepresentation, gross negligence, or violations of
-              applicable data protection law.
+              Deze beperkingen zijn niet van toepassing op de aansprakelijkheid
+              van een van de partijen voor opzettelijke misleiding, grove
+              nalatigheid of schending van de toepasselijke
+              gegevensbeschermingswetgeving.
             </li>
           </ul>
 
-          <h2>Term &amp; Termination</h2>
+          <h2>Looptijd &amp; beëindiging</h2>
           <p>
-            Subscriptions are month-to-month. Either party may terminate with
-            30 days&apos; written notice. Yippie may terminate immediately if the Tenant
-            breaches these Terms and does not cure the breach within 10 days of notice.
+            Abonnementen zijn maandelijks opzegbaar. Beide partijen kunnen het
+            abonnement beëindigen met een opzegtermijn van 30 dagen. Yippie kan
+            het abonnement met onmiddellijke ingang beëindigen als de Tenant
+            deze Voorwaarden schendt en de schending niet herstelt binnen 10
+            dagen na kennisgeving.
           </p>
           <p>
-            Upon termination, the Tenant&apos;s access to the Platform will be revoked.
-            Data retention is governed by the DPA. The Tenant remains liable for any
-            fees owed through the termination date.
-          </p>
-
-          <h2>Governing Law &amp; Jurisdiction</h2>
-          <p>
-            These Terms are governed by the laws of the Netherlands, without regard to
-            conflicts of law principles. Any disputes shall be resolved exclusively in
-            the courts of Amsterdam, Netherlands.
+            Bij beëindiging wordt de toegang van de Tenant tot het Platform
+            ingetrokken. De bewaartermijn voor gegevens wordt geregeld door de
+            verwerkersovereenkomst. De Tenant blijft aansprakelijk voor alle
+            verschuldigde vergoedingen tot en met de beëindigingsdatum.
           </p>
 
-          <h2>Changes to These Terms</h2>
+          <h2>Toepasselijk recht &amp; jurisdictie</h2>
           <p>
-            Yippie may update these Terms at any time. Material changes will be
-            communicated to the Tenant at least 30 days in advance. Continued use of
-            the Platform following such notice constitutes acceptance. If the Tenant
-            objects, it may terminate as outlined above.
+            Op deze Voorwaarden is het recht van Nederland van toepassing, zonder
+            inachtneming van bepalingen van internationaal privaatrecht.
+            Eventuele geschillen worden uitsluitend voorgelegd aan de bevoegde
+            rechter te Amsterdam, Nederland.
           </p>
 
-          <h2>Questions?</h2>
+          <h2>Wijzigingen in deze Voorwaarden</h2>
           <p>
-            For questions about these Terms or to request a Data Processing Agreement,
-            contact us at{" "}
+            Yippie kan deze Voorwaarden op elk moment bijwerken. Wezenlijke
+            wijzigingen worden minimaal 30 dagen van tevoren aan de Tenant
+            meegedeeld. Voortgezet gebruik van het Platform na een dergelijke
+            kennisgeving geldt als aanvaarding. Als de Tenant bezwaar maakt,
+            kan hij het abonnement beëindigen zoals hierboven beschreven.
+          </p>
+
+          <h2>Vragen?</h2>
+          <p>
+            Voor vragen over deze Voorwaarden of om een verwerkersovereenkomst
+            op te vragen, kun je contact met ons opnemen via{" "}
             <a href="mailto:support@getyippie.com">support@getyippie.com</a>.
           </p>
 
           <p>
             <em>
-              This page is a general starting point and not legal advice. Please
-              review it with qualified counsel before relying on it for compliance.
+              Deze pagina is een algemeen startpunt en geen juridisch advies.
+              Laat deze tekst controleren door gekwalificeerde juridische
+              bijstand voordat je hierop vertrouwt voor compliancedoeleinden.
             </em>
           </p>
         </div>

@@ -3,6 +3,7 @@
 import { useDraggable } from '@dnd-kit/core'
 import type { DocType, PaletteEntry } from './blocks'
 import { PALETTE } from './blocks'
+import { useT } from '../../hooks/useT'
 
 export const PALETTE_PREFIX = 'palette:'
 
@@ -30,13 +31,14 @@ function PaletteTile({ entry, onAdd }: { entry: PaletteEntry; onAdd: (type: stri
 }
 
 export function BlockPalette({ docType, onAdd }: { docType: DocType; onAdd: (type: string) => void }) {
+  const t = useT()
   return (
     <div className="flex flex-col gap-2">
-      <h3 className="heading-sm text-slate-500">Blocks</h3>
+      <h3 className="heading-sm text-slate-500">{t('tpl_blocks_header')}</h3>
       {PALETTE[docType].map(entry => (
         <PaletteTile key={entry.type} entry={entry} onAdd={onAdd} />
       ))}
-      <p className="text-xs text-slate-400 mt-1">Drag onto the document or click to add at the bottom.</p>
+      <p className="text-xs text-slate-400 mt-1">{t('tpl_palette_hint')}</p>
     </div>
   )
 }

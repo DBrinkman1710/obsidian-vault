@@ -4,6 +4,7 @@ import { useTenantConfig } from '../../../App'
 import { api } from '../../../api/client'
 import { toast } from 'sonner'
 import { CreditCard, Zap, Users, Cpu } from 'lucide-react'
+import { useT } from '../../../hooks/useT'
 
 const PLAN_LABELS: Record<string, string> = {
   founder: 'Founder',
@@ -20,7 +21,7 @@ const PLAN_CARDS = [
     price: 19,
     users: 3,
     ai_scans: '2,000',
-    description: 'Perfect for solo support agents or small teams.',
+    descKey: 'admin_plan_starter_desc',
   },
   {
     id: 'growth',
@@ -28,15 +29,15 @@ const PLAN_CARDS = [
     price: 49,
     users: 10,
     ai_scans: '10,000',
-    description: 'For growing teams who want full AI automation.',
+    descKey: 'admin_plan_growth_desc',
   },
   {
     id: 'enterprise',
     label: 'Enterprise',
     price: null,
     users: null,
-    ai_scans: 'Unlimited',
-    description: 'Unlimited seats, custom SLA, and priority support.',
+    ai_scans: null,
+    descKey: 'admin_plan_enterprise_desc',
   },
 ]
 
@@ -52,6 +53,7 @@ const MODULE_LABELS: Record<string, string> = {
 }
 
 export default function SubscriptionPage() {
+  const t = useT()
   const config = useTenantConfig()
   const location = useLocation()
   const [interval, setInterval] = useState<'monthly' | 'annual'>('annual')
@@ -85,7 +87,7 @@ export default function SubscriptionPage() {
       })
       window.location.href = data.checkout_url
     } catch {
-      toast.error('Could not open checkout. Please try again.')
+      toast.error(t('admin_checkout_error'))
       setLoading(null)
     }
   }
@@ -96,7 +98,7 @@ export default function SubscriptionPage() {
       const { data } = await api.post<{ portal_url: string }>('/stripe/portal')
       window.location.href = data.portal_url
     } catch {
-      toast.error('Could not open billing portal. Please try again.')
+      toast.error(t('admin_portal_error'))
       setLoading(null)
     }
   }
@@ -104,20 +106,20 @@ export default function SubscriptionPage() {
   return (
     <div className="max-w-3xl mx-auto space-y-8">
       <div>
-        <h1 className="text-xl font-bold text-slate-900">Subscription</h1>
-        <p className="text-sm text-slate-500 mt-1">Manage your Yippie plan and billing.</p>
+        <h1 className="text-xl font-bold text-slate-900">{t('admin_subscription_title')}</h1>
+        <p className="text-sm text-slate-500 mt-1">{t('admin_subscription_desc')}</p>
       </div>
 
       {checkoutSuccess && (
         <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800 font-medium">
-          Payment successful. Your plan has been activated.
+          {t('admin_checkout_success')}
         </div>
       )}
 
       {aiLimit != null && usagePct >= 90 && (
         <div className="rounded-xl bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-          <span className="font-semibold">You’ve used {usagePct}% of your AI scans this month.</span>{' '}
-          When you run out, incoming messages stop getting auto-drafted until next month. Upgrade now to keep the AI working.
+          <span className="font-semibold">{t('admin_ai_warning_pct').replace('{pct}', String(usagePct))}</span>{' '}
+          {t('admin_ai_warning_desc')}
         </div>
       )}
 
@@ -125,13 +127,13 @@ export default function SubscriptionPage() {
       <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">Current plan</p>
+            <p className="text-xs text-slate-500 uppercase tracking-wide font-semibold">{t('admin_current_plan')}</p>
             <p className="text-2xl font-bold text-slate-900 mt-1">{PLAN_LABELS[plan] ?? plan}</p>
             {trialDaysLeft != null && (
               <span className={`inline-block mt-2 mr-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
                 trialDaysLeft <= 5 ? 'bg-amber-100 text-amber-700' : 'bg-blue-100 text-blue-700'
               }`}>
-                Free trial · {trialDaysLeft} {trialDaysLeft === 1 ? 'day' : 'days'} left
+                {t('admin_free_trial')} · {trialDaysLeft} {trialDaysLeft === 1 ? t('admin_day_left') : t('admin_days_left')}
               </span>
             )}
             {stripe_subscription_status && (
@@ -151,7 +153,7 @@ export default function SubscriptionPage() {
               className="shrink-0 flex items-center gap-2 text-sm font-medium text-slate-700 border border-slate-200 rounded-lg px-3 py-2 hover:bg-slate-50 disabled:opacity-50"
             >
               <CreditCard size={14} />
-              {loading === 'portal' ? 'Opening…' : 'Manage billing'}
+              {loading === 'portal' ? t('admin_opening') : t('admin_manage_billing')}
             </button>
           )}
         </div>
@@ -160,16 +162,16 @@ export default function SubscriptionPage() {
         <div className="mt-5 flex flex-wrap gap-4">
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <Users size={14} className="text-slate-400" />
-            <span>{plan_limits?.users == null ? 'Unlimited' : plan_limits.users} seats</span>
+            <span>{plan_limits?.users == null ? t('admin_unlimited') : plan_limits.users} {t('admin_seats')}</span>
           </div>
           <div className="flex items-center gap-2 text-sm text-slate-600">
             <Zap size={14} className="text-slate-400" />
-            <span>{plan_limits?.flows == null ? 'Unlimited' : plan_limits.flows} active flows</span>
+            <span>{plan_limits?.flows == null ? t('admin_unlimited') : plan_limits.flows} {t('admin_active_flows')}</span>
           </div>
           {aiLimit != null && (
             <div className="flex items-center gap-2 text-sm text-slate-600">
               <Cpu size={14} className="text-slate-400" />
-              <span>{ai_scans_used_this_period.toLocaleString()} / {aiLimit.toLocaleString()} AI scans this month</span>
+              <span>{ai_scans_used_this_period.toLocaleString()} / {aiLimit.toLocaleString()} {t('admin_ai_scans_month')}</span>
             </div>
           )}
         </div>
@@ -189,7 +191,7 @@ export default function SubscriptionPage() {
         {/* Active modules */}
         {paidModules.length > 0 && (
           <div className="mt-5 border-t border-slate-100 pt-4">
-            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Active modules</p>
+            <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('admin_active_modules')}</p>
             <div className="flex flex-wrap gap-2">
               {paidModules.map(m => (
                 <span key={m} className="inline-flex items-center gap-1 text-xs font-medium bg-slate-100 text-slate-700 px-2.5 py-1 rounded-lg">
@@ -208,19 +210,19 @@ export default function SubscriptionPage() {
       {/* Plan selector */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-semibold text-slate-800">Upgrade your plan</h2>
+          <h2 className="text-base font-semibold text-slate-800">{t('admin_upgrade_plan')}</h2>
           <div className="flex items-center gap-1 bg-slate-100 rounded-lg p-1 text-xs font-medium">
             <button
               onClick={() => setInterval('monthly')}
               className={`px-3 py-1.5 rounded-md transition-all ${interval === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              Monthly
+              {t('admin_monthly')}
             </button>
             <button
               onClick={() => setInterval('annual')}
               className={`px-3 py-1.5 rounded-md transition-all ${interval === 'annual' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
             >
-              Annual <span className="text-green-600 font-semibold">−10%</span>
+              {t('admin_annual')} <span className="text-green-600 font-semibold">−10%</span>
             </button>
           </div>
         </div>
@@ -239,41 +241,41 @@ export default function SubscriptionPage() {
                   <div className="flex items-center justify-between">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">{card.label}</p>
                     {isCurrent ? (
-                      <span className="text-xs font-semibold text-yippie bg-yippie/10 px-2 py-0.5 rounded-full">Current</span>
+                      <span className="text-xs font-semibold text-yippie bg-yippie/10 px-2 py-0.5 rounded-full">{t('admin_current')}</span>
                     ) : card.id === 'growth' ? (
-                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">Most popular</span>
+                      <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-full">{t('admin_most_popular')}</span>
                     ) : null}
                   </div>
-                  <p className="text-sm text-slate-500 mt-1">{card.description}</p>
+                  <p className="text-sm text-slate-500 mt-1">{t(card.descKey)}</p>
                 </div>
                 <div>
                   {displayPrice != null ? (
                     <>
                       <p className="text-2xl font-bold text-slate-900 tracking-tight">
                         €{displayPrice}
-                        <span className="text-sm font-normal text-slate-500">/{interval === 'annual' ? 'yr' : 'mo'}</span>
+                        <span className="text-sm font-normal text-slate-500">/{interval === 'annual' ? t('admin_plan_per_yr') : t('admin_plan_per_mo')}</span>
                       </p>
                       {interval === 'annual' && card.price && annualPrice != null && (
                         <>
-                          <p className="text-xs text-slate-400 mt-0.5">≈ €{Math.round(card.price * 0.9)}/mo</p>
+                          <p className="text-xs text-slate-400 mt-0.5">≈ €{Math.round(card.price * 0.9)}/{t('admin_plan_per_mo')}</p>
                           <p className="text-xs font-semibold text-success-600 mt-0.5">
-                            Save €{card.price * 12 - annualPrice}/yr
+                            {t('admin_save_per_yr').replace('{amount}', String(card.price * 12 - annualPrice))}
                           </p>
                         </>
                       )}
                     </>
                   ) : (
-                    <p className="text-2xl font-bold text-slate-900 tracking-tight">Custom</p>
+                    <p className="text-2xl font-bold text-slate-900 tracking-tight">{t('admin_custom_price')}</p>
                   )}
                 </div>
                 <ul className="text-xs text-slate-600 space-y-1.5 flex-1">
                   <li className="flex items-center gap-1.5">
                     <Users size={11} className="text-slate-400 shrink-0" />
-                    {card.users == null ? 'Unlimited seats' : `${card.users} seats`}
+                    {card.users == null ? t('admin_unlimited_seats') : `${card.users} ${t('admin_seats')}`}
                   </li>
                   <li className="flex items-center gap-1.5">
                     <Cpu size={11} className="text-slate-400 shrink-0" />
-                    {card.ai_scans} AI scans/mo
+                    {card.ai_scans != null ? card.ai_scans : t('admin_unlimited')} {t('admin_ai_scans_per_mo')}
                   </li>
                 </ul>
                 <button
@@ -285,7 +287,7 @@ export default function SubscriptionPage() {
                       : 'bg-yippie text-white hover:bg-yippie/90'
                   }`}
                 >
-                  {loading === card.id ? 'Opening…' : isCurrent ? 'Current plan' : card.price == null ? 'Contact us' : usagePct >= 90 ? 'Upgrade — keep AI running' : trialDaysLeft != null && trialDaysLeft <= 5 ? `Upgrade before trial ends in ${trialDaysLeft}d` : 'Upgrade'}
+                  {loading === card.id ? t('admin_opening') : isCurrent ? t('admin_current_plan_btn') : card.price == null ? t('admin_contact_us') : usagePct >= 90 ? t('admin_upgrade_keep_ai') : trialDaysLeft != null && trialDaysLeft <= 5 ? t('admin_upgrade_trial_ends').replace('{days}', String(trialDaysLeft)) : t('admin_upgrade')}
                 </button>
               </div>
             )

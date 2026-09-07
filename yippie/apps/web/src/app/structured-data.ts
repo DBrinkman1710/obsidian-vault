@@ -12,7 +12,7 @@ const ORG_ID = `${SITE}/#organization`;
 const WEBSITE_ID = `${SITE}/#website`;
 
 const DESCRIPTION =
-  "Yippie is the AI-powered customer service platform for SMBs. Manage inbox, tickets, contacts, and bookings in one place.";
+  "Yippie is het AI-gedreven klantenserviceplatform voor het MKB. Beheer inbox, tickets, contacten en boekingen op één plek.";
 
 export const organizationJsonLd = {
   "@type": "Organization",
@@ -36,7 +36,7 @@ export const organizationJsonLd = {
       "@type": "ContactPoint",
       contactType: "customer support",
       email: "support@getyippie.com",
-      availableLanguage: ["English", "Dutch"],
+      availableLanguage: ["Dutch", "English"],
     },
   ],
   address: {

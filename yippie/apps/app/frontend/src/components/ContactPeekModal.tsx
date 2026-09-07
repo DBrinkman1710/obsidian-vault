@@ -6,6 +6,7 @@ import { api } from '../api/client'
 import { LabelChip } from '../modules/contacts/components/LabelChip'
 import type { ContactLabel } from '../modules/contacts/components/LabelChip'
 import CallModal from '../modules/contacts/components/CallModal'
+import { useT } from '../hooks/useT'
 
 interface ContactPeekData {
   full_name: string
@@ -25,6 +26,7 @@ export default function ContactPeekModal({
   onClose: () => void
   onCompose?: (email: string, name: string) => void
 }) {
+  const t = useT()
   const [callOpen, setCallOpen] = useState(false)
 
   const { data: contact, isLoading } = useQuery<ContactPeekData>({
@@ -54,7 +56,7 @@ export default function ContactPeekModal({
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">Contact</span>
+          <span className="text-xs font-bold tracking-widest text-slate-400 uppercase">{t('contacts_peek_header')}</span>
           <CloseButton onClick={onClose} />
         </div>
 
@@ -76,7 +78,7 @@ export default function ContactPeekModal({
                     <h2 className="text-base font-bold text-slate-900">{contact.full_name}</h2>
                     {typeof contact.engagement_score === 'number' && (
                       <span
-                        title="Engagement score"
+                        title={t('contacts_engagement_score_title')}
                         className={`inline-block text-[11px] font-bold ${
                           contact.engagement_score >= 60
                             ? 'text-emerald-600'
@@ -85,7 +87,7 @@ export default function ContactPeekModal({
                             : 'text-slate-400'
                         }`}
                       >
-                        Score: {contact.engagement_score}
+                        {t('contacts_peek_score').replace('{n}', String(contact.engagement_score))}
                       </span>
                     )}
                   </div>
@@ -129,7 +131,7 @@ export default function ContactPeekModal({
                   className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-white bg-yippie hover:opacity-90 rounded-xl transition-opacity"
                 >
                   <Phone size={13} />
-                  Call
+                  {t('contacts_peek_call')}
                 </button>
               )}
               {onCompose && contact.email && (
@@ -138,14 +140,14 @@ export default function ContactPeekModal({
                   className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
                 >
                   <Mail size={13} />
-                  Compose email
+                  {t('contacts_peek_compose')}
                 </button>
               )}
               <button
                 onClick={() => window.open(`/contacts/${contactId}`, '_blank')}
                 className="w-full inline-flex items-center justify-center gap-1.5 py-2 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-colors"
               >
-                Open full contact
+                {t('contacts_peek_open_full')}
                 <ExternalLink size={13} />
               </button>
             </div>

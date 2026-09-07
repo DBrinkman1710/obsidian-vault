@@ -270,14 +270,17 @@ async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Ann
         # (dead) link in the email.
         link = f"{settings.effective_base_url}/reset-password?token={token}"
         try:
+            from app.core.email_i18n import EMAILS as _EMAILS, pick as _pick_lang
+            _reset_lang = _pick_lang(user.ui_language or "nl")
+            _t = _EMAILS["password_reset"][_reset_lang]
             reset_body = (
-                f"Hi {user.full_name},\n\n"
-                f"Reset your password here:\n{link}\n\n"
-                f"This link is valid for 1 hour. If you didn't request this, you can ignore it."
+                f"{_t['greeting'].format(full_name=user.full_name)}\n\n"
+                f"{_t['line1']}\n{link}\n\n"
+                f"{_t['line2']}"
             )
             await send_email(
                 to=user.email,
-                subject="Reset your Yippie password",
+                subject=_t["subject"],
                 body=reset_body,
                 html=render_email_html(reset_body, tenant_name="Yippie"),
             )

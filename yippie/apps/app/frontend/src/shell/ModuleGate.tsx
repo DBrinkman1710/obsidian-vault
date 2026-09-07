@@ -3,6 +3,7 @@ import { Navigate, Link } from 'react-router-dom'
 import { Lock } from 'lucide-react'
 import { useTenantConfig } from '../App'
 import { useRbacPermissions } from '../hooks/useRbacPermissions'
+import { useT } from '../hooks/useT'
 
 interface Props {
   module: string
@@ -35,6 +36,7 @@ export function useIsViewOnly() {
  * locked feature with a clear next step converts far better than a silent
  * redirect to the inbox that leaves the user wondering what happened. */
 function ModuleLockedCard({ module }: { module: string }) {
+  const t = useT()
   const label = MODULE_LABELS[module] ?? module
   return (
     <div className="flex flex-1 items-center justify-center p-8">
@@ -42,19 +44,19 @@ function ModuleLockedCard({ module }: { module: string }) {
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-yippie/10 text-yippie">
           <Lock size={22} />
         </div>
-        <h2 className="text-lg font-bold text-slate-900">{label} isn’t switched on</h2>
+        <h2 className="text-lg font-bold text-slate-900">{label} {t('shell_module_not_on')}</h2>
         <p className="mt-2 text-sm text-slate-500">
-          {label} isn’t part of your workspace yet. Add it to your plan to unlock it for your whole team.
+          {label} {t('shell_module_not_in_plan')}
         </p>
         <Link
           to="/settings/subscription"
           className="mt-4 inline-block rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:bg-yippie/90"
         >
-          Upgrade plan
+          {t('shell_upgrade_plan')}
         </Link>
         <p className="mt-3 text-xs text-slate-400">
-          Need it as an à la carte add-on?{' '}
-          <a href="mailto:hello@getyippie.com" className="text-yippie hover:underline">Contact us</a>.
+          {t('shell_addon_question')}{' '}
+          <a href="mailto:hello@getyippie.com" className="text-yippie hover:underline">{t('shell_contact_us')}</a>.
         </p>
       </div>
     </div>

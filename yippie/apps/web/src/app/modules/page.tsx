@@ -28,14 +28,14 @@ import {
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Modules | Yippie customer service platform",
+  title: "Modules | Yippie klantenserviceplatform",
   description:
-    "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, contracts, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
+    "Een diepgaande blik op elke Yippie module: inbox, tickets, contacten, agenda, pipeline, live chat, marketing, afdelingen, facturatie, contracten, sjablonen, activiteit, team, zendingtracking, sales en SaaS Analytics. Alles gebouwd voor MKB.",
   alternates: { canonical: "/modules" },
   openGraph: {
-    title: "Modules | Yippie customer service platform",
+    title: "Modules | Yippie klantenserviceplatform",
     description:
-      "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, contracts, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
+      "Een diepgaande blik op elke Yippie module: inbox, tickets, contacten, agenda, pipeline, live chat, marketing, afdelingen, facturatie, contracten, sjablonen, activiteit, team, zendingtracking, sales en SaaS Analytics. Alles gebouwd voor MKB.",
     url: "https://getyippie.com/modules",
     type: "website",
     images: ["/og.png"],
@@ -57,13 +57,13 @@ const modules: Module[] = [
   {
     id: "inbox",
     kicker: "INBOX",
-    title: "Smart Inbox: zero manual write-up",
-    desc: "Every incoming email lands in a unified inbox. Add the AI Inbox add-on and AI reads the message and instantly drafts the ticket subject, priority, and description. You review, edit if needed, and approve in one click. Minutes of admin turned into seconds.",
+    title: "Slimme inbox: nul handmatige invoer",
+    desc: "Elke inkomende e-mail komt binnen in een gedeelde inbox. Voeg de AI Inbox add-on toe en AI leest het bericht en stelt direct het ticketonderwerp, de prioriteit en omschrijving op. Jij controleert, past aan indien nodig, en keurt goed met één klik. Minuten aan administratie worden seconden.",
     bullets: [
-      "AI Inbox add-on auto-drafts subject, priority, and description from every email",
-      "Bulk approve, archive, or reassign in a single action",
-      "Shared inbox for the whole team. No more CC chains.",
-      "SLA timers start the moment a message arrives",
+      "AI Inbox add-on stelt automatisch onderwerp, prioriteit en omschrijving op uit elke e-mail",
+      "Bulkgoed keuren, archiveren of opnieuw toewijzen in één actie",
+      "Gedeelde inbox voor het hele team. Geen CC-ketens meer.",
+      "SLA-timers starten zodra een bericht binnenkomt",
     ],
     shot: "/shots/inbox.png",
     path: "/inbox",
@@ -72,13 +72,13 @@ const modules: Module[] = [
   {
     id: "tickets",
     kicker: "TICKETS",
-    title: "Tickets: track everything, miss nothing",
-    desc: "Once approved, messages become structured support tickets with an assignee, priority, deadline, and full email history. SLA alerts fire before anything slips, and bulk actions let you triage a dozen issues at once.",
+    title: "Tickets: alles bijhouden, niets missen",
+    desc: "Na goedkeuring worden berichten gestructureerde supporttickets met een toegewezen medewerker, prioriteit, deadline en volledige e-mailgeschiedenis. SLA-meldingen gaan af voordat er iets misgaat, en bulkacties laten je een dozijn problemen tegelijk triageren.",
     bullets: [
-      "SLA deadline badges with color-coded urgency alerts",
-      "Assign tickets to agents or departments with one click",
-      "Bulk select, reassign, or close multiple tickets at once",
-      "Full conversation thread lives on the ticket. No inbox switching.",
+      "SLA-deadlinebadges met kleurgecodeerde urgentiemeldingen",
+      "Tickets toewijzen aan medewerkers of afdelingen met één klik",
+      "Meerdere tickets tegelijk bulkselecteren, opnieuw toewijzen of sluiten",
+      "Het volledige gesprek staat op het ticket. Geen inbox wisselen.",
     ],
     shot: "/shots/tickets.png",
     path: "/tickets",
@@ -86,14 +86,14 @@ const modules: Module[] = [
   },
   {
     id: "contacts",
-    kicker: "CONTACTS",
-    title: "Contacts: full customer context, always",
-    desc: "Every contact has a complete timeline: all emails, tickets, pipeline stage, and company membership in one view. Labels, company grouping, and CSV import/export mean your CRM lives right here, not in a separate tab.",
+    kicker: "CONTACTEN",
+    title: "Contacten: altijd de volledige klantcontext",
+    desc: "Elk contact heeft een complete tijdlijn: alle e-mails, tickets, pipelinestatus en bedrijfslidmaatschap in één overzicht. Labels, bedrijfsgroepering en CSV import/export betekenen dat je CRM hier staat, niet in een apart tabblad.",
     bullets: [
-      "Unified timeline of emails, tickets, and pipeline moves",
-      "Company grouping: link contacts to accounts with a click",
-      "Custom labels for segmentation and quick filtering",
-      "CSV import and export for existing customer lists",
+      "Gecombineerde tijdlijn van e-mails, tickets en pipelinebewegingen",
+      "Bedrijfsgroepering: koppel contacten aan accounts met één klik",
+      "Aangepaste labels voor segmentatie en snel filteren",
+      "CSV import en export voor bestaande klantenlijsten",
     ],
     shot: "/shots/contacts.png",
     path: "/contacts",
@@ -101,14 +101,14 @@ const modules: Module[] = [
   },
   {
     id: "calendar",
-    kicker: "CALENDAR + BOOKING",
-    title: "Calendar: bookings that confirm themselves",
-    desc: "A monthly calendar shows events, ticket deadlines, and booked meetings in one place. Send a personal booking link so customers pick a slot that works for them, or propose times yourself. Confirmation emails go out automatically.",
+    kicker: "AGENDA + BOEKINGEN",
+    title: "Agenda: boekingen die zichzelf bevestigen",
+    desc: "Een maandagenda toont evenementen, ticketdeadlines en geplande afspraken op één plek. Stuur een persoonlijke boekingslink zodat klanten zelf een geschikt moment kiezen, of stel zelf tijden voor. Bevestigingsmails gaan automatisch uit.",
     bullets: [
-      "Monthly calendar view with events, deadlines, and bookings",
-      "Personal booking links. Customers choose their own slot.",
-      "Confirmation and reminder emails send automatically",
-      "Booking confirmations can push a pipeline contact to the next stage",
+      "Maandagendaweergave met evenementen, deadlines en boekingen",
+      "Persoonlijke boekingslinks. Klanten kiezen zelf hun tijdslot.",
+      "Bevestigings en herinneringsmails worden automatisch verstuurd",
+      "Boekingsbevestigingen kunnen een pipelinecontact naar de volgende fase schuiven",
     ],
     shot: "/shots/calendar.png",
     path: "/calendar",
@@ -117,13 +117,13 @@ const modules: Module[] = [
   {
     id: "pipeline",
     kicker: "PIPELINE",
-    title: "Pipeline: visualise every deal at a glance",
-    desc: "A drag-and-drop Kanban board lets you track contacts through custom stages, from first touch to closed deal. Campaign buttons in emails can automatically move a contact to the right stage the moment they click.",
+    title: "Pipeline: elk deal in één oogopslag",
+    desc: "Een drag-and-drop kanbanbord laat je contacten door aangepaste fases volgen, van eerste contact tot gesloten deal. Campagneknopppen in e-mails kunnen een contact automatisch naar de juiste fase verplaatsen zodra ze klikken.",
     bullets: [
-      "Fully customisable Kanban stages. Name them anything.",
-      "Drag contacts between stages with instant persistence",
-      "Campaign buttons auto-advance contacts on click",
-      "Booking confirmations trigger automatic stage moves",
+      "Volledig aanpasbare kanbanfases. Geef ze elke naam.",
+      "Contacten slepen tussen fases met directe opslag",
+      "Campagneknopppen zetten contacten automatisch een stap verder bij klikken",
+      "Boekingsbevestigingen activeren automatische fasebewegingen",
     ],
     shot: "/shots/pipeline.png",
     path: "/pipeline",
@@ -132,13 +132,13 @@ const modules: Module[] = [
   {
     id: "chat",
     kicker: "LIVE CHAT",
-    title: "Live Chat: one widget, same inbox",
-    desc: "Embed a chat widget on your website with a single script tag. Every visitor conversation lands in the shared inbox alongside email and tickets, so your team sees everything in one place without juggling tabs.",
+    title: "Live chat: één widget, dezelfde inbox",
+    desc: "Voeg een chatwidget toe aan je website met één scriptregel. Elk bezoekersgesprèk komt in de gedeelde inbox naast e-mail en tickets, zodat je team alles op één plek ziet zonder te wisselen van tabblad.",
     bullets: [
-      "One-line embed script. Live in minutes, no third-party tools.",
-      "Chat conversations appear in the shared inbox automatically",
-      "Assign chats to agents or let the team claim them",
-      "Full chat history attached to the contact record",
+      "Eénregelige embedscript. Live in minuten, geen tools van derden.",
+      "Chatgesprekken verschijnen automatisch in de gedeelde inbox",
+      "Chats toewijzen aan medewerkers of laten claimen door het team",
+      "Volledige chatgeschiedenis gekoppeld aan het contactrecord",
     ],
     shot: "/shots/chat.png",
     path: "/chat",
@@ -147,14 +147,14 @@ const modules: Module[] = [
   {
     id: "marketing",
     kicker: "MARKETING",
-    title: "Marketing: campaigns that convert",
-    desc: "Send personalised email campaigns to any audience segment, run A/B tests, track every open and click in real time. Contacts auto-advance through your pipeline when they click an action button. No CRM admin required. Built directly into your workspace.",
+    title: "Marketing: campagnes die converteren",
+    desc: "Stuur gepersonaliseerde e-mailcampagnes naar elk publiekssegment, voer A/B-tests uit en volg elke opening en klik in realtime. Contacten zetten automatisch een stap verder in je pipeline wanneer ze op een actieknop klikken. Geen CRM-administratie vereist. Direct ingebouwd in je werkruimte.",
     bullets: [
-      "Drag-and-drop email editor with A/B variant testing",
-      "Stage-scoped audience: send to all contacts in a Kanban stage at once",
-      "Contacts auto-advance through your pipeline when they click an action button",
-      "Real-time open, click, and bounce tracking on all sends",
-      "Drip sequences for automated follow-up until a contact responds",
+      "Drag-and-drop e-maileditor met A/B varianttests",
+      "Fasegericht publiek: stuur naar alle contacten in een kanbanfase tegelijk",
+      "Contacten zetten automatisch een stap verder in je pipeline wanneer ze op een actieknop klikken",
+      "Realtime tracking van openingen, klikken en bounces op alle verzendingen",
+      "Dripsequenties voor geautomatiseerde follow-up totdat een contact reageert",
     ],
     shot: "/shots/marketing.png",
     path: "/marketing",
@@ -162,14 +162,14 @@ const modules: Module[] = [
   },
   {
     id: "departments",
-    kicker: "DEPARTMENTS",
-    title: "Departments: right person, every time",
-    desc: "Create named departments, add agents to each, and let inbound email route automatically to the correct team. Tickets and live chats follow the same routing rules, so customer queries never sit in the wrong inbox.",
+    kicker: "AFDELINGEN",
+    title: "Afdelingen: de juiste persoon, elke keer",
+    desc: "Maak afdelingen aan, voeg medewerkers toe aan elke afdeling en laat inkomende e-mail automatisch doorsturen naar het juiste team. Tickets en live chats volgen dezelfde routeringsregels, zodat klantvragen nooit in de verkeerde inbox belanden.",
     bullets: [
-      "Create departments and assign agents with one click",
-      "Inbound email auto-routes by recipient address",
-      "Tickets carry the department forward from inbox to resolution",
-      "Personal department inbox tabs in the shared inbox",
+      "Afdelingen aanmaken en medewerkers toewijzen met één klik",
+      "Inkomende e-mail wordt automatisch gerouteerd op ontvangstadres",
+      "Tickets nemen de afdeling mee van inbox tot afhandeling",
+      "Persoonlijke afdelingsinboxtabbladen in de gedeelde inbox",
     ],
     shot: "/shots/departments.png",
     path: "/settings/departments",
@@ -177,14 +177,14 @@ const modules: Module[] = [
   },
   {
     id: "billing",
-    kicker: "BILLING",
-    title: "Billing: invoices without the admin",
-    desc: "Create and send invoices directly from your workspace. Track payment status, bulk-export for your accountant, and store customer KvK and BTW numbers on every contact. No separate billing tool required.",
+    kicker: "FACTURATIE",
+    title: "Facturatie: facturen zonder gedoe",
+    desc: "Maak facturen aan en verstuur ze direct vanuit je werkruimte. Volg betalingsstatus, exporteer in bulk voor je boekhouder en sla KvK en BTW-nummers op bij elk contact. Geen apart factuurprogramma nodig.",
     bullets: [
-      "Create invoices with line items, due dates, and status tracking",
-      "Bulk delete or export invoices as CSV or XLSX",
-      "Store KvK and BTW (VAT) numbers on the tenant and contacts",
-      "Debounced search across all invoices instantly",
+      "Facturen aanmaken met regelitems, vervaldatums en statustracking",
+      "Facturen in bulk verwijderen of exporteren als CSV of XLSX",
+      "KvK en BTW-nummers opslaan bij de organisatie en contacten",
+      "Direct zoeken door alle facturen",
     ],
     shot: "/shots/billing.png",
     path: "/billing",
@@ -192,14 +192,14 @@ const modules: Module[] = [
   },
   {
     id: "contracts",
-    kicker: "CONTRACTS",
-    title: "Contracts: sign, store, and never miss a renewal",
-    desc: "Store signed contracts alongside each contact, track notice periods and renewal dates, and get reminded before anything lapses. Upload PDFs or send for e-signing directly from your workspace.",
+    kicker: "CONTRACTEN",
+    title: "Contracten: ondertekenen, opslaan en nooit een verlenging missen",
+    desc: "Sla ondertekende contracten op bij elk contact, volg opzegtermijnen en verlengingsdata en ontvang een herinnering voordat er iets verloopt. Upload pdf's of stuur ter elektronische ondertekening direct vanuit je werkruimte.",
     bullets: [
-      "Upload and attach contracts to any contact or company",
-      "Track renewal dates and notice periods with automatic reminders",
-      "Send contracts for e-signing without leaving Yippie",
-      "Filter by status: draft, sent, signed, expired",
+      "Contracten uploaden en koppelen aan elk contact of bedrijf",
+      "Verlengingsdata en opzegtermijnen bijhouden met automatische herinneringen",
+      "Contracten ter ondertekening sturen zonder Yippie te verlaten",
+      "Filteren op status: concept, verstuurd, ondertekend, verlopen",
     ],
     shot: "/shots/contracts.png",
     path: "/contracts",
@@ -207,14 +207,14 @@ const modules: Module[] = [
   },
   {
     id: "activity",
-    kicker: "ACTIVITY",
-    title: "Activity: your business in real time",
-    desc: "A chronological feed of everything that happens across your workspace: emails sent, tickets updated, contacts moved, bookings confirmed. Always know who did what and when, without asking.",
+    kicker: "ACTIVITEIT",
+    title: "Activiteit: je bedrijf in realtime",
+    desc: "Een chronologische feed van alles wat er in je werkruimte gebeurt: e-mails verstuurd, tickets bijgewerkt, contacten verplaatst, boekingen bevestigd. Altijd weten wie wat deed en wanneer, zonder te hoeven vragen.",
     bullets: [
-      "Real-time log of every action across the platform",
-      "Filter by event type, user, or date range",
-      "Ticket and contact links take you straight to context",
-      "Perfect audit trail for team accountability",
+      "Realtime log van elke actie op het platform",
+      "Filteren op gebeurtenistype, gebruiker of datumbereik",
+      "Ticket en contactlinks brengen je direct naar de context",
+      "Perfecte audittrail voor teamverantwoordelijkheid",
     ],
     shot: "/shots/activity.png",
     path: "/activity",
@@ -223,13 +223,13 @@ const modules: Module[] = [
   {
     id: "team",
     kicker: "TEAM",
-    title: "Team: the right person on every ticket",
-    desc: "Invite agents, set their role (agent, admin, or superuser), and organise them into departments. Tickets and chats route to the right department automatically, so the right person always picks up the right conversation.",
+    title: "Team: de juiste persoon op elk ticket",
+    desc: "Nodig medewerkers uit, stel hun rol in (medewerker, beheerder of supergebruiker) en organiseer ze in afdelingen. Tickets en chats worden automatisch naar de juiste afdeling gerouteerd, zodat de juiste persoon altijd het juiste gesprek oppakt.",
     bullets: [
-      "Role-based permissions: agent, admin, and superuser tiers",
-      "Departments for clean routing of tickets and conversations",
-      "Invite new team members with a single email link",
-      "Multiple named email signatures per user",
+      "Rolgebaseerde rechten: lagen voor medewerker, beheerder en supergebruiker",
+      "Afdelingen voor overzichtelijke routering van tickets en gesprekken",
+      "Nieuwe teamleden uitnodigen met één e-maillink",
+      "Meerdere benoemde e-mailhandtekeningen per gebruiker",
     ],
     shot: "/shots/team.png",
     path: "/settings/team",
@@ -237,14 +237,14 @@ const modules: Module[] = [
   },
   {
     id: "templates",
-    kicker: "TEMPLATES",
-    title: "Templates: replies that stay on-brand",
-    desc: "Build a library of canned responses for your most common questions. Agents pick the right template with one click and personalise before sending. Every reply is fast, consistent, and on-brand.",
+    kicker: "SJABLONEN",
+    title: "Sjablonen: antwoorden die altijd on-brand zijn",
+    desc: "Bouw een bibliotheek met standaardantwoorden voor je meestgestelde vragen. Medewerkers kiezen het juiste sjabloon met één klik en personaliseren voor het versturen. Elk antwoord is snel, consistent en on-brand.",
     bullets: [
-      "Shared template library across the whole team",
-      "Personalise before sending. Edit inline without leaving the ticket.",
-      "Drag-and-drop email editor for rich HTML campaigns",
-      "AI-powered subject and body suggestions",
+      "Gedeelde sjablonenbibliotheek voor het hele team",
+      "Personaliseer voor het versturen. Bewerk inline zonder het ticket te verlaten.",
+      "Drag-and-drop e-maileditor voor rijke HTML-campagnes",
+      "Door AI aangedreven onderwerp en tekstsuggesties",
     ],
     shot: "/shots/templates.png",
     path: "/settings/templates",
@@ -252,15 +252,15 @@ const modules: Module[] = [
   },
   {
     id: "tracking",
-    kicker: "TRACKING",
-    title: "Tracking: shipments in one view",
-    desc: "Connect your ERP or shop and Yippie creates or updates contacts automatically on every order. Live carrier updates for DHL, UPS, PostNL, and FedEx sit right alongside the customer's ticket. No copy-pasting.",
+    kicker: "ZENDINGTRACKING",
+    title: "Zendingtracking: alle zendingen in één overzicht",
+    desc: "Koppel je ERP of webshop en Yippie maakt of bijgewerkte contacten automatisch aan bij elke bestelling. Live vervoerdersupdates voor DHL, UPS, PostNL en FedEx staan direct naast het ticket van de klant. Geen kopiëren en plakken.",
     bullets: [
-      "DHL, UPS, FedEx, and PostNL tracking out of the box",
-      "Link shipments to contacts and tickets for full context",
-      "Live status updates: pending, in transit, delivered",
-      "Delivery alerts keep your team and customer informed",
-      "ERP order sync: contacts created or updated automatically on every order",
+      "DHL, UPS, FedEx en PostNL tracking standaard ingebouwd",
+      "Zendingen koppelen aan contacten en tickets voor volledige context",
+      "Live statusupdates: in behandeling, onderweg, bezorgd",
+      "Bezorgmeldingen houden je team en klant op de hoogte",
+      "ERP-ordersynchronisatie: contacten worden automatisch aangemaakt of bijgewerkt bij elke bestelling",
     ],
     shot: "/shots/tracking.png",
     path: "/tracking",
@@ -269,13 +269,13 @@ const modules: Module[] = [
   {
     id: "sales",
     kicker: "SALES",
-    title: "Sales: understand what converts",
-    desc: "Track every product view, add-to-cart, and purchase event from your storefront. See which contacts are high-intent buyers and trigger support or outreach at exactly the right moment.",
+    title: "Sales: begrijp wat converteert",
+    desc: "Volg elke productweergave, winkelwagentoeevoeging en aankoopgebeurtenis vanuit je webshop. Zie welke contacten koopintentie tonen en start support of outreach op precies het juiste moment.",
     bullets: [
-      "Real-time product view, cart, and purchase event feed",
-      "Revenue and conversion summary per contact",
-      "High-intent signals surface automatically in the inbox",
-      "No third-party analytics tool required",
+      "Realtime feed van productweergaven, winkelwagen en aankoopgebeurtenissen",
+      "Omzet en conversiesamenvatting per contact",
+      "Hoge-intentiesignalen verschijnen automatisch in de inbox",
+      "Geen analysetool van derden nodig",
     ],
     shot: "/shots/sales.png",
     path: "/sales",
@@ -284,13 +284,13 @@ const modules: Module[] = [
   {
     id: "saas",
     kicker: "SAAS ANALYTICS",
-    title: "SaaS Analytics: subscriptions and MRR at a glance",
-    desc: "Manage recurring subscriptions, track MRR and churn, and link every subscription to a contact. Your finance and support teams see the same data. No spreadsheet exports needed.",
+    title: "SaaS Analytics: abonnementen en MRR in één oogopslag",
+    desc: "Beheer terugkerende abonnementen, volg MRR en churn en koppel elk abonnement aan een contact. Je finance en supportteam zien dezelfde data. Geen spreadsheetexports meer nodig.",
     bullets: [
-      "Create and manage monthly or annual subscriptions",
-      "MRR, churn, and lifetime value tracked automatically",
-      "Every subscription linked to a contact record",
-      "CSV export for your accountant in one click",
+      "Maandelijkse of jaarlijkse abonnementen aanmaken en beheren",
+      "MRR, churn en lifetime value automatisch bijgehouden",
+      "Elk abonnement gekoppeld aan een contactrecord",
+      "CSV-export voor je boekhouder met één klik",
     ],
     shot: "/shots/saas.png",
     path: "/saas",
@@ -329,7 +329,7 @@ function ScreenshotFrame({
             <Icon size={22} />
           </span>
           <span className={styles.placeholderLabel}>
-            // screenshot coming soon
+            // schermafbeelding binnenkort beschikbaar
           </span>
         </div>
       </div>
@@ -347,28 +347,28 @@ export default function ModulesPage() {
         <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={contentStyles.pageLogoMark} />
         <div className={contentStyles.heroTag}>
           <span className={contentStyles.heroTagDot} />
-          The product
+          Het product
         </div>
         <h1 className={contentStyles.heroTitle}>
-          Sixteen modules. One platform.
+          Zestien modules. Één platform.
         </h1>
         <p className={contentStyles.heroSub}>
-          Inbox, tickets, contacts, calendar, pipeline, live chat, marketing,
-          departments, billing, templates, activity, team, tracking, sales, and
-          SaaS analytics, all working together in one workspace.
+          Inbox, tickets, contacten, agenda, pipeline, live chat, marketing,
+          afdelingen, facturatie, sjablonen, activiteit, team, zendingtracking, sales en
+          SaaS Analytics, allemaal samen in één werkruimte.
         </p>
         <div className={contentStyles.heroActions}>
           <a href={DEMO_URL} className={contentStyles.btnPrimary}>
-            Request demo →
+            Demo aanvragen →
           </a>
           <a href="/pricing" className={contentStyles.btnGhost}>
-            All features
+            Alle functies
           </a>
         </div>
       </section>
 
       {/* Sticky module nav */}
-      <nav className={styles.nav} aria-label="Module navigation">
+      <nav className={styles.nav} aria-label="Modulenavigatie">
         <div className={styles.navInner}>
           {modules.map((m) => (
             <a key={m.id} href={`#${m.id}`} className={styles.navLink}>
@@ -413,7 +413,7 @@ export default function ModulesPage() {
                   ))}
                 </ul>
                 <a href="/request-demo" className={styles.openBtn}>
-                  See it in a demo
+                  Bekijk het in een demo
                   <ArrowRightIcon size={15} />
                 </a>
               </div>
@@ -422,7 +422,7 @@ export default function ModulesPage() {
               <div className={styles.visual}>
                 <ScreenshotFrame
                   src={mod.shot}
-                  alt={`${mod.title} screenshot`}
+                  alt={`${mod.title} schermafbeelding`}
                   url={mod.path}
                   Icon={mod.Icon}
                 />
@@ -435,18 +435,18 @@ export default function ModulesPage() {
       {/* Closing CTA */}
       <section className={styles.ctaSection}>
         <Reveal className={styles.ctaInner}>
-          <p className={styles.ctaEyebrow}>// Ready to try it?</p>
+          <p className={styles.ctaEyebrow}>// Klaar om het te proberen?</p>
           <h2 className={styles.ctaTitle}>
-            See every module live in your inbox
+            Zie elke module live in je inbox
           </h2>
           <p className={styles.ctaSub}>
-            Book a personalised demo and watch Yippie connect your inbox,
-            tickets, and pipeline in one clean workspace.
+            Boek een persoonlijke demo en zie hoe Yippie je inbox,
+            tickets en pipeline verbindt in één overzichtelijke werkruimte.
           </p>
           <a href={DEMO_URL} className={styles.ctaBtn}>
-            Request demo <ArrowRightIcon size={16} />
+            Demo aanvragen <ArrowRightIcon size={16} />
           </a>
-          <p className={styles.ctaMeta}>No credit card · Set up in minutes</p>
+          <p className={styles.ctaMeta}>Geen creditcard · In minuten opgezet</p>
         </Reveal>
       </section>
 

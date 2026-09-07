@@ -1,8 +1,12 @@
+"use client";
+
 /* Live miniature Yippie workspace preview, used on /custom.
    The visitor personalises it (colour, logo, company name) and watches
    modules slot into the sidebar as they build their package. */
 
+import { usePathname } from "next/navigation";
 import styles from "./MiniYippie.module.css";
+import { getLocale } from "@/lib/i18n";
 import {
   InboxIcon,
   UsersIcon,
@@ -27,26 +31,73 @@ export type MiniModuleKey =
 type IconComponent = (p: { size?: number }) => JSX.Element;
 
 /* Fixed sidebar order so icons always slide into the same slot. */
-const MODULE_ICONS: { key: MiniModuleKey; Icon: IconComponent; label: string }[] = [
-  { key: "ai",          Icon: AiIcon,        label: "AI Inbox" },
-  { key: "tickets",     Icon: TicketIcon,    label: "Tickets" },
-  { key: "chat",        Icon: ChatIcon,      label: "Live Chat" },
-  { key: "calendar",    Icon: CalendarIcon,  label: "Calendar" },
-  { key: "pipeline",    Icon: KanbanIcon,    label: "Pipeline" },
-  { key: "marketing",   Icon: MailTrackIcon, label: "Marketing" },
-  { key: "departments", Icon: TeamIcon,      label: "Departments" },
-  { key: "billing",     Icon: BillingIcon,   label: "Billing" },
-  { key: "contracts",   Icon: ContractIcon,  label: "Contracts" },
-  { key: "tracking",    Icon: TrackingIcon,  label: "Shipment Tracking" },
-  { key: "sales",       Icon: SalesIcon,     label: "Sales" },
-  { key: "saas",        Icon: SaasIcon,      label: "SaaS Analytics" },
+const MODULE_ICON_LIST: { key: MiniModuleKey; Icon: IconComponent }[] = [
+  { key: "ai",          Icon: AiIcon        },
+  { key: "tickets",     Icon: TicketIcon    },
+  { key: "chat",        Icon: ChatIcon      },
+  { key: "calendar",    Icon: CalendarIcon  },
+  { key: "pipeline",    Icon: KanbanIcon    },
+  { key: "marketing",   Icon: MailTrackIcon },
+  { key: "departments", Icon: TeamIcon      },
+  { key: "billing",     Icon: BillingIcon   },
+  { key: "contracts",   Icon: ContractIcon  },
+  { key: "tracking",    Icon: TrackingIcon  },
+  { key: "sales",       Icon: SalesIcon     },
+  { key: "saas",        Icon: SaasIcon      },
 ];
 
-const INBOX_ROWS = [
-  { sender: "Acme BV", subject: "Invoice question", tone: "brand" },
-  { sender: "TechCorp", subject: "Login issue", tone: "amber" },
-  { sender: "Nordex", subject: "Plan upgrade", tone: "green" },
-];
+const miniCopy = {
+  nl: {
+    moduleLabels: {
+      ai: "AI Inbox",
+      tickets: "Tickets",
+      chat: "Live Chat",
+      calendar: "Agenda",
+      pipeline: "Pipeline",
+      marketing: "Marketing",
+      departments: "Afdelingen",
+      billing: "Facturatie",
+      contracts: "Contracten",
+      tracking: "Zendingtracking",
+      sales: "Sales",
+      saas: "SaaS Analytics",
+    } as Record<MiniModuleKey, string>,
+    inboxRows: [
+      { sender: "Acme BV", subject: "Vraag over factuur", tone: "brand" },
+      { sender: "TechCorp", subject: "Inlogprobleem", tone: "amber" },
+      { sender: "Nordex", subject: "Abonnement upgraden", tone: "green" },
+    ],
+    statOpen: "Open",
+    statPending: "In behandeling",
+    statResolved: "Opgelost",
+    workspace: "Je werkruimte",
+  },
+  en: {
+    moduleLabels: {
+      ai: "AI Inbox",
+      tickets: "Tickets",
+      chat: "Live Chat",
+      calendar: "Calendar",
+      pipeline: "Pipeline",
+      marketing: "Marketing",
+      departments: "Departments",
+      billing: "Billing",
+      contracts: "Contracts",
+      tracking: "Shipment Tracking",
+      sales: "Sales",
+      saas: "SaaS Analytics",
+    } as Record<MiniModuleKey, string>,
+    inboxRows: [
+      { sender: "Acme BV", subject: "Invoice question", tone: "brand" },
+      { sender: "TechCorp", subject: "Login issue", tone: "amber" },
+      { sender: "Nordex", subject: "Plan upgrade", tone: "green" },
+    ],
+    statOpen: "Open",
+    statPending: "Pending",
+    statResolved: "Resolved",
+    workspace: "Your workspace",
+  },
+} as const;
 
 type Props = {
   brandColor: string;
@@ -56,7 +107,11 @@ type Props = {
 };
 
 export default function MiniYippie({ brandColor, logoUrl, companyName, modules }: Props) {
-  const name = companyName.trim() || "Your workspace";
+  const pathname = usePathname();
+  const locale = getLocale(pathname);
+  const t = miniCopy[locale];
+
+  const name = companyName.trim() || t.workspace;
   const initial = name.charAt(0).toUpperCase();
 
   return (
@@ -78,12 +133,12 @@ export default function MiniYippie({ brandColor, logoUrl, companyName, modules }
           </span>
           <span className={styles.navDivider} />
           {/* Add on modules slide in and out as they are toggled */}
-          {MODULE_ICONS.map(({ key, Icon, label }) => {
+          {MODULE_ICON_LIST.map(({ key, Icon }) => {
             const on = modules.includes(key);
             return (
               <span
                 key={key}
-                title={label}
+                title={t.moduleLabels[key]}
                 className={`${styles.navItem} ${styles.navModule} ${on ? styles.navModuleOn : ""}`}
               >
                 <Icon size={15} />
@@ -108,20 +163,20 @@ export default function MiniYippie({ brandColor, logoUrl, companyName, modules }
           </div>
           <div className={styles.stats}>
             <div className={styles.stat}>
-              <span className={styles.statLabel}>Open</span>
+              <span className={styles.statLabel}>{t.statOpen}</span>
               <span className={styles.statVal} style={{ color: brandColor }}>12</span>
             </div>
             <div className={styles.stat}>
-              <span className={styles.statLabel}>Pending</span>
+              <span className={styles.statLabel}>{t.statPending}</span>
               <span className={`${styles.statVal} ${styles.amber}`}>4</span>
             </div>
             <div className={styles.stat}>
-              <span className={styles.statLabel}>Resolved</span>
+              <span className={styles.statLabel}>{t.statResolved}</span>
               <span className={`${styles.statVal} ${styles.green}`}>31</span>
             </div>
           </div>
           <div className={styles.list}>
-            {INBOX_ROWS.map((row) => (
+            {t.inboxRows.map((row) => (
               <div key={row.sender} className={styles.row}>
                 <span
                   className={styles.rowDot}

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { HelpCircle, X } from 'lucide-react'
 import { useAuth } from '../auth/useAuth'
+import { useT } from '../hooks/useT'
 
 interface HelpTipProps {
   content: string
@@ -10,6 +11,7 @@ interface HelpTipProps {
 
 export function HelpTip({ content, title, placement = 'top' }: HelpTipProps) {
   const { user } = useAuth()
+  const t = useT()
   const [open, setOpen] = useState(false)
 
   // Hidden when user has turned off tips
@@ -27,7 +29,7 @@ export function HelpTip({ content, title, placement = 'top' }: HelpTipProps) {
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        aria-label="Help"
+        aria-label={t('shared_help')}
         className="inline-flex items-center justify-center w-4 h-4 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors focus:outline-none focus:ring-2 focus:ring-yippie/30"
       >
         <HelpCircle size={14} />

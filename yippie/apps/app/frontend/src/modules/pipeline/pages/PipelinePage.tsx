@@ -13,6 +13,7 @@ import { useTenantConfig } from '../../../App'
 import SendBookingModal from '../../booking/components/SendBookingModal'
 import { Campaign, marketingApi } from '../../marketing/api'
 import { CloseButton } from '../../../shell/CloseButton'
+import { useT } from '../../../hooks/useT'
 import PipelineFlowchart from './PipelineFlowchart'
 
 // [KAN_FLOW1] The Kanban module has two views: the board (today's kanban) and a
@@ -58,6 +59,7 @@ function SendCampaignPopup({
   onConfirm: () => void
   onClose: () => void
 }) {
+  const t = useT()
   const { data: templates = [] } = useQuery({
     queryKey: ['marketing', 'templates', campaign.id],
     queryFn: () => marketingApi.getTemplates(campaign.id),
@@ -74,7 +76,7 @@ function SendCampaignPopup({
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Megaphone size={16} className="text-blue-500" />
-            Send campaign
+            {t('pipeline_campaign_popup_title')}
           </h2>
           <CloseButton onClick={onClose} />
         </div>
@@ -82,17 +84,19 @@ function SendCampaignPopup({
         <div className="overflow-y-auto flex-1">
           <div className="px-6 py-4 border-b border-slate-100 space-y-2">
             <div className="flex items-baseline gap-3">
-              <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">Campaign</span>
+              <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">{t('pipeline_campaign_label')}</span>
               <span className="text-sm font-semibold text-slate-800">{campaign.name}</span>
             </div>
             <div className="flex items-baseline gap-3">
-              <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">Subject</span>
+              <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">{t('pipeline_subject_label')}</span>
               <span className="text-sm text-slate-700">{campaign.subject}</span>
             </div>
             <div className="flex items-baseline gap-3">
-              <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">Recipients</span>
+              <span className="w-24 shrink-0 text-xs font-semibold uppercase tracking-wide text-slate-400">{t('pipeline_recipients_label')}</span>
               <span className="text-sm text-slate-700">
-                All contacts in <span className="font-semibold">{stage.name}</span> ({contactCount} contact{contactCount !== 1 ? 's' : ''})
+                {contactCount !== 1
+                  ? t('pipeline_recipients_value_pl').replace('{stage}', stage.name).replace('{count}', String(contactCount))
+                  : t('pipeline_recipients_value').replace('{stage}', stage.name).replace('{count}', String(contactCount))}
               </span>
             </div>
           </div>
@@ -107,19 +111,19 @@ function SendCampaignPopup({
             />
           ) : (
             <div className="flex items-center justify-center py-16">
-              <p className="text-sm text-slate-400">No email design saved yet.</p>
+              <p className="text-sm text-slate-400">{t('pipeline_no_email_design')}</p>
             </div>
           )}
         </div>
 
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 shrink-0 bg-slate-50">
-          <p className="text-xs text-slate-400">This dispatches immediately to all contacts in <span className="font-semibold">{stage.name}</span>.</p>
+          <p className="text-xs text-slate-400">{t('pipeline_dispatches_desc').replace('{stage}', stage.name)}</p>
           <div className="flex items-center gap-2">
             <button
               onClick={onClose}
               className="px-4 py-2 border border-slate-200 hover:bg-slate-100 text-sm font-semibold text-slate-600 rounded-lg transition-colors"
             >
-              Cancel
+              {t('pipeline_cancel_btn')}
             </button>
             <button
               onClick={onConfirm}
@@ -127,7 +131,7 @@ function SendCampaignPopup({
               className="flex items-center gap-1.5 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               {isLaunching ? <Loader2 size={14} className="animate-spin" /> : <Megaphone size={14} />}
-              {isLaunching ? 'Sending…' : 'Send campaign'}
+              {isLaunching ? t('pipeline_sending') : t('pipeline_send_campaign_btn')}
             </button>
           </div>
         </div>
@@ -141,6 +145,7 @@ function SendCampaignPopup({
 // ──────────────────────────────────────────────────────────────
 function StageModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
+  const t = useT()
   const [editId, setEditId] = useState<string | null>(null)
   const [name, setName] = useState('')
   const [color, setColor] = useState('#64748b')
@@ -176,12 +181,12 @@ function StageModal({ onClose }: { onClose: () => void }) {
   const createMut = useMutation({
     mutationFn: (b: object) => api.post('/pipeline/stages', b),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['pipeline-stages'] }); qc.invalidateQueries({ queryKey: ['pipeline-board'] }); resetForm() },
-    onError: () => setError('Save failed'),
+    onError: () => setError(t('pipeline_save_failed')),
   })
   const updateMut = useMutation({
     mutationFn: ({ id, b }: { id: string; b: object }) => api.patch(`/pipeline/stages/${id}`, b),
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['pipeline-stages'] }); qc.invalidateQueries({ queryKey: ['pipeline-board'] }); resetForm() },
-    onError: () => setError('Save failed'),
+    onError: () => setError(t('pipeline_save_failed')),
   })
   const deleteMut = useMutation({
     mutationFn: (id: string) => api.delete(`/pipeline/stages/${id}`),
@@ -220,14 +225,14 @@ function StageModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="bg-white rounded-2xl w-full max-w-[520px] max-h-[80vh] flex flex-col shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-sm font-bold text-slate-900">Manage Kanban Stages</h2>
+          <h2 className="text-sm font-bold text-slate-900">{t('pipeline_manage_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
 
         {/* Stage list */}
         <div className="flex-1 overflow-y-auto divide-y divide-slate-50">
           {stages.length === 0 && (
-            <p className="px-6 py-8 text-sm text-slate-400 text-center">No stages yet. Add one below.</p>
+            <p className="px-6 py-8 text-sm text-slate-400 text-center">{t('pipeline_no_stages_yet')}</p>
           )}
           {stages.map((s: any, i: any) => (
             <div
@@ -255,7 +260,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
                 <Settings2 size={13} />
               </button>
               <button
-                onClick={() => { if (confirm(`Delete "${s.name}"? Contacts will be removed from this stage.`)) deleteMut.mutate(s.id) }}
+                onClick={() => { if (confirm(t('pipeline_delete_stage_confirm').replace('{name}', s.name))) deleteMut.mutate(s.id) }}
                 className="shrink-0 p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
                 title="Delete"
               >
@@ -268,13 +273,13 @@ function StageModal({ onClose }: { onClose: () => void }) {
         {/* Add / edit form */}
         <div className="shrink-0 border-t border-slate-100 px-6 py-4 bg-slate-50 space-y-3">
           <p className="text-xs font-bold text-slate-400 uppercase tracking-wide">
-            {editId ? 'Edit stage' : 'New stage'}
+            {editId ? t('pipeline_edit_stage') : t('pipeline_new_stage')}
           </p>
           <div className="flex gap-2">
             <input
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder="Stage name…"
+              placeholder={t('pipeline_stage_name_ph')}
               className="flex-1 px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
             <input
@@ -282,18 +287,18 @@ function StageModal({ onClose }: { onClose: () => void }) {
               value={color}
               onChange={e => setColor(e.target.value)}
               className="w-10 h-10 rounded-lg border border-slate-200 cursor-pointer p-0.5"
-              title="Stage colour"
+              title={t('pipeline_stage_color_title')}
             />
           </div>
           {editId && campaigns.length > 0 && (
             <div>
-              <label className="mb-1 block text-xs font-semibold text-slate-400 uppercase tracking-wide">Linked campaign</label>
+              <label className="mb-1 block text-xs font-semibold text-slate-400 uppercase tracking-wide">{t('pipeline_linked_campaign')}</label>
               <select
                 value={campaigns.find((c: Campaign) => c.linked_stage_id === editId)?.id ?? ''}
                 onChange={e => linkCampaignMut.mutate({ campaignId: e.target.value || null, stageId: editId })}
                 className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               >
-                <option value="">— None —</option>
+                <option value="">{t('pipeline_none_option')}</option>
                 {campaigns.map((c: Campaign) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -307,7 +312,7 @@ function StageModal({ onClose }: { onClose: () => void }) {
               disabled={createMut.isPending || updateMut.isPending}
               className="btn-primary flex-1 py-2"
             >
-              {editId ? 'Update' : 'Add stage'}
+              {editId ? t('pipeline_update_btn') : t('pipeline_add_stage_btn')}
             </button>
             {editId && (
               <button

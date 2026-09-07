@@ -2,6 +2,7 @@
 // layout.ts decides positions, FlowCanvasPage owns state and selection.
 import { Handle, Position } from '@xyflow/react'
 import { CalendarClock, CheckCircle2, Filter, GitBranch, Timer, XCircle, Zap } from 'lucide-react'
+import { useT } from '../../../hooks/useT'
 import { NodeBadge } from './replay'
 
 export const NODE_WIDTH = 260
@@ -39,10 +40,11 @@ export interface TriggerNodeData {
 }
 
 export function TriggerNode({ data }: { data: TriggerNodeData }) {
+  const t = useT()
   return (
     <div style={{ width: NODE_WIDTH }} className={card(data.selected, data.dimmed)}>
       <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1">
-        <Zap size={10} /> When
+        <Zap size={10} /> {t('flow_node_when')}
       </p>
       <p className="text-sm font-semibold text-slate-800">{data.label}</p>
       {data.detail && (
@@ -64,16 +66,17 @@ export interface GroupNodeData {
 }
 
 export function GroupNode({ data }: { data: GroupNodeData }) {
+  const t = useT()
   return (
     <div style={{ width: NODE_WIDTH }} className={card(data.selected, data.dimmed)}>
       <div className="flex items-center gap-1.5">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1">
-          <Filter size={10} /> If
+          <Filter size={10} /> {t('flow_node_if')}
         </p>
-        {data.matched === true && <Badge badge={{ tone: 'ok', label: 'matched' }} />}
-        {data.matched === false && <Badge badge={{ tone: 'skip', label: 'no match' }} />}
+        {data.matched === true && <Badge badge={{ tone: 'ok', label: t('flow_node_matched') }} />}
+        {data.matched === false && <Badge badge={{ tone: 'skip', label: t('flow_node_no_match') }} />}
       </div>
-      {data.lines.length === 0 && <p className="text-xs text-slate-400">No conditions</p>}
+      {data.lines.length === 0 && <p className="text-xs text-slate-400">{t('flow_node_no_conditions')}</p>}
       {data.lines.map((line, i) => (
         <p key={i} className="text-xs text-slate-600">
           {i > 0 && <span className="text-slate-400 font-semibold">and </span>}
@@ -96,11 +99,12 @@ export interface ActionNodeData {
 }
 
 export function ActionNode({ data }: { data: ActionNodeData }) {
+  const t = useT()
   return (
     <div style={{ width: NODE_WIDTH }} className={card(data.selected, data.dimmed)}>
       <div className="flex items-center gap-1.5">
         <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wide flex items-center gap-1">
-          {data.isWait ? <Timer size={10} /> : <Zap size={10} />} {data.isWait ? 'Wait' : 'Then'}
+          {data.isWait ? <Timer size={10} /> : <Zap size={10} />} {data.isWait ? t('flow_node_wait') : t('flow_node_then')}
         </p>
         <Badge badge={data.badge} />
       </div>
@@ -124,15 +128,16 @@ export interface BranchNodeData {
 }
 
 export function BranchNode({ data }: { data: BranchNodeData }) {
+  const t = useT()
   return (
     <div style={{ width: NODE_WIDTH }} className={card(data.selected, data.dimmed)}>
       <div className="flex items-center gap-1.5">
         <p className="text-[10px] font-bold text-violet-500 uppercase tracking-wide flex items-center gap-1">
-          <GitBranch size={10} /> Branch
+          <GitBranch size={10} /> {t('flow_node_branch')}
         </p>
         <Badge badge={data.badge} />
       </div>
-      {data.lines.length === 0 && <p className="text-xs text-slate-400">Always takes the yes path</p>}
+      {data.lines.length === 0 && <p className="text-xs text-slate-400">{t('flow_node_always_yes')}</p>}
       {data.lines.map((line, i) => (
         <p key={i} className="text-xs text-slate-600">{line}</p>
       ))}
@@ -145,12 +150,13 @@ export function BranchNode({ data }: { data: BranchNodeData }) {
 
 // [FLOW4] Placeholder for an empty branch leg — shows the flow ends there.
 export function GhostNode({ data }: { data: { dimmed: boolean } }) {
+  const t = useT()
   return (
     <div
       style={{ width: NODE_WIDTH }}
       className={`rounded-2xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-3 transition-opacity ${data.dimmed ? 'opacity-40' : ''}`}
     >
-      <p className="text-xs text-slate-400 text-center">Flow ends here</p>
+      <p className="text-xs text-slate-400 text-center">{t('flow_node_ends_here')}</p>
       <Handle type="target" position={Position.Top} className="!bg-slate-300" />
     </div>
   )

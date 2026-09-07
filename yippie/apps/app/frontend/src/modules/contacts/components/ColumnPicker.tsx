@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Settings, GripVertical } from 'lucide-react'
 import type { ContactColumnPref } from '../../../auth/useAuth'
+import { useT } from '../../../hooks/useT'
 
 // Name is always visible and non-toggleable; it is not part of the picker list.
 export const DEFAULT_CONTACT_COLUMNS: ContactColumnPref[] = [
@@ -14,6 +15,16 @@ export const DEFAULT_CONTACT_COLUMNS: ContactColumnPref[] = [
 ]
 
 const LOCKED_KEYS = new Set(['name'])
+
+const COL_LABEL_KEY: Record<string, string> = {
+  name: 'contacts_col_name',
+  email: 'contacts_col_email',
+  company: 'contacts_col_company_label',
+  phone: 'contacts_col_phone',
+  notes: 'contacts_col_notes',
+  created_at: 'contacts_col_added',
+  updated_at: 'contacts_col_last_updated',
+}
 
 /** Merge stored prefs with defaults so newly added columns always appear. */
 export function resolveColumns(prefs?: ContactColumnPref[] | null): ContactColumnPref[] {
@@ -31,6 +42,7 @@ export function ColumnPicker({ value, onChange, saving }: {
   onChange: (next: ContactColumnPref[]) => void
   saving?: boolean
 }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [dragKey, setDragKey] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
@@ -63,15 +75,15 @@ export function ColumnPicker({ value, onChange, saving }: {
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(o => !o)} title="Customise columns"
+      <button onClick={() => setOpen(o => !o)} title={t('contacts_columns_tooltip')}
         className="p-2 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors">
         <Settings size={16} />
       </button>
       {open && (
         <div className="absolute right-0 mt-1 w-60 bg-white border border-slate-200 rounded-xl shadow-xl z-30 p-2">
           <div className="px-2 py-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide flex items-center justify-between">
-            <span>Columns</span>
-            {saving && <span className="text-slate-400 normal-case font-normal">Saving…</span>}
+            <span>{t('contacts_columns_label')}</span>
+            {saving && <span className="text-slate-400 normal-case font-normal">{t('contacts_columns_saving')}</span>}
           </div>
           <ul className="flex flex-col">
             {cols.map(col => {
@@ -86,8 +98,8 @@ export function ColumnPicker({ value, onChange, saving }: {
                   <GripVertical size={13} className={locked ? 'text-transparent' : 'text-slate-300'} />
                   <input type="checkbox" checked={col.visible} disabled={locked} onChange={() => toggle(col.key)}
                     className="h-4 w-4 rounded border-slate-300 text-yippie focus:ring-yippie/30 disabled:opacity-50 cursor-pointer" />
-                  <span className="text-sm text-slate-700">{col.label}</span>
-                  {locked && <span className="ml-auto text-[10px] text-slate-400 uppercase">always</span>}
+                  <span className="text-sm text-slate-700">{COL_LABEL_KEY[col.key] ? t(COL_LABEL_KEY[col.key]) : col.label}</span>
+                  {locked && <span className="ml-auto text-[10px] text-slate-400 uppercase">{t('contacts_column_always')}</span>}
                 </li>
               )
             })}

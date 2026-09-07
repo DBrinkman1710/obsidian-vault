@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { BotMessageSquare, Loader2, Send } from 'lucide-react'
 import { CloseButton } from '../shell/CloseButton'
 import { api } from '../api/client'
+import { useT } from '../hooks/useT'
 
 interface TrainMessage {
   role: 'assistant' | 'user'
@@ -34,6 +35,7 @@ const DEFAULTS = [
 ]
 
 export default function YipTrainModal({ onComplete, onDismiss, tenantName }: Props) {
+  const t = useT()
   const [messages, setMessages] = useState<TrainMessage[]>([])
   const [input, setInput] = useState('')
   const [questionIndex, setQuestionIndex] = useState(0)
@@ -115,8 +117,8 @@ export default function YipTrainModal({ onComplete, onDismiss, tenantName }: Pro
         <div className="flex items-center gap-2.5 px-5 py-4 border-b border-slate-100">
           <BotMessageSquare size={18} className="text-yippie shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-slate-900">Train Yip</p>
-            <p className="text-xs text-slate-400">5 quick questions to personalise your AI</p>
+            <p className="text-sm font-semibold text-slate-900">{t('shared_train_yip')}</p>
+            <p className="text-xs text-slate-400">{t('shared_train_yip_subtitle')}</p>
           </div>
           <CloseButton onClick={onDismiss} />
         </div>
@@ -150,7 +152,7 @@ export default function YipTrainModal({ onComplete, onDismiss, tenantName }: Pro
         {/* Input */}
         <div className="px-4 py-3 border-t border-slate-100">
           {done ? (
-            <p className="text-center text-xs text-slate-400 py-1">Profile saved. Closing…</p>
+            <p className="text-center text-xs text-slate-400 py-1">{t('shared_profile_saved_closing')}</p>
           ) : (
             <div className="flex items-center gap-2">
               <input
@@ -161,16 +163,16 @@ export default function YipTrainModal({ onComplete, onDismiss, tenantName }: Pro
                   if (e.key === 'Enter') { e.preventDefault(); send() }
                 }}
                 disabled={loading}
-                placeholder="Your answer…"
+                placeholder={t('shared_your_answer_placeholder')}
                 className="flex-1 min-w-0 px-3 py-2 border border-slate-300 rounded-xl text-sm text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie disabled:opacity-50"
               />
               <button
                 onClick={() => send(DEFAULTS[questionIndex])}
                 disabled={loading}
                 className="shrink-0 px-2.5 h-9 rounded-xl text-xs font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 disabled:opacity-40 transition-colors"
-                title="Use a sensible default and continue"
+                title={t('shared_skip')}
               >
-                Skip
+                {t('shared_skip')}
               </button>
               <button
                 onClick={() => send()}

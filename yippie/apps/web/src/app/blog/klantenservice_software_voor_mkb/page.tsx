@@ -6,7 +6,7 @@ import { breadcrumbJsonLd } from "../jsonld";
 
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
-const TITLE = "De twee extremen van klantenservice — en waarom het MKB er tussenin zit";
+const TITLE = "De twee extremen van klantenservice, en waarom het MKB er tussenin zit";
 const DESCRIPTION =
   "De meeste klantenservice software is gebouwd voor twee extremen: chaos in een gedeelde inbox, of enterprise-complexiteit voor grote teams. MKB verdient iets daartussenin. Dit is hoe dat eruitziet.";
 const URL = "https://getyippie.com/blog/klantenservice_software_voor_mkb";
@@ -79,7 +79,7 @@ export default function Post() {
           </p>
           <p>
             MKB-bedrijven zitten ongemakkelijk in het midden. Te groot voor de chaos van een
-            gedeelde inbox. Te klein — en te nuchter — om enterprise-software te rechtvaardigen
+            gedeelde inbox. Te klein en te nuchter om enterprise-software te rechtvaardigen
             die is gebouwd voor teams van vijfhonderd mensen.
           </p>
           <p>
@@ -94,22 +94,22 @@ export default function Post() {
             loopt het vast.
           </p>
           <p>
-            Twee mensen reageren op hetzelfde bericht. De klant krijgt twee tegenstrijdige antwoorden
-            — de ene van een medewerker die de thread dinsdagochtend las, de andere van iemand die
+            Twee mensen reageren op hetzelfde bericht. De klant krijgt twee tegenstrijdige antwoorden:
+            de ene van een medewerker die de thread dinsdagochtend las, de andere van iemand die
             hem dinsdagmiddag opende en niet wist dat er al gereageerd was. Lastig te herstellen,
             en schadelijk voor het vertrouwen.
           </p>
           <p>
             Of de stillere variant: een bericht blijft drie dagen onaangeroerd in de inbox staan
             omdat iedereen ervan uitging dat een ander het oppakte. Niemand had het in bezit genomen.
-            Niemand vroeg ernaar. De klant&apos;s vervolgmailtje — &quot;heeft u mijn bericht ontvangen?&quot;
-            — is het eerste signaal dat er iets mis ging.
+            Niemand vroeg ernaar. De klant&apos;s vervolgmailtje (&quot;heeft u mijn bericht ontvangen?&quot;)
+            is het eerste signaal dat er iets mis ging.
           </p>
           <p>
             En dan is er het kanaalprobleem dat elk jaar erger wordt. Dezelfde klant stuurt je een
             e-mail én een WhatsApp-bericht. In een gedeelde inbox zijn dat twee losse threads in
             twee verschillende systemen. Eén medewerker handelt de e-mail af, een ander pakt
-            de WhatsApp op — en geen van beiden weet van de ander. De klant moet zichzelf tweemaal
+            de WhatsApp op, en geen van beiden weet van de ander. De klant moet zichzelf tweemaal
             uitleggen, en je team heeft twee aparte contactrecords aangemaakt voor dezelfde persoon.
             Niemand heeft het complete plaatje. Iedereen begint opnieuw.
           </p>
@@ -122,8 +122,8 @@ export default function Post() {
           <p>
             SLA-beleid met meerdere goedkeuringsniveaus. Manager-akkoord voordat een escalatie
             plaatsvindt. Routeringsregels op basis van vaardigheden, zodat tickets worden toegewezen
-            aan specialisten via tagcombinaties. Dit zijn echte functies die echte problemen oplossen
-            — voor een supportafdeling van tweehonderd mensen waar een verkeerde escalatie daadwerkelijk
+            aan specialisten via tagcombinaties. Dit zijn echte functies die echte problemen oplossen,
+            voor een supportafdeling van tweehonderd mensen waar een verkeerde escalatie daadwerkelijk
             een incident veroorzaakt.
           </p>
           <p>
@@ -156,7 +156,7 @@ export default function Post() {
             kostenplaats zijn met een eigen inkoopteam.
           </p>
           <p>
-            Dit is het ontwerp van Yippie. Vaste werkruimteprijzen — één bedrag, ongeacht hoeveel
+            Dit is het ontwerp van Yippie. Vaste werkruimteprijzen: één bedrag, ongeacht hoeveel
             medewerkers je toevoegt. Een inbox die e-mail en WhatsApp samenvoegt zodat één
             contactrecord per klant bestaat. AI die inkomende berichten leest en de ticketomschrijving
             schrijft zodat je team controleert in plaats van typt. Geen goedkeuringsworkflows,

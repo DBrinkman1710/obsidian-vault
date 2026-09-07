@@ -61,6 +61,7 @@ function resolveOrder(savedOrder: string[] | null | undefined, enabledMods: stri
 
 function SortableModItem({ id, children }: { id: string; children: React.ReactNode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const t = useT()
   return (
     <div
       ref={setNodeRef}
@@ -73,7 +74,7 @@ function SortableModItem({ id, children }: { id: string; children: React.ReactNo
         className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1 text-white/40 hover:text-white/70 cursor-grab active:cursor-grabbing z-10"
         tabIndex={-1}
         onClick={e => e.preventDefault()}
-        aria-label="Drag to reorder"
+        aria-label={t('shell_drag_to_reorder')}
       >
         <GripVertical size={13} />
       </button>
@@ -149,7 +150,7 @@ export function Sidebar() {
       await api.patch('/auth/me', { tour_completed: false })
       await refreshUser()
     } catch {
-      toast.error('Could not restart the tour')
+      toast.error(t('shell_tour_restart_failed'))
     }
   }
 
@@ -160,7 +161,7 @@ export function Sidebar() {
       await refreshUser()
       setReordering(false)
     } catch {
-      toast.error('Failed to save sidebar order')
+      toast.error(t('shell_reorder_save_failed'))
     } finally {
       setSaving(false)
     }
@@ -211,8 +212,8 @@ export function Sidebar() {
     if (redCount > 0) {
       toastShownRef.current = true
       toast.warning(
-        `${redCount} overdue ticket${redCount > 1 ? 's' : ''} need attention`,
-        { duration: 8000, action: { label: 'View', onClick: () => navigate('/tickets') } }
+        `${redCount} ${redCount > 1 ? t('shell_overdue_tickets') : t('shell_overdue_ticket')}`,
+        { duration: 8000, action: { label: t('shell_overdue_view'), onClick: () => navigate('/tickets') } }
       )
     }
   }, [redCount, navigate])
@@ -256,7 +257,7 @@ export function Sidebar() {
                 className={`w-2 h-2 rounded-full shrink-0 ${
                   inboxFetching ? 'bg-green-500' : 'bg-slate-400'
                 }`}
-                title={inboxFetching ? 'Refreshing…' : 'Idle'}
+                title={inboxFetching ? t('shell_inbox_refreshing') : t('shell_inbox_idle')}
               />
               {badgeLabel && (
                 <span className="bg-white text-yippie text-[10px] font-bold min-w-[18px] h-[18px] rounded-full flex items-center justify-center px-1">
@@ -298,7 +299,7 @@ export function Sidebar() {
   return (
     <>
       <aside
-        onContextMenu={e => { if (collapsed || reordering) return; ctx.open(e, [{ label: 'Reorder sidebar', icon: <GripVertical size={14} />, onClick: enterReorder }]) }}
+        onContextMenu={e => { if (collapsed || reordering) return; ctx.open(e, [{ label: t('shell_reorder_sidebar'), icon: <GripVertical size={14} />, onClick: enterReorder }]) }}
         className={`hidden md:flex md:flex-col h-screen bg-yippie text-white shrink-0 transition-all duration-200 relative z-10 ${
           collapsed ? 'w-14' : 'w-56'
         }`}
@@ -336,14 +337,14 @@ export function Sidebar() {
               disabled={saving}
               className="flex-1 text-xs font-semibold py-1.5 rounded-lg bg-white/20 hover:bg-white/30 text-white transition-colors disabled:opacity-50"
             >
-              {saving ? 'Saving…' : 'Done'}
+              {saving ? t('shell_reorder_saving') : t('shell_reorder_done')}
             </button>
             <button
               onClick={cancelReorder}
               disabled={saving}
               className="text-xs font-medium py-1.5 px-3 rounded-lg bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors"
             >
-              Cancel
+              {t('shell_reorder_cancel')}
             </button>
           </div>
         )}
@@ -370,7 +371,7 @@ export function Sidebar() {
           <div className="relative">
             <button
               onClick={() => setAccountOpen(v => !v)}
-              title={collapsed ? (user?.full_name || user?.email || 'Account') : undefined}
+              title={collapsed ? (user?.full_name || user?.email || t('shell_account')) : undefined}
               className={`flex items-center gap-2.5 w-full py-2 rounded-lg text-left transition-colors hover:bg-white/10 ${
                 collapsed ? 'justify-center px-0' : 'px-2'
               } ${accountOpen ? 'bg-white/10' : ''}`}
@@ -384,7 +385,7 @@ export function Sidebar() {
               </div>
               {!collapsed && (
                 <div className="flex-1 min-w-0">
-                  <p className="text-white text-xs font-semibold truncate leading-tight">{user?.full_name || 'Account'}</p>
+                  <p className="text-white text-xs font-semibold truncate leading-tight">{user?.full_name || t('shell_account')}</p>
                   <p className="text-white/50 text-[10px] truncate leading-tight">{user?.email}</p>
                 </div>
               )}
@@ -405,7 +406,7 @@ export function Sidebar() {
                     </button>
                     <button onClick={() => { navigate('/settings/team'); setAccountOpen(false) }}
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                      <UsersRound size={14} className="text-slate-400" /> Team
+                      <UsersRound size={14} className="text-slate-400" /> {t('shell_team')}
                     </button>
                   </>
                 )}
@@ -413,18 +414,18 @@ export function Sidebar() {
                   <>
                     <button onClick={() => { navigate('/superadmin/clients'); setAccountOpen(false) }}
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                      <Building2 size={14} className="text-slate-400" /> Clients
+                      <Building2 size={14} className="text-slate-400" /> {t('shell_clients')}
                     </button>
                     <button onClick={() => { navigate('/settings/superadmins'); setAccountOpen(false) }}
                       className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                      <ShieldCheck size={14} className="text-slate-400" /> Superadmins
+                      <ShieldCheck size={14} className="text-slate-400" /> {t('shell_superadmins')}
                     </button>
                   </>
                 )}
                 {user?.tour_completed && (
                   <button onClick={replayTour}
                     className="flex items-center gap-2 w-full px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                    <RotateCcw size={14} className="text-slate-400" /> Replay welcome tour
+                    <RotateCcw size={14} className="text-slate-400" /> {t('shell_replay_tour')}
                   </button>
                 )}
                 <div className="h-px bg-slate-100 my-1" />
@@ -440,7 +441,7 @@ export function Sidebar() {
           <div className={`flex pt-1 ${collapsed ? 'justify-center' : 'justify-end'}`}>
             <button
               onClick={toggleCollapsed}
-              title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+              title={collapsed ? t('shell_expand_sidebar') : t('shell_collapse_sidebar')}
               className="p-1.5 text-white/50 hover:text-white hover:bg-white/10 rounded-lg transition-colors"
             >
               {collapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}

@@ -11,6 +11,7 @@ import { useCopy } from '../../../hooks/useCopy'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { useTenantConfig } from '../../../App'
+import { useT } from '../../../hooks/useT'
 // [FLOW4] branched flows store a graph; the modal only edits the linear shape.
 // Types + shared helpers live in ../lib (single source, also used by the canvas).
 import {
@@ -128,11 +129,12 @@ function ConfigField({
 function WaitConfig({
   config, onChange,
 }: { config: Record<string, any>; onChange: (c: Record<string, any>) => void }) {
+  const t = useT()
   const unit = WAIT_UNITS.find(u => u in config) ?? 'hours'
   const amount = config[unit] ?? ''
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-sm text-slate-600">Wait for</span>
+      <span className="text-sm text-slate-600">{t('flow_wait_for')}</span>
       <input
         type="number"
         min={1}
@@ -148,7 +150,7 @@ function WaitConfig({
       >
         {WAIT_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
       </select>
-      <span className="text-sm text-slate-500">before the next step</span>
+      <span className="text-sm text-slate-500">{t('flow_before_next_step')}</span>
     </div>
   )
 }
@@ -156,6 +158,7 @@ function WaitConfig({
 // [FLOW5] The inbound URL + outbound signing secret for a webhook-trigger flow.
 // Only meaningful once the flow exists (the token is minted on save).
 function WebhookPanel({ flowId }: { flowId: string | undefined }) {
+  const t = useT()
   const qc = useQueryClient()
   const { copy: copyText } = useCopy()
   const { data, isLoading } = useQuery<{ inbound_url: string; signing_secret: string }>({
@@ -165,12 +168,12 @@ function WebhookPanel({ flowId }: { flowId: string | undefined }) {
   })
   const rotateToken = useMutation({
     mutationFn: () => api.post(`/flows/${flowId}/webhook/rotate`).then((r: any) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['flow-webhook', flowId] }); toast.success('New inbound URL — the old one no longer works') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['flow-webhook', flowId] }); toast.success(t('flow_new_inbound_url_msg')) },
     onError: (err: any) => toast.error(apiError(err)),
   })
   const rotateSecret = useMutation({
     mutationFn: () => api.post('/flows/webhook_secret/rotate').then((r: any) => r.data),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['flow-webhook', flowId] }); toast.success('New signing secret — update your receivers') },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['flow-webhook', flowId] }); toast.success(t('flow_new_secret_msg')) },
     onError: (err: any) => toast.error(apiError(err)),
   })
   const copy = (text: string, label: string) => {
@@ -179,32 +182,32 @@ function WebhookPanel({ flowId }: { flowId: string | undefined }) {
   if (!flowId) {
     return (
       <p className="text-xs text-slate-400 pt-1">
-        Save the flow to get its inbound URL — then POST JSON to it to trigger this flow.
+        {t('flow_webhook_save_first')}
       </p>
     )
   }
   return (
     <div className="pt-1 space-y-2">
-      {isLoading && <p className="text-xs text-slate-400">Loading webhook details…</p>}
+      {isLoading && <p className="text-xs text-slate-400">{t('flow_webhook_loading')}</p>}
       {data && (
         <>
           <div>
-            <p className="text-[11px] font-semibold text-slate-500 mb-1">Inbound URL — POST JSON here</p>
+            <p className="text-[11px] font-semibold text-slate-500 mb-1">{t('flow_inbound_url_label')}</p>
             <div className="flex items-center gap-1.5">
               <input readOnly value={data.inbound_url} className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-slate-50 text-slate-600 focus:outline-none" />
-              <button onClick={() => copy(data.inbound_url, 'URL')} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Copy URL"><Copy size={13} /></button>
-              <button onClick={() => rotateToken.mutate()} disabled={rotateToken.isPending} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-50" title="Regenerate URL"><RefreshCw size={13} /></button>
+              <button onClick={() => copy(data.inbound_url, 'URL')} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title={t('flow_copy_url')}><Copy size={13} /></button>
+              <button onClick={() => rotateToken.mutate()} disabled={rotateToken.isPending} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-50" title={t('flow_regen_url')}><RefreshCw size={13} /></button>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">Top-level JSON keys become fields you can match on above.</p>
+            <p className="text-[11px] text-slate-400 mt-1">{t('flow_inbound_url_tip')}</p>
           </div>
           <div>
-            <p className="text-[11px] font-semibold text-slate-500 mb-1">Outbound signing secret (for “Send a webhook” actions)</p>
+            <p className="text-[11px] font-semibold text-slate-500 mb-1">{t('flow_signing_secret_label')}</p>
             <div className="flex items-center gap-1.5">
               <input readOnly value={data.signing_secret} className="flex-1 px-2 py-1.5 border border-slate-200 rounded-lg text-xs font-mono bg-slate-50 text-slate-600 focus:outline-none" />
-              <button onClick={() => copy(data.signing_secret, 'Secret')} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title="Copy secret"><Copy size={13} /></button>
-              <button onClick={() => { if (confirm('Rotate the signing secret? Receivers verifying signatures must be updated.')) rotateSecret.mutate() }} disabled={rotateSecret.isPending} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-50" title="Rotate secret"><RefreshCw size={13} /></button>
+              <button onClick={() => copy(data.signing_secret, 'Secret')} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title={t('flow_copy_secret')}><Copy size={13} /></button>
+              <button onClick={() => { if (confirm(t('flow_rotate_confirm'))) rotateSecret.mutate() }} disabled={rotateSecret.isPending} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-50" title={t('flow_rotate_secret')}><RefreshCw size={13} /></button>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">Outbound requests are signed <span className="font-mono">X-Yippie-Signature: sha256=…</span> over the raw body.</p>
+            <p className="text-[11px] text-slate-400 mt-1">{t('flow_signing_tip')} <span className="font-mono">X-Yippie-Signature: sha256=…</span></p>
           </div>
         </>
       )}
@@ -223,6 +226,7 @@ function BuilderModal({
   onClose: () => void
   onSaved: () => void
 }) {
+  const t = useT()
   // For a new flow, fall back to the prefill's seed values.
   const seed = flow ?? prefill ?? null
   const [name, setName] = useState(seed?.name ?? '')
@@ -256,7 +260,7 @@ function BuilderModal({
   })
 
   function handleSave() {
-    if (!name.trim()) { setError('Give the flow a name'); return }
+    if (!name.trim()) { setError(t('flow_name_required')); return }
     setError('')
     const conditions = groups
       .map(g => g
@@ -358,20 +362,20 @@ function BuilderModal({
         <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl">
           <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
             <Zap size={16} className="text-slate-400" />
-            <h2 className="text-base font-semibold text-slate-900">Edit flow</h2>
+            <h2 className="text-base font-semibold text-slate-900">{t('flow_edit_flow')}</h2>
             <CloseButton onClick={onClose} className="ml-auto" />
           </div>
           <div className="px-6 py-10 text-center space-y-3">
             <GitBranch size={24} className="mx-auto text-violet-400" />
             <p className="text-sm text-slate-600">
-              This flow has branching paths — it's edited on the canvas.
+              {t('flow_branched_desc')}
             </p>
             <Link
               to={`/flows/${flow.id}`}
               onClick={onClose}
               className="inline-flex items-center gap-1.5 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-lg hover:opacity-90"
             >
-              <Workflow size={14} /> Open canvas
+              <Workflow size={14} /> {t('flow_open_canvas_btn')}
             </Link>
           </div>
         </div>
@@ -384,7 +388,7 @@ function BuilderModal({
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl">
         <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
           <Zap size={16} className="text-slate-400" />
-          <h2 className="text-base font-semibold text-slate-900">{flow ? 'Edit flow' : 'New flow'}</h2>
+          <h2 className="text-base font-semibold text-slate-900">{flow ? t('flow_edit_flow') : t('flow_new_flow_title')}</h2>
           <CloseButton onClick={onClose} className="ml-auto" />
         </div>
 
@@ -392,13 +396,13 @@ function BuilderModal({
           <input
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Flow name…"
+            placeholder={t('flow_flow_name_ph')}
             className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
 
           {/* When */}
           <div className="space-y-2">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">When</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('flow_when_label')}</p>
             <select
               value={triggerType}
               onChange={e => { setTriggerType(e.target.value); setGroups([]) }}
@@ -406,7 +410,7 @@ function BuilderModal({
             >
               {groupTriggers(meta.triggers).map(([group, triggers]) => (
                 <optgroup key={group} label={group}>
-                  {triggers.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                  {triggers.map(trig => <option key={trig.key} value={trig.key}>{trig.label}</option>)}
                 </optgroup>
               ))}
             </select>
@@ -422,8 +426,8 @@ function BuilderModal({
                   }}
                   className="px-2 py-1.5 border border-slate-200 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
                 >
-                  <option value="daily">Every day</option>
-                  <option value="weekly">Every week</option>
+                  <option value="daily">{t('flow_every_day')}</option>
+                  <option value="weekly">{t('flow_every_week')}</option>
                 </select>
                 {triggerConfig.frequency === 'weekly' && (
                   <select
@@ -434,7 +438,7 @@ function BuilderModal({
                     {WEEKDAYS.map((d, i) => <option key={i} value={i}>{d}</option>)}
                   </select>
                 )}
-                <span className="text-sm text-slate-500">at</span>
+                <span className="text-sm text-slate-500">{t('flow_at')}</span>
                 <input
                   type="time"
                   value={triggerConfig.time ?? '09:00'}
@@ -454,7 +458,7 @@ function BuilderModal({
                   onChange={e => setChainable(e.target.checked)}
                   className="accent-blue-600"
                 />
-                Other flows may trigger this one (when their actions cause this event)
+                {t('flow_chainable_label')}
               </label>
             )}
           </div>
@@ -462,17 +466,17 @@ function BuilderModal({
           {/* If */}
           <div className="space-y-2">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">
-              If {groups.length > 1 ? '(any group matches)' : '(all must match)'}
+              {t('flow_if_label')} {groups.length > 1 ? t('flow_if_any_group') : t('flow_if_all_match')}
             </p>
             {groups.length === 0 && (
-              <p className="text-xs text-slate-400">No conditions — the flow runs on every trigger.</p>
+              <p className="text-xs text-slate-400">{t('flow_no_conditions')}</p>
             )}
             {groups.map((group, gi) => (
               <div key={gi}>
                 {gi > 0 && (
                   <div className="flex items-center gap-2 my-2">
                     <div className="flex-1 h-px bg-slate-200" />
-                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">or</span>
+                    <span className="text-xs font-bold text-slate-400 uppercase tracking-wide">{t('flow_or')}</span>
                     <div className="flex-1 h-px bg-slate-200" />
                   </div>
                 )}
@@ -507,7 +511,7 @@ function BuilderModal({
                       <button
                         onClick={() => removeCondition(gi, ci)}
                         className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                        title="Remove condition"
+                        title={t('flow_remove_condition')}
                       >
                         <Trash2 size={13} />
                       </button>
@@ -517,7 +521,7 @@ function BuilderModal({
                     onClick={() => addCondition(gi)}
                     className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
                   >
-                    <Plus size={13} /> Add condition
+                    <Plus size={13} /> {t('flow_add_condition')}
                   </button>
                 </div>
               </div>
@@ -526,13 +530,13 @@ function BuilderModal({
               onClick={addGroup}
               className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
             >
-              <Plus size={13} /> Add {groups.length === 0 ? 'condition' : 'OR group'}
+              <Plus size={13} /> {groups.length === 0 ? t('flow_add_condition') : t('flow_add_or_group')}
             </button>
           </div>
 
           {/* Then */}
           <div className="space-y-3">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">Then</p>
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">{t('flow_then_label')}</p>
             {actions.map((a, i) => {
               const actionMeta = meta.actions.find(m => m.key === a.type)
               return (
@@ -548,7 +552,7 @@ function BuilderModal({
                     <button
                       onClick={() => setActions(as => as.filter((_, idx) => idx !== i))}
                       className="ml-auto p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg"
-                      title="Remove action"
+                      title={t('flow_delete_action')}
                     >
                       <Trash2 size={13} />
                     </button>
@@ -576,10 +580,10 @@ function BuilderModal({
               onClick={() => setActions(as => [...as, { type: meta.actions[0]?.key ?? 'notify_user', config: {} }])}
               className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:text-blue-700"
             >
-              <Plus size={13} /> Add action
+              <Plus size={13} /> {t('flow_add_action')}
             </button>
             <p className="text-xs text-slate-400">
-              Tip: use {'{subject}'}, {'{full_name}'} or {'{stage_name}'} in texts to insert event details.
+              {t('flow_tip_placeholders')}
             </p>
           </div>
 
@@ -589,20 +593,20 @@ function BuilderModal({
         <div className="flex items-center gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
           <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
             <input type="checkbox" checked={enabled} onChange={e => setEnabled(e.target.checked)} className="accent-blue-600" />
-            Enabled
+            {t('flow_enabled_label')}
           </label>
           <button
             onClick={onClose}
             className="ml-auto px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg"
           >
-            Cancel
+            {t('flow_cancel')}
           </button>
           <button
             onClick={handleSave}
             disabled={saveMut.isPending}
             className="px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-lg hover:opacity-90 disabled:opacity-50"
           >
-            {flow ? 'Save flow' : 'Create flow'}
+            {flow ? t('flow_save_flow') : t('flow_create_flow')}
           </button>
         </div>
       </div>
@@ -613,6 +617,7 @@ function BuilderModal({
 /* -------------------------------------------------------------- run drawer */
 
 function RunsDrawer({ flowId }: { flowId: string }) {
+  const t = useT()
   const [statusFilter, setStatusFilter] = useState<string>('')
   const { data: runs = [], isLoading } = useQuery<FlowRun[]>({
     queryKey: ['flow-runs', flowId, statusFilter],
@@ -623,7 +628,7 @@ function RunsDrawer({ flowId }: { flowId: string }) {
   return (
     <div className="border-t border-slate-100 bg-slate-50/50">
       <div className="flex items-center gap-1.5 px-6 py-2 flex-wrap">
-        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mr-1">Filter</span>
+        <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide mr-1">{t('flow_filter_label')}</span>
         {['', ...RUN_STATUS_FILTERS].map(s => (
           <button
             key={s || 'all'}
@@ -634,14 +639,14 @@ function RunsDrawer({ flowId }: { flowId: string }) {
                 : 'bg-white text-slate-500 border border-slate-200 hover:bg-slate-100'
             }`}
           >
-            {s || 'all'}
+            {s || t('filter_all')}
           </button>
         ))}
       </div>
-      {isLoading && <p className="px-6 pb-4 text-xs text-slate-400">Loading runs…</p>}
+      {isLoading && <p className="px-6 pb-4 text-xs text-slate-400">{t('flow_loading_runs')}</p>}
       {!isLoading && runs.length === 0 && (
         <p className="px-6 pb-4 text-xs text-slate-400">
-          {statusFilter ? `No ${statusFilter} runs.` : "No runs yet — the flow hasn't been triggered."}
+          {statusFilter ? t('flow_no_runs_filtered').replace('{status}', statusFilter) : t('flow_no_runs_yet')}
         </p>
       )}
       <div className="divide-y divide-slate-50">
@@ -651,14 +656,14 @@ function RunsDrawer({ flowId }: { flowId: string }) {
             {run.status}
           </span>
           <div className="flex-1 min-w-0 space-y-0.5">
-            {run.results.length === 0 && <p className="text-slate-400">Conditions did not match</p>}
+            {run.results.length === 0 && <p className="text-slate-400">{t('flow_conditions_no_match')}</p>}
             {run.results.map((r, i) => (
               <p
                 key={i}
                 className={r.pending_retry ? 'text-amber-600' : r.ok ? 'text-slate-600' : 'text-slate-400'}
               >
                 {r.summary}
-                {typeof r.attempts === 'number' && r.attempts > 1 ? ` (attempt ${r.attempts})` : ''}
+                {typeof r.attempts === 'number' && r.attempts > 1 ? ` (${t('flow_attempt')} ${r.attempts})` : ''}
               </p>
             ))}
             {run.error && <p className="text-red-500 truncate">{run.error}</p>}
@@ -676,6 +681,7 @@ function RunsDrawer({ flowId }: { flowId: string }) {
 function TestFireModal({
   meta, flow, onClose,
 }: { meta: FlowsMeta; flow: Flow; onClose: () => void }) {
+  const t = useT()
   const { data, isLoading, isError } = useQuery<TestFireResult>({
     queryKey: ['flow-test', flow.id],
     queryFn: () => api.post(`/flows/${flow.id}/test`).then((r: any) => r.data),
@@ -685,24 +691,24 @@ function TestFireModal({
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg" onClick={e => e.stopPropagation()}>
         <div className="flex items-center gap-2 px-6 py-4 border-b border-slate-100">
           <FlaskConical size={16} className="text-slate-400" />
-          <h2 className="text-base font-semibold text-slate-900">Test fire — {flow.name}</h2>
+          <h2 className="text-base font-semibold text-slate-900">{t('flow_test_fire_title')} — {flow.name}</h2>
           <CloseButton onClick={onClose} className="ml-auto" />
         </div>
         <div className="px-6 py-5 space-y-4">
           <p className="text-xs text-slate-500">
-            A dry run against a synthesized sample event. Nothing is created, sent or changed.
+            {t('flow_test_fire_desc')}
           </p>
-          {isLoading && <p className="text-sm text-slate-400">Running…</p>}
-          {isError && <p className="text-sm text-red-500">Could not run the test.</p>}
+          {isLoading && <p className="text-sm text-slate-400">{t('flow_running')}</p>}
+          {isError && <p className="text-sm text-red-500">{t('flow_test_run_err')}</p>}
           {data && (
             <>
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Sample {triggerLabel(meta, data.trigger_type).toLowerCase()}
+                  {t('flow_sample_label')} {triggerLabel(meta, data.trigger_type).toLowerCase()}
                 </p>
                 <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 text-xs space-y-0.5">
                   {Object.keys(data.sample_event).length === 0 && (
-                    <p className="text-slate-400">No fields for this trigger.</p>
+                    <p className="text-slate-400">{t('flow_no_fields_trigger')}</p>
                   )}
                   {Object.entries(data.sample_event).map(([k, v]) => (
                     <p key={k} className="text-slate-600">
@@ -713,14 +719,14 @@ function TestFireModal({
               </div>
               <div className={`flex items-center gap-2 text-sm font-semibold ${data.matched ? 'text-emerald-600' : 'text-amber-600'}`}>
                 {data.matched
-                  ? <><Check size={15} /> Conditions match — the flow would run</>
-                  : <><X size={15} /> Conditions don’t match this sample — the flow would be skipped</>}
+                  ? <><Check size={15} /> {t('flow_conditions_match')}</>
+                  : <><X size={15} /> {t('flow_conditions_no_match2')}</>}
               </div>
               <div>
                 <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-1.5">
-                  Then {data.matched ? 'these actions run' : '(nothing runs)'}
+                  {t('flow_then_label')} {data.matched ? t('flow_then_actions_run') : t('flow_then_nothing_runs')}
                 </p>
-                {data.actions.length === 0 && <p className="text-xs text-slate-400">No actions configured.</p>}
+                {data.actions.length === 0 && <p className="text-xs text-slate-400">{t('flow_no_actions_configured')}</p>}
                 <div className="space-y-1.5">
                   {data.actions.map((a, i) => (
                     <div key={i} className="flex items-start gap-2 text-sm">
@@ -729,7 +735,7 @@ function TestFireModal({
                       </span>
                       <div className="min-w-0">
                         <p className={a.would_run ? 'text-slate-700' : 'text-slate-400'}>{a.detail}</p>
-                        {a.reason && <p className="text-xs text-slate-400">Skipped: {a.reason}</p>}
+                        {a.reason && <p className="text-xs text-slate-400">{t('flow_skipped')} {a.reason}</p>}
                       </div>
                     </div>
                   ))}
@@ -740,7 +746,7 @@ function TestFireModal({
         </div>
         <div className="flex px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl">
           <button onClick={onClose} className="ml-auto px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 rounded-lg">
-            Close
+            {t('flow_close')}
           </button>
         </div>
       </div>
@@ -753,14 +759,15 @@ function TestFireModal({
 // Read-only grid of the always-on automations Yippie runs for the tenant. Shown
 // to admins AND members — it's informational, nothing here is editable.
 function PlatformAutomations({ builtins }: { builtins: Builtin[] }) {
+  const t = useT()
   if (!builtins || builtins.length === 0) return null
   return (
     <div className="mt-8">
       <div className="flex items-center gap-2 mb-1">
         <ShieldCheck size={15} className="text-slate-400" />
-        <h2 className="text-base font-semibold text-slate-900">Platform automations</h2>
+        <h2 className="text-base font-semibold text-slate-900">{t('flow_platform_automations')}</h2>
       </div>
-      <p className="text-sm text-slate-500 mb-3">What Yippie already does for you automatically.</p>
+      <p className="text-sm text-slate-500 mb-3">{t('flow_platform_desc')}</p>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {builtins.map(b => (
           <div key={b.key} className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col">
@@ -776,7 +783,7 @@ function PlatformAutomations({ builtins }: { builtins: Builtin[] }) {
                 to={b.settings_path}
                 className="mt-3 self-start inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
               >
-                <Settings2 size={12} /> Configure
+                <Settings2 size={12} /> {t('flow_configure')}
               </Link>
             )}
           </div>
@@ -789,6 +796,7 @@ function PlatformAutomations({ builtins }: { builtins: Builtin[] }) {
 /* -------------------------------------------------------------------- page */
 
 export default function FlowsPage() {
+  const t = useT()
   const qc = useQueryClient()
   const navigate = useNavigate()
   const { user } = useAuth()
@@ -847,7 +855,7 @@ export default function FlowsPage() {
     mutationFn: (id: string) => api.post(`/flows/${id}/duplicate`).then((r: any) => r.data),
     onSuccess: (flow: Flow) => {
       invalidate()
-      toast.success('Flow duplicated — review and enable the copy')
+      toast.success(t('flow_duplicated_msg'))
       // [FLOW4] a branched copy is edited on the canvas, not the modal
       if (isGraph(flow.actions)) {
         navigate(`/flows/${flow.id}`)
@@ -864,7 +872,7 @@ export default function FlowsPage() {
       invalidate()
       setEditingFlow(flow)
       setBuilderOpen(true)
-      toast.success('Recipe installed — finish setting it up, then enable it')
+      toast.success(t('flow_recipe_installed'))
     },
   })
   const newCanvasMut = useMutation({
@@ -893,13 +901,13 @@ export default function FlowsPage() {
 
   function rowMenuItems(flow: Flow) {
     return [
-      { label: 'Open canvas', icon: <Workflow size={13} />, onClick: () => navigate(`/flows/${flow.id}`) },
+      { label: t('flow_open_canvas'), icon: <Workflow size={13} />, onClick: () => navigate(`/flows/${flow.id}`) },
       ...(isAdmin ? [
-        { label: 'Test fire (dry run)', icon: <FlaskConical size={13} />, onClick: () => setTestingFlow(flow) },
-        ...(!flow.is_default ? [{ label: 'Edit', icon: <Pencil size={13} />, onClick: () => openEdit(flow) }] : []),
-        { label: 'Duplicate', icon: <Copy size={13} />, onClick: () => duplicateMut.mutate(flow.id) },
+        { label: t('flow_test_fire'), icon: <FlaskConical size={13} />, onClick: () => setTestingFlow(flow) },
+        ...(!flow.is_default ? [{ label: t('flow_edit'), icon: <Pencil size={13} />, onClick: () => openEdit(flow) }] : []),
+        { label: t('flow_duplicate'), icon: <Copy size={13} />, onClick: () => duplicateMut.mutate(flow.id) },
         { separator: true as const },
-        { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`Delete "${flow.name}"?`)) deleteMut.mutate(flow.id) } },
+        { label: t('flow_delete'), icon: <Trash2 size={13} />, danger: true, onClick: () => { if (confirm(`${t('flow_delete')} "${flow.name}"?`)) deleteMut.mutate(flow.id) } },
       ] : []),
     ]
   }
@@ -912,8 +920,8 @@ export default function FlowsPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex items-center gap-3 mb-6">
         <div>
-          <h1 className="heading-xl text-slate-900">Flows</h1>
-          <p className="text-sm text-slate-500">Automations that connect your modules: when something happens, Yippie acts.</p>
+          <h1 className="heading-xl text-slate-900">{t('flow_flows')}</h1>
+          <p className="text-sm text-slate-500">{t('flow_page_desc')}</p>
         </div>
         {isAdmin && (
           <div className="ml-auto flex items-center gap-2">
@@ -922,13 +930,13 @@ export default function FlowsPage() {
               disabled={!meta || newCanvasMut.isPending}
               className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-700 text-sm font-semibold rounded-lg hover:bg-slate-50 disabled:opacity-50"
             >
-              <Workflow size={14} /> New on canvas
+              <Workflow size={14} /> {t('flow_new_on_canvas')}
             </button>
             <button
               onClick={openNew}
               className="flex items-center gap-1.5 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-lg hover:opacity-90"
             >
-              <Plus size={14} /> New flow
+              <Plus size={14} /> {t('flow_new_flow')}
             </button>
           </div>
         )}
@@ -938,7 +946,7 @@ export default function FlowsPage() {
       {isAdmin && recipes.length > 0 && (
         <div className="mb-8" data-recipes-section>
           <p className="text-xs font-bold text-slate-500 uppercase tracking-wide mb-2 flex items-center gap-1.5">
-            <Sparkles size={12} /> Ready-made recipes
+            <Sparkles size={12} /> {t('flow_ready_made_recipes')}
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {recipes.map(r => (
@@ -950,7 +958,7 @@ export default function FlowsPage() {
                   disabled={installMut.isPending}
                   className="mt-3 self-start text-xs font-semibold text-blue-600 hover:text-blue-700 disabled:opacity-50"
                 >
-                  Install recipe
+                  {t('flow_install_recipe')}
                 </button>
               </div>
             ))}
@@ -962,26 +970,26 @@ export default function FlowsPage() {
       <div className="bg-white border border-slate-200 rounded-xl shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 px-6 py-5 border-b border-slate-100">
           <Zap size={16} className="text-slate-400" />
-          <h2 className="text-base font-semibold text-slate-900">Your flows</h2>
+          <h2 className="text-base font-semibold text-slate-900">{t('flow_your_flows')}</h2>
           <span className="ml-auto text-xs text-slate-400">
             {flowLimit != null
-              ? `${activeCount} of ${flowLimit} active`
-              : `${flows.length} flow${flows.length !== 1 ? 's' : ''}`}
+              ? `${activeCount} ${t('flow_active_of')} ${flowLimit} ${t('flow_active')}`
+              : `${flows.length} ${flows.length !== 1 ? t('flow_flows_plural') : t('flow_flow')}`}
           </span>
         </div>
         {atCap && isAdmin && (
           <p className="px-6 py-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-100">
-            You've reached your plan's limit of {flowLimit} active flows — disable one, or{' '}
-            <Link to="/settings/subscription" className="font-semibold underline">upgrade your plan</Link> to enable more.
-            Drafts and the built in default flows don't count.
+            {t('flow_at_cap').replace('{limit}', String(flowLimit))}{' '}
+            <Link to="/settings/subscription" className="font-semibold underline">{t('flow_at_cap_upgrade')}</Link>{' '}
+            {t('flow_at_cap_suffix')}
           </p>
         )}
 
-        {isLoading && <p className="px-6 py-8 text-sm text-slate-400 text-center">Loading…</p>}
+        {isLoading && <p className="px-6 py-8 text-sm text-slate-400 text-center">{t('flow_loading')}</p>}
         {!isLoading && flows.length === 0 && (
           <div className="px-6 py-8 text-center">
             <p className="text-sm text-slate-400 mb-4">
-              {isAdmin ? 'No flows yet.' : 'Ask an admin to set one up.'}
+              {isAdmin ? t('flow_no_flows_admin') : t('flow_no_flows_member')}
             </p>
             {isAdmin && (
               <div className="flex items-center justify-center gap-2">
@@ -990,14 +998,14 @@ export default function FlowsPage() {
                     onClick={() => document.querySelector<HTMLElement>('[data-recipes-section]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })}
                     className="flex items-center gap-1.5 px-4 py-2 border border-slate-200 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-50 transition-colors"
                   >
-                    <Sparkles size={14} /> Browse recipes
+                    <Sparkles size={14} /> {t('flow_browse_recipes')}
                   </button>
                 )}
                 <button
                   onClick={openNew}
                   className="flex items-center gap-1.5 px-4 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 transition-opacity"
                 >
-                  <Plus size={14} /> New flow
+                  <Plus size={14} /> {t('flow_new_flow')}
                 </button>
               </div>
             )}
@@ -1011,7 +1019,7 @@ export default function FlowsPage() {
                 <button
                   onClick={() => setExpandedId(expandedId === flow.id ? null : flow.id)}
                   className="p-1 text-slate-400 hover:text-slate-600 shrink-0"
-                  title="Show recent runs"
+                  title={t('flow_show_recent_runs')}
                 >
                   {expandedId === flow.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 </button>
@@ -1021,23 +1029,23 @@ export default function FlowsPage() {
                     {flow.is_default && (
                       <span
                         className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-wide text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full"
-                        title="Included with Yippie — view it on the canvas, duplicate it to customise. Doesn't count toward your plan's flow limit."
+                        title={t('flow_default_title')}
                       >
-                        Default
+                        {t('flow_default_badge')}
                       </span>
                     )}
                   </p>
                   <p className="text-xs text-slate-400 truncate">{flowSummary(meta, flow)}</p>
                 </div>
-                <div className="flex items-center gap-2 shrink-0 text-xs" title={`${flow.run_count} total run${flow.run_count !== 1 ? 's' : ''}`}>
+                <div className="flex items-center gap-2 shrink-0 text-xs" title={`${flow.run_count} total ${flow.run_count !== 1 ? t('flow_runs') : t('flow_run')}`}>
                   {flow.success_count > 0 && (
-                    <span className="text-emerald-600 font-semibold">{flow.success_count} ✓</span>
+                    <span className="text-emerald-600 font-semibold">{flow.success_count}</span>
                   )}
                   {flow.fail_count > 0 && (
-                    <span className="text-red-500 font-semibold">{flow.fail_count} ✗</span>
+                    <span className="text-red-500 font-semibold">{flow.fail_count}</span>
                   )}
                   {flow.success_count === 0 && flow.fail_count === 0 && (
-                    <span className="text-slate-400">{flow.run_count} run{flow.run_count !== 1 ? 's' : ''}</span>
+                    <span className="text-slate-400">{flow.run_count} {flow.run_count !== 1 ? t('flow_runs') : t('flow_run')}</span>
                   )}
                 </div>
                 {/* Row controls kept minimal: enable/disable + everything else behind the 3-dot menu */}
@@ -1045,7 +1053,7 @@ export default function FlowsPage() {
                   <button
                     onClick={() => toggleMut.mutate({ id: flow.id, enabled: !flow.enabled })}
                     className={`shrink-0 w-9 h-5 rounded-full transition-colors relative ${flow.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
-                    title={flow.enabled ? 'Disable' : 'Enable'}
+                    title={flow.enabled ? t('flow_disable') : t('flow_enable')}
                   >
                     <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full transition-all ${flow.enabled ? 'left-[18px]' : 'left-0.5'}`} />
                   </button>
@@ -1053,7 +1061,7 @@ export default function FlowsPage() {
                 <button
                   onClick={e => ctx.open(e, rowMenuItems(flow))}
                   className="shrink-0 p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-                  title="More options"
+                  title={t('flow_more_options')}
                 >
                   <MoreVertical size={14} />
                 </button>

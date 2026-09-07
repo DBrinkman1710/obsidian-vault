@@ -145,7 +145,7 @@ export default function TicketDetail() {
     },
     onError: (_err: any, _status: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
-      toast.error('Failed to update status.')
+      toast.error(tl('ticket_err_update_status'))
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['ticket', id] })
@@ -178,7 +178,7 @@ export default function TicketDetail() {
     },
     onError: (_err: any, _priority: any, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
-      toast.error('Failed to update priority.')
+      toast.error(tl('ticket_err_update_priority'))
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
   })
@@ -194,7 +194,7 @@ export default function TicketDetail() {
     },
     onError: (_err: any, _vars: void, ctx: any) => {
       if (ctx?.prev) qc.setQueryData(['ticket', id], ctx.prev)
-      toast.error('Failed to snooze ticket.')
+      toast.error(tl('ticket_err_snooze'))
     },
     onSettled: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
   })
@@ -210,7 +210,7 @@ export default function TicketDetail() {
     },
     onError: (_err: any, _vars: void, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(['ticket-comments', id], ctx.prev)
-      toast.error('Failed to save note.')
+      toast.error(tl('ticket_err_save_note'))
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ticket-comments', id] })
@@ -228,7 +228,7 @@ export default function TicketDetail() {
       return api.post(`/tickets/${id}/send-reply`, fd, { headers: { 'Content-Type': undefined } }).then((r: any) => r.data)
     },
     onSuccess: (data: any) => {
-      toast.success(`Email sent to ${data?.to ?? replyContact?.email}`)
+      toast.success(tl('ticket_success_sent_to').replace('{email}', data?.to ?? replyContact?.email ?? ''))
       qc.invalidateQueries({ queryKey: ['ticket-comments', id] })
       setReplyBody('')
       setReplyFiles([])
@@ -238,7 +238,7 @@ export default function TicketDetail() {
     },
     onError: (err: any) => {
       const detail = err?.response?.data?.detail
-      setReplySendError(typeof detail === 'string' ? detail : 'Failed to send. Check your email settings.')
+      setReplySendError(typeof detail === 'string' ? detail : tl('ticket_err_send_email'))
     },
   })
 
@@ -250,14 +250,14 @@ export default function TicketDetail() {
     },
     onError: (err: any) => {
       const detail = err.response?.data?.detail
-      setDeleteError(typeof detail === 'string' ? detail : 'Failed to delete ticket')
+      setDeleteError(typeof detail === 'string' ? detail : tl('ticket_err_delete'))
     },
   })
 
   const assignDeptMutation = useMutation({
     mutationFn: (department_id: string) => api.patch(`/tickets/${id}`, { department_id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', id] }),
-    onError: () => toast.error('Failed to assign department.'),
+    onError: () => toast.error(tl('ticket_err_assign_dept')),
   })
 
   const pipelineStageMutation = useMutation({
@@ -265,7 +265,7 @@ export default function TicketDetail() {
       ticket?.contact_id
         ? api.put(`/pipeline/contacts/${ticket.contact_id}/stage`, { stage_id })
         : Promise.reject('No contact'),
-    onError: () => toast.error('Failed to update pipeline stage.'),
+    onError: () => toast.error(tl('ticket_err_update_stage')),
   })
 
   function handleReplyFocus() {
@@ -292,7 +292,9 @@ export default function TicketDetail() {
     }
   }
 
-  if (!ticket) return <p className="text-sm text-slate-400">Loading…</p>
+  const t = tl
+
+  if (!ticket) return <p className="text-sm text-slate-400">{tl('ticket_loading')}</p>
 
   return (
     <div className="flex gap-8 items-start">
@@ -301,22 +303,22 @@ export default function TicketDetail() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-              <h2 className="text-lg font-bold text-red-600">Delete ticket</h2>
+              <h2 className="text-lg font-bold text-red-600">{t('ticket_delete_title')}</h2>
               <CloseButton onClick={() => setConfirmingDelete(false)} />
             </div>
             <div className="p-6 flex flex-col gap-4">
               <p className="text-sm text-slate-600">
-                Delete <strong>{ticket.subject}</strong>? It disappears from all views; its history is kept.
+                {t('ticket_delete_action')} <strong>{ticket.subject}</strong>? {t('ticket_delete_confirm')}
               </p>
               {deleteError && <p className="error-text">{deleteError}</p>}
               <div className="flex gap-3 justify-end">
-                <button onClick={() => setConfirmingDelete(false)} className="btn-secondary px-4 py-2">Cancel</button>
+                <button onClick={() => setConfirmingDelete(false)} className="btn-secondary px-4 py-2">{t('cancel')}</button>
                 <button
                   onClick={() => deleteMutation.mutate()}
                   disabled={deleteMutation.isPending}
                   className="btn-danger px-4 py-2"
                 >
-                  {deleteMutation.isPending ? 'Deleting…' : 'Delete ticket'}
+                  {deleteMutation.isPending ? t('ticket_deleting') : t('ticket_delete_btn')}
                 </button>
               </div>
             </div>
@@ -333,7 +335,7 @@ export default function TicketDetail() {
           <div className={`mb-4 px-4 py-2.5 rounded-xl text-sm font-semibold flex items-center justify-between gap-3 ${overdue ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-orange-50 text-orange-700 border border-orange-200'}`}>
             <span className="flex items-center gap-2 min-w-0">
               <AlertTriangle size={14} className="shrink-0" />
-              {overdue ? `SLA overdue (was due ${due.toLocaleString()})` : `SLA due in ${Math.ceil(hoursLeft)}h (${due.toLocaleString()})`}
+              {overdue ? t('ticket_sla_overdue').replace('{due}', due.toLocaleString()) : t('ticket_sla_due_in').replace('{hours}', String(Math.ceil(hoursLeft))).replace('{due}', due.toLocaleString())}
             </span>
             <MutationGate>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -342,7 +344,7 @@ export default function TicketDetail() {
                   disabled={snoozeMutation.isPending}
                   className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 ${overdue ? 'border-red-300 text-red-700 hover:bg-red-100' : 'border-orange-300 text-orange-700 hover:bg-orange-100'}`}
                 >
-                  Snooze 24h
+                  {t('ticket_snooze_24h')}
                 </button>
                 {ticket.priority !== 'urgent' && (
                   <button
@@ -350,7 +352,7 @@ export default function TicketDetail() {
                     disabled={priorityMutation.isPending}
                     className={`px-2.5 py-1 text-xs font-semibold rounded-lg border transition-colors disabled:opacity-50 ${overdue ? 'border-red-300 text-red-700 hover:bg-red-100' : 'border-orange-300 text-orange-700 hover:bg-orange-100'}`}
                   >
-                    Escalate
+                    {t('ticket_escalate')}
                   </button>
                 )}
               </div>
@@ -377,14 +379,14 @@ export default function TicketDetail() {
               <button
                 onClick={() => thankYouMutation.mutate({ status: ticket.status, thank_you: !ticket.thank_you })}
                 disabled={thankYouMutation.isPending}
-                title="Mark this close as a pure thank you — excluded from first time right"
+                title={t('ticket_thank_you_title')}
                 className={`text-xs px-2 py-1 rounded-lg border font-semibold transition-colors disabled:opacity-50 ${
                   ticket.thank_you
                     ? 'bg-yippie-50 text-yippie-700 border-yippie-200'
                     : 'border-slate-200 text-slate-500 hover:bg-slate-50'
                 }`}
               >
-                Thank you
+                {t('ticket_thank_you')}
               </button>
             )}
             <select
@@ -403,7 +405,7 @@ export default function TicketDetail() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
               >
                 <CalendarClock size={12} />
-                Send booking link
+                {t('ticket_send_booking')}
               </button>
             )}
             <button
@@ -412,7 +414,7 @@ export default function TicketDetail() {
               style={{ color: YIPPIE_BLUE, borderColor: `${YIPPIE_BLUE}55` }}
             >
               <GitMerge size={12} />
-              Merge
+              {t('ticket_merge_btn')}
             </button>
             {canDelete && (
               <button
@@ -420,7 +422,7 @@ export default function TicketDetail() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
               >
                 <Trash2 size={12} />
-                Delete
+                {t('ticket_delete_action')}
               </button>
             )}
           </div>
@@ -444,7 +446,7 @@ export default function TicketDetail() {
       )}
 
       <div className="flex gap-3 mb-6 text-sm text-slate-600">
-        <span>Source: <strong className="text-slate-900">{ticket.source}</strong></span>
+        <span>{t('ticket_source_label')} <strong className="text-slate-900">{ticket.source}</strong></span>
       </div>
 
       {ticket.description && (
@@ -453,7 +455,7 @@ export default function TicketDetail() {
         </p>
       )}
 
-      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Comments</h3>
+      <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t('ticket_comments_heading')}</h3>
 
       <div className="flex flex-col gap-3 mb-6">
         {comments?.map((c: any) => (
@@ -461,7 +463,7 @@ export default function TicketDetail() {
             {c.is_internal && (
               <div className="flex items-center gap-1.5 mb-2">
                 <Lock size={11} className="text-amber-600" />
-                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">Internal note</p>
+                <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide">{t('ticket_internal_note_badge')}</p>
               </div>
             )}
             <p className="text-sm text-slate-900 whitespace-pre-wrap">{c.body}</p>
@@ -469,7 +471,7 @@ export default function TicketDetail() {
           </div>
         ))}
         {(!comments || comments.length === 0) && (
-          <p className="text-sm text-slate-400">No comments yet.</p>
+          <p className="text-sm text-slate-400">{t('ticket_no_comments')}</p>
         )}
       </div>
 
@@ -480,14 +482,14 @@ export default function TicketDetail() {
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg border border-b-0 transition-colors ${activeTab === 'reply' ? 'bg-white text-slate-900 border-slate-200' : 'bg-slate-50 text-slate-500 border-transparent hover:text-slate-700'}`}
           >
             <Mail size={11} />
-            Email customer
+            {t('ticket_tab_email')}
           </button>
           <button
             onClick={() => setActiveTab('internal')}
             className={`inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-t-lg border border-b-0 transition-colors ${activeTab === 'internal' ? 'bg-amber-50 text-amber-700 border-amber-200' : 'bg-slate-50 text-slate-500 border-transparent hover:text-slate-700'}`}
           >
             <Lock size={11} />
-            Internal Note
+            {t('ticket_tab_internal')}
           </button>
         </div>
 
@@ -497,7 +499,7 @@ export default function TicketDetail() {
               <div className="flex flex-col items-center gap-2 py-4 text-center">
                 <Mail size={20} className="text-slate-300" />
                 <p className="text-sm text-slate-400">
-                  {!ticket?.contact_id ? 'Link a contact to this ticket to send an email reply.' : 'The linked contact has no email address.'}
+                  {!ticket?.contact_id ? t('ticket_no_contact_reply') : t('ticket_no_email_reply')}
                 </p>
               </div>
             ) : (
@@ -513,7 +515,7 @@ export default function TicketDetail() {
                   type="text"
                   value={replySubject}
                   onChange={e => setReplySubject(e.target.value)}
-                  placeholder="Subject"
+                  placeholder={t('ticket_subject_ph')}
                   className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
                 />
                 {/* Toolbar */}
@@ -539,9 +541,9 @@ export default function TicketDetail() {
                     type="button"
                     onClick={() => replyFileInputRef.current?.click()}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors"
-                    title="Attach file"
+                    title={t('ticket_attach_title')}
                   >
-                    <Paperclip size={12} /> Attach
+                    <Paperclip size={12} /> {t('ticket_attach_btn')}
                   </button>
                   <input
                     ref={replyFileInputRef}
@@ -565,17 +567,17 @@ export default function TicketDetail() {
                             const r: any = await api.post(`/tickets/${id}/suggest-reply`)
                             setReplyBody(r.data.suggestion)
                             setImproveSuggestions([])
-                            toast.success('Reply generated.')
-                          } catch { toast.error('Failed to generate reply.') }
+                            toast.success(t('ticket_success_reply_generated'))
+                          } catch { toast.error(t('ticket_err_generate_reply')) }
                           finally { setGenerateLoading(false) }
                         }}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-violet-600 bg-violet-50 rounded-lg hover:bg-violet-100 transition-colors disabled:opacity-50"
-                        title="Generate AI reply"
+                        title={t('ticket_generate_ai_title')}
                       >
                         {generateLoading
                           ? <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
                           : <Sparkles size={12} />}
-                        Generate
+                        {t('ticket_generate_btn')}
                       </button>
                       <button
                         type="button"
@@ -585,16 +587,16 @@ export default function TicketDetail() {
                           try {
                             const r: any = await api.post(`/tickets/${id}/improve-reply`, { current_text: replyBody.trim() })
                             setImproveSuggestions(r.data.suggestions ?? [])
-                          } catch { toast.error('Failed to get suggestions.') }
+                          } catch { toast.error(t('ticket_err_suggestions')) }
                           finally { setImproveLoading(false) }
                         }}
                         className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold text-slate-500 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors disabled:opacity-50"
-                        title="Improve reply with AI"
+                        title={t('ticket_improve_ai_title')}
                       >
                         {improveLoading
                           ? <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
                           : <Sparkles size={12} />}
-                        Improve
+                        {t('ticket_improve_btn')}
                       </button>
                     </>
                   )}
@@ -606,7 +608,7 @@ export default function TicketDetail() {
                       <Sparkles size={13} className="text-violet-500 mt-0.5 shrink-0" />
                       <div className="flex-1 min-w-0">
                         {replyBriefingLoading
-                          ? <p className="text-xs text-violet-500 animate-pulse">Loading briefing…</p>
+                          ? <p className="text-xs text-violet-500 animate-pulse">{t('ticket_briefing_loading')}</p>
                           : <p className="text-xs text-violet-800">{replyBriefing?.summary}</p>
                         }
                       </div>
@@ -640,14 +642,14 @@ export default function TicketDetail() {
                   value={replyBody}
                   onChange={e => setReplyBody(e.target.value)}
                   onFocus={handleReplyFocus}
-                  placeholder="Write your reply…"
+                  placeholder={t('ticket_reply_placeholder')}
                   rows={6}
                   className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
                 />
                 {/* Improve suggestions */}
                 {improveSuggestions.length > 0 && (
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col gap-2">
-                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">AI suggestions: click to apply</p>
+                    <p className="text-[10px] font-semibold text-slate-500 uppercase tracking-wide">{t('ticket_ai_suggestions_label')}</p>
                     <div className="flex flex-col gap-1.5">
                       {improveSuggestions.map((s, i) => (
                         <button
@@ -684,7 +686,7 @@ export default function TicketDetail() {
                 <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                   <span className="inline-flex items-center gap-1.5 text-xs text-slate-400">
                     <Mail size={11} />
-                    Sent to {replyContact.email}
+                    {t('ticket_sent_to').replace('{email}', replyContact.email)}
                   </span>
                   <button
                     onClick={() => replyMutation.mutate()}
@@ -692,7 +694,7 @@ export default function TicketDetail() {
                     className="btn-primary px-4 py-2"
                   >
                     <Send size={13} />
-                    Send email
+                    {t('ticket_send_email_btn')}
                     {replyMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
                   </button>
                 </div>
@@ -704,7 +706,7 @@ export default function TicketDetail() {
             <textarea
               value={comment}
               onChange={e => setComment(e.target.value)}
-              placeholder="Write an internal note…"
+              placeholder={t('ticket_internal_placeholder')}
               rows={4}
               className="w-full text-sm text-slate-900 resize-none focus:outline-none placeholder-slate-400 rounded-lg p-2 bg-amber-50"
             />
@@ -712,7 +714,7 @@ export default function TicketDetail() {
               <div className="flex items-center justify-between mt-3 pt-3 border-t border-slate-100">
                 <span className="inline-flex items-center gap-1.5 text-xs text-amber-500">
                   <Lock size={11} />
-                  Only visible to your team
+                  {t('ticket_internal_only')}
                 </span>
                 <button
                   onClick={() => commentMutation.mutate()}
@@ -720,7 +722,7 @@ export default function TicketDetail() {
                   className="btn-primary px-4 py-2"
                 >
                   <Send size={13} />
-                  Save note
+                  {t('ticket_save_note_btn')}
                   {commentMutation.isPending && <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-1" />}
                 </button>
               </div>
@@ -745,6 +747,7 @@ function MergeModal({
 }) {
   const qc = useQueryClient()
   const tl = useT()
+  const t = tl
   const STATUS_LABELS: Record<string, string> = {
     open:        tl('status_open'),
     in_progress: tl('status_in_progress'),
@@ -784,13 +787,13 @@ function MergeModal({
       qc.invalidateQueries({ queryKey: ['ticket-comments', primaryId] })
       qc.invalidateQueries({ queryKey: ['tickets'] })
       qc.invalidateQueries({ queryKey: ['contact-tickets', contactId] })
-      toast.success('Tickets merged.')
+      toast.success(t('ticket_success_merged'))
       onClose()
     },
     onError: (err: unknown) => {
       const detail =
         (err as { response?: { data?: { detail?: unknown } } }).response?.data?.detail
-      toast.error(typeof detail === 'string' ? detail : 'Failed to merge tickets.')
+      toast.error(typeof detail === 'string' ? detail : t('ticket_err_merge'))
     },
   })
 
@@ -798,27 +801,26 @@ function MergeModal({
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Merge ticket</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('ticket_merge_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
 
         <div className="p-6 flex flex-col gap-4">
           {!contactId ? (
             <p className="text-sm text-slate-500">
-              This ticket has no contact, so there is nothing to merge it with.
+              {t('ticket_merge_no_contact')}
             </p>
           ) : selected ? (
             <>
               <p className="text-sm text-slate-600">
-                Merge ticket <strong>{selected.subject}</strong> into this ticket? All
-                messages, notes and activity will be moved. That ticket will be closed.
+                {t('ticket_merge_confirm').replace('{subject}', selected.subject)}
               </p>
               <div className="flex gap-3 justify-end">
                 <button
                   onClick={() => setSelected(null)}
                   className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
                 >
-                  Back
+                  {t('ticket_merge_back_btn')}
                 </button>
                 <button
                   onClick={() => mergeMutation.mutate(selected.id)}
@@ -826,7 +828,7 @@ function MergeModal({
                   className="text-white px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                   style={{ backgroundColor: YIPPIE_BLUE }}
                 >
-                  {mergeMutation.isPending ? 'Merging…' : 'Merge'}
+                  {mergeMutation.isPending ? t('ticket_merging') : t('ticket_merge_action')}
                 </button>
               </div>
             </>
@@ -836,16 +838,16 @@ function MergeModal({
                 autoFocus
                 value={search}
                 onChange={e => setSearch(e.target.value)}
-                placeholder="Search by ticket ID or subject…"
+                placeholder={t('ticket_merge_search_ph')}
                 className="w-full text-sm text-slate-900 border border-slate-300 rounded-lg px-3 py-2 focus:outline-none focus:ring-2"
                 style={{ '--tw-ring-color': YIPPIE_BLUE } as CSSProperties}
               />
               <div className="flex flex-col gap-1.5 max-h-72 overflow-y-auto">
                 {isLoading ? (
-                  <p className="text-sm text-slate-400 py-4 text-center">Loading…</p>
+                  <p className="text-sm text-slate-400 py-4 text-center">{t('ticket_merge_loading')}</p>
                 ) : filtered.length === 0 ? (
                   <p className="text-sm text-slate-400 py-4 text-center">
-                    No other tickets for this contact.
+                    {t('ticket_merge_no_others')}
                   </p>
                 ) : (
                   filtered.map(t => (
@@ -877,14 +879,15 @@ function initials(name?: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
-function draftSubject(d: any): string {
-  return d.final_subject ?? d.ai_suggested_subject ?? d.inbound_subject ?? '(no subject)'
+function draftSubject(d: any, noSubjectLabel: string): string {
+  return d.final_subject ?? d.ai_suggested_subject ?? d.inbound_subject ?? noSubjectLabel
 }
 
 function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; onLinked: () => void; onClose: () => void }) {
   const [search, setSearch] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
   const qc = useQueryClient()
+  const t = useT()
 
   useEffect(() => { inputRef.current?.focus() }, [])
 
@@ -899,10 +902,10 @@ function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; o
     mutationFn: (contactId: string) => api.patch(`/tickets/${ticketId}`, { contact_id: contactId }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['ticket', ticketId] })
-      toast.success('Contact linked.')
+      toast.success(t('ticket_success_contact_linked'))
       onLinked()
     },
-    onError: () => toast.error('Failed to link contact.'),
+    onError: () => toast.error(t('ticket_err_link_contact')),
   })
 
   return (
@@ -912,14 +915,14 @@ function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; o
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h3 className="text-sm font-semibold text-slate-900">Link contact</h3>
+          <h3 className="text-sm font-semibold text-slate-900">{t('ticket_link_contact_title')}</h3>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-4">
           <input
             ref={inputRef}
             type="text"
-            placeholder="Search by name or email…"
+            placeholder={t('ticket_link_search_ph')}
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="w-full border border-slate-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
@@ -927,10 +930,10 @@ function LinkContactModal({ ticketId, onLinked, onClose }: { ticketId: string; o
         </div>
         <div className="max-h-64 overflow-y-auto divide-y divide-slate-100">
           {isFetching && (
-            <p className="text-xs text-slate-400 px-5 py-3">Searching…</p>
+            <p className="text-xs text-slate-400 px-5 py-3">{t('ticket_searching')}</p>
           )}
           {!isFetching && search.length >= 1 && (!results || results.length === 0) && (
-            <p className="text-xs text-slate-400 px-5 py-3">No contacts found.</p>
+            <p className="text-xs text-slate-400 px-5 py-3">{t('ticket_no_contacts_found')}</p>
           )}
           {(results ?? []).map((c: any) => (
             <button
@@ -977,6 +980,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
   const navigate = useNavigate()
   const qc = useQueryClient()
   const config = useTenantConfig()
+  const t = useT()
   const [openDraft, setOpenDraft] = useState<any | null>(null)
   const [linkOpen, setLinkOpen] = useState(false)
   const [contactPanelOpen, setContactPanelOpen] = useState(false)
@@ -1005,19 +1009,19 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
   const panelStatusMutation = useMutation({
     mutationFn: (st: string) => api.patch(`/tickets/${ticket.id}/status`, { status: st }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', ticket.id] }),
-    onError: () => toast.error('Failed to update status.'),
+    onError: () => toast.error(t('ticket_err_update_status')),
   })
   const panelDeptMutation = useMutation({
     mutationFn: (dept_id: string) => api.patch(`/tickets/${ticket.id}`, { department_id: dept_id }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ticket', ticket.id] }),
-    onError: () => toast.error('Failed to assign department.'),
+    onError: () => toast.error(t('ticket_err_assign_dept')),
   })
   const panelStageMutation = useMutation({
     mutationFn: (stage_id: string) =>
       ticket.contact_id
         ? api.put(`/pipeline/contacts/${ticket.contact_id}/stage`, { stage_id })
         : Promise.reject('No contact'),
-    onError: () => toast.error('Failed to update pipeline stage.'),
+    onError: () => toast.error(t('ticket_err_update_stage')),
   })
 
   function generateBriefing() {
@@ -1027,9 +1031,9 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       .then((r: any) => {
         setBriefingData(r.data)
         setBriefingReady(true)
-        toast.success('Customer briefing generated.')
+        toast.success(t('ticket_success_briefing'))
       })
-      .catch(() => toast.error('Failed to generate briefing.'))
+      .catch(() => toast.error(t('ticket_err_generate_briefing')))
       .finally(() => setBriefingLoading(false))
   }
 
@@ -1118,21 +1122,21 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
     <aside className="w-96 flex-shrink-0">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h2 className="heading-xl text-slate-900 mb-1">Contact</h2>
-          <p className="text-sm text-slate-500">Customer context &amp; history.</p>
+          <h2 className="heading-xl text-slate-900 mb-1">{t('ticket_contact_heading')}</h2>
+          <p className="text-sm text-slate-500">{t('ticket_contact_context_desc')}</p>
         </div>
       </div>
       {/* Contact card */}
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         {!contactId ? (
           <div className="px-4 py-6 flex flex-col items-center gap-3 text-center">
-            <p className="text-xs text-slate-400">No contact linked to this ticket.</p>
+            <p className="text-xs text-slate-400">{t('ticket_no_contact_linked')}</p>
             <button
               onClick={() => setLinkOpen(true)}
               className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 border border-blue-200 rounded-lg px-3 py-1.5 hover:bg-blue-100 transition-colors"
             >
               <UserPlus size={12} />
-              Link contact
+              {t('ticket_link_contact_btn')}
             </button>
           </div>
         ) : contactLoading ? (
@@ -1176,19 +1180,19 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                 </div>
               )}
               <div className="px-4 py-3 flex items-center justify-between">
-                <span className="text-xs text-slate-500">{ticketCount} ticket{ticketCount === 1 ? '' : 's'} total</span>
+                <span className="text-xs text-slate-500">{t('ticket_tickets_total').replace('{count}', String(ticketCount))}</span>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setLinkOpen(true)}
                     className="text-xs font-semibold text-slate-400 hover:text-slate-600"
                   >
-                    Change
+                    {t('ticket_change_contact')}
                   </button>
                   <button
                     onClick={() => setContactPanelOpen(true)}
                     className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
                   >
-                    View contact
+                    {t('ticket_view_contact')}
                     <ChevronRight size={11} />
                   </button>
                 </div>
@@ -1202,10 +1206,10 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       {contactId && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
           <div className="px-4 py-3 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recent correspondence</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('ticket_recent_correspondence')}</h3>
           </div>
           {recent.length === 0 ? (
-            <p className="text-xs text-slate-400 px-4 py-4">No correspondence yet.</p>
+            <p className="text-xs text-slate-400 px-4 py-4">{t('ticket_no_correspondence')}</p>
           ) : (
             <div className="divide-y divide-slate-100">
               {recent.map((d: any) => (
@@ -1214,7 +1218,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                   onClick={() => setOpenDraft(d)}
                   className="w-full text-left hover:bg-slate-50 px-4 py-3 flex items-center justify-between gap-3"
                 >
-                  <span className="text-xs text-slate-700 truncate">{draftSubject(d)}</span>
+                  <span className="text-xs text-slate-700 truncate">{draftSubject(d, t('ticket_no_subject'))}</span>
                   <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(d.created_at)}</span>
                 </button>
               ))}
@@ -1227,11 +1231,11 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       {aiEnabled && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
           <div className="px-4 py-3 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Context scan</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('ticket_context_scan')}</h3>
           </div>
           {!briefingReady ? (
             <div className="px-4 py-4 flex flex-col items-center gap-2 text-center">
-              <p className="text-xs text-slate-400">Generate a quick-scan briefing for this ticket.</p>
+              <p className="text-xs text-slate-400">{t('ticket_context_scan_desc')}</p>
               <button
                 onClick={generateBriefing}
                 disabled={briefingLoading}
@@ -1240,20 +1244,20 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                 {briefingLoading
                   ? <span className="inline-block w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
                   : <Sparkles size={11} />}
-                {briefingLoading ? 'Generating…' : 'Generate briefing'}
+                {briefingLoading ? t('ticket_generating') : t('ticket_generate_briefing')}
               </button>
             </div>
           ) : (
             <div className="divide-y divide-slate-100">
               {briefingData?.summary && (
                 <div className="px-4 py-3">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">AI summary</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">{t('ticket_ai_summary')}</p>
                   <p className="text-xs text-slate-700 leading-relaxed">{briefingData.summary}</p>
                 </div>
               )}
               {(briefingData?.suggested_actions ?? []).length > 0 && (
                 <div className="px-4 py-3">
-                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Suggested actions</p>
+                  <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">{t('ticket_suggested_actions')}</p>
                   <div className="flex flex-wrap gap-1.5">
                     {(briefingData?.suggested_actions ?? []).map((a: any) => {
                       const key = `${a.action}:${a.value}`
@@ -1276,7 +1280,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                 </div>
               )}
               <div className="px-4 py-3">
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">Invoice #</p>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1.5">{t('ticket_invoice_heading')}</p>
                 {invoiceMatches.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
                     {invoiceMatches.map(m => (
@@ -1284,12 +1288,12 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                     ))}
                   </div>
                 ) : (
-                  <p className="text-xs text-slate-400">None found</p>
+                  <p className="text-xs text-slate-400">{t('ticket_none_found')}</p>
                 )}
               </div>
               <div className="px-4 py-3">
-                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">Previous tickets</p>
-                <p className="text-xs text-slate-700 mb-1.5">{priorCount} prior ticket{priorCount === 1 ? '' : 's'}</p>
+                <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-1">{t('ticket_prev_tickets')}</p>
+                <p className="text-xs text-slate-700 mb-1.5">{t('ticket_tickets_total').replace('{count}', String(priorCount))}</p>
                 {priorSubjects.length > 0 && (
                   <div className="flex flex-col gap-1">
                     {priorSubjects.map((t: any) => (
@@ -1309,7 +1313,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       {contactId && (contactHistory ?? []).length > 0 && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
           <div className="px-4 py-3 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Recent contact</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('ticket_recent_contact')}</h3>
           </div>
           <div className="divide-y divide-slate-100">
             {(contactHistory ?? []).map((item: any) => {
@@ -1332,7 +1336,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5">
                         {item.subject && <p className="text-xs font-medium text-slate-700 truncate flex-1">{item.subject}</p>}
-                        {isInternal && <span className="text-[10px] font-semibold text-slate-400 bg-slate-200 rounded px-1 py-0.5 shrink-0">Internal</span>}
+                        {isInternal && <span className="text-[10px] font-semibold text-slate-400 bg-slate-200 rounded px-1 py-0.5 shrink-0">{t('ticket_internal_badge')}</span>}
                         <span className="text-[10px] text-slate-400 shrink-0">{timeAgo(item.created_at)}</span>
                       </div>
                       <p className={`text-[11px] text-slate-500 ${isExpanded ? 'whitespace-pre-wrap' : 'truncate'}`}>{item.preview}</p>
@@ -1344,7 +1348,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
                         onClick={e => { e.stopPropagation(); navigate(`/tickets/${item.ticket_id}`) }}
                         className="text-[10px] font-semibold text-blue-600 hover:text-blue-700"
                       >
-                        View ticket →
+                        {t('ticket_view_ticket')}
                       </button>
                     </div>
                   )}
@@ -1359,10 +1363,10 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       {contactId && shipmentsEnabled && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
           <div className="px-4 py-3 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Orders</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('ticket_orders_heading')}</h3>
           </div>
           {(shipmentsData?.items ?? []).length === 0 ? (
-            <p className="text-xs text-slate-400 px-4 py-4">No orders found.</p>
+            <p className="text-xs text-slate-400 px-4 py-4">{t('ticket_no_orders')}</p>
           ) : (
             <div className="divide-y divide-slate-100">
               {(shipmentsData?.items ?? []).map((s: any) => (
@@ -1387,10 +1391,10 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       {contactId && salesEnabled && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
           <div className="px-4 py-3 border-b border-slate-100">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Website activity</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('ticket_website_activity')}</h3>
           </div>
           {(commerceEvents ?? []).length === 0 ? (
-            <p className="text-xs text-slate-400 px-4 py-4">No browsing data yet.</p>
+            <p className="text-xs text-slate-400 px-4 py-4">{t('ticket_no_browsing')}</p>
           ) : (
             <div className="divide-y divide-slate-100">
               {(commerceEvents ?? []).map((ev: any) => (
@@ -1415,7 +1419,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
       {contactId && saasEnabled && (
         <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
           <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Product usage</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('ticket_product_usage')}</h3>
             {saasHealth && (
               <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                 saasHealth.color === 'green' ? 'bg-green-100 text-green-700' :
@@ -1427,12 +1431,12 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
             )}
           </div>
           {!saasHealth && (saasEvents ?? []).length === 0 ? (
-            <p className="text-xs text-slate-400 px-4 py-4">No product data yet.</p>
+            <p className="text-xs text-slate-400 px-4 py-4">{t('ticket_no_product_data')}</p>
           ) : (
             <div className="px-4 py-3 space-y-2">
               {saasHealth && (
                 <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <span className="flex-shrink-0">Health score</span>
+                  <span className="flex-shrink-0">{t('ticket_health_score')}</span>
                   <div className="flex-1 bg-slate-100 rounded-full h-1.5">
                     <div
                       className={`h-1.5 rounded-full ${saasHealth.color === 'green' ? 'bg-green-500' : saasHealth.color === 'amber' ? 'bg-amber-400' : 'bg-red-500'}`}
@@ -1463,7 +1467,7 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-              <h2 className="text-base font-bold text-slate-900 truncate pr-2">{draftSubject(openDraft)}</h2>
+              <h2 className="text-base font-bold text-slate-900 truncate pr-2">{draftSubject(openDraft, t('ticket_no_subject'))}</h2>
               <CloseButton onClick={() => setOpenDraft(null)} />
             </div>
             <div className="p-6 flex flex-col gap-4">
@@ -1475,14 +1479,14 @@ function CustomerPanel({ contactId, ticket, aiAutoScan }: { contactId: string | 
               <p className="text-sm text-slate-700 whitespace-pre-wrap">
                 {openDraft.ai_suggested_description
                   ? openDraft.ai_suggested_description.slice(0, 500)
-                  : '(no preview available)'}
+                  : t('ticket_no_preview')}
               </p>
               <div className="flex justify-end pt-2 border-t border-slate-100">
                 <button
                   onClick={() => navigate(`/inbox/drafts/${openDraft.id}`)}
                   className="text-sm font-semibold text-blue-600 hover:text-blue-700"
                 >
-                  Open in inbox →
+                  {t('ticket_open_in_inbox')}
                 </button>
               </div>
             </div>
@@ -1520,6 +1524,7 @@ function ContactSlidePanel({
   onNavigate: () => void
 }) {
   const qc = useQueryClient()
+  const t = useT()
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ full_name: '', email: '', phone: '' })
 
@@ -1545,9 +1550,9 @@ function ContactSlidePanel({
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact', contactId] })
       setEditing(false)
-      toast.success('Contact updated.')
+      toast.success(t('ticket_success_contact_updated'))
     },
-    onError: () => toast.error('Failed to update contact.'),
+    onError: () => toast.error(t('ticket_err_update_contact')),
   })
 
   return (
@@ -1558,13 +1563,13 @@ function ContactSlidePanel({
       />
       <div className="fixed right-0 top-0 h-full w-96 max-w-full z-50 flex flex-col bg-white shadow-2xl border-l border-slate-200 animate-slide-in-right">
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h2 className="text-sm font-semibold text-slate-900">Contact profile</h2>
+          <h2 className="text-sm font-semibold text-slate-900">{t('ticket_contact_profile')}</h2>
           <div className="flex items-center gap-2">
             <button
               onClick={onNavigate}
               className="inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700"
             >
-              Full profile
+              {t('ticket_full_profile')}
               <ExternalLink size={11} />
             </button>
             <CloseButton onClick={onClose} className="ml-1" />
@@ -1595,7 +1600,7 @@ function ContactSlidePanel({
               {editing ? (
                 <div className="flex flex-col gap-3">
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 mb-1 block">Name</label>
+                    <label className="text-xs font-semibold text-slate-500 mb-1 block">{t('ticket_contact_name_label')}</label>
                     <input
                       autoFocus
                       type="text"
@@ -1605,7 +1610,7 @@ function ContactSlidePanel({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 mb-1 block">Email</label>
+                    <label className="text-xs font-semibold text-slate-500 mb-1 block">{t('ticket_contact_email_label')}</label>
                     <input
                       type="email"
                       value={form.email}
@@ -1614,7 +1619,7 @@ function ContactSlidePanel({
                     />
                   </div>
                   <div>
-                    <label className="text-xs font-semibold text-slate-500 mb-1 block">Phone</label>
+                    <label className="text-xs font-semibold text-slate-500 mb-1 block">{t('ticket_contact_phone_label')}</label>
                     <input
                       type="tel"
                       value={form.phone}
@@ -1627,14 +1632,14 @@ function ContactSlidePanel({
                       onClick={() => { setEditing(false); setForm({ full_name: contact?.full_name ?? '', email: contact?.email ?? '', phone: contact?.phone ?? '' }) }}
                       className="flex-1 border border-slate-200 text-slate-700 text-sm font-semibold py-2 rounded-lg hover:bg-slate-50 transition-colors"
                     >
-                      Cancel
+                      {t('ticket_cancel_btn')}
                     </button>
                     <button
                       onClick={() => saveMutation.mutate()}
                       disabled={saveMutation.isPending || !form.full_name.trim()}
                       className="flex-1 bg-yippie text-white text-sm font-semibold py-2 rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
                     >
-                      {saveMutation.isPending ? 'Saving…' : 'Save'}
+                      {saveMutation.isPending ? t('ticket_saving') : t('ticket_save_btn')}
                     </button>
                   </div>
                 </div>
@@ -1642,27 +1647,27 @@ function ContactSlidePanel({
                 <div className="flex flex-col gap-1">
                   <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Email</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">{t('ticket_contact_email_label')}</p>
                       <p className="text-sm text-slate-800 truncate">{contact?.email ?? '—'}</p>
                     </div>
                   </div>
                   <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
                     <div className="min-w-0">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Phone</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">{t('ticket_contact_phone_label')}</p>
                       <p className="text-sm text-slate-800 truncate">{contact?.phone ?? '—'}</p>
                     </div>
                   </div>
                   {contact?.company?.name && (
                     <div className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
                       <div className="min-w-0">
-                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">Company</p>
+                        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-0.5">{t('ticket_contact_company_label')}</p>
                         <p className="text-sm text-slate-800 truncate">{contact.company.name}</p>
                       </div>
                     </div>
                   )}
                   {contact?.labels && contact.labels.length > 0 && (
                     <div className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3">
-                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">Labels</p>
+                      <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide mb-2">{t('ticket_contact_labels_label')}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {contact.labels.map((l: any) => (
                           <span
@@ -1680,7 +1685,7 @@ function ContactSlidePanel({
                     onClick={() => setEditing(true)}
                     className="mt-2 w-full border border-slate-200 text-slate-600 text-sm font-semibold py-2 rounded-lg hover:bg-slate-50 transition-colors"
                   >
-                    Edit contact
+                    {t('ticket_edit_contact_btn')}
                   </button>
                 </div>
               )}

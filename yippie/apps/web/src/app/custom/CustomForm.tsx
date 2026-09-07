@@ -9,6 +9,9 @@ import {
   TOOLS,
   PAIN_POINTS,
   computeRecommendations,
+  INDUSTRY_LABELS_NL,
+  TOOL_LABELS_NL,
+  PAIN_POINT_LABELS_NL,
 } from "../../lib/recommendations";
 import { PLAN_LIMITS, MODULE_PRICES } from "../../lib/config";
 import MiniYippie from "../components/MiniYippie";
@@ -43,18 +46,18 @@ const PLAN_NAMES: Record<PlanKey, string> = {
 };
 
 const MODULE_CONFIG = [
-  { key: "ai",          recName: "AI Inbox",         Icon: AiIcon,        price: MODULE_PRICES.ai,          desc: "AI scans every message and drafts the ticket. One click to approve." },
-  { key: "tickets",     recName: "Tickets",          Icon: TicketIcon,    price: MODULE_PRICES.tickets,     desc: "Track, assign, and close requests with SLA alerts" },
-  { key: "chat",        recName: "Live Chat",        Icon: ChatIcon,      price: MODULE_PRICES.chat,        desc: "Web chat + WhatsApp. All conversations in one inbox." },
-  { key: "calendar",    recName: "Calendar",         Icon: CalendarIcon,  price: MODULE_PRICES.calendar,    desc: "Booking links, availability grids, appointments" },
-  { key: "pipeline",    recName: "Pipeline",         Icon: KanbanIcon,    price: MODULE_PRICES.pipeline,    desc: "Drag-and-drop Kanban to move leads through stages" },
-  { key: "marketing",   recName: "Marketing",        Icon: MailTrackIcon, price: MODULE_PRICES.marketing,   desc: "Email campaigns, drip sequences, shared reply templates" },
-  { key: "departments", recName: "Departments",      Icon: TeamIcon,      price: MODULE_PRICES.departments, desc: "Route tickets to the right team automatically" },
-  { key: "billing",     recName: "Billing",          Icon: BillingIcon,   price: MODULE_PRICES.billing,     desc: "Invoices, payments, subscription management" },
-  { key: "contracts",   recName: "Contracts",        Icon: ContractIcon,  price: MODULE_PRICES.contracts,   desc: "Store signed contracts, track renewals and notice periods, get reminded in time" },
-  { key: "tracking",    recName: "Shipment Tracking",Icon: TrackingIcon,  price: MODULE_PRICES.tracking,   desc: "Live carrier updates for DHL, UPS, PostNL, and FedEx, linked to contacts." },
-  { key: "sales",       recName: "Sales",            Icon: SalesIcon,     price: MODULE_PRICES.sales,       desc: "Track product views, add-to-cart, and purchases. Spot high-intent buyers." },
-  { key: "saas",        recName: "SaaS Analytics",   Icon: SaasIcon,      price: MODULE_PRICES.saas,        desc: "Recurring subscriptions, MRR and churn tracking, linked to contacts" },
+  { key: "ai",          recName: "AI Inbox",            Icon: AiIcon,        price: MODULE_PRICES.ai,          desc: "AI scant elk bericht en stelt het ticket op. Één klik om te goedkeuren." },
+  { key: "tickets",     recName: "Tickets",             Icon: TicketIcon,    price: MODULE_PRICES.tickets,     desc: "Volg, wijs toe en sluit verzoeken af met SLA-meldingen" },
+  { key: "chat",        recName: "Live chat",           Icon: ChatIcon,      price: MODULE_PRICES.chat,        desc: "Webchat en WhatsApp. Alle gesprekken in één inbox." },
+  { key: "calendar",    recName: "Agenda",              Icon: CalendarIcon,  price: MODULE_PRICES.calendar,    desc: "Boekingslinks, beschikbaarheidsroosters en afspraken" },
+  { key: "pipeline",    recName: "Pipeline",            Icon: KanbanIcon,    price: MODULE_PRICES.pipeline,    desc: "Drag-and-drop Kanban om leads door de fases te schuiven" },
+  { key: "marketing",   recName: "Marketing",           Icon: MailTrackIcon, price: MODULE_PRICES.marketing,   desc: "E-mailcampagnes, drip-reeksen en gedeelde antwoordsjablonen" },
+  { key: "departments", recName: "Afdelingen",          Icon: TeamIcon,      price: MODULE_PRICES.departments, desc: "Stuur tickets automatisch naar het juiste team" },
+  { key: "billing",     recName: "Facturatie",          Icon: BillingIcon,   price: MODULE_PRICES.billing,     desc: "Facturen, betalingen en abonnementsbeheer" },
+  { key: "contracts",   recName: "Contracten",          Icon: ContractIcon,  price: MODULE_PRICES.contracts,   desc: "Sla ondertekende contracten op, volg verlengingen en opzegtermijnen en ontvang tijdige herinneringen" },
+  { key: "tracking",    recName: "Zendingtracking",     Icon: TrackingIcon,  price: MODULE_PRICES.tracking,   desc: "Live vervoerdersupdates voor DHL, UPS, PostNL en FedEx, gekoppeld aan contacten." },
+  { key: "sales",       recName: "Sales",               Icon: SalesIcon,     price: MODULE_PRICES.sales,       desc: "Volg productweergaven, winkelwagentjes en aankopen. Herken koopintentie snel." },
+  { key: "saas",        recName: "SaaS Analytics",      Icon: SaasIcon,      price: MODULE_PRICES.saas,        desc: "Terugkerende abonnementen, MRR en churn-tracking, gekoppeld aan contacten" },
 ] as const;
 
 /* Sidebar colour swatches for the mini workspace — Yippie blue first (smart default). */
@@ -374,10 +377,10 @@ export default function CustomForm() {
           return;
         }
         const data = await res.json().catch(() => ({}));
-        setErrorMsg(typeof data?.error === "string" ? data.error : "Something went wrong. Please try again.");
+        setErrorMsg(typeof data?.error === "string" ? data.error : "Er is iets misgegaan. Probeer het opnieuw.");
         setFormState("error");
       } catch {
-        setErrorMsg("Network error. Please check your connection and try again.");
+        setErrorMsg("Netwerkfout. Controleer je verbinding en probeer het opnieuw.");
         setFormState("error");
       }
       return;
@@ -410,6 +413,7 @@ export default function CustomForm() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
+          lang: "nl",
           name: name.trim(),
           company_name: company.trim(),
           email: email.trim(),
@@ -444,11 +448,11 @@ export default function CustomForm() {
       setErrorMsg(
         typeof data?.error === "string" ? data.error
           : typeof data?.detail === "string" ? data.detail
-          : "Something went wrong. Please try again.",
+          : "Er is iets misgegaan. Probeer het opnieuw.",
       );
       setFormState("error");
     } catch {
-      setErrorMsg("Network error. Please check your connection and try again.");
+      setErrorMsg("Netwerkfout. Controleer je verbinding en probeer het opnieuw.");
       setFormState("error");
     }
   }
@@ -460,7 +464,7 @@ export default function CustomForm() {
   const previewModules = selectedModules.length > 0 ? selectedModules : TEASER_MODULES;
   const preview = (
     <aside className={styles.previewCol}>
-      <p className={styles.previewLabel}>Your workspace — live preview</p>
+      <p className={styles.previewLabel}>Jouw werkruimte – live voorbeeld</p>
       <MiniYippie
         brandColor={brandColor}
         logoUrl={logoUrl}
@@ -478,7 +482,7 @@ export default function CustomForm() {
       <div className={styles.progressTrack}>
         <div className={styles.progressFill} style={{ width: `${progressPct}%` }} />
       </div>
-      <span className={styles.progressLabel}>{progressPct}% there</span>
+      <span className={styles.progressLabel}>{progressPct}% klaar</span>
     </div>
   );
 
@@ -492,32 +496,32 @@ export default function CustomForm() {
             <div className={styles.successIcon}>✓</div>
             {successKind === "quote" ? (
               <>
-                <h2 className={styles.successTitle}>Request sent</h2>
+                <h2 className={styles.successTitle}>Aanvraag verzonden</h2>
                 <p className={styles.successSub}>
-                  Enterprise is custom made for you. We&apos;ll send a tailored
-                  proposal within 1 business day. Want to talk sooner?
+                  Enterprise wordt op maat gemaakt voor jou. We sturen je binnen
+                  1 werkdag een passend voorstel. Wil je eerder praten?
                 </p>
                 <a href={TALK_PATH} target="_blank" rel="noopener noreferrer" className={styles.successBookCall}>
-                  Book a call →
+                  Plan een gesprek →
                 </a>
               </>
             ) : successKind === "login" ? (
               <>
-                <h2 className={styles.successTitle}>Your workspace is ready</h2>
+                <h2 className={styles.successTitle}>Je werkruimte staat klaar</h2>
                 <p className={styles.successSub}>
-                  Your 30 day free trial has started — no payment details needed.
+                  Je gratis proefperiode van 30 dagen is gestart – geen betaalgegevens nodig.
                 </p>
                 <a href={loginUrl} className={styles.successBookCall}>
-                  Log in to your workspace →
+                  Inloggen op je werkruimte →
                 </a>
               </>
             ) : (
               <>
-                <h2 className={styles.successTitle}>Check your inbox — your workspace is ready</h2>
+                <h2 className={styles.successTitle}>Controleer je inbox – je werkruimte staat klaar</h2>
                 <p className={styles.successSub}>
-                  We&apos;ve emailed an entry link to <strong>{email}</strong>.
-                  One click and you&apos;re in. First 30 days free, no payment
-                  details needed.
+                  We hebben een toegangslink gestuurd naar <strong>{email}</strong>.
+                  Één klik en je bent binnen. De eerste 30 dagen gratis, geen
+                  betaalgegevens nodig.
                 </p>
               </>
             )}
@@ -546,16 +550,16 @@ export default function CustomForm() {
         {isFounder && (
           <div className={styles.founderBanner}>
             <span className={styles.founderBadge}>Founding Member</span>
-            €9/mo for up to 10 users · 50% off all add-on modules
+            €9/mnd voor maximaal 10 gebruikers · 50% korting op alle add-on modules
           </div>
         )}
         <p className={styles.stepHint}>
-          A few quick questions so we can build the right package for you.
+          Een paar snelle vragen zodat we het juiste pakket voor je kunnen samenstellen.
         </p>
 
         <div className={styles.question}>
           <span className={styles.qLabel}>
-            Make it yours <span className={styles.qHint}>optional</span>
+            Maak het jouw eigen <span className={styles.qHint}>optioneel</span>
           </span>
           <div className={styles.personalise}>
             <div className={styles.swatches}>
@@ -563,7 +567,7 @@ export default function CustomForm() {
                 <button
                   key={c}
                   type="button"
-                  aria-label={`Sidebar colour ${c}`}
+                  aria-label={`Zijbalkkleur ${c}`}
                   className={`${styles.swatch} ${brandColor === c ? styles.swatchActive : ""}`}
                   style={{ background: c }}
                   onClick={() => setBrandColor(c)}
@@ -573,11 +577,11 @@ export default function CustomForm() {
             <div className={styles.logoRow}>
               <label className={styles.logoUpload}>
                 <input type="file" accept="image/*" hidden onChange={handleLogoUpload} />
-                {logoUrl ? "Change logo" : "Upload your logo"}
+                {logoUrl ? "Logo wijzigen" : "Upload je logo"}
               </label>
               {logoUrl && (
                 <button type="button" className={styles.logoRemove} onClick={removeLogo}>
-                  Remove
+                  Verwijderen
                 </button>
               )}
             </div>
@@ -585,7 +589,7 @@ export default function CustomForm() {
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>How big is your team?</span>
+          <span className={styles.qLabel}>Hoe groot is je team?</span>
           <div className={styles.chips}>
             {TEAM_SIZES.map((opt) => (
               <button
@@ -601,7 +605,7 @@ export default function CustomForm() {
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>What industry are you in?</span>
+          <span className={styles.qLabel}>In welke branche zit je?</span>
           <div className={styles.chips}>
             {INDUSTRIES.map((opt) => (
               <button
@@ -610,14 +614,14 @@ export default function CustomForm() {
                 className={`${styles.chip} ${industry === opt ? styles.chipActive : ""}`}
                 onClick={() => setIndustry(industry === opt ? "" : opt)}
               >
-                {opt}
+                {INDUSTRY_LABELS_NL[opt] ?? opt}
               </button>
             ))}
           </div>
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>Biggest pain points?</span>
+          <span className={styles.qLabel}>Grootste uitdagingen?</span>
           <div className={styles.chips}>
             {PAIN_POINTS.map((opt) => {
               const selected = painPoints.includes(opt);
@@ -628,7 +632,7 @@ export default function CustomForm() {
                   className={`${styles.chip} ${selected ? styles.chipActive : ""}`}
                   onClick={() => togglePainPoint(opt)}
                 >
-                  {opt}
+                  {PAIN_POINT_LABELS_NL[opt] ?? opt}
                 </button>
               );
             })}
@@ -636,7 +640,7 @@ export default function CustomForm() {
         </div>
 
         <div className={styles.question}>
-          <span className={styles.qLabel}>What tools do you use today?</span>
+          <span className={styles.qLabel}>Welke tools gebruik je nu?</span>
           <div className={styles.chips}>
             {TOOLS.map((opt) => (
               <button
@@ -645,14 +649,14 @@ export default function CustomForm() {
                 className={`${styles.chip} ${currentTools.includes(opt) ? styles.chipActive : ""}`}
                 onClick={() => toggleTool(opt)}
               >
-                {opt}
+                {TOOL_LABELS_NL[opt] ?? opt}
               </button>
             ))}
           </div>
         </div>
 
         <button className={styles.submit} type="button" onClick={goToStep2}>
-          Build my package →
+          Stel mijn pakket samen →
         </button>
       </div>
       {preview}
@@ -675,7 +679,7 @@ export default function CustomForm() {
             type="button"
             className={`${styles.stepDot} ${styles.stepDotDone}`}
             onClick={() => goToStep(1)}
-            aria-label="Back to profile"
+            aria-label="Terug naar profiel"
           >
             1
           </button>
@@ -692,14 +696,14 @@ export default function CustomForm() {
             className={`${styles.billingBtn} ${!annual ? styles.billingBtnActive : ""}`}
             onClick={() => setAnnual(false)}
           >
-            Monthly
+            Maandelijks
           </button>
           <button
             type="button"
             className={`${styles.billingBtn} ${annual ? styles.billingBtnActive : ""}`}
             onClick={() => setAnnual(true)}
           >
-            Annual <span className={styles.annualBadge}>–10%</span>
+            Jaarlijks <span className={styles.annualBadge}>–10%</span>
           </button>
         </div>
 
@@ -707,21 +711,21 @@ export default function CustomForm() {
         <div className={styles.planTile}>
           {isFounder ? (
             <>
-              <p className={styles.planLabel}>Your plan</p>
+              <p className={styles.planLabel}>Jouw abonnement</p>
               <div className={styles.planRow}>
                 <span className={styles.planName}>Founding Member</span>
                 <span>
                   <span className={styles.planPrice}>€{planMonthlyDisplay}</span>
-                  <span className={styles.planPricePer}>/mo</span>
+                  <span className={styles.planPricePer}>/mnd</span>
                 </span>
               </div>
               <p className={styles.planMeta}>
-                Up to 10 users · 50% off all add-on modules{annual && " · billed annually"}
+                Tot 10 gebruikers · 50% korting op alle add-on modules{annual && " · jaarlijks gefactureerd"}
               </p>
             </>
           ) : (
             <>
-              <p className={styles.planLabel}>Pick your plan</p>
+              <p className={styles.planLabel}>Kies je abonnement</p>
               <div className={styles.planOptions}>
                 {PLANS_BY_RANK.map((k) => {
                   const lims = k === "enterprise" ? null : PLAN_LIMITS[k];
@@ -735,10 +739,10 @@ export default function CustomForm() {
                     >
                       <span className={styles.planOptionName}>{PLAN_NAMES[k]}</span>
                       <span className={styles.planOptionPrice}>
-                        {lims ? `€${annual ? Math.round(lims.priceAnnual / 12) : lims.priceMonthly}/mo` : "Custom"}
+                        {lims ? `€${annual ? Math.round(lims.priceAnnual / 12) : lims.priceMonthly}/mnd` : "Op maat"}
                       </span>
                       {recommendedPlanKey === k && (
-                        <span className={styles.planOptionBadge}>Recommended</span>
+                        <span className={styles.planOptionBadge}>Aanbevolen</span>
                       )}
                     </button>
                   );
@@ -746,13 +750,13 @@ export default function CustomForm() {
               </div>
               {planLimits && (
                 <p className={styles.planMeta}>
-                  {planLimits.users} users · {(planLimits.aiScans ?? 0).toLocaleString()} AI scans/mo
-                  {annual && " · billed annually"}
+                  {planLimits.users} gebruikers · {(planLimits.aiScans ?? 0).toLocaleString()} AI-scans/mnd
+                  {annual && " · jaarlijks gefactureerd"}
                 </p>
               )}
               {isEnterprise && (
                 <p className={styles.planMeta}>
-                  Unlimited users · unlimited AI scans · custom made — tailored proposal within 1 business day
+                  Onbeperkte gebruikers · onbeperkte AI-scans · op maat gemaakt – passend voorstel binnen 1 werkdag
                 </p>
               )}
             </>
@@ -762,8 +766,8 @@ export default function CustomForm() {
         {/* Recommended modules */}
         <div className={styles.moduleSection}>
           <div className={styles.moduleSectionHeader}>
-            <span className={styles.moduleSectionLabel}>Recommended for you</span>
-            <span className={styles.moduleSectionHint}>based on your answers</span>
+            <span className={styles.moduleSectionLabel}>Aanbevolen voor jou</span>
+            <span className={styles.moduleSectionHint}>op basis van je antwoorden</span>
           </div>
           <div className={styles.moduleList}>
             {recMods.map((mod) => {
@@ -785,11 +789,11 @@ export default function CustomForm() {
                   <div className={styles.moduleRowRight}>
                     <span className={styles.moduleRowPrice}>
                       {annual
-                        ? `€${Math.round((isFounder ? mod.price * 0.5 : mod.price) * 12 * 0.9)}/yr`
-                        : `€${isFounder ? Math.round(mod.price * 0.5) : mod.price}/mo`}
+                        ? `€${Math.round((isFounder ? mod.price * 0.5 : mod.price) * 12 * 0.9)}/jr`
+                        : `€${isFounder ? Math.round(mod.price * 0.5) : mod.price}/mnd`}
                     </span>
                     <span className={active ? styles.moduleTagIncluded : styles.moduleTagAddBack}>
-                      {active ? "✓ Included" : "+ Add back"}
+                      {active ? "✓ Inbegrepen" : "+ Voeg toe"}
                     </span>
                   </div>
                 </button>
@@ -802,7 +806,7 @@ export default function CustomForm() {
         {extraMods.length > 0 && (
           <div className={styles.moduleSection}>
             <div className={styles.moduleSectionHeader}>
-              <span className={styles.moduleSectionLabel}>Add more modules</span>
+              <span className={styles.moduleSectionLabel}>Meer modules toevoegen</span>
             </div>
             <div className={styles.moduleList}>
               {extraMods.map((mod) => {
@@ -823,10 +827,10 @@ export default function CustomForm() {
                     </div>
                     <div className={styles.moduleRowRight}>
                       <span className={styles.moduleRowPrice}>
-                        {annual ? `€${Math.round(mod.price * 12 * 0.9)}/yr` : `€${mod.price}/mo`}
+                        {annual ? `€${Math.round(mod.price * 12 * 0.9)}/jr` : `€${mod.price}/mnd`}
                       </span>
                       <span className={active ? styles.moduleTagIncluded : styles.moduleTagAdd}>
-                        {active ? "✓ Included" : "+ Add"}
+                        {active ? "✓ Inbegrepen" : "+ Voeg toe"}
                       </span>
                     </div>
                   </button>
@@ -841,28 +845,28 @@ export default function CustomForm() {
           <div className={styles.totalBarLeft}>
             <span className={styles.totalLabel}>
               {isEnterprise
-                ? "Enterprise plan + " + selectedModules.length + " module" + (selectedModules.length !== 1 ? "s" : "")
-                : PLAN_NAMES[planKey] + " plan"
+                ? "Enterprise abonnement + " + selectedModules.length + " module" + (selectedModules.length !== 1 ? "s" : "")
+                : PLAN_NAMES[planKey] + " abonnement"
                   + (selectedModules.length > 0
                     ? " + " + selectedModules.length + " module" + (selectedModules.length !== 1 ? "s" : "")
                     : "")}
             </span>
             {annual && modulesSaving > 0 && (
-              <span className={styles.totalSaving}>saving €{modulesSaving}/mo on add-ons</span>
+              <span className={styles.totalSaving}>bespaar €{modulesSaving}/mnd op add-ons</span>
             )}
           </div>
           {isEnterprise ? (
-            <span className={styles.totalCustom}>Let&apos;s talk</span>
+            <span className={styles.totalCustom}>Laten we praten</span>
           ) : (
             <span className={styles.totalAmount}>
-              €{displayMonthlyTotal}<span className={styles.totalAmountSub}>/mo</span>
+              €{displayMonthlyTotal}<span className={styles.totalAmountSub}>/mnd</span>
             </span>
           )}
         </div>
 
         <div className={styles.navRow}>
           <button type="button" className={styles.backBtn} onClick={() => goToStep(1)}>
-            ← Back
+            ← Terug
           </button>
           <button
             className={styles.submit}
@@ -870,7 +874,7 @@ export default function CustomForm() {
             onClick={() => goToStep(3)}
             style={{ flex: 1 }}
           >
-            Continue →
+            Doorgaan →
           </button>
         </div>
       </div>
@@ -894,7 +898,7 @@ export default function CustomForm() {
           type="button"
           className={`${styles.stepDot} ${styles.stepDotDone}`}
           onClick={() => goToStep(1)}
-          aria-label="Back to profile"
+          aria-label="Terug naar profiel"
         >
           1
         </button>
@@ -903,7 +907,7 @@ export default function CustomForm() {
           type="button"
           className={`${styles.stepDot} ${styles.stepDotDone}`}
           onClick={() => goToStep(2)}
-          aria-label="Back to package"
+          aria-label="Terug naar pakket"
         >
           2
         </button>
@@ -913,14 +917,14 @@ export default function CustomForm() {
 
       {/* Package summary */}
       <div className={styles.summaryCard}>
-        <p className={styles.summaryTitle}>Your package</p>
+        <p className={styles.summaryTitle}>Jouw pakket</p>
         <div className={styles.summaryLines}>
           <div className={styles.summaryLine}>
-            <span className={styles.summaryLineName}>{isFounder ? "Founding Member" : PLAN_NAMES[planKey]} plan</span>
+            <span className={styles.summaryLineName}>{isFounder ? "Founding Member" : PLAN_NAMES[planKey]} abonnement</span>
             {!isEnterprise && planMonthlyDisplay !== null ? (
-              <span className={styles.summaryLinePrice}>€{planMonthlyDisplay}/mo</span>
+              <span className={styles.summaryLinePrice}>€{planMonthlyDisplay}/mnd</span>
             ) : (
-              <span className={styles.summaryLinePrice}>Custom</span>
+              <span className={styles.summaryLinePrice}>Op maat</span>
             )}
           </div>
           {selectedModuleDetails.map((m) => (
@@ -929,27 +933,27 @@ export default function CustomForm() {
                 <span className={styles.summaryLineIcon}><m.Icon size={13} /></span>
                 {m.recName}
               </span>
-              <span className={styles.summaryLinePrice}>€{isFounder ? Math.round(m.price * 0.5) : m.price}/mo</span>
+              <span className={styles.summaryLinePrice}>€{isFounder ? Math.round(m.price * 0.5) : m.price}/mnd</span>
             </div>
           ))}
           {annual && modulesSaving > 0 && (
             <div className={styles.summaryLine}>
-              <span className={styles.summaryLineSaving}>Annual discount (add-ons)</span>
-              <span className={styles.summaryLineSavingPrice}>−€{modulesSaving}/mo</span>
+              <span className={styles.summaryLineSaving}>Jaarkorting (add-ons)</span>
+              <span className={styles.summaryLineSavingPrice}>−€{modulesSaving}/mnd</span>
             </div>
           )}
         </div>
         <div className={styles.summaryDivider} />
         <div className={styles.summaryTotal}>
           <span className={styles.summaryTotalLabel}>
-            {annual ? "Total/mo (billed annually)" : "Total/mo"}
+            {annual ? "Totaal/mnd (jaarlijks gefactureerd)" : "Totaal/mnd"}
           </span>
           {isEnterprise ? (
-            <span className={styles.summaryTotalCustom}>Let&apos;s talk</span>
+            <span className={styles.summaryTotalCustom}>Laten we praten</span>
           ) : (
             <span>
               <span className={styles.summaryTotalPrice}>€{displayMonthlyTotal}</span>
-              <span className={styles.summaryTotalPer}>/mo</span>
+              <span className={styles.summaryTotalPer}>/mnd</span>
             </span>
           )}
         </div>
@@ -957,12 +961,12 @@ export default function CustomForm() {
 
       <div className={styles.fieldGroup}>
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="custom-name">Your name</label>
+          <label className={styles.label} htmlFor="custom-name">Jouw naam</label>
           <input
             id="custom-name"
             className={styles.input}
             type="text"
-            placeholder="Jane Smith"
+            placeholder="Jan de Vries"
             required
             autoComplete="name"
             value={name}
@@ -972,7 +976,7 @@ export default function CustomForm() {
         </div>
 
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="custom-company">Company name</label>
+          <label className={styles.label} htmlFor="custom-company">Bedrijfsnaam</label>
           <input
             id="custom-company"
             className={styles.input}
@@ -987,12 +991,12 @@ export default function CustomForm() {
         </div>
 
         <div className={styles.field}>
-          <label className={styles.label} htmlFor="custom-email">Work email</label>
+          <label className={styles.label} htmlFor="custom-email">Werk e-mail</label>
           <input
             id="custom-email"
             className={styles.input}
             type="email"
-            placeholder="jane@acme.com"
+            placeholder="jan@acme.com"
             required
             autoComplete="email"
             value={email}
@@ -1020,29 +1024,29 @@ export default function CustomForm() {
 
       <button className={styles.submit} type="submit" disabled={busy}>
         {busy
-          ? "One moment…"
-          : isEnterprise ? "Request my proposal →" : "Create my workspace →"}
+          ? "Één moment…"
+          : isEnterprise ? "Vraag mijn voorstel aan →" : "Maak mijn werkruimte aan →"}
       </button>
 
       <p className={styles.finePrint}>
         {isEnterprise
-          ? "Custom made for your organisation · Tailored proposal within 1 business day"
-          : "First 30 days free · No payment details needed · Cancel any time"}
+          ? "Op maat gemaakt voor jouw organisatie · Passend voorstel binnen 1 werkdag"
+          : "Eerste 30 dagen gratis · Geen betaalgegevens nodig · Op elk moment opzegbaar"}
       </p>
 
       <p className={styles.finePrint}>
-        By submitting you agree to our{" "}
-        <a href="/privacy" style={{ color: "#5BA4F5" }}>Privacy Policy</a>
+        Door te versturen ga je akkoord met ons{" "}
+        <a href="/privacy" style={{ color: "#5BA4F5" }}>Privacybeleid</a>
       </p>
 
       {formState === "error" && errorMsg && (
         <p className={styles.error}>{errorMsg}</p>
       )}
 
-      <div className={styles.orDivider}>or</div>
+      <div className={styles.orDivider}>of</div>
 
       <a href={TALK_PATH} target="_blank" rel="noopener noreferrer" className={styles.bookCall}>
-        Prefer to talk first? Book a call →
+        Liever eerst even praten? Plan een gesprek →
       </a>
     </form>
     {preview}

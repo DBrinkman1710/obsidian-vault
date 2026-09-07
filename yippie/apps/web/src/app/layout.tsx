@@ -3,6 +3,7 @@ import { Inter, Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import Script from "next/script";
 import ConsentDefaults from "./components/ConsentDefaults";
 import CookieBanner from "./components/CookieBanner";
+import LangSync from "./components/LangSync";
 import { siteJsonLd } from "./structured-data";
 import "./globals.css";
 
@@ -31,26 +32,26 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Yippie | Your growth partner in customer service",
+  title: "Yippie | Je groeipartner in klantenservice",
   description:
-    "Yippie is the AI-powered customer service platform that grows with your business. Unlimited contacts on every plan. Inbox, tickets, contacts, and bookings in one place.",
+    "Yippie is het AI-gedreven klantenserviceplatform dat meegroeit met je bedrijf. Onbeperkte contacten op elk abonnement. Inbox, tickets, contacten en boekingen op één plek.",
   metadataBase: new URL(SITE_URL),
   alternates: {
     canonical: "/",
     languages: {
-      en: "/",
-      nl: "/nl",
+      nl: "/",
+      en: "/en",
     },
   },
   keywords: [
-    "customer service",
-    "SMB",
-    "growth partner",
-    "inbox management",
-    "ticket system",
+    "klantenservice",
+    "MKB",
+    "groeipartner",
+    "inboxbeheer",
+    "ticketsysteem",
     "AI support",
     "helpdesk",
-    "unlimited contacts",
+    "onbeperkte contacten",
   ],
   icons: {
     icon: [
@@ -60,9 +61,9 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   openGraph: {
-    title: "Yippie | Your growth partner in customer service",
+    title: "Yippie | Je groeipartner in klantenservice",
     description:
-      "Unlimited contacts on every plan. AI inbox triage, tickets, and bookings in one platform that scales with you.",
+      "Onbeperkte contacten op elk abonnement. AI-inboxtriage, tickets en boekingen in één platform dat met je meegroeit.",
     type: "website",
     url: SITE_URL,
     siteName: "Yippie",
@@ -71,15 +72,15 @@ export const metadata: Metadata = {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Yippie — AI-powered customer service platform",
+        alt: "Yippie — AI-gedreven klantenserviceplatform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Yippie | Your growth partner in customer service",
+    title: "Yippie | Je groeipartner in klantenservice",
     description:
-      "Unlimited contacts on every plan. AI inbox triage, tickets, and bookings in one platform that scales with you.",
+      "Onbeperkte contacten op elk abonnement. AI-inboxtriage, tickets en boekingen in één platform dat met je meegroeit.",
     images: ["/og.png"],
   },
 };
@@ -88,7 +89,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html
-      lang="en"
+      lang="nl"
       className={`${inter.variable} ${spaceGrotesk.variable} ${jetbrainsMono.variable}`}
     >
       <head>
@@ -116,6 +117,7 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(siteJsonLd) }}
         />
+        <LangSync />
         {children}
         <CookieBanner />
         {YIPPIE_TRACKING_TOKEN && (

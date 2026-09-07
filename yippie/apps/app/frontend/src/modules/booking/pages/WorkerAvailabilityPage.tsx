@@ -5,6 +5,7 @@ import { LogOut, CalendarDays } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { WeekAvailabilityEditor, type SlotEntry } from '../components/WeekAvailabilityEditor'
+import { useT } from '../../../hooks/useT'
 
 interface WorkerAvailability {
   weekly_slots: Record<string, SlotEntry[]> | null
@@ -22,6 +23,7 @@ const TIMEZONES = [
 ]
 
 export default function WorkerAvailabilityPage() {
+  const t = useT()
   const { user, logout } = useAuth()
   const qc = useQueryClient()
 
@@ -48,9 +50,9 @@ export default function WorkerAvailabilityPage() {
       api.put('/worker/my-availability', body).then((r: any) => r.data),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['my-availability'] })
-      toast.success('Availability saved')
+      toast.success(t('booking_avail_success_save'))
     },
-    onError: () => toast.error('Could not save. Please try again.'),
+    onError: () => toast.error(t('booking_avail_err_save')),
   })
 
   const totalSlots = useMemo(
@@ -73,31 +75,31 @@ export default function WorkerAvailabilityPage() {
             <div className="h-8 w-8 rounded-xl bg-yippie flex items-center justify-center">
               <CalendarDays className="h-4 w-4 text-white" strokeWidth={2.2} />
             </div>
-            <span className="heading-md text-ink">Availability</span>
+            <span className="heading-md text-ink">{t('booking_avail_page_header')}</span>
           </div>
           <button
             onClick={() => logout()}
             className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-800 transition-colors"
           >
-            <LogOut className="h-4 w-4" /> Sign out
+            <LogOut className="h-4 w-4" /> {t('booking_avail_sign_out')}
           </button>
         </div>
       </header>
 
       <main className="flex-1 max-w-2xl mx-auto w-full px-5 py-6 pb-28">
         <h1 className="heading-xl text-ink">
-          Hi {firstName} 👋
+          {t('booking_avail_greeting').replace('{name}', firstName)}
         </h1>
         <p className="text-sm text-slate-500 mt-1">
-          Add the hours you can take jobs. Customers only see slots you've opened.
+          {t('booking_avail_subtitle')}
         </p>
 
         {/* Available toggle */}
         <div className="mt-5 flex items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3.5">
           <div>
-            <p className="text-sm font-semibold text-ink">I'm available for bookings</p>
+            <p className="text-sm font-semibold text-ink">{t('booking_avail_toggle_label')}</p>
             <p className="text-xs text-slate-400 mt-0.5">
-              Turn this off to pause new bookings without deleting your hours.
+              {t('booking_avail_toggle_hint')}
             </p>
           </div>
           <button
@@ -119,7 +121,7 @@ export default function WorkerAvailabilityPage() {
         {/* Week editor */}
         <div className={`mt-5 transition-opacity ${isActive ? '' : 'opacity-50'}`}>
           {isLoading ? (
-            <p className="text-sm text-slate-400">Loading…</p>
+            <p className="text-sm text-slate-400">{t('booking_avail_loading')}</p>
           ) : (
             <WeekAvailabilityEditor slots={slots} onChange={setSlots} />
           )}
@@ -131,7 +133,7 @@ export default function WorkerAvailabilityPage() {
             onClick={() => setShowTz(v => !v)}
             className="text-xs font-semibold text-slate-500 hover:text-slate-700"
           >
-            {showTz ? '− Hide' : '+'} Timezone ({tz})
+            {showTz ? t('booking_avail_timezone_hide') : t('booking_avail_timezone_show')} ({tz})
           </button>
           {showTz && (
             <select
@@ -151,14 +153,17 @@ export default function WorkerAvailabilityPage() {
       <div className="fixed bottom-0 inset-x-0 bg-white/90 backdrop-blur border-t border-slate-200">
         <div className="max-w-2xl mx-auto w-full px-5 py-3 flex items-center justify-between">
           <span className="text-xs text-slate-400">
-            {totalSlots} time slot{totalSlots === 1 ? '' : 's'} across the week
+            {totalSlots === 1
+              ? t('booking_avail_slots_summary').replace('{count}', String(totalSlots))
+              : t('booking_avail_slots_summary_plural').replace('{count}', String(totalSlots))
+            } {t('booking_avail_across_week')}
           </span>
           <button
             onClick={save}
             disabled={saveMut.isPending}
             className="px-5 py-2.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
-            {saveMut.isPending ? 'Saving…' : 'Save availability'}
+            {saveMut.isPending ? t('booking_avail_btn_saving') : t('booking_avail_btn_save')}
           </button>
         </div>
       </div>

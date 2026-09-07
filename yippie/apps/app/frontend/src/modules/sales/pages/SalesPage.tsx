@@ -5,6 +5,7 @@ import { Clock, Settings, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../../auth/useAuth'
 import { SalesSettingsModal } from './SalesSettingsModal'
 import { Sparkline } from '../../../shell/Sparkline'
+import { useT } from '../../../hooks/useT'
 
 interface SalesStats {
   total_events: number
@@ -18,15 +19,18 @@ function cleanUrl(url: string): string {
   try { return new URL(url).pathname || '/' } catch { return url }
 }
 
-function formatRelative(iso: string | null): string {
-  if (!iso) return 'Never'
-  const diff = Date.now() - new Date(iso).getTime()
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'Just now'
-  if (mins < 60) return `${mins}m ago`
-  const hours = Math.floor(mins / 60)
-  if (hours < 24) return `${hours}h ago`
-  return `${Math.floor(hours / 24)}d ago`
+function useFormatRelative() {
+  const t = useT()
+  return (iso: string | null): string => {
+    if (!iso) return t('sales_relative_never')
+    const diff = Date.now() - new Date(iso).getTime()
+    const mins = Math.floor(diff / 60000)
+    if (mins < 1) return t('sales_relative_just_now')
+    if (mins < 60) return `${mins}m ago`
+    const hours = Math.floor(mins / 60)
+    if (hours < 24) return `${hours}h ago`
+    return `${Math.floor(hours / 24)}d ago`
+  }
 }
 
 const PERIOD_OPTIONS = [
@@ -36,6 +40,8 @@ const PERIOD_OPTIONS = [
 ]
 
 export default function SalesPage() {
+  const t = useT()
+  const formatRelative = useFormatRelative()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [showSettings, setShowSettings] = useState(false)
@@ -57,16 +63,16 @@ export default function SalesPage() {
     <div className="space-y-8">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="heading-xl text-slate-900">Sales Tracking</h1>
+          <h1 className="heading-xl text-slate-900">{t('sales_title')}</h1>
           <p className="text-sm text-slate-500 mt-1">
-            Track visitor behaviour on your clients' websites and surface it inside Yippie contact cards.
+            {t('sales_subtitle')}
           </p>
         </div>
         <div className="flex items-center gap-2 mt-1">
           {stats?.last_event_at && (
             <span className="flex items-center gap-1 text-xs text-slate-400">
               <Clock className="w-3 h-3" />
-              Last event: {formatRelative(stats.last_event_at)}
+              {t('sales_last_event')} {formatRelative(stats.last_event_at)}
             </span>
           )}
           <div className="flex items-center bg-slate-100 rounded-lg p-0.5 text-xs font-medium">
@@ -84,7 +90,7 @@ export default function SalesPage() {
             <button
               onClick={() => setShowSettings(true)}
               className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
-              title="Settings"
+              title={t('sales_settings_title')}
             >
               <Settings size={16} />
             </button>
@@ -96,8 +102,8 @@ export default function SalesPage() {
       {isError && (
         <div className="text-center py-16 text-slate-400">
           <TrendingUp className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-medium text-slate-500">Could not load sales data</p>
-          <p className="text-xs mt-1">Check that the Sales Tracking module is enabled for your account.</p>
+          <p className="text-sm font-medium text-slate-500">{t('sales_error_title')}</p>
+          <p className="text-xs mt-1">{t('sales_error_subtitle')}</p>
         </div>
       )}
 
@@ -105,9 +111,9 @@ export default function SalesPage() {
       {!isError && (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           {[
-            { label: 'Page views',      value: isLoading ? '—' : (stats?.pageviews    ?? 0), sparkData: sparklines?.pageviews,  color: '#5BA4F5' },
-            { label: 'Purchases',       value: isLoading ? '—' : (stats?.purchases    ?? 0), sparkData: sparklines?.purchases,  color: '#22c55e' },
-            { label: 'Conversion rate', value: isLoading ? '—' : (!stats || stats.pageviews === 0 ? '—' : `${((stats.purchases / stats.pageviews) * 100).toFixed(1)}%`), sparkData: undefined, color: '#f59e0b' },
+            { label: t('sales_stat_pageviews'),  value: isLoading ? '—' : (stats?.pageviews  ?? 0), sparkData: sparklines?.pageviews,  color: '#5BA4F5' },
+            { label: t('sales_stat_purchases'),  value: isLoading ? '—' : (stats?.purchases  ?? 0), sparkData: sparklines?.purchases,  color: '#22c55e' },
+            { label: t('sales_stat_conversion'), value: isLoading ? '—' : (!stats || stats.pageviews === 0 ? '—' : `${((stats.purchases / stats.pageviews) * 100).toFixed(1)}%`), sparkData: undefined, color: '#f59e0b' },
           ].map(({ label, value, sparkData, color }) => (
             <div key={label} className="bg-white border border-slate-200 rounded-xl px-5 py-4 flex items-center justify-between gap-3">
               <div>
@@ -126,13 +132,13 @@ export default function SalesPage() {
       {stats && stats.top_pages.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
           <div className="px-5 py-3 border-b border-slate-100">
-            <h2 className="text-sm font-semibold text-slate-700">Top pages (all time)</h2>
+            <h2 className="text-sm font-semibold text-slate-700">{t('sales_top_pages_heading')}</h2>
           </div>
           <table className="w-full text-sm">
             <thead className="bg-slate-50">
               <tr>
-                <th className="px-5 py-2 text-left text-xs font-medium text-slate-500">Page</th>
-                <th className="px-5 py-2 text-right text-xs font-medium text-slate-500">Views</th>
+                <th className="px-5 py-2 text-left text-xs font-medium text-slate-500">{t('sales_col_page')}</th>
+                <th className="px-5 py-2 text-right text-xs font-medium text-slate-500">{t('sales_col_views')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -161,10 +167,9 @@ export default function SalesPage() {
       {!isLoading && !isError && stats && stats.total_events === 0 && (
         <div className="text-center py-16 text-slate-400">
           <TrendingUp className="w-10 h-10 mx-auto mb-3 opacity-30" />
-          <p className="text-sm font-medium">No events yet</p>
+          <p className="text-sm font-medium">{t('sales_empty_title')}</p>
           <p className="text-xs mt-1">
-            Click the <Settings className="inline w-3 h-3" /> settings icon above to get your
-            installation snippet.
+            {t('sales_empty_subtitle')}
           </p>
         </div>
       )}

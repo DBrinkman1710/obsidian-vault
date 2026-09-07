@@ -8,10 +8,12 @@ import { GrapesEditor, GrapesEditorHandle } from '../pages/GrapesEditor'
 import type { PipelineStage } from '../pages/GrapesEditor'
 import type { ContactLabel } from '../../../modules/contacts/components/LabelChip'
 import { STARTER_TEMPLATES } from '../templates'
+import { useT } from '../../../hooks/useT'
 
 type VariantKey = 'single' | 'a' | 'b'
 
 export function DesignTab({ campaign }: { campaign: Campaign }) {
+  const t = useT()
   const qc = useQueryClient()
   const editorRef = useRef<GrapesEditorHandle>(null)
   const [abEnabled, setAbEnabled] = useState(false)
@@ -24,10 +26,10 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
   const saveSubject = useMutation({
     mutationFn: (val: string) => marketingApi.updateCampaign(campaign.id, { subject: val }),
     onSuccess: () => {
-      toast.success('Subject saved')
+      toast.success(t('mkt_subject_saved'))
       qc.invalidateQueries({ queryKey: ['marketing', 'campaigns', campaign.id] })
     },
-    onError: () => toast.error('Could not save subject'),
+    onError: () => toast.error(t('mkt_subject_save_err')),
   })
 
   const templatesRef = useRef<typeof templates>([])
@@ -104,10 +106,10 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
         })
       }),
     onSuccess: () => {
-      toast.success('Design saved')
+      toast.success(t('mkt_design_saved'))
       qc.invalidateQueries({ queryKey: ['marketing', 'templates', campaign.id] })
     },
-    onError: () => toast.error('Could not save design'),
+    onError: () => toast.error(t('mkt_design_save_err')),
   })
 
   function toggleAb() {
@@ -119,7 +121,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
   function loadStarter(html: string) {
     // Load starter HTML as a GrapesJS project so components are editable
     editorRef.current?.loadDesign(JSON.stringify({ pages: [{ id: 'main', component: html }] }))
-    toast.message('Template loaded. Edit and save when ready.')
+    toast.message(t('mkt_template_loaded'))
   }
 
   function openEditor() {
@@ -147,7 +149,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
                 className="pointer-events-none w-full"
                 style={{ height: 1200, border: 'none', display: 'block' }}
                 sandbox="allow-same-origin"
-                title="Email preview"
+                title={t('mkt_email_preview')}
               />
               <div className="absolute inset-0" />
             </div>
@@ -155,20 +157,20 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
               onClick={openEditor}
               className="shrink-0 flex items-center gap-2 rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
             >
-              <Pencil size={14} /> Edit design
+              <Pencil size={14} /> {t('mkt_edit_design')}
             </button>
           </>
         ) : (
           <>
             <div className="text-center">
-              <p className="text-sm font-semibold text-slate-700 mb-1">No design yet</p>
-              <p className="text-xs text-slate-400">Start designing your campaign email</p>
+              <p className="text-sm font-semibold text-slate-700 mb-1">{t('mkt_no_design_title')}</p>
+              <p className="text-xs text-slate-400">{t('mkt_no_design_desc')}</p>
             </div>
             <button
               onClick={openEditor}
               className="flex items-center gap-2 rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 transition-opacity"
             >
-              <Pencil size={14} /> Open editor
+              <Pencil size={14} /> {t('mkt_open_editor')}
             </button>
           </>
         )}
@@ -182,7 +184,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
       >
         {/* Personalisation chips */}
         <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 bg-slate-50 px-6 py-2">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">Personalisation</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t('mkt_personalisation')}</span>
           {(['{{first_name}}', '{{company}}', '{{email}}'] as const).map((token) => (
             <button
               key={token}
@@ -200,19 +202,19 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
           <div className="flex items-center gap-3">
             <span className="max-w-[200px] truncate text-sm font-semibold text-slate-800">{campaign.name}</span>
             <div className="flex items-center gap-1">
-              <span className="text-xs text-slate-400">Subject:</span>
+              <span className="text-xs text-slate-400">{t('mkt_subject_field')}</span>
               <input
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
                 onBlur={() => subject.trim() && subject !== campaign.subject && saveSubject.mutate(subject.trim())}
                 onKeyDown={(e) => e.key === 'Enter' && subject.trim() && saveSubject.mutate(subject.trim())}
                 className="rounded border border-slate-200 bg-slate-50 px-2 py-1 text-xs text-slate-700 focus:border-blue-400 focus:outline-none w-48"
-                placeholder="Email subject line"
+                placeholder={t('mkt_subject_ph_editor')}
               />
             </div>
             <label className="flex cursor-pointer items-center gap-2 text-sm text-slate-600">
               <input type="checkbox" checked={abEnabled} onChange={toggleAb} className="h-4 w-4 rounded border-slate-300" />
-              A/B testing
+              {t('mkt_ab_testing')}
             </label>
             {abEnabled && (
               <div className="flex overflow-hidden rounded-lg border border-slate-200">
@@ -224,7 +226,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
                       activeVariant === v ? 'bg-blue-600 text-white' : 'bg-white text-slate-500 hover:bg-slate-50'
                     }`}
                   >
-                    Variant {v}
+                    {t('mkt_variant')} {v}
                   </button>
                 ))}
               </div>
@@ -235,19 +237,19 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
               onClick={() => setShowTemplates((s) => !s)}
               className="flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
             >
-              <LayoutTemplate size={14} /> Templates
+              <LayoutTemplate size={14} /> {t('mkt_templates_btn')}
             </button>
             <button
               onClick={() => save.mutate()}
               disabled={save.isPending}
               className="flex items-center gap-1.5 rounded-lg bg-yippie px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              <Save size={14} /> {save.isPending ? 'Saving…' : 'Save'}
+              <Save size={14} /> {save.isPending ? t('mkt_saving') : t('mkt_save')}
             </button>
             <button
               onClick={() => setEditorOpen(false)}
               className="p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-              title="Close editor"
+              title={t('mkt_close_editor')}
             >
               <X size={16} />
             </button>
@@ -258,16 +260,16 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
         <div className="flex min-h-0 flex-1">
           {showTemplates && (
             <div className="w-56 shrink-0 overflow-y-auto border-r border-slate-200 bg-white p-3">
-              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">Starter templates</p>
+              <p className="mb-2 px-1 text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t('mkt_starter_templates')}</p>
               <div className="space-y-2">
-                {STARTER_TEMPLATES.map((t) => (
+                {STARTER_TEMPLATES.map((tpl) => (
                   <button
-                    key={t.id}
-                    onClick={() => loadStarter(t.html)}
+                    key={tpl.id}
+                    onClick={() => loadStarter(tpl.html)}
                     className="w-full rounded-xl border border-slate-200 p-3 text-left transition-colors hover:border-blue-300 hover:bg-blue-50/50"
                   >
-                    <p className="text-sm font-semibold text-slate-800">{t.name}</p>
-                    <p className="mt-0.5 text-xs leading-snug text-slate-400">{t.description}</p>
+                    <p className="text-sm font-semibold text-slate-800">{tpl.name}</p>
+                    <p className="mt-0.5 text-xs leading-snug text-slate-400">{tpl.description}</p>
                   </button>
                 ))}
               </div>

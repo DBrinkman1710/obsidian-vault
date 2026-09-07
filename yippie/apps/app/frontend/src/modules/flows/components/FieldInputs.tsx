@@ -4,6 +4,7 @@
 import {
   Condition, FlowsMeta, MetaField, MetaOption, MetaTrigger, OP_LABELS, WAIT_UNITS,
 } from '../lib'
+import { useT } from '../../../hooks/useT'
 
 const base = 'px-2 py-1.5 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400'
 
@@ -66,11 +67,12 @@ export function ConfigField({
 export function WaitConfig({
   config, onChange,
 }: { config: Record<string, any>; onChange: (c: Record<string, any>) => void }) {
+  const t = useT()
   const unit = WAIT_UNITS.find(u => u in config) ?? 'hours'
   const amount = config[unit] ?? ''
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      <span className="text-sm text-slate-600">Wait for</span>
+      <span className="text-sm text-slate-600">{t('flow_wait_for_label')}</span>
       <input
         type="number"
         min={1}
@@ -99,6 +101,7 @@ export function ConditionRow({
   onChange: (patch: Partial<Condition>) => void
   onRemove: () => void
 }) {
+  const t = useT()
   const fieldMeta = trigger?.fields.find(f => f.key === condition.field)
 
   function valueInput() {
@@ -175,7 +178,7 @@ export function ConditionRow({
         <button
           onClick={onRemove}
           className="p-1 text-slate-400 hover:text-red-500 rounded"
-          title="Remove condition"
+          title={t('flow_remove_condition')}
         >
           ×
         </button>

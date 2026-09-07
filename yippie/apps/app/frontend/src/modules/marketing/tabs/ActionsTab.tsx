@@ -3,16 +3,19 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { Campaign, CampaignTemplate, marketingApi } from '../api'
+import { useT } from '../../../hooks/useT'
 
 interface Stage { id: string; name: string; color: string }
 
 function StageSelect({
   value,
   stages,
+  noActionLabel,
   onChange,
 }: {
   value: string | null
   stages: Stage[]
+  noActionLabel: string
   onChange: (id: string | null) => void
 }) {
   return (
@@ -21,7 +24,7 @@ function StageSelect({
       onChange={e => onChange(e.target.value || null)}
       className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
     >
-      <option value="">— No action —</option>
+      <option value="">{noActionLabel}</option>
       {stages.map(s => (
         <option key={s.id} value={s.id}>{s.name}</option>
       ))}
@@ -33,12 +36,14 @@ function ActionRow({
   label,
   value,
   stages,
+  noActionLabel,
   onChange,
   onHover,
 }: {
   label: string
   value: string | null
   stages: Stage[]
+  noActionLabel: string
   onChange: (id: string | null) => void
   onHover?: () => void
 }) {
@@ -51,13 +56,14 @@ function ActionRow({
       <span className="w-36 shrink-0 text-sm text-slate-600">{label}</span>
       <span className="text-slate-300 shrink-0">→</span>
       <div className="flex-1">
-        <StageSelect value={value} stages={stages} onChange={onChange} />
+        <StageSelect value={value} stages={stages} noActionLabel={noActionLabel} onChange={onChange} />
       </div>
     </div>
   )
 }
 
 export function ActionsTab({ campaign }: { campaign: Campaign }) {
+  const t = useT()
   const qc = useQueryClient()
   const iframeRef = useRef<HTMLIFrameElement>(null)
   const hoveredButtonIdRef = useRef<string | null>(null)
@@ -138,11 +144,13 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
         linked_stage_id: linkedStageId,
       } as any),
     onSuccess: () => {
-      toast.success('Actions saved')
+      toast.success(t('mkt_actions_saved'))
       qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
     },
-    onError: () => toast.error('Could not save actions'),
+    onError: () => toast.error(t('mkt_actions_save_err')),
   })
+
+  const noActionLabel = t('mkt_no_action')
 
   return (
     <div className="flex h-full overflow-hidden">
@@ -151,33 +159,35 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
 
         {/* Campaign settings */}
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Campaign settings</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">{t('mkt_campaign_settings')}</p>
           <div className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
             <div className="px-4 py-3">
-              <p className="text-xs font-semibold text-slate-500 mb-1.5">Linked Kanban stage</p>
-              <StageSelect value={linkedStageId} stages={stages} onChange={setLinkedStageId} />
-              <p className="mt-1.5 text-[11px] text-slate-400">Links this campaign to a stage for the right-click "Send campaign" option.</p>
+              <p className="text-xs font-semibold text-slate-500 mb-1.5">{t('mkt_linked_kanban_stage')}</p>
+              <StageSelect value={linkedStageId} stages={stages} noActionLabel={noActionLabel} onChange={setLinkedStageId} />
+              <p className="mt-1.5 text-[11px] text-slate-400">{t('mkt_linked_stage_desc')}</p>
             </div>
           </div>
         </div>
 
         {/* Campaign-level actions */}
         <div>
-          <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Campaign actions</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">{t('mkt_campaign_actions')}</p>
           <div className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
             <div className="px-4 py-1">
               <ActionRow
-                label="Mail sent"
+                label={t('mkt_mail_sent')}
                 value={postSendStageId}
                 stages={stages}
+                noActionLabel={noActionLabel}
                 onChange={setPostSendStageId}
               />
             </div>
             <div className="px-4 py-1">
               <ActionRow
-                label="Reply received"
+                label={t('mkt_reply_received')}
                 value={replyStageId}
                 stages={stages}
+                noActionLabel={noActionLabel}
                 onChange={setReplyStageId}
               />
             </div>
@@ -187,7 +197,7 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
         {/* Button actions */}
         {campaignButtons.length > 0 && (
           <div>
-            <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">Button actions</p>
+            <p className="text-xs font-bold uppercase tracking-wide text-slate-400 mb-3">{t('mkt_button_actions')}</p>
             <div className="rounded-xl border border-slate-200 bg-white divide-y divide-slate-100">
               {campaignButtons.map(btn => (
                 <div
@@ -203,6 +213,7 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
                       <StageSelect
                         value={buttonConfig[btn.id] ?? null}
                         stages={stages}
+                        noActionLabel={noActionLabel}
                         onChange={stageId => {
                           setButtonConfig(prev => {
                             const next = { ...prev }
@@ -221,7 +232,7 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
         )}
 
         {campaignButtons.length === 0 && templates.length > 0 && (
-          <p className="text-xs text-slate-400 text-center py-2">No action buttons found in the design. Add buttons in the Design tab.</p>
+          <p className="text-xs text-slate-400 text-center py-2">{t('mkt_no_buttons_desc')}</p>
         )}
 
         <button
@@ -229,7 +240,7 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
           disabled={save.isPending}
           className="w-full rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
         >
-          {save.isPending ? 'Saving…' : 'Save actions'}
+          {save.isPending ? t('mkt_saving_actions') : t('mkt_save_actions')}
         </button>
       </div>
 
@@ -240,12 +251,12 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
             ref={iframeRef}
             srcDoc={rawHtml}
             sandbox="allow-same-origin"
-            title="Campaign preview"
+            title={t('mkt_campaign_preview')}
             className="flex-1 w-full border-0"
           />
         ) : (
           <div className="flex h-full items-center justify-center">
-            <p className="text-sm text-slate-400">Save a design first to preview it here.</p>
+            <p className="text-sm text-slate-400">{t('mkt_save_design_first')}</p>
           </div>
         )}
       </div>

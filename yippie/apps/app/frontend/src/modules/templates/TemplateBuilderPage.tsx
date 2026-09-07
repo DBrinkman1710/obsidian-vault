@@ -5,6 +5,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, Eye } from 'lucide-react'
 import { toast } from 'sonner'
+import { useT } from '../../hooks/useT'
 import {
   DndContext,
   PointerSensor,
@@ -34,6 +35,7 @@ interface TemplateData {
 }
 
 export default function TemplateBuilderPage({ docType }: { docType: DocType }) {
+  const t = useT()
   const { templateId } = useParams<{ templateId: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -89,9 +91,9 @@ export default function TemplateBuilderPage({ docType }: { docType: DocType }) {
       qc.invalidateQueries({ queryKey: [docType === 'invoice' ? 'invoice-templates' : 'contract-templates'] })
       qc.invalidateQueries({ queryKey: ['template', docType, templateId] })
       setDirty(false)
-      toast.success('Template saved')
+      toast.success(t('tpl_template_saved'))
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Save failed'),
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? t('tpl_save_failed')),
   })
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
@@ -138,7 +140,7 @@ export default function TemplateBuilderPage({ docType }: { docType: DocType }) {
     <div className="max-w-7xl mx-auto">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <button onClick={() => navigate(backPath)} aria-label="Back"
+        <button onClick={() => navigate(backPath)} aria-label={t('tpl_back_btn')}
           className="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100">
           <ArrowLeft size={18} />
         </button>
@@ -146,17 +148,17 @@ export default function TemplateBuilderPage({ docType }: { docType: DocType }) {
           className="heading-lg bg-transparent border-b border-transparent hover:border-slate-200 focus:border-yippie focus:outline-none px-1 min-w-0 flex-1"
           value={name}
           onChange={e => { setName(e.target.value); setDirty(true) }}
-          aria-label="Template name"
+          aria-label={t('tpl_template_name_label')}
         />
         <span className="text-xs text-slate-400 shrink-0">
-          {docType === 'invoice' ? 'Invoice template' : 'Contract template'}
+          {docType === 'invoice' ? t('tpl_invoice_label') : t('tpl_contract_label')}
         </span>
         <button onClick={() => setShowPreview(true)} className="btn-secondary px-4 py-2 inline-flex items-center gap-1.5">
-          <Eye size={14} /> Preview
+          <Eye size={14} /> {t('tpl_preview_btn')}
         </button>
         <button onClick={() => save.mutate()} disabled={!dirty || save.isPending}
           className="btn-primary px-5 py-2">
-          {save.isPending ? 'Saving…' : dirty ? 'Save' : 'Saved'}
+          {save.isPending ? t('tpl_saving_btn') : dirty ? t('tpl_save_btn') : t('tpl_saved_btn')}
         </button>
       </div>
 

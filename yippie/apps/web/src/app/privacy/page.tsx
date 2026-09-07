@@ -3,9 +3,9 @@ import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "../components/content.module.css";
 
-const TITLE = "Privacy Policy | Yippie";
+const TITLE = "Privacybeleid | Yippie";
 const DESCRIPTION =
-  "How Yippie collects, uses, and protects your data, including our use of cookies and Google Analytics with Consent Mode.";
+  "Hoe Yippie je gegevens verzamelt, gebruikt en beschermt, inclusief ons gebruik van cookies en Google Analytics met Consent Mode.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -25,107 +25,114 @@ export default function PrivacyPage() {
       <SiteNav />
 
       <article className={styles.article}>
-        <div className={styles.articleDate}>Last updated: July 1, 2026</div>
-        <h1 className={styles.articleTitle}>Privacy Policy</h1>
+        {/* NL VERTALING — juridische tekst automatisch vertaald. Laten controleren door een jurist voordat je hierop vertrouwt. */}
+        <div className={styles.articleDate}>Laatst bijgewerkt: 1 juli 2026</div>
+        <h1 className={styles.articleTitle}>Privacybeleid</h1>
 
         <div className={styles.articleBody}>
           <p>
-            At Yippie we value transparency. This policy explains what data we
-            collect when you visit getyippie.com, why we collect it, the legal
-            basis for each purpose, and the choices you have. We only collect
-            what we need to run and improve the site.
+            Bij Yippie hechten we waarde aan transparantie. Dit beleid legt uit
+            welke gegevens we verzamelen wanneer je getyippie.com bezoekt, waarom
+            we dat doen, de wettelijke grondslag voor elk doel, en welke keuzes
+            je hebt. We verzamelen alleen wat nodig is om de site te beheren en
+            te verbeteren.
           </p>
 
-          <h2>Data controller</h2>
+          <h2>Verwerkingsverantwoordelijke</h2>
           <p>
-            The party responsible for the processing of your personal data
-            (verwerkingsverantwoordelijke) is:
+            De partij die verantwoordelijk is voor de verwerking van je
+            persoonsgegevens (verwerkingsverantwoordelijke) is:
           </p>
           <p>
             <strong>GetYippie</strong>
             <br />
-            KVK-nummer: 42124040
+            KVK nummer: 42124040
+            <br />
+            BTW nummer: NL005516514B24
             <br />
             E-mail:{" "}
             <a href="mailto:support@getyippie.com">support@getyippie.com</a>
           </p>
 
-          <h2>Data we collect and legal basis</h2>
+          <h2>Gegevens die we verzamelen en de wettelijke grondslag</h2>
           <p>
-            We process personal data for the following purposes. For each
-            purpose we state the legal basis as required by Article 6 of the
-            GDPR / AVG.
+            We verwerken persoonsgegevens voor de volgende doeleinden. Bij elk
+            doel vermelden we de wettelijke grondslag zoals vereist door artikel 6
+            van de AVG (GDPR).
           </p>
 
-          <h3>1. Website analytics</h3>
+          <h3>1. Website-analyse</h3>
           <p>
-            We collect <strong>anonymous usage statistics</strong> (pages
-            viewed, approximate location, device and browser type, and how you
-            arrived) to understand how the site is used and improve it.
+            We verzamelen <strong>anonieme gebruiksstatistieken</strong> (bekeken
+            pagina's, geschatte locatie, type apparaat en browser, en hoe je de
+            site hebt gevonden) om te begrijpen hoe de site wordt gebruikt en
+            deze te verbeteren.
           </p>
           <p>
-            <strong>Legal basis:</strong> Consent (Art. 6(1)(a) GDPR). We only
-            activate analytics cookies after you accept via our cookie banner.
-            If you decline, analytics stays in cookieless mode and no personal
-            data is stored.
-          </p>
-
-          <h3>2. Demo requests and contact</h3>
-          <p>
-            If you request a demo or contact us, we collect the details you
-            submit (such as your name, email address, and company) so we can
-            respond to your enquiry and follow up.
-          </p>
-          <p>
-            <strong>Legal basis:</strong> Pre-contractual measures at your
-            request (Art. 6(1)(b) GDPR), meaning processing is necessary to take
-            steps before entering into an agreement, and our legitimate
-            interest in managing business enquiries (Art. 6(1)(f) GDPR).
+            <strong>Wettelijke grondslag:</strong> Toestemming (art. 6 lid 1
+            onder a AVG). We activeren analytische cookies pas nadat je via onze
+            cookiebanner akkoord hebt gegeven. Als je weigert, blijft analytics
+            in cookieloze modus en worden er geen persoonsgegevens opgeslagen.
           </p>
 
-          <h2>Yippie Inbox Analyser — Chrome extension</h2>
+          <h3>2. Demoverzoeken en contact</h3>
           <p>
-            The Yippie Inbox Analyser is a free Chrome extension that reads your
-            Gmail inbox metadata to estimate how much time you spend on manual
-            email triage.
+            Als je een demo aanvraagt of contact met ons opneemt, verzamelen we
+            de gegevens die je invult (zoals je naam, e-mailadres en bedrijf) om
+            je vraag te beantwoorden en eventueel op te volgen.
+          </p>
+          <p>
+            <strong>Wettelijke grondslag:</strong> Uitvoering van
+            precontractuele maatregelen op jouw verzoek (art. 6 lid 1 onder b
+            AVG) — de verwerking is noodzakelijk om stappen te ondernemen vóór
+            het sluiten van een overeenkomst — en ons gerechtvaardigd belang bij
+            het afhandelen van zakelijke vragen (art. 6 lid 1 onder f AVG).
           </p>
 
-          <h3>What the extension accesses</h3>
+          <h2>Yippie Inbox Analyser: Chrome-extensie</h2>
           <p>
-            The extension requests the <strong>gmail.metadata</strong> OAuth
-            scope. This grants read-only access to email metadata only — the
-            sender address, recipient address, subject line, and date of each
-            message. It does <strong>not</strong> grant access to message bodies,
-            attachments, drafts, or any other content.
+            De Yippie Inbox Analyser is een gratis Chrome-extensie die de
+            metadata van je Gmail-inbox uitleest om te schatten hoeveel tijd je
+            besteedt aan handmatige e-mailtriage.
           </p>
 
-          <h3>Where your data is processed</h3>
+          <h3>Wat de extensie toegang tot heeft</h3>
           <p>
-            All analysis runs <strong>entirely inside your browser</strong>.
-            Your email metadata is fetched directly from Gmail to your device
-            and is never transmitted to Yippie's servers, stored in any
-            database, or shared with any third party. The extension has no
-            backend and makes no outbound requests except to the Gmail API on
-            your behalf.
+            De extensie vraagt de <strong>gmail.metadata</strong> OAuth-scope
+            aan. Dit geeft alleen leestoegang tot e-mailmetadata: het
+            afzenderadres, ontvangersadres, onderwerpregel en de datum van elk
+            bericht. Er wordt <strong>geen</strong> toegang verleend tot
+            berichtteksten, bijlagen, concepten of andere inhoud.
           </p>
 
-          <h3>What is stored locally</h3>
+          <h3>Waar je gegevens worden verwerkt</h3>
           <p>
-            The extension uses <code>chrome.storage.local</code> (your device
-            only) to cache the analysis result for up to one hour, so the
-            popup loads instantly on repeat opens. It also stores your
-            preferences (minutes per email, automation rate, hourly rate).
-            This data never leaves your device and is automatically cleared
-            when you uninstall the extension.
+            Alle analyse vindt <strong>volledig in je browser</strong> plaats.
+            Je e-mailmetadata wordt rechtstreeks van Gmail naar je apparaat
+            opgehaald en wordt nooit doorgezonden naar de servers van Yippie,
+            opgeslagen in een database, of gedeeld met derden. De extensie heeft
+            geen backend en stuurt geen uitgaande verzoeken, behalve naar de
+            Gmail API namens jou.
           </p>
 
-          <h3>Legal basis</h3>
+          <h3>Wat lokaal wordt opgeslagen</h3>
           <p>
-            Processing is based on your explicit consent (Art. 6(1)(a) GDPR),
-            granted when you click &quot;Analyse my Gmail inbox&quot; and
-            approve the Gmail permission in the OAuth consent screen. You can
-            withdraw consent at any time by revoking the extension&apos;s
-            Gmail access at{" "}
+            De extensie gebruikt <code>chrome.storage.local</code> (alleen op
+            je apparaat) om het analyseresultaat maximaal één uur te cachen,
+            zodat de popup direct laadt bij herhaald openen. Ook worden je
+            voorkeuren opgeslagen (minuten per e-mail, automatiseringsgraad,
+            uurtarief). Deze gegevens verlaten je apparaat nooit en worden
+            automatisch verwijderd wanneer je de extensie verwijdert.
+          </p>
+
+          <h3>Wettelijke grondslag</h3>
+          <p>
+            De verwerking is gebaseerd op je uitdrukkelijke toestemming (art. 6
+            lid 1 onder a AVG), verleend wanneer je op &quot;Analyseer mijn
+            Gmail-inbox&quot; klikt en de Gmail-toestemming goedkeurt in het
+            OAuth-toestemmingsscherm. Je kunt je toestemming op elk moment
+            intrekken door de toegang van de extensie tot Gmail in te trekken
+            via{" "}
             <a
               href="https://myaccount.google.com/permissions"
               target="_blank"
@@ -133,75 +140,79 @@ export default function PrivacyPage() {
             >
               myaccount.google.com/permissions
             </a>{" "}
-            or by uninstalling the extension.
+            of door de extensie te verwijderen.
           </p>
 
-          <h3>Removing your data</h3>
+          <h3>Je gegevens verwijderen</h3>
           <p>
-            Uninstalling the extension from Chrome removes all locally stored
-            data immediately. No data exists anywhere else.
+            Het verwijderen van de extensie uit Chrome wist direct alle lokaal
+            opgeslagen gegevens. Er bestaan nergens anders gegevens.
           </p>
 
-          <h2>Yippie platform — Gmail and Outlook integration</h2>
+          <h2>Yippie-platform: Gmail- en Outlook-integratie</h2>
           <p>
-            Within the Yippie customer service platform, users can optionally
-            connect their Gmail or Microsoft Outlook mailbox so that incoming
-            emails are handled alongside other support channels.
+            Binnen het Yippie-klantenserviceplatform kunnen gebruikers optioneel
+            hun Gmail- of Microsoft Outlook-mailbox koppelen, zodat inkomende
+            e-mails samen met andere supportkanalen worden afgehandeld.
           </p>
 
-          <h3>What we access</h3>
+          <h3>Waartoe we toegang hebben</h3>
           <p>
-            When you connect a Gmail account, Yippie requests the following
-            OAuth scopes:
+            Wanneer je een Gmail-account koppelt, vraagt Yippie de volgende
+            OAuth-scopes aan:
           </p>
           <ul>
             <li>
-              <strong>gmail.readonly</strong> — to read incoming messages and
-              thread history so they can be shown in the Yippie inbox.
+              <strong>gmail.readonly</strong>: om inkomende berichten en
+              gespreksgeschiedenis te lezen zodat deze in de Yippie-inbox kunnen
+              worden weergegeven.
             </li>
             <li>
-              <strong>gmail.send</strong> — to send replies on your behalf
-              directly from the Yippie platform.
+              <strong>gmail.send</strong>: om namens jou antwoorden te sturen
+              rechtstreeks vanuit het Yippie-platform.
             </li>
             <li>
-              <strong>gmail.modify</strong> — to mark messages as read and
-              apply labels after they are handled.
+              <strong>gmail.modify</strong>: om berichten als gelezen te markeren
+              en labels toe te passen nadat ze zijn afgehandeld.
             </li>
           </ul>
           <p>
-            When you connect a Microsoft Outlook account, Yippie requests
-            equivalent Microsoft Graph permissions (
+            Wanneer je een Microsoft Outlook-account koppelt, vraagt Yippie
+            vergelijkbare Microsoft Graph-machtigingen aan (
             <strong>Mail.Read</strong>, <strong>Mail.Send</strong>,{" "}
-            <strong>Mail.ReadWrite</strong>) for the same purposes.
+            <strong>Mail.ReadWrite</strong>) voor dezelfde doeleinden.
           </p>
 
-          <h3>How we use your email data</h3>
+          <h3>Hoe we je e-mailgegevens gebruiken</h3>
           <p>
-            Email content (sender, recipient, subject, and body) is processed
-            solely to display messages in the Yippie platform, generate
-            AI-assisted reply suggestions, and classify conversations. We do{" "}
-            <strong>not</strong> use your email data to serve advertising, build
-            profiles for third parties, or train AI models. Message content
-            processed by our AI provider (Mistral AI SAS) is subject to a Data
-            Processing Agreement and is not used for model training.
+            E-mailinhoud (afzender, ontvanger, onderwerp en berichttekst) wordt
+            uitsluitend verwerkt om berichten in het Yippie-platform weer te
+            geven, door AI ondersteunde antwoordsuggesties te genereren en
+            gesprekken te classificeren. We gebruiken je e-mailgegevens{" "}
+            <strong>niet</strong> voor advertenties, voor het opbouwen van
+            profielen voor derden, of voor het trainen van AI-modellen. Inhoud
+            die door onze AI-aanbieder (Mistral AI SAS) wordt verwerkt, valt
+            onder een verwerkersovereenkomst en wordt niet gebruikt voor
+            modeltraining.
           </p>
 
-          <h3>Where your data is processed</h3>
+          <h3>Waar je gegevens worden verwerkt</h3>
           <p>
-            Email data is fetched from Gmail or Outlook to Yippie&apos;s
-            servers (hosted on Railway, EU region) and stored in your
-            account&apos;s isolated database. It is not shared with other
-            tenants and is not sold or transferred to third parties outside the
-            processors listed in this policy.
+            E-mailgegevens worden van Gmail of Outlook opgehaald naar de servers
+            van Yippie (gehost op Railway, EU-regio) en opgeslagen in de
+            geïsoleerde database van je account. Ze worden niet gedeeld met
+            andere tenants en niet verkocht of doorgegeven aan derden buiten de
+            verwerkers die in dit beleid worden vermeld.
           </p>
 
-          <h3>Legal basis</h3>
+          <h3>Wettelijke grondslag</h3>
           <p>
-            Processing is based on your explicit consent (Art. 6(1)(a) GDPR),
-            granted when you connect your mailbox via the OAuth consent screen.
-            You can disconnect your mailbox at any time from your Yippie account
-            settings, which immediately revokes our access token. You can also
-            revoke access directly at{" "}
+            De verwerking is gebaseerd op je uitdrukkelijke toestemming (art. 6
+            lid 1 onder a AVG), verleend wanneer je je mailbox koppelt via het
+            OAuth-toestemmingsscherm. Je kunt je mailbox op elk moment loskoppelen
+            via je Yippie-accountinstellingen, waarmee onze toegangstoken
+            onmiddellijk wordt ingetrokken. Je kunt de toegang ook rechtstreeks
+            intrekken via{" "}
             <a
               href="https://myaccount.google.com/permissions"
               target="_blank"
@@ -209,133 +220,142 @@ export default function PrivacyPage() {
             >
               myaccount.google.com/permissions
             </a>{" "}
-            (Gmail) or via your Microsoft account security settings (Outlook).
+            (Gmail) of via de beveiligingsinstellingen van je Microsoft-account
+            (Outlook).
           </p>
 
-          <h3>Data retention</h3>
+          <h3>Bewaartermijn</h3>
           <p>
-            Email messages synced to Yippie are retained for as long as your
-            account is active. When you delete a conversation or close your
-            account, the associated message data is deleted from our systems
-            within 30 days.
+            E-mailberichten die naar Yippie zijn gesynchroniseerd, worden bewaard
+            zolang je account actief is. Wanneer je een gesprek verwijdert of je
+            account sluit, worden de bijbehorende berichtgegevens binnen 30 dagen
+            uit onze systemen verwijderd.
           </p>
 
-          <h2>Cookies &amp; analytics</h2>
+          <h2>Cookies &amp; analyse</h2>
           <p>
-            We use <strong>Google Analytics 4</strong> with Google{" "}
-            <strong>Consent Mode v2</strong> to understand how the site is
-            used. Until you make a choice in our cookie banner, all analytics
-            and advertising storage is set to <strong>denied</strong> by
-            default. No tracking cookies are placed. Google Analytics may
-            still receive anonymous, cookieless signals (pings) so we can
-            measure aggregate traffic without identifying you.
+            We gebruiken <strong>Google Analytics 4</strong> met Google{" "}
+            <strong>Consent Mode v2</strong> om te begrijpen hoe de site wordt
+            gebruikt. Totdat je een keuze maakt in onze cookiebanner, is alle
+            opslag voor analyse en advertenties standaard op{" "}
+            <strong>geweigerd</strong> ingesteld. Er worden geen
+            trackingcookies geplaatst. Google Analytics kan nog wel anonieme,
+            cookieloze signalen (pings) ontvangen zodat we het totale verkeer
+            kunnen meten zonder jou te identificeren.
           </p>
           <p>
-            When you select <strong>Accept</strong>, we update your consent to
-            allow analytics and advertising storage, and Google Analytics sets
-            its cookies. When you select <strong>Decline</strong>, no consent
-            is granted and Analytics stays in cookieless mode. Your choice is
-            remembered in your browser&apos;s local storage.
-          </p>
-
-          <h2>Withdrawing or changing your consent</h2>
-          <p>
-            You can change your mind at any time. Clearing your browser&apos;s
-            site data for getyippie.com (or removing the{" "}
-            <code>yippie_consent</code> entry from local storage) will make the
-            cookie banner appear again on your next visit, letting you choose
-            anew.
+            Wanneer je <strong>Accepteren</strong> kiest, werken we je
+            toestemming bij om analyse en advertentieopslag toe te staan, en
+            plaatst Google Analytics zijn cookies. Wanneer je{" "}
+            <strong>Weigeren</strong> kiest, wordt er geen toestemming verleend
+            en blijft Analytics in cookieloze modus. Je keuze wordt opgeslagen
+            in de lokale opslag van je browser.
           </p>
 
-          <h2>Third-party service providers (data processors)</h2>
+          <h2>Je toestemming intrekken of wijzigen</h2>
           <p>
-            We do not sell your data. However, to operate this website we share
-            data with third-party service providers (verwerkers) in the
-            following categories:
+            Je kunt je keuze op elk moment wijzigen. Het wissen van de
+            sitegegevens van getyippie.com in je browser (of het verwijderen van
+            de{" "}
+            <code>yippie_consent</code> vermelding uit de lokale opslag) zorgt
+            ervoor dat de cookiebanner bij je volgende bezoek opnieuw verschijnt,
+            zodat je opnieuw een keuze kunt maken.
+          </p>
+
+          <h2>Externe dienstverleners (verwerkers)</h2>
+          <p>
+            We verkopen je gegevens niet. Om deze website te kunnen beheren,
+            delen we echter gegevens met externe dienstverleners (verwerkers) in
+            de volgende categorieën:
           </p>
           <ul>
             <li>
-              <strong>Analytics providers</strong>: to measure website traffic
-              and usage (e.g. Google Analytics).
+              <strong>Analyseaanbieders</strong>: voor het meten van
+              websiteverkeer en gebruik (bijv. Google Analytics).
             </li>
             <li>
-              <strong>Hosting and infrastructure providers</strong>: to serve
-              and maintain the website.
+              <strong>Hosting- en infrastructuuraanbieders</strong>: voor het
+              hosten en onderhouden van de website.
             </li>
             <li>
-              <strong>Email and communication providers</strong>: to process
-              and deliver messages you send us.
+              <strong>E-mail- en communicatieaanbieders</strong>: voor het
+              verwerken en bezorgen van berichten die je ons stuurt.
             </li>
             <li>
-              <strong>AI processing providers</strong>: to power AI-assisted
-              features (inbox classification, reply suggestions, and the Yip
-              assistant), message content and contact data may be processed by
-              Mistral AI SAS, 15 rue des Halles, 75001 Paris, France
-              (EU-hosted). Mistral AI does not use this data to train its
-              models. A Data Processing Agreement with Mistral AI is in place.
+              <strong>AI-verwerkingsaanbieders</strong>: voor door AI
+              ondersteunde functies (inboxclassificatie, antwoordsuggesties en de
+              Yip-assistent) kunnen berichtinhoud en contactgegevens worden
+              verwerkt door Mistral AI SAS, 15 rue des Halles, 75001 Parijs,
+              Frankrijk (gehost in de EU). Mistral AI gebruikt deze gegevens niet
+              voor het trainen van modellen. Er is een verwerkersovereenkomst
+              met Mistral AI gesloten.
             </li>
           </ul>
           <p>
-            Where required under the GDPR, we have concluded a data processing
-            agreement (verwerkersovereenkomst) with each of these providers to
-            ensure your data is processed only on our instructions and with
-            appropriate safeguards in place.
+            Waar de AVG dat vereist, hebben we met elk van deze aanbieders een
+            verwerkersovereenkomst gesloten om te waarborgen dat je gegevens
+            alleen worden verwerkt op onze instructies en met passende
+            waarborgen.
           </p>
 
-          <h2>International data transfers</h2>
+          <h2>Internationale gegevensoverdrachten</h2>
           <p>
-            Some of our service providers, including Google (Google Analytics),
-            are based outside the European Economic Area (EEA) or transfer
-            data to countries outside the EEA, including the United States. We
-            ensure that such transfers are subject to appropriate safeguards.
-            For Google, these transfers are covered by the{" "}
+            Sommige van onze dienstverleners, waaronder Google (Google
+            Analytics), zijn gevestigd buiten de Europese Economische Ruimte
+            (EER) of dragen gegevens over naar landen buiten de EER, waaronder
+            de Verenigde Staten. We zorgen ervoor dat dergelijke overdrachten
+            zijn onderworpen aan passende waarborgen. Voor Google zijn deze
+            overdrachten gedekt door de{" "}
             <strong>
-              Standard Contractual Clauses (SCCs) adopted by the European
-              Commission
+              door de Europese Commissie vastgestelde Standaard Contractuele
+              Bedingen (SCB's)
             </strong>
-            , which legally bind Google to protect your data to the same
-            standard as within the EEA.
+            , die Google juridisch verplichten je gegevens te beschermen op
+            hetzelfde niveau als binnen de EER.
           </p>
 
-          <h2>Data retention</h2>
-          <p>We retain personal data only as long as necessary:</p>
+          <h2>Bewaartermijnen</h2>
+          <p>We bewaren persoonsgegevens alleen zo lang als noodzakelijk:</p>
           <ul>
             <li>
-              <strong>Analytics data</strong>: Google Analytics is configured
-              with a maximum retention period of <strong>14 months</strong>.
-              Aggregate, anonymised reports may be kept longer.
+              <strong>Analysegegevens</strong>: Google Analytics is ingesteld met
+              een maximale bewaartermijn van <strong>14 maanden</strong>.
+              Geaggregeerde, geanonimiseerde rapporten kunnen langer worden
+              bewaard.
             </li>
             <li>
-              <strong>Demo requests and contact form submissions</strong>: we
-              retain your contact details for up to{" "}
-              <strong>12 months</strong> after our last interaction with you,
-              after which they are deleted.
+              <strong>Demoverzoeken en contactformulierinzendingen</strong>: we
+              bewaren je contactgegevens tot maximaal{" "}
+              <strong>12 maanden</strong> na ons laatste contact met jou, waarna
+              ze worden verwijderd.
             </li>
             <li>
-              <strong>Cookie consent preference</strong>: stored in your
-              browser&apos;s local storage and automatically removed when you
-              clear your browser data.
+              <strong>Cookietoestemmingsvoorkeur</strong>: opgeslagen in de
+              lokale opslag van je browser en automatisch verwijderd wanneer je
+              je browsergegevens wist.
             </li>
           </ul>
 
-          <h2>Your rights</h2>
+          <h2>Je rechten</h2>
           <p>
-            Under the GDPR / AVG you have the right to access, correct, or
-            delete the personal data we hold about you, to object to or
-            restrict its processing, and to data portability. Where processing
-            is based on consent, you may withdraw that consent at any time
-            without affecting the lawfulness of processing before withdrawal.
+            Op grond van de AVG (GDPR) heb je het recht om de persoonsgegevens
+            die we van je bewaren in te zien, te corrigeren of te verwijderen,
+            bezwaar te maken tegen of de verwerking te beperken, en gegevens
+            over te dragen. Waar de verwerking is gebaseerd op toestemming, kun
+            je die toestemming op elk moment intrekken zonder dat dit gevolgen
+            heeft voor de rechtmatigheid van de verwerking vóór de intrekking.
           </p>
           <p>
-            To exercise any of these rights, contact us using the details in
-            the <em>Data controller</em> section above.
+            Om een van deze rechten uit te oefenen, kun je contact opnemen via
+            de gegevens in de sectie <em>Verwerkingsverantwoordelijke</em>{" "}
+            hierboven.
           </p>
           <p>
-            You also have the right to lodge a complaint with the Dutch
-            supervisory authority, the{" "}
-            <strong>Autoriteit Persoonsgegevens (AP)</strong>, if you believe
-            we are processing your personal data unlawfully. You can reach the
-            AP at{" "}
+            Je hebt ook het recht om een klacht in te dienen bij de Nederlandse
+            toezichthoudende autoriteit, de{" "}
+            <strong>Autoriteit Persoonsgegevens (AP)</strong>, als je van mening
+            bent dat we je persoonsgegevens onrechtmatig verwerken. Je kunt de
+            AP bereiken via{" "}
             <a
               href="https://www.autoriteitpersoonsgegevens.nl"
               target="_blank"
@@ -348,16 +368,16 @@ export default function PrivacyPage() {
 
           <h2>Contact</h2>
           <p>
-            Questions about this policy or your data? Email us at{" "}
+            Vragen over dit beleid of over je gegevens? Stuur ons een e-mail via{" "}
             <a href="mailto:support@getyippie.com">support@getyippie.com</a>{" "}
-            and we will get back to you.
+            en we nemen zo snel mogelijk contact met je op.
           </p>
 
           <p>
             <em>
-              This page is a general starting point and not legal advice.
-              Please review it with qualified counsel before relying on it for
-              compliance.
+              Deze pagina is een algemeen startpunt en geen juridisch advies.
+              Laat deze tekst controleren door gekwalificeerde juridische
+              bijstand voordat je hierop vertrouwt voor compliancedoeleinden.
             </em>
           </p>
         </div>

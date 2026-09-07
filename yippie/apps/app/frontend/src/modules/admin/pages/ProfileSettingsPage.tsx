@@ -7,8 +7,10 @@ import { useAuth } from '../../../auth/useAuth'
 import { useSignatures, readSignatureImage, signatureImageTag, type Signature } from '../../../hooks/useSignatures'
 import { EmailAccountsCard } from '../../inbox/components/EmailAccountsCard'
 import { useCopy } from '../../../hooks/useCopy'
+import { useT } from '../../../hooks/useT'
 
 export default function ProfileSettingsPage() {
+  const t = useT()
   const { user, refreshUser } = useAuth()
   const [personalEmail, setPersonalEmail] = useState(user?.inbound_email ?? user?.reply_from_email ?? '')
   const [hotkeysEnabled, setHotkeysEnabled] = useState(user?.hotkeys_enabled !== false)
@@ -51,7 +53,7 @@ export default function ProfileSettingsPage() {
       await refreshUser()
       window.location.reload()
     },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to save. Try again.'),
+    onError: (err: any) => setError(err.response?.data?.detail ?? t('settings_failed_save_try_again')),
   })
 
   function handleSubmit(e: React.FormEvent) {
@@ -63,19 +65,19 @@ export default function ProfileSettingsPage() {
 
   return (
     <div>
-      <h1 className="heading-xl text-slate-900 mb-1">Profile</h1>
-      <p className="text-sm text-slate-500 mb-8">Manage your personal email address, signature and password.</p>
+      <h1 className="heading-xl text-slate-900 mb-1">{t('settings_edit_tab_profile')}</h1>
+      <p className="text-sm text-slate-500 mb-8">{t('settings_profile_desc')}</p>
 
       <div className="flex items-stretch gap-8">
         {/* Main form: email + personal address + signature + hotkeys */}
         <form onSubmit={handleSubmit} className="flex-1 min-w-0 bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Email</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_profile_email_label')}</label>
             <p className="text-sm text-slate-700">{user?.email}</p>
           </div>
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 mb-1.5">Personal email address</label>
+            <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_profile_personal_email')}</label>
             <input
               type="email"
               value={personalEmail}
@@ -84,17 +86,18 @@ export default function ProfileSettingsPage() {
               className="w-full px-3 py-2 text-sm border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
             <p className="mt-1.5 text-xs text-slate-400">
-              One address for both directions: mail sent to it lands in your Personal inbox, and you can pick it as the "From" address when replying or composing. You can also connect this address with OAuth (Gmail or Outlook) instead. Contact your admin at{' '}
-              <a href="mailto:diederik@getyippie.com" className="text-yippie hover:underline">diederik@getyippie.com</a>{' '}to set that up.
+              {t('settings_profile_personal_hint').replace('{email}', 'diederik@getyippie.com').split('diederik@getyippie.com')[0]}
+              <a href="mailto:diederik@getyippie.com" className="text-yippie hover:underline">diederik@getyippie.com</a>
+              {t('settings_profile_personal_hint').replace('{email}', 'diederik@getyippie.com').split('diederik@getyippie.com')[1]}
             </p>
           </div>
 
           <div>
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-500">Send-from aliases</label>
+              <label className="block text-xs font-semibold text-slate-500">{t('settings_profile_aliases_label')}</label>
             </div>
             <p className="mb-2 text-xs text-slate-400">
-              Extra addresses you can pick as "From" when composing or replying. These are display labels only. Mail is delivered via your shared inbox domain.
+              {t('settings_profile_aliases_hint')}
             </p>
             <div className="space-y-1.5 mb-2">
               {aliases.map((alias, i) => (
@@ -104,7 +107,7 @@ export default function ProfileSettingsPage() {
                     type="button"
                     onClick={() => setAliases(aliases.filter((_, j) => j !== i))}
                     className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                    title="Remove alias"
+                    title={t('settings_profile_alias_remove')}
                   >
                     <X size={14} />
                   </button>
@@ -137,7 +140,7 @@ export default function ProfileSettingsPage() {
                 disabled={!newAlias.trim()}
                 className="px-3 py-2 bg-slate-100 text-slate-600 text-sm font-semibold rounded-xl hover:bg-slate-200 disabled:opacity-40 transition-colors"
               >
-                Add
+                {t('settings_profile_alias_add')}
               </button>
             </div>
           </div>
@@ -148,8 +151,8 @@ export default function ProfileSettingsPage() {
 
           <div className="flex items-start justify-between gap-4 border-t border-slate-100 pt-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Language</label>
-              <p className="text-xs text-slate-400 max-w-sm">Choose the language for the app interface.</p>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_profile_lang_label')}</label>
+              <p className="text-xs text-slate-400 max-w-sm">{t('settings_profile_lang_hint')}</p>
             </div>
             <select
               value={uiLanguage}
@@ -163,9 +166,9 @@ export default function ProfileSettingsPage() {
 
           <div className="flex items-start justify-between gap-4 border-t border-slate-100 pt-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Keyboard shortcuts</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_profile_hotkeys_label')}</label>
               <p className="text-xs text-slate-400 max-w-sm">
-                When on, shortcuts like <span className="font-medium text-slate-500">Cmd/Ctrl + Enter</span> to send are active. Turn off to disable all keyboard shortcuts.
+                {t('settings_profile_hotkeys_hint').split('Cmd/Ctrl + Enter')[0]}<span className="font-medium text-slate-500">Cmd/Ctrl + Enter</span>{t('settings_profile_hotkeys_hint').split('Cmd/Ctrl + Enter')[1]}
               </p>
             </div>
             <button
@@ -181,9 +184,9 @@ export default function ProfileSettingsPage() {
 
           <div className="flex items-start justify-between gap-4 border-t border-slate-100 pt-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Personal work mode</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_profile_workmode_label')}</label>
               <p className="text-xs text-slate-400 max-w-sm">
-                When on, the shared inbox only shows mail assigned to you (or sent to your personal address). Turn off to see all of your team's incoming mail.
+                {t('settings_profile_workmode_hint')}
               </p>
             </div>
             <button
@@ -199,9 +202,9 @@ export default function ProfileSettingsPage() {
 
           <div className="flex items-start justify-between gap-4 border-t border-slate-100 pt-5">
             <div>
-              <label className="block text-xs font-semibold text-slate-500 mb-1.5">Help tips</label>
+              <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_profile_helptips_label')}</label>
               <p className="text-xs text-slate-400 max-w-sm">
-                Show contextual <span className="font-medium text-slate-500">?</span> icons throughout the app with short explanations. Turn off to hide them all.
+                {t('settings_profile_helptips_hint').split('?')[0]}<span className="font-medium text-slate-500">?</span>{t('settings_profile_helptips_hint').split('?')[1]}
               </p>
             </div>
             <button
@@ -223,9 +226,9 @@ export default function ProfileSettingsPage() {
               disabled={mutation.isPending}
               className="btn-primary px-5 py-2"
             >
-              {mutation.isPending ? 'Saving…' : 'Save'}
+              {mutation.isPending ? t('settings_saving') : t('settings_save')}
             </button>
-            {saved && <span className="text-sm text-success-600 font-medium">✓ Saved</span>}
+            {saved && <span className="text-sm text-success-600 font-medium">&#10003; {t('settings_profile_saved_check')}</span>}
           </div>
         </form>
 
@@ -243,8 +246,8 @@ export default function ProfileSettingsPage() {
       {/* Platform manual download */}
       <div className="mt-10 pt-6 border-t border-slate-200 flex items-center justify-between">
         <div>
-          <p className="text-sm font-semibold text-slate-700">Platform Manual</p>
-          <p className="text-xs text-slate-400 mt-0.5">Download the latest version of the Yippie Platform Manual as a PDF.</p>
+          <p className="text-sm font-semibold text-slate-700">{t('settings_manual_heading')}</p>
+          <p className="text-xs text-slate-400 mt-0.5">{t('settings_manual_desc')}</p>
         </div>
         <button
           type="button"
@@ -253,7 +256,7 @@ export default function ProfileSettingsPage() {
           className="btn-secondary px-4 py-2"
         >
           <Download size={15} />
-          {downloadingManual ? 'Generating…' : 'Download PDF'}
+          {downloadingManual ? t('settings_manual_generating') : t('settings_manual_download')}
         </button>
       </div>
     </div>
@@ -261,6 +264,7 @@ export default function ProfileSettingsPage() {
 }
 
 function ChangePasswordCard() {
+  const t = useT()
   const [current, setCurrent] = useState('')
   const [next, setNext] = useState('')
   const [confirm, setConfirm] = useState('')
@@ -275,12 +279,12 @@ function ChangePasswordCard() {
       setCurrent(''); setNext(''); setConfirm('')
       setTimeout(() => setSaved(false), 3000)
     },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to change password.'),
+    onError: (err: any) => setError(err.response?.data?.detail ?? t('settings_pw_failed')),
   })
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (next !== confirm) { setError('Passwords do not match'); return }
+    if (next !== confirm) { setError(t('settings_pw_mismatch')); return }
     setSaved(false)
     setError('')
     mutation.mutate()
@@ -291,19 +295,19 @@ function ChangePasswordCard() {
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-slate-200 p-6 space-y-5">
       <div>
-        <h2 className="text-sm font-bold text-slate-900">Change password</h2>
-        <p className="text-xs text-slate-400 mt-0.5">At least 8 characters.</p>
+        <h2 className="text-sm font-bold text-slate-900">{t('settings_pw_heading')}</h2>
+        <p className="text-xs text-slate-400 mt-0.5">{t('settings_pw_hint')}</p>
       </div>
       <div>
-        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Current password</label>
+        <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_pw_current')}</label>
         <input type="password" value={current} onChange={e => setCurrent(e.target.value)} className={inputCls} required />
       </div>
       <div>
-        <label className="block text-xs font-semibold text-slate-500 mb-1.5">New password</label>
+        <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_pw_new')}</label>
         <input type="password" value={next} onChange={e => setNext(e.target.value)} className={inputCls} required minLength={8} />
       </div>
       <div>
-        <label className="block text-xs font-semibold text-slate-500 mb-1.5">Confirm new password</label>
+        <label className="block text-xs font-semibold text-slate-500 mb-1.5">{t('settings_pw_confirm')}</label>
         <input type="password" value={confirm} onChange={e => setConfirm(e.target.value)} className={inputCls} required />
       </div>
 
@@ -315,9 +319,9 @@ function ChangePasswordCard() {
           disabled={mutation.isPending}
           className="btn-primary px-5 py-2"
         >
-          {mutation.isPending ? 'Updating…' : 'Update password'}
+          {mutation.isPending ? t('settings_pw_updating') : t('settings_pw_update_btn')}
         </button>
-        {saved && <span className="text-sm text-success-600 font-medium">✓ Password updated</span>}
+        {saved && <span className="text-sm text-success-600 font-medium">&#10003; {t('settings_pw_updated')}</span>}
       </div>
     </form>
   )
@@ -326,6 +330,7 @@ function ChangePasswordCard() {
 // ── Multi-signature management (S1/S2) ──────────────────────────────────────
 
 function SignaturesSection() {
+  const t = useT()
   const qc = useQueryClient()
   const { data: signatures = [], isLoading } = useSignatures()
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -338,14 +343,14 @@ function SignaturesSection() {
     mutationFn: (payload: { name: string; body: string }) =>
       api.post('/auth/me/signatures', payload).then((r: any) => r.data),
     onSuccess: () => { invalidate(); setAdding(false); setError('') },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Could not save signature.'),
+    onError: (err: any) => setError(err.response?.data?.detail ?? t('settings_sig_save_failed')),
   })
 
   const updateMutation = useMutation({
     mutationFn: ({ id, ...payload }: { id: string; name?: string; body?: string }) =>
       api.patch(`/auth/me/signatures/${id}`, payload).then((r: any) => r.data),
     onSuccess: () => { invalidate(); setEditingId(null); setError('') },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Could not save signature.'),
+    onError: (err: any) => setError(err.response?.data?.detail ?? t('settings_sig_save_failed')),
   })
 
   const setDefaultMutation = useMutation({
@@ -376,29 +381,29 @@ function SignaturesSection() {
   return (
     <div>
       <div className="flex items-center justify-between mb-1.5">
-        <label className="block text-xs font-semibold text-slate-500">Email signatures</label>
+        <label className="block text-xs font-semibold text-slate-500">{t('settings_sig_label')}</label>
         {!adding && (
           <button
             type="button"
             onClick={() => { setAdding(true); setEditingId(null); setError('') }}
             className="inline-flex items-center gap-1 text-xs font-semibold text-yippie hover:opacity-80 cursor-pointer"
           >
-            <Plus size={13} /> Add signature
+            <Plus size={13} /> {t('settings_sig_add_btn')}
           </button>
         )}
       </div>
       <p className="mb-3 text-xs text-slate-400">
-        Your default signature is added automatically when you compose or reply. You can pick another from the message box.
+        {t('settings_sig_default_hint')}
       </p>
 
       {error && <p className="error-text mb-2">{error}</p>}
 
       {isLoading ? (
-        <p className="text-xs text-slate-400">Loading…</p>
+        <p className="text-xs text-slate-400">{t('settings_loading')}</p>
       ) : (
         <div className="space-y-2">
           {signatures.length === 0 && !adding && (
-            <p className="text-xs text-slate-400 italic">No signatures yet. Add one to get started.</p>
+            <p className="text-xs text-slate-400 italic">{t('settings_sig_empty')}</p>
           )}
 
           {signatures.map((sig: any, i: any) => (
@@ -414,11 +419,11 @@ function SignaturesSection() {
               <div key={sig.id} className="flex items-start gap-3 border border-slate-200 rounded-xl px-3 py-2.5">
                 <div className="flex flex-col gap-0.5 pt-0.5">
                   <button type="button" onClick={() => move(i, -1)} disabled={i === 0}
-                    className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default cursor-pointer" title="Move up">
+                    className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default cursor-pointer" title={t('settings_sig_move_up')}>
                     <ChevronUp size={14} />
                   </button>
                   <button type="button" onClick={() => move(i, 1)} disabled={i === signatures.length - 1}
-                    className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default cursor-pointer" title="Move down">
+                    className="text-slate-300 hover:text-slate-500 disabled:opacity-30 disabled:cursor-default cursor-pointer" title={t('settings_sig_move_down')}>
                     <ChevronDown size={14} />
                   </button>
                 </div>
@@ -426,7 +431,7 @@ function SignaturesSection() {
                   <div className="flex items-center gap-2">
                     <span className="text-sm font-semibold text-slate-800 truncate">{sig.name}</span>
                     {sig.is_default && (
-                      <span className="text-[10px] px-1.5 py-0.5 bg-yippie/10 text-yippie rounded-full font-semibold">Default</span>
+                      <span className="text-[10px] px-1.5 py-0.5 bg-yippie/10 text-yippie rounded-full font-semibold">{t('settings_sig_default_badge')}</span>
                     )}
                   </div>
                   <SignaturePreview body={sig.body} />
@@ -434,15 +439,15 @@ function SignaturesSection() {
                 <div className="flex items-center gap-1 shrink-0">
                   <button type="button" onClick={() => setDefaultMutation.mutate(sig.id)} disabled={sig.is_default}
                     className={`p-1.5 rounded-lg cursor-pointer ${sig.is_default ? 'text-yippie' : 'text-slate-300 hover:text-yippie hover:bg-slate-50'}`}
-                    title={sig.is_default ? 'Default signature' : 'Set as default'}>
+                    title={sig.is_default ? t('settings_sig_default_title') : t('settings_sig_set_default')}>
                     <Star size={15} fill={sig.is_default ? 'currentColor' : 'none'} />
                   </button>
                   <button type="button" onClick={() => { setEditingId(sig.id); setAdding(false); setError('') }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 cursor-pointer" title="Edit">
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 cursor-pointer" title={t('settings_action_edit')}>
                     <Pencil size={15} />
                   </button>
                   <button type="button" onClick={() => { if (confirm(`Delete signature "${sig.name}"?`)) deleteMutation.mutate(sig.id) }}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer" title="Delete">
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 cursor-pointer" title={t('settings_action_delete')}>
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -465,13 +470,14 @@ function SignaturesSection() {
 }
 
 function SignaturePreview({ body }: { body: string }) {
+  const t = useT()
   // Body may contain a single inline <img data-uri>. Render images, escape the rest.
   const hasImg = /<img\s/i.test(body)
   if (hasImg) {
     return <div className="mt-1 text-xs text-slate-500 [&_img]:max-h-12 [&_img]:inline-block"
       dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(body) }} />
   }
-  return <p className="mt-1 text-xs text-slate-500 whitespace-pre-wrap line-clamp-3">{body || <span className="italic text-slate-400">Empty</span>}</p>
+  return <p className="mt-1 text-xs text-slate-500 whitespace-pre-wrap line-clamp-3">{body || <span className="italic text-slate-400">{t('settings_sig_empty_preview')}</span>}</p>
 }
 
 function SignatureEditor({ initial, saving, onSave, onCancel }: {
@@ -480,6 +486,7 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
   onSave: (name: string, body: string) => void
   onCancel: () => void
 }) {
+  const t = useT()
   const [name, setName] = useState(initial?.name ?? '')
   const [body, setBody] = useState(initial?.body ?? '')
   const [imgError, setImgError] = useState('')
@@ -491,7 +498,7 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
       const dataUri = await readSignatureImage(file)
       setBody(prev => `${prev}${prev && !prev.endsWith('\n') ? '\n' : ''}${signatureImageTag(dataUri)}`)
     } catch (err: any) {
-      setImgError(err.message ?? 'Could not add image.')
+      setImgError(err.message ?? t('settings_sig_save_failed'))
     }
   }
 
@@ -500,14 +507,14 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
       <input
         value={name}
         onChange={e => setName(e.target.value)}
-        placeholder="Signature name (e.g. Support, Sales)"
+        placeholder={t('settings_sig_name_ph')}
         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
       />
       <textarea
         value={body}
         onChange={e => setBody(e.target.value)}
         rows={4}
-        placeholder={'e.g.\nBest regards,\nEddy from Support'}
+        placeholder={t('settings_sig_body_ph')}
         className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie resize-y font-sans"
       />
       {/<img\s/i.test(body) && (
@@ -521,7 +528,7 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
             onClick={() => fileRef.current?.click()}
             className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer"
           >
-            <ImageIcon size={13} /> Add image
+            <ImageIcon size={13} /> {t('settings_sig_add_image')}
           </button>
           <input
             ref={fileRef}
@@ -538,7 +545,7 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
             onClick={onCancel}
             className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
           >
-            <X size={13} /> Cancel
+            <X size={13} /> {t('settings_cancel')}
           </button>
           <button
             type="button"
@@ -546,7 +553,7 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
             onClick={() => onSave(name.trim(), body)}
             className="inline-flex items-center gap-1 px-3 py-1.5 bg-yippie text-white text-xs font-semibold rounded-lg hover:opacity-90 disabled:opacity-50 cursor-pointer"
           >
-            <Check size={13} /> {saving ? 'Saving…' : 'Save'}
+            <Check size={13} /> {saving ? t('settings_sig_saving') : t('settings_save')}
           </button>
         </div>
       </div>
@@ -567,6 +574,7 @@ type Feed = {
 }
 
 function ConnectedCalendarsCard() {
+  const t = useT()
   const qc = useQueryClient()
   const [adding, setAdding] = useState(false)
   const [name, setName] = useState('')
@@ -585,7 +593,7 @@ function ConnectedCalendarsCard() {
     mutationFn: (body: { name: string; ical_url: string }) =>
       api.post('/booking/external-calendars', body).then((r: any) => r.data),
     onSuccess: () => { invalidate(); setAdding(false); setName(''); setUrl(''); setAddError('') },
-    onError: (err: any) => setAddError(err.response?.data?.detail ?? 'Could not add calendar.'),
+    onError: (err: any) => setAddError(err.response?.data?.detail ?? t('settings_cal_add_failed')),
   })
 
   const toggleMutation = useMutation({
@@ -610,32 +618,32 @@ function ConnectedCalendarsCard() {
   }
 
   function lastSyncLabel(feed: Feed) {
-    if (feed.last_sync_error) return { text: 'Error', cls: 'text-red-500 bg-red-50' }
-    if (!feed.last_synced_at) return { text: 'Never synced', cls: 'text-slate-400 bg-slate-50' }
+    if (feed.last_sync_error) return { text: t('settings_cal_error'), cls: 'text-red-500 bg-red-50' }
+    if (!feed.last_synced_at) return { text: t('settings_cal_never_synced'), cls: 'text-slate-400 bg-slate-50' }
     const mins = Math.round((Date.now() - new Date(feed.last_synced_at).getTime()) / 60000)
-    const label = mins < 2 ? 'Just now' : mins < 60 ? `${mins}m ago` : `${Math.round(mins / 60)}h ago`
+    const label = mins < 2 ? t('settings_cal_just_now') : mins < 60 ? `${mins}m ago` : `${Math.round(mins / 60)}h ago`
     return { text: label, cls: 'text-emerald-600 bg-emerald-50' }
   }
 
   return (
     <div className="bg-white rounded-2xl border border-slate-200 p-6">
       <div className="flex items-center justify-between mb-1">
-        <h2 className="text-sm font-bold text-slate-900">Connected Calendars</h2>
+        <h2 className="text-sm font-bold text-slate-900">{t('settings_cal_heading')}</h2>
         {!adding && feeds.length < 5 && (
           <button
             type="button"
             onClick={() => { setAdding(true); setAddError('') }}
             className="inline-flex items-center gap-1 text-xs font-semibold text-yippie hover:opacity-80 cursor-pointer"
           >
-            <Plus size={13} /> Add calendar
+            <Plus size={13} /> {t('settings_cal_add_btn')}
           </button>
         )}
       </div>
       <p className="text-xs text-slate-400 mb-4">
-        Add iCal feed URLs from Apple Calendar or Outlook. Busy times are automatically blocked from your booking availability.
+        {t('settings_cal_desc')}
       </p>
 
-      {isLoading && <p className="text-xs text-slate-400">Loading…</p>}
+      {isLoading && <p className="text-xs text-slate-400">{t('settings_loading')}</p>}
 
       <div className="space-y-3">
         {feeds.map((feed: Feed) => {
@@ -652,7 +660,7 @@ function ConnectedCalendarsCard() {
               <span className={`shrink-0 text-xs font-medium px-2 py-0.5 rounded-full ${sync.cls}`}>{sync.text}</span>
               <button
                 type="button"
-                title="Sync now"
+                title={t('settings_cal_sync_now')}
                 onClick={() => handleSync(feed.id)}
                 disabled={syncingId === feed.id}
                 className="p-1.5 text-slate-400 hover:text-yippie hover:bg-yippie/10 rounded-lg transition-colors disabled:opacity-40 cursor-pointer"
@@ -661,7 +669,7 @@ function ConnectedCalendarsCard() {
               </button>
               <button
                 type="button"
-                title={feed.is_active ? 'Disable' : 'Enable'}
+                title={feed.is_active ? t('settings_cal_disable') : t('settings_cal_enable')}
                 onClick={() => toggleMutation.mutate({ id: feed.id, is_active: !feed.is_active })}
                 className={`relative inline-flex h-5 w-9 flex-shrink-0 items-center rounded-full transition-colors cursor-pointer ${feed.is_active ? 'bg-yippie' : 'bg-slate-300'}`}
               >
@@ -669,7 +677,7 @@ function ConnectedCalendarsCard() {
               </button>
               <button
                 type="button"
-                title="Remove"
+                title={t('settings_cal_remove')}
                 onClick={() => deleteMutation.mutate(feed.id)}
                 className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors cursor-pointer"
               >
@@ -685,18 +693,17 @@ function ConnectedCalendarsCard() {
           <input
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Name (e.g. Apple Calendar, School)"
+            placeholder={t('settings_cal_name_ph')}
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
           <input
             value={url}
             onChange={e => setUrl(e.target.value)}
-            placeholder="iCal URL (webcal:// or https://)"
+            placeholder={t('settings_cal_url_ph')}
             className="w-full px-3 py-2 text-sm border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
           <p className="text-xs text-slate-400">
-            Apple Calendar: right-click calendar → Share → Copy Link (webcal://…) &nbsp;·&nbsp;
-            Outlook: Calendar settings → Share → ICS link
+            {t('settings_cal_instructions')}
           </p>
           {addError && <p className="error-text">{addError}</p>}
           <div className="flex items-center gap-2 justify-end">
@@ -705,7 +712,7 @@ function ConnectedCalendarsCard() {
               onClick={() => { setAdding(false); setName(''); setUrl(''); setAddError('') }}
               className="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700 cursor-pointer"
             >
-              Cancel
+              {t('settings_cancel')}
             </button>
             <button
               type="button"
@@ -713,7 +720,7 @@ function ConnectedCalendarsCard() {
               onClick={() => addMutation.mutate({ name: name.trim(), ical_url: url.trim() })}
               className="btn-primary text-xs px-3 py-1.5"
             >
-              {addMutation.isPending ? 'Adding…' : 'Add'}
+              {addMutation.isPending ? t('settings_cal_adding') : t('settings_add')}
             </button>
           </div>
         </div>
@@ -725,6 +732,7 @@ function ConnectedCalendarsCard() {
 // ── Yippie iCal Export Feed (Yippie → Apple Calendar / Outlook) ──────────────
 
 function YippieCalendarFeedCard() {
+  const t = useT()
   const { copy: copyUrl, copied } = useCopy({ useToast: false })
   const [regenerating, setRegenerating] = useState(false)
   const [feedUrl, setFeedUrl] = useState<string | null>(null)
@@ -743,7 +751,7 @@ function YippieCalendarFeedCard() {
   }
 
   async function handleRegenerate() {
-    if (!confirm('This will invalidate the old URL. Any existing subscriptions will stop working. Continue?')) return
+    if (!confirm(t('settings_feed_regen_confirm'))) return
     setRegenerating(true)
     try {
       const res: any = await api.post('/booking/external-calendars/my-feed-url/regenerate')
@@ -759,14 +767,14 @@ function YippieCalendarFeedCard() {
     <div className="bg-white rounded-2xl border border-slate-200 p-6 flex-1">
       <div className="flex items-center gap-2 mb-1">
         <Link size={15} className="text-slate-400" />
-        <h2 className="text-sm font-bold text-slate-900">Your Yippie Calendar Feed</h2>
+        <h2 className="text-sm font-bold text-slate-900">{t('settings_feed_heading')}</h2>
       </div>
       <p className="text-xs text-slate-400 mb-4">
-        Subscribe to this URL in Apple Calendar (File → New Calendar Subscription) or Outlook (Add Calendar → From internet) to see your Yippie events and bookings there.
+        {t('settings_feed_desc')}
       </p>
 
       {isLoading ? (
-        <p className="text-xs text-slate-400">Loading…</p>
+        <p className="text-xs text-slate-400">{t('settings_loading')}</p>
       ) : (
         <div className="flex items-center gap-2">
           <input
@@ -777,7 +785,7 @@ function YippieCalendarFeedCard() {
           <button
             type="button"
             onClick={handleCopy}
-            title="Copy URL"
+            title={t('settings_feed_copy_title')}
             className="shrink-0 p-2 text-slate-400 hover:text-yippie hover:bg-yippie/10 rounded-xl transition-colors cursor-pointer"
           >
             {copied ? <Check size={15} className="text-emerald-500" /> : <Copy size={15} />}
@@ -792,7 +800,7 @@ function YippieCalendarFeedCard() {
         className="mt-3 inline-flex items-center gap-1.5 text-xs text-slate-400 hover:text-slate-600 disabled:opacity-50 cursor-pointer"
       >
         <RefreshCw size={12} className={regenerating ? 'animate-spin' : ''} />
-        {regenerating ? 'Regenerating…' : 'Regenerate URL'}
+        {regenerating ? t('settings_feed_regenerating') : t('settings_feed_regenerate')}
       </button>
     </div>
   )

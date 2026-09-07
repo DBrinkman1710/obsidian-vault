@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight, X } from 'lucide-react'
 import { CloseButton } from '../../../shell/CloseButton'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
+import { useT } from '../../../hooks/useT'
 
 // ---- Shared helpers (booking calendar) ----
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -44,6 +45,7 @@ function ContactPicker({ value, onChange }: {
   value: { id: string; label: string } | null
   onChange: (c: { id: string; label: string } | null) => void
 }) {
+  const t = useT()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
 
@@ -73,12 +75,12 @@ function ContactPicker({ value, onChange }: {
         onChange={e => { setSearch(e.target.value); setOpen(true) }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
-        placeholder="Search contacts by name, email or company…"
+        placeholder={t('chat_contact_search_ph')}
       />
       {open && (
         <div className="absolute top-full left-0 right-0 z-20 bg-white border border-slate-200 rounded-lg shadow-lg mt-1 max-h-48 overflow-y-auto">
           {!data?.length ? (
-            <div className="px-4 py-3 text-sm text-slate-400">{search ? 'No contacts found' : 'Start typing to search…'}</div>
+            <div className="px-4 py-3 text-sm text-slate-400">{search ? t('chat_contact_no_found') : t('chat_contact_start_typing')}</div>
           ) : data.map((c: any) => (
             <button key={c.id} type="button"
               onMouseDown={() => {
@@ -116,6 +118,7 @@ const inputCls = 'input-base'
 const labelCls = 'block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5'
 
 export default function ActionsModal({ session, defaultPane = 'ticket', onClose, onTicketLinked }: Props) {
+  const t = useT()
   const qc = useQueryClient()
   const [pane, setPane] = useState<'ticket' | 'booking'>(defaultPane)
 
@@ -152,15 +155,15 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['chat-sessions'] })
       qc.invalidateQueries({ queryKey: ['tickets'] })
-      toast.success('Ticket created')
+      toast.success(t('chat_ticket_created'))
       onTicketLinked()
       onClose()
     },
-    onError: (e: any) => setTicketError(e?.response?.data?.detail ?? e?.message ?? 'Failed to create ticket'),
+    onError: (e: any) => setTicketError(e?.response?.data?.detail ?? e?.message ?? t('chat_ticket_error_default')),
   })
 
   function handleCreateTicket() {
-    if (!subject.trim()) { setTicketError('Subject is required'); return }
+    if (!subject.trim()) { setTicketError(t('chat_ticket_subject_required')); return }
     setTicketError('')
     ticketMutation.mutate()
   }
@@ -243,18 +246,18 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
         message: bookingMessage.trim() || undefined,
         proposed_slots: mode === 'propose' ? slots : undefined,
       })
-      toast.success('Booking link sent!')
+      toast.success(t('chat_booking_sent'))
       onClose()
     } catch {
-      toast.error('Could not send booking link.')
+      toast.error(t('chat_booking_send_error'))
     } finally {
       setSending(false)
     }
   }
 
   async function handleSendBooking() {
-    if (!bookingContact) { toast.error('Select a contact first.'); return }
-    if (mode === 'propose' && slots.length === 0) { toast.error('Add at least one proposed time.'); return }
+    if (!bookingContact) { toast.error(t('chat_booking_select_contact')); return }
+    if (mode === 'propose' && slots.length === 0) { toast.error(t('chat_booking_add_slot')); return }
     // If contact has no email, prompt the agent to add one before sending
     if (!bookingContact.email) {
       setPromptEmail('')
@@ -273,7 +276,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
       setShowEmailPrompt(false)
       await dispatchBooking()
     } catch {
-      toast.error('Could not save email address.')
+      toast.error(t('chat_email_save_error'))
     } finally {
       setSavingEmail(false)
     }
@@ -293,8 +296,8 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
         {/* Header with tabs */}
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100 shrink-0">
           <div className="flex gap-2">
-            <button onClick={() => setPane('ticket')} className={tabCls(pane === 'ticket')}>Create Ticket</button>
-            <button onClick={() => setPane('booking')} className={tabCls(pane === 'booking')}>Send Booking</button>
+            <button onClick={() => setPane('ticket')} className={tabCls(pane === 'ticket')}>{t('chat_action_create_ticket')}</button>
+            <button onClick={() => setPane('booking')} className={tabCls(pane === 'booking')}>{t('chat_action_send_booking')}</button>
           </div>
           <CloseButton onClick={onClose} />
         </div>
@@ -306,24 +309,24 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
           {pane === 'ticket' && (
             <>
               <div>
-                <label className={labelCls}>Subject *</label>
+                <label className={labelCls}>{t('chat_ticket_subject_label')}</label>
                 <input
                   className={`${inputCls} ${ticketError ? 'border-red-400' : ''}`}
                   value={subject}
                   onChange={e => setSubject(e.target.value)}
-                  placeholder="Short description of the issue"
+                  placeholder={t('chat_ticket_subject_ph')}
                   autoFocus
                 />
                 {ticketError && <p className="text-xs text-red-500 mt-1">{ticketError}</p>}
               </div>
 
               <div>
-                <label className={labelCls}>Contact <span className="font-normal text-slate-400 normal-case">(optional)</span></label>
+                <label className={labelCls}>{t('chat_ticket_contact_label')} <span className="font-normal text-slate-400 normal-case">{t('chat_ticket_contact_optional')}</span></label>
                 <ContactPicker value={contact} onChange={setContact} />
               </div>
 
               <div>
-                <label className={labelCls}>Priority</label>
+                <label className={labelCls}>{t('chat_ticket_priority_label')}</label>
                 <div className="flex gap-2">
                   {(['low', 'medium', 'high', 'urgent'] as const).map(p => (
                     <button key={p} type="button" onClick={() => setPriority(p)}
@@ -335,9 +338,9 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
               </div>
 
               <div>
-                <label className={labelCls}>Department <span className="font-normal text-slate-400 normal-case">(optional)</span></label>
+                <label className={labelCls}>{t('chat_ticket_dept_label')} <span className="font-normal text-slate-400 normal-case">{t('chat_ticket_dept_optional')}</span></label>
                 <select className={inputCls} value={departmentId} onChange={e => setDepartmentId(e.target.value)}>
-                  <option value="">No department</option>
+                  <option value="">{t('chat_ticket_dept_none')}</option>
                   {departments?.map((d: any) => (
                     <option key={d.id} value={d.id}>{d.name} ({d.sla_working_days}d SLA)</option>
                   ))}
@@ -345,12 +348,12 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
               </div>
 
               <div>
-                <label className={labelCls}>Description</label>
+                <label className={labelCls}>{t('chat_ticket_desc_label')}</label>
                 <textarea
                   className={`${inputCls} resize-vertical min-h-[100px] font-[inherit]`}
                   value={description}
                   onChange={e => setDescription(e.target.value)}
-                  placeholder="What happened? Any relevant details…"
+                  placeholder={t('chat_ticket_desc_ph')}
                 />
               </div>
             </>
@@ -361,7 +364,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
             <>
               {/* Contact */}
               <div>
-                <label className={labelCls}>Contact *</label>
+                <label className={labelCls}>{t('chat_booking_contact_label')}</label>
                 {bookingContact ? (
                   <div className="flex items-center justify-between gap-2 px-3 py-2 border border-slate-300 rounded-lg text-sm bg-slate-50">
                     <span className="text-slate-800 truncate">{bookingContact.full_name}</span>
@@ -376,7 +379,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                   <div className="relative">
                     <input
                       className={inputCls}
-                      placeholder="Search contacts…"
+                      placeholder={t('chat_booking_contact_ph')}
                       value={bookingQuery}
                       onChange={e => { setBookingQuery(e.target.value); setBookingDropOpen(true) }}
                       onFocus={() => setBookingDropOpen(true)}
@@ -386,7 +389,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                     {bookingDropOpen && bookingQuery.trim().length > 0 && (
                       <div className="absolute z-20 mt-1 w-full max-h-44 overflow-y-auto bg-white border border-slate-200 rounded-lg shadow-lg">
                         {(bookingResults ?? []).length === 0 ? (
-                          <p className="px-3 py-2 text-sm text-slate-400">No matches</p>
+                          <p className="px-3 py-2 text-sm text-slate-400">{t('chat_booking_no_matches')}</p>
                         ) : (bookingResults ?? []).map((c: any) => (
                           <button key={c.id} type="button"
                             onMouseDown={() => {
@@ -408,11 +411,11 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
               <div className="flex gap-2">
                 <button onClick={() => setMode('open')}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${mode === 'open' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                  Customer picks time
+                  {t('chat_booking_customer_picks')}
                 </button>
                 <button onClick={() => setMode('propose')}
                   className={`flex-1 py-2 text-sm font-semibold rounded-lg border transition-colors ${mode === 'propose' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'}`}>
-                  Propose times
+                  {t('chat_booking_propose')}
                 </button>
               </div>
 
@@ -457,7 +460,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
 
                   {activeDay && (
                     <div className="px-3 py-3 border-t border-slate-100">
-                      <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">Tap to add times</p>
+                      <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">{t('chat_booking_tap_times')}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {dayChips.map(chip => {
                           const selected = slots.some(s => s.start === chip.start)
@@ -470,14 +473,14 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                             </button>
                           )
                         })}
-                        {dayChips.length === 0 && <p className="text-xs text-slate-400">No slots for this day.</p>}
+                        {dayChips.length === 0 && <p className="text-xs text-slate-400">{t('chat_booking_no_slots')}</p>}
                       </div>
                     </div>
                   )}
 
                   {slots.length > 0 && (
                     <div className="px-3 py-3 border-t border-slate-100">
-                      <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">Proposed ({slots.length})</p>
+                      <p className="text-[11px] font-semibold text-slate-400 uppercase mb-2">{t('chat_booking_proposed')} ({slots.length})</p>
                       <div className="flex flex-wrap gap-1.5">
                         {slots.slice().sort((a, b) => a.start.localeCompare(b.start)).map(s => (
                           <span key={s.start} className="inline-flex items-center gap-1 px-2 py-1 text-xs bg-blue-50 text-blue-700 rounded-md">
@@ -493,11 +496,11 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
 
               {/* Message */}
               <div>
-                <label className={labelCls}>Message <span className="font-normal text-slate-400 normal-case">(optional)</span></label>
+                <label className={labelCls}>{t('chat_booking_message_label')} <span className="font-normal text-slate-400 normal-case">{t('chat_booking_message_optional')}</span></label>
                 <textarea
                   value={bookingMessage}
                   onChange={e => setBookingMessage(e.target.value)}
-                  placeholder="Add a short note for the customer…"
+                  placeholder={t('chat_booking_message_ph')}
                   className={`${inputCls} resize-vertical min-h-[70px] font-[inherit]`}
                 />
               </div>
@@ -510,9 +513,9 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
           <div className="absolute inset-0 bg-white/90 backdrop-blur-sm rounded-2xl flex flex-col items-center justify-center p-8 z-30">
             <div className="w-full max-w-sm bg-white rounded-xl shadow-lg border border-slate-200 p-6 flex flex-col gap-4">
               <div>
-                <p className="text-sm font-bold text-slate-900 mb-1">No email address on file</p>
+                <p className="text-sm font-bold text-slate-900 mb-1">{t('chat_email_missing_title')}</p>
                 <p className="text-xs text-slate-500">
-                  This contact has no email address. Enter one to send the booking confirmation.
+                  {t('chat_email_missing_desc')}
                 </p>
               </div>
               <input
@@ -521,7 +524,7 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                 value={promptEmail}
                 onChange={e => setPromptEmail(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter' && promptEmail.trim()) handleEmailPromptConfirm() }}
-                placeholder="Email address"
+                placeholder={t('chat_email_ph')}
                 className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
               />
               <div className="flex gap-2">
@@ -530,13 +533,13 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                   disabled={savingEmail || !promptEmail.trim()}
                   className="flex-1 px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
                 >
-                  {savingEmail ? 'Saving…' : 'Confirm & send'}
+                  {savingEmail ? t('chat_email_saving') : t('chat_email_confirm_send')}
                 </button>
                 <button
                   onClick={() => setShowEmailPrompt(false)}
                   className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                 >
-                  Cancel
+                  {t('chat_cancel')}
                 </button>
               </div>
             </div>
@@ -552,11 +555,11 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                 disabled={ticketMutation.isPending}
                 className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
               >
-                {ticketMutation.isPending ? 'Creating…' : 'Create ticket'}
+                {ticketMutation.isPending ? t('chat_ticket_creating') : t('chat_ticket_create_btn')}
               </button>
               <button onClick={onClose}
                 className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                Cancel
+                {t('chat_cancel')}
               </button>
             </>
           )}
@@ -567,11 +570,11 @@ export default function ActionsModal({ session, defaultPane = 'ticket', onClose,
                 disabled={sending || !bookingContact}
                 className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
               >
-                {sending ? 'Sending…' : 'Send booking link'}
+                {sending ? t('chat_booking_sending') : t('chat_booking_send_btn')}
               </button>
               <button onClick={onClose}
                 className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">
-                Cancel
+                {t('chat_cancel')}
               </button>
             </>
           )}

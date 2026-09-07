@@ -9,6 +9,7 @@ import { useIsViewOnly } from '../../../shell/ModuleGate'
 import { ShipmentStatusBadge, type ShipmentStatus } from '../components/ShipmentStatusBadge'
 import { CarrierBadge, type Carrier } from '../components/CarrierBadge'
 import { fmtDate, fmtDateTime } from '../../../lib/format'
+import { useT } from '../../../hooks/useT'
 
 interface ShipmentEvent {
   id: string
@@ -39,6 +40,7 @@ const formatDate = fmtDate
 const formatDateTime = fmtDateTime
 
 export default function ShipmentDetail() {
+  const t = useT()
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const qc = useQueryClient()
@@ -62,7 +64,7 @@ export default function ShipmentDetail() {
   const refreshMutation = useMutation({
     mutationFn: () => api.post(`/shipments/${id}/refresh`),
     onSuccess: () => {
-      toast.success('Shipment refreshed')
+      toast.success(t('ship_refreshed_toast'))
       qc.invalidateQueries({ queryKey: ['shipments', id] })
       qc.invalidateQueries({ queryKey: ['shipments'] })
     },
@@ -75,20 +77,20 @@ export default function ShipmentDetail() {
   const updateMutation = useMutation({
     mutationFn: (payload: Record<string, unknown>) => api.patch(`/shipments/${id}`, payload),
     onSuccess: () => {
-      toast.success('Saved')
+      toast.success(t('ship_notes_saved_toast'))
       qc.invalidateQueries({ queryKey: ['shipments', id] })
       setEditingNotes(false)
     },
-    onError: () => toast.error('Failed to save'),
+    onError: () => toast.error(t('ship_notes_error_toast')),
   })
 
   const deleteMutation = useMutation({
     mutationFn: () => api.post(`/shipments/${id}/delete`),
     onSuccess: () => {
-      toast.success('Shipment deleted')
+      toast.success(t('ship_deleted_toast'))
       navigate('/tracking')
     },
-    onError: () => toast.error('Failed to delete'),
+    onError: () => toast.error(t('ship_delete_error_toast')),
   })
 
   if (isLoading) {
@@ -102,9 +104,9 @@ export default function ShipmentDetail() {
   if (!shipment) {
     return (
       <div className="text-center py-20">
-        <p className="text-slate-500">Shipment not found.</p>
+        <p className="text-slate-500">{t('ship_not_found')}</p>
         <button onClick={() => navigate('/tracking')} className="mt-3 text-sm text-yippie hover:underline">
-          Back to list
+          {t('ship_back_to_list')}
         </button>
       </div>
     )
@@ -129,7 +131,7 @@ export default function ShipmentDetail() {
             <ShipmentStatusBadge status={shipment.status} />
           </div>
           {shipment.order_reference && (
-            <p className="text-sm text-slate-500 mt-0.5">Order: {shipment.order_reference}</p>
+            <p className="text-sm text-slate-500 mt-0.5">{t('ship_detail_order_label')} {shipment.order_reference}</p>
           )}
         </div>
         <div className="flex items-center gap-2">
@@ -140,15 +142,15 @@ export default function ShipmentDetail() {
               className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-600 hover:text-slate-900 border border-slate-200 rounded-xl hover:border-slate-300 transition-colors disabled:opacity-50"
             >
               <RefreshCw size={14} className={refreshMutation.isPending ? 'animate-spin' : ''} />
-              Refresh from Sendcloud
+              {t('ship_refresh_btn')}
             </button>
           )}
           {!isViewOnly && isAdmin && (
             <button
-              onClick={() => { if (window.confirm('Delete this shipment?')) deleteMutation.mutate() }}
+              onClick={() => { if (window.confirm(t('ship_delete_confirm'))) deleteMutation.mutate() }}
               disabled={deleteMutation.isPending}
               className="p-2 text-slate-400 hover:text-red-500 transition-colors"
-              title="Delete shipment"
+              title={t('ship_delete_title')}
             >
               <Trash2 size={15} />
             </button>
@@ -160,28 +162,28 @@ export default function ShipmentDetail() {
         {/* Left — info */}
         <div className="lg:col-span-2 space-y-4">
           <div className="bg-white border border-slate-200 rounded-2xl p-5">
-            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Details</h3>
+            <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">{t('ship_details_heading')}</h3>
             <dl className="space-y-3 text-sm">
               <div>
-                <dt className="text-slate-400 text-xs font-medium mb-0.5">Carrier</dt>
+                <dt className="text-slate-400 text-xs font-medium mb-0.5">{t('ship_detail_carrier')}</dt>
                 <dd><CarrierBadge carrier={shipment.carrier} /></dd>
               </div>
               <div>
-                <dt className="text-slate-400 text-xs font-medium mb-0.5">Estimated delivery</dt>
+                <dt className="text-slate-400 text-xs font-medium mb-0.5">{t('ship_detail_estimated_delivery')}</dt>
                 <dd className="text-slate-700">{formatDate(shipment.estimated_delivery)}</dd>
               </div>
               {shipment.order_reference && (
                 <div>
-                  <dt className="text-slate-400 text-xs font-medium mb-0.5">Order reference</dt>
+                  <dt className="text-slate-400 text-xs font-medium mb-0.5">{t('ship_detail_order_reference')}</dt>
                   <dd className="text-slate-700">{shipment.order_reference}</dd>
                 </div>
               )}
               <div>
-                <dt className="text-slate-400 text-xs font-medium mb-0.5">Added</dt>
+                <dt className="text-slate-400 text-xs font-medium mb-0.5">{t('ship_detail_added')}</dt>
                 <dd className="text-slate-500 text-xs">{formatDateTime(shipment.created_at)}</dd>
               </div>
               <div>
-                <dt className="text-slate-400 text-xs font-medium mb-0.5">Updated</dt>
+                <dt className="text-slate-400 text-xs font-medium mb-0.5">{t('ship_detail_updated')}</dt>
                 <dd className="text-slate-500 text-xs">{formatDateTime(shipment.updated_at)}</dd>
               </div>
             </dl>
@@ -189,13 +191,13 @@ export default function ShipmentDetail() {
 
           <div className="bg-white border border-slate-200 rounded-2xl p-5">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Notes</h3>
+              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{t('ship_notes_heading')}</h3>
               {!isViewOnly && !editingNotes && (
                 <button
                   onClick={() => setEditingNotes(true)}
                   className="text-xs text-yippie hover:underline"
                 >
-                  Edit
+                  {t('ship_notes_edit')}
                 </button>
               )}
             </div>
@@ -214,19 +216,19 @@ export default function ShipmentDetail() {
                     disabled={updateMutation.isPending}
                     className="px-3 py-1.5 text-xs font-semibold bg-yippie text-white rounded-lg hover:opacity-90 disabled:opacity-50 transition-opacity"
                   >
-                    {updateMutation.isPending ? 'Saving…' : 'Save'}
+                    {updateMutation.isPending ? t('ship_notes_saving') : t('ship_notes_save')}
                   </button>
                   <button
                     onClick={() => { setEditingNotes(false); setNotes(shipment.notes ?? '') }}
                     className="px-3 py-1.5 text-xs text-slate-500 hover:text-slate-700"
                   >
-                    Cancel
+                    {t('ship_notes_cancel')}
                   </button>
                 </div>
               </>
             ) : (
               <p className="text-sm text-slate-600">
-                {shipment.notes || <span className="text-slate-300 italic">No notes</span>}
+                {shipment.notes || <span className="text-slate-300 italic">{t('ship_notes_empty')}</span>}
               </p>
             )}
           </div>
@@ -236,16 +238,16 @@ export default function ShipmentDetail() {
         <div className="lg:col-span-3">
           <div className="bg-white border border-slate-200 rounded-2xl p-5">
             <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-4">
-              Tracking history
+              {t('ship_history_heading')}
             </h3>
 
             {events.length === 0 ? (
               <div className="text-center py-10">
                 <Package size={32} className="text-slate-200 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">No tracking events yet.</p>
+                <p className="text-sm text-slate-400">{t('ship_history_empty')}</p>
                 {!isViewOnly && (
                   <p className="text-xs text-slate-400 mt-1">
-                    Click "Refresh from Sendcloud" to fetch the latest status.
+                    {t('ship_history_hint')}
                   </p>
                 )}
               </div>

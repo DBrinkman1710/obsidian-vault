@@ -1,0 +1,50 @@
+import type { Metadata } from "next";
+import SiteNav from "@/app/components/SiteNav";
+import SiteFooter from "@/app/components/SiteFooter";
+import styles from "@/app/components/content.module.css";
+import formStyles from "./request-demo.module.css";
+import DemoForm from "./DemoForm";
+
+export const metadata: Metadata = {
+  title: "Request a demo | Yippie",
+  description:
+    "See Yippie in action. Get instant access to your own demo workspace and watch AI turn a messy support inbox into resolved tickets in seconds.",
+  alternates: { canonical: "/en/request-demo" },
+  openGraph: {
+    title: "Request a demo | Yippie",
+    description:
+      "See Yippie in action. Get instant access to your own demo workspace and watch AI turn a messy support inbox into resolved tickets in seconds.",
+    url: "https://getyippie.com/request-demo",
+    type: "website",
+    images: ["/og.png"],
+  },
+};
+
+export default function RequestDemoPage() {
+  return (
+    <div className={styles.page}>
+      <SiteNav />
+
+      <section className={styles.hero}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
+        <div className={styles.heroTag}>
+          <span className={styles.heroTagDot} />
+          Request a demo
+        </div>
+        <h1 className={styles.heroTitle}>See Yippie on your own inbox</h1>
+        <p className={styles.heroSub}>
+          Fill in the form and get instant access to your own demo workspace,
+          pre-loaded with realistic data. No sales pressure, just a real look
+          at how Yippie saves your team hours every week.
+        </p>
+      </section>
+
+      <div className={formStyles.wrap}>
+        <DemoForm />
+      </div>
+
+      <SiteFooter />
+    </div>
+  );
+}

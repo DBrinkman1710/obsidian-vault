@@ -6,6 +6,7 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities'
 import type { Block, DocType } from './blocks'
 import { BLOCK_LABELS } from './blocks'
+import { useT } from '../../hooks/useT'
 
 const SAMPLE_ROWS = [
   { desc: 'Consultancy', qty: 8, price: 'EUR 95,00', vat: '21%', total: 'EUR 760,00' },
@@ -13,6 +14,7 @@ const SAMPLE_ROWS = [
 ]
 
 function BlockPreview({ block, docType }: { block: Block; docType: DocType }) {
+  const t = useT()
   const cfg = block.config
   const align = cfg.align === 'center' ? 'text-center' : cfg.align === 'right' ? 'text-right' : 'text-left'
   switch (block.type) {
@@ -48,13 +50,13 @@ function BlockPreview({ block, docType }: { block: Block; docType: DocType }) {
     case 'heading':
       return (
         <p className={`${cfg.level === 2 ? 'text-sm' : 'text-base'} font-bold text-slate-800 ${align} ${cfg.text ? '' : 'text-slate-300'}`}>
-          {cfg.text || 'Empty heading'}
+          {cfg.text || t('tpl_empty_heading')}
         </p>
       )
     case 'text':
       return (
         <p className={`${cfg.size === 'sm' ? 'text-xs' : 'text-sm'} text-slate-600 whitespace-pre-wrap ${align} ${cfg.text ? '' : 'text-slate-300'}`}>
-          {cfg.text || 'Empty text block'}
+          {cfg.text || t('tpl_empty_text')}
         </p>
       )
     case 'divider':
@@ -104,13 +106,13 @@ function BlockPreview({ block, docType }: { block: Block; docType: DocType }) {
           {cfg.label && <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{cfg.label}</p>}
           <p className={`text-xs whitespace-pre-wrap ${cfg.source === 'custom' && cfg.text ? 'text-slate-600' : 'text-slate-300 italic'}`}>
             {cfg.source === 'custom'
-              ? (cfg.text || 'Empty custom text')
+              ? (cfg.text || t('tpl_empty_custom'))
               : `Filled with the ${docType === 'invoice' ? 'invoice' : 'contract'} notes`}
           </p>
         </div>
       )
     case 'footer':
-      return <p className={`text-xs text-center ${cfg.text ? 'text-slate-400' : 'text-slate-300'}`}>{cfg.text || 'Empty footer'}</p>
+      return <p className={`text-xs text-center ${cfg.text ? 'text-slate-400' : 'text-slate-300'}`}>{cfg.text || t('tpl_empty_footer')}</p>
     case 'signature':
       return (
         <div>
@@ -124,7 +126,7 @@ function BlockPreview({ block, docType }: { block: Block; docType: DocType }) {
         </div>
       )
     default:
-      return <p className="text-xs text-slate-300 italic">Unknown block</p>
+      return <p className="text-xs text-slate-300 italic">{t('tpl_unknown_block')}</p>
   }
 }
 
@@ -137,6 +139,7 @@ function SortableBlock({
   onSelect: () => void
   onDelete: () => void
 }) {
+  const t = useT()
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: block.id })
   return (
     <div
@@ -152,14 +155,14 @@ function SortableBlock({
         {...listeners}
         onClick={e => e.preventDefault()}
         tabIndex={-1}
-        aria-label="Drag to reorder"
+        aria-label={t('tpl_drag_to_reorder')}
         className="absolute left-1.5 top-1/2 -translate-y-1/2 p-1 text-slate-300 opacity-0 group-hover:opacity-100 hover:text-slate-500 cursor-grab active:cursor-grabbing"
       >
         <GripVertical size={14} />
       </button>
       <button
         onClick={e => { e.stopPropagation(); onDelete() }}
-        aria-label={`Delete ${BLOCK_LABELS[block.type] ?? block.type} block`}
+        aria-label={t('tpl_delete_block').replace('{label}', BLOCK_LABELS[block.type] ?? block.type)}
         className="absolute right-1.5 top-1.5 p-1 text-slate-300 opacity-0 group-hover:opacity-100 hover:text-danger-600"
       >
         <Trash2 size={14} />
@@ -178,6 +181,7 @@ export function BlockStack({
   onSelect: (id: string) => void
   onDelete: (id: string) => void
 }) {
+  const t = useT()
   // Droppable so palette tiles can be dropped on the empty page area too.
   const { setNodeRef } = useDroppable({ id: 'block-stack' })
   return (
@@ -196,7 +200,7 @@ export function BlockStack({
       </SortableContext>
       {blocks.length === 0 && (
         <p className="text-sm text-slate-400 text-center py-16">
-          Drag a block from the left to start building this template
+          {t('tpl_drag_to_start')}
         </p>
       )}
     </div>

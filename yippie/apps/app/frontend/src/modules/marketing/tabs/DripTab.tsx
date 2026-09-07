@@ -3,8 +3,10 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Clock, Plus, Trash2 } from 'lucide-react'
 import { Campaign, marketingApi } from '../api'
+import { useT } from '../../../hooks/useT'
 
 export function DripTab({ campaign }: { campaign: Campaign }) {
+  const t = useT()
   const qc = useQueryClient()
   const [showForm, setShowForm] = useState(false)
   const [delay, setDelay] = useState(3)
@@ -24,20 +26,20 @@ export function DripTab({ campaign }: { campaign: Campaign }) {
     mutationFn: () =>
       marketingApi.addSequence(campaign.id, { delay_days: delay, subject: subject.trim(), html_body: body.trim() }),
     onSuccess: () => {
-      toast.success('Step added')
+      toast.success(t('mkt_step_added'))
       setShowForm(false)
       setSubject('')
       setBody('')
       setDelay(3)
       invalidate()
     },
-    onError: () => toast.error('Could not add step'),
+    onError: () => toast.error(t('mkt_step_add_err')),
   })
 
   const remove = useMutation({
     mutationFn: (id: string) => marketingApi.deleteSequence(campaign.id, id),
     onSuccess: () => {
-      toast.success('Step removed')
+      toast.success(t('mkt_step_removed'))
       invalidate()
     },
   })
@@ -49,23 +51,21 @@ export function DripTab({ campaign }: { campaign: Campaign }) {
       <div className="mx-auto max-w-2xl">
         <div className="flex items-center justify-between">
           <div>
-            <h3 className="text-sm font-semibold text-slate-900">Follow-up sequence</h3>
-            <p className="mt-0.5 text-xs text-slate-400">
-              Steps send automatically after launch, but only to contacts who haven't replied or opted out.
-            </p>
+            <h3 className="text-sm font-semibold text-slate-900">{t('mkt_drip_heading')}</h3>
+            <p className="mt-0.5 text-xs text-slate-400">{t('mkt_drip_desc')}</p>
           </div>
           <button
             onClick={() => setShowForm((s) => !s)}
             className="flex items-center gap-1.5 rounded-lg bg-yippie px-3 py-1.5 text-xs font-semibold text-white hover:opacity-90 transition-opacity"
           >
-            <Plus size={14} /> Add step
+            <Plus size={14} /> {t('mkt_add_step')}
           </button>
         </div>
 
         {showForm && (
           <div className="mt-4 space-y-3 rounded-2xl border border-slate-200 bg-white p-5">
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Send after (days)</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('mkt_send_after_days')}</label>
               <input
                 type="number"
                 min={0}
@@ -76,21 +76,21 @@ export function DripTab({ campaign }: { campaign: Campaign }) {
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Subject</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('mkt_subject_drip_label')}</label>
               <input
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="Still interested?"
+                placeholder={t('mkt_subject_still')}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:border-blue-400 focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">Body (HTML)</label>
+              <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">{t('mkt_body_label')}</label>
               <textarea
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={5}
-                placeholder="<p>Just checking in…</p>"
+                placeholder={t('mkt_body_ph')}
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 font-mono text-xs focus:border-blue-400 focus:outline-none"
               />
             </div>
@@ -99,7 +99,7 @@ export function DripTab({ campaign }: { campaign: Campaign }) {
               disabled={!valid || add.isPending}
               className="rounded-xl bg-yippie px-4 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50 transition-opacity"
             >
-              {add.isPending ? 'Adding…' : 'Add step'}
+              {add.isPending ? t('mkt_adding') : t('mkt_add_step')}
             </button>
           </div>
         )}
@@ -107,7 +107,7 @@ export function DripTab({ campaign }: { campaign: Campaign }) {
         <div className="mt-5 space-y-2">
           {steps.length === 0 && !showForm && (
             <p className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center text-sm text-slate-400">
-              No follow-up steps yet.
+              {t('mkt_no_steps')}
             </p>
           )}
           {steps.map((s: any, i: any) => (
@@ -120,9 +120,9 @@ export function DripTab({ campaign }: { campaign: Campaign }) {
                 <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-400">
                   <Clock size={12} />
                   <span>
-                    {s.delay_days} day{s.delay_days === 1 ? '' : 's'} after launch
+                    {s.delay_days} {s.delay_days === 1 ? t('mkt_days_after_launch') : t('mkt_days_after_launch_pl')}
                   </span>
-                  {s.sent_at && <span className="text-emerald-600">· sent</span>}
+                  {s.sent_at && <span className="text-emerald-600">· {t('mkt_sent')}</span>}
                 </div>
               </div>
               <button

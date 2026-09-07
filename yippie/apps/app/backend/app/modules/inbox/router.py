@@ -403,6 +403,8 @@ async def suggest_reply(draft_id: uuid.UUID, current_user: CurrentUser, db: DB):
         contact_name=contact.full_name if contact else None,
         language=draft.detected_language or "en",
         tenant_profile=tenant.ai_profile if tenant else None,
+        db=db,
+        tenant_id=current_user.tenant_id,
     )
     return {"suggestion": suggestion}
 

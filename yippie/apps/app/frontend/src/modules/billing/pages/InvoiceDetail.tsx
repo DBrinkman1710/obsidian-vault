@@ -70,7 +70,7 @@ function fmtCents(cents: number, currency = 'EUR') {
 
 const fmtDate = libFmtDate
 
-function statusLabel(s: string, t: (k: any) => string | undefined) {
+function statusLabel(s: string, t: (k: any) => string) {
   return t((`invoice_${s}`) as any) ?? (ALL_STATUS_OPTIONS.find(o => o.value === s)?.label ?? s)
 }
 
@@ -88,6 +88,7 @@ function downloadBlob(data: BlobPart, filename: string, type: string) {
 // ── Record Payment Modal ──────────────────────────────────────────────────────
 
 function RecordPaymentModal({ invoiceId, onClose }: { invoiceId: string; onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const [amount, setAmount] = useState('')
   const [method, setMethod] = useState('bank_transfer')
@@ -104,7 +105,7 @@ function RecordPaymentModal({ invoiceId, onClose }: { invoiceId: string; onClose
       qc.invalidateQueries({ queryKey: ['invoice', invoiceId] })
       qc.invalidateQueries({ queryKey: ['invoice-payments', invoiceId] })
       qc.invalidateQueries({ queryKey: ['invoices'] })
-      toast.success('Payment recorded')
+      toast.success(t('billing_record_success'))
       onClose()
     },
     onError: (e: any) => setError(e.response?.data?.detail ?? 'Failed'),
@@ -114,17 +115,17 @@ function RecordPaymentModal({ invoiceId, onClose }: { invoiceId: string; onClose
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-[70] p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-900">Record Payment</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('billing_record_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 flex flex-col gap-4">
           <div>
-            <label className={labelCls}>Amount (€)</label>
+            <label className={labelCls}>{t('billing_record_amount')}</label>
             <input className={inputCls} type="number" step="0.01" value={amount}
               onChange={e => setAmount(e.target.value)} placeholder="0.00" autoFocus />
           </div>
           <div>
-            <label className={labelCls}>Method</label>
+            <label className={labelCls}>{t('billing_record_method')}</label>
             <select className={inputCls} value={method} onChange={e => setMethod(e.target.value)}>
               <option value="bank_transfer">Bank transfer</option>
               <option value="cash">Cash</option>
@@ -134,23 +135,23 @@ function RecordPaymentModal({ invoiceId, onClose }: { invoiceId: string; onClose
             </select>
           </div>
           <div>
-            <label className={labelCls}>Reference (optional)</label>
+            <label className={labelCls}>{t('billing_record_ref')}</label>
             <input className={inputCls} value={ref} onChange={e => setRef(e.target.value)}
-              placeholder="Transaction ID, cheque no…" />
+              placeholder={t('billing_record_ref_ph')} />
           </div>
           {error && <p className="text-xs text-red-500">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button
               onClick={() => {
-                if (!amount || parseFloat(amount) <= 0) { setError('Enter an amount'); return }
+                if (!amount || parseFloat(amount) <= 0) { setError(t('billing_record_error_amt')); return }
                 setError(''); mutation.mutate()
               }}
               disabled={mutation.isPending}
               className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50">
-              {mutation.isPending ? 'Saving…' : 'Save'}
+              {mutation.isPending ? t('billing_record_saving') : t('billing_record_save')}
             </button>
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
-              Cancel
+              {t('billing_record_cancel')}
             </button>
           </div>
         </div>
@@ -194,9 +195,9 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
     onSuccess: (r: any) => {
       qc.invalidateQueries({ queryKey: ['invoice', invoiceId] })
       qc.invalidateQueries({ queryKey: ['invoices'] })
-      toast.success(`Invoice sent to ${r.data.email}`)
+      toast.success(t('billing_toast_sent').replace('{email}', r.data.email))
     },
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Send failed'),
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? t('billing_toast_send_fail')),
   })
 
   const creditMutation = useMutation({
@@ -204,15 +205,15 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoice', invoiceId] })
       qc.invalidateQueries({ queryKey: ['invoices'] })
-      toast.success('Credit note created')
+      toast.success(t('billing_toast_credit'))
     },
     onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Could not create credit note'),
   })
 
   const remindMutation = useMutation({
     mutationFn: () => api.post(`/billing/invoices/${invoiceId}/remind`),
-    onSuccess: (r: any) => toast.success(`Reminder sent to ${r.data.email}`),
-    onError: (e: any) => toast.error(e.response?.data?.detail ?? 'Send failed'),
+    onSuccess: (r: any) => toast.success(t('billing_toast_reminded').replace('{email}', r.data.email)),
+    onError: (e: any) => toast.error(e.response?.data?.detail ?? t('billing_toast_send_fail')),
   })
 
   async function downloadPdf() {
@@ -220,7 +221,7 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
       const res = await api.get(`/billing/invoices/${invoiceId}/pdf`, { responseType: 'blob' })
       downloadBlob(res.data, `invoice-${invoice?.invoice_number ?? invoiceId}.pdf`, 'application/pdf')
     } catch {
-      toast.error('PDF download failed')
+      toast.error(t('billing_toast_pdf_fail'))
     }
   }
 
@@ -239,10 +240,10 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
           <div className="flex items-center gap-3">
             {isLoading
-              ? <span className="text-sm text-slate-400">Loading…</span>
+              ? <span className="text-sm text-slate-400">{t('billing_peek_loading')}</span>
               : <>
                   <span className="text-lg font-bold text-slate-900 font-mono">
-                    {invoice?.invoice_number ?? <span className="italic font-sans text-slate-400">Concept</span>}
+                    {invoice?.invoice_number ?? <span className="italic font-sans text-slate-400">{t('billing_concept')}</span>}
                   </span>
                   {invoice && (
                     <div className="relative">
@@ -268,29 +269,29 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
               <>
                 <button onClick={downloadPdf}
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors">
-                  <Download size={13} /> PDF
+                  <Download size={13} /> {t('billing_peek_pdf')}
                 </button>
                 <button onClick={() => sendMutation.mutate()} disabled={sendMutation.isPending}
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50">
-                  <Mail size={13} /> {sendMutation.isPending ? 'Sending…' : 'Send'}
+                  <Mail size={13} /> {sendMutation.isPending ? t('billing_peek_sending') : t('billing_peek_send')}
                 </button>
                 {invoice.status === 'overdue' && (
                   <button onClick={() => remindMutation.mutate()} disabled={remindMutation.isPending}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-amber-100 hover:bg-amber-200 text-amber-700 rounded-lg transition-colors disabled:opacity-50">
-                    <Bell size={13} /> {remindMutation.isPending ? 'Sending…' : 'Remind'}
+                    <Bell size={13} /> {remindMutation.isPending ? t('billing_peek_reminding') : t('billing_peek_remind')}
                   </button>
                 )}
                 {invoice.is_issued && !invoice.credit_note_of_id && (
                   <button onClick={() => {
-                    if (confirm(`Create a credit note reversing ${invoice.invoice_number}? The original invoice stays on record.`)) creditMutation.mutate()
+                    if (confirm(t('billing_credit_confirm').replace('{number}', invoice.invoice_number))) creditMutation.mutate()
                   }} disabled={creditMutation.isPending}
                     className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-medium bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg transition-colors disabled:opacity-50">
-                    <RotateCcw size={13} /> {creditMutation.isPending ? 'Crediting…' : 'Credit'}
+                    <RotateCcw size={13} /> {creditMutation.isPending ? t('billing_peek_crediting') : t('billing_peek_credit')}
                   </button>
                 )}
                 <button onClick={() => setShowPayModal(true)}
                   className="inline-flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-yippie hover:opacity-90 text-white rounded-lg transition-opacity">
-                  <CreditCard size={13} /> Payment
+                  <CreditCard size={13} /> {t('billing_peek_payment')}
                 </button>
               </>
             )}
@@ -300,8 +301,8 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
 
         {/* ── Scrollable body ── */}
         <div className="flex-1 overflow-y-auto">
-          {isLoading && <p className="text-sm text-slate-400 p-6">Loading…</p>}
-          {!isLoading && !invoice && <p className="text-sm text-slate-500 p-6">Invoice not found.</p>}
+          {isLoading && <p className="text-sm text-slate-400 p-6">{t('billing_peek_loading')}</p>}
+          {!isLoading && !invoice && <p className="text-sm text-slate-500 p-6">{t('billing_peek_not_found')}</p>}
 
           {invoice && (
             <>
@@ -309,29 +310,29 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
                 <div className="px-6 py-2.5 bg-slate-50 border-b border-slate-100 flex items-center gap-2 text-xs text-slate-600">
                   <Lock size={12} className="shrink-0" />
                   <span>
-                    Issued {fmtDate(invoice.issued_at)} — this invoice is final and cannot be edited or deleted.
-                    {!invoice.credit_note_of_id && ' Use Credit to reverse it.'}
+                    {t('billing_issued_notice').replace('{date}', fmtDate(invoice.issued_at) ?? '')}
+                    {!invoice.credit_note_of_id && ` ${t('billing_issued_credit_hint')}`}
                   </span>
                 </div>
               )}
               {invoice.reverse_charge && (
                 <div className="px-6 py-2.5 bg-amber-50 border-b border-amber-100 text-xs text-amber-800">
-                  BTW verlegd — VAT reverse charged to the recipient.
+                  {t('billing_vat_reversed')} — VAT reverse charged to the recipient.
                 </div>
               )}
 
               {/* Contact + dates */}
               <div className="px-6 py-4 border-b border-slate-100 grid grid-cols-4 gap-4 text-sm">
                 <div className="col-span-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Bill to</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{t('billing_section_bill_to')}</p>
                   <p className="font-semibold text-slate-900">{invoice.contact_name ?? '—'}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Invoice date</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{t('billing_section_inv_date')}</p>
                   <p className="text-slate-700">{fmtDate(invoice.invoice_date ?? invoice.created_at)}</p>
                 </div>
                 <div>
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">Due date</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-1">{t('billing_section_due_date')}</p>
                   <p className={`font-medium ${invoice.status === 'overdue' ? 'text-red-600' : 'text-slate-700'}`}>
                     {fmtDate(invoice.due_date)}
                   </p>
@@ -343,11 +344,11 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
                 <table className="w-full text-sm">
                   <thead className="bg-slate-50 border-b border-slate-100">
                     <tr>
-                      <th className="px-6 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Description</th>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide w-14">Qty</th>
-                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide w-28">Price excl.</th>
-                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide w-16">VAT %</th>
-                      <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide w-28">Total excl.</th>
+                      <th className="px-6 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('billing_li_desc')}</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide w-14">{t('billing_li_qty')}</th>
+                      <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide w-28">{t('billing_li_price_excl')}</th>
+                      <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide w-16">{t('billing_li_vat')}</th>
+                      <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide w-28">{t('billing_li_total_excl')}</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-50">
@@ -370,22 +371,22 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
               <div className="px-6 py-4 border-t border-slate-100 flex justify-end">
                 <div className="w-64 flex flex-col gap-1.5">
                   <div className="flex justify-between text-sm text-slate-600">
-                    <span>Subtotal excl. VAT</span>
+                    <span>{t('billing_subtotal_excl')}</span>
                     <span>{fmtCents(invoice.subtotal_cents, currency)}</span>
                   </div>
                   {(invoice.vat_breakdown ?? []).map((vb: VatBreakdown) => (
                     <div key={vb.rate_pct} className="flex justify-between text-sm text-slate-600">
-                      <span>{vb.rate_pct > 0 ? `VAT ${vb.rate_pct}%` : (invoice.reverse_charge ? 'BTW verlegd (0%)' : 'VAT exempt (0%)')}</span>
+                      <span>{vb.rate_pct > 0 ? t('billing_vat_label').replace('{rate}', String(vb.rate_pct)) : (invoice.reverse_charge ? t('billing_vat_reversed') : t('billing_vat_exempt'))}</span>
                       <span>{fmtCents(vb.vat_cents, currency)}</span>
                     </div>
                   ))}
                   <div className="flex justify-between font-bold text-slate-900 pt-2 border-t border-slate-200 mt-0.5">
-                    <span>Total incl. VAT</span>
+                    <span>{t('billing_total_incl')}</span>
                     <span>{fmtCents(invoice.total_cents, currency)}</span>
                   </div>
                   {outstanding > 0 && invoice.status !== 'paid' && totalPaid > 0 && (
                     <div className="flex justify-between text-sm font-semibold text-amber-700 pt-1">
-                      <span>Outstanding</span>
+                      <span>{t('billing_outstanding')}</span>
                       <span>{fmtCents(outstanding, currency)}</span>
                     </div>
                   )}
@@ -395,10 +396,10 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
               {/* Notes */}
               <div className="px-6 py-4 border-t border-slate-100">
                 <div className="flex items-center justify-between mb-2">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">Payment info / Notes</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide">{t('billing_notes_label')}</p>
                   {!editNotes && !invoice.is_issued && (
                     <button onClick={() => { setNotesVal(invoice.notes ?? ''); setEditNotes(true) }}
-                      className="text-xs text-yippie hover:opacity-80 font-semibold">Edit</button>
+                      className="text-xs text-yippie hover:opacity-80 font-semibold">{t('billing_notes_edit')}</button>
                   )}
                 </div>
                 {editNotes ? (
@@ -407,19 +408,19 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
                       className={`${inputCls} min-h-[72px] resize-y`}
                       value={notesVal}
                       onChange={e => setNotesVal(e.target.value)}
-                      placeholder="Payment terms, IBAN, remarks…"
+                      placeholder={t('billing_notes_ph')}
                       autoFocus
                     />
                     <div className="flex gap-2">
                       <button onClick={() => { patchMutation.mutate({ notes: notesVal }); setEditNotes(false) }}
-                        className="px-3 py-1.5 text-xs font-semibold bg-yippie text-white rounded-lg hover:opacity-90">Save</button>
+                        className="px-3 py-1.5 text-xs font-semibold bg-yippie text-white rounded-lg hover:opacity-90">{t('billing_notes_save')}</button>
                       <button onClick={() => setEditNotes(false)}
-                        className="px-3 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+                        className="px-3 py-1.5 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">{t('billing_notes_cancel')}</button>
                     </div>
                   </div>
                 ) : (
                   <p className="text-sm text-slate-600 whitespace-pre-wrap">
-                    {invoice.notes ?? <span className="text-slate-400 italic">No notes</span>}
+                    {invoice.notes ?? <span className="text-slate-400 italic">{t('billing_notes_empty')}</span>}
                   </p>
                 )}
               </div>
@@ -427,14 +428,14 @@ export function InvoicePeek({ invoiceId, onClose }: { invoiceId: string; onClose
               {/* Payment history */}
               {(payments ?? []).length > 0 && (
                 <div className="px-6 py-4 border-t border-slate-100">
-                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">Payments</p>
+                  <p className="text-xs font-semibold text-slate-400 uppercase tracking-wide mb-3">{t('billing_payments_title')}</p>
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-xs text-slate-400 uppercase tracking-wide">
-                        <th className="text-left pb-2">Date</th>
-                        <th className="text-left pb-2">Method</th>
-                        <th className="text-left pb-2">Reference</th>
-                        <th className="text-right pb-2">Amount</th>
+                        <th className="text-left pb-2">{t('billing_pay_col_date')}</th>
+                        <th className="text-left pb-2">{t('billing_pay_col_method')}</th>
+                        <th className="text-left pb-2">{t('billing_pay_col_ref')}</th>
+                        <th className="text-right pb-2">{t('billing_pay_col_amount')}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-50">

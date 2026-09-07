@@ -98,13 +98,14 @@ function downloadBlob(data: BlobPart, filename: string, type: string) {
 function ContactPicker({ value, displayName, onSelect }: {
   value: string; displayName: string; onSelect: (id: string, name: string) => void
 }) {
+  const t = useT()
   const [open, setOpen] = useState(false)
   const [term, setTerm] = useState(displayName)
   const [debounced, setDebounced] = useState('')
 
   useEffect(() => {
-    const t = setTimeout(() => setDebounced(term.trim()), 250)
-    return () => clearTimeout(t)
+    const timer = setTimeout(() => setDebounced(term.trim()), 250)
+    return () => clearTimeout(timer)
   }, [term])
 
   const { data } = useQuery({
@@ -119,7 +120,7 @@ function ContactPicker({ value, displayName, onSelect }: {
       <input
         className={inputCls}
         value={term}
-        placeholder="Search contact or company…"
+        placeholder={t('billing_add_contact_ph')}
         onChange={e => { setTerm(e.target.value); setOpen(true); if (value) onSelect('', '') }}
         onFocus={() => setOpen(true)}
         onBlur={() => setTimeout(() => setOpen(false), 150)}
@@ -168,6 +169,7 @@ const LINE_GRID = '1fr 52px 90px 68px 20px'
 // default applied to new invoices and their PDFs.
 
 function InvoiceTemplatesModal({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [newName, setNewName] = useState('')
@@ -186,14 +188,14 @@ function InvoiceTemplatesModal({ onClose }: { onClose: () => void }) {
       qc.invalidateQueries({ queryKey: ['invoice-templates'] })
       navigate(`/billing/templates/${res.data.id}/edit`)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Failed to create template'),
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? t('billing_toast_send_fail')),
   })
 
   const setDefault = useMutation({
     mutationFn: (id: string) => api.post(`/billing/templates/${id}/default`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoice-templates'] })
-      toast.success('Default template set')
+      toast.success(t('billing_tpl_default_set'))
     },
   })
 
@@ -201,7 +203,7 @@ function InvoiceTemplatesModal({ onClose }: { onClose: () => void }) {
     mutationFn: (id: string) => api.delete(`/billing/templates/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoice-templates'] })
-      toast.success('Template deleted')
+      toast.success(t('billing_tpl_deleted'))
     },
   })
 
@@ -209,7 +211,7 @@ function InvoiceTemplatesModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Invoice templates</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('billing_tpl_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-5 flex flex-col gap-3 overflow-y-auto">
@@ -217,11 +219,11 @@ function InvoiceTemplatesModal({ onClose }: { onClose: () => void }) {
             className="flex gap-2"
             onSubmit={e => { e.preventDefault(); if (newName.trim()) create.mutate() }}
           >
-            <input className={inputCls} value={newName} placeholder="e.g. Standard invoice"
+            <input className={inputCls} value={newName} placeholder={t('billing_tpl_name_ph')}
               onChange={e => setNewName(e.target.value)} />
             <button type="submit" disabled={!newName.trim() || create.isPending}
               className="btn-primary px-4 py-2 shrink-0 inline-flex items-center gap-1.5">
-              <Plus size={13} /> {create.isPending ? 'Creating…' : 'Create'}
+              <Plus size={13} /> {create.isPending ? t('billing_tpl_creating') : t('billing_tpl_create')}
             </button>
           </form>
           <div className="flex flex-col gap-1">
@@ -229,8 +231,8 @@ function InvoiceTemplatesModal({ onClose }: { onClose: () => void }) {
               <div key={tpl.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-100 hover:border-slate-200">
                 <button
                   onClick={() => !tpl.is_default && setDefault.mutate(tpl.id)}
-                  aria-label={tpl.is_default ? `${tpl.name} is the default` : `Make ${tpl.name} the default`}
-                  title={tpl.is_default ? 'Default template' : 'Make default'}
+                  aria-label={tpl.is_default ? `${tpl.name} ${t('billing_tpl_set_default')}` : `${t('billing_tpl_make_default')} ${tpl.name}`}
+                  title={tpl.is_default ? t('billing_tpl_set_default') : t('billing_tpl_make_default')}
                   className={tpl.is_default ? 'text-warning-500' : 'text-slate-200 hover:text-warning-500'}
                 >
                   <Star size={15} fill={tpl.is_default ? 'currentColor' : 'none'} />
@@ -238,7 +240,7 @@ function InvoiceTemplatesModal({ onClose }: { onClose: () => void }) {
                 <span className="text-sm text-slate-700 truncate flex-1">{tpl.name}</span>
                 <button onClick={() => navigate(`/billing/templates/${tpl.id}/edit`)}
                   className="btn-secondary px-3 py-1.5 text-xs inline-flex items-center gap-1">
-                  <PenLine size={12} /> Edit layout
+                  <PenLine size={12} /> {t('billing_tpl_edit')}
                 </button>
                 <button onClick={() => remove.mutate(tpl.id)} aria-label={`Delete ${tpl.name}`}
                   className="p-1.5 text-slate-300 hover:text-danger-600">
@@ -248,7 +250,7 @@ function InvoiceTemplatesModal({ onClose }: { onClose: () => void }) {
             ))}
             {(templates ?? []).length === 0 && (
               <p className="text-xs text-slate-400 px-2 py-3">
-                No templates yet. Without one, invoices use the standard layout — create one to design your own.
+                {t('billing_tpl_empty')}
               </p>
             )}
           </div>
@@ -325,10 +327,10 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['invoices'] })
-      toast.success('Invoice created')
+      toast.success(t('billing_toast_created'))
       onClose()
     },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to create invoice'),
+    onError: (err: any) => setError(err.response?.data?.detail ?? t('billing_toast_send_fail')),
   })
 
   function setItem(idx: number, patch: Partial<LineItemForm>) {
@@ -337,8 +339,8 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!contactId) { setError('Select a contact'); return }
-    if (!items.some(i => i.description.trim())) { setError('Add at least one line item'); return }
+    if (!contactId) { setError(t('billing_add_error_contact')); return }
+    if (!items.some(i => i.description.trim())) { setError(t('billing_add_error_items')); return }
     setError(''); mutation.mutate()
   }
 
@@ -346,32 +348,32 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">New Invoice</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('billing_add_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-5">
           <div>
-            <label className={labelCls}>Contact / Company *</label>
+            <label className={labelCls}>{t('billing_add_contact_label')}</label>
             <ContactPicker value={contactId} displayName={contactName}
               onSelect={(id, name) => { setContactId(id); setContactName(name) }} />
           </div>
 
           {/* Line items — CSS grid so headers align with inputs */}
           <div>
-            <label className={labelCls}>Line items</label>
+            <label className={labelCls}>{t('billing_add_items_label')}</label>
             {/* Header row */}
             <div className="grid gap-2 mb-1.5 px-0.5" style={{ gridTemplateColumns: LINE_GRID }}>
-              <span className="text-xs text-slate-400">Description</span>
-              <span className="text-xs text-slate-400 text-center">Qty</span>
-              <span className="text-xs text-slate-400 text-right">Price excl.</span>
-              <span className="text-xs text-slate-400 text-center">VAT %</span>
+              <span className="text-xs text-slate-400">{t('billing_add_item_desc_col')}</span>
+              <span className="text-xs text-slate-400 text-center">{t('billing_add_item_qty_col')}</span>
+              <span className="text-xs text-slate-400 text-right">{t('billing_add_item_price_col')}</span>
+              <span className="text-xs text-slate-400 text-center">{t('billing_add_item_vat_col')}</span>
               <span />
             </div>
             <div className="flex flex-col gap-1.5">
               {items.map((it, idx) => (
                 <div key={idx} className="grid gap-2 items-center" style={{ gridTemplateColumns: LINE_GRID }}>
                   <input className={inputCls} value={it.description}
-                    placeholder="Service or product description"
+                    placeholder={t('billing_add_item_desc_ph')}
                     onChange={e => setItem(idx, { description: e.target.value })} />
                   <input className={`${inputCls} text-center`} type="number" min={1} value={it.quantity}
                     onChange={e => setItem(idx, { quantity: e.target.value })} />
@@ -391,23 +393,24 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
             </div>
             <button type="button" onClick={() => setItems(prev => [...prev, { ...EMPTY_ITEM }])}
               className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-yippie hover:opacity-80">
-              <Plus size={13} /> Add line
+              <Plus size={13} /> {t('billing_add_line_btn')}
             </button>
 
             {/* Live totals */}
             {totals.subtotal > 0 && (
               <div className="mt-3 rounded-xl bg-slate-50 border border-slate-100 px-4 py-3 text-sm flex flex-col gap-1">
                 <div className="flex justify-between text-slate-500">
-                  <span>Subtotal excl. VAT</span>
+                  <span>{t('billing_add_subtotal')}</span>
                   <span>{fmtCents(totals.subtotal)}</span>
                 </div>
                 {Object.entries(totals.vatByRate).filter(([, v]) => v > 0).map(([rate, vat]) => (
                   <div key={rate} className="flex justify-between text-slate-500">
-                    <span>VAT {rate}%</span><span>{fmtCents(vat as number)}</span>
+                    <span>{t('billing_add_vat_row').replace('{rate}', rate)}</span>
+                    <span>{fmtCents(vat as number)}</span>
                   </div>
                 ))}
                 <div className="flex justify-between font-bold text-slate-900 pt-1 border-t border-slate-200 mt-0.5">
-                  <span>Total incl. VAT</span><span>{fmtCents(totals.total)}</span>
+                  <span>{t('billing_add_total_incl')}</span><span>{fmtCents(totals.total)}</span>
                 </div>
               </div>
             )}
@@ -415,19 +418,19 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Invoice date</label>
+              <label className={labelCls}>{t('billing_add_invoice_date')}</label>
               <input className={inputCls} type="date" value={invoiceDate} onChange={e => setInvoiceDate(e.target.value)} />
             </div>
             <div>
-              <label className={labelCls}>Due date</label>
+              <label className={labelCls}>{t('billing_add_due_date')}</label>
               <input className={inputCls} type="date" value={dueDate} onChange={e => setDueDate(e.target.value)} />
             </div>
             <div>
-              <label className={labelCls}>Currency</label>
+              <label className={labelCls}>{t('billing_add_currency')}</label>
               <input className={inputCls} value={currency} onChange={e => setCurrency(e.target.value.toUpperCase())} maxLength={3} />
             </div>
             <div>
-              <label className={labelCls}>Status</label>
+              <label className={labelCls}>{t('billing_add_status')}</label>
               <select className={inputCls} value={status} onChange={e => setStatus(e.target.value)}>
                 {ALL_STATUS_OPTIONS.map(o => (
                   <option key={o.value} value={o.value}>{t((`invoice_${o.value}`) as any) ?? o.label}</option>
@@ -436,12 +439,12 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
             </div>
             {(templates ?? []).length > 0 && (
               <div className="col-span-2">
-                <label className={labelCls}>Template</label>
+                <label className={labelCls}>{t('billing_add_template')}</label>
                 <select className={inputCls} value={templateId}
                   onChange={e => applyTemplate(templates?.find(tpl => tpl.id === e.target.value) ?? null)}>
-                  <option value="">Standard layout</option>
+                  <option value="">{t('billing_add_template_std')}</option>
                   {(templates ?? []).map(tpl => (
-                    <option key={tpl.id} value={tpl.id}>{tpl.name}{tpl.is_default ? ' (default)' : ''}</option>
+                    <option key={tpl.id} value={tpl.id}>{tpl.name}{tpl.is_default ? ` ${t('billing_add_template_def')}` : ''}</option>
                   ))}
                 </select>
               </div>
@@ -449,20 +452,20 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
           </div>
 
           <div>
-            <label className={labelCls}>Payment info / Notes</label>
+            <label className={labelCls}>{t('billing_add_notes_label')}</label>
             <textarea className={`${inputCls} min-h-[72px] resize-y`} value={notes}
               onChange={e => setNotes(e.target.value)}
-              placeholder="E.g. IBAN NL12 BANK 0123 4567 89. Payment within 30 days." />
+              placeholder={t('billing_add_notes_ph')} />
           </div>
 
           {error && <p className="error-text">{error}</p>}
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={mutation.isPending}
               className="btn-primary px-5 py-2">
-              {mutation.isPending ? 'Saving…' : 'Create invoice'}
+              {mutation.isPending ? t('billing_add_saving') : t('billing_add_submit')}
             </button>
             <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">
-              Cancel
+              {t('billing_add_cancel')}
             </button>
           </div>
         </form>
@@ -474,6 +477,7 @@ function AddInvoiceModal({ onClose }: { onClose: () => void }) {
 // ── Delete confirm modal ──────────────────────────────────────────────────────
 
 function DeleteModal({ ids, onClose }: { ids: string[]; onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const mutation = useMutation({
     mutationFn: () => api.delete('/billing/invoices/bulk', { data: { ids } }),
@@ -488,19 +492,19 @@ function DeleteModal({ ids, onClose }: { ids: string[]; onClose: () => void }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-sm w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Delete invoices</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('billing_delete_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 flex flex-col gap-4">
           <p className="text-sm text-slate-600">
-            Delete <span className="font-semibold text-slate-900">{ids.length}</span> invoice{ids.length === 1 ? '' : 's'}? This cannot be undone.
+            {t('billing_delete_body').replace('{n}', String(ids.length))}
           </p>
           <div className="flex gap-3">
             <button onClick={() => mutation.mutate()} disabled={mutation.isPending}
               className="btn-danger px-5 py-2">
-              {mutation.isPending ? 'Deleting…' : 'Delete'}
+              {mutation.isPending ? t('billing_delete_deleting') : t('billing_delete_btn')}
             </button>
-            <button onClick={onClose} className="btn-secondary px-4 py-2">Cancel</button>
+            <button onClick={onClose} className="btn-secondary px-4 py-2">{t('billing_delete_cancel')}</button>
           </div>
         </div>
       </div>
@@ -514,6 +518,7 @@ interface ImportError { row: number; reason: string }
 interface ImportResult { imported: number; skipped: number; errors: ImportError[] }
 
 function ImportModal({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const fileRef = useRef<HTMLInputElement>(null)
   const [file, setFile] = useState<File | null>(null)
@@ -544,34 +549,34 @@ function ImportModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Import Invoices</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('billing_import_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 flex flex-col gap-4">
           {!result ? (
             <>
               <p className="text-sm text-slate-600">
-                Upload a <strong>.csv</strong> or <strong>.xlsx</strong> file. Contacts matched by email, then by name.
+                {t('billing_import_desc')}
               </p>
               <button type="button" onClick={downloadTemplate}
                 className="inline-flex items-center gap-1.5 text-xs font-semibold text-yippie hover:opacity-80 self-start">
-                <Download size={13} /> Download CSV template
+                <Download size={13} /> {t('billing_import_template')}
               </button>
               <div className="border-2 border-dashed border-slate-200 rounded-xl p-8 text-center cursor-pointer hover:border-yippie/50 transition-colors"
                 onClick={() => fileRef.current?.click()}>
                 <Upload size={24} className="text-slate-300 mx-auto mb-2" />
                 {file
                   ? <p className="text-sm font-medium text-slate-700">{file.name}</p>
-                  : <p className="text-sm text-slate-400">Click to choose a file</p>}
+                  : <p className="text-sm text-slate-400">{t('billing_import_choose')}</p>}
                 <input ref={fileRef} type="file" accept=".csv,.xlsx" className="hidden"
                   onChange={e => setFile(e.target.files?.[0] ?? null)} />
               </div>
               <div className="flex gap-3">
                 <button type="button" disabled={!file || mutation.isPending} onClick={() => file && mutation.mutate(file)}
                   className="btn-primary px-5 py-2">
-                  {mutation.isPending ? 'Importing…' : 'Import'}
+                  {mutation.isPending ? t('billing_import_importing') : t('billing_import_btn')}
                 </button>
-                <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">Cancel</button>
+                <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">{t('billing_import_cancel')}</button>
               </div>
             </>
           ) : (
@@ -579,25 +584,25 @@ function ImportModal({ onClose }: { onClose: () => void }) {
               <div className="flex gap-6">
                 <div className="text-center">
                   <p className="text-2xl font-bold text-green-600">{result.imported}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">imported</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{t('billing_import_imported')}</p>
                 </div>
                 <div className="text-center">
                   <p className="text-2xl font-bold text-amber-500">{result.skipped}</p>
-                  <p className="text-xs text-slate-500 mt-0.5">skipped</p>
+                  <p className="text-xs text-slate-500 mt-0.5">{t('billing_import_skipped')}</p>
                 </div>
               </div>
               {result.errors.length > 0 && (
                 <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-100 bg-slate-50 p-3 flex flex-col gap-1.5">
                   {result.errors.map((e, i) => (
                     <p key={i} className="text-xs text-slate-600">
-                      <span className="font-semibold text-slate-800">Row {e.row}:</span> {e.reason}
+                      <span className="font-semibold text-slate-800">{t('billing_import_row').replace('{n}', String(e.row))}:</span> {e.reason}
                     </p>
                   ))}
                 </div>
               )}
               <div className="flex gap-3">
-                <button type="button" onClick={onClose} className="btn-primary px-5 py-2">Done</button>
-                <button type="button" onClick={() => { setResult(null); setFile(null) }} className="btn-secondary px-4 py-2">Import another</button>
+                <button type="button" onClick={onClose} className="btn-primary px-5 py-2">{t('billing_import_done')}</button>
+                <button type="button" onClick={() => { setResult(null); setFile(null) }} className="btn-secondary px-4 py-2">{t('billing_import_another')}</button>
               </div>
             </>
           )}
@@ -610,6 +615,7 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 // ── Inline status cell ────────────────────────────────────────────────────────
 
 function StatusCell({ invoice, onPatch }: { invoice: Invoice; onPatch: (id: string, status: string) => void }) {
+  const t = useT()
   return (
     <div className="relative inline-flex items-center">
       <span className={`inline-flex items-center pl-2 pr-5 py-0.5 rounded-full text-xs font-semibold pointer-events-none ${STATUS_STYLES[invoice.status] ?? STATUS_STYLES.draft}`}>
@@ -622,11 +628,11 @@ function StatusCell({ invoice, onPatch }: { invoice: Invoice; onPatch: (id: stri
         className={`absolute inset-0 opacity-0 cursor-pointer w-full`}
         style={{ appearance: 'none' }}
       >
-        {ALL_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+        {ALL_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{t((`invoice_${o.value}`) as any)}</option>)}
       </select>
       {/* Visible badge with chevron */}
       <span className={`absolute inset-0 flex items-center gap-1 pl-2 pr-1.5 rounded-full text-xs font-semibold pointer-events-none ${STATUS_STYLES[invoice.status] ?? STATUS_STYLES.draft}`}>
-        {ALL_STATUS_OPTIONS.find(o => o.value === invoice.status)?.label ?? invoice.status}
+        {t((`invoice_${invoice.status}`) as any) ?? invoice.status}
         <ChevronDown size={10} className="opacity-60 shrink-0" />
       </span>
     </div>
@@ -636,6 +642,7 @@ function StatusCell({ invoice, onPatch }: { invoice: Invoice; onPatch: (id: stri
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function InvoiceList() {
+  const t = useT()
   const qc = useQueryClient()
   const [search, setSearch] = useState('')
   const [showAdd, setShowAdd] = useState(false)
@@ -654,7 +661,7 @@ export default function InvoiceList() {
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       api.patch(`/billing/invoices/${id}`, { status }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['invoices'] }),
-    onError: () => toast.error('Status update failed'),
+    onError: () => toast.error(t('billing_toast_update_fail')),
   })
 
   const filtered = useMemo(() => {
@@ -684,7 +691,7 @@ export default function InvoiceList() {
       const type = format === 'xlsx'
         ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' : 'text/csv'
       downloadBlob(res.data, `invoices.${format}`, type)
-    } catch { toast.error('Export failed') }
+    } catch { toast.error(t('billing_toast_export_fail')) }
   }
 
   // ── Export PDF (single or multi) ──────────────────────────────────────────
@@ -693,7 +700,7 @@ export default function InvoiceList() {
     try {
       const res = await api.get(`/billing/invoices/${id}/pdf`, { responseType: 'blob' })
       downloadBlob(res.data, `invoice-${invoiceNumber}.pdf`, 'application/pdf')
-    } catch { toast.error(`PDF failed for ${invoiceNumber}`) }
+    } catch { toast.error(`${t('billing_toast_pdf_fail')} ${invoiceNumber}`) }
   }
 
   async function bulkDownloadPdf() {
@@ -725,9 +732,9 @@ export default function InvoiceList() {
     try {
       const r = await api.post(`/billing/invoices/${id}/send`) as any
       qc.invalidateQueries({ queryKey: ['invoices'] })
-      toast.success(`Invoice sent to ${r.data.email}`)
+      toast.success(t('billing_toast_sent').replace('{email}', r.data.email))
     } catch (e: any) {
-      toast.error(e.response?.data?.detail ?? 'Send failed')
+      toast.error(e.response?.data?.detail ?? t('billing_toast_send_fail'))
     }
   }
 
@@ -738,8 +745,8 @@ export default function InvoiceList() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
-          <h1 className="heading-xl text-slate-900">Invoices</h1>
-          {(() => { const n = (invoices ?? []).filter(i => i.status === 'overdue').length; return n > 0 ? <span className="text-xs font-semibold bg-danger-100 text-danger-700 px-2 py-0.5 rounded-full">{n} overdue</span> : null })()}
+          <h1 className="heading-xl text-slate-900">{t('billing_page_title')}</h1>
+          {(() => { const n = (invoices ?? []).filter(i => i.status === 'overdue').length; return n > 0 ? <span className="text-xs font-semibold bg-danger-100 text-danger-700 px-2 py-0.5 rounded-full">{t('billing_overdue_badge').replace('{n}', String(n))}</span> : null })()}
         </div>
         <div className="flex items-center gap-2">
           {/* Export dropdown */}
@@ -747,7 +754,7 @@ export default function InvoiceList() {
             <button
               onClick={() => setShowExportMenu(v => !v)}
               className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-              <Download size={15} strokeWidth={2.5} /> Export <ChevronDown size={13} className="opacity-60" />
+              <Download size={15} strokeWidth={2.5} /> {t('billing_btn_export')} <ChevronDown size={13} className="opacity-60" />
             </button>
             {showExportMenu && (
               <>
@@ -769,15 +776,15 @@ export default function InvoiceList() {
           </div>
           <button onClick={() => setShowImport(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-            <Upload size={15} strokeWidth={2.5} /> Import
+            <Upload size={15} strokeWidth={2.5} /> {t('billing_btn_import')}
           </button>
           <button onClick={() => setShowTemplates(true)}
             className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors">
-            <LayoutTemplate size={15} strokeWidth={2.5} /> Templates
+            <LayoutTemplate size={15} strokeWidth={2.5} /> {t('billing_btn_templates')}
           </button>
           <button onClick={() => setShowAdd(true)}
             className="btn-primary px-4 py-2">
-            <Plus size={15} strokeWidth={2.5} /> New Invoice
+            <Plus size={15} strokeWidth={2.5} /> {t('billing_btn_new')}
           </button>
         </div>
       </div>
@@ -786,7 +793,7 @@ export default function InvoiceList() {
       <div className="relative mb-5 max-w-sm">
         <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
         <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search by invoice # or contact…"
+          placeholder={t('billing_search_ph')}
           className="w-full pl-9 pr-4 py-2 text-sm border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie" />
       </div>
 
@@ -795,11 +802,11 @@ export default function InvoiceList() {
         count={selection.count}
         onClear={selection.clear}
         actions={[
-          { label: 'Export PDF', icon: <FileDown size={13} />, onClick: bulkDownloadPdf },
-          { label: 'Export CSV', icon: <Download size={13} />, onClick: () => exportData('csv') },
-          { label: 'Send', icon: <Mail size={13} />, onClick: bulkSend },
+          { label: t('billing_bulk_export_pdf'), icon: <FileDown size={13} />, onClick: bulkDownloadPdf },
+          { label: t('billing_bulk_export_csv'), icon: <Download size={13} />, onClick: () => exportData('csv') },
+          { label: t('billing_bulk_send'), icon: <Mail size={13} />, onClick: bulkSend },
           ...(selectedInvoices.some(i => i.is_issued) ? [] : [
-            { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => setConfirmDelete(true) },
+            { label: t('billing_bulk_delete'), icon: <Trash2 size={13} />, danger: true, onClick: () => setConfirmDelete(true) },
           ]),
         ]}
       />
@@ -815,11 +822,11 @@ export default function InvoiceList() {
                   <Checkbox checked={selection.all} indeterminate={selection.some}
                     onChange={selection.toggleAll} ariaLabel="Select all" />
                 </th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left w-28">Invoice #</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Contact</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left w-40">Status</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right w-28">Amount</th>
-                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left w-28">Due date</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left w-28">{t('billing_col_number')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('billing_col_contact')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left w-40">{t('billing_col_status')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-right w-28">{t('billing_col_amount')}</th>
+                <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left w-28">{t('billing_col_due_date')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
@@ -836,19 +843,19 @@ export default function InvoiceList() {
                   onContextMenu={e => ctx.open(e, [
                     { header: invoiceLabel(inv) },
                     {
-                      label: 'Export PDF', icon: <FileDown size={14} />,
+                      label: t('billing_ctx_export_pdf'), icon: <FileDown size={14} />,
                       onClick: () => downloadPdf(inv.id, invoiceLabel(inv)),
                     },
                     {
-                      label: 'Export CSV', icon: <Download size={14} />,
+                      label: t('billing_ctx_export_csv'), icon: <Download size={14} />,
                       onClick: () => exportData('csv', [inv.id]),
                     },
                     {
-                      label: 'Send by email', icon: <Mail size={14} />,
+                      label: t('billing_ctx_send_email'), icon: <Mail size={14} />,
                       onClick: () => sendSingle(inv.id),
                     },
                     ...(inv.is_issued ? [] : [{
-                      label: 'Delete', icon: <Trash2 size={14} />, danger: true,
+                      label: t('billing_ctx_delete'), icon: <Trash2 size={14} />, danger: true,
                       onClick: () => { setRightClickId(inv.id); setConfirmDelete(true) },
                     }]),
                   ])}
@@ -858,7 +865,7 @@ export default function InvoiceList() {
                       ariaLabel={`Select ${invoiceLabel(inv)}`} />
                   </td>
                   <td className="px-4 py-3 text-sm font-medium text-slate-900 font-mono">
-                    {inv.invoice_number ?? <span className="text-slate-400 italic font-sans">Concept</span>}
+                    {inv.invoice_number ?? <span className="text-slate-400 italic font-sans">{t('billing_concept')}</span>}
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600">{inv.contact_name ?? '—'}</td>
                   <td className="px-4 py-3">
@@ -878,9 +885,9 @@ export default function InvoiceList() {
         {!isLoading && filtered.length === 0 && (
           <EmptyState
             icon={Receipt}
-            title={search ? 'No matching invoices' : 'No invoices yet'}
-            subtitle={search ? 'Try a different invoice number or contact.' : 'Create your first invoice to start tracking what you’re owed.'}
-            ctaLabel={search ? undefined : 'New invoice'}
+            title={search ? t('billing_empty_search_title') : t('billing_empty_title')}
+            subtitle={search ? t('billing_empty_search_sub') : t('billing_empty_subtitle')}
+            ctaLabel={search ? undefined : t('billing_empty_cta')}
             ctaIcon={Plus}
             onCta={search ? undefined : () => setShowAdd(true)}
           />

@@ -12,6 +12,7 @@ import { fmtDate as libFmtDate, fmtMoney as libFmtMoney } from '../../../lib/for
 import { EmptyState } from '../../../components/EmptyState'
 import { useCopy } from '../../../hooks/useCopy'
 import { starterBlocks } from '../../templates/blocks'
+import { useT } from '../../../hooks/useT'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -147,18 +148,18 @@ function downloadBlob(data: BlobPart, filename: string, type: string) {
   URL.revokeObjectURL(url)
 }
 
-async function downloadContractFile(c: Contract) {
+async function downloadContractFile(c: Contract, errMsg: string) {
   try {
     const res = await api.get(`/contracts/${c.id}/file`, { responseType: 'blob' })
     downloadBlob(res.data, c.file_name || 'contract', c.file_type || 'application/octet-stream')
-  } catch { toast.error('Download failed') }
+  } catch { toast.error(errMsg) }
 }
 
-async function downloadContractPdf(id: string, title: string) {
+async function downloadContractPdf(id: string, title: string, errMsg: string) {
   try {
     const res = await api.get(`/contracts/${id}/pdf`, { responseType: 'blob' })
     downloadBlob(res.data, `${title}.pdf`, 'application/pdf')
-  } catch { toast.error('PDF download failed') }
+  } catch { toast.error(errMsg) }
 }
 
 // ── Contact typeahead ─────────────────────────────────────────────────────────
@@ -169,6 +170,7 @@ function ContactPicker({ displayName, onSelect }: {
   const [open, setOpen] = useState(false)
   const [term, setTerm] = useState(displayName)
   const [debounced, setDebounced] = useState('')
+  const t = useT()
 
   useEffect(() => { const t = setTimeout(() => setDebounced(term.trim()), 250); return () => clearTimeout(t) }, [term])
 
@@ -181,7 +183,7 @@ function ContactPicker({ displayName, onSelect }: {
 
   return (
     <div className="relative">
-      <input className={inputCls} value={term} placeholder="Search a contact…"
+      <input className={inputCls} value={term} placeholder={t('contract_search_contact_ph')}
         onChange={e => { setTerm(e.target.value); setOpen(true); onSelect('', '') }}
         onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} />
       {open && results.length > 0 && (
@@ -207,6 +209,7 @@ function CompanyPicker({ displayName, onSelect }: {
 }) {
   const [open, setOpen] = useState(false)
   const [term, setTerm] = useState(displayName)
+  const t = useT()
 
   const { data } = useQuery<CompanyLite[]>({
     queryKey: ['contract-companies'],
@@ -220,7 +223,7 @@ function CompanyPicker({ displayName, onSelect }: {
 
   return (
     <div className="relative">
-      <input className={inputCls} value={term} placeholder="Search a company…"
+      <input className={inputCls} value={term} placeholder={t('contract_search_company_ph')}
         onChange={e => { setTerm(e.target.value); setOpen(true); onSelect('', '') }}
         onFocus={() => setOpen(true)} onBlur={() => setTimeout(() => setOpen(false), 150)} />
       {open && results.length > 0 && (
@@ -262,45 +265,46 @@ interface FormState {
 
 function ContractFields({ form, set }: { form: FormState; set: (patch: Partial<FormState>) => void }) {
   const [showAdvanced, setShowAdvanced] = useState(false)
+  const t = useT()
   return (
     <>
       <div>
-        <label className={labelCls}>Title *</label>
+        <label className={labelCls}>{t('contract_field_title')}</label>
         <input className={inputCls} value={form.title} placeholder="e.g. Service agreement — Acme BV"
           onChange={e => set({ title: e.target.value })} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelCls}>Type</label>
-          <input className={inputCls} value={form.contract_type} placeholder="Service, NDA, SLA…"
+          <label className={labelCls}>{t('contract_field_type')}</label>
+          <input className={inputCls} value={form.contract_type} placeholder={t('contract_field_type_ph')}
             onChange={e => set({ contract_type: e.target.value })} />
         </div>
         <div>
-          <label className={labelCls}>Direction</label>
+          <label className={labelCls}>{t('contract_field_direction')}</label>
           <select className={inputCls} value={form.direction} onChange={e => set({ direction: e.target.value })}>
-            {DIRECTION_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {DIRECTION_OPTIONS.map(o => <option key={o.value} value={o.value}>{t('contract_direction_' + o.value)}</option>)}
           </select>
         </div>
         <div>
-          <label className={labelCls}>Status</label>
+          <label className={labelCls}>{t('contract_field_status')}</label>
           <select className={inputCls} value={form.status} onChange={e => set({ status: e.target.value })}>
-            {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+            {STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{t('contract_status_' + o.value)}</option>)}
           </select>
         </div>
         <div>
-          <label className={labelCls}>Counterparty name</label>
-          <input className={inputCls} value={form.counterparty_name} placeholder="Free text (optional)"
+          <label className={labelCls}>{t('contract_field_counterparty')}</label>
+          <input className={inputCls} value={form.counterparty_name} placeholder={t('contract_field_counterparty_ph')}
             onChange={e => set({ counterparty_name: e.target.value })} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className={labelCls}>Company</label>
+          <label className={labelCls}>{t('contract_field_company')}</label>
           <CompanyPicker displayName={form.company_name}
             onSelect={(id, name) => set({ company_id: id, company_name: name })} />
         </div>
         <div>
-          <label className={labelCls}>Contact</label>
+          <label className={labelCls}>{t('contract_field_contact')}</label>
           <ContactPicker displayName={form.contact_name}
             onSelect={(id, name) => set({ contact_id: id, contact_name: name })} />
         </div>
@@ -312,61 +316,61 @@ function ContractFields({ form, set }: { form: FormState; set: (patch: Partial<F
           onClick={() => setShowAdvanced(v => !v)}
           className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3 hover:text-slate-700 transition-colors"
         >
-          {showAdvanced ? '▾' : '▸'} Term & value
+          {showAdvanced ? '▾' : '▸'} {t('contract_field_term_value')}
         </button>
       {showAdvanced && <>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={labelCls}>Start date</label>
+            <label className={labelCls}>{t('contract_field_start_date')}</label>
             <input type="date" className={inputCls} value={form.start_date}
               onChange={e => set({ start_date: e.target.value })} />
           </div>
           <div>
-            <label className={labelCls}>End date</label>
+            <label className={labelCls}>{t('contract_field_end_date')}</label>
             <input type="date" className={inputCls} value={form.end_date}
               onChange={e => set({ end_date: e.target.value })} />
           </div>
           <div>
-            <label className={labelCls}>Notice period (days)</label>
+            <label className={labelCls}>{t('contract_field_notice_period')}</label>
             <input type="number" min={0} max={730} className={inputCls} value={form.notice_period_days}
               placeholder="e.g. 30" onChange={e => set({ notice_period_days: e.target.value })} />
           </div>
           <div>
-            <label className={labelCls}>Renewal</label>
+            <label className={labelCls}>{t('contract_field_renewal')}</label>
             <div className="flex items-center gap-3">
               <label className="inline-flex items-center gap-2 text-sm text-slate-700 whitespace-nowrap cursor-pointer">
                 <input type="checkbox" checked={form.auto_renew}
                   onChange={e => set({ auto_renew: e.target.checked })}
                   className="rounded border-slate-300 text-yippie focus:ring-yippie/30" />
-                Auto renew
+                {t('contract_field_auto_renew')}
               </label>
               {form.auto_renew && (
                 <select className={inputCls} value={form.renewal_term}
                   onChange={e => set({ renewal_term: e.target.value })}>
-                  {RENEWAL_TERM_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  {RENEWAL_TERM_OPTIONS.map(o => <option key={o.value} value={o.value}>{t('contract_renewal_' + o.value)}</option>)}
                 </select>
               )}
             </div>
           </div>
           <div>
-            <label className={labelCls}>Value (€)</label>
+            <label className={labelCls}>{t('contract_field_value')}</label>
             <input type="number" min={0} step="0.01" className={inputCls} value={form.value_amount}
               placeholder="e.g. 1200" onChange={e => set({ value_amount: e.target.value })} />
           </div>
           <div>
-            <label className={labelCls}>Billing interval</label>
+            <label className={labelCls}>{t('contract_field_billing_interval')}</label>
             <select className={inputCls} value={form.value_interval}
               onChange={e => set({ value_interval: e.target.value })}>
-              {VALUE_INTERVAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {VALUE_INTERVAL_OPTIONS.map(o => <option key={o.value} value={o.value}>{t(o.value === '' ? 'contract_interval_none' : 'contract_interval_' + o.value)}</option>)}
             </select>
           </div>
         </div>
       </>}
       </div>
       <div>
-        <label className={labelCls}>Notes</label>
+        <label className={labelCls}>{t('contract_field_notes')}</label>
         <textarea className={`${inputCls} min-h-[72px] resize-y`} value={form.notes}
-          onChange={e => set({ notes: e.target.value })} placeholder="Key terms, notice period, value…" />
+          onChange={e => set({ notes: e.target.value })} placeholder={t('contract_field_notes_ph')} />
       </div>
     </>
   )
@@ -408,6 +412,7 @@ function TemplatesModal({ onClose }: { onClose: () => void }) {
   const qc = useQueryClient()
   const navigate = useNavigate()
   const [newName, setNewName] = useState('')
+  const t = useT()
 
   const { data: templates } = useQuery<ContractTemplate[]>({
     queryKey: ['contract-templates'],
@@ -423,14 +428,14 @@ function TemplatesModal({ onClose }: { onClose: () => void }) {
       qc.invalidateQueries({ queryKey: ['contract-templates'] })
       navigate(`/contracts/templates/${res.data.id}/edit`)
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Failed to create template'),
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? t('contract_toast_tpl_create_failed')),
   })
 
   const remove = useMutation({
     mutationFn: (id: string) => api.delete(`/contracts/templates/${id}`),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contract-templates'] })
-      toast.success('Template deleted')
+      toast.success(t('contract_toast_tpl_deleted'))
     },
   })
 
@@ -438,7 +443,7 @@ function TemplatesModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[92vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Contract templates</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('contract_tpl_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-5 flex flex-col gap-3 overflow-y-auto">
@@ -446,30 +451,30 @@ function TemplatesModal({ onClose }: { onClose: () => void }) {
             className="flex gap-2"
             onSubmit={e => { e.preventDefault(); if (newName.trim()) create.mutate() }}
           >
-            <input className={inputCls} value={newName} placeholder="e.g. Service agreement"
+            <input className={inputCls} value={newName} placeholder={t('contract_tpl_name_ph')}
               onChange={e => setNewName(e.target.value)} />
             <button type="submit" disabled={!newName.trim() || create.isPending}
               className="btn-primary px-4 py-2 shrink-0 inline-flex items-center gap-1.5">
-              <Plus size={13} /> {create.isPending ? 'Creating…' : 'Create'}
+              <Plus size={13} /> {create.isPending ? t('contract_tpl_creating') : t('contract_tpl_create')}
             </button>
           </form>
           <div className="flex flex-col gap-1">
-            {(templates ?? []).map(t => (
-              <div key={t.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-100 hover:border-slate-200">
+            {(templates ?? []).map(tpl => (
+              <div key={tpl.id} className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-slate-100 hover:border-slate-200">
                 <FileText size={14} className="text-slate-300 shrink-0" />
-                <span className="text-sm text-slate-700 truncate flex-1">{t.name}</span>
-                <button onClick={() => navigate(`/contracts/templates/${t.id}/edit`)}
+                <span className="text-sm text-slate-700 truncate flex-1">{tpl.name}</span>
+                <button onClick={() => navigate(`/contracts/templates/${tpl.id}/edit`)}
                   className="btn-secondary px-3 py-1.5 text-xs inline-flex items-center gap-1">
-                  <PenLine size={12} /> Edit layout
+                  <PenLine size={12} /> {t('contract_tpl_edit')}
                 </button>
-                <button onClick={() => remove.mutate(t.id)} aria-label={`Delete ${t.name}`}
+                <button onClick={() => remove.mutate(tpl.id)} aria-label={`Delete ${tpl.name}`}
                   className="p-1.5 text-slate-300 hover:text-danger-600">
                   <Trash2 size={14} />
                 </button>
               </div>
             ))}
             {(templates ?? []).length === 0 && (
-              <p className="text-xs text-slate-400 px-2 py-3">No templates yet. Create your first one and design it in the builder.</p>
+              <p className="text-xs text-slate-400 px-2 py-3">{t('contract_tpl_empty')}</p>
             )}
           </div>
         </div>
@@ -487,6 +492,7 @@ function AddContractModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
   const set = (patch: Partial<FormState>) => setForm(prev => ({ ...prev, ...patch }))
+  const t = useT()
 
   const mutation = useMutation({
     mutationFn: async () => {
@@ -500,15 +506,15 @@ function AddContractModal({ onClose }: { onClose: () => void }) {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contracts'] })
-      toast.success('Contract created')
+      toast.success(t('contract_toast_created'))
       onClose()
     },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Failed to create contract'),
+    onError: (err: any) => setError(err.response?.data?.detail ?? t('contract_add_error_generic')),
   })
 
   function submit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.title.trim()) { setError('Title is required'); return }
+    if (!form.title.trim()) { setError(t('contract_add_error_title')); return }
     setError(''); mutation.mutate()
   }
 
@@ -516,18 +522,18 @@ function AddContractModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">New Contract</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('contract_add_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={submit} className="p-6 flex flex-col gap-5">
           <ContractFields form={form} set={set} />
           <div>
-            <label className={labelCls}>Document (optional)</label>
+            <label className={labelCls}>{t('contract_add_doc_label')}</label>
             <div className="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center cursor-pointer hover:border-yippie/50 transition-colors"
               onClick={() => fileRef.current?.click()}>
               <Upload size={20} className="text-slate-300 mx-auto mb-1.5" />
               {file ? <p className="text-sm font-medium text-slate-700">{file.name}</p>
-                    : <p className="text-sm text-slate-400">Click to attach a PDF, Word doc, or image</p>}
+                    : <p className="text-sm text-slate-400">{t('contract_add_doc_hint')}</p>}
               <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" className="hidden"
                 onChange={e => setFile(e.target.files?.[0] ?? null)} />
             </div>
@@ -536,10 +542,10 @@ function AddContractModal({ onClose }: { onClose: () => void }) {
           <div className="flex gap-3 pt-1">
             <button type="submit" disabled={mutation.isPending}
               className="px-5 py-2 bg-yippie text-white text-sm font-semibold rounded-xl hover:opacity-90 disabled:opacity-50 transition-opacity">
-              {mutation.isPending ? 'Saving…' : 'Create contract'}
+              {mutation.isPending ? t('contract_add_saving') : t('contract_add_submit')}
             </button>
             <button type="button" onClick={onClose}
-              className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+              className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{t('contract_add_cancel')}</button>
           </div>
         </form>
       </div>
@@ -555,6 +561,7 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
   const [form, setForm] = useState<FormState | null>(null)
   const [error, setError] = useState('')
   const set = (patch: Partial<FormState>) => setForm(prev => (prev ? { ...prev, ...patch } : prev))
+  const t = useT()
 
   const { data: contract } = useQuery<Contract>({
     queryKey: ['contract', contractId],
@@ -583,10 +590,10 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contracts'] })
       qc.invalidateQueries({ queryKey: ['contract', contractId] })
-      toast.success('Saved')
+      toast.success(t('contract_toast_saved'))
       onClose()
     },
-    onError: (err: any) => setError(err.response?.data?.detail ?? 'Save failed'),
+    onError: (err: any) => setError(err.response?.data?.detail ?? t('contract_toast_save_failed')),
   })
 
   const uploadFile = useMutation({
@@ -597,9 +604,9 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contract', contractId] })
       qc.invalidateQueries({ queryKey: ['contracts'] })
-      toast.success('Document attached')
+      toast.success(t('contract_toast_attached'))
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Upload failed'),
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? t('contract_toast_upload_failed')),
   })
 
   const removeFile = useMutation({
@@ -607,7 +614,7 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contract', contractId] })
       qc.invalidateQueries({ queryKey: ['contracts'] })
-      toast.success('Document removed')
+      toast.success(t('contract_toast_removed'))
     },
   })
 
@@ -615,10 +622,10 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[92vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Contract</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('contract_peek_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
-        {!form ? <p className="p-6 text-sm text-slate-400">Loading…</p> : (
+        {!form ? <p className="p-6 text-sm text-slate-400">{t('contract_peek_loading')}</p> : (
           <div className="p-6 flex flex-col gap-5">
             <ContractFields form={form} set={set} />
 
@@ -627,7 +634,7 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
 
             {/* Document */}
             <div>
-              <label className={labelCls}>Document</label>
+              <label className={labelCls}>{t('contract_peek_doc_label')}</label>
               {contract?.file_name ? (
                 <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 px-4 py-3">
                   <div className="flex items-center gap-2 min-w-0">
@@ -638,13 +645,13 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
                     )}
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
-                    <button type="button" onClick={() => downloadContractFile(contract)}
+                    <button type="button" onClick={() => downloadContractFile(contract, t('contract_toast_download_failed'))}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-yippie hover:opacity-80">
-                      <Download size={13} /> Download
+                      <Download size={13} /> {t('contract_peek_doc_download')}
                     </button>
                     <button type="button" onClick={() => removeFile.mutate()}
                       className="inline-flex items-center gap-1 text-xs font-semibold text-red-500 hover:opacity-80">
-                      <Trash2 size={13} /> Remove
+                      <Trash2 size={13} /> {t('contract_peek_doc_remove')}
                     </button>
                   </div>
                 </div>
@@ -652,7 +659,7 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
                 <div className="border-2 border-dashed border-slate-200 rounded-xl p-5 text-center cursor-pointer hover:border-yippie/50 transition-colors"
                   onClick={() => fileRef.current?.click()}>
                   <Upload size={20} className="text-slate-300 mx-auto mb-1.5" />
-                  <p className="text-sm text-slate-400">{uploadFile.isPending ? 'Uploading…' : 'Click to attach a document'}</p>
+                  <p className="text-sm text-slate-400">{uploadFile.isPending ? t('contract_peek_doc_uploading') : t('contract_peek_doc_attach')}</p>
                 </div>
               )}
               <input ref={fileRef} type="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" className="hidden"
@@ -661,11 +668,11 @@ export function ContractPeek({ contractId, onClose }: { contractId: string; onCl
 
             {error && <p className="error-text">{error}</p>}
             <div className="flex gap-3 pt-1">
-              <button type="button" disabled={save.isPending} onClick={() => { if (!form.title.trim()) { setError('Title is required'); return } save.mutate() }}
+              <button type="button" disabled={save.isPending} onClick={() => { if (!form.title.trim()) { setError(t('contract_peek_error_title')); return } save.mutate() }}
                 className="btn-primary px-5 py-2">
-                {save.isPending ? 'Saving…' : 'Save changes'}
+                {save.isPending ? t('contract_peek_saving') : t('contract_peek_save')}
               </button>
-              <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">Close</button>
+              <button type="button" onClick={onClose} className="btn-secondary px-4 py-2">{t('contract_peek_close')}</button>
             </div>
           </div>
         )}
@@ -682,6 +689,7 @@ function SigningSection({ contract }: { contract: Contract }) {
   const [bodyDraft, setBodyDraft] = useState<string | null>(null)
   const [regenerating, setRegenerating] = useState(false)
   const { copy: copyUrl } = useCopy()
+  const t = useT()
 
   const { data: templates } = useQuery<ContractTemplate[]>({
     queryKey: ['contract-templates'],
@@ -695,14 +703,14 @@ function SigningSection({ contract }: { contract: Contract }) {
 
   const generate = useMutation({
     mutationFn: () => api.post(`/contracts/${contract.id}/generate`, { template_id: templateId }),
-    onSuccess: () => { invalidate(); setBodyDraft(null); setRegenerating(false); toast.success('Contract text generated') },
-    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Generation failed'),
+    onSuccess: () => { invalidate(); setBodyDraft(null); setRegenerating(false); toast.success(t('contract_signing_generated')) },
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? t('contract_toast_gen_failed')),
   })
 
   const saveBody = useMutation({
     mutationFn: () => api.patch(`/contracts/${contract.id}`, { body: bodyDraft }),
-    onSuccess: () => { invalidate(); setBodyDraft(null); toast.success('Contract text saved') },
-    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Save failed'),
+    onSuccess: () => { invalidate(); setBodyDraft(null); toast.success(t('contract_signing_text_saved')) },
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? t('contract_toast_save_failed')),
   })
 
   const createLink = useMutation({
@@ -710,9 +718,9 @@ function SigningSection({ contract }: { contract: Contract }) {
     onSuccess: (res: any) => {
       invalidate()
       const url = `${window.location.origin}/sign/${res.data.sign_token}`
-      copyUrl(url, 'Signing link copied to clipboard — valid 14 days')
+      copyUrl(url, t('contract_signing_link_copied'))
     },
-    onError: (err: any) => toast.error(err.response?.data?.detail ?? 'Could not create signing link'),
+    onError: (err: any) => toast.error(err.response?.data?.detail ?? t('contract_toast_link_failed')),
   })
 
   const body = bodyDraft ?? contract.body ?? ''
@@ -720,14 +728,14 @@ function SigningSection({ contract }: { contract: Contract }) {
 
   return (
     <div>
-      <label className={labelCls}>Contract text & signing</label>
+      <label className={labelCls}>{t('contract_signing_label')}</label>
 
       {signed && (
         <div className="flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-4 py-3 mb-3">
           <FileSignature size={15} className="text-green-600 shrink-0" />
           <p className="text-sm text-green-800">
-            Signed by <span className="font-semibold">{contract.signer_name}</span> on{' '}
-            {new Date(contract.signed_at!).toLocaleDateString('en-GB')}
+            {t('contract_signing_signed_by')} <span className="font-semibold">{contract.signer_name}</span> {t('contract_signing_signed_on')}{' '}
+            {new Date(contract.signed_at!).toLocaleDateString('nl-NL')}
           </p>
         </div>
       )}
@@ -735,16 +743,16 @@ function SigningSection({ contract }: { contract: Contract }) {
       {!contract.body || regenerating ? (
         <div className="flex items-center gap-2">
           <select className={inputCls} value={templateId} onChange={e => setTemplateId(e.target.value)}>
-            <option value="">Choose a template…</option>
-            {(templates ?? []).map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+            <option value="">{t('contract_signing_choose_template')}</option>
+            {(templates ?? []).map(tpl => <option key={tpl.id} value={tpl.id}>{tpl.name}</option>)}
           </select>
           <button type="button" disabled={!templateId || generate.isPending} onClick={() => generate.mutate()}
             className="shrink-0 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-white bg-yippie rounded-xl hover:opacity-90 disabled:opacity-50">
-            <PenLine size={14} /> {generate.isPending ? 'Generating…' : 'Generate'}
+            <PenLine size={14} /> {generate.isPending ? t('contract_signing_generating') : t('contract_signing_generate')}
           </button>
           {regenerating && (
             <button type="button" onClick={() => setRegenerating(false)}
-              className="shrink-0 px-3 py-2 text-sm text-slate-500 hover:text-slate-700">Cancel</button>
+              className="shrink-0 px-3 py-2 text-sm text-slate-500 hover:text-slate-700">{t('contract_signing_cancel')}</button>
           )}
         </div>
       ) : (
@@ -757,24 +765,24 @@ function SigningSection({ contract }: { contract: Contract }) {
             {bodyDraft !== null && bodyDraft !== contract.body && (
               <button type="button" disabled={saveBody.isPending} onClick={() => saveBody.mutate()}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-white bg-yippie rounded-lg hover:opacity-90 disabled:opacity-50">
-                {saveBody.isPending ? 'Saving…' : 'Save text'}
+                {saveBody.isPending ? t('contract_signing_saving') : t('contract_signing_save_text')}
               </button>
             )}
-            <button type="button" onClick={() => downloadContractPdf(contract.id, contract.title)}
+            <button type="button" onClick={() => downloadContractPdf(contract.id, contract.title, t('contract_toast_pdf_failed'))}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">
-              <Download size={13} /> PDF
+              <Download size={13} /> {t('contract_signing_pdf')}
             </button>
             {!signed && (
               contract.sign_token ? (
                 <button type="button"
-                  onClick={() => copyUrl(`${window.location.origin}/sign/${contract.sign_token}`, 'Signing link copied')}
+                  onClick={() => copyUrl(`${window.location.origin}/sign/${contract.sign_token}`, t('contract_signing_link_copied'))}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-green-700 border border-green-200 bg-green-50 rounded-lg hover:bg-green-100">
-                  <Link2 size={13} /> Copy signing link
+                  <Link2 size={13} /> {t('contract_signing_copy_link')}
                 </button>
               ) : (
                 <button type="button" disabled={createLink.isPending} onClick={() => createLink.mutate()}
                   className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50">
-                  <FileSignature size={13} /> {createLink.isPending ? 'Creating…' : 'Create signing link'}
+                  <FileSignature size={13} /> {createLink.isPending ? t('contract_signing_creating') : t('contract_signing_create_link')}
                 </button>
               )
             )}
@@ -782,7 +790,7 @@ function SigningSection({ contract }: { contract: Contract }) {
               <button type="button"
                 onClick={() => { setBodyDraft(null); setRegenerating(true) }}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-slate-400 hover:text-slate-600">
-                <RefreshCw size={12} /> Regenerate
+                <RefreshCw size={12} /> {t('contract_signing_regenerate')}
               </button>
             )}
           </div>
@@ -1058,7 +1066,7 @@ export default function ContractList() {
                   }}
                   onContextMenu={e => ctx.open(e, [
                     { header: c.title },
-                    ...(c.file_name ? [{ label: 'Download file', icon: <Download size={14} />, onClick: () => downloadContractFile(c) }] : []),
+                    ...(c.file_name ? [{ label: 'Download file', icon: <Download size={14} />, onClick: () => downloadContractFile(c, 'Download failed') }] : []),
                     { label: 'Delete', icon: <Trash2 size={14} />, danger: true, onClick: () => { setRightClickId(c.id); setConfirmDelete(true) } },
                   ])}>
                   <td className="px-4 py-3">

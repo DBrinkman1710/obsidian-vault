@@ -1,6 +1,14 @@
-export type Lang = 'en' | 'nl'
+import { extraNamespaces } from './namespaces'
 
-export const translations = {
+export type Lang = 'en' | 'nl'
+// Keys are plain strings so each module's translation namespace can add its own
+// without a shared union type becoming a merge-conflict bottleneck. Missing keys
+// fall back to English, then to the key itself (see useT).
+export type TKey = string
+
+// Base dictionary: shared/common keys used app-wide. Module-specific keys live
+// in ./namespaces/*.ts and are merged on top below.
+const base = {
   en: {
     // Sidebar modules
     inbox:       'Inbox',
@@ -45,6 +53,7 @@ export const translations = {
     cancel:               'Cancel',
     delete:               'Delete',
     done:                 'Done',
+    save:                 'Save',
     unassign:             'Unassign',
     filter_all:           'All',
     confirm_cannot_undo:  'This cannot be undone.',
@@ -180,6 +189,7 @@ export const translations = {
     cancel:               'Annuleren',
     delete:               'Verwijderen',
     done:                 'Klaar',
+    save:                 'Opslaan',
     unassign:             'Toewijzing verwijderen',
     filter_all:           'Alles',
     confirm_cannot_undo:  'Dit kan niet ongedaan worden gemaakt.',
@@ -271,6 +281,14 @@ export const translations = {
     contacts_imported:      'geïmporteerd',
     contacts_skipped:       'overgeslagen (duplicaten)',
   },
-} as const
+}
 
-export type TKey = keyof typeof translations.en
+function mergeLang(lang: Lang): Record<string, string> {
+  return Object.assign({}, base[lang], ...extraNamespaces.map((ns) => ns[lang]))
+}
+
+// Final flat dictionary per language: base keys overlaid with every namespace.
+export const translations: Record<Lang, Record<string, string>> = {
+  en: mergeLang('en'),
+  nl: mergeLang('nl'),
+}

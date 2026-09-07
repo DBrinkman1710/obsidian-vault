@@ -1,0 +1,418 @@
+/* Modules page — two-column feature blocks, premium-light system. */
+
+/* ── Module block (alternating image-left / right) ─────────────── */
+.block {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 64px;
+  align-items: center;
+  padding: 80px 0;
+}
+
+/* Restore horizontal breathing room once the block fills the full viewport width */
+@media (max-width: 1260px) {
+  .block { padding-inline: var(--gutter); }
+}
+
+/* Reverse: image on left, copy on right */
+.block.reverse {
+  direction: rtl;
+}
+.block.reverse > * {
+  direction: ltr;
+}
+
+/* Alternate background on even blocks */
+.blockAlt {
+  background: var(--off-white);
+  border-block: 1px solid var(--border);
+}
+
+/* ── Copy side ──────────────────────────────────────────────────── */
+.copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.kicker {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--brand-700);
+  margin-bottom: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.kickerIcon {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--r-sm);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-ring);
+  color: var(--brand-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.title {
+  font-family: var(--font-display);
+  font-size: clamp(26px, 3vw, 38px);
+  font-weight: 700;
+  color: var(--ink);
+  letter-spacing: -0.025em;
+  line-height: 1.14;
+  margin-bottom: 16px;
+}
+
+.desc {
+  font-size: var(--fs-lead);
+  line-height: 1.75;
+  color: var(--muted);
+  margin-bottom: 28px;
+}
+
+.bullets {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin-bottom: 32px;
+}
+
+.bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 14.5px;
+  color: var(--text);
+  line-height: 1.6;
+}
+
+.bulletCheck {
+  color: var(--brand-700);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.openBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--ink);
+  color: #fff;
+  padding: 12px 20px;
+  border-radius: var(--r-sm);
+  font-weight: 600;
+  font-size: 14px;
+  align-self: flex-start;
+  transition: background 0.18s, transform 0.15s, box-shadow 0.2s;
+}
+.openBtn:hover {
+  background: var(--brand);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-brand);
+}
+.openBtn svg {
+  transition: transform 0.18s;
+}
+.openBtn:hover svg {
+  transform: translateX(3px);
+}
+
+/* ── Screenshot / browser frame side ───────────────────────────── */
+.visual {
+  position: relative;
+}
+
+.frame {
+  border-radius: var(--r-lg);
+  border: 1px solid var(--border);
+  background: var(--white);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+}
+
+.frameBar {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 14px;
+  background: var(--slate-50);
+  border-bottom: 1px solid var(--border);
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #d3dae3;
+}
+.dot:nth-child(1) { background: #f1a9a0; }
+.dot:nth-child(2) { background: #f4cf86; }
+.dot:nth-child(3) { background: #a7d8a0; }
+
+.frameUrl {
+  margin-left: 10px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.screenshotWrap {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--slate-100);
+  overflow: hidden;
+}
+
+.screenshot {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  position: relative;
+  z-index: 1;
+}
+
+/* Placeholder sits behind the image; visible only before image loads.
+   pointer-events: none so it never intercepts clicks meant for the lightbox trigger. */
+.screenshotPlaceholder {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--faint);
+  background: linear-gradient(135deg, var(--slate-100), var(--off-white));
+}
+
+.placeholderIcon {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--r-md);
+  background: var(--brand-soft);
+  border: 1px solid var(--brand-ring);
+  color: var(--brand-700);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.placeholderLabel {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  color: var(--brand-700);
+}
+
+/* ── Lightbox ───────────────────────────────────────────────────── */
+.lightboxTrigger {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  cursor: default;
+  pointer-events: all;
+}
+
+.lightboxInner {
+  position: relative;
+  width: 100%;
+  max-width: 1100px;
+}
+
+.lightboxImage {
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-lg, 14px);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  display: block;
+}
+
+.lightboxClose {
+  position: absolute;
+  top: -38px;
+  right: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: rgba(255, 255, 255, 0.75);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s ease;
+}
+
+.lightboxClose:hover {
+  color: #fff;
+}
+
+/* ── Module index strip (nav) ───────────────────────────────────── */
+.nav {
+  position: sticky;
+  top: 64px;
+  z-index: 20;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 0 var(--gutter);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.nav::-webkit-scrollbar { display: none; }
+
+.navInner {
+  max-width: var(--maxw);
+  margin: 0 auto;
+  display: flex;
+  gap: 0;
+  align-items: stretch;
+}
+
+.navLink {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 14px 16px;
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--muted);
+  white-space: nowrap;
+  border-bottom: 2px solid transparent;
+  transition: color 0.18s, border-color 0.18s;
+}
+.navLink:hover {
+  color: var(--ink);
+  border-bottom-color: var(--brand);
+}
+
+/* ── CTA section ────────────────────────────────────────────────── */
+.ctaSection {
+  padding: 100px var(--gutter);
+  text-align: center;
+  background: var(--dark);
+  position: relative;
+  overflow: hidden;
+}
+.ctaSection::before {
+  content: "";
+  position: absolute;
+  top: -120px; left: 50%;
+  transform: translateX(-50%);
+  width: 600px; height: 600px;
+  background: radial-gradient(circle, rgba(91,164,245,0.18), transparent 65%);
+  pointer-events: none;
+}
+
+.ctaInner {
+  position: relative;
+  z-index: 1;
+  max-width: 620px;
+  margin: 0 auto;
+}
+
+.ctaEyebrow {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--brand);
+  margin-bottom: 20px;
+}
+
+.ctaTitle {
+  font-family: var(--font-display);
+  font-size: clamp(28px, 3.6vw, 48px);
+  font-weight: 700;
+  color: #fff;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
+  margin-bottom: 18px;
+}
+
+.ctaSub {
+  font-size: 17px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 36px;
+}
+
+.ctaBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--brand);
+  color: #fff;
+  padding: 15px 30px;
+  border-radius: var(--r-sm);
+  font-weight: 700;
+  font-size: 15px;
+  transition: background 0.18s, transform 0.15s, box-shadow 0.2s;
+}
+.ctaBtn:hover {
+  background: var(--brand-600);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-brand);
+}
+.ctaBtn svg {
+  transition: transform 0.18s;
+}
+.ctaBtn:hover svg {
+  transform: translateX(3px);
+}
+
+.ctaMeta {
+  margin-top: 18px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.35);
+}
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .block,
+  .block.reverse {
+    grid-template-columns: 1fr;
+    gap: 36px;
+    direction: ltr;
+  }
+}
+
+@media (max-width: 520px) {
+  .frameUrl { display: none; }
+  .navLink { padding: 12px 10px; font-size: 10.5px; min-height: 44px; }
+}

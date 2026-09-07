@@ -4,6 +4,7 @@ import { ShieldCheck, UserPlus, ToggleLeft, ToggleRight, Trash2, Puzzle } from '
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
 import { CloseButton } from '../../../shell/CloseButton'
+import { useT } from '../../../hooks/useT'
 
 const ALL_MODULES = ['inbox', 'contacts', 'tickets', 'calendar', 'pipeline', 'booking', 'activity', 'billing', 'contracts', 'chat', 'departments', 'marketing', 'tracking', 'sales', 'saas', 'ai'] as const
 type ModuleName = typeof ALL_MODULES[number]
@@ -15,6 +16,7 @@ const MODULE_LABELS: Record<ModuleName, string> = {
 interface TenantModules { id: string; enabled_modules: string[] }
 
 function GlobalModulesPanel() {
+  const t = useT()
   const qc = useQueryClient()
   const [pending, setPending] = useState<string | null>(null)
 
@@ -31,15 +33,15 @@ function GlobalModulesPanel() {
   })
 
   const isEnabled = (mod: string) =>
-    tenants.length > 0 && tenants.every((t: any) => t.enabled_modules.includes(mod))
+    tenants.length > 0 && tenants.every((tenant: any) => tenant.enabled_modules.includes(mod))
 
   return (
     <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden w-56 flex-shrink-0">
       <div className="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center gap-2">
         <Puzzle size={14} className="text-slate-400" />
         <div>
-          <h2 className="text-xs font-semibold text-slate-600">Platform Modules</h2>
-          <p className="text-[11px] text-slate-400 leading-tight">Toggle for all clients</p>
+          <h2 className="text-xs font-semibold text-slate-600">{t('admin_platform_modules')}</h2>
+          <p className="text-[11px] text-slate-400 leading-tight">{t('admin_platform_modules_desc')}</p>
         </div>
       </div>
       <div className="divide-y divide-slate-100">
@@ -52,7 +54,9 @@ function GlobalModulesPanel() {
               <button
                 disabled={loading}
                 onClick={() => { setPending(mod); mutation.mutate({ module: mod, enabled: !active }) }}
-                title={active ? `Disable ${MODULE_LABELS[mod]} for all clients` : `Enable ${MODULE_LABELS[mod]} for all clients`}
+                title={active
+                  ? t('admin_disable_for_all').replace('{module}', MODULE_LABELS[mod])
+                  : t('admin_enable_for_all').replace('{module}', MODULE_LABELS[mod])}
                 className="transition-opacity disabled:opacity-40"
               >
                 {active
@@ -86,6 +90,7 @@ function ToggleConfirmModal({
   target: Superadmin
   onClose: () => void
 }) {
+  const t = useT()
   const qc = useQueryClient()
   const { user } = useAuth()
   const [password, setPassword] = useState('')
@@ -104,7 +109,7 @@ function ToggleConfirmModal({
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!password.trim()) { setError('Password required'); return }
+    if (!password.trim()) { setError(t('admin_password_required')); return }
     setError('')
     mutation.mutate()
   }
@@ -114,36 +119,36 @@ function ToggleConfirmModal({
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <h2 className="text-lg font-bold text-slate-900">
-            {deactivating ? 'Deactivate superadmin' : 'Activate superadmin'}
+            {deactivating ? t('admin_deactivate_superadmin') : t('admin_activate_superadmin')}
           </h2>
           <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <p className="text-sm text-slate-600">
             {deactivating
-              ? `This will prevent ${target.full_name} from logging in.`
-              : `This will restore login access for ${target.full_name}.`}
+              ? t('admin_deactivate_desc').replace('{name}', target.full_name)
+              : t('admin_activate_desc').replace('{name}', target.full_name)}
           </p>
           <div>
-            <label className={labelCls}>Your password ({user?.email})</label>
+            <label className={labelCls}>{t('admin_your_password')} ({user?.email})</label>
             <input
               className={inputCls}
               type="password"
               value={password}
               onChange={e => setPassword(e.target.value)}
-              placeholder="Confirm with your password"
+              placeholder={t('admin_confirm_password_ph')}
               autoFocus
             />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 justify-end pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">{t('admin_cancel')}</button>
             <button
               type="submit"
               disabled={mutation.isPending}
               className={`px-5 py-2 text-sm font-semibold text-white rounded-lg transition-colors disabled:opacity-50 ${deactivating ? 'bg-red-500 hover:bg-red-600' : 'bg-emerald-500 hover:bg-emerald-600'}`}
             >
-              {mutation.isPending ? 'Saving…' : deactivating ? 'Deactivate' : 'Activate'}
+              {mutation.isPending ? t('admin_saving') : deactivating ? t('admin_deactivate_btn') : t('admin_activate_btn')}
             </button>
           </div>
         </form>
@@ -153,6 +158,7 @@ function ToggleConfirmModal({
 }
 
 function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
+  const t = useT()
   const { user } = useAuth()
   const [form, setForm] = useState({ email: '', full_name: '', current_password: '' })
   const [sent, setSent] = useState<string | null>(null)
@@ -168,13 +174,13 @@ function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
     onSuccess: (data: any) => setSent(data.email),
     onError: (err: any) => {
       const detail = err.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Failed to send invite')
+      setError(typeof detail === 'string' ? detail : t('admin_failed_invite'))
     },
   })
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!form.email.trim() || !form.current_password.trim()) { setError('Email and your password are required'); return }
+    if (!form.email.trim() || !form.current_password.trim()) { setError(t('admin_email_pass_required')); return }
     setError('')
     mutation.mutate()
   }
@@ -183,40 +189,40 @@ function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-slate-900">Invite superadmin</h2>
+          <h2 className="text-lg font-bold text-slate-900">{t('admin_invite_superadmin')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         {sent ? (
           <div className="p-6 flex flex-col gap-4">
             <p className="text-sm text-emerald-600 font-medium">
-              ✓ Invite sent to <strong>{sent}</strong>. They appear in this list once they set their password.
+              {t('admin_invite_sent').replace('{email}', sent)}
             </p>
             <div className="flex justify-end">
-              <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">Done</button>
+              <button onClick={onClose} className="px-5 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">{t('admin_done')}</button>
             </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
             <p className="text-sm text-slate-600">
-              The invitee gets full superadmin access to <strong>this environment</strong> once they set their own password via the emailed link.
+              {t('admin_invite_access_desc')}
             </p>
             <div>
-              <label className={labelCls}>Full name</label>
+              <label className={labelCls}>{t('admin_full_name_label')}</label>
               <input className={inputCls} value={form.full_name} onChange={e => setForm(p => ({ ...p, full_name: e.target.value }))} placeholder="Alex Johnson" autoFocus />
             </div>
             <div>
-              <label className={labelCls}>Email *</label>
+              <label className={labelCls}>{t('admin_email_label')}</label>
               <input className={inputCls} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="naam@bedrijf.nl" />
             </div>
             <div>
-              <label className={labelCls}>Your password ({user?.email})</label>
-              <input className={inputCls} type="password" value={form.current_password} onChange={e => setForm(p => ({ ...p, current_password: e.target.value }))} placeholder="Confirm with your password" />
+              <label className={labelCls}>{t('admin_your_password')} ({user?.email})</label>
+              <input className={inputCls} type="password" value={form.current_password} onChange={e => setForm(p => ({ ...p, current_password: e.target.value }))} placeholder={t('admin_confirm_password_ph')} />
             </div>
             {error && <p className="text-sm text-red-500">{error}</p>}
             <div className="flex gap-3 justify-end pt-1">
-              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+              <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">{t('admin_cancel')}</button>
               <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed">
-                {mutation.isPending ? 'Sending…' : 'Send invite'}
+                {mutation.isPending ? t('admin_sending') : t('admin_send_invite')}
               </button>
             </div>
           </form>
@@ -227,6 +233,7 @@ function InviteSuperadminModal({ onClose }: { onClose: () => void }) {
 }
 
 function DeleteSuperadminModal({ target, onClose }: { target: Superadmin; onClose: () => void }) {
+  const t = useT()
   const qc = useQueryClient()
   const { user } = useAuth()
   const [password, setPassword] = useState('')
@@ -238,13 +245,13 @@ function DeleteSuperadminModal({ target, onClose }: { target: Superadmin; onClos
     onSuccess: () => { qc.invalidateQueries({ queryKey: ['superadmins'] }); onClose() },
     onError: (err: any) => {
       const detail = err.response?.data?.detail
-      setError(typeof detail === 'string' ? detail : 'Failed to delete superadmin')
+      setError(typeof detail === 'string' ? detail : t('admin_failed_delete_superadmin'))
     },
   })
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    if (!password.trim()) { setError('Password required'); return }
+    if (!password.trim()) { setError(t('admin_password_required')); return }
     setError('')
     mutation.mutate()
   }
@@ -253,24 +260,24 @@ function DeleteSuperadminModal({ target, onClose }: { target: Superadmin; onClos
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full">
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-lg font-bold text-red-600">Delete superadmin</h2>
+          <h2 className="text-lg font-bold text-red-600">{t('admin_delete_superadmin')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <form onSubmit={handleSubmit} className="p-6 flex flex-col gap-4">
           <div className="bg-red-50 border border-red-200 rounded-xl p-3">
             <p className="text-sm text-red-700">
-              This permanently removes <strong>{target.full_name}</strong> ({target.email}). <strong>This cannot be undone.</strong> Use Deactivate instead if you only want to suspend access.
+              {t('admin_delete_superadmin_desc').replace('{name}', target.full_name).replace('{email}', target.email)}
             </p>
           </div>
           <div>
-            <label className={labelCls}>Your password ({user?.email})</label>
-            <input className={inputCls} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="Confirm with your password" autoFocus />
+            <label className={labelCls}>{t('admin_your_password')} ({user?.email})</label>
+            <input className={inputCls} type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t('admin_confirm_password_ph')} autoFocus />
           </div>
           {error && <p className="text-sm text-red-500">{error}</p>}
           <div className="flex gap-3 justify-end pt-1">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50">{t('admin_cancel')}</button>
             <button type="submit" disabled={mutation.isPending} className="px-5 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-300 text-white text-sm font-semibold rounded-lg transition-colors disabled:cursor-not-allowed">
-              {mutation.isPending ? 'Deleting…' : 'Delete forever'}
+              {mutation.isPending ? t('admin_deleting') : t('admin_delete_forever')}
             </button>
           </div>
         </form>
@@ -280,6 +287,7 @@ function DeleteSuperadminModal({ target, onClose }: { target: Superadmin; onClos
 }
 
 export default function SuperadminsSettingsPage() {
+  const t = useT()
   const { user } = useAuth()
   const isRootOwner = user?.is_root_owner ?? false
   const [toggling, setToggling] = useState<Superadmin | null>(null)
@@ -303,10 +311,10 @@ export default function SuperadminsSettingsPage() {
           <div>
             <div className="flex items-center gap-2 mb-1">
               <ShieldCheck size={20} className="text-amber-500" />
-              <h1 className="heading-xl text-slate-900">Superadmins</h1>
+              <h1 className="heading-xl text-slate-900">{t('admin_superadmins_title')}</h1>
             </div>
             <p className="text-sm text-slate-400">
-              Superadmins in this environment. Scope is limited to this database. Sandbox superadmins are not live superadmins.
+              {t('admin_superadmins_desc')}
             </p>
           </div>
           {isRootOwner && (
@@ -315,22 +323,22 @@ export default function SuperadminsSettingsPage() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity flex-shrink-0"
             >
               <UserPlus size={14} />
-              Invite superadmin
+              {t('admin_invite_superadmin_btn')}
             </button>
           )}
         </div>
 
-        {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+        {isLoading && <p className="text-sm text-slate-400">{t('admin_loading')}</p>}
 
         {data && (
           <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
             <table className="w-full">
               <thead className="bg-slate-50 border-b border-slate-200">
                 <tr>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Name</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Email</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Status</th>
-                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">Added</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_name')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_email')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_status')}</th>
+                  <th className="px-4 py-3 text-xs font-semibold text-slate-500 uppercase tracking-wide text-left">{t('admin_col_added')}</th>
                   <th className="px-4 py-3"></th>
                 </tr>
               </thead>
@@ -342,13 +350,13 @@ export default function SuperadminsSettingsPage() {
                       <td className="px-4 py-3 text-sm font-medium text-slate-900">
                         {sa.full_name}
                         {isOwnAccount && (
-                          <span className="ml-2 text-[10px] font-semibold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">you</span>
+                          <span className="ml-2 text-[10px] font-semibold bg-slate-100 text-slate-500 px-1.5 py-0.5 rounded-full">{t('admin_you_badge')}</span>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-slate-500">{sa.email}</td>
                       <td className="px-4 py-3">
                         <span className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${sa.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-400'}`}>
-                          {sa.is_active ? 'Active' : 'Inactive'}
+                          {sa.is_active ? t('admin_status_active') : t('admin_status_inactive')}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-xs text-slate-400">
@@ -359,19 +367,19 @@ export default function SuperadminsSettingsPage() {
                           {!isOwnAccount && (
                             <button
                               onClick={() => setToggling(sa)}
-                              title={sa.is_active ? 'Deactivate' : 'Activate'}
+                              title={sa.is_active ? t('admin_deactivate_title') : t('admin_activate_title')}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
                             >
                               {sa.is_active
                                 ? <ToggleRight size={14} className="text-emerald-500" />
                                 : <ToggleLeft size={14} className="text-slate-400" />}
-                              {sa.is_active ? 'Deactivate' : 'Activate'}
+                              {sa.is_active ? t('admin_deactivate_title') : t('admin_activate_title')}
                             </button>
                           )}
                           {isRootOwner && !isOwnAccount && !sa.is_root_owner && (
                             <button
                               onClick={() => setDeleting(sa)}
-                              title="Permanently delete this superadmin"
+                              title={t('admin_perm_delete_title')}
                               className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-red-500 border border-red-200 rounded-lg hover:bg-red-50 transition-colors"
                             >
                               <Trash2 size={13} />
@@ -390,8 +398,8 @@ export default function SuperadminsSettingsPage() {
         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
           <p className="text-sm text-amber-800">
             {isRootOwner
-              ? <>New superadmins are added via <strong>invite email</strong>. They set their own password. Deleting is permanent; use Deactivate to suspend access instead.</>
-              : <>Only the root owner can invite or delete superadmins. You can deactivate/reactivate accounts with your password.</>}
+              ? t('admin_root_owner_hint')
+              : t('admin_non_root_hint')}
           </p>
         </div>
       </div>

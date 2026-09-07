@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Activity, Calendar, CreditCard, FileText, GitBranch, Mail, MessageSquare, Package, Tag, Users, Zap } from 'lucide-react'
 import { api } from '../../../api/client'
 import { useAuth } from '../../../auth/useAuth'
+import { useT } from '../../../hooks/useT'
 import UsersTab from './UsersTab'
 import AutomationTab from './AutomationTab'
 
@@ -169,6 +170,7 @@ const DEFAULT_MOD_ICON = { Icon: Activity, color: 'text-slate-400', bg: 'bg-slat
 const EVENTS_PER_PAGE = 10
 
 export default function ActivityFeed() {
+  const t = useT()
   const { user } = useAuth()
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'automation'>('overview')
@@ -212,7 +214,7 @@ export default function ActivityFeed() {
   return (
     <div>
       <div className="flex items-center justify-between gap-4 mb-6">
-        <h1 className="heading-xl text-slate-900">Activity</h1>
+        <h1 className="heading-xl text-slate-900">{t('activity_title')}</h1>
         {isAdmin && (
           <div className="flex gap-2">
             {(['overview', 'users', 'automation'] as const).map(tab => (
@@ -225,7 +227,7 @@ export default function ActivityFeed() {
                     : 'bg-white border border-slate-200 text-slate-600 hover:bg-slate-50'
                 }`}
               >
-                {tab}
+                {t('activity_tab_' + tab)}
               </button>
             ))}
           </div>
@@ -242,7 +244,7 @@ export default function ActivityFeed() {
 
       {!isLoading && isError && (
         <div className={`${CARD} text-sm text-slate-500 py-8 text-center`}>
-          Could not load activity data. Please refresh.
+          {t('activity_load_error')}
         </div>
       )}
 
@@ -250,9 +252,9 @@ export default function ActivityFeed() {
         <div className="space-y-8">
           {/* Pipeline */}
           <section>
-            <p className={SECTION_HEADER}>Pipeline</p>
+            <p className={SECTION_HEADER}>{t('activity_pipeline_heading')}</p>
             {kpis.pipeline.length === 0 ? (
-              <div className={`${CARD} text-sm text-slate-400`}>No pipeline stages yet</div>
+              <div className={`${CARD} text-sm text-slate-400`}>{t('activity_no_stages')}</div>
             ) : (
               <>
               {/* Stage distribution — one glance shows where contacts sit */}
@@ -282,8 +284,8 @@ export default function ActivityFeed() {
                     <p className={BIG}>{stage.contact_count}</p>
                     <p className={`${SUB} mt-1`}>
                       {stage.avg_days_in_stage === null
-                        ? 'avg days in stage'
-                        : `avg ${stage.avg_days_in_stage} days in stage`}
+                        ? t('activity_avg_days')
+                        : t('activity_avg_n_days').replace('{n}', String(stage.avg_days_in_stage))}
                     </p>
                   </div>
                 ))}
@@ -295,7 +297,7 @@ export default function ActivityFeed() {
           {/* Email / Tickets / Contacts */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             <div className={CARD}>
-              <p className={SECTION_HEADER}>Email</p>
+              <p className={SECTION_HEADER}>{t('activity_email_heading')}</p>
               {/* Open rate donut */}
               <div className="flex items-center gap-4 mb-5">
                 <div className="relative">
@@ -305,30 +307,30 @@ export default function ActivityFeed() {
                   </span>
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-700">Open rate</p>
+                  <p className="text-sm font-semibold text-slate-700">{t('activity_open_rate')}</p>
                   <p className="text-xs text-slate-400 mt-0.5">
-                    {kpis.email.opened} of {kpis.email.sent_total} emails opened
+                    {t('activity_emails_opened').replace('{opened}', String(kpis.email.opened)).replace('{total}', String(kpis.email.sent_total))}
                   </p>
                 </div>
               </div>
               <div className="space-y-3">
-                <BarRow label="Sent this week" value={kpis.email.sent_this_week} max={kpis.email.sent_total} color="#5BA4F5" />
-                <BarRow label="Delivered" value={kpis.email.delivered} max={kpis.email.sent_total} color="#5BA4F5" />
-                <BarRow label="Opened" value={kpis.email.opened} max={kpis.email.sent_total} color="#10b981" />
-                <BarRow label="Bounced" value={kpis.email.bounced} max={kpis.email.sent_total} color={kpis.email.bounced > 0 ? '#ef4444' : '#e2e8f0'} />
+                <BarRow label={t('activity_sent_this_week')} value={kpis.email.sent_this_week} max={kpis.email.sent_total} color="#5BA4F5" />
+                <BarRow label={t('activity_delivered')} value={kpis.email.delivered} max={kpis.email.sent_total} color="#5BA4F5" />
+                <BarRow label={t('activity_opened')} value={kpis.email.opened} max={kpis.email.sent_total} color="#10b981" />
+                <BarRow label={t('activity_bounced')} value={kpis.email.bounced} max={kpis.email.sent_total} color={kpis.email.bounced > 0 ? '#ef4444' : '#e2e8f0'} />
               </div>
             </div>
 
             <div className={CARD}>
-              <p className={SECTION_HEADER}>Tickets</p>
+              <p className={SECTION_HEADER}>{t('activity_tickets_heading')}</p>
               <div className="space-y-3">
-                <BarRow label="Open" value={kpis.tickets.open} max={Math.max(kpis.tickets.open, kpis.tickets.in_progress, kpis.tickets.resolved_this_week)} color="#f59e0b" />
-                <BarRow label="In progress" value={kpis.tickets.in_progress} max={Math.max(kpis.tickets.open, kpis.tickets.in_progress, kpis.tickets.resolved_this_week)} color="#5BA4F5" />
-                <BarRow label="Resolved this week" value={kpis.tickets.resolved_this_week} max={Math.max(kpis.tickets.open, kpis.tickets.in_progress, kpis.tickets.resolved_this_week)} color="#10b981" />
+                <BarRow label={t('activity_open')} value={kpis.tickets.open} max={Math.max(kpis.tickets.open, kpis.tickets.in_progress, kpis.tickets.resolved_this_week)} color="#f59e0b" />
+                <BarRow label={t('activity_in_progress')} value={kpis.tickets.in_progress} max={Math.max(kpis.tickets.open, kpis.tickets.in_progress, kpis.tickets.resolved_this_week)} color="#5BA4F5" />
+                <BarRow label={t('activity_resolved_this_week')} value={kpis.tickets.resolved_this_week} max={Math.max(kpis.tickets.open, kpis.tickets.in_progress, kpis.tickets.resolved_this_week)} color="#10b981" />
               </div>
               <div className="mt-5 pt-4 border-t border-slate-100">
                 <KpiRow
-                  label="Avg resolution (hours)"
+                  label={t('activity_avg_resolution_h')}
                   value={fmt(kpis.tickets.avg_resolution_hours)}
                   valueColor={avgHoursColor}
                 />
@@ -336,19 +338,19 @@ export default function ActivityFeed() {
             </div>
 
             <div className={CARD}>
-              <p className={SECTION_HEADER}>Contacts</p>
+              <p className={SECTION_HEADER}>{t('activity_contacts_heading')}</p>
               <div className="space-y-4">
-                <KpiRow label="Total contacts" value={fmt(kpis.contacts.total)} />
+                <KpiRow label={t('activity_total_contacts')} value={fmt(kpis.contacts.total)} />
               </div>
               <div className="mt-4">
-                <BarRow label="New this week" value={kpis.contacts.new_this_week} max={kpis.contacts.total} color="#10b981" />
+                <BarRow label={t('activity_new_this_week')} value={kpis.contacts.new_this_week} max={kpis.contacts.total} color="#10b981" />
               </div>
             </div>
           </div>
 
           {/* Recent activity */}
           <section>
-            <p className={SECTION_HEADER}>Recent activity</p>
+            <p className={SECTION_HEADER}>{t('activity_recent_heading')}</p>
 
             {stages && stages.length > 0 && (
               <div className="flex flex-wrap items-center gap-1.5 mb-4">
@@ -356,7 +358,7 @@ export default function ActivityFeed() {
                   onClick={() => { setSelectedStageId(null); setEventsPage(0) }}
                   className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border whitespace-nowrap transition-colors ${selectedStageId === null ? 'bg-slate-700 text-white border-slate-700' : 'bg-white text-slate-500 border-slate-300 hover:bg-slate-50'}`}
                 >
-                  All
+                  {t('activity_all_filter')}
                 </button>
                 {stages.map((stage: any) => (
                   <button
@@ -373,7 +375,7 @@ export default function ActivityFeed() {
 
             <div className={CARD}>
               {allEvents.length === 0 ? (
-                <p className="text-sm text-slate-400">No activity to show</p>
+                <p className="text-sm text-slate-400">{t('activity_no_activity')}</p>
               ) : (
                 <>
                   <ul className="divide-y divide-slate-100">
@@ -386,7 +388,7 @@ export default function ActivityFeed() {
                               <mod.Icon size={12} className={mod.color} />
                             </div>
                             <span className="text-sm text-slate-700 truncate">
-                              <span className="font-semibold text-slate-900">{event.actor_name ?? 'System'}</span>
+                              <span className="font-semibold text-slate-900">{event.actor_name ?? t('activity_system')}</span>
                               {' '}
                               <span className="text-slate-500">{event.event_type.replace(/[._]/g, ' ')}</span>
                             </span>
@@ -405,7 +407,7 @@ export default function ActivityFeed() {
                         disabled={safePage === 0}
                         className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        ← Prev
+                        {t('activity_prev_btn')}
                       </button>
                       <span className="text-xs text-slate-500 font-medium">
                         {safePage + 1} / {eventPageCount}
@@ -415,7 +417,7 @@ export default function ActivityFeed() {
                         disabled={safePage >= eventPageCount - 1}
                         className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-slate-600 bg-white border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
                       >
-                        Next →
+                        {t('activity_next_btn')}
                       </button>
                     </div>
                   )}

@@ -6,14 +6,14 @@ import styles from "../components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie vs Front | The SMB-Friendly Front Alternative",
+  title: "Yippie vs Front | Het MKB-vriendelijke Front-alternatief",
   description:
-    "Looking for a Front alternative for small business? Yippie is purpose-built help desk software for SMBs with booking, AI ticket drafting, and flat workspace pricing from €19/month.",
+    "Op zoek naar een Front-alternatief voor je kleine bedrijf? Yippie is helpdesksoftware speciaal voor het MKB, met boekingen, AI-ticketopstelling en vaste werkruimteprijzen vanaf €19 per maand.",
   alternates: { canonical: "/vs-front" },
   openGraph: {
-    title: "Yippie vs Front | The SMB-Friendly Alternative",
+    title: "Yippie vs Front | Het MKB-vriendelijke alternatief",
     description:
-      "A deeper, flat-priced Front alternative built for SMBs. Full ticketing, booking, and AI drafting included, from €19/month.",
+      "Een uitgebreider Front-alternatief met vaste prijs, gebouwd voor het MKB. Volledige ticketing, boekingen en AI-opstelling inbegrepen, vanaf €19 per maand.",
     url: "https://getyippie.com/vs-front",
     type: "website",
   },
@@ -21,17 +21,17 @@ export const metadata: Metadata = {
 
 type Cell = "yes" | "no" | string;
 const rows: { feature: string; yippie: Cell; other: Cell }[] = [
-  { feature: "Flat workspace pricing", yippie: "yes", other: "no" },
-  { feature: "Built-in booking system", yippie: "yes", other: "no" },
-  { feature: "AI ticket drafting", yippie: "yes", other: "Limited" },
-  { feature: "Purpose-built for SMBs", yippie: "yes", other: "Inbox-only focus" },
-  { feature: "Kanban pipeline", yippie: "yes", other: "no" },
-  { feature: "Starting price", yippie: "from €19 / month", other: "~€19 / user / mo" },
+  { feature: "Vaste werkruimteprijs", yippie: "yes", other: "no" },
+  { feature: "Ingebouwd boekingssysteem", yippie: "yes", other: "no" },
+  { feature: "AI-ticketopstelling", yippie: "yes", other: "Beperkt" },
+  { feature: "Speciaal gebouwd voor het MKB", yippie: "yes", other: "Alleen inbox" },
+  { feature: "Kanban-pipeline", yippie: "yes", other: "no" },
+  { feature: "Startprijs", yippie: "vanaf €19 / mnd", other: "~€19 / gebruiker / mnd" },
 ];
 
 function CellView({ value }: { value: Cell }) {
-  if (value === "yes") return <span className={styles.yes} aria-label="Yes">Yes</span>;
-  if (value === "no") return <span className={styles.no} aria-label="No">No</span>;
+  if (value === "yes") return <span className={styles.yes} aria-label="Ja">Ja</span>;
+  if (value === "no") return <span className={styles.no} aria-label="Nee">Nee</span>;
   return <span className={styles.partial}>{value}</span>;
 }
 
@@ -46,39 +46,41 @@ export default function VsFrontPage() {
           <span className={styles.heroTagDot} />
           Yippie vs Front
         </div>
-        <h1 className={styles.heroTitle}>Yippie vs Front: the SMB-friendly alternative</h1>
+        <h1 className={styles.heroTitle}>Yippie vs Front: het MKB-vriendelijke alternatief</h1>
         <p className={styles.heroSub}>
-          Front is a polished shared inbox tool, but it stops there. If you need
-          full support ticketing depth, a built-in booking system, or a kanban
-          pipeline alongside your inbox, you will hit its limits quickly — and
-          its per-user pricing stacks up fast. Yippie is purpose-built for small
-          and medium businesses that need more than a shared inbox.
+          Front is een verzorgde tool voor gedeelde inboxen, maar houdt daar ook
+          op. Als je volledige supportticketing nodig hebt, een ingebouwd
+          boekingssysteem of een kanban-pipeline naast je inbox, loop je snel
+          tegen de grenzen aan — en de kosten per gebruiker stapelen zich snel op.
+          Yippie is speciaal gebouwd voor kleine en middelgrote bedrijven die meer
+          nodig hebben dan een gedeelde inbox.
         </p>
         <p className={styles.heroSub}>
-          In short: Yippie is a Front alternative for small teams with flat
-          workspace pricing from €19 per month, unlimited contacts on every plan,
-          AI drafted tickets, and booking built in — while Front charges roughly
-          €19 per user per month and focuses solely on the inbox experience.
+          Kortom: Yippie is een Front-alternatief voor kleine teams met een vaste
+          werkruimteprijs vanaf €19 per maand, onbeperkte contacten op elk
+          abonnement, AI-opgestelde tickets en boekingen ingebouwd — terwijl
+          Front ongeveer €19 per gebruiker per maand rekent en zich uitsluitend
+          richt op de inboxervaring.
         </p>
         <div className={styles.heroActions}>
-          <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
-          <a href="/modules" className={styles.btnGhost}>See all features</a>
+          <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>
+          <a href="/modules" className={styles.btnGhost}>Alle functies bekijken</a>
         </div>
       </section>
 
       <section className={styles.section}>
         <div className={styles.sectionInner}>
-          <p className={styles.eyebrow}>Side by side</p>
-          <h2 className={styles.sectionTitle}>How Yippie compares to Front</h2>
+          <p className={styles.eyebrow}>Naast elkaar</p>
+          <h2 className={styles.sectionTitle}>Hoe Yippie zich verhoudt tot Front</h2>
           <p className={styles.sectionSub}>
-            All the inbox convenience of Front, plus full ticketing, booking,
-            and AI drafting — at a flat workspace price.
+            Alle inboxgemak van Front, plus volledige ticketing, boekingen en
+            AI-opstelling — voor een vaste werkruimteprijs.
           </p>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th>Feature</th>
+                  <th>Functie</th>
                   <th className={styles.colYippie}>Yippie</th>
                   <th>Front</th>
                 </tr>
@@ -99,22 +101,23 @@ export default function VsFrontPage() {
 
       <section className={styles.sectionLight}>
         <div className={styles.sectionInner}>
-          <p className={styles.eyebrow}>Why SMBs switch</p>
-          <h2 className={styles.sectionTitle}>More than an inbox</h2>
+          <p className={styles.eyebrow}>Waarom MKB-bedrijven overstappen</p>
+          <h2 className={styles.sectionTitle}>Meer dan een inbox</h2>
           <div className={styles.grid}>
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Flat, predictable pricing</h3>
+              <h3 className={styles.cardTitle}>Vaste, voorspelbare prijs</h3>
               <p className={styles.cardDesc}>
-                Pay per workspace from €19/month, not €19+ per user. Add teammates
-                without watching the bill climb every time you grow your team.
+                Betaal per werkruimte vanaf €19 per maand, niet €19+ per gebruiker.
+                Voeg teamleden toe zonder te zien hoe de rekening oploopt elke
+                keer dat je team groeit.
               </p>
             </div>
             <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Full support depth, built in</h3>
+              <h3 className={styles.cardTitle}>Volledige supportdiepgang, ingebouwd</h3>
               <p className={styles.cardDesc}>
-                Go beyond shared inbox: AI ticket drafting, kanban pipeline, and
-                a built-in booking system — all ready from day one, no plugins
-                or integrations needed.
+                Ga verder dan de gedeelde inbox: AI-ticketopstelling, kanban-pipeline
+                en een ingebouwd boekingssysteem — allemaal direct beschikbaar,
+                zonder plugins of integraties.
               </p>
             </div>
           </div>
@@ -122,12 +125,12 @@ export default function VsFrontPage() {
       </section>
 
       <section className={styles.ctaSection}>
-        <h2 className={styles.ctaTitle}>Switch to support that fits your business</h2>
+        <h2 className={styles.ctaTitle}>Stap over naar support die bij je bedrijf past</h2>
         <p className={styles.ctaSub}>
-          See why SMBs choose Yippie over Front. Try the instant demo. No
-          credit card required.
+          Zie waarom MKB-bedrijven kiezen voor Yippie boven Front. Probeer de
+          directe demo. Geen creditcard nodig.
         </p>
-        <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
+        <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>
       </section>
 
       <SiteFooter />

@@ -13,6 +13,7 @@ import { useAuth } from '../../../auth/useAuth'
 import SendBookingModal from '../../booking/components/SendBookingModal'
 import CallModal from '../components/CallModal'
 import { timeAgo } from '../../../lib/format'
+import { useT } from '../../../hooks/useT'
 
 function formatEventType(s: string): string {
   return s.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
@@ -47,6 +48,7 @@ function isLocalDutchFormat(phone: string | null | undefined): boolean {
 interface PipelineStage { id: string; name: string; color: string; contact_count?: number }
 
 function PipelineStageBlock({ contactId }: { contactId: string }) {
+  const t = useT()
   const qc = useQueryClient()
   const config = useTenantConfig()
   const [editing, setEditing] = useState(false)
@@ -77,7 +79,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
     },
     onError: (_err: any, _stageId: any, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(['contact-pipeline-stage', contactId], ctx.prev)
-      toast.error('Failed to update stage.')
+      toast.error(t('contacts_stage_update_failed'))
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact-pipeline-stage', contactId] })
@@ -100,14 +102,14 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
       <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
         <Kanban size={12} className="text-slate-400" />
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex-1">Kanban stage</h3>
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex-1">{t('contacts_kanban_stage')}</h3>
         {stage && !editing && (
           <button
             onClick={() => { setSelectedId(stage.id); setEditing(true) }}
             className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
           >
             <Pencil size={9} />
-            Change
+            {t('contacts_change')}
           </button>
         )}
       </div>
@@ -120,7 +122,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
               onChange={e => setSelectedId(e.target.value)}
               className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
-              <option value="">Select stage…</option>
+              <option value="">{t('contacts_select_stage_ph')}</option>
               {allStages.map((s: any) => <option key={s.id} value={s.id}>{s.name}</option>)}
             </select>
             <div className="flex gap-2">
@@ -129,13 +131,13 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
                 disabled={!selectedId || moveMut.isPending}
                 className="flex-1 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity"
               >
-                Save
+                {t('contacts_field_save_btn')}
               </button>
               <button
                 onClick={() => setEditing(false)}
                 className="px-3 py-1.5 border border-slate-200 hover:bg-slate-50 text-xs font-semibold text-slate-600 rounded-lg transition-colors"
               >
-                Cancel
+                {t('contacts_field_cancel_btn')}
               </button>
             </div>
           </div>
@@ -144,10 +146,10 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: stage.color }} />
             <span className="text-sm font-semibold text-slate-700">{stage.name}</span>
             <button
-              onClick={() => { if (confirm('Remove from kanban?')) removeMut.mutate() }}
+              onClick={() => { if (confirm(t('contacts_remove_from_kanban'))) removeMut.mutate() }}
               className="ml-auto text-xs text-slate-400 hover:text-red-500 transition-colors"
             >
-              Remove
+              {t('contacts_remove')}
             </button>
           </div>
         ) : (
@@ -155,7 +157,7 @@ function PipelineStageBlock({ contactId }: { contactId: string }) {
             onClick={() => { setSelectedId(''); setEditing(true) }}
             className="text-xs text-slate-400 hover:text-blue-600 transition-colors"
           >
-            + Add to kanban
+            {t('contacts_add_to_kanban')}
           </button>
         )}
       </div>
@@ -174,6 +176,7 @@ const SHIPMENT_STATUS_STYLES: Record<string, { bg: string; text: string; label: 
 }
 
 function ShipmentsBlock({ contactId }: { contactId: string }) {
+  const t = useT()
   const config = useTenantConfig()
   const isEnabled = config?.enabled_modules?.includes('tracking') ?? false
 
@@ -191,10 +194,10 @@ function ShipmentsBlock({ contactId }: { contactId: string }) {
     <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden mt-4">
       <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
         <Package size={12} className="text-slate-400" />
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex-1">Orders</h3>
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide flex-1">{t('contacts_orders_section')}</h3>
       </div>
       {items.length === 0 ? (
-        <p className="text-xs text-slate-400 px-4 py-4">No orders found.</p>
+        <p className="text-xs text-slate-400 px-4 py-4">{t('contacts_no_orders')}</p>
       ) : (
         <div className="divide-y divide-slate-100">
           {items.map((s: any) => {
@@ -222,6 +225,7 @@ function ShipmentsBlock({ contactId }: { contactId: string }) {
 }
 
 export default function ContactDetail() {
+  const t = useT()
   const { id } = useParams<{ id: string }>()
   const config = useTenantConfig()
   const { user } = useAuth()
@@ -248,8 +252,8 @@ export default function ContactDetail() {
     queryFn: () => api.get(`/activity`, { params: { contact_id: id } }).then((r: any) => r.data),
   })
 
-  if (isLoading) return <p className="text-sm text-slate-400">Loading…</p>
-  if (!contact) return <p className="text-sm text-red-500">Contact not found</p>
+  if (isLoading) return <p className="text-sm text-slate-400">{t('contacts_loading')}</p>
+  if (!contact) return <p className="text-sm text-red-500">{t('contacts_not_found')}</p>
 
   const newTicketUrl = `/tickets/new?contact_id=${id}&contact_name=${encodeURIComponent(contact.full_name)}`
   const allActivity: any[] = activity ?? []
@@ -264,7 +268,7 @@ export default function ContactDetail() {
             <h1 className="heading-xl text-slate-900">{contact.full_name}</h1>
             {marketingEnabled && typeof contact.engagement_score === 'number' && (
               <span
-                title="Engagement score"
+                title={t('contacts_engagement_score_title')}
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold ${
                   contact.engagement_score >= 60
                     ? 'bg-emerald-50 text-emerald-700'
@@ -284,7 +288,7 @@ export default function ContactDetail() {
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors"
               >
                 <CalendarClock size={12} />
-                Send booking link
+                {t('contacts_send_booking_link')}
               </button>
             )}
             <Link
@@ -292,7 +296,7 @@ export default function ContactDetail() {
               className="inline-flex items-center gap-2 px-4 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity"
             >
               <Plus size={14} strokeWidth={2.5} />
-              New Ticket
+              {t('contacts_new_ticket')}
             </Link>
           </div>
         </div>
@@ -309,12 +313,12 @@ export default function ContactDetail() {
 
         {contact.notes && (
           <div className="bg-white rounded-xl border border-slate-200 p-4 mb-6">
-            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Notes</h3>
+            <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('contacts_section_notes')}</h3>
             <p className="text-sm text-slate-600 whitespace-pre-wrap">{contact.notes}</p>
           </div>
         )}
 
-        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Activity</h3>
+        <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">{t('contacts_section_activity')}</h3>
         <div className="flex flex-col gap-2">
           {visibleActivity.map((ev: any) => {
             const summary = payloadSummary(ev.payload)
@@ -328,16 +332,16 @@ export default function ContactDetail() {
               </div>
             )
           })}
-          {allActivity.length === 0 && <p className="text-sm text-slate-400">No activity yet.</p>}
+          {allActivity.length === 0 && <p className="text-sm text-slate-400">{t('contacts_no_activity')}</p>}
           {hiddenCount > 0 && (
             <button
               onClick={() => setActivityExpanded(v => !v)}
               className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-600 transition-colors py-1"
             >
               {activityExpanded ? (
-                <><ChevronUp size={13} />Show less</>
+                <><ChevronUp size={13} />{t('contacts_show_less')}</>
               ) : (
-                <><ChevronDown size={13} />Show {hiddenCount} more</>
+                <><ChevronDown size={13} />{t('contacts_show_more').replace('{n}', String(hiddenCount))}</>
               )}
             </button>
           )}
@@ -353,7 +357,7 @@ export default function ContactDetail() {
                 onClick={() => setDetailsOpen(o => !o)}
                 className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-slate-900"
               >
-                Details
+                {t('contacts_details_accordion')}
                 {detailsOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
               </button>
               {detailsOpen && (
@@ -383,7 +387,7 @@ export default function ContactDetail() {
                 onClick={() => setPipelineOpen(o => !o)}
                 className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-slate-900"
               >
-                Pipeline stage
+                {t('contacts_pipeline_accordion')}
                 {pipelineOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
               </button>
               {pipelineOpen && (
@@ -399,7 +403,7 @@ export default function ContactDetail() {
                 onClick={() => setShipmentsOpen(o => !o)}
                 className="w-full flex items-center justify-between px-4 py-3 text-sm font-bold text-slate-900"
               >
-                Shipments
+                {t('contacts_shipments_accordion')}
                 {shipmentsOpen ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
               </button>
               {shipmentsOpen && (
@@ -412,8 +416,8 @@ export default function ContactDetail() {
         ) : (
           <>
             <div className="mb-6">
-              <h2 className="heading-xl text-slate-900 mb-1">Details</h2>
-              <p className="text-sm text-slate-500">Contact info &amp; properties.</p>
+              <h2 className="heading-xl text-slate-900 mb-1">{t('contacts_section_details')}</h2>
+              <p className="text-sm text-slate-500">{t('contacts_contact_info_desc')}</p>
             </div>
 
             <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
@@ -444,6 +448,7 @@ export default function ContactDetail() {
 }
 
 function EmailRow({ contactId, email }: { contactId: string; email: string | null }) {
+  const t = useT()
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
@@ -455,13 +460,13 @@ function EmailRow({ contactId, email }: { contactId: string; email: string | nul
       qc.invalidateQueries({ queryKey: ['contacts'] })
       setEditing(false)
     },
-    onError: () => toast.error('Failed to update email.'),
+    onError: () => toast.error(t('contacts_failed_email_update')),
   })
 
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Email</p>
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{t('contacts_field_label_email')}</p>
         {!editing && (
           <button
             type="button"
@@ -469,7 +474,7 @@ function EmailRow({ contactId, email }: { contactId: string; email: string | nul
             className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
           >
             <Pencil size={9} />
-            Edit
+            {t('contacts_field_edit_btn')}
           </button>
         )}
       </div>
@@ -483,7 +488,7 @@ function EmailRow({ contactId, email }: { contactId: string; email: string | nul
             placeholder="email@example.com"
             className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
-          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong. Try again.</p>}
+          {saveMutation.isError && <p className="text-xs text-red-500">{t('contacts_field_error_generic')}</p>}
           <div className="flex gap-2">
             <button
               type="button"
@@ -491,14 +496,14 @@ function EmailRow({ contactId, email }: { contactId: string; email: string | nul
               disabled={saveMutation.isPending}
               className="inline-flex items-center px-3 py-1 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
             >
-              {saveMutation.isPending ? 'Saving…' : 'Save'}
+              {saveMutation.isPending ? t('contacts_field_saving') : t('contacts_field_save_btn')}
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
               className="px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              Cancel
+              {t('contacts_field_cancel_btn')}
             </button>
           </div>
         </div>
@@ -510,6 +515,7 @@ function EmailRow({ contactId, email }: { contactId: string; email: string | nul
 }
 
 function PhoneRow({ contactId, phone, onCall, canCall }: { contactId: string; phone: string | null; onCall?: () => void; canCall?: boolean }) {
+  const t = useT()
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState('')
@@ -521,13 +527,13 @@ function PhoneRow({ contactId, phone, onCall, canCall }: { contactId: string; ph
       qc.invalidateQueries({ queryKey: ['contacts'] })
       setEditing(false)
     },
-    onError: () => toast.error('Failed to update phone.'),
+    onError: () => toast.error(t('contacts_failed_phone_update')),
   })
 
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Phone</p>
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{t('contacts_field_label_phone')}</p>
         {!editing && (
           <button
             type="button"
@@ -535,7 +541,7 @@ function PhoneRow({ contactId, phone, onCall, canCall }: { contactId: string; ph
             className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
           >
             <Pencil size={9} />
-            Edit
+            {t('contacts_field_edit_btn')}
           </button>
         )}
       </div>
@@ -549,7 +555,7 @@ function PhoneRow({ contactId, phone, onCall, canCall }: { contactId: string; ph
             placeholder="+31 6 12345678"
             className="w-full px-3 py-1.5 border border-slate-200 rounded-lg text-xs focus:outline-none focus:ring-2 focus:ring-blue-400"
           />
-          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong. Try again.</p>}
+          {saveMutation.isError && <p className="text-xs text-red-500">{t('contacts_field_error_generic')}</p>}
           <div className="flex gap-2">
             <button
               type="button"
@@ -557,14 +563,14 @@ function PhoneRow({ contactId, phone, onCall, canCall }: { contactId: string; ph
               disabled={saveMutation.isPending}
               className="inline-flex items-center px-3 py-1 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
             >
-              {saveMutation.isPending ? 'Saving…' : 'Save'}
+              {saveMutation.isPending ? t('contacts_field_saving') : t('contacts_field_save_btn')}
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
               className="px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              Cancel
+              {t('contacts_field_cancel_btn')}
             </button>
           </div>
         </div>
@@ -573,7 +579,7 @@ function PhoneRow({ contactId, phone, onCall, canCall }: { contactId: string; ph
           <p className="text-xs text-slate-700">{phone || '—'}</p>
           {isLocalDutchFormat(phone) && (
             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-semibold bg-amber-100 text-amber-700 border border-amber-200">
-              Local format
+              {t('contacts_local_format_badge')}
             </span>
           )}
           {phone && canCall && (
@@ -587,7 +593,7 @@ function PhoneRow({ contactId, phone, onCall, canCall }: { contactId: string; ph
               className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-semibold text-blue-600 border border-blue-200 rounded-full hover:bg-blue-50 transition-colors"
             >
               <Phone size={9} />
-              Call
+              {t('contacts_call_btn')}
             </button>
           )}
         </div>
@@ -597,6 +603,7 @@ function PhoneRow({ contactId, phone, onCall, canCall }: { contactId: string; ph
 }
 
 function CompanyRow({ contactId, company }: { contactId: string; company: CompanyRef | null }) {
+  const t = useT()
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -614,7 +621,7 @@ function CompanyRow({ contactId, company }: { contactId: string; company: Compan
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Company</p>
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{t('contacts_field_label_company')}</p>
         {!editing && (
           <button
             type="button"
@@ -622,14 +629,14 @@ function CompanyRow({ contactId, company }: { contactId: string; company: Compan
             className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
           >
             <Pencil size={9} />
-            Edit
+            {t('contacts_field_edit_btn')}
           </button>
         )}
       </div>
       {editing ? (
         <div className="flex flex-col gap-2">
           <CompanyPicker value={selectedId} onChange={setSelectedId} />
-          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong. Try again.</p>}
+          {saveMutation.isError && <p className="text-xs text-red-500">{t('contacts_field_error_generic')}</p>}
           <div className="flex gap-2">
             <button
               type="button"
@@ -637,27 +644,28 @@ function CompanyRow({ contactId, company }: { contactId: string; company: Compan
               disabled={saveMutation.isPending}
               className="inline-flex items-center px-3 py-1 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
             >
-              {saveMutation.isPending ? 'Saving…' : 'Save'}
+              {saveMutation.isPending ? t('contacts_field_saving') : t('contacts_field_save_btn')}
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
               className="px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              Cancel
+              {t('contacts_field_cancel_btn')}
             </button>
           </div>
         </div>
       ) : company ? (
         <CompanyBadge name={company.name} />
       ) : (
-        <p className="text-xs text-slate-400">No company.</p>
+        <p className="text-xs text-slate-400">{t('contacts_no_company')}</p>
       )}
     </div>
   )
 }
 
 function LabelsRow({ contactId, labels }: { contactId: string; labels: ContactLabel[] }) {
+  const t = useT()
   const qc = useQueryClient()
   const [editing, setEditing] = useState(false)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -676,7 +684,7 @@ function LabelsRow({ contactId, labels }: { contactId: string; labels: ContactLa
     },
     onError: (_err: any, _vars: void, ctx: any) => {
       if (ctx?.prev !== undefined) qc.setQueryData(['contact', contactId], ctx.prev)
-      toast.error('Failed to update label.')
+      toast.error(t('contacts_failed_label_update'))
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['contact', contactId] })
@@ -688,7 +696,7 @@ function LabelsRow({ contactId, labels }: { contactId: string; labels: ContactLa
   return (
     <div className="px-4 py-3">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">Labels</p>
+        <p className="text-[10px] font-semibold text-slate-400 uppercase tracking-wide">{t('contacts_field_label_labels')}</p>
         {!editing && (
           <button
             type="button"
@@ -696,14 +704,14 @@ function LabelsRow({ contactId, labels }: { contactId: string; labels: ContactLa
             className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-400 hover:text-slate-600 transition-colors"
           >
             <Pencil size={9} />
-            Edit
+            {t('contacts_field_edit_btn')}
           </button>
         )}
       </div>
       {editing ? (
         <div className="flex flex-col gap-2">
           <LabelPicker selectedIds={selectedIds} onChange={setSelectedIds} />
-          {saveMutation.isError && <p className="text-xs text-red-500">Something went wrong. Try again.</p>}
+          {saveMutation.isError && <p className="text-xs text-red-500">{t('contacts_field_error_generic')}</p>}
           <div className="flex gap-2">
             <button
               type="button"
@@ -711,19 +719,19 @@ function LabelsRow({ contactId, labels }: { contactId: string; labels: ContactLa
               disabled={saveMutation.isPending}
               className="inline-flex items-center px-3 py-1 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
             >
-              {saveMutation.isPending ? 'Saving…' : 'Save'}
+              {saveMutation.isPending ? t('contacts_field_saving') : t('contacts_field_save_btn')}
             </button>
             <button
               type="button"
               onClick={() => setEditing(false)}
               className="px-2 py-1 text-xs text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
             >
-              Cancel
+              {t('contacts_field_cancel_btn')}
             </button>
           </div>
         </div>
       ) : labels.length === 0 ? (
-        <p className="text-xs text-slate-400">No labels.</p>
+        <p className="text-xs text-slate-400">{t('contacts_no_labels')}</p>
       ) : (
         <div className="flex flex-wrap gap-1.5">
           {labels.map(label => <LabelChip key={label.id} label={label} />)}

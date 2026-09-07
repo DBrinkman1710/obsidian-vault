@@ -150,3 +150,62 @@ export interface Questionnaire {
   pain_points: string[] | null;
   recommended_modules: string[] | null;
 }
+
+export const INDUSTRY_LABELS_NL: Record<string, string> = {
+  "E-commerce": "E-commerce",
+  "SaaS / Tech": "SaaS / Tech",
+  "Services / Agency": "Diensten / Bureau",
+  "Healthcare": "Zorg",
+  "Retail": "Retail",
+  "Logistics / Wholesale": "Logistiek / Groothandel",
+  "Other": "Anders",
+};
+
+export const TOOL_LABELS_NL: Record<string, string> = {
+  "Email only": "Alleen e-mail",
+  "Zendesk / Freshdesk": "Zendesk / Freshdesk",
+  "HubSpot / CRM": "HubSpot / CRM",
+  "Intercom / Drift": "Intercom / Drift",
+  "WhatsApp / Social media": "WhatsApp / Social media",
+  "None / Spreadsheets": "Geen / Spreadsheets",
+};
+
+export const PAIN_POINT_LABELS_NL: Record<string, string> = {
+  "Too many support tickets": "Te veel supporttickets",
+  "Manual sorting & routing": "Handmatig sorteren en routeren",
+  "Slow response times": "Trage reactietijden",
+  "Scattered channels (email, WhatsApp, chat)": "Versnipperde kanalen (e-mail, WhatsApp, chat)",
+  "Missing automation": "Gebrek aan automatisering",
+  "Losing track of customers": "Overzicht over klanten kwijtraken",
+  "Shipment & order queries": "Vragen over zendingen en bestellingen",
+  "No follow-up on leads or deals": "Geen opvolging van leads of deals",
+  "Missed appointments or no-shows": "Gemiste afspraken of no-shows",
+  "Chasing invoices or late payments": "Achter facturen of late betalingen aanzitten",
+  "Too many billing questions from customers": "Te veel factuurvragen van klanten",
+  "Contracts or renewals slipping through": "Contracten of verlengingen die erdoorheen glippen",
+  "No way to reach customers proactively": "Geen manier om klanten proactief te bereiken",
+  "No visibility into what customers are buying": "Geen inzicht in wat klanten kopen",
+  "Too many how-to or onboarding questions from users": "Te veel hoe werkt het of onboardingvragen van gebruikers",
+};
+
+export const MODULE_LABEL_NL: Record<string, string> = {
+  "AI Inbox": "AI Inbox", "Tickets": "Tickets", "Live Chat": "Live chat",
+  "Calendar": "Agenda", "Pipeline": "Pipeline", "Marketing": "Marketing",
+  "Departments": "Afdelingen", "Billing": "Facturatie", "Contracts": "Contracten",
+  "Shipment Tracking": "Zendingtracking", "Sales": "Sales", "SaaS Analytics": "SaaS Analytics",
+};
+
+export const MODULE_DESC_NL: Record<string, string> = {
+  "AI Inbox": "AI leest elk bericht en stelt het ticket voor je op. Eén klik om goed te keuren.",
+  "Tickets": "Volg, wijs toe en sluit supportverzoeken af met SLA-meldingen",
+  "Live Chat": "Chatwidget + WhatsApp. Alle gesprekken in één inbox.",
+  "Calendar": "Boekingslinks, beschikbaarheid en afsprakenbeheer",
+  "Pipeline": "Drag and drop Kanban om leads en klanten door eigen fases te bewegen",
+  "Marketing": "E-mailcampagnes, A/B-testen, dripsequenties en gedeelde antwoordsjablonen",
+  "Departments": "Stuur tickets en chats automatisch door naar het juiste team",
+  "Billing": "Verstuur facturen, volg betalingen en beheer abonnementen",
+  "Contracts": "Sla getekende contracten op, volg verlengingen en opzegtermijnen, word op tijd herinnerd",
+  "Shipment Tracking": "Live vervoerdersupdates voor DHL, UPS, PostNL en FedEx, gekoppeld aan contacten.",
+  "Sales": "Volg productweergaven, toevoegingen aan winkelwagen en aankopen. Herken kopers met hoge koopintentie.",
+  "SaaS Analytics": "Terugkerende abonnementen, MRR/churn-tracking, gekoppeld aan contacten",
+};

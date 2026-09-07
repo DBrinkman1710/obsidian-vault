@@ -458,6 +458,8 @@ async def suggest_ticket_reply(ticket_id: uuid.UUID, current_user: CurrentUser, 
         context_summary=context_summary,
         contact_name=contact_name,
         language=language,
+        db=db,
+        tenant_id=current_user.tenant_id,
     )
     return {"suggestion": suggestion}
 

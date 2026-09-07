@@ -14,6 +14,7 @@ import ActionsModal from '../components/ActionsModal'
 import { CloseButton } from '../../../shell/CloseButton'
 import { timeAgo } from '../../../lib/format'
 import { useCopy } from '../../../hooks/useCopy'
+import { useT } from '../../../hooks/useT'
 
 function formatTime(dt: string) {
   return new Date(dt).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
@@ -46,15 +47,16 @@ function widgetEmbedSnippet(tenantSlug: string): string {
 }
 
 function WidgetSnippetCard({ tenantSlug }: { tenantSlug: string }) {
+  const t = useT()
   const { copy, copied } = useCopy({ useToast: false })
   const snippet = widgetEmbedSnippet(tenantSlug)
   return (
     <div className="md:col-span-2 text-left border border-slate-200 rounded-xl p-6 bg-white">
       <Code size={20} className="text-blue-600 mb-3" />
-      <p className="text-sm font-bold text-slate-900 mb-1">Website widget</p>
+      <p className="text-sm font-bold text-slate-900 mb-1">{t('chat_widget_title')}</p>
       <p className="text-xs text-slate-500 mb-3">
-        Add the chat bubble to your own website: paste this snippet just before the closing{' '}
-        <code className="bg-slate-100 px-1 rounded">&lt;/body&gt;</code> tag. Visitor messages show up here as sessions.
+        {t('chat_widget_desc')}{' '}
+        <code className="bg-slate-100 px-1 rounded">&lt;/body&gt;</code> {t('chat_widget_desc2')}
       </p>
       <div className="flex items-start gap-2 p-3 bg-slate-50 border border-slate-200 rounded-xl">
         <p className="flex-1 text-xs font-mono text-slate-700 break-all whitespace-pre-wrap leading-relaxed">{snippet}</p>
@@ -63,7 +65,7 @@ function WidgetSnippetCard({ tenantSlug }: { tenantSlug: string }) {
           className="flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium text-slate-500 hover:text-slate-700 bg-white border border-slate-200 rounded-lg transition-colors flex-shrink-0"
         >
           {copied ? <Check size={12} className="text-success-500" /> : <Copy size={12} />}
-          {copied ? 'Copied' : 'Copy'}
+          {copied ? t('chat_widget_copied') : t('chat_widget_copy')}
         </button>
       </div>
     </div>
@@ -121,6 +123,7 @@ function SessionRow({
   bulkMutation,
   ctx,
 }: { index: number; style: React.CSSProperties; ariaAttributes: { 'aria-posinset': number; 'aria-setsize': number; role: 'listitem' } } & SessionRowData) {
+  const t = useT()
   const s = sessions[index]
   if (!s) return null
   const isSelected = selectedSessions.has(s.id)
@@ -133,18 +136,18 @@ function SessionRow({
       onMouseLeave={() => setHoveredSessionId(null)}
       onContextMenu={e => ctx.open(e, [
         { header: s.contact_name ?? s.visitor_name ?? s.whatsapp_phone ?? 'Session' },
-        { label: 'Open conversation', icon: <ArrowRight size={14} />, onClick: () => setSelectedId(s.id) },
+        { label: t('chat_ctx_open_conversation'), icon: <ArrowRight size={14} />, onClick: () => setSelectedId(s.id) },
         ...(s.status !== 'solved'
-          ? [{ label: 'Mark resolved', icon: <Check size={14} />, onClick: () => statusMutation.mutate({ sessionId: s.id, status: 'solved' }) }]
-          : [{ label: 'Reopen', icon: <ArrowRight size={14} />, onClick: () => statusMutation.mutate({ sessionId: s.id, status: 'open' }) }]
+          ? [{ label: t('chat_ctx_mark_resolved'), icon: <Check size={14} />, onClick: () => statusMutation.mutate({ sessionId: s.id, status: 'solved' }) }]
+          : [{ label: t('chat_ctx_reopen'), icon: <ArrowRight size={14} />, onClick: () => statusMutation.mutate({ sessionId: s.id, status: 'open' }) }]
         ),
         { separator: true },
         {
-          label: 'Delete',
+          label: t('delete'),
           icon: <Trash2 size={14} />,
           danger: true,
           onClick: () => {
-            if (window.confirm('Delete this session and all its messages? This cannot be undone.')) {
+            if (window.confirm(t('chat_ctx_delete_session_confirm'))) {
               bulkMutation.mutate({ action: 'delete', session_ids: [s.id] })
               if (selectedId === s.id) setSelectedId(null)
             }
@@ -204,6 +207,7 @@ function SessionRow({
 }
 
 export default function ChatPage() {
+  const t = useT()
   const qc = useQueryClient()
   const navigate = useNavigate()
   const isMobile = useMobile()
@@ -522,7 +526,7 @@ export default function ChatPage() {
               // Notify only the assigned agent; if unassigned, notify everyone.
               const notifyMe = !data.assigned_to || data.assigned_to === user?.id
               if (notifyMe && 'Notification' in window && Notification.permission === 'granted') {
-                new Notification('New chat message', {
+                new Notification(t('chat_notif_new_message'), {
                   body: (data.body ?? '').slice(0, 100),
                   icon: '/logo.svg',
                 })
@@ -532,8 +536,8 @@ export default function ChatPage() {
             qc.invalidateQueries({ queryKey: ['chat-sessions'] })
             qc.invalidateQueries({ queryKey: ['chat-open-count'] })
             if ('Notification' in window && Notification.permission === 'granted') {
-              new Notification('New chat session', {
-                body: 'A visitor has started a conversation.',
+              new Notification(t('chat_notif_new_session'), {
+                body: t('chat_notif_new_session_body'),
                 icon: '/logo.svg',
               })
             }
@@ -621,9 +625,15 @@ export default function ChatPage() {
 
   function handleBulkAction(action: 'close' | 'reopen' | 'delete') {
     if (action === 'delete') {
-      if (!window.confirm(`Delete ${selectedSessions.size} session(s) and all their messages? This cannot be undone.`)) return
+      if (!window.confirm(t('chat_bulk_delete_confirm').replace('{n}', String(selectedSessions.size)))) return
     }
     bulkMutation.mutate({ action, session_ids: Array.from(selectedSessions) })
+  }
+
+  const filterTabLabels: Record<Filter, string> = {
+    mine: t('chat_filter_mine'),
+    open: t('chat_filter_open'),
+    all:  t('filter_all'),
   }
 
   const filterTabs = (
@@ -634,7 +644,7 @@ export default function ChatPage() {
           onClick={() => setFilter(f)}
           className={`px-3 py-1 rounded-full text-xs font-semibold capitalize transition-colors ${filter === f ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-500 hover:bg-slate-200'}`}
         >
-          {f}
+          {filterTabLabels[f]}
         </button>
       ))}
     </div>
@@ -645,14 +655,14 @@ export default function ChatPage() {
       <div className="px-5 py-4 border-b border-slate-200">
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-base font-bold text-slate-900">Live Chat</h1>
-            <p className="text-xs text-slate-400 mt-0.5">WhatsApp conversations</p>
+            <h1 className="text-base font-bold text-slate-900">{t('chat_title')}</h1>
+            <p className="text-xs text-slate-400 mt-0.5">{t('chat_subtitle')}</p>
           </div>
           <div className="flex items-center gap-1">
             {!isConnected && (
               <button
                 onClick={() => setShowQrModal(true)}
-                title="Connect WhatsApp"
+                title={t('chat_connect_whatsapp')}
                 className="p-1.5 rounded-lg text-amber-500 hover:text-amber-600 hover:bg-amber-50 transition-colors"
               >
                 <QrCode size={16} />
@@ -660,26 +670,26 @@ export default function ChatPage() {
             )}
             <button
               onClick={() => searchInputRef.current?.focus()}
-              title="New conversation"
+              title={t('chat_direct_message_desc')}
               className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             >
               <SquarePen size={16} />
             </button>
             <button
               onClick={() => setShowBroadcastModal(true)}
-              title="New broadcast"
+              title={t('chat_broadcast_modal_title')}
               className="p-1.5 rounded-lg text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             >
               <Megaphone size={16} />
             </button>
             <button
               onClick={() => {
-                if (window.confirm('Disconnect WhatsApp and delete ALL chat sessions and messages? This cannot be undone.')) {
+                if (window.confirm(t('chat_reset_confirm'))) {
                   resetMutation.mutate()
                 }
               }}
               disabled={resetMutation.isPending}
-              title="Disconnect WhatsApp & remove all chats"
+              title={t('chat_connect_whatsapp')}
               className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 transition-colors disabled:opacity-50"
             >
               {resetMutation.isPending ? <span className="text-xs">…</span> : <Power size={16} />}
@@ -687,7 +697,7 @@ export default function ChatPage() {
             {isDevEnv && (
               <button
                 onClick={() => {
-                  if (window.confirm('Delete ALL chat sessions and messages? (dev only)')) {
+                  if (window.confirm(t('chat_clear_all_confirm'))) {
                     clearAllMutation.mutate()
                   }
                 }}
@@ -709,14 +719,14 @@ export default function ChatPage() {
             type="search"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            placeholder="Search contacts to start a chat…"
+            placeholder={t('chat_search_contacts_ph')}
             className="w-full pl-9 pr-8 py-1.5 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
               className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-300 hover:text-slate-500 transition-colors"
-              aria-label="Clear search"
+              aria-label={t('chat_clear_search')}
             >
               <X size={14} />
             </button>
@@ -728,34 +738,34 @@ export default function ChatPage() {
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={() => setShowQrModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-              <h2 className="text-base font-bold text-slate-900">Connect WhatsApp</h2>
+              <h2 className="text-base font-bold text-slate-900">{t('chat_connect_whatsapp')}</h2>
               <CloseButton onClick={() => setShowQrModal(false)} />
             </div>
             <div className="p-6 text-center">
-              <p className="text-sm text-slate-500 mb-4">Scan this QR code with WhatsApp on your phone to connect.</p>
-              {qrLoading && <p className="text-sm text-slate-400 py-8">Loading QR code…</p>}
+              <p className="text-sm text-slate-500 mb-4">{t('chat_qr_scan_instructions')}</p>
+              {qrLoading && <p className="text-sm text-slate-400 py-8">{t('chat_qr_loading')}</p>}
               {!qrLoading && qrError && (
                 <p className="text-sm text-red-500 py-8">
-                  Couldn't load the QR code. Check that Evolution API is configured for this environment.
+                  {t('chat_qr_error')}
                 </p>
               )}
               {!qrLoading && !qrError && qrData?.base64 && (
                 <>
                   <img src={qrData.base64} alt="WhatsApp pairing QR code" className="w-48 h-48 mx-auto" />
                   {qrData.pairing_code && (
-                    <p className="text-xs text-slate-500 mt-3 font-mono">Pairing code: {qrData.pairing_code}</p>
+                    <p className="text-xs text-slate-500 mt-3 font-mono">{t('chat_qr_pairing_code')} {qrData.pairing_code}</p>
                   )}
                 </>
               )}
               {!qrLoading && !qrError && !qrData?.base64 && (
-                <p className="text-sm text-slate-400 py-8">Waiting for QR code…</p>
+                <p className="text-sm text-slate-400 py-8">{t('chat_qr_waiting')}</p>
               )}
               <div className="mt-6 pt-4 border-t border-slate-100">
                 <p className="text-[10px] text-slate-400">
-                  Live chat powered by{' '}
+                  {t('chat_qr_footer')}{' '}
                   <a href="https://github.com/EvolutionAPI/evolution-api" target="_blank" rel="noopener noreferrer" className="underline">Evolution API</a>
                   {' '}— licensed under the{' '}
-                  <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer" className="underline">Apache License 2.0</a>.
+                  <a href="http://www.apache.org/licenses/LICENSE-2.0" target="_blank" rel="noopener noreferrer" className="underline">{t('chat_qr_license')}</a>.
                 </p>
               </div>
             </div>
@@ -765,11 +775,11 @@ export default function ChatPage() {
       <div className="flex-1 overflow-hidden relative flex flex-col" ref={sessionListContainerRef}>
         {searchQuery.trim().length > 0 ? (
           <div className="flex-1 overflow-y-auto">
-            {contactsLoading && <p className="p-5 text-sm text-slate-400">Searching…</p>}
+            {contactsLoading && <p className="p-5 text-sm text-slate-400">{t('chat_contacts_loading')}</p>}
             {!contactsLoading && debouncedQuery.length > 0 && contactResults.length === 0 && (
               <div className="p-8 text-center">
                 <Search size={24} className="text-slate-300 mx-auto mb-3" />
-                <p className="text-sm text-slate-400">No contacts found</p>
+                <p className="text-sm text-slate-400">{t('chat_no_contacts_found')}</p>
               </div>
             )}
             {contactResults.map((c: any) => (
@@ -780,19 +790,19 @@ export default function ChatPage() {
                 className="w-full text-left px-5 py-3 border-b border-slate-100 flex flex-col gap-0.5 hover:bg-slate-50 transition-colors disabled:opacity-50"
               >
                 <span className="text-sm font-semibold text-slate-900 truncate">{c.full_name}</span>
-                <span className="text-xs text-slate-400 truncate">{c.phone || 'No phone number'}</span>
+                <span className="text-xs text-slate-400 truncate">{c.phone || t('chat_no_phone')}</span>
               </button>
             ))}
           </div>
         ) : (
           <>
-            {sessionsLoading && <p className="p-5 text-sm text-slate-400">Loading…</p>}
+            {sessionsLoading && <p className="p-5 text-sm text-slate-400">{t('chat_sessions_loading')}</p>}
             {!sessionsLoading && sessions.length === 0 && (
               <div className="p-8 text-center">
                 <MessageSquare size={28} className="text-slate-300 mx-auto mb-3" />
-                <p className="text-sm font-semibold text-slate-600 mb-1">No sessions here</p>
+                <p className="text-sm font-semibold text-slate-600 mb-1">{t('chat_no_sessions')}</p>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  WhatsApp messages appear here when customers reach out.
+                  {t('chat_no_sessions_desc')}
                 </p>
               </div>
             )}
@@ -826,9 +836,9 @@ export default function ChatPage() {
                 count={selectedSessions.size}
                 onClear={() => setSelectedSessions(new Set())}
                 actions={[
-                  { label: 'Close', onClick: () => handleBulkAction('close') },
-                  { label: 'Reopen', onClick: () => handleBulkAction('reopen') },
-                  { label: 'Delete', icon: <Trash2 size={13} />, danger: true, onClick: () => handleBulkAction('delete') },
+                  { label: t('chat_bulk_close'), onClick: () => handleBulkAction('close') },
+                  { label: t('chat_bulk_reopen'), onClick: () => handleBulkAction('reopen') },
+                  { label: t('delete'), icon: <Trash2 size={13} />, danger: true, onClick: () => handleBulkAction('delete') },
                 ]}
               />
             </div>
@@ -855,12 +865,12 @@ export default function ChatPage() {
             disabled={!selectedSession.contact_id}
             className={`font-bold text-sm text-slate-900 truncate text-left ${selectedSession.contact_id ? 'hover:text-blue-600 hover:underline' : 'cursor-default'}`}
           >
-            {selectedSession.visitor_name || selectedSession.whatsapp_phone || 'Unknown visitor'}
+            {selectedSession.visitor_name || selectedSession.whatsapp_phone || t('chat_unknown_visitor')}
           </button>
           <p className="text-xs text-slate-400 mt-0.5 truncate">
             {selectedSession.whatsapp_phone}
             {' · '}
-            Started {new Date(selectedSession.started_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
+            {t('chat_started')} {new Date(selectedSession.started_at).toLocaleString('en-GB', { dateStyle: 'short', timeStyle: 'short' })}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
@@ -868,19 +878,19 @@ export default function ChatPage() {
             <button
               onClick={() => setShowCreateContact(true)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors"
-              title="Create contact from this number"
+              title={t('chat_create_contact')}
             >
-              <UserPlus size={12} /> Create contact
+              <UserPlus size={12} /> {t('chat_create_contact')}
             </button>
           )}
           <div className="relative">
             <button
               onClick={() => setShowReassign(v => !v)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors"
-              title="Re-assign"
+              title={t('chat_reassign')}
             >
               <Users size={12} />
-              {selectedSession.assigned_to_name ?? 'Unassigned'}
+              {selectedSession.assigned_to_name ?? t('chat_unassigned')}
               <ChevronDown size={12} />
             </button>
             {showReassign && (
@@ -889,7 +899,7 @@ export default function ChatPage() {
                   onClick={() => assignMutation.mutate({ sessionId: selectedSession.id, assignedTo: null })}
                   className="w-full text-left px-4 py-2 text-sm text-slate-600 hover:bg-slate-50"
                 >
-                  Unassign (return to open)
+                  {t('chat_unassign_return_open')}
                 </button>
                 {agents.map((a: any) => (
                   <button
@@ -908,32 +918,32 @@ export default function ChatPage() {
               onClick={() => statusMutation.mutate({ sessionId: selectedSession.id, status: 'open' })}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors"
             >
-              Reopen
+              {t('chat_reopen')}
             </button>
           ) : (
             <button
               onClick={() => statusMutation.mutate({ sessionId: selectedSession.id, status: 'solved' })}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-semibold transition-colors"
             >
-              Solve
+              {t('chat_solve')}
             </button>
           )}
           {selectedSession.ticket_id && (
             <button
               onClick={() => navigate(`/tickets/${selectedSession.ticket_id}`)}
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-600 border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
-              title="Open linked ticket"
+              title={t('chat_ticket_link')}
             >
-              Ticket →
+              {t('chat_ticket_link')} →
             </button>
           )}
           <button
             onClick={() => setShowActionsModal(true)}
             className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-50 hover:bg-slate-100 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors"
-            title="Create ticket or send booking"
+            title={t('chat_actions')}
           >
             <Zap size={12} strokeWidth={2.5} />
-            Actions
+            {t('chat_actions')}
           </button>
           {selectedSession.is_open && (
             <button
@@ -942,7 +952,7 @@ export default function ChatPage() {
               className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-600 border border-slate-200 rounded-lg text-xs font-semibold transition-colors flex-shrink-0"
             >
               <X size={12} />
-              Close
+              {t('chat_close')}
             </button>
           )}
         </div>
@@ -954,7 +964,7 @@ export default function ChatPage() {
             onClick={() => setShowHistory(v => !v)}
             className="text-xs font-semibold text-slate-500 hover:text-slate-700 inline-flex items-center gap-1 py-1"
           >
-            <ChevronDown size={12} className={showHistory ? '' : '-rotate-90'} /> Previous conversations
+            <ChevronDown size={12} className={showHistory ? '' : '-rotate-90'} /> {t('chat_prev_conversations')}
           </button>
           {showHistory && <HistoryPanel contactId={selectedSession.contact_id} currentId={selectedSession.id} onView={setHistoryViewId} />}
         </div>
@@ -965,27 +975,27 @@ export default function ChatPage() {
           onClick={() => setActiveTab('messages')}
           className={`px-3 py-1.5 text-xs font-semibold rounded-t-lg ${activeTab === 'messages' ? 'bg-white text-slate-900 border border-b-white border-slate-200 -mb-px' : 'text-slate-500'}`}
         >
-          Messages
+          {t('chat_tab_messages')}
         </button>
         <button
           onClick={() => setActiveTab('notes')}
           className={`px-3 py-1.5 text-xs font-semibold rounded-t-lg ${activeTab === 'notes' ? 'bg-white text-slate-900 border border-b-white border-slate-200 -mb-px' : 'text-slate-500'}`}
         >
-          Notes
+          {t('chat_tab_notes')}
         </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-4 md:px-6 py-5 flex flex-col gap-3 bg-slate-50">
-        {msgsLoading && <p className="text-sm text-slate-400">Loading messages…</p>}
+        {msgsLoading && <p className="text-sm text-slate-400">{t('chat_msgs_loading')}</p>}
         {!msgsLoading && activeTab === 'notes' && threadMessages.length === 0 && (
-          <p className="text-sm text-slate-400 text-center py-8">No internal notes yet. Notes are never sent to the customer.</p>
+          <p className="text-sm text-slate-400 text-center py-8">{t('chat_no_notes')}</p>
         )}
         {threadMessages.map((m: any) => {
           if (m.sender_type === 'note') {
             return (
               <div key={m.id} className="self-center max-w-[90%] w-full">
                 <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-2.5">
-                  <p className="text-xs font-bold text-amber-700 mb-1">Internal note</p>
+                  <p className="text-xs font-bold text-amber-700 mb-1">{t('chat_internal_note')}</p>
                   <p className="text-sm leading-relaxed whitespace-pre-wrap text-slate-700">{m.body}</p>
                   <p className="text-xs mt-1 text-right text-amber-500">{formatTime(m.created_at)}</p>
                 </div>
@@ -1043,7 +1053,7 @@ export default function ChatPage() {
                 if (noteText.trim()) noteMutation.mutate(noteText.trim())
               }
             }}
-            placeholder="Add an internal note…"
+            placeholder={t('chat_note_placeholder')}
             rows={isMobile ? 2 : 2}
             className="flex-1 px-4 py-2.5 border border-amber-300 bg-amber-50 rounded-xl text-sm resize-none font-[inherit] focus:outline-none focus:ring-2 focus:ring-amber-400"
           />
@@ -1052,12 +1062,12 @@ export default function ChatPage() {
             disabled={noteMutation.isPending || !noteText.trim()}
             className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-sm rounded-xl transition-colors"
           >
-            Save note
+            {t('chat_save_note')}
           </button>
         </div>
       ) : lockedByOther ? (
         <div className="px-6 py-4 border-t border-slate-200 bg-amber-50 text-center text-sm text-amber-700">
-          Assigned to {selectedSession.assigned_to_name ?? 'another agent'}. Re-assign to reply.
+          {t('chat_locked_by_other').replace('{name}', selectedSession.assigned_to_name ?? t('chat_locked_another_agent'))}
         </div>
       ) : selectedSession.is_open ? (
         <div className="px-4 md:px-6 py-4 border-t border-slate-200 bg-white relative">
@@ -1101,7 +1111,7 @@ export default function ChatPage() {
               <button
                 onClick={clearAttachment}
                 className="text-slate-400 hover:text-slate-600 flex-shrink-0"
-                title="Remove attachment"
+                title={t('chat_remove_attachment')}
               >
                 <X size={14} />
               </button>
@@ -1110,7 +1120,7 @@ export default function ChatPage() {
           <div className="flex gap-2 items-end">
             <button
               onClick={() => fileInputRef.current?.click()}
-              title="Attach file"
+              title={t('chat_attach_file')}
               className="p-2.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors flex-shrink-0"
             >
               <Paperclip size={16} />
@@ -1125,7 +1135,7 @@ export default function ChatPage() {
                   handleSend()
                 }
               }}
-              placeholder={attachedFile ? 'Add a caption (optional)…' : 'Type a reply…  (type / for canned responses)'}
+              placeholder={attachedFile ? t('chat_caption_placeholder') : t('chat_reply_placeholder')}
               rows={isMobile ? 2 : 3}
               className="flex-1 px-4 py-2.5 border border-slate-300 rounded-xl text-sm resize-none font-[inherit] focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie"
             />
@@ -1135,13 +1145,13 @@ export default function ChatPage() {
               className="px-4 py-2.5 bg-green-600 hover:bg-green-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-sm rounded-xl transition-colors flex items-center gap-1.5"
             >
               <Send size={14} />
-              {!isMobile && 'Send'}
+              {!isMobile && t('chat_send')}
             </button>
           </div>
         </div>
       ) : (
         <div className="px-6 py-4 border-t border-slate-200 bg-slate-50 text-center text-sm text-slate-400">
-          This session is closed.
+          {t('chat_session_closed')}
         </div>
       )}
     </div>
@@ -1153,16 +1163,16 @@ export default function ChatPage() {
           className="text-left border border-slate-200 rounded-xl p-6 bg-white hover:border-blue-300 hover:shadow-sm transition-all"
         >
           <SquarePen size={20} className="text-blue-600 mb-3" />
-          <p className="text-sm font-bold text-slate-900 mb-1">Want to message someone directly?</p>
-          <p className="text-xs text-slate-500">Start a new conversation</p>
+          <p className="text-sm font-bold text-slate-900 mb-1">{t('chat_direct_message_title')}</p>
+          <p className="text-xs text-slate-500">{t('chat_direct_message_desc')}</p>
         </button>
         <button
           onClick={() => setShowBroadcastModal(true)}
           className="text-left border border-slate-200 rounded-xl p-6 bg-white hover:border-blue-300 hover:shadow-sm transition-all"
         >
           <Megaphone size={20} className="text-blue-600 mb-3" />
-          <p className="text-sm font-bold text-slate-900 mb-1">Send a group update?</p>
-          <p className="text-xs text-slate-500">Create a multi-contact broadcast</p>
+          <p className="text-sm font-bold text-slate-900 mb-1">{t('chat_broadcast_title')}</p>
+          <p className="text-xs text-slate-500">{t('chat_broadcast_desc')}</p>
         </button>
         {config?.tenant_id && <WidgetSnippetCard tenantSlug={config.tenant_id} />}
       </div>
@@ -1223,13 +1233,14 @@ export default function ChatPage() {
 }
 
 function HistoryPanel({ contactId, currentId, onView }: { contactId: string; currentId: string; onView: (id: string) => void }) {
+  const t = useT()
   const { data: past = [] } = useQuery({
     queryKey: ['chat-history', contactId],
     queryFn: () => api.get('/chat/sessions', { params: { contact_id: contactId, status_filter: 'solved' } }).then((r: any) => r.data),
   })
   const items = (past as any[]).filter(s => s.id !== currentId)
   if (items.length === 0) {
-    return <p className="text-xs text-slate-400 pb-2">No previous conversations.</p>
+    return <p className="text-xs text-slate-400 pb-2">{t('chat_no_prev_conversations')}</p>
   }
   return (
     <div className="pb-2 flex flex-col gap-1">
@@ -1240,7 +1251,7 @@ function HistoryPanel({ contactId, currentId, onView }: { contactId: string; cur
           className="text-left text-xs text-slate-600 hover:text-blue-600 hover:underline"
         >
           {new Date(s.started_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-          {s.solved_at && `, solved ${new Date(s.solved_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+          {s.solved_at && `, ${t('chat_solved')} ${new Date(s.solved_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
         </button>
       ))}
     </div>
@@ -1248,6 +1259,7 @@ function HistoryPanel({ contactId, currentId, onView }: { contactId: string; cur
 }
 
 function HistoryViewModal({ sessionId, onClose }: { sessionId: string; onClose: () => void }) {
+  const t = useT()
   const { data: messages = [], isLoading } = useQuery({
     queryKey: ['chat-messages', sessionId],
     queryFn: () => api.get(`/chat/sessions/${sessionId}/messages`).then((r: any) => r.data),
@@ -1256,11 +1268,11 @@ function HistoryViewModal({ sessionId, onClose }: { sessionId: string; onClose: 
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full max-h-[80vh] flex flex-col" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-900">Past conversation</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('chat_past_conversation')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 overflow-y-auto flex flex-col gap-3 bg-slate-50">
-          {isLoading && <p className="text-sm text-slate-400">Loading…</p>}
+          {isLoading && <p className="text-sm text-slate-400">{t('chat_msgs_loading')}</p>}
           {(messages as any[]).filter(m => m.sender_type !== 'note').map((m: any) => {
             const isAgent = m.sender_type === 'agent'
             return (
@@ -1300,26 +1312,27 @@ function ContactModal({ contactId, onClose, navigate }: { contactId: string; onC
     },
   })
 
+  const t = useT()
   return (
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-900">Contact</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('chat_contact_title')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 space-y-4">
-          <Field label="Name" value={fullName} onChange={setFullName} />
-          <Field label="Phone" value={phone} onChange={setPhone} />
-          <Field label="Email" value={email} onChange={setEmail} />
+          <Field label={t('chat_contact_name_label')} value={fullName} onChange={setFullName} />
+          <Field label={t('chat_contact_phone_label')} value={phone} onChange={setPhone} />
+          <Field label={t('chat_contact_email_label')} value={email} onChange={setEmail} />
           {contact?.company?.name && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1">Company</p>
+              <p className="text-xs font-semibold text-slate-500 mb-1">{t('chat_contact_company_label')}</p>
               <p className="text-sm text-slate-800">{contact.company.name}</p>
             </div>
           )}
           {contact?.labels?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 mb-1">Labels</p>
+              <p className="text-xs font-semibold text-slate-500 mb-1">{t('chat_contact_labels_label')}</p>
               <div className="flex flex-wrap gap-1.5">
                 {contact.labels.map((l: any) => (
                   <span key={l.id} className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: l.color }}>{l.name}</span>
@@ -1330,14 +1343,14 @@ function ContactModal({ contactId, onClose, navigate }: { contactId: string; onC
         </div>
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100">
           <button onClick={() => navigate(`/contacts/${contactId}`)} className="text-xs font-semibold text-slate-500 hover:text-slate-700">
-            Open full profile →
+            {t('chat_open_full_profile')} →
           </button>
           <button
             onClick={() => save.mutate()}
             disabled={save.isPending}
             className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
-            {save.isPending ? 'Saving…' : 'Save'}
+            {save.isPending ? t('chat_saving') : t('chat_save')}
           </button>
         </div>
       </div>
@@ -1346,6 +1359,7 @@ function ContactModal({ contactId, onClose, navigate }: { contactId: string; onC
 }
 
 function CreateContactModal({ phone, name, onClose, onCreated }: { phone: string | null; name: string | null; onClose: () => void; onCreated: (c: any) => void }) {
+  const t = useT()
   const [fullName, setFullName] = useState(name ?? '')
   const [email, setEmail] = useState('')
   const [phoneVal, setPhoneVal] = useState(phone ?? '')
@@ -1357,13 +1371,13 @@ function CreateContactModal({ phone, name, onClose, onCreated }: { phone: string
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
-          <h2 className="text-base font-bold text-slate-900">New contact</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('chat_new_contact')}</h2>
           <CloseButton onClick={onClose} />
         </div>
         <div className="p-6 space-y-4">
-          <Field label="Name" value={fullName} onChange={setFullName} />
-          <Field label="Phone" value={phoneVal} onChange={setPhoneVal} />
-          <Field label="Email" value={email} onChange={setEmail} />
+          <Field label={t('chat_contact_name_label')} value={fullName} onChange={setFullName} />
+          <Field label={t('chat_contact_phone_label')} value={phoneVal} onChange={setPhoneVal} />
+          <Field label={t('chat_contact_email_label')} value={email} onChange={setEmail} />
         </div>
         <div className="flex items-center justify-end px-6 py-4 border-t border-slate-100">
           <button
@@ -1371,7 +1385,7 @@ function CreateContactModal({ phone, name, onClose, onCreated }: { phone: string
             disabled={create.isPending || !fullName.trim()}
             className="px-4 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
           >
-            {create.isPending ? 'Creating…' : 'Create & link'}
+            {create.isPending ? t('chat_creating') : t('chat_create_link')}
           </button>
         </div>
       </div>

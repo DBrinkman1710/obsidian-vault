@@ -10,6 +10,7 @@ import { useAuth } from '../../../auth/useAuth'
 import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
 import { SignaturePicker } from './SignaturePicker'
 import { useLinkedEmailAccounts, PROVIDER_SHORT } from '../hooks/useLinkedEmailAccounts'
+import { useT } from '../../../hooks/useT'
 
 interface Contact {
   id: string
@@ -36,6 +37,7 @@ export interface SendQueuedPayload {
 }
 
 function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: string) => void; onClose: () => void }) {
+  const t = useT()
   const [tab, setTab] = useState<'companies' | 'contacts'>('companies')
   const [selectedCompanyIds, setSelectedCompanyIds] = useState<Set<string>>(new Set())
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set())
@@ -95,19 +97,19 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
     <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full flex flex-col" style={{ maxHeight: '80vh' }}>
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 shrink-0">
-          <h2 className="text-base font-bold text-slate-900">Add recipients</h2>
+          <h2 className="text-base font-bold text-slate-900">{t('inbox_compose_add_recipients')}</h2>
           <CloseButton onClick={onClose} />
         </div>
 
         <div className="flex border-b border-slate-100 shrink-0 px-2">
           <button className={tabCls('companies')} onClick={() => setTab('companies')}>
             <Building2 size={13} className="inline mr-1.5 -mt-0.5" />
-            Companies
+            {t('inbox_compose_companies')}
             {selectedCompanyIds.size > 0 && <span className="ml-1.5 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">{selectedCompanyIds.size}</span>}
           </button>
           <button className={tabCls('contacts')} onClick={() => setTab('contacts')}>
             <Users size={13} className="inline mr-1.5 -mt-0.5" />
-            Contacts
+            {t('inbox_compose_contacts')}
             {selectedContactIds.size > 0 && <span className="ml-1.5 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs rounded-full">{selectedContactIds.size}</span>}
           </button>
         </div>
@@ -121,7 +123,7 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
                 className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors text-left"
               >
                 {allCompaniesSelected ? <CheckSquare size={15} className="text-blue-600 shrink-0" /> : <Square size={15} className="text-slate-400 shrink-0" />}
-                <span className="text-sm font-semibold text-slate-700">Select all companies</span>
+                <span className="text-sm font-semibold text-slate-700">{t('inbox_compose_select_all_companies')}</span>
               </button>
               {companies.map((c: any) => (
                 <button
@@ -134,7 +136,7 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
                   <span className="text-xs text-slate-400 ml-auto">{c.contact_count} contact{c.contact_count !== 1 ? 's' : ''}</span>
                 </button>
               ))}
-              {companies.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">No companies yet</div>}
+              {companies.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">{t('inbox_compose_no_companies')}</div>}
             </>
           )}
 
@@ -146,7 +148,7 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
                 className="w-full flex items-center gap-3 px-4 py-3 border-b border-slate-100 hover:bg-slate-50 transition-colors text-left"
               >
                 {allContactsSelected ? <CheckSquare size={15} className="text-blue-600 shrink-0" /> : <Square size={15} className="text-slate-400 shrink-0" />}
-                <span className="text-sm font-semibold text-slate-700">Select all contacts</span>
+                <span className="text-sm font-semibold text-slate-700">{t('inbox_compose_select_all_contacts')}</span>
               </button>
               {allContacts.map((c: any) => (
                 <button
@@ -162,24 +164,24 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
                   </div>
                 </button>
               ))}
-              {allContacts.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">No contacts with email</div>}
+              {allContacts.length === 0 && <div className="px-4 py-8 text-sm text-slate-400 text-center">{t('inbox_compose_no_contacts_email')}</div>}
             </>
           )}
         </div>
 
         <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 shrink-0">
           <span className="text-sm text-slate-500">
-            {selectedCount === 0 ? 'Nothing selected' : `${selectedCount} selected`}
+            {selectedCount === 0 ? t('inbox_compose_nothing_selected') : t('inbox_compose_selected_n').replace('{n}', String(selectedCount))}
           </span>
           <div className="flex gap-2">
-            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button type="button" onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{t('booking_btn_cancel')}</button>
             <button
               type="button"
               onClick={handleConfirm}
               disabled={selectedCount === 0 || adding}
               className="px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
             >
-              {adding ? 'Adding…' : `Add${selectedCount > 0 ? ` (${selectedCount})` : ''}`}
+              {adding ? t('inbox_compose_adding') : selectedCount > 0 ? t('inbox_compose_add_n').replace('{n}', String(selectedCount)) : t('inbox_compose_add_n').replace(' ({n})', '')}
             </button>
           </div>
         </div>
@@ -189,6 +191,7 @@ function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: st
 }
 
 function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) => void }) {
+  const t = useT()
   const [search, setSearch] = useState('')
   const [open, setOpen] = useState(false)
   const [freeEmail, setFreeEmail] = useState('')
@@ -219,7 +222,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
           value={search}
           onChange={e => { setSearch(e.target.value); setOpen(true) }}
           onFocus={() => setOpen(true)}
-          placeholder="Search contacts…"
+          placeholder={t('inbox_compose_search_contacts')}
         />
         <button
           type="button"
@@ -227,7 +230,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
           className="inline-flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors whitespace-nowrap"
         >
           <Users size={12} />
-          All contacts
+          {t('inbox_compose_all_contacts')}
         </button>
       </div>
 
@@ -239,7 +242,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
                 className="flex-1 px-2 py-1 border border-slate-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-yippie/30"
                 value={freeEmail}
                 onChange={e => setFreeEmail(e.target.value)}
-                placeholder="Or type an email address directly…"
+                placeholder={t('inbox_compose_type_email')}
                 onKeyDown={e => {
                   if (e.key === 'Enter' && freeEmail.includes('@')) {
                     onAdd(freeEmail, freeEmail)
@@ -270,7 +273,7 @@ function ContactSearchPicker({ onAdd }: { onAdd: (email: string, label: string) 
             ) : null
           ))}
           {search && (!contacts || contacts.filter((c: any) => c.email).length === 0) && (
-            <div className="px-3 py-3 text-xs text-slate-400 text-center">No contacts with email found</div>
+            <div className="px-3 py-3 text-xs text-slate-400 text-center">{t('inbox_compose_no_contacts_found')}</div>
           )}
         </div>
       )}
@@ -292,6 +295,7 @@ export default function ComposeModal({
   onSendQueued: (payload: SendQueuedPayload) => void
   initialState?: ComposeInitialState | null
 }) {
+  const t = useT()
   const { user } = useAuth()
   const linkedAccounts = useLinkedEmailAccounts()
   const { data: signatures } = useSignatures()
@@ -400,8 +404,8 @@ export default function ComposeModal({
           <div className="w-12 h-12 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <Send size={20} className="text-amber-600" />
           </div>
-          <h2 className="text-lg font-bold text-slate-900 mb-2">Demo mode</h2>
-          <p className="text-sm text-amber-600 mb-1">This workspace is in demo mode. No email was sent.</p>
+          <h2 className="text-lg font-bold text-slate-900 mb-2">{t('inbox_compose_demo_title')}</h2>
+          <p className="text-sm text-amber-600 mb-1">{t('inbox_compose_demo_notice')}</p>
           <button onClick={onClose} className="mt-6 px-6 py-2 bg-yippie hover:opacity-90 text-white text-sm font-semibold rounded-xl transition-opacity">
             Done
           </button>
@@ -426,7 +430,7 @@ export default function ComposeModal({
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <Pencil size={16} className="text-slate-400" />
-            <h2 className="text-lg font-bold text-slate-900">Compose email</h2>
+            <h2 className="text-lg font-bold text-slate-900">{t('inbox_compose_title')}</h2>
           </div>
           <CloseButton onClick={onClose} />
         </div>
@@ -434,7 +438,7 @@ export default function ComposeModal({
         <div className="flex-1 overflow-y-auto p-6 flex flex-col gap-4">
           <div>
             <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">
-              To {recipients.length > 1 && <span className="font-normal text-slate-400 normal-case">(BCC: recipients won't see each other)</span>}
+              {t('inbox_compose_to')} {recipients.length > 1 && <span className="font-normal text-slate-400 normal-case">{t('inbox_compose_bcc_note')}</span>}
             </label>
             <ContactSearchPicker onAdd={addRecipient} />
             {recipients.length > 0 && (
@@ -455,7 +459,7 @@ export default function ComposeModal({
             <div className="bg-slate-50 rounded-xl border border-slate-200 p-4 flex flex-col gap-3">
               <div className="flex items-center gap-2">
                 <Sparkles size={13} className="text-blue-500" />
-                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">AI</span>
+                <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('inbox_compose_ai_label')}</span>
                 <div className="flex items-center gap-2 ml-auto">
                   <button
                     type="button"
@@ -463,7 +467,7 @@ export default function ComposeModal({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-lg transition-colors"
                   >
                     <Sparkles size={11} />
-                    Generate
+                    {t('inbox_compose_generate')}
                   </button>
                   <button
                     type="button"
@@ -472,7 +476,7 @@ export default function ComposeModal({
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-violet-600 bg-violet-50 hover:bg-violet-100 disabled:opacity-40 disabled:cursor-not-allowed rounded-lg transition-colors"
                   >
                     <Wand2 size={11} />
-                    {improveMutation.isPending ? 'Improving…' : 'Improve'}
+                    {improveMutation.isPending ? t('inbox_compose_improving') : t('inbox_compose_improve')}
                   </button>
                 </div>
               </div>
@@ -482,7 +486,7 @@ export default function ComposeModal({
                     className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30"
                     value={aiPrompt}
                     onChange={e => setAiPrompt(e.target.value)}
-                    placeholder="e.g. Follow up with clients about their overdue invoices, polite tone"
+                    placeholder={t('inbox_compose_prompt_ph')}
                     onKeyDown={e => { if (e.key === 'Enter') suggestMutation.mutate() }}
                     autoFocus
                   />
@@ -492,7 +496,7 @@ export default function ComposeModal({
                     disabled={!aiPrompt.trim() || suggestMutation.isPending}
                     className="px-4 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity"
                   >
-                    {suggestMutation.isPending ? 'Writing…' : 'Generate'}
+                    {suggestMutation.isPending ? t('inbox_compose_writing') : t('inbox_compose_generate')}
                   </button>
                 </div>
               )}
@@ -500,18 +504,18 @@ export default function ComposeModal({
           )}
 
           <div>
-            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">Subject</label>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-1.5">{t('inbox_subject_label')}</label>
             <input
               className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30"
               value={subject}
               onChange={e => setSubject(e.target.value)}
-              placeholder="Subject line…"
+              placeholder={t('inbox_compose_subject_ph')}
             />
           </div>
 
           <div className="flex-1">
             <div className="flex items-center justify-between mb-1.5">
-              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">Message</label>
+              <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide">{t('inbox_compose_message')}</label>
               <div className="flex items-center gap-2">
                 <SignaturePicker onPick={pickSignature} />
                 {marketingEnabled && (
@@ -537,13 +541,13 @@ export default function ComposeModal({
                 <div className="flex items-center justify-between px-3 py-2 bg-violet-50 border-b border-violet-100">
                   <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-violet-600 uppercase tracking-wide">
                     <Palette size={11} />
-                    Rich template: click to edit
+                    {t('inbox_compose_rich_template')}
                   </span>
                   <button
                     type="button"
                     onClick={() => { setTemplateHtml(null); setCampaignButtonsJson(null); setBody(appliedSig ? `\n\n${appliedSig}` : '') }}
                     className="text-violet-400 hover:text-violet-600"
-                    title="Remove template"
+                    title={t('inbox_compose_remove_template')}
                   >
                     <X size={13} />
                   </button>
@@ -566,7 +570,7 @@ export default function ComposeModal({
                 rows={14}
                 value={body}
                 onChange={e => setBody(e.target.value)}
-                placeholder="Write your message…"
+                placeholder={t('inbox_compose_body_ph')}
               />
             )}
           </div>
@@ -590,7 +594,7 @@ export default function ComposeModal({
           <div className="flex items-center gap-3 min-w-0">
             <label className="flex items-center gap-1 text-xs text-slate-400 hover:text-slate-600 cursor-pointer transition-colors">
               <Paperclip size={13} />
-              <span>Attach</span>
+              <span>{t('inbox_compose_attach')}</span>
               <input
                 type="file"
                 multiple
@@ -607,10 +611,10 @@ export default function ComposeModal({
             </label>
             {(user?.reply_from_email || (user?.send_from_aliases ?? []).length > 0 || linkedAccounts.length > 0) && (
               <div className="flex items-center gap-1 text-xs text-slate-500 flex-wrap">
-                <span className="text-slate-400">From:</span>
+                <span className="text-slate-400">{t('inbox_from_label')}</span>
                 <button type="button" onClick={() => setFromEmail(null)}
                   className={`px-2 py-0.5 rounded-md transition-colors ${fromEmail === null ? 'bg-blue-50 text-blue-600 font-semibold' : 'hover:bg-slate-100 text-slate-400'}`}>
-                  Shared
+                  {t('inbox_from_shared')}
                 </button>
                 {user?.reply_from_email && (
                   <button type="button" onClick={() => setFromEmail(user.reply_from_email!)}
@@ -636,12 +640,17 @@ export default function ComposeModal({
             {sendError
               ? <p className="text-xs text-red-500 truncate">{sendError}</p>
               : <p className="text-xs text-slate-400 truncate">
-                  {recipients.length === 0 ? 'Add recipients to send' : `Sending to ${recipients.length} recipient${recipients.length !== 1 ? 's' : ''}`}
-                  {recipients.length > 1 ? ' via BCC' : ''}
+                  {recipients.length === 0
+                    ? t('inbox_compose_no_recipients')
+                    : t('inbox_compose_recipient_hint')
+                        .replace('{n}', String(recipients.length))
+                        .replace('{s}', recipients.length !== 1 ? 's' : '')
+                        .replace('{bcc}', recipients.length > 1 ? t('inbox_compose_via_bcc') : '')
+                  }
                 </p>}
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">Cancel</button>
+            <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{t('booking_btn_cancel')}</button>
             <button
               onClick={() => sendMutation.mutate()}
               disabled={!canSend}
@@ -649,7 +658,7 @@ export default function ComposeModal({
               className="inline-flex items-center justify-center gap-2 min-w-[116px] px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
             >
               <Send size={13} />
-              {sendMutation.isPending ? 'Sending…' : 'Send'}
+              {sendMutation.isPending ? t('inbox_compose_sending') : t('inbox_compose_send')}
             </button>
           </div>
         </div>
