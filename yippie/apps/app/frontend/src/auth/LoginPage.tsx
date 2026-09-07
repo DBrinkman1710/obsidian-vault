@@ -39,7 +39,11 @@ export default function LoginPage() {
     setLoading(true)
     try {
       await login(email, password)
-      navigate('/')
+      // Honour ?next= so email deep links land on their intended page; guard
+      // against open redirects by only allowing single leading slash paths.
+      const next = params.get('next')
+      const safeNext = next && next.startsWith('/') && !next.startsWith('//') ? next : '/'
+      navigate(safeNext)
     } catch (err: any) {
       const detail = err?.response?.data?.detail
       setError(typeof detail === 'string' ? detail : 'Invalid email or password')

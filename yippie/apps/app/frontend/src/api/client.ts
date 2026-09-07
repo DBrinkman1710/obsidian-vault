@@ -17,7 +17,11 @@ api.interceptors.response.use(
     const onLoginPage = window.location.pathname === '/login'
     if (err.response?.status === 401 && !isAuthEndpoint && !onLoginPage) {
       localStorage.removeItem('auth_user')
-      window.location.href = '/login'
+      // Carry the current path through login so a session-expiry bounce still
+      // returns the user to where they were, matching the deep-link handling
+      // in App.tsx and LoginPage.tsx.
+      const dest = window.location.pathname + window.location.search
+      window.location.href = dest && dest !== '/' ? `/login?next=${encodeURIComponent(dest)}` : '/login'
     }
     return Promise.reject(err)
   },
