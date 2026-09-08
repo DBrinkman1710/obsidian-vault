@@ -62,6 +62,11 @@ class Tenant(Base):
     # Stripe conversion (checkout.session.completed / invoice.paid webhooks) or
     # manually by a superadmin setting go_live_at (see admin.service.update_tenant).
     trial_ends_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # Set when a trial/subscription lapses; the tenant stays loginable but the app
+    # is walled behind the subscribe modal (config exposes subscription_required,
+    # module APIs return 402 while auth/tenant-config/Stripe stay open). Cleared on
+    # conversion (Stripe active/trialing, invoice paid, or superadmin go_live_at).
+    access_locked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     # Trial nudge dedup: day 23 reciprocity email, day 28 loss aversion email.
     trial_nudge_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     trial_final_nudge_sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

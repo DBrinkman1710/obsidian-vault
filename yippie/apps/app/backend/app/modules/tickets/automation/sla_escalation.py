@@ -480,12 +480,17 @@ async def trial_nudge_check():
 
 @scheduler.scheduled_job("interval", hours=1, id="trial_expiry_check", max_instances=1, coalesce=True)
 async def trial_expiry_check():
-    """[TRIAL30] Deactivate trial tenants past trial_ends_at.
+    """[TRIAL30] Lock trial tenants past trial_ends_at (they can still log in).
 
-    A tenant whose Stripe subscription became active is healed (trial cleared)
-    instead of deactivated — belt and braces for the window where the Stripe
-    webhook is not yet configured in production and conversion is recorded
-    manually (superadmin sets go_live_at, which also clears the trial).
+    A lapsed trial no longer deactivates the tenant — login keeps working so the
+    user can reach the subscribe modal and pay. Instead access_locked_at is
+    stamped; module APIs then return 402 and the frontend walls the app behind a
+    blocking subscribe modal. Cleared on conversion.
+
+    A tenant whose Stripe subscription became active is healed (trial + lock
+    cleared) — belt and braces for the window where the Stripe webhook is not yet
+    configured in production and conversion is recorded manually (superadmin sets
+    go_live_at, which also clears the trial).
     """
     if await skip_if_locked("trial_expiry_check", ttl=3300):
         return
@@ -501,6 +506,10 @@ async def trial_expiry_check():
             select(Tenant).where(
                 Tenant.is_demo.is_(False),
                 Tenant.is_active.is_(True),
+                # Already-locked tenants are skipped so the emails below fire once.
+                # (The old code relied on is_active flipping to dedupe; now that we
+                # keep the tenant active, access_locked_at is the dedupe key.)
+                Tenant.access_locked_at.is_(None),
                 Tenant.trial_ends_at.isnot(None),
                 Tenant.trial_ends_at < now,
             )
@@ -509,17 +518,22 @@ async def trial_expiry_check():
         for tenant in tenants:
             if tenant.stripe_subscription_status == "active" or tenant.go_live_at is not None:
                 tenant.trial_ends_at = None
+                tenant.access_locked_at = None
                 log.info("Trial tenant %s converted — cleared trial deadline", tenant.slug)
                 continue
-            tenant.is_active = False
-            log.info("Expired trial tenant %s (%s)", tenant.name, tenant.slug)
+            tenant.access_locked_at = now
+            log.info(
+                "Trial ended for tenant %s (%s) — access locked pending subscription (login stays open)",
+                tenant.name, tenant.slug,
+            )
             try:
                 await send_email(
                     to=admin_email,
-                    subject=f"Trial expired: {tenant.name}",
+                    subject=f"Trial ended: {tenant.name}",
                     body=(
-                        f"30 day trial expired: {tenant.name} ({tenant.slug}), "
-                        f"created {tenant.created_at}. Tenant deactivated."
+                        f"30 day trial ended: {tenant.name} ({tenant.slug}), "
+                        f"created {tenant.created_at}. Access locked pending subscription — "
+                        f"the tenant can still log in and must subscribe to continue."
                     ),
                 )
             except Exception:
@@ -529,10 +543,11 @@ async def trial_expiry_check():
                 prospect_email, prospect_full_name = admin
                 contacts, tickets = await _tenant_workspace_counts(db, tenant.id)
                 intro = (
-                    '<p style="margin:0 0 16px;">Your 30 day Yippie trial has ended and your workspace '
-                    'is now paused. Nothing is deleted: your '
-                    f'{contacts} contacts, {tickets} tickets and settings are all kept safe.</p>'
-                    '<p style="margin:0 0 16px;">Upgrade and everything is back exactly where you left it. '
+                    '<p style="margin:0 0 16px;">Your 30 day Yippie trial has ended. Nothing is deleted: '
+                    'your '
+                    f'{contacts} contacts, {tickets} tickets and settings are all kept safe. You can still '
+                    'log in — just subscribe to unlock your workspace again.</p>'
+                    '<p style="margin:0 0 16px;">Subscribe and everything is back exactly where you left it. '
                     'If Yippie was not the right fit, I would genuinely value a one line reply about why.</p>'
                 )
                 try:
@@ -550,7 +565,12 @@ async def trial_expiry_check():
 
 @scheduler.scheduled_job("interval", hours=1, id="subscription_expiry_check", max_instances=1, coalesce=True)
 async def subscription_expiry_check():
-    """Deactivate paid tenants whose subscription_ends_at has passed."""
+    """Lock paid tenants whose subscription_ends_at has passed (login stays open).
+
+    Same treatment as trial_expiry_check: the tenant stays active and loginable
+    but access_locked_at is stamped, so module APIs return 402 and the frontend
+    walls the app behind the subscribe modal until they pay again.
+    """
     if await skip_if_locked("subscription_expiry_check", ttl=3300):
         return
     import os
@@ -565,21 +585,27 @@ async def subscription_expiry_check():
             select(Tenant).where(
                 Tenant.is_demo.is_(False),
                 Tenant.is_active.is_(True),
+                # Skip already-locked tenants so the admin email fires once.
+                Tenant.access_locked_at.is_(None),
                 Tenant.subscription_ends_at.isnot(None),
                 Tenant.subscription_ends_at < now,
             )
         )
         tenants = result.scalars().all()
         for tenant in tenants:
-            tenant.is_active = False
-            log.info("Deactivated tenant %s (%s) — subscription ended %s", tenant.name, tenant.slug, tenant.subscription_ends_at)
+            tenant.access_locked_at = now
+            log.info(
+                "Access locked for tenant %s (%s) — subscription ended %s (login stays open, must resubscribe)",
+                tenant.name, tenant.slug, tenant.subscription_ends_at,
+            )
             try:
                 await send_email(
                     to=admin_email,
                     subject=f"Subscription ended: {tenant.name}",
                     body=(
                         f"Subscription ended for {tenant.name} ({tenant.slug}). "
-                        f"Tenant deactivated at {now.isoformat()}."
+                        f"Access locked at {now.isoformat()} — the tenant can still log in "
+                        f"and must resubscribe to continue."
                     ),
                 )
             except Exception:

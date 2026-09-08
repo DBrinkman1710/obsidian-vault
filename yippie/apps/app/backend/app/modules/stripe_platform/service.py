@@ -81,6 +81,11 @@ async def sync_subscription_to_tenant(
     if new_status in ("active", "trialing") and tenant.trial_ends_at is not None:
         updates["trial_ends_at"] = None
 
+    # A live subscription unlocks the workspace — clear any access lock set by the
+    # trial/subscription expiry jobs so the subscribe modal drops away.
+    if new_status in ("active", "trialing"):
+        updates["access_locked_at"] = None
+
     await db.execute(update(Tenant).where(Tenant.id == tenant.id).values(**updates))
     await db.commit()
     log.info("Synced Stripe subscription %s to tenant %s (plan=%s status=%s)", subscription.get("id"), tenant.slug, new_plan, new_status)
@@ -127,10 +132,11 @@ async def create_checkout_session(
         "subscription_data": {"metadata": {"tenant_id": str(tenant.id), "tenant_slug": tenant.slug}},
     }
 
+    # In subscription mode Stripe always creates a Customer automatically, so we
+    # only ever pass an existing one. (customer_creation is payment-mode only —
+    # passing it here 500s every first-time checkout with InvalidRequestError.)
     if tenant.stripe_customer_id:
         params["customer"] = tenant.stripe_customer_id
-    else:
-        params["customer_creation"] = "always"
 
     session = await asyncio.to_thread(stripe.checkout.Session.create, **params)
     return session["url"]

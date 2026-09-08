@@ -60,6 +60,10 @@ class TenantUpdate(BaseModel):
     # [TRIAL30] Superadmins may extend a trial. Setting go_live_at clears it
     # (manual conversion path while the Stripe webhook is not yet configured).
     trial_ends_at: Optional[datetime] = None
+    # Manual lock lever: stamping this walls the tenant behind the subscribe
+    # modal (login still works, module APIs 402). go_live_at clears it. Lets a
+    # superadmin lock a tenant for testing or hold a non paying account.
+    access_locked_at: Optional[datetime] = None
     inbound_email: Optional[str] = None
     kvk_nummer: Optional[str] = None
     btw_nummer: Optional[str] = None

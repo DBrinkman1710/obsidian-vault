@@ -100,6 +100,10 @@ class TenantConfigOut(BaseModel):
     ai_auto_scan: bool = False
     # Workspace toggle for the pipeline staleness sidebar dot (admins, Team settings).
     pipeline_nudge_enabled: bool = True
+    # True when the tenant's trial (or paid subscription) has lapsed and
+    # access_locked_at is stamped: the tenant can still log in but the frontend
+    # walls the app behind a blocking subscribe modal, and module APIs return 402.
+    subscription_required: bool = False
     # Stripe — surfaced so the frontend can show subscription status + usage bar.
     stripe_subscription_status: str | None = None
     stripe_publishable_key: str = ""

@@ -32,6 +32,10 @@ export interface TenantConfig {
   ai_auto_scan: boolean
   // Workspace toggle for the pipeline staleness sidebar dot (Team settings, admins).
   pipeline_nudge_enabled: boolean
+  // True when the trial/subscription has lapsed and the tenant is access locked:
+  // login still works but the app is walled behind the subscribe modal and
+  // module APIs return 402. Cleared on conversion.
+  subscription_required: boolean
   // Stripe SaaS billing
   stripe_subscription_status: string | null
   stripe_publishable_key: string
