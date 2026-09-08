@@ -132,10 +132,11 @@ async def create_checkout_session(
         "subscription_data": {"metadata": {"tenant_id": str(tenant.id), "tenant_slug": tenant.slug}},
     }
 
+    # In subscription mode Stripe always creates a Customer automatically, so we
+    # only ever pass an existing one. (customer_creation is payment-mode only —
+    # passing it here 500s every first-time checkout with InvalidRequestError.)
     if tenant.stripe_customer_id:
         params["customer"] = tenant.stripe_customer_id
-    else:
-        params["customer_creation"] = "always"
 
     session = await asyncio.to_thread(stripe.checkout.Session.create, **params)
     return session["url"]
