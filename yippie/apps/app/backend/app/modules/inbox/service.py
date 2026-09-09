@@ -833,6 +833,7 @@ async def queue_send(
     prerendered_html: Optional[str] = None,
     cc_emails: Optional[str] = None,
     bcc_emails: Optional[str] = None,
+    scheduled: bool = False,
     commit: bool = True,
 ) -> PendingSend:
     # Snapshot the effective from-address NOW. devsandbox and sandbox share one DB
@@ -905,11 +906,68 @@ async def queue_send(
         prerendered_html=prerendered_html,
         cc_emails=cc_emails,
         bcc_emails=bcc_emails,
+        scheduled=scheduled,
     )
     db.add(pending)
     if commit:
         await db.commit()
     return pending
+
+
+async def list_scheduled_sends(
+    db: AsyncSession, tenant_id: uuid.UUID, actor_id: Optional[uuid.UUID] = None
+) -> list[dict]:
+    """One entry per pending "send later" compose batch that hasn't gone out yet.
+    A compose batch shares one draft_id across its recipient rows, so collapse
+    them into a single summary. Scoped to the actor when given so an agent sees
+    their own scheduled mail, not the whole tenant's."""
+    now = datetime.now(timezone.utc)
+    filters = [
+        PendingSend.tenant_id == tenant_id,
+        PendingSend.scheduled.is_(True),
+        PendingSend.send_at > now,
+        PendingSend.attempts == 0,
+    ]
+    if actor_id is not None:
+        filters.append(PendingSend.actor_id == actor_id)
+    result = await db.execute(
+        select(PendingSend).where(*filters).order_by(PendingSend.send_at.asc())
+    )
+    batches: dict[uuid.UUID, dict] = {}
+    for p in result.scalars().all():
+        batch = batches.get(p.draft_id)
+        if batch is None:
+            batches[p.draft_id] = {
+                "compose_id": str(p.draft_id),
+                "subject": p.subject,
+                "send_at": p.send_at.isoformat(),
+                "from_email": p.from_email,
+                "recipients": [p.to_email],
+            }
+        else:
+            batch["recipients"].append(p.to_email)
+    return list(batches.values())
+
+
+async def cancel_scheduled_send(db: AsyncSession, compose_id: uuid.UUID, tenant_id: uuid.UUID) -> bool:
+    """Cancel a "send later" batch before it dispatches. Same guard as the undo
+    path (send_at in the future, unclaimed), scoped to scheduled rows."""
+    result = await db.execute(
+        select(PendingSend).where(
+            PendingSend.draft_id == compose_id,
+            PendingSend.tenant_id == tenant_id,
+            PendingSend.scheduled.is_(True),
+            PendingSend.send_at > datetime.now(timezone.utc),
+            PendingSend.attempts == 0,
+        )
+    )
+    rows = result.scalars().all()
+    if not rows:
+        return False
+    for row in rows:
+        await db.delete(row)
+    await db.commit()
+    return True
 
 
 async def cancel_send(db: AsyncSession, draft_id: uuid.UUID, tenant_id: uuid.UUID) -> bool:

@@ -1,7 +1,7 @@
 import DOMPurify from 'dompurify'
 import { useEffect, useRef, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
-import { X, Sparkles, Send, Users, Plus, Paperclip, Palette, Pencil, Building2, CheckSquare, Square, Wand2 } from 'lucide-react'
+import { X, Sparkles, Send, Users, Plus, Paperclip, Palette, Pencil, Building2, CheckSquare, Square, Wand2, CalendarClock } from 'lucide-react'
 import { CloseButton } from '../../../shell/CloseButton'
 import { api } from '../../../api/client'
 import { addFilesWithinLimits } from '../attachmentLimits'
@@ -34,6 +34,9 @@ export interface SendQueuedPayload {
   composeId: string
   recipientCount: number
   restoreData: ComposeInitialState
+  // Set when the send was scheduled for later — the page shows a confirmation
+  // toast instead of the undo bar.
+  scheduledAt?: string
 }
 
 function AllContactsModal({ onAdd, onClose }: { onAdd: (email: string, label: string) => void; onClose: () => void }) {
@@ -368,7 +371,7 @@ export default function ComposeModal({
   const [sendError, setSendError] = useState('')
 
   const sendMutation = useMutation({
-    mutationFn: () => {
+    mutationFn: (sendAtISO?: string) => {
       const fd = new FormData()
       fd.append('to', JSON.stringify(recipients.map(r => r.email)))
       fd.append('subject', subject)
@@ -377,6 +380,7 @@ export default function ComposeModal({
       if (campaignButtonsJson) fd.append('campaign_buttons_json', campaignButtonsJson)
       composeFiles.forEach(f => fd.append('attachments', f))
       if (fromEmail) fd.append('from_email', fromEmail)
+      if (sendAtISO) fd.append('send_at', sendAtISO)
       return api.post('/inbox/compose', fd, { headers: { 'Content-Type': undefined } }).then((r: any) => r.data)
     },
     onError: (err: any) => {
@@ -390,10 +394,25 @@ export default function ComposeModal({
         composeId: data.compose_id,
         recipientCount: data.recipients ?? 1,
         restoreData: { recipients, subject, body, fromEmail, templateHtml, campaignButtonsJson },
+        scheduledAt: data.scheduled ? data.scheduled_at : undefined,
       })
       onClose()
     },
   })
+
+  // "Send later" — a datetime-local value ('' = off) and its popover.
+  const [scheduleAt, setScheduleAt] = useState('')
+  const [showScheduleMenu, setShowScheduleMenu] = useState(false)
+  // min for the picker: one minute from now, formatted for datetime-local.
+  const scheduleMin = (() => {
+    const d = new Date(Date.now() + 60_000 - new Date().getTimezoneOffset() * 60_000)
+    return d.toISOString().slice(0, 16)
+  })()
+  const scheduleValid = !!scheduleAt && new Date(scheduleAt).getTime() > Date.now()
+  function submitScheduled() {
+    if (!scheduleValid) return
+    sendMutation.mutate(new Date(scheduleAt).toISOString())
+  }
 
   const canSend = recipients.length > 0 && !!subject.trim() && (!!body.trim() || !!templateHtml) && !sendMutation.isPending
 
@@ -423,7 +442,7 @@ export default function ComposeModal({
           if (user?.hotkeys_enabled === false) return
           if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && canSend) {
             e.preventDefault()
-            sendMutation.mutate()
+            sendMutation.mutate(undefined)
           }
         }}
       >
@@ -651,8 +670,51 @@ export default function ComposeModal({
           </div>
           <div className="flex items-center gap-3 shrink-0">
             <button onClick={onClose} className="px-4 py-2 text-sm text-slate-600 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors">{t('booking_btn_cancel')}</button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowScheduleMenu(v => !v)}
+                disabled={recipients.length === 0 || !subject.trim() || (!body.trim() && !templateHtml)}
+                title={t('inbox_compose_send_later')}
+                className="inline-flex items-center justify-center h-[38px] w-10 text-slate-500 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <CalendarClock size={15} />
+              </button>
+              {showScheduleMenu && (
+                <div className="absolute bottom-full right-0 mb-2 w-72 bg-white border border-slate-200 rounded-xl shadow-2xl p-4 z-10">
+                  <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">{t('inbox_compose_send_later')}</label>
+                  <input
+                    type="datetime-local"
+                    value={scheduleAt}
+                    min={scheduleMin}
+                    onChange={e => setScheduleAt(e.target.value)}
+                    className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-yippie/30"
+                  />
+                  <div className="flex items-center justify-end gap-2 mt-3">
+                    {scheduleAt && (
+                      <button
+                        type="button"
+                        onClick={() => setScheduleAt('')}
+                        className="px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-700"
+                      >
+                        {t('inbox_compose_schedule_clear')}
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => { submitScheduled(); setShowScheduleMenu(false) }}
+                      disabled={!canSend || !scheduleValid}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-xs font-semibold rounded-lg transition-opacity disabled:cursor-not-allowed"
+                    >
+                      <CalendarClock size={12} />
+                      {t('inbox_compose_schedule_send')}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
             <button
-              onClick={() => sendMutation.mutate()}
+              onClick={() => sendMutation.mutate(undefined)}
               disabled={!canSend}
               title="Cmd/Ctrl + Enter"
               className="inline-flex items-center justify-center gap-2 min-w-[116px] px-5 py-2 bg-yippie hover:opacity-90 disabled:opacity-50 text-white text-sm font-semibold rounded-xl transition-opacity disabled:cursor-not-allowed"
