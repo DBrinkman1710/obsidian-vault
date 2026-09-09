@@ -143,6 +143,7 @@ def require_feature(feature: str):
 
 
 async def require_active_subscription(
+    request: Request,
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> None:
@@ -157,6 +158,13 @@ async def require_active_subscription(
     tenants are exempt because they never carry a subscription lock.
     """
     if current_user.role == UserRole.superadmin:
+        return
+    # A superadmin impersonating this tenant carries the tenant admin's JWT with
+    # the imp claim. The frontend suppresses the subscribe modal while
+    # impersonating so the SA can inspect a locked tenant — the API must match, or
+    # every module route 402s and the SA is left staring at an empty shell.
+    claims = getattr(request.state, "token_claims", None) or {}
+    if claims.get("imp"):
         return
     tenant = await db.get(Tenant, current_user.tenant_id)
     if tenant is not None and tenant.access_locked_at is not None and not tenant.is_demo:

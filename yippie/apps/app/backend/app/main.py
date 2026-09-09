@@ -231,7 +231,11 @@ def create_app() -> FastAPI:
     app.include_router(
         jarvis_router,
         prefix="/api/v1",
-        dependencies=[Depends(require_module("ai")), Depends(require_feature("ai"))],
+        dependencies=[
+            Depends(require_active_subscription),
+            Depends(require_module("ai")),
+            Depends(require_feature("ai")),
+        ],
     )
 
     return app
