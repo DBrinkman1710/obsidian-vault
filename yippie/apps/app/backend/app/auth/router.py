@@ -51,7 +51,8 @@ async def _hash_password(password: str) -> str:
 
 
 _LOGIN_WINDOW = 15 * 60
-_LOGIN_LIMIT = 10
+_LOGIN_LIMIT = 10          # failed attempts per (ip, account) — the account lockout
+_LOGIN_IP_LIMIT = 50       # failed attempts per ip across all accounts — spray guard
 _RESET_WINDOW = 5 * 60
 _RESET_LIMIT = 5
 _REGISTER_WINDOW = 15 * 60
@@ -93,20 +94,30 @@ def create_access_token(user_id: str, settings, expires: Optional[timedelta] = N
 @router.post("/login", response_model=UserResponse)
 async def login(body: LoginRequest, request: Request, response: Response, db: Annotated[AsyncSession, Depends(get_db)]):
     ip = get_client_ip(request)
-    if await rl_is_blocked(f"login:{ip}", _LOGIN_LIMIT, _LOGIN_WINDOW):
+    email_norm = body.email.strip().lower()
+    # Two tier limit: the per (ip, account) key is the real lockout, so a shared
+    # office/NAT IP cannot collateral-lock a colleague's account by fat-fingering
+    # their own password. The looser per-ip key still caps one IP spraying many
+    # different accounts.
+    acct_key = f"login:{ip}:{email_norm}"
+    ip_key = f"login_ip:{ip}"
+    if await rl_is_blocked(acct_key, _LOGIN_LIMIT, _LOGIN_WINDOW) or \
+            await rl_is_blocked(ip_key, _LOGIN_IP_LIMIT, _LOGIN_WINDOW):
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS,
                             detail="Too many failed login attempts. Try again later.")
-    result = await db.execute(select(User).where(func.lower(User.email) == body.email.strip().lower()))
+    result = await db.execute(select(User).where(func.lower(User.email) == email_norm))
     user = result.scalar_one_or_none()
 
     if not user:
         await _check_password(body.password, _DUMMY_HASH)  # equalise timing — prevents user enumeration
-        await rl_hit(f"login:{ip}", _LOGIN_WINDOW)
-        log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
+        await rl_hit(acct_key, _LOGIN_WINDOW)
+        await rl_hit(ip_key, _LOGIN_WINDOW)
+        log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", email_norm, ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     if not await _check_password(body.password, user.hashed_password):
-        await rl_hit(f"login:{ip}", _LOGIN_WINDOW)
-        log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", body.email.strip().lower(), ip)
+        await rl_hit(acct_key, _LOGIN_WINDOW)
+        await rl_hit(ip_key, _LOGIN_WINDOW)
+        log.warning("AUTH_LOGIN_FAIL email=%s ip=%s", email_norm, ip)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
     if not user.is_active:
