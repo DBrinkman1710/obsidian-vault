@@ -1503,6 +1503,8 @@ export default function CalendarPage() {
   const qc = useQueryClient()
   const { openCompose } = useCompose()
   const config = useTenantConfig()
+  // Pause polling into the 402 wall while the tenant is locked.
+  const locked = !!config?.subscription_required
   const bookingEnabled = config?.enabled_modules?.includes('booking') ?? false
   const today = new Date()
   const [year, setYear] = useState(today.getFullYear())
@@ -1544,6 +1546,7 @@ export default function CalendarPage() {
     queryKey: ['calendar-invitation-count'],
     queryFn: () => api.get('/calendar/invitations/pending/count').then((r: any) => r.data),
     refetchInterval: 60_000,
+    enabled: !locked,
   })
   const pendingInvitationCount = invCountData?.count ?? 0
 

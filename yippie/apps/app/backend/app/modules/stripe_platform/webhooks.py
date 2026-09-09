@@ -5,7 +5,7 @@ import logging
 import stripe as _stripe
 from fastapi import Request, Response
 from fastapi.routing import APIRouter
-from sqlalchemy import select, update
+from sqlalchemy import select, text, update
 
 from app.config import get_settings
 from app.core.models import Tenant
@@ -47,9 +47,27 @@ async def stripe_platform_webhook(request: Request):
             return Response(status_code=400)
 
     event_type = event.get("type", "")
+    event_id = event.get("id") or ""
     data = event.get("data", {}).get("object", {})
 
     async for db in get_db():
+        # Idempotency: Stripe delivers at-least-once and retries on any 5xx, and
+        # invoice.paid is not idempotent (it resets ai_scans_used_this_period).
+        # Claim the event id first; a duplicate delivery no-ops the insert and we
+        # ack without reprocessing. On a handler failure we release the claim so
+        # Stripe's retry reprocesses the event.
+        if event_id:
+            claimed = await db.execute(
+                text(
+                    "INSERT INTO stripe_webhook_events (event_id, event_type) "
+                    "VALUES (:eid, :etype) ON CONFLICT (event_id) DO NOTHING"
+                ),
+                {"eid": event_id, "etype": event_type},
+            )
+            await db.commit()
+            if claimed.rowcount == 0:
+                log.info("Stripe webhook %s already processed — skipping", event_id)
+                return Response(status_code=200)
         try:
             if event_type == "checkout.session.completed":
                 await _handle_checkout_completed(db, data)
@@ -63,6 +81,12 @@ async def stripe_platform_webhook(request: Request):
                 await _handle_payment_failed(db, data)
         except Exception:
             log.exception("Error handling Stripe event %s", event_type)
+            if event_id:
+                await db.execute(
+                    text("DELETE FROM stripe_webhook_events WHERE event_id = :eid"),
+                    {"eid": event_id},
+                )
+                await db.commit()
             return Response(status_code=500)
 
     return Response(status_code=200)
