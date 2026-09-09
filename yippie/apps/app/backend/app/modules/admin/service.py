@@ -180,6 +180,9 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
     tenant = await db.get(Tenant, tenant_id)
     if tenant is None:
         return None
+    # Snapshot the module set before the edit so we can sync any add-on change to
+    # the tenant's live Stripe subscription after commit.
+    modules_before = list(tenant.enabled_modules or [])
     for field, value in data.model_dump(exclude_none=True).items():
         if field not in TENANT_SAFE_FIELDS:
             continue  # explicit safelist — never write unexpected fields to the Tenant model
@@ -203,6 +206,15 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
         tenant.access_locked_at = None
     await db.commit()
     await db.refresh(tenant)
+    # Bill (or stop billing) add-on modules the moment they change on a tenant
+    # with a live subscription, so enabling a module in-app can't silently give
+    # it away for free. Best effort — the helper never raises.
+    modules_after = list(tenant.enabled_modules or [])
+    added = [m for m in modules_after if m not in modules_before]
+    removed = [m for m in modules_before if m not in modules_after]
+    if added or removed:
+        from app.modules.stripe_platform import service as stripe_service
+        await stripe_service.sync_tenant_modules_to_stripe(tenant, added, removed)
     user_count = await db.scalar(select(func.count(User.id)).where(User.tenant_id == tenant.id))
     return _tenant_to_dict(tenant, user_count or 0)
 

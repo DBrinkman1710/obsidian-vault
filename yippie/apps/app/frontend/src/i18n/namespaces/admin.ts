@@ -59,6 +59,8 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
     admin_upgrade:                'Upgrade',
     admin_checkout_error:         'Could not open checkout. Please try again.',
     admin_portal_error:           'Could not open billing portal. Please try again.',
+    // Founder plan — launch offer
+    admin_plan_founder_desc:      'Launch offer: 10 seats and 50% off every add-on module.',
     // Starter plan
     admin_plan_starter_desc:      'Perfect for solo support agents or small teams.',
     // Growth plan
@@ -516,6 +518,8 @@ export const admin: { en: Record<string, string>; nl: Record<string, string> } =
     admin_upgrade:                'Upgraden',
     admin_checkout_error:         'Kon de kassa niet openen. Probeer het opnieuw.',
     admin_portal_error:           'Kon de facturatieportal niet openen. Probeer het opnieuw.',
+    // Founder plan — launch offer
+    admin_plan_founder_desc:      'Lanceeraanbod: 10 gebruikers en 50% korting op elke add-on module.',
     // Starter plan
     admin_plan_starter_desc:      'Ideaal voor individuele supportmedewerkers of kleine teams.',
     // Growth plan
