@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { api } from '../../../api/client'
 import { Clock, Settings, TrendingUp } from 'lucide-react'
 import { useAuth } from '../../../auth/useAuth'
+import { useTenantConfig } from '../../../App'
 import { SalesSettingsModal } from './SalesSettingsModal'
 import { Sparkline } from '../../../shell/Sparkline'
 import { useT } from '../../../hooks/useT'
@@ -43,6 +44,9 @@ export default function SalesPage() {
   const t = useT()
   const formatRelative = useFormatRelative()
   const { user } = useAuth()
+  const config = useTenantConfig()
+  // Pause polling into the 402 wall while the tenant is locked.
+  const locked = !!config?.subscription_required
   const isAdmin = user?.role === 'admin' || user?.role === 'superadmin'
   const [showSettings, setShowSettings] = useState(false)
   const [period, setPeriod] = useState(30)
@@ -51,12 +55,14 @@ export default function SalesPage() {
     queryKey: ['sales-summary'],
     queryFn: () => api.get('/sales/summary').then((r: any) => r.data),
     refetchInterval: 30_000,
+    enabled: !locked,
   })
 
   const { data: sparklines } = useQuery<{ pageviews: number[]; purchases: number[] }>({
     queryKey: ['sales-sparklines', period],
     queryFn: () => api.get('/sales/sparklines', { params: { days: period } }).then((r: any) => r.data),
     refetchInterval: 60_000,
+    enabled: !locked,
   })
 
   return (

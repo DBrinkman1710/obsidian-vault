@@ -213,6 +213,9 @@ export default function ChatPage() {
   const isMobile = useMobile()
   const { user } = useAuth()
   const config = useTenantConfig()
+  // Locked (lapsed) tenant: every /chat API returns 402 and the subscribe modal
+  // walls the app — pause this page's fast pollers rather than hammer the gate.
+  const locked = !!config?.subscription_required
   const isDevEnv = ['development', 'devsandbox', 'dev'].includes(config?.environment ?? '')
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [showConversation, setShowConversation] = useState(false)
@@ -271,6 +274,7 @@ export default function ChatPage() {
     queryKey: ['chat-sessions', filter],
     queryFn: () => api.get('/chat/sessions', { params: { filter } }).then((r: any) => r.data),
     refetchInterval: 10_000,
+    enabled: !locked,
   })
 
   const { data: agents = [] } = useQuery({
@@ -287,6 +291,7 @@ export default function ChatPage() {
     queryKey: ['whatsapp-status'],
     queryFn: () => api.get('/chat/whatsapp/status').then((r: any) => r.data),
     refetchInterval: 5_000,
+    enabled: !locked,
   })
 
   const isConnected = whatsappStatus?.state === 'open'
@@ -294,7 +299,7 @@ export default function ChatPage() {
   const { data: qrData, isLoading: qrLoading, isError: qrError } = useQuery({
     queryKey: ['whatsapp-qr'],
     queryFn: () => api.get('/chat/whatsapp/qr').then((r: any) => r.data),
-    enabled: !isConnected,
+    enabled: !isConnected && !locked,
     refetchInterval: isConnected ? false : 15_000,
   })
 
@@ -317,7 +322,7 @@ export default function ChatPage() {
   const { data: messages = [], isLoading: msgsLoading } = useQuery({
     queryKey: ['chat-messages', selectedId],
     queryFn: () => api.get(`/chat/sessions/${selectedId}/messages`).then((r: any) => r.data),
-    enabled: !!selectedId,
+    enabled: !!selectedId && !locked,
     refetchInterval: 5_000,
   })
 

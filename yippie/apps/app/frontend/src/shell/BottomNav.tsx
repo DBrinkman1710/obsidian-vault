@@ -36,6 +36,8 @@ function resolveOrder(savedOrder: string[] | null | undefined, enabledMods: stri
 
 export function BottomNav() {
   const config = useTenantConfig()
+  // Stop the mobile nav counters polling into the 402 wall while locked.
+  const locked = !!config?.subscription_required
   const { user } = useAuth()
   const t = useT()
 
@@ -43,14 +45,14 @@ export function BottomNav() {
     queryKey: ['drafts', 'count'],
     queryFn: () => api.get('/inbox/drafts/count').then((r: any) => r.data),
     refetchInterval: 60_000,
-    enabled: !!config,
+    enabled: !!config && !locked,
   })
 
   const { data: deadlineData } = useQuery({
     queryKey: ['tickets', 'deadline-count'],
     queryFn: () => api.get('/tickets/deadline-count').then((r: any) => r.data),
     refetchInterval: 60_000,
-    enabled: !!config,
+    enabled: !!config && !locked,
   })
 
   if (!config) return null

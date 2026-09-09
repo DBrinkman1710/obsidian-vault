@@ -85,6 +85,10 @@ function SortableModItem({ id, children }: { id: string; children: React.ReactNo
 
 export function Sidebar() {
   const config = useTenantConfig()
+  // A locked (lapsed) tenant is walled behind the subscribe modal and every
+  // module API returns 402 — stop the sidebar counters from polling into that
+  // wall every 60s.
+  const locked = !!config?.subscription_required
   const { user, logout, refreshUser } = useAuth()
   const navigate = useNavigate()
   const t = useT()
@@ -171,28 +175,28 @@ export function Sidebar() {
     queryKey: ['drafts', 'count'],
     queryFn: () => api.get('/inbox/drafts/count').then((r: any) => r.data),
     refetchInterval: 60_000,
-    enabled: !!config,
+    enabled: !!config && !locked,
   })
 
   const { data: deadlineData } = useQuery({
     queryKey: ['tickets', 'deadline-count'],
     queryFn: () => api.get('/tickets/deadline-count').then((r: any) => r.data),
     refetchInterval: 60_000,
-    enabled: !!config,
+    enabled: !!config && !locked,
   })
 
   const { data: chatCountData } = useQuery({
     queryKey: ['chat-open-count'],
     queryFn: () => api.get('/chat/sessions/count').then((r: any) => r.data),
     refetchInterval: 60_000,
-    enabled: !!config && (config.enabled_modules ?? []).includes('chat'),
+    enabled: !!config && !locked && (config.enabled_modules ?? []).includes('chat'),
   })
 
   const { data: calInvData } = useQuery({
     queryKey: ['calendar-invitation-count'],
     queryFn: () => api.get('/calendar/invitations/pending/count').then((r: any) => r.data),
     refetchInterval: 60_000,
-    enabled: !!config && (config.enabled_modules ?? []).includes('calendar'),
+    enabled: !!config && !locked && (config.enabled_modules ?? []).includes('calendar'),
   })
   const calInvCount: number = calInvData?.count ?? 0
   const calInvBadge = calInvCount === 0 ? null : calInvCount > 9 ? '9+' : String(calInvCount)
