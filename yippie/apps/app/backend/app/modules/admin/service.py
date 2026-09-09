@@ -187,6 +187,12 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
         if field == "plan" and isinstance(value, PlanTier):
             value = value.value
         setattr(tenant, field, value)
+    # Explicit unlock: model_dump(exclude_none=True) above drops a null value, so
+    # a superadmin could set access_locked_at but never clear it through the field
+    # loop. Honour an explicitly-provided value (including null to unlock) without
+    # forcing a fake conversion via go_live_at.
+    if "access_locked_at" in data.model_fields_set:
+        tenant.access_locked_at = data.access_locked_at
     # [TRIAL30] Marking a tenant live is the manual conversion path while the
     # Stripe webhook is not yet configured — it also ends the free trial.
     # (TenantUpdate uses exclude_none, so trial_ends_at can't be nulled directly.)

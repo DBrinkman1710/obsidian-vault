@@ -315,6 +315,10 @@ export default function InboxQueue() {
   const defaultSigBody = pickDefaultSignature(signatures)?.body ?? null
   const aiEnabled = config?.enabled_modules?.includes('ai') ?? true
   const marketingEnabled = config?.enabled_modules?.includes('marketing') ?? true
+  // When the trial/subscription has lapsed the SubscriptionRequiredModal walls
+  // the app and every module API returns 402. Stop this page's pollers so a
+  // locked tenant sitting on the modal doesn't re-hit the gate every 15s.
+  const locked = !!config?.subscription_required
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
@@ -353,6 +357,7 @@ export default function InboxQueue() {
     staleTime: 15 * 60_000,
     refetchInterval: 15 * 60_000,
     refetchIntervalInBackground: false,
+    enabled: !locked,
   })
 
   // Linked Gmail/Outlook accounts (EML1) — a personal linked mailbox counts as
@@ -372,6 +377,7 @@ export default function InboxQueue() {
     }).then((r: any) => r.data),
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
+    enabled: !locked,
   })
 
   useEffect(() => {
@@ -446,7 +452,7 @@ export default function InboxQueue() {
   const { data: outboundEmails, isLoading: outboundLoading } = useQuery({
     queryKey: ['outbound-emails', searchParam],
     queryFn: () => api.get('/emailtracking/outbound', { params: { limit: 200, q: searchParam } }).then((r: any) => r.data as any[]),
-    enabled: activeTab === 'sent',
+    enabled: activeTab === 'sent' && !locked,
     refetchInterval: 30_000,
     refetchIntervalInBackground: false,
   })
@@ -464,7 +470,7 @@ export default function InboxQueue() {
     queryFn: () => api.get('/inbox/drafts', { params: draftParams('pending') }).then((r: any) => r.data),
     refetchInterval: 15_000,
     refetchIntervalInBackground: false,
-    enabled: activeTab === 'pending',
+    enabled: activeTab === 'pending' && !locked,
   })
 
   const { data: approvedDrafts } = useQuery({

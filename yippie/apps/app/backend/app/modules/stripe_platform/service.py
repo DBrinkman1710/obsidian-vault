@@ -82,9 +82,13 @@ async def sync_subscription_to_tenant(
         updates["trial_ends_at"] = None
 
     # A live subscription unlocks the workspace — clear any access lock set by the
-    # trial/subscription expiry jobs so the subscribe modal drops away.
+    # trial/subscription expiry jobs so the subscribe modal drops away. Also clear
+    # subscription_ends_at: it is only ever set on cancellation and never cleared
+    # elsewhere, so leaving a past value here would make the hourly
+    # subscription_expiry_check re-lock this now-paying tenant within the hour.
     if new_status in ("active", "trialing"):
         updates["access_locked_at"] = None
+        updates["subscription_ends_at"] = None
 
     await db.execute(update(Tenant).where(Tenant.id == tenant.id).values(**updates))
     await db.commit()

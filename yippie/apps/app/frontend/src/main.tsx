@@ -29,7 +29,21 @@ if (sentryEnv) {
 }
 
 export const queryClient = new QueryClient({
-  defaultOptions: { queries: { staleTime: 30_000 } },
+  defaultOptions: {
+    queries: {
+      staleTime: 30_000,
+      // Auth/gate responses are deterministic — retrying them just multiplies
+      // load. A locked tenant (402), a disabled module (403) or an expired
+      // session (401) will never succeed on retry, so retrying 3× with backoff
+      // across every module page + poller is what made modules "load slowly on
+      // a loop". Retry only genuinely transient failures.
+      retry: (failureCount, error: any) => {
+        const status = error?.response?.status
+        if (status === 401 || status === 402 || status === 403) return false
+        return failureCount < 3
+      },
+    },
+  },
 })
 
 function ErrorFallback() {

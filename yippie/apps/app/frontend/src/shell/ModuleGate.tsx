@@ -75,7 +75,11 @@ export function ModuleGate({ module, children }: Props) {
   const level = permissions[module] ?? 'full'
 
   if (level === 'restricted') {
-    return <Navigate to="/" replace />
+    // "/" resolves to "/inbox". If inbox itself is the restricted module,
+    // redirecting to "/" bounces straight back here → an infinite navigation
+    // loop. Send a user who is restricted from the home module to a route that
+    // is never module-gated instead.
+    return <Navigate to={module === 'inbox' ? '/settings/profile' : '/'} replace />
   }
 
   if (level === 'view') {
