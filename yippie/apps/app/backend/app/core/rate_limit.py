@@ -17,22 +17,37 @@ if TYPE_CHECKING:
 def get_client_ip(request: "Request") -> str:
     """Return the real client IP.
 
-    Proxy chain: Client → Railway edge → nginx → FastAPI.
-    nginx appends $remote_addr (the Railway internal IP) via $proxy_add_x_forwarded_for,
-    so the XFF list arriving at FastAPI is: [client_ip, railway_edge_ip].
-    The second-to-last entry is the actual visitor; the last is Railway's own IP and
-    cannot be used to key rate limiters (all visitors would share one bucket).
-    With a single entry (local dev, no Railway in front) the single entry is used.
-    cf-connecting-ip and x-real-ip are deliberately NOT consulted: any client can
-    set those headers and mint fresh rate-limit buckets per request.
+    All public traffic is fronted by Cloudflare (verified 2026-09-09 via the live
+    `server: cloudflare` / `x-railway-edge` response headers). Cloudflare sets
+    CF-Connecting-IP to the real client address and *overwrites* any value the
+    client tries to supply, so it is the authoritative source. nginx forwards it
+    verbatim to the app (frontend/nginx.conf: `proxy_set_header CF-Connecting-IP`),
+    so we read it directly.
+
+    Why NOT positional X-Forwarded-For parsing: the real proxy chain is
+        Client → Cloudflare → Railway edge (Envoy) → nginx → uvicorn
+    (three appending hops, not the two an earlier version assumed). Taking the
+    second-to-last XFF entry therefore returned Cloudflare's POP egress IP, not the
+    visitor — collapsing every client behind a given POP into one rate-limit bucket.
+    Empirically confirmed on sandbox: real client 176.176.21.171 was keyed as
+    79.127.178.82 (a Cloudflare Paris egress). XFF is kept only as a fallback for
+    non-Cloudflare request paths (local dev / any future direct-origin access).
+
+    Note: CF-Connecting-IP is only trustworthy while the Railway origin cannot be
+    reached directly (bypassing Cloudflare). The app service currently exposes no
+    public *.up.railway.app domain; if that changes, enforce Cloudflare-only origin
+    access (Authenticated Origin Pulls or a shared secret header at nginx).
     """
+    cf = request.headers.get("cf-connecting-ip", "").strip()
+    if cf:
+        return cf
     xff = request.headers.get("x-forwarded-for", "")
     if xff:
         parts = [p.strip() for p in xff.split(",") if p.strip()]
-        # Two trusted hops (Railway + nginx): real client is second-to-last.
-        client_ip = parts[-2] if len(parts) >= 2 else parts[-1]
-        if client_ip:
-            return client_ip
+        # No Cloudflare in front (local dev / single reverse proxy): the left-most
+        # entry is the originating client.
+        if parts:
+            return parts[0]
     return (request.client.host if request.client else None) or "unknown"
 
 _client = None

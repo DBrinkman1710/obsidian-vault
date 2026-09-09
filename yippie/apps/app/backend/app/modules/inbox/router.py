@@ -52,6 +52,33 @@ async def _flush_after(delay_seconds: float) -> None:
 MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024        # 10 MB per file
 MAX_ATTACHMENTS_TOTAL_BYTES = 25 * 1024 * 1024  # 25 MB per message
 
+# "Send later" horizon: far enough for realistic scheduling, bounded so a typo
+# can't park mail in the queue table indefinitely.
+MAX_SCHEDULE_HORIZON = timedelta(days=90)
+# Reject times that are already here (or good as immediate) — those should go
+# through the normal undo-window path, not the scheduled path.
+MIN_SCHEDULE_LEAD = timedelta(minutes=1)
+
+
+def _parse_schedule_at(raw: Optional[str]) -> Optional[datetime]:
+    """Parse an ISO 8601 'send later' time from the composer. Returns None when
+    no scheduling was requested; raises 400 on a malformed or out of range time."""
+    if raw is None or not raw.strip():
+        return None
+    value = raw.strip()
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid send_at time")
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    now = datetime.now(timezone.utc)
+    if parsed < now + MIN_SCHEDULE_LEAD:
+        raise HTTPException(status_code=400, detail="Scheduled time must be at least a minute in the future")
+    if parsed > now + MAX_SCHEDULE_HORIZON:
+        raise HTTPException(status_code=400, detail="Scheduled time is too far in the future (max 90 days)")
+    return parsed
+
 
 def _tenant_from_domains(tenant: Optional[Tenant]) -> set[str]:
     """Sender domains this tenant is allowed to send from."""
@@ -687,9 +714,14 @@ async def compose_send(
     template_id: Optional[str] = Form(None),
     campaign_buttons_json: Optional[str] = Form(None),
     html_body: Optional[str] = Form(None),
+    send_at: Optional[str] = Form(None),
 ):
     """Queue a new outbound email to one or more recipients (sent individually,
-    BCC-style) after a 5s undo window. Supports optional file attachments."""
+    BCC-style) after a 5s undo window. Supports optional file attachments.
+
+    When send_at is an ISO time in the future the email is scheduled for then
+    ("send later") instead of going out after the undo window."""
+    scheduled_at = _parse_schedule_at(send_at)
     user_aliases = list(current_user.send_from_aliases or [])
     if current_user.reply_from_email and current_user.reply_from_email not in user_aliases:
         user_aliases.append(current_user.reply_from_email)
@@ -717,8 +749,14 @@ async def compose_send(
     # (POST /drafts/{compose_id}/undo-send) cancels the whole batch. Same 8s
     # server hold vs 5s UI countdown margin as send-reply.
     compose_id = uuid.uuid4()
-    send_at = datetime.now(timezone.utc) + timedelta(seconds=8)
-    asyncio.create_task(_flush_after((send_at - datetime.now(timezone.utc)).total_seconds() + 0.5))
+    if scheduled_at is not None:
+        # "Send later": park the rows at the chosen time. The background
+        # flush_pending_sends job (every 5s prod / 30s sandbox) dispatches them
+        # once send_at passes — no one-shot task needed.
+        queue_at = scheduled_at
+    else:
+        queue_at = datetime.now(timezone.utc) + timedelta(seconds=8)
+        asyncio.create_task(_flush_after((queue_at - datetime.now(timezone.utc)).total_seconds() + 0.5))
     for recipient in recipients:
         # Phase 9C: tracked campaign buttons need a contact to apply the label
         # to, so resolve each recipient to a contact by email (best effort).
@@ -734,7 +772,7 @@ async def compose_send(
             to_email=recipient,
             subject=subject,
             reply_text=body,
-            send_at=send_at,
+            send_at=queue_at,
             actor_id=current_user.id,
             contact_id=recipient_contact_id,
             attachments_json=attachments_json,
@@ -743,16 +781,39 @@ async def compose_send(
             kind="compose",
             campaign_buttons_json=campaign_buttons_json or None,
             prerendered_html=html_body or None,
+            scheduled=scheduled_at is not None,
             commit=False,
         )
     await db.commit()
+    if scheduled_at is not None:
+        return {
+            "queued": True,
+            "scheduled": True,
+            "compose_id": str(compose_id),
+            "recipients": len(recipients),
+            "scheduled_at": scheduled_at.isoformat(),
+        }
     return {
         "queued": True,
         "compose_id": str(compose_id),
         "recipients": len(recipients),
-        "undo_until": send_at.isoformat(),
+        "undo_until": queue_at.isoformat(),
         "undo_seconds": 5,
     }
+
+
+@router.get("/scheduled")
+async def list_scheduled(current_user: CurrentUser, db: DB):
+    """List this user's pending 'send later' compose batches."""
+    return await service.list_scheduled_sends(db, current_user.tenant_id, current_user.id)
+
+
+@router.delete("/scheduled/{compose_id}")
+async def cancel_scheduled(compose_id: uuid.UUID, current_user: CurrentUser, db: DB):
+    cancelled = await service.cancel_scheduled_send(db, compose_id, current_user.tenant_id)
+    if not cancelled:
+        raise HTTPException(status_code=409, detail="Already sent or not found")
+    return {"cancelled": True}
 
 
 @router.post("/compose/suggest", status_code=status.HTTP_200_OK, dependencies=[Depends(require_module("ai"))])

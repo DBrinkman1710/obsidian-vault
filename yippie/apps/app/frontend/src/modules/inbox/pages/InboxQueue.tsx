@@ -1,16 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Mail, MessageSquare, ArrowRight, X, Trash2, AlertOctagon, CheckSquare, ChevronLeft, ChevronRight, Building2, Users, Pencil, Send, Sparkles, Search, ChevronDown, Check, XCircle, UserPlus, User } from 'lucide-react'
+import { Mail, MessageSquare, ArrowRight, X, Trash2, AlertOctagon, CheckSquare, ChevronLeft, ChevronRight, Building2, Users, Pencil, Send, Sparkles, Search, ChevronDown, Check, XCircle, UserPlus, User, CalendarClock } from 'lucide-react'
 import { toast } from 'sonner'
 import { api } from '../../../api/client'
 import { closureAlreadyShown, getDailyActions, markClosureShown, recordDailyActions, resetClosureShown } from '../../../lib/dailyStats'
+import { fmtDateTime } from '../../../lib/format'
 import { Checkbox, BulkBar } from '../../../components/Selection'
 import { useContextMenu, ContextMenu } from '../../../components/ContextMenu'
 import { useTenantConfig } from '../../../App'
 import { useAuth } from '../../../auth/useAuth'
 import { CardListSkeleton } from '../../../shell/Skeleton'
 import ComposeModal, { type ComposeInitialState, type SendQueuedPayload } from '../components/ComposeModal'
+import ScheduledSendsModal, { type ScheduledSend } from '../components/ScheduledSendsModal'
 import { TemplatePicker, htmlToText } from '../components/TemplatePicker'
 import { useSignatures, pickDefaultSignature } from '../../../hooks/useSignatures'
 import { useT } from '../../../hooks/useT'
@@ -289,6 +291,7 @@ export default function InboxQueue() {
   const deptDropdownRef = useRef<HTMLDivElement>(null)
   const [processedFilter, setProcessedFilter] = useState<ProcessedFilter>('all')
   const [showCompose, setShowCompose] = useState(false)
+  const [showScheduled, setShowScheduled] = useState(false)
   const [composeInitial, setComposeInitial] = useState<ComposeInitialState | null>(null)
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const ctx = useContextMenu()
@@ -319,6 +322,14 @@ export default function InboxQueue() {
   // the app and every module API returns 402. Stop this page's pollers so a
   // locked tenant sitting on the modal doesn't re-hit the gate every 15s.
   const locked = !!config?.subscription_required
+
+  // Pending "send later" batches — powers the Scheduled button count and modal.
+  const { data: scheduledList = [] } = useQuery<ScheduledSend[]>({
+    queryKey: ['inbox-scheduled'],
+    queryFn: () => api.get<ScheduledSend[]>('/inbox/scheduled').then((r: any) => r.data),
+    enabled: !locked,
+  })
+  const scheduledCount = scheduledList.length
 
   useEffect(() => () => { if (undoIntervalRef.current) clearInterval(undoIntervalRef.current) }, [])
 
@@ -394,6 +405,12 @@ export default function InboxQueue() {
   }, [user?.hotkeys_enabled, showCompose])
 
   const handleSendQueued = useCallback((payload: SendQueuedPayload) => {
+    // "Send later": no undo bar — confirm and refresh the Scheduled list.
+    if (payload.scheduledAt) {
+      toast.success(t('inbox_scheduled_toast').replace('{when}', fmtDateTime(payload.scheduledAt)))
+      qc.invalidateQueries({ queryKey: ['inbox-scheduled'] })
+      return
+    }
     setPendingCompose({ composeId: payload.composeId, recipientCount: payload.recipientCount, restoreData: payload.restoreData })
     setUndoProgress(0)
     const start = Date.now()
@@ -409,7 +426,7 @@ export default function InboxQueue() {
         qc.invalidateQueries({ queryKey: ['drafts'] })
       }
     }, 100)
-  }, [qc])
+  }, [qc, t])
 
   async function handleUndoCompose() {
     if (!pendingCompose) return
@@ -783,6 +800,17 @@ export default function InboxQueue() {
             >
               <Pencil size={14} />
               {t('inbox_compose')}
+            </button>
+            <button
+              onClick={() => setShowScheduled(true)}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg transition-colors"
+              title={t('inbox_scheduled_title')}
+            >
+              <CalendarClock size={14} />
+              {t('inbox_scheduled')}
+              {scheduledCount > 0 && (
+                <span className="min-w-5 px-1.5 py-0.5 bg-blue-100 text-blue-700 text-xs font-bold rounded-full">{scheduledCount}</span>
+              )}
             </button>
             {marketingEnabled && (
               <TemplatePicker
@@ -1290,6 +1318,8 @@ export default function InboxQueue() {
           initialState={composeInitial}
         />
       )}
+
+      {showScheduled && <ScheduledSendsModal onClose={() => setShowScheduled(false)} />}
 
       {showAssignModal && (
         <AssignModal
