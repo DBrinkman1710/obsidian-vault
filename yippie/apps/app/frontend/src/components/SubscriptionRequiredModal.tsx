@@ -15,9 +15,10 @@ import { useTenantConfig } from '../App'
  * bypassed by poking the UI underneath. The only escape without paying is Log
  * out. */
 
+// Prices mirror packages/config/modules.json (what Stripe actually charges).
 const PLAN_OPTIONS = [
-  { id: 'starter', label: 'Starter', price: 19, descKey: 'admin_plan_starter_desc' },
-  { id: 'growth', label: 'Growth', price: 49, descKey: 'admin_plan_growth_desc', popular: true },
+  { id: 'founder', label: 'Founder', price: 9, descKey: 'admin_plan_founder_desc', popular: true },
+  { id: 'growth', label: 'Growth', price: 39, descKey: 'admin_plan_growth_desc' },
   { id: 'enterprise', label: 'Enterprise', price: null as number | null, descKey: 'admin_plan_enterprise_desc' },
 ]
 
@@ -35,10 +36,16 @@ export default function SubscriptionRequiredModal() {
     }
     setLoading(planId)
     try {
+      // Carry the tenant's enabled add-on modules into checkout so a locked
+      // tenant that resubscribes is billed for the modules it actually uses
+      // (the backend validates + prices each; core modules are ignored).
+      const billableModules = (config?.enabled_modules || []).filter(
+        m => !['inbox', 'contacts', 'activity'].includes(m),
+      )
       const { data } = await api.post<{ checkout_url: string }>('/stripe/checkout', {
         plan: planId,
         interval,
-        modules: [],
+        modules: billableModules,
       })
       window.location.href = data.checkout_url
     } catch {

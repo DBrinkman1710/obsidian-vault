@@ -34,6 +34,24 @@ from app.core._modules_gen import MODULE_STRIPE_KEYS as MODULE_LOOKUP_KEYS  # no
 # Core modules always included regardless of add-on subscriptions.
 CORE_MODULES = ["inbox", "contacts", "activity"]
 
+# Stripe coupon (provisioned by ~/Claude Code/create_stripe_catalog.py) that
+# gives the Founder launch plan its 50% off add-on modules. It is scoped to the
+# module products only (applies_to.products), so attaching it to a subscription
+# never discounts the base plan — only the module line items. Mirrors
+# module_discount on PlanTier.founder in app/core/plans.py.
+FOUNDER_MODULE_COUPON = "yippie_founder_modules_50"
+
+
+def _module_lookup_key(module_id: str) -> str:
+    return f"yippie_module_{module_id}"
+
+
+def _paid_modules(modules: list[str]) -> list[str]:
+    """Add-on (billable) modules — everything that isn't a free core module and
+    has a Stripe price lookup_key defined."""
+    valid = set(MODULE_LOOKUP_KEYS.values())
+    return [m for m in modules if m not in CORE_MODULES and m in valid]
+
 
 def _stripe_configured() -> bool:
     return bool(get_settings().stripe_secret_key)
@@ -136,6 +154,11 @@ async def create_checkout_session(
         "subscription_data": {"metadata": {"tenant_id": str(tenant.id), "tenant_slug": tenant.slug}},
     }
 
+    # Founder plan perk: 50% off add-on modules, applied via a product-scoped
+    # coupon so only the module line items are discounted, never the base plan.
+    if plan == PlanTier.founder.value:
+        params["discounts"] = [{"coupon": FOUNDER_MODULE_COUPON}]
+
     # In subscription mode Stripe always creates a Customer automatically, so we
     # only ever pass an existing one. (customer_creation is payment-mode only —
     # passing it here 500s every first-time checkout with InvalidRequestError.)
@@ -144,6 +167,74 @@ async def create_checkout_session(
 
     session = await asyncio.to_thread(stripe.checkout.Session.create, **params)
     return session["url"]
+
+
+async def sync_tenant_modules_to_stripe(
+    tenant: Tenant, added: list[str], removed: list[str]
+) -> None:
+    """Add/remove Stripe subscription items so a tenant's live subscription bills
+    exactly the paid modules it has enabled.
+
+    Best effort: a tenant without a live subscription (still on trial, or never
+    subscribed) has nothing to sync — the modules will be billed at their next
+    checkout instead. Founder discounting is automatic: the founder coupon is
+    subscription scoped to module products, so any module item added here is
+    discounted without extra work. Never raises — a Stripe hiccup must not block
+    the tenant edit that triggered it; the webhook re-sync is the backstop.
+    """
+    if not _stripe_configured():
+        return
+    if not tenant.stripe_subscription_id:
+        return
+    if tenant.stripe_subscription_status not in ("active", "trialing", "past_due"):
+        return
+
+    add = _paid_modules(added)
+    drop = _paid_modules(removed)
+    if not add and not drop:
+        return
+
+    import stripe
+    settings = get_settings()
+    stripe.api_key = settings.stripe_secret_key
+
+    try:
+        sub = await asyncio.to_thread(
+            stripe.Subscription.retrieve,
+            tenant.stripe_subscription_id,
+            expand=["items.data.price"],
+        )
+        by_lookup: dict[str, str] = {}
+        for it in sub.get("items", {}).get("data", []):
+            lk = (it.get("price") or {}).get("lookup_key")
+            if lk:
+                by_lookup[lk] = it["id"]
+
+        for module_id in add:
+            lk = _module_lookup_key(module_id)
+            if lk in by_lookup:
+                continue  # already billed
+            prices = await asyncio.to_thread(
+                stripe.Price.list, lookup_keys=[lk], active=True, limit=1
+            )
+            if not prices["data"]:
+                log.warning("No Stripe price for module '%s' (%s) — not billed", module_id, lk)
+                continue
+            await asyncio.to_thread(
+                stripe.SubscriptionItem.create,
+                subscription=tenant.stripe_subscription_id,
+                price=prices["data"][0]["id"],
+                quantity=1,
+            )
+            log.info("Added Stripe subscription item for module '%s' on tenant %s", module_id, tenant.slug)
+
+        for module_id in drop:
+            item_id = by_lookup.get(_module_lookup_key(module_id))
+            if item_id:
+                await asyncio.to_thread(stripe.SubscriptionItem.delete, item_id)
+                log.info("Removed Stripe subscription item for module '%s' on tenant %s", module_id, tenant.slug)
+    except Exception:
+        log.exception("Failed to sync modules to Stripe for tenant %s", tenant.slug)
 
 
 async def create_portal_session(tenant: Tenant, return_url: str) -> str:

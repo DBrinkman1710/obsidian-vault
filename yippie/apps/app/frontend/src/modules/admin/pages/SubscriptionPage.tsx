@@ -14,21 +14,23 @@ const PLAN_LABELS: Record<string, string> = {
   enterprise: 'Enterprise',
 }
 
+// Prices/limits mirror packages/config/modules.json (the source Stripe is billed
+// from) — keep them in sync or the card shows a price different from the charge.
 const PLAN_CARDS = [
   {
-    id: 'starter',
-    label: 'Starter',
-    price: 19,
-    users: 3,
-    ai_scans: '2,000',
-    descKey: 'admin_plan_starter_desc',
+    id: 'founder',
+    label: 'Founder',
+    price: 9,
+    users: 10,
+    ai_scans: '500',
+    descKey: 'admin_plan_founder_desc',
   },
   {
     id: 'growth',
     label: 'Growth',
-    price: 49,
+    price: 39,
     users: 10,
-    ai_scans: '10,000',
+    ai_scans: '5,000',
     descKey: 'admin_plan_growth_desc',
   },
   {
@@ -72,6 +74,10 @@ export default function SubscriptionPage() {
   const usagePct = aiLimit ? Math.min(100, Math.round((ai_scans_used_this_period / aiLimit) * 100)) : 0
 
   const paidModules = (enabled_modules || []).filter(m => m in MODULE_LABELS && !['inbox', 'contacts', 'activity'].includes(m))
+  // Every enabled non-core module is billable — the backend validates each
+  // against its Stripe price, so pass the full set (not just the ones with a
+  // display label) or the tenant gets those add-ons for free.
+  const billableModules = (enabled_modules || []).filter(m => !['inbox', 'contacts', 'activity'].includes(m))
 
   async function handleCheckout(planId: string) {
     if (planId === 'enterprise') {
@@ -83,7 +89,7 @@ export default function SubscriptionPage() {
       const { data } = await api.post<{ checkout_url: string }>('/stripe/checkout', {
         plan: planId,
         interval,
-        modules: [],
+        modules: billableModules,
       })
       window.location.href = data.checkout_url
     } catch {
