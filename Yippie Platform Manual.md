@@ -1,6 +1,6 @@
 # Yippie Platform — Complete Product Manual
 
-> Last updated: July 2026. Reflects what is built and deployed on sandbox.
+> Last updated: September 2026 (full code audit). Reflects what is built and deployed on sandbox and production.
 
 ---
 
@@ -35,6 +35,9 @@
 27. [Security & Access Control](#27-security--access-control)
 28. [Module: AI Assistant (Jarvis)](#28-module-ai-assistant-jarvis)
 29. [Onboarding & Setup](#29-onboarding--setup)
+30. [Module: Flows (Automation Builder)](#30-module-flows-automation-builder)
+31. [Module: Contracts (Documents & E-Signing)](#31-module-contracts-documents--e-signing)
+32. [Chrome Extension (Inbox Analyser)](#32-chrome-extension-inbox-analyser)
 
 ---
 
@@ -63,26 +66,51 @@ Both deploy to Railway. The platform app runs on `sandbox.getyippie.com` (stagin
 
 Every feature in Yippie is packaged as a **module**. All modules are always compiled into the codebase, but each tenant (workspace) has its own set of enabled modules stored in the database. Modules not in a tenant's list are invisible — the sidebar items don't appear and API calls return 403.
 
-The full module list is: `inbox`, `contacts`, `tickets`, `calendar`, `pipeline`, `booking`, `activity`, `billing`, `chat`, `departments`, `marketing`, `tracking`, `sales`, `saas`.
+The full module list is: `inbox`, `contacts`, `activity`, `flows` (always-on core modules), plus the add-on modules `tickets`, `calendar`, `pipeline`, `booking`, `billing`, `contracts`, `chat`, `departments`, `marketing`, `tracking`, `sales`, `saas`, and `ai` (AI Inbox).
+
+Four modules are **core** and always enabled for every tenant: Inbox, Contacts, Activity, and Flows. Everything else is a paid add-on that a superadmin (or the tenant via Stripe checkout) enables per workspace.
 
 Superadmins can enable or disable modules per tenant at any time from the Superadmin panel — no code change or restart required.
 
 ### Plans
 
-| Plan | Price | Seats | AI Scans/month |
-|---|---|---|---|
-| **Founder** | €9/mo | 10 | 500 |
-| **Starter** | €19/mo | 3 | 2,000 |
-| **Growth** | €39/mo | 5 | 5,000 |
-| **Pro** | €69/mo | 10 | 10,000 |
-| **Enterprise** | Custom | Custom | Custom |
+| Plan | Monthly | Annual | Seats | AI scans/mo | Flows | Module discount |
+|---|---|---|---|---|---|---|
+| **Founder** | €9 | €97 | 10 | 500 | 10 | **50% off add-on modules** |
+| **Starter** | €19 | €205 | 3 | 2,000 | 3 | — |
+| **Growth** | €39 | €421 | 10 | 5,000 | 10 | — |
+| **Pro** | €69 | €745 | 25 | 10,000 | 25 | — |
+| **Enterprise** | Custom | Custom | Unlimited | Unlimited | Unlimited | — |
 
-All plans include unlimited contacts. AI scans are the inbox AI draft generations.
+All plans include unlimited contacts. "AI scans" are the inbox AI draft generations (they require the AI Inbox add-on). "Flows" is the cap on active custom automations. Founder gets a permanent 50% discount on every add-on module.
+
+Source of truth for all plan and module pricing is `packages/config/modules.json` — edit it and run `pnpm sync:config`.
+
+### Add-On Module Pricing
+
+Core modules (Inbox, Contacts, Activity, Flows) are always included. The add-on modules are priced per workspace per month:
+
+| Module | Price/mo | Notes |
+|---|---|---|
+| Calendar | €7 | Includes Booking (bundled free) |
+| Pipeline | €7 | — |
+| Billing | €7 | — |
+| Departments | €7 | — |
+| Tickets | €9 | — |
+| Contracts | €9 | — |
+| Live Chat | €9 | Web widget + WhatsApp |
+| Marketing | €9 | — |
+| Shipment Tracking | €9 | — |
+| AI Inbox | €15 | Unlocks all inbox/ticket AI features |
+| Sales | €20 | — |
+| SaaS Analytics | €20 | — |
+
+Booking has no separate price — enabling **Calendar** includes it.
 
 ### Deployment
 
 - **Sandbox** (`sandbox.getyippie.com`): staging environment; deploys from the `sandbox` git branch
-- **Production** (`app.getyippie.com`): live environment for real clients; deploys from the `live` git branch
+- **Production** (`app.getyippie.com`): live environment for real clients; deploys from the `production` git branch
 - The two environments have completely isolated databases — data never crosses between them
 
 ---
@@ -131,7 +159,9 @@ The Inbox is the nerve center of Yippie. Every inbound customer message — whet
 
 ### What It Does
 
-Inbound messages are scanned by AI (Claude Haiku), which reads the message and suggests a ticket subject, priority level, and description. Agents review the AI draft, edit if needed, and approve with one click. Approved drafts become structured tickets. This eliminates manual ticket write-up entirely.
+Every inbound message is turned into a **draft ticket** the moment it arrives (subject + first lines), so intake never waits on AI. If the workspace has the **AI Inbox** add-on enabled *and* auto-scan turned on, a background job then enriches the draft — reading the message and suggesting a refined subject, priority, description, category, and a short customer briefing. Agents review the draft, edit if needed, and approve with one click. Approved drafts become structured tickets. This eliminates manual ticket write-up entirely.
+
+> **AI note.** The AI features here (auto-scan, Suggest/Improve reply, briefings) are part of the paid **AI Inbox** module (€15/mo) and are hidden when it is disabled. Auto-scan is also **off by default** — until it is switched on, drafts arrive un-scanned and an agent clicks **Generate** to run the AI on demand. The AI provider is **Mistral Small** (EU-hosted, GDPR-safe) by default; Anthropic Claude is an optional fallback.
 
 ### Trending Topics
 
@@ -139,9 +169,16 @@ A **Trending** indicator in the Inbox header shows the most common keywords appe
 
 ### Tabs
 
-- **Pending**: Messages that have been AI-scanned and are awaiting agent review. This is the primary working view.
-- **Processed**: Messages that have been approved (converted to tickets), rejected, or archived.
-- **Sent**: Outbound emails composed and sent from the inbox. Each entry shows delivery status: Sent, Delivered, Opened, Clicked, or Bounced.
+- **Pending**: Draft tickets awaiting agent review. This is the primary working view.
+- **Processed**: Drafts that have been approved (converted to tickets), rejected, forwarded, marked spam, or binned — with sub-filters for each outcome.
+- **Sent**: Outbound emails composed and sent from the inbox. Each entry shows delivery status: Sent, Delivered, Opened, or Bounced.
+
+### Shared / Personal Mailbox & Search
+
+- A **Shared / Personal** toggle switches between the whole team's shared mailbox and mail addressed to you.
+- A search box filters drafts; when it is empty, **trending topic** chips summarise the most common keywords across recent drafts so you can spot recurring issues at a glance.
+- Per-mailbox **unread** counts appear as blue badges.
+- A **Scheduled** button lists send-later batches you have queued.
 
 ### Draft Review
 
@@ -150,12 +187,13 @@ Clicking a pending message opens the **Draft Review** page. Here you can:
 - **Edit the subject line** suggested by AI
 - **Change the priority** (Low / Medium / High / Urgent)
 - **Link to a contact**: type a name or email to associate the message with an existing contact, or create a new one
-- **Add labels** to the draft for categorisation
-- **View the full original message** body
-- **Approve** the draft → creates a ticket immediately
-- **Reject** the draft → moves it to Processed without creating a ticket
-- **Regenerate AI scan** → asks the AI to re-read the message and produce a new suggestion
-- **Forward** the draft to a different department or agent
+- **Assign** the draft to an agent, and/or **route** it to a department
+- **View the full original message** body and download any attachments
+- **Approve** the draft → opens a Route & Approve step (optionally set a follow-up SLA in days) → creates a ticket
+- **Reject** the draft with a reason (thank-you / spam / duplicate / no action) — the reason feeds triage stats
+- **Undo review** → revert an approved draft (its ticket is soft-deleted)
+- **Generate / regenerate AI scan** (requires AI Inbox) → asks the AI to (re)read the message and produce a fresh suggestion
+- **Forward** the draft to a department (sends the customer an auto-reply and forwards the original + attachments to the department email)
 - **Clear follow-up date** → remove a previously set follow-up reminder
 - **Right-click context menu** on any draft in the list: assign, route to department, move to bin, mark as spam
 
@@ -168,25 +206,34 @@ Click **Compose** to open a new outbound email form. Options include:
 - **Body** with rich text formatting
 - **Template picker**: select a pre-built response template to insert
 - **Signature picker**: choose from your saved signatures
-- **Attachments**: attach files from your computer
+- **From address**: send as the shared address, a configured alias, or a linked Gmail/Outlook mailbox
+- **Attachments**: attach files from your computer (10 MB per file, 25 MB per send)
+- **Send later**: schedule the email for a future time (1 minute to 90 days out); manage or cancel queued sends from the **Scheduled** list
 - **5-second undo**: after clicking Send, a brief window appears to cancel the send before it goes out
 
-### AI Reply Assist (in Draft Review)
+### AI Reply Assist (in Draft Review — requires AI Inbox)
 
-Within the Draft Review page, when composing a reply:
+Within the Draft Review page, when composing a reply (only shown when the AI Inbox module is enabled):
 
-- **Suggest reply**: AI reads the inbound message and writes a draft reply
-- **Improve reply**: AI rewrites your draft to be clearer and more professional
+- **Suggest reply**: AI reads the inbound message and writes a draft reply, grounded in your knowledge base and tenant AI profile, in the customer's language
+- **Improve reply**: AI offers up to three rewrites of your draft to pick from
 - These tools work in the reply composer, not on the ticket itself
 
 ### Bulk Actions
 
-In the Pending tab, select multiple messages with checkboxes:
+In the list, select multiple drafts with checkboxes:
 
-- **Approve all selected** → batch convert to tickets
-- **Assign** → route to a specific agent or department
+- **Assign** → route to a specific agent and/or department
 - **Move to bin** → delete drafts
 - **Mark as spam** → flag and archive
+
+### Personal Work Inbox
+
+Each agent can switch on **own inbox only** (Settings → Profile) to narrow the shared mailbox to just the mail assigned to them or sent to their personal addresses — useful for focused work.
+
+### Retention
+
+Spam is moved to the bin after 10 working days; the bin is emptied after 20 working days.
 
 ### Attachment Download
 
@@ -209,8 +256,11 @@ The main list view shows all contacts with:
 - **Search**: full-text search across name, email, and company
 - **Filter by label**: show only contacts with a specific label
 - **Filter by company**: show only contacts belonging to a company
-- **Import**: upload a CSV, JSON, or XLSX file to bulk-create contacts (name, email, phone, company columns supported)
-- **CSV export**: download all contacts (or filtered results) as a CSV
+- **Filter by tag**: contacts can carry tags (e.g. `order-system`, set by integrations) that you can filter on
+- **Import**: upload a CSV, JSON, or XLSX file to bulk-create contacts (name, email, phone, company, notes columns supported; companies are auto-created by name; duplicates deduped by email)
+- **CSV export**: download all, filtered, or selected contacts as a CSV
+- **Multi-select**: tick contacts to act on several at once (e.g. export the selection)
+- **Column picker**: choose which columns appear in the contacts table
 - **Context menu** (right-click a row): Send email (opens compose modal directly to this contact)
 
 ### Contact Detail
@@ -225,8 +275,9 @@ Click any contact to open their detail page, which contains:
 - **New Ticket button**: opens the New Ticket form pre-filled with this contact's details
 - **Send booking link**: open the booking flow directly from the contact record
 - **Send email**: compose a new message to this contact
+- **Log a call**: open the call modal, paste or dictate what was discussed, and AI structures it into a summary, action items, and a follow-up email draft. Saving logs a `call_logged` activity, appends to the notes, and auto-creates reminders for any future-dated action items.
 
-Note: KvK and BTW/VAT numbers are workspace-level fields in **Settings → Organisation**, not per-contact fields.
+**Invoicing fields.** A contact record also carries invoicing details used by the Billing module: **BTW-nummer**, street address, postal code, city, and country. (The workspace-level KvK/BTW numbers in Settings → Organisation are separate — they identify *your* company on invoices.)
 
 ### Creating and Editing Contacts
 
@@ -250,7 +301,7 @@ Saving navigates directly to the new contact's detail page.
 
 Companies group multiple contacts under one account:
 
-- **Create a company**: give it a name; optionally add KvK and BTW numbers
+- **Create a company**: give it a name (companies hold a name, optional domain, and notes)
 - **Link contacts to a company**: on any contact record, assign a company
 - **Filter contacts by company**: see all contacts belonging to an account
 - **Bulk delete**: select multiple companies and delete
@@ -331,15 +382,17 @@ Saving navigates directly to the new ticket's detail page.
 Select multiple tickets in the list:
 
 - **Merge**: combine exactly 2 selected tickets (same contact required)
-- **Delete**: permanently remove selected tickets
+- **Delete**: soft-delete selected tickets (removed from the list, history preserved — not a permanent wipe)
 
-### SLA Escalation (Automatic)
+### SLA Deadlines & Escalation (Automatic)
 
-The platform runs an automated SLA checker every 5 minutes:
+SLA deadlines are set automatically when a ticket is created, based on priority: Urgent = 4h, High = 8h, Medium = 24h, Low = 72h.
 
-- Tickets past their SLA deadline are flagged **Overdue** and their badges turn red
-- Tickets in **Waiting** status that have not been updated for a configured number of days are automatically closed
-- The overdue count is reflected in the **Tickets** sidebar badge in real time
+- **Sidebar badge**: the Tickets sidebar badge counts tickets approaching or past their deadline. The red/orange thresholds are configurable per workspace (default: orange within 2 days).
+- **SLA reminder (every 5 minutes)**: a background job emits a `ticket_sla_due_soon` event roughly 60 minutes before a ticket breaches its deadline. This event feeds the default **escalation Flow**, which steps a ticket's priority up over time (there is no separate "Overdue" status — overdue is a badge colour computed from the deadline).
+- **Auto-close (hourly)**: tickets left in **Waiting** status untouched for the configured number of days are closed automatically.
+
+Escalation behaviour lives in Flows (see §30), so you can customise it — for example notify the assigned agent, raise priority, or route to a manager before breach.
 
 ---
 
@@ -431,8 +484,11 @@ Contacts move through custom stages (columns) as they progress — from first to
 
 - Each **stage** is a column on the board
 - Each **card** represents a contact in that stage, showing name, email, and how many days they've been in the current stage
-- Cards that have been in a stage for more than 30 days show a **stale** badge
-- **Drag and drop** a card to move a contact to a different stage — the move is saved immediately
+- Cards sitting in a stage whose name contains "demo" for **3 days or more** show a **stale** badge (a demo-follow-up nudge). There is no generic all-stages 30-day stale rule.
+- **Drag and drop** a card to move a contact to a different stage — the move is saved immediately and marked as a human move
+- **Human moves always win**: automations (flows, bookings, tracking) will never override a card you placed by hand
+
+The default stages seeded for a new workspace are New, In Progress, Waiting for Customer, and Resolved.
 
 ### Stage Management
 
@@ -442,7 +498,16 @@ Click the gear icon on any stage column, or go to **Settings → Organisation �
 - **Rename**: change a stage name at any time
 - **Reorder**: drag stages left or right to change column order
 - **Set color**: choose a color used in the calendar for SLA deadline entries
-- **Delete**: remove the stage (contacts in it must be moved first)
+- **Delete**: remove the stage. ⚠️ Deleting a stage also drops the pipeline entries of any contacts currently in it (the contacts themselves are untouched) — move cards out first if you want to keep their pipeline position.
+
+### Flowchart View
+
+The Pipeline page has a second tab, **Flowchart** — a visual canvas that documents how your pipeline works:
+
+- Drag stage nodes, decision diamonds, and start/end markers onto the canvas and connect them with edges
+- An **unplaced stages** tray lists any stages not yet on the chart; the chart auto-reconciles against your live board (deleted stages drop off)
+- Yippie reads the flowchart into the Yip assistant's context so it understands your funnel
+- **Automation suggestions**: from the edges you draw, Yippie generates draft automations (stage → stage moves) that pre-fill the Flows builder in one click
 
 ### Send Campaign from Pipeline
 
@@ -491,12 +556,16 @@ Each session card shows the contact name (if matched), the channel (web or Whats
 Open a session to see the full conversation thread:
 
 - **Message input**: type and send text replies
-- **Media attachments**: send images or files (WhatsApp and web widget support)
-- **Internal note**: add a private note visible only to agents — not sent to the customer
-- **Create ticket**: convert this chat session into a support ticket (opens the New Ticket form pre-filled with the session contact)
+- **Canned responses**: type `/` to open a picker and insert a saved canned response
+- **Media attachments**: send images or documents (up to 16 MB; WhatsApp and web widget)
+- **Internal note**: add a private note visible only to agents — never sent to the customer or WhatsApp
+- **Create contact**: turn an unknown web/WhatsApp visitor into a contact record
+- **Chat history**: view this contact's past conversations inline
+- **Create ticket**: convert this chat session into a support ticket (session status becomes "ticket")
 - **Send booking link**: send a booking invitation link directly in the chat
-- **Resolve**: mark the session as resolved — it moves out of the open list
-- **Close**: end the session permanently
+- **Delivery receipts** (WhatsApp): messages show sent / delivered / read status as they progress
+- **Claim / Assign**: opening an unassigned open session auto-claims it to you; you can also assign it to any agent
+- **Solve / Reopen**: mark the session solved (it hides after the configured delay) or reopen it
 
 ### WhatsApp Pairing
 
@@ -519,14 +588,17 @@ From the Chat module, admins can send a message to multiple WhatsApp contacts at
 
 Select multiple sessions:
 
-- **Resolve all selected**: batch-resolve open sessions
-- **Delete**: permanently remove sessions
+- **Close**: batch-close (solve) open sessions
+- **Reopen**: reopen closed sessions
+- **Delete**: remove sessions
 
-### Chat Settings
+### Chat Settings & Reset
 
 In team settings, configure:
 
-- **Hide solved sessions after N hours**: solved sessions disappear from the list after the configured time (keeps the list clean)
+- **Hide solved sessions after N hours**: solved sessions disappear from the list after the configured time (default 72h)
+
+Admins also have a **Reset Live Chat** action that disconnects WhatsApp and wipes all sessions — useful when re-pairing a number or clearing test data.
 
 ### Live Chat Widget Embed
 
@@ -544,8 +616,8 @@ The widget:
 - Appears as a chat bubble in the bottom-right corner
 - Opens a chat panel when clicked
 - Persists the session across page loads using a browser session ID
-- Connects to the platform via WebSocket for real-time messaging
-- The `data-token` identifies your workspace; find it in **Settings → Chat**
+- Connects to the platform via WebSocket for real-time messaging (keyed to your workspace slug)
+- Widget appearance and behaviour are configured in **Settings → Team → Widget settings**
 
 ---
 
@@ -589,7 +661,7 @@ The Actions tab connects the campaign to your pipeline automation:
 
 - **Mail sent → stage**: when this campaign is dispatched, move all recipients to a specified pipeline stage
 - **Reply received → stage**: if a contact replies to this campaign email, automatically move them to a specified stage
-- **Per-button stage**: for each **Yippie Button** in the email design, set which pipeline stage a contact moves to when they click that button. The buttons are listed by their label; picking a stage links that click to a pipeline move.
+- **Per-button action**: each **Yippie Button** in the email design can carry an action. Tracked actions move the contact to a pipeline stage or apply a label when clicked; direct-link actions open a website, start an email, or dial a phone number. Buttons are listed by label.
 - **Linked Kanban stage**: link this campaign to a pipeline stage column. When linked, the **Send campaign** option appears in the right-click menu of that stage on the Pipeline board — allowing you to send this campaign to all contacts in that stage with one click.
 
 #### Audience Tab
@@ -629,10 +701,9 @@ Add follow-up emails to the campaign:
 
 ### A/B Testing
 
-- Click **Add variant** to create a second version of the campaign email
-- Set the **split percentage** (e.g., 50/50 or 70/30)
-- Send — variant A goes to one group, variant B goes to the other
-- After 2 hours, the system automatically picks the winner (by open rate) and sends the winning version to any remaining recipients
+- Click **Add variant** to create a second version of the campaign email (variants A and B)
+- On launch, the campaign is split **50/50**: the first half of the audience is split evenly between A and B (the split percentage is not configurable)
+- After 2 hours, the system automatically picks the winner **by open rate** and sends the winning version to the held-back second half of the audience
 
 ### Unsubscribes
 
@@ -643,7 +714,13 @@ Add follow-up emails to the campaign:
 
 - **Opens**: a 1×1 pixel image in the email body; loading the email loads the pixel and records the open
 - **Clicks**: all links and Yippie Buttons go through a click-tracking redirect that records the click, then forwards to the destination
-- **Reply matching**: inbound emails are matched to campaign sends by Message-ID headers; a match triggers the reply-received stage move
+- **Reply matching**: inbound emails are matched to a campaign by the sender's email address (looked up against the campaign's recipients); a match triggers the reply-received stage move
+- **Reply classification**: matched replies are AI-classified as Interested, Opt-out, Out of office, or Other. An Opt-out automatically unsubscribes the contact; others can move the contact to the configured reply stage.
+- **Bounce suppression**: bounced addresses are recorded and automatically skipped on future sends. Unsubscribed contacts are always skipped, and every send includes List-Unsubscribe headers and a one-click unsubscribe footer.
+
+### Transactional Email Tracking
+
+The Marketing module also surfaces an **Outbound** view listing tracked one-off/transactional emails (ticket replies and other agent sends) with their delivery and open status.
 
 ---
 
@@ -653,7 +730,11 @@ Billing lets you create, send, and track invoices directly from the workspace �
 
 ### What It Does
 
-Create invoices with line items, send them to customers by email, record payments, and export for your accountant. Dutch KvK and BTW numbers are supported natively.
+Create invoices with line items, send them to customers by email, record payments, and export for your accountant. Dutch KvK and BTW numbers are supported natively, and the PDF is Dutch-labelled (Factuurnummer / Factuurdatum / Vervaldatum).
+
+**Compliance — issued invoices are locked.** Once an invoice is *issued* it claims its number and can no longer be edited or deleted. The lawful way to correct or reverse an issued invoice is a **credit note**, which Yippie generates for you. You can also **issue** an invoice (finalise + lock the number) without emailing it.
+
+**Invoice templates.** Build reusable invoice templates in a block editor with merge fields and a live PDF preview, and set a default template for new invoices.
 
 ### Invoice List
 
@@ -661,9 +742,8 @@ Create invoices with line items, send them to customers by email, record payment
 - **Filter by contact**: show all invoices for a specific customer
 - **Status badges**: Draft, Sent, Paid, Overdue
 - **Bulk delete**: select multiple invoices and delete
-- **CSV export**: download the invoice list as a CSV file
-- **XLSX export**: download as an Excel file
-- **CSV import**: upload a CSV of invoices using the provided template to bulk-create records
+- **CSV / XLSX export**: download the invoice list as CSV or Excel
+- **CSV / XLSX import**: upload a CSV or Excel file (using the provided template) to bulk-create records
 
 ### Creating an Invoice
 
@@ -709,22 +789,27 @@ Activity gives you a real-time view of everything happening across your workspac
 
 Every action in the platform — email sent, ticket created, contact moved, booking confirmed — is logged as an activity event. The Activity module surfaces these in a chronological feed and aggregated dashboard.
 
-### Activity Feed
+The Activity page has three tabs: **Overview**, **Users**, and **Automation**. The Users and Automation tabs are visible to admins and superadmins only.
 
-- **Chronological log**: every action across the platform in order of occurrence
-- **Filter by event type**: show only emails, only ticket updates, only pipeline moves, etc.
-- **Filter by user**: see what a specific team member has done
-- **Filter by date range**: narrow the feed to a time window
-- **Contextual links**: each activity entry links directly to the ticket, contact, or campaign it references — one click to full context
+### Activity Feed (Overview tab)
 
-### KPI Dashboard
+- **Chronological log**: every action across the platform in order of occurrence, showing who did it and when
+- **Filter by pipeline stage**: chips at the top of the feed narrow it to activity for contacts in a given stage
+- Rows are informational (they show the actor and a plain-language description of the event)
 
-The dashboard (at the top of the Activity page) shows aggregated stats:
+### Users & Automation Tabs (admin)
+
+- **Users**: deep per-agent KPIs with sparklines and week-over-week deltas — emails sent, open rate, time-to-open (shared vs personal), tickets created/open/resolved/reopened, First Time Right, average resolution time, first-response time, and chats handled/solved.
+- **Automation**: statistics on your flows and automations.
+
+### KPI Dashboard (Overview tab)
+
+The dashboard at the top of the Overview tab shows aggregated stats:
 
 - **Pipeline breakdown**: contact counts per stage
 - **Ticket stats**: open, resolved, overdue counts and trends
 - **Contact growth**: new contacts over time
-- **Email stats**: outbound sent, open rate, click rate
+- **Email stats**: outbound sent, delivered, opened, bounced, and open rate
 
 The dashboard refreshes automatically every 60 seconds.
 
@@ -750,8 +835,8 @@ Add a tracking number to a contact or ticket and get live carrier status updates
 
 ### Shipment List
 
-- **Filter by status**: Pending, In Transit, Delivered, Exception
-- **Filter by carrier**: DHL, UPS, FedEx, PostNL
+- **Filter by status**: Registered, In Transit, Out for Delivery, Delivered, Exception, Returned, Cancelled
+- **Filter by carrier**: PostNL, DHL, DPD, UPS, FedEx (plus Sendcloud / Other)
 - **Search**: find a shipment by tracking number or contact name
 
 ### Creating a Shipment
@@ -760,7 +845,7 @@ Click **New Shipment**:
 
 - **Contact**: link to the customer this shipment belongs to
 - **Tracking number**: enter the carrier tracking number
-- **Carrier**: select the carrier (DHL, UPS, FedEx, PostNL)
+- **Carrier**: select the carrier (PostNL, DHL, DPD, UPS, FedEx, or Other)
 - **Estimated delivery date**: optional manual entry
 - **Linked ticket**: optionally associate with a support ticket
 
@@ -775,10 +860,11 @@ Open a shipment to see:
 
 ### Sendcloud Integration
 
-When Sendcloud is connected (via API key in **Settings → Organisation**):
+When Sendcloud is connected (via API key + secret in the **Shipment settings** modal on the Tracking page):
 
 - Shipment status updates are received automatically via webhook — no manual refresh needed
 - Status transitions (In Transit → Delivered, etc.) appear in the event timeline in real time
+- You can also **Refresh** a single shipment on demand to pull its latest status from Sendcloud
 
 ### ERP Order Webhook
 
@@ -798,7 +884,7 @@ When an order arrives, Yippie automatically keeps your contact list in sync:
 
 ### Settings
 
-- **Sendcloud API key**: enter in **Settings → Organisation** to enable automatic status sync
+- **Sendcloud API key + secret**: enter in the Tracking page's **Shipment settings** modal to enable automatic status sync
 - **Webhook secret rotation**: generate a new secret for the ERP webhook; old secret immediately invalidated
 
 ---
@@ -832,10 +918,11 @@ window.yippie('track', 'purchase', { product: 'Pro Plan', amount: 49 });
 
 ### Sales Dashboard
 
-- **Total events**: count of all tracked events (views, carts, purchases)
-- **Total revenue**: sum of all purchase event amounts
-- **Repeat customers**: contacts with more than one purchase event
-- **Recent events feed**: live list of incoming events with contact, event type, and product/amount
+- **Pageviews**: total tracked product/page views (with a sparkline trend)
+- **Purchases**: total tracked purchase events (with a sparkline trend)
+- **Conversion %**: purchases relative to pageviews
+- **Top pages**: the most-viewed pages
+- **Signals**: a `signup` event fires the `saas_signup` flow trigger so you can automate on high-intent activity
 
 ### Per-Contact Event Feed
 
@@ -886,18 +973,22 @@ window.yippie('track', 'error', { error: 'export_failed', user_email: 'user@exam
 
 ### Health Score
 
-Each contact gets a score from 0–100 based on:
+Each contact gets a score from 0–100, recomputed hourly, weighting three signals:
 
-- **Login recency**: logged in recently = higher score
-- **Feature breadth**: used more distinct features = higher score
-- **Error penalty**: errors reduce the score
+- **Login/usage recency** (40%): active recently = higher score
+- **Feature breadth** (40%): more distinct features used in the last 30 days = higher score
+- **Error penalty** (20%): recent errors subtract from the score
+
+Bands: ≥70 green, ≥40 amber, below 40 red. A drop in a contact's score fires the `saas_health_dropped` flow trigger.
 
 ### SaaS Dashboard
 
-- **Onboarding completion %**: percentage of contacts who have completed the key onboarding steps
-- **At-risk count**: contacts with a health score below the configured threshold
+- **Onboarding completion %**: percentage of tracked contacts who have fired an onboarding-step event
+- **At-risk count**: contacts with a health score below 40 (a fixed threshold)
 - **Top features**: which features are used most across all contacts
 - **Common errors**: which errors appear most frequently
+
+Admins also receive a Monday-morning email digest of the at-risk customer list.
 
 ### Token
 
@@ -915,19 +1006,25 @@ Instead of back-and-forth emails to find a meeting time, send a booking link. Th
 
 ### Booking Settings
 
-Configure in **Settings → Profile** (personal booking) or via the superadmin panel (tenant-wide):
+Booking is configured at the workspace level by an admin (Booking settings):
 
-- **Timezone**: your local timezone for availability calculation
-- **Booking window**: how many days in the future slots are offered (e.g., next 14 days)
-- **Post-booking pipeline stage**: optionally move the contact to a specific pipeline stage when they confirm a booking
+- **Work hours / weekly slots**: when you are available to be booked
+- **Slot length** and **timezone** (default Europe/Amsterdam)
+- **Booking window**: how many days in the future slots are offered
+- **Minimum notice**: how far ahead a customer must book
+- **Cancel/edit lock**: how many hours before a booking a customer can no longer change it
+- **Assignment mode**: *pooled* (any free worker) or *auto-assign* (locks one worker's availability)
+- **Booking direction**: *availability* (you send links, customers pick a slot) or *requests* (customers propose times you fulfil)
+
+**Moving the contact after a booking** is no longer a single global setting. Instead, build a Flow on the `booking_created` trigger to move the contact to a stage (see §30), and/or set a **per-send stage override** when you send a specific booking link.
 
 ### Sending a Booking Link
 
 From a **Contact Detail** page or a **Ticket Detail** page:
 
 - Click **Send booking link**
-- A unique, time-limited booking URL is generated and inserted into a new email draft
-- Send the email to the contact
+- Choose **open link** (customer picks any free slot) or **propose slots** mode, add a message, optionally set a **pipeline stage override**, and pick which address it sends from
+- A unique, time-limited booking URL is generated and emailed; you can also bulk-send to several contacts at once
 
 ### Public Booking Page
 
@@ -955,7 +1052,7 @@ When a booking is confirmed:
 - The contact receives an automatic confirmation email with the date, time, and any notes
 - You receive a notification
 - The event appears on the **Calendar** module
-- If a post-booking stage is configured, the contact moves to that pipeline stage automatically
+- If a `booking_created` flow or a per-send stage override applies, the contact moves to that pipeline stage automatically
 
 ### Manage Booking Page
 
@@ -966,7 +1063,19 @@ The contact can manage their booking via the link in their confirmation email (`
 
 ### Meet Page (Direct Booking Without Token)
 
-Each user has a permanent public booking URL: `/meet/:slug` (e.g., `/meet/diederik`). This is a persistent link you can share on your website or email signature — no per-contact token required. Anyone can use it to book a meeting with you.
+Each **workspace** has a permanent public booking URL: `/meet/:slug` (the slug is your workspace slug, not a personal one). This is a persistent link you can share on your website or email signature — no per-contact token required. A customer picks a slot and Yippie assigns an available worker from the pool (falling back to a workspace admin). Bookings made through `/meet` are serialised so two customers can't grab the same slot.
+
+### Requests Direction (Customer Proposes Times)
+
+If the workspace uses the **requests** booking direction, customers instead visit `/request/:slug`, propose times that suit them, and submit a request. An admin **dispatcher** then assigns the request to a worker, or workers **self-claim** open requests — depending on the fulfilment setting. Workers manage their own bookable hours from their availability page.
+
+### Calendar Sync — Blocking External Busy Times
+
+If you use Apple Calendar, Microsoft Outlook, or any other calendar app alongside Yippie, you can connect your external calendars so that busy times from those apps are automatically blocked in your Yippie booking availability. Customers will not be able to book a slot that overlaps with an event in your external calendar.
+
+Yippie fetches your external calendar feeds every 5 minutes and caches the busy windows. The block is also enforced at confirm time — if a slot becomes occupied between the availability check and the customer confirming, the booking is rejected.
+
+See **Settings → Profile → Connected Calendars** to set this up.
 
 ---
 
@@ -985,8 +1094,10 @@ Go to **Settings → Team → Departments**:
 - Click **New Department**
 - **Name**: e.g., "Customer Support", "Sales", "Finance"
 - **Email address**: the inbound email address that routes to this department (e.g., `support@yourdomain.com`)
-- **SLA working days**: the number of working days agents in this department have to resolve tickets (used to calculate SLA deadlines)
+- **SLA working days**: a per-department target figure (note: actual ticket SLA deadlines are computed from ticket priority — see §5 — not from this field)
 - **Default reply template**: optionally pick a template that pre-fills when agents reply to tickets routed to this department
+
+The tenant-wide **deadline red/orange thresholds** that colour the Tickets sidebar badge are also managed here (Departments → deadline settings).
 
 ### Adding Members
 
@@ -1002,9 +1113,9 @@ When an email arrives at a department's address:
 - The draft appears in the Inbox for that department's agents
 - Tickets created from it are automatically assigned to the department
 
-### Module Permissions per Department
+### Module Access per Department
 
-In the department settings, you can override which modules agents in this department can access — for example, giving the Finance department access to **Billing** but not **Pipeline**.
+Which modules exist for a workspace is set per tenant (superadmin). On top of that, the RBAC permissions matrix (Settings → Team) lets you set a per-department **access level** for each module — Full, View, or Restricted — so, for example, the Finance department can be given Full access to Billing but Restricted access to Pipeline. Access resolves most-restrictive across a user's departments.
 
 ---
 
@@ -1037,19 +1148,92 @@ Manage your personal email signatures:
 
 ### UI Language
 
-Choose from 14 available interface languages — the app UI re-renders immediately:
-
-English, Dutch (Nederlands), French (Français), German (Deutsch), Spanish (Español), Portuguese (Português), Italian (Italiano), Arabic (العربية), Chinese (中文), Japanese (日本語), Korean (한국어), Russian (Русский), Polish (Polski), Turkish (Türkçe)
+Choose your interface language — **English** or **Dutch (Nederlands)**. The app UI re-renders immediately, and Yippie's outbound system emails follow your chosen language.
 
 ### Change Password
 
 - Enter your current password, then your new password (minimum 8 characters), and confirm.
+
+### Linked Personal Mailbox (Gmail / Outlook OAuth)
+
+Connect your personal Gmail or Microsoft Outlook account so Yippie can sync your inbound email and let you send replies directly from your own address.
+
+**How to connect:**
+
+1. Go to **Settings → Profile → Linked personal mailbox**
+2. Click **Connect Gmail** or **Connect Outlook**
+3. You are redirected to Google or Microsoft's consent screen — sign in and approve the requested permissions
+4. Yippie stores your tokens securely (Fernet-encrypted) and begins syncing your inbox immediately
+
+**What permissions are requested:**
+
+| Provider | Scopes | Used for |
+|---|---|---|
+| Gmail | `gmail.readonly`, `gmail.send` | Read inbound messages, send replies |
+| Outlook | `Mail.Read`, `Mail.Send` | Read inbound messages, send replies |
+
+No calendar permissions are requested — this connection is for email only.
+
+**Token refresh:** Access tokens expire after 1 hour and are refreshed automatically in the background. If your token is ever revoked (e.g. you revoked Yippie's access from your Google account settings), the mailbox shows an error badge and you will need to reconnect.
+
+**Disconnecting:** Click **Disconnect** in the linked mailbox card. Yippie will attempt to revoke the token with the provider and then delete the stored credentials. No emails are deleted.
+
+You can connect one Gmail account and one Outlook account simultaneously.
+
+---
+
+### Connected Calendars (Import)
+
+Connect your Apple Calendar, Microsoft Outlook, or any iCal-compatible calendar so that your external busy times are automatically blocked from your Yippie booking availability.
+
+**How to connect:**
+
+1. Go to **Settings → Profile → Connected Calendars**
+2. Click **Add calendar**
+3. Give it a name (e.g. "Apple Calendar" or "School Outlook") and paste the iCal feed URL
+4. Click **Add** — Yippie immediately syncs the feed
+
+**Where to find your iCal URL:**
+- **Apple Calendar**: right-click a calendar in the sidebar → **Share Calendar** → **Copy Link** (the URL starts with `webcal://` — paste it as-is)
+- **Microsoft Outlook**: Calendar settings → **Shared calendars** → **Publish a calendar** → copy the ICS link
+
+Once connected, the feed is refreshed every 5 minutes. A green badge shows when it last synced successfully; a red badge shows if there was a fetch error. You can disable a feed temporarily with the toggle, or remove it with the unlink button. You can connect up to 5 feeds per account.
+
+### Your Yippie Calendar Feed (Export)
+
+Yippie generates a personal `.ics` feed URL that you can subscribe to in Apple Calendar or Outlook. This lets your Yippie events and confirmed bookings appear alongside your other calendars — read-only, auto-refreshing.
+
+**How to subscribe:**
+
+1. Go to **Settings → Profile → Your Yippie Calendar Feed**
+2. Copy the feed URL
+3. In **Apple Calendar**: File → New Calendar Subscription → paste the URL
+4. In **Outlook**: Add Calendar → From internet → paste the URL
+
+The feed includes all calendar events you created or accepted, plus confirmed bookings where you are the agent. If you ever need to invalidate the URL (e.g. after accidentally sharing it), click **Regenerate URL** — all existing subscriptions using the old URL will stop receiving updates.
 
 ---
 
 ## 18. Settings: Team
 
 Team settings are workspace-wide — admins and superadmins can change them.
+
+### Team Mailbox (Gmail / Outlook OAuth)
+
+Connect a shared Gmail or Microsoft Outlook account as the team's central inbox so inbound email from customers is automatically picked up by Yippie.
+
+**How to connect:**
+
+1. Go to **Settings → Team → Team mailbox**
+2. Click **Connect Gmail** or **Connect Outlook**
+3. Sign in with the shared mailbox account and approve the permissions
+4. Yippie begins syncing — new inbound messages appear in the Inbox within seconds
+
+The team mailbox works the same way as a personal linked mailbox but is shared across the whole team. All agents see messages from the shared mailbox in the Inbox. Only admins can connect or disconnect the team mailbox.
+
+If the team mailbox token is revoked or expires, an error badge appears in Settings → Team and inbox syncing pauses until the mailbox is reconnected.
+
+---
 
 ### Team Members
 
@@ -1065,6 +1249,7 @@ Team settings are workspace-wide — admins and superadmins can change them.
 | **Admin** | Full access to all settings, team management, and all modules |
 | **Agent** | Access to enabled modules; cannot change team or billing settings |
 | **Viewer** | Read-only access to modules; cannot create, edit, or delete anything |
+| **Worker** | Contract worker; restricted from all modules — can only reach their own booking-availability screen |
 
 ### RBAC (Custom Roles)
 
@@ -1082,16 +1267,15 @@ Create a custom role, set the access level for each module, and assign it to tea
 - **Primary color**: accent color used throughout the UI (hex code)
 - **Logo URL**: your company logo shown in the sidebar and outbound emails
 
-### Resend Domain Configuration
+### Resend Domain Configuration (Superadmin)
 
-Configure a custom email sending domain so outbound emails come from `@yourdomain.com` instead of Yippie's shared domain:
+A custom email sending domain lets outbound emails come from `@yourdomain.com` instead of Yippie's shared domain. This is provisioned by a **superadmin** (from the tenant's edit modal), not self-served from Team settings:
 
-1. Click **Add domain**
-2. Enter your domain name
-3. Yippie provisions the domain with Resend and shows the DNS records to add (SPF, DKIM, DMARC)
-4. Add the DNS records at your domain registrar
-5. Click **Verify** — Yippie checks DNS and marks the domain as verified
-6. Outbound emails now send from your domain
+1. The superadmin adds your domain, which Yippie provisions with Resend
+2. Yippie returns the DNS records to add (SPF, DKIM, DMARC)
+3. You add the DNS records at your domain registrar
+4. The superadmin clicks **Verify** — Yippie checks DNS and marks the domain verified
+5. Outbound emails now send from your domain
 
 ---
 
@@ -1169,19 +1353,32 @@ Pipeline stages can be managed here as well as from the Pipeline board itself:
 
 ## 21. Subscription & Plans
 
-The Subscription page (available in the sandbox/staging environment) manages your Yippie plan and billing.
+The Subscription page manages your Yippie plan and billing.
+
+### Free Trial
+
+Every new workspace starts with a **30-day free trial** on the Growth plan. No credit card is required to sign up.
+
+During the trial:
+- All Growth plan features are available in full
+- The trial expiry date is shown on the Subscription page
+- A banner reminder appears in the app as the trial end date approaches, and nudge emails go out around day 23 and day 28
+
+**When the trial expires without a paid plan**, the workspace is locked rather than silently downgraded: users can still log in, but a blocking **subscribe** modal appears and module APIs return a "subscription required" response until a plan is purchased. No data is lost — choosing a plan immediately unlocks everything. (There is no free tier; Founder is a €9/mo paid plan.)
+
+To continue seamlessly, click **Upgrade** on the Subscription page before the trial expires and complete Stripe checkout.
 
 ### Plan Cards
 
 Each plan shows:
 
 - **Name**: Founder, Starter, Growth, Pro, Enterprise
-- **Price**: monthly rate in euros
+- **Price**: monthly or annual rate in euros (annual is discounted — see §1)
 - **Seat limit**: maximum number of team members
 - **AI scan limit**: maximum inbox AI scans per month
 - **Current plan indicator**: your active plan is highlighted
 
-Click **Upgrade** on any plan to proceed to Stripe checkout.
+At checkout you choose the **billing interval** (monthly or annual) and can add paid **modules** to the subscription. On the Founder plan, add-on modules are discounted 50%. Click **Upgrade** on any plan to proceed to Stripe checkout.
 
 ### AI Scan Usage Meter
 
@@ -1214,7 +1411,7 @@ Click **New Tenant** to open the creation wizard:
 4. **Admins**: enter the email and name of the initial admin user (an invite email is sent)
 5. **Demo settings**: optionally mark as a demo tenant with an expiry date (demo tenants are automatically deactivated after expiry)
 
-### Editing a Tenant (6 Tabs)
+### Editing a Tenant (7 Tabs)
 
 Click any tenant row to open the edit modal:
 
@@ -1223,7 +1420,8 @@ Click any tenant row to open the edit modal:
 - **Branding**: update colors, logo, and display name
 - **WhatsApp**: view the current WhatsApp connection state for this tenant; trigger a QR code re-pairing
 - **Users**: list all users in this tenant; promote/demote roles; deactivate or delete users
-- **Actions / Dev**: seed demo data (inbox messages, chat sessions), delete the tenant, run diagnostics
+- **Actions**: broadcast to the tenant's contacts, resend demo invites, delete the tenant
+- **Developer tools**: seed demo data (inbox messages, chat sessions) and run diagnostics
 
 ### Impersonating a Tenant
 
@@ -1233,7 +1431,7 @@ From any tenant's edit modal:
 - You are logged in as that tenant's admin for up to 1 hour
 - An amber banner shows at the top of the screen: "Viewing as [Tenant Name] ([agent email])"
 - Click **Exit** in the banner to return to your superadmin account
-- All impersonation sessions are audit-logged (who, when, which tenant)
+- Every impersonation and exit writes a WARNING to the application logs (who impersonated which tenant/user, and when). Note this is a log entry, not a queryable audit table.
 
 ### Deleting a Tenant
 
@@ -1303,7 +1501,7 @@ Yippie uses Resend for all outbound and inbound email.
 
 - **Outbound**: all emails sent from the workspace (ticket replies, campaigns, booking confirmations) go through Resend
 - **Inbound**: Resend receives emails to your domain and forwards them to Yippie via webhook. Each inbound message is stored, AI-scanned, and placed in the Inbox as a draft.
-- **Custom domain**: configure your own sending domain in **Settings → Team** so outbound emails come from `@yourdomain.com` with proper SPF/DKIM/DMARC records
+- **Custom domain**: a superadmin provisions your own sending domain (from the tenant edit modal) so outbound emails come from `@yourdomain.com` with proper SPF/DKIM/DMARC records
 - **Bounce handling**: Resend reports bounces back to Yippie; bounced contacts are flagged and excluded from future sends automatically
 
 ### WhatsApp — Evolution API
@@ -1320,14 +1518,14 @@ Yippie integrates with a self-hosted Evolution API instance for WhatsApp:
 
 - **API key**: enter in **Settings → Organisation** to connect
 - **Status webhooks**: Sendcloud calls Yippie's webhook endpoint when a shipment status changes; Yippie updates the Shipment record automatically
-- **Carriers supported**: DHL, UPS, FedEx, PostNL
+- **Carriers supported**: PostNL, DHL, DPD, UPS, FedEx (plus Sendcloud / Other)
 
 ### ERP Order Webhook
 
-- **Endpoint**: `POST /api/v1/shipments/webhooks/orders`
-- **Authentication**: HMAC-SHA256 signature in the `X-Webhook-Signature` header
+- **Endpoint**: `POST /api/v1/webhooks/shipments/orders/{your-tenant-slug}`
+- **Authentication**: HMAC comparison against the `X-Api-Key` header (the rotatable workspace secret)
 - **Payload**: include `contact_email`, `tracking_number`, and `carrier`
-- **Secret rotation**: generate a new secret in **Settings → Organisation → Tracking**; old secret is immediately invalidated
+- **Secret rotation**: generate a new secret from the Tracking page's Shipment settings; old secret is immediately invalidated
 
 ### Stripe — Platform Billing
 
@@ -1348,20 +1546,66 @@ Stripe handles subscription billing for Yippie's own plans (what tenants pay Yip
 
 ## 25. Automation & Background Jobs
 
-Yippie runs several scheduled background jobs using APScheduler. These run automatically — no manual trigger required.
+Yippie runs ~30 scheduled background jobs using APScheduler. These run automatically — no manual trigger required. Cross-tenant maintenance jobs use a lock so two app containers on one database never double-run.
+
+**Inbox & email**
 
 | Job | Frequency | What It Does |
 |---|---|---|
-| **SLA escalation** | Every 5 minutes | Scans all open tickets; marks any past their SLA deadline as Overdue; updates sidebar badge counts |
-| **SLA auto-close** | Every hour | Closes tickets in **Waiting** status that have not been updated in the configured number of working days |
-| **Email poller** | Every 30 seconds | Checks Resend for new inbound messages and ingests any that haven't been processed |
-| **Draft AI enrichment** | Every 10 seconds | Picks up any inbox drafts not yet AI-scanned and sends them to Claude Haiku for subject/priority/description generation |
-| **Campaign scheduler** | Every 60 seconds | Dispatches any scheduled campaigns whose send time has passed; processes drip sequence steps for eligible contacts |
-| **A/B winner picker** | Every 15 minutes | For A/B campaign variants sent more than 2 hours ago, picks the winner by open rate and sends it to remaining recipients |
-| **Engagement score decay** | Monthly | Applies a 10% decay to all contact engagement scores (floor: 0) so old engagement doesn't inflate targeting |
-| **Demo expiry checker** | Every hour | Checks demo tenants for expired demo dates; deactivates any that have passed their expiry |
-| **Onboarding drip** | Daily | Sends onboarding tip emails to new tenants on Day 3 and Day 7 after signup |
-| **Compose undo flush** | 5-second delay | When an agent clicks Send in the Compose window, actual delivery is delayed 5 seconds to allow the undo action |
+| Email poller | 30 s | Polls Resend for new inbound email and ingests it into drafts |
+| OAuth inbox poll | 60 s | Pulls linked Gmail/Outlook mailboxes into the draft queue |
+| Draft AI enrichment | 10 s (prod) / 30 s (dev) | AI-scans queued drafts using **Mistral Small** (default provider) for subject/priority/description/briefing, until the queue drains |
+| Send flush | 5 s (prod) / 30 s (dev) | Dispatches queued outbound email after the undo window |
+| Delivery sync | 5 min | Polls Resend for delivery/open status on sent mail |
+| Inbox retention | hourly | Spam → Bin after 10 working days; Bin emptied after 20 |
+| Go-live check | 60 s | Activates tenants once their scheduled go-live time passes |
+
+**Tickets, flows & automations**
+
+| Job | Frequency | What It Does |
+|---|---|---|
+| Flow engine | 10 s | Drains the flow-event outbox, runs matching flows, resumes due waits/retries |
+| Flow scheduler | 1 min | Fires `schedule`-trigger flows at each tenant's local time (once per day) |
+| Flow waiting sweeper | hourly | Closes orphaned flow runs stuck on a wait step |
+| SLA reminder | 5 min | Emits `ticket_sla_due_soon` ~60 min before breach (feeds the escalation flow) |
+| Ticket auto-close | hourly | Closes `Waiting` tickets untouched past the configured days |
+
+**Marketing**
+
+| Job | Frequency | What It Does |
+|---|---|---|
+| Campaign scheduler | 1 min | Launches scheduled campaigns whose send time has passed |
+| A/B winner picker | 15 min | Picks the A/B winner ~2 h after dispatch; completes non-A/B campaigns |
+| Drip sender | hourly | Sends due drip-sequence steps to contacts who haven't replied |
+| Engagement decay | Monthly (1st) | Decays all contact engagement scores by 10% |
+
+**Lifecycle, billing & analytics**
+
+| Job | Frequency | What It Does |
+|---|---|---|
+| Contract lifecycle | every 6 h | Auto-expires / auto-renews contracts; sends notice (14-day) and expiry (7-day) nudges; emits `contract_expiring` |
+| Invoice overdue check | daily | Flips sent invoices to Overdue and emits `invoice_overdue` |
+| SaaS health compute | hourly | Recomputes health scores for contacts with new events |
+| SaaS at-risk digest | Mondays 08:00 | Emails admins the at-risk customer list |
+| Contact retention purge | hourly | Hard-deletes contacts soft-deleted more than 30 days ago |
+| External calendar sync | 5 min | Refreshes subscribed iCal feeds so busy times block booking availability |
+
+**Tenant lifecycle & onboarding**
+
+| Job | Frequency | What It Does |
+|---|---|---|
+| Trial nudge / expiry | hourly | Day-23/28 trial nudges; locks lapsed trials (subscribe gate) |
+| Subscription expiry | hourly | Locks paid tenants past their subscription end date |
+| Demo nudge / expiry | hourly | Day-3 demo check-in; deactivates expired demo tenants |
+| Onboarding drip | daily | Day-3 / Day-7 onboarding tip emails to new tenants |
+
+**Yip assistant**
+
+| Job | Frequency | What It Does |
+|---|---|---|
+| Reminder delivery | 1 min | Pushes due reminders to users as in-app toasts |
+| Morning briefing | 15 min | Builds each user's daily briefing into their Yip thread (once per day, at/after their configured time) |
+| Thread cleanup | daily | Drops Yip threads idle more than 30 days |
 
 ---
 
@@ -1378,6 +1622,11 @@ These pages are accessible without a Yippie account. They are standalone — no 
 | `/request-demo` | **Request demo** | Public form to request a demo tenant of Yippie |
 | `/demo-enter` | **Demo enter** | Magic-link entry to a demo workspace (no password required) |
 | `/track/confirm` | **Tracking confirm** | Confirms shipment tracking opt-in for a contact |
+| `/sign/:token` | **Contract e-signing** | Customer signs a contract sent by your team — no login required |
+| `/request/:slug` | **Reverse booking** | Customer proposes times; the workspace fulfils the request |
+| `/signup` | **Trial signup** | Self-serve trial workspace signup (with `/verify-email` + resend-verification) |
+
+Additional public endpoints (no dedicated page, called by embeds/integrations): `/custom-plan` (bespoke-package lead), `/questionnaire-lead` and `/lead/{slug}` (inbound lead capture, e.g. website forms), `/track` (Sales/SaaS analytics ingest), `/ai-demo` (live AI scan demo for the marketing site), `/widget-config/{slug}` (live-chat widget config), and `/calendar/{feed_token}.ics` (personal calendar export feed).
 
 ---
 
@@ -1394,10 +1643,11 @@ Every database table includes a `tenant_id` column. Every query filters by it. W
 
 ### Authentication
 
-- **JWT (JSON Web Tokens)**: HS256 algorithm, 8-hour expiry
-- **Login**: `POST /api/v1/auth/login` with email + password returns an access token
-- **Token refresh**: tokens expire after 8 hours; users must log in again
-- **Password hashing**: bcrypt with a cost factor appropriate for the server hardware — plain-text passwords are never stored
+- **JWT (JSON Web Tokens)**: HS256 algorithm, 8-hour expiry, stored in an HttpOnly cookie (with a Bearer fallback)
+- **Login**: `POST /api/v1/auth/login` with email + password sets the session cookie
+- **Token refresh**: `POST /api/v1/auth/refresh` silently re-issues the cookie while it is still valid, so active sessions don't hard-expire at 8 hours (impersonation tokens cannot be refreshed)
+- **Login rate limiting**: two-tier throttle on the login endpoint — a per-account lockout (keyed on IP + email) and a wider per-IP spray guard — using the real client IP (CF-Connecting-IP). Password-reset, registration, and demo-provisioning endpoints are rate-limited too.
+- **Password hashing**: bcrypt (run off the event loop); a fixed dummy hash equalises timing for unknown emails to prevent account enumeration
 
 ### Roles and Permissions
 
@@ -1407,6 +1657,7 @@ Every database table includes a `tenant_id` column. Every query filters by it. W
 | **Admin** | Tenant owner; full access to all settings and modules within their workspace |
 | **Agent** | Standard team member; can use enabled modules; cannot change team or billing settings |
 | **Viewer** | Read-only; cannot create, edit, or delete anything |
+| **Worker** | Contract worker; restricted from all modules except their own booking-availability screen |
 | **Custom** | Custom roles created by admins with per-module access levels (full / view / restricted) |
 
 ### Invite Links
@@ -1418,10 +1669,23 @@ Every database table includes a `tenant_id` column. Every query filters by it. W
 
 ### Impersonation
 
-- Superadmins can log in as any tenant's admin using a short-lived impersonation token
-- The impersonation session is time-limited
-- Every impersonation is **audit-logged**: superadmin email, target tenant, start time, and end time
+- Superadmins can log in as any tenant's admin using a short-lived (1-hour) impersonation token
+- The original superadmin token is preserved and restored on Exit; impersonation tokens cannot be refreshed
+- Every impersonation and exit is written to the application logs (superadmin, target tenant/user, time) — a log entry, not a persisted audit table
 - The amber impersonation banner is always visible during the session
+
+### OAuth Email Accounts
+
+Yippie connects to Gmail and Outlook via the OAuth 2.0 authorization code flow. No passwords are stored — only short-lived access tokens and long-lived refresh tokens, both encrypted with Fernet at rest.
+
+| Provider | Auth endpoint | Token endpoint |
+|---|---|---|
+| Gmail | `accounts.google.com/o/oauth2/v2/auth` | `oauth2.googleapis.com/token` |
+| Outlook | `login.microsoftonline.com/common/oauth2/v2.0/authorize` | `login.microsoftonline.com/common/oauth2/v2.0/token` |
+
+Access tokens expire after 1 hour and are refreshed automatically. Outlook rotates the refresh token on every refresh — Yippie persists the new token immediately. If a refresh token is revoked by the user at the provider, sync halts and the account shows an error in Settings until reconnected.
+
+The OAuth state parameter is a short-lived signed JWT (10-minute TTL) that binds the callback to the originating user and tenant — this prevents CSRF and cross-tenant token injection.
 
 ### Webhook Security
 
@@ -1430,7 +1694,7 @@ All inbound webhooks use HMAC-SHA256 signature verification:
 - **Resend** (inbound email): `Svix-Signature` header verified against the Resend signing secret
 - **Sendcloud** (shipping updates): `X-Sendcloud-Signature` header verified against the Sendcloud API secret
 - **Stripe** (billing events): `Stripe-Signature` header verified against the Stripe webhook secret
-- **ERP orders**: `X-Webhook-Signature` header verified against the rotatable workspace secret
+- **ERP orders**: `X-Api-Key` header verified (HMAC comparison) against the rotatable workspace secret
 
 Requests with invalid or missing signatures are rejected with a 403 before any processing occurs.
 
@@ -1444,7 +1708,11 @@ Requests with invalid or missing signatures are rejected with a 403 before any p
 
 ## 28. Module: AI Assistant (Jarvis)
 
-Jarvis is the AI layer that runs throughout the platform. Most of its features are available when the `ai` module is enabled for the tenant.
+Jarvis (branded **Yip**) is the AI assistant that runs throughout the platform.
+
+**Two separate AI things.** Yip the assistant (Cmd+K quick capture, the Yip chat panel, Yip Train, morning briefings, reminders) is always available. The **AI Inbox** module (€15/mo) is a *separate paid add-on* that unlocks the AI features inside the Inbox and Tickets — auto-scan, Suggest/Improve reply, and ticket briefings. When AI Inbox is disabled, those inbox/ticket AI buttons don't appear.
+
+**AI provider.** All AI runs on **Mistral Small** (EU-hosted, GDPR-safe) by default. Anthropic Claude is an optional, configurable fallback. (Earlier drafts of this manual said "Claude Haiku" — that is no longer the default.)
 
 ### Quick Capture Popup
 
@@ -1480,9 +1748,11 @@ Answers are saved and applied across all AI features: inbox scanning, reply sugg
 
 ### AI Features by Module
 
+All Inbox/Tickets/Templates AI features below require the **AI Inbox** add-on.
+
 | Module | AI Feature | Trigger |
 |---|---|---|
-| Inbox | Draft scanning | Automatic (every 10 seconds) |
+| Inbox | Draft scanning | Auto-scan (opt-in, off by default) or on-demand **Generate** |
 | Inbox | Suggest reply | Button in Draft Review |
 | Inbox | Improve reply | Button in Draft Review |
 | Inbox | Regenerate scan | Button in Draft Review |
@@ -1494,9 +1764,49 @@ Answers are saved and applied across all AI features: inbox scanning, reply sugg
 | Jarvis | Quick Capture | `Cmd+K` / `Ctrl+K` |
 | Jarvis | Reminders | Fired by Quick Capture or scheduled |
 
+### Yip Chat (Agentic AI)
+
+The **Yip** icon in the sidebar opens the Yip chat panel — a conversational AI agent with read and write access to your workspace. Unlike Quick Capture (single commands), Yip handles multi-step requests and can take action on your behalf.
+
+**What Yip can do:**
+
+| Category | Examples |
+|---|---|
+| **Look up information** | "Show me all open tickets for Acme BV", "What's the status of invoice INV-0042?" |
+| **Draft replies** | "Draft a reply to the last ticket from Jan de Vries, apologise for the delay" |
+| **Create & update records** | "Create a ticket: follow up with Pieter about his shipment", "Move Acme to the Proposal Sent stage" |
+| **Summarise context** | "Give me a briefing on our deal with Ndugu Coffee" |
+| **Answer workspace questions** | "How many contacts do we have?", "What was the last email we sent to this customer?" |
+
+**Write actions and confirmation:** When Yip intends to create a ticket, update a record, or move a pipeline stage, it describes the action and asks for confirmation before executing. This prevents accidental changes.
+
+**Full thread context:** When drafting replies to tickets or inbox messages, Yip loads the full conversation history and customer context before generating the suggestion — it does not work from a blank slate.
+
+**Conversation memory:** Yip maintains a persistent conversation thread per user. You can continue from where you left off across sessions.
+
+**SSE streaming:** Yip's responses stream in real time — you see text as it is generated rather than waiting for the full response.
+
+### Morning Briefing
+
+Yip posts a daily morning briefing into your Yip thread at (or just after) your configured time. It is a **deterministic digest** — assembled from your data, not generated by the AI model, so it costs nothing and is always accurate. A background job checks every 15 minutes and posts once per day. The briefing includes:
+
+- Overdue or breached and high-priority open tickets assigned to you (or unassigned)
+- Today's bookings
+- Any reminders due today
+
+(Only sections relevant to your enabled modules appear; if there's nothing noteworthy, no briefing is posted.)
+
 ### AI Scan Usage
 
 Each inbox draft AI scan counts against the tenant's monthly AI scan limit (determined by the subscription plan). The current usage and limit are visible on the **Subscription** page. When the limit is reached, new drafts are stored but not scanned until the next billing period or a plan upgrade.
+
+### Knowledge Base (Grounding AI Replies)
+
+When the AI Inbox module is enabled, an admin can point Yippie at **one source URL** — a public FAQ or help page. Yippie fetches it, splits it into sections, and stores it as a small knowledge base. When the AI drafts a reply to an inbound message, it pulls the most relevant sections from that page and grounds the reply in your own company knowledge, so answers match what you actually publish.
+
+- Set or update the source URL, refetch it on demand, or remove it, from the AI/Knowledge settings (admin only)
+- Retrieval uses keyword matching over the page's sections (no external vector database)
+- Currently the knowledge base grounds **inbox reply drafts**; it is not yet wired into ticket briefings or the Yip agent
 
 ---
 
@@ -1530,6 +1840,380 @@ Each step is checked off automatically once completed. The checklist collapses a
 ### Onboarding Drip Emails
 
 New tenants receive automated onboarding tip emails from the platform on **Day 3** and **Day 7** after signup. These are sent by the background scheduler and contain tips for getting the most out of the platform. Superadmins can view these sends in the activity log.
+
+---
+
+---
+
+## 30. Module: Flows (Automation Builder)
+
+Flows lets you build automations that run when something happens in Yippie — a ticket is created, a contact moves to a new pipeline stage, a booking is confirmed, or an external system sends a webhook. Each flow has a trigger, optional conditions, and a sequence of actions.
+
+### What Flows Does
+
+- Sends emails, in-app notifications, or HTTP webhooks automatically
+- Moves contacts between pipeline stages in response to events
+- Creates or updates tickets without human input
+- Waits a configured amount of time before continuing (e.g. follow up 3 days after a booking)
+- Branches on conditions to take different paths depending on the current state of the record
+
+### Anatomy of a Flow
+
+Every flow has four parts:
+
+| Part | What it is |
+|---|---|
+| **Trigger** | The event that starts the flow |
+| **Conditions** | Optional filters — the flow only runs if the event matches these |
+| **Actions** | The steps that execute in order |
+| **Settings** | Name, enabled/disabled toggle, per-trigger config |
+
+---
+
+### Trigger Types
+
+Triggers are grouped by module. Only triggers from modules that are enabled for your workspace appear in the builder.
+
+**Tickets**
+| Trigger | When it fires |
+|---|---|
+| `ticket_created` | A new ticket is created |
+| `ticket_status_changed` | A ticket's status changes (e.g. open → resolved) |
+| `ticket_sla_due_soon` | Approximately 60 minutes before a ticket's SLA deadline |
+
+**Contacts**
+| Trigger | When it fires |
+|---|---|
+| `contact_created` | A new contact is added |
+| `call_logged` | A call is logged on a contact (via the Log a call feature) |
+
+**Pipeline**
+| Trigger | When it fires |
+|---|---|
+| `pipeline_stage_changed` | A contact moves from one pipeline stage to another |
+
+**Inbox**
+| Trigger | When it fires |
+|---|---|
+| `draft_approved` | An AI-scanned inbox draft is approved into a ticket |
+
+**Shipments / Tracking**
+| Trigger | When it fires |
+|---|---|
+| `order_received` | An order payload arrives via the ERP webhook |
+
+**Booking**
+| Trigger | When it fires |
+|---|---|
+| `booking_created` | A customer books a meeting slot |
+| `booking_cancelled` | A customer cancels a confirmed booking |
+
+**Marketing**
+| Trigger | When it fires |
+|---|---|
+| `campaign_email_bounced` | A campaign email bounces (hard or soft) |
+| `campaign_button_clicked` | A customer clicks an action button in a campaign email |
+
+**Contracts**
+| Trigger | When it fires |
+|---|---|
+| `contract_expiring` | A contract is approaching its expiry date |
+
+**Billing**
+| Trigger | When it fires |
+|---|---|
+| `invoice_overdue` | An invoice's due date has passed without payment |
+
+**SaaS**
+| Trigger | When it fires |
+|---|---|
+| `saas_signup` | A new end-user signs up in your tracked SaaS product |
+| `saas_health_dropped` | A customer's health score drops (computed hourly) |
+
+**Live Chat**
+| Trigger | When it fires |
+|---|---|
+| `conversation_started` | A live chat conversation begins |
+| `conversation_solved` | A chat conversation is marked as solved |
+
+**Built-in (no module required)**
+| Trigger | When it fires |
+|---|---|
+| `schedule` | At a configured time — daily or on a specific weekday |
+| `webhook` | When an external system posts to the flow's unique inbound URL |
+
+---
+
+### Conditions
+
+Conditions are optional. If none are set, the flow runs on every matching trigger event.
+
+Conditions use an **OR-of-AND** structure: you can have multiple condition groups, and the flow runs if **any group** fully matches. Within a group, **all conditions** must match.
+
+**Example:** run only when a ticket is created with priority `high` or `urgent`:
+- Group 1: `priority equals high`
+- Group 2: `priority equals urgent`
+
+**Available operators:** `equals`, `not equals`, `contains`, `in`, `greater than or equal`, `less than or equal`
+
+**Limits:** up to 5 OR groups, up to 10 conditions per group.
+
+---
+
+### Action Types
+
+**Ticket Actions**
+
+| Action | What it does |
+|---|---|
+| `create_ticket` | Creates a new ticket with the configured subject, description, priority, and assignee |
+| `update_ticket` | Updates the triggering ticket's status, priority, or assignee |
+
+**Pipeline Actions**
+
+| Action | What it does |
+|---|---|
+| `move_pipeline_stage` | Moves the contact linked to the event to a specified pipeline stage |
+
+**Communication Actions**
+
+| Action | What it does |
+|---|---|
+| `send_email` | Sends an email to the contact. Supports a subject, body, or an existing template. Skipped if the contact has no email address. |
+| `notify_user` | Sends an in-app notification to a team member. Set the recipient to a specific user or to "assigned agent" (resolved at runtime from the ticket or event). |
+| `send_webhook` | POSTs the event payload to an external URL, signed with your workspace webhook secret. |
+
+**Flow Control**
+
+| Action | What it does |
+|---|---|
+| `wait` | Pauses the flow for a set number of minutes, hours, or days (max 30 days per flow). The flow resumes exactly where it left off. |
+| `branch` | Evaluates conditions against the **current** record state and routes down a "match" path or an "else" path. Useful after a wait, when the record may have changed. |
+
+**Dynamic placeholders in text fields:** Use `{subject}`, `{full_name}`, `{email}`, `{stage_name}`, `{priority}`, `{status}`, `{due_in_minutes}`, or any event field name. Unknown placeholders are left as-is.
+
+---
+
+### Creating a Flow
+
+1. Go to **Flows** in the sidebar
+2. Click **New flow**
+3. Give the flow a name
+4. Pick a **trigger** (grouped by module)
+5. Optionally add **conditions**
+6. Add one or more **actions** in order
+7. Toggle the flow **enabled** and click **Save**
+
+Flows are disabled by default so you can configure them fully before they start running.
+
+**Linear flows** (up to 10 actions, no branches) are edited entirely in the modal. If you need branches or more than 10 actions, click **Open canvas** to switch to the visual editor.
+
+---
+
+### Canvas Editor (Branched Flows)
+
+The canvas editor is a visual node-and-edge graph for building flows that branch based on conditions.
+
+- **Nodes** represent individual actions or branch points
+- **Edges** connect nodes — a branch node has a "match" edge and an optional "else" edge
+- Drag nodes to rearrange; click **Re-layout** to auto-arrange
+- Select a node to edit its config in the inspector panel on the right
+- Up to **25 nodes** per flow
+- The canvas saves node positions locally in your browser
+
+**Branch nodes** evaluate their conditions against the **live record** at the moment they run — not the frozen event snapshot. This means a branch after a 3-day wait checks what the ticket actually looks like now, not what it looked like when the flow started.
+
+---
+
+### Test Fire
+
+Every flow has a **Test fire** option (the ▶ icon on the flow card). This performs a dry run:
+
+- Shows the sample event fields for the trigger type
+- Evaluates your conditions (shows whether they match)
+- Lists each action and whether it would run or be skipped (with reasons)
+- Makes **no real changes** — nothing is created, sent, or moved
+
+Use test fire to verify a flow before enabling it.
+
+---
+
+### Recipes
+
+Recipes are pre-built flow templates you can install with one click. Go to the **Recipes** tab on the Flows page to browse them.
+
+| Recipe | What it does |
+|---|---|
+| Urgent ticket alert | Notifies the assigned agent immediately when a high or urgent ticket is created |
+| Welcome new contacts | Sends a welcome email and moves the contact to the first active pipeline stage |
+| Approved inbox draft moves the deal | Moves a contact to a pipeline stage when their inbox draft is approved |
+| Resolved ticket moves the deal | Moves a contact when their ticket is resolved |
+| Ask for a review | Emails the customer a review request after their ticket is resolved |
+| Follow up on new contacts | Creates a follow-up ticket when a new contact is added (add a `wait` step if you want a delay) |
+| Escalate to urgent before SLA breach | One-step escalation: sets the ticket to urgent 60 minutes before SLA |
+
+Installing a recipe creates a **disabled** copy that you can customise before enabling.
+
+---
+
+### Platform Automations
+
+The **Platform automations** card on the Flows page lists always-on background jobs that run automatically — these are not configurable flows, but they are shown here so you can see what the platform is doing on your behalf.
+
+| Automation | What it does |
+|---|---|
+| AI drafts your tickets | Scans every inbound email and WhatsApp message with AI to generate a structured draft |
+| Stale tickets close themselves | Closes tickets in "Waiting" status that have not been updated within the SLA window |
+| Orders sync your contacts | Auto-creates or updates contacts from incoming ERP order payloads |
+| Campaign buttons take action | Moves contacts to pipeline stages when they click campaign email buttons |
+| Booking links invite the customer | Sends a calendar invitation email when a booking is confirmed |
+| Contracts renew and expire on time | Fires contract expiry and renewal events on schedule |
+| Overdue invoices flag themselves | Flips invoice status to "Overdue" when the due date passes |
+| Campaigns run on their own | Dispatches scheduled campaigns, drip steps, and A/B winners |
+| Health scores stay current | Recomputes SaaS customer health scores hourly; sends a Monday digest |
+| Live chats auto assign | Claims a live chat session for the first agent who replies |
+| Yip's morning briefing | Posts a daily digest of each user's priorities into their Yip thread |
+
+---
+
+### Webhooks
+
+**Inbound webhooks (external → Yippie):** Flows with the `webhook` trigger type get a unique URL. Any system can POST a JSON payload to that URL to fire the flow. The payload fields become the event fields and can be used in conditions and placeholder text. The URL can be rotated from the flow's webhook settings panel.
+
+**Outbound webhooks (Yippie → external):** The `send_webhook` action POSTs to a URL you specify. The payload includes the full event context and is signed with your workspace webhook secret (`X-Yippie-Signature: sha256=…`) so the receiving system can verify it came from Yippie. The secret can be rotated from the webhook settings panel without losing the existing URL.
+
+---
+
+### Flow Runs & Audit Log
+
+Every time a flow runs (or is skipped), Yippie records a **flow run**. Open the run log by clicking the run count badge on any flow card.
+
+| Status | Meaning |
+|---|---|
+| `success` | All actions completed successfully |
+| `partial` | Some actions ran, some were skipped (e.g. no email address on contact) |
+| `failed` | One or more actions failed (e.g. bad webhook URL) |
+| `waiting` | The flow is paused on a wait step and will resume later |
+| `skipped` | The flow's conditions did not match — logged for audit, no actions ran |
+
+Failed actions are retried automatically: once after 60 seconds, once more after 5 minutes. After 3 total attempts the run is marked failed.
+
+---
+
+### Plan Limits
+
+| Setting | Detail |
+|---|---|
+| **Active flow cap** | Set per plan. Default flows (installed by Yippie) do not count toward the cap. |
+| **Actions per flow** | Up to 10 (modal builder) or 25 nodes (canvas) |
+| **Max wait** | 30 days total along the longest path in any flow |
+| **Condition groups** | Up to 5 OR groups, 10 conditions each |
+
+When you reach the active flow cap, disable an existing flow before enabling a new one, or upgrade your plan.
+
+---
+
+### Loop Protection
+
+Yippie prevents automation loops. When a flow action causes an event (e.g. a `create_ticket` action fires a `ticket_created` event), that downstream event only triggers other flows if those flows have **chainable** mode enabled (opt-in setting per flow). Chains are limited to 3 levels deep, and a flow that already fired in the current chain cannot fire again.
+
+---
+
+## 31. Module: Contracts (Documents & E-Signing)
+
+The Contracts module lets you create, send, track, and e-sign contracts with customers — all from within Yippie, with no external tool required.
+
+### What Contracts Does
+
+- Creates contracts from scratch or from reusable block templates, or attaches an uploaded PDF/Word/image file
+- Generates a professional PDF automatically from merge-resolved blocks
+- Produces a public signing link (copied to your clipboard) for the counterparty — no Yippie account required
+- Records the e-signature: signer name, a drawn signature image, timestamp, and IP address
+- Tracks both **issued** (to customers) and **received** (from vendors) contracts, with MRR/ARR totals
+- Auto-manages renewal and expiry, with reminder nudges, and fires a `contract_expiring` flow trigger before the end date
+
+### Creating a Contract
+
+1. Go to **Contracts** in the sidebar
+2. Click **New contract**
+3. Fill in the contract details: title, counterparty (select a contact), start date, end date, value, and body text
+4. Optionally choose a **template** to pre-fill the body
+5. Click **Save as draft**
+
+The contract is saved as a draft and a PDF is generated automatically. You can preview the PDF before sending.
+
+### Sending for E-Signing
+
+1. Open a contract, pick a template, and click **Generate** to freeze its body/blocks
+2. Click **Create signing link** — the public `/sign/:token` URL is copied to your clipboard. **Yippie does not email it for you**; paste it into your own email or message to the counterparty.
+3. The counterparty opens the link (no login required), reviews the contract, and signs by drawing their signature and entering their name
+4. Their signature image, name, timestamp, and IP address are recorded and rendered into the PDF
+5. Signing sets the contract to **Active** and single-uses the link
+
+### Contract Lifecycle
+
+| Status | Meaning |
+|---|---|
+| **Draft** | Created, not yet sent |
+| **Sent** | Signing link created, awaiting signature |
+| **Active** | Signed (or manually activated) and within the contract period |
+| **Expired** | End date has passed and the contract was not set to auto-renew |
+| **Terminated** | Ended early / cancelled |
+
+There is no separate "Signed" status — signing goes straight to **Active** — and no "Renewed" status (renewal rolls the same contract's dates forward in place).
+
+A background job runs every 6 hours to: expire past-end contracts that aren't set to auto-renew, auto-renew those that are, send a **notice-period nudge** ~14 days before the notice deadline, and a **7-day expiry nudge** for non-renewing contracts. The `contract_expiring` flow trigger fires from the expiry nudge, so you can automate reminder or renewal workflows via Flows.
+
+### Notice Period & Auto-Renew
+
+- **Notice period**: set the number of days' notice required; Yippie derives the notice deadline from the end date and nudges you before it
+- **Auto-renew + renewal term**: when enabled, the contract automatically rolls its start/end dates forward by the renewal term at expiry — no manual action, no new record
+
+### Templates
+
+Contract templates are built in a full **drag-and-drop block editor** with `{{merge_field}}` insertion and a live PDF preview — not just a name and body.
+
+1. Go to **Contracts → Templates**
+2. Build the template from blocks and merge fields
+3. Select the template when creating a contract, then **Generate** to render the merged body
+
+Templates are shared across all users in the workspace.
+
+### File Attachments
+
+Instead of (or alongside) a generated body, you can upload a signed PDF, Word document, or image (up to 15 MB) to a contract, and download it later.
+
+### Revenue Tracking
+
+The Contracts page shows aggregate figures for all active contracts:
+- **Total MRR** (monthly recurring value of active contracts)
+- **Total ARR** (annual recurring value)
+- **Count** of active, expiring soon, and expired contracts
+
+---
+
+## 32. Chrome Extension (Inbox Analyser)
+
+The **Yippie Inbox Analyser** is a standalone marketing/lead-generation browser extension — not a CRM integration. It is a browser-action **popup** that shows a prospect how much time they spend on manual inbox triage and what Yippie could save them. It has **no connection to a Yippie workspace**: there is no Yippie login, no contact lookup, no ticket creation, and no Gmail sidebar.
+
+### What the Extension Does
+
+- Connects (via OAuth) to a **Gmail or Outlook** inbox that the user chooses
+- Reads up to ~500 inbox **headers** from the last 30 days — sender, subject, and date only (never message bodies, sent mail, or drafts)
+- Classifies the mail (e.g. newsletters vs. real conversations) using provider category labels, List-Unsubscribe / Focused-Other signals, and English + Dutch keyword fallbacks
+- Presents a time-triage summary as a talking point for how Yippie would help; results are cached for about an hour
+
+### Installing the Extension
+
+1. Install **Yippie Inbox Analyser** from the Chrome Web Store (or a shared link)
+2. Click the toolbar icon to open the popup
+3. Choose **Gmail** or **Outlook** and approve the read-only, metadata-scoped permission
+
+### Permissions & Privacy
+
+- Requests only `identity` and `storage` browser permissions
+- Gmail: `gmail.metadata` scope (headers only). Outlook: Microsoft Graph `User.Read` + `Mail.ReadBasic`
+- It never reads email bodies, and it does not send your mailbox data to a Yippie workspace — the analysis runs against header metadata for the summary only
 
 ---
 
