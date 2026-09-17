@@ -120,16 +120,21 @@ export default function WeekView({ anchor, scope, canEdit, eventsByDay, onNavWee
     onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar-items'] }),
     onError: () => toast.error(t('cal_week_save_error')),
   })
+  const deleteEventMut = useMutation({
+    mutationFn: (id: string) => api.delete(`/calendar/events/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['calendar-items'] }),
+  })
 
   // ── selection + clipboard ────────────────────────────────────────────
-  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [selected, setSelected] = useState<Set<string>>(new Set())      // slots: `${date}#${time}`
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set()) // event ids
   const [focusedDayOffset, setFocusedDayOffset] = useState<number | null>(null)
   const clipboard = useRef<Array<{ dayOffset: number; time: string; end_time: string; capacity: number }>>([])
   const [rangeModal, setRangeModal] = useState<{ date: string } | null>(null)
   const [drag, setDrag] = useState<DragSession['cur'] & { active: boolean; kind: string } | null>(null)
   const dragRef = useRef<DragSession | null>(null)
 
-  useEffect(() => { setSelected(new Set()); setFocusedDayOffset(null) }, [dateKey(weekStart)])
+  useEffect(() => { setSelected(new Set()); setSelectedEvents(new Set()); setFocusedDayOffset(null) }, [dateKey(weekStart)])
 
   function saveDay(date: string, slots: SlotEntry[]) {
     const seen = new Set<string>()
@@ -160,6 +165,31 @@ export default function WeekView({ anchor, scope, canEdit, eventsByDay, onNavWee
     if (pieces.length === 0) return
     saveDay(date, [...rest, ...pieces])
   }
+
+  function toggleEvent(id: string) {
+    setSelectedEvents(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n })
+  }
+
+  // Delete the whole current selection: bookable slots (grouped per day, only
+  // when editable) plus any selected calendar events.
+  function deleteSelection() {
+    if (canEdit && selected.size) {
+      const byDay = new Map<string, Set<string>>()
+      for (const key of selected) {
+        const [date, time] = key.split('#')
+        if (!byDay.has(date)) byDay.set(date, new Set())
+        byDay.get(date)!.add(time)
+      }
+      for (const [date, times] of byDay) {
+        saveDay(date, (slotsByDay.get(date) ?? []).filter(s => !times.has(s.time)))
+      }
+    }
+    for (const id of selectedEvents) deleteEventMut.mutate(id)
+    setSelected(new Set())
+    setSelectedEvents(new Set())
+  }
+
+  const selectionCount = selected.size + selectedEvents.size
 
   function toggleSelect(date: string, time: string, shift: boolean) {
     const key = `${date}#${time}`
@@ -219,6 +249,10 @@ export default function WeekView({ anchor, scope, canEdit, eventsByDay, onNavWee
       const el = e.target as HTMLElement
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return
       if (rangeModal) return
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (selected.size || selectedEvents.size) { e.preventDefault(); deleteSelection() }
+        return
+      }
       if (!(e.metaKey || e.ctrlKey)) return
       if (e.key === 'c' || e.key === 'C') doCopy()
       else if (e.key === 'v' || e.key === 'V') doPaste()
@@ -272,9 +306,10 @@ export default function WeekView({ anchor, scope, canEdit, eventsByDay, onNavWee
       if (!d) return
       const { cur } = d
       if (!cur.moved) {
-        // Treated as a click.
-        if (d.kind === 'slot') { setFocusedDayOffset(d.origDayIndex); toggleSelect(d.origDate, d.refId, ev.shiftKey) }
-        else onOpenEvent(d.refId)
+        // Treated as a click → select (double-click opens events).
+        setFocusedDayOffset(d.origDayIndex)
+        if (d.kind === 'slot') toggleSelect(d.origDate, d.refId, ev.shiftKey)
+        else toggleEvent(d.refId)
         return
       }
       if (d.kind === 'slot') {
@@ -323,8 +358,26 @@ export default function WeekView({ anchor, scope, canEdit, eventsByDay, onNavWee
       }] : []),
       { label: t('cal_copy_slots'), icon: <Copy size={13} />, onClick: doCopy },
       { separator: true },
-      { label: t('cal_delete_slot'), icon: <Trash2 size={13} />, danger: true, onClick: () => deleteSlot(date, slot.time) },
+      deleteMenuItem(selected.has(`${date}#${slot.time}`), () => deleteSlot(date, slot.time)),
     ])
+  }
+  function eventMenu(e: React.MouseEvent, ev: WeekEventItem) {
+    e.stopPropagation()
+    ctx.open(e, [
+      { label: t('cal_open_event'), icon: <CalendarClock size={13} />, onClick: () => onOpenEvent(ev.id) },
+      { separator: true },
+      deleteMenuItem(selectedEvents.has(ev.id), () => deleteEventMut.mutate(ev.id)),
+    ])
+  }
+  // Delete item that acts on the whole selection when the clicked item is part
+  // of a multi-selection, otherwise just deletes the one clicked.
+  function deleteMenuItem(clickedIsSelected: boolean, deleteOne: () => void) {
+    const bulk = clickedIsSelected && selectionCount > 1
+    return {
+      label: bulk ? t('cal_delete_selected').replace('{n}', String(selectionCount)) : t('cal_delete_slot'),
+      icon: <Trash2 size={13} />, danger: true,
+      onClick: () => (bulk ? deleteSelection() : deleteOne()),
+    }
   }
 
   const hours = Array.from({ length: HOUR_END - HOUR_START }, (_, i) => HOUR_START + i)
@@ -397,10 +450,13 @@ export default function WeekView({ anchor, scope, canEdit, eventsByDay, onNavWee
                 const top = topFor(startMin), height = Math.max(14, ((endMin - startMin) / 60) * HOUR_PX)
                 if (top + height < 0 || top > GRID_HEIGHT) return null
                 const dragging = drag?.active && dragRef.current?.kind === 'event' && dragRef.current?.refId === ev.id
+                const evSel = selectedEvents.has(ev.id)
                 return (
                   <div key={ev.id}
                     onMouseDown={ev2 => startDrag(ev2, { kind: 'event', mode: 'move', refId: ev.id, origDate: dk, origDayIndex: colIdx, origStartMin: startMin, origEndMin: endMin, capacity: 1 })}
-                    className={`absolute left-1 right-1 z-10 rounded bg-slate-200/60 border border-slate-300 text-[10px] text-slate-600 px-1 overflow-hidden cursor-grab ${dragging ? 'opacity-40' : ''}`}
+                    onDoubleClick={() => onOpenEvent(ev.id)}
+                    onContextMenu={e2 => { e2.preventDefault(); setFocusedDayOffset(colIdx); eventMenu(e2, ev) }}
+                    className={`absolute left-1 right-1 z-10 rounded bg-slate-200/60 border text-[10px] text-slate-600 px-1 overflow-hidden cursor-grab ${dragging ? 'opacity-40' : ''} ${evSel ? 'border-yippie ring-2 ring-yippie/50' : 'border-slate-300'}`}
                     style={{ top: Math.max(0, top), height }} title={ev.title}>
                     <div className="absolute inset-x-0 top-0 h-1.5 cursor-ns-resize" onMouseDown={ev2 => startDrag(ev2, { kind: 'event', mode: 'resize-top', refId: ev.id, origDate: dk, origDayIndex: colIdx, origStartMin: startMin, origEndMin: endMin, capacity: 1 })} />
                     {ev.title}
