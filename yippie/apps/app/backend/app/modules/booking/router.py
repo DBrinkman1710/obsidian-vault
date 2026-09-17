@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 import uuid
+from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth.dependencies import AdminUser, CurrentUser
@@ -16,6 +17,8 @@ from app.modules.booking.schemas import (
     BookingTokenOut,
     CalendarSettingsOut,
     CalendarSettingsUpdate,
+    DateAvailabilityOut,
+    DateAvailabilityUpsert,
     WorkerAvailabilityOut,
     WorkerAvailabilityUpdate,
     WorkerSummary,
@@ -37,6 +40,40 @@ async def get_settings(current_user: CurrentUser, db: DB):
 @router.patch("/settings", response_model=CalendarSettingsOut)
 async def update_settings(body: CalendarSettingsUpdate, current_user: AdminUser, db: DB):
     return await service.update_settings(db, current_user.tenant_id, body)
+
+
+# --------------------------------------------------------------------------- #
+# Shared (tenant-wide) date-specific availability overrides.
+# Reads allowed for any booking access; writes require booking `full` — enforced
+# by the check_module_access("booking") gate this router is mounted under (it
+# blocks non-GET for view-only and 403s restricted; admins bypass). So a plain
+# CurrentUser is correct here: it lets any full-access user manage the schedule,
+# not just admins.
+# --------------------------------------------------------------------------- #
+@router.get("/availability/exceptions", response_model=list[DateAvailabilityOut])
+async def list_availability_exceptions(
+    current_user: CurrentUser,
+    db: DB,
+    start: date = Query(..., description="Range start (inclusive, YYYY-MM-DD)"),
+    end: date = Query(..., description="Range end (inclusive, YYYY-MM-DD)"),
+):
+    return await service.list_calendar_exceptions(db, current_user.tenant_id, start, end)
+
+
+@router.put("/availability/exceptions/{day}", response_model=DateAvailabilityOut)
+async def upsert_availability_exception(
+    day: date, body: DateAvailabilityUpsert, current_user: CurrentUser, db: DB
+):
+    return await service.upsert_calendar_exception(
+        db, current_user.tenant_id, day, body.slots
+    )
+
+
+@router.delete(
+    "/availability/exceptions/{day}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_availability_exception(day: date, current_user: CurrentUser, db: DB):
+    await service.delete_calendar_exception(db, current_user.tenant_id, day)
 
 
 @router.post("/send", status_code=status.HTTP_201_CREATED)

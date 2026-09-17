@@ -20,6 +20,7 @@ from app.core.models import Tenant, User, UserRole
 from app.modules.booking.models import (
     BookingRequest,
     BookingToken,
+    CalendarAvailabilityException,
     CalendarSettings,
     WorkerAvailability,
     WorkerAvailabilityException,
@@ -85,6 +86,63 @@ async def update_settings(
 
 
 # --------------------------------------------------------------------------- #
+# Tenant-wide date-specific availability overrides (shared week-view editor)
+# --------------------------------------------------------------------------- #
+def _normalise_slots(slots) -> list[dict]:
+    """Coerce a list of DateSlotEntry / dicts into plain JSON-able dicts."""
+    return [s if isinstance(s, dict) else s.model_dump() for s in (slots or [])]
+
+
+async def list_calendar_exceptions(
+    db: AsyncSession, tenant_id: uuid.UUID, start: date_cls, end: date_cls
+) -> list[CalendarAvailabilityException]:
+    result = await db.execute(
+        select(CalendarAvailabilityException)
+        .where(
+            CalendarAvailabilityException.tenant_id == tenant_id,
+            CalendarAvailabilityException.date >= start,
+            CalendarAvailabilityException.date <= end,
+        )
+        .order_by(CalendarAvailabilityException.date)
+    )
+    return list(result.scalars().all())
+
+
+async def upsert_calendar_exception(
+    db: AsyncSession, tenant_id: uuid.UUID, day: date_cls, slots
+) -> CalendarAvailabilityException:
+    row = await db.scalar(
+        select(CalendarAvailabilityException).where(
+            CalendarAvailabilityException.tenant_id == tenant_id,
+            CalendarAvailabilityException.date == day,
+        )
+    )
+    if row is None:
+        row = CalendarAvailabilityException(tenant_id=tenant_id, date=day)
+        db.add(row)
+    row.slots = _normalise_slots(slots)
+    await db.commit()
+    await db.refresh(row)
+    return row
+
+
+async def delete_calendar_exception(
+    db: AsyncSession, tenant_id: uuid.UUID, day: date_cls
+) -> bool:
+    row = await db.scalar(
+        select(CalendarAvailabilityException).where(
+            CalendarAvailabilityException.tenant_id == tenant_id,
+            CalendarAvailabilityException.date == day,
+        )
+    )
+    if row is None:
+        return False
+    await db.delete(row)
+    await db.commit()
+    return True
+
+
+# --------------------------------------------------------------------------- #
 # Worker availability (per-user schedules)
 # --------------------------------------------------------------------------- #
 async def get_or_create_worker_availability(
@@ -123,6 +181,60 @@ async def update_worker_availability(
     await db.commit()
     await db.refresh(row)
     return row
+
+
+# Per-user date-specific overrides (personal week-view editor). These write the
+# same WorkerAvailabilityException rows the worker-union availability path reads.
+async def list_worker_exceptions_range(
+    db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID, start: date_cls, end: date_cls
+) -> list[WorkerAvailabilityException]:
+    result = await db.execute(
+        select(WorkerAvailabilityException)
+        .where(
+            WorkerAvailabilityException.tenant_id == tenant_id,
+            WorkerAvailabilityException.user_id == user_id,
+            WorkerAvailabilityException.date >= start,
+            WorkerAvailabilityException.date <= end,
+        )
+        .order_by(WorkerAvailabilityException.date)
+    )
+    return list(result.scalars().all())
+
+
+async def upsert_worker_exception(
+    db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID, day: date_cls, slots
+) -> WorkerAvailabilityException:
+    row = await db.scalar(
+        select(WorkerAvailabilityException).where(
+            WorkerAvailabilityException.tenant_id == tenant_id,
+            WorkerAvailabilityException.user_id == user_id,
+            WorkerAvailabilityException.date == day,
+        )
+    )
+    if row is None:
+        row = WorkerAvailabilityException(tenant_id=tenant_id, user_id=user_id, date=day)
+        db.add(row)
+    row.slots = _normalise_slots(slots)
+    await db.commit()
+    await db.refresh(row)
+    return row
+
+
+async def delete_worker_exception(
+    db: AsyncSession, tenant_id: uuid.UUID, user_id: uuid.UUID, day: date_cls
+) -> bool:
+    row = await db.scalar(
+        select(WorkerAvailabilityException).where(
+            WorkerAvailabilityException.tenant_id == tenant_id,
+            WorkerAvailabilityException.user_id == user_id,
+            WorkerAvailabilityException.date == day,
+        )
+    )
+    if row is None:
+        return False
+    await db.delete(row)
+    await db.commit()
+    return True
 
 
 async def list_workers(db: AsyncSession, tenant_id: uuid.UUID) -> list[dict]:
@@ -201,7 +313,7 @@ def _parse_slot_entry(
     return (slot_start, slot_end)
 
 
-def _expand_availability(
+def _expand_availability_cap(
     weekly_map: dict,
     exceptions: dict[date_cls, Optional[list]],
     tz: ZoneInfo,
@@ -209,14 +321,17 @@ def _expand_availability(
     min_notice: int,
     days_ahead: int,
     now: datetime,
-) -> list[tuple[datetime, datetime]]:
-    """Expand a worker's recurring weekly_slots (plus one-off date exceptions)
-    into concrete UTC (start, end) tuples across the booking window.
+    default_capacity: int = 1,
+) -> list[tuple[datetime, datetime, int]]:
+    """Expand recurring weekly_slots (plus one-off date exceptions) into concrete
+    UTC (start, end, capacity) triples across the booking window.
 
     An exception for a date replaces that day's recurring entries entirely; an
-    empty exception list means the worker is off that day.
+    empty exception list means closed that day. An exception can open a weekend
+    day that the recurring schedule skips. Capacity comes from each entry
+    (default ``default_capacity`` when absent/invalid).
     """
-    out: list[tuple[datetime, datetime]] = []
+    out: list[tuple[datetime, datetime, int]] = []
     weekly_map = weekly_map if isinstance(weekly_map, dict) else {}
     for offset in range(min_notice + 1, days_ahead + 1):
         day = today + timedelta(days=offset)
@@ -228,9 +343,36 @@ def _expand_availability(
             entries = weekly_map.get(str(day.weekday())) or []
         for entry in entries:
             parsed = _parse_slot_entry(entry, day, tz, now)
-            if parsed is not None:
-                out.append(parsed)
+            if parsed is None:
+                continue
+            try:
+                capacity = int(entry.get("capacity", default_capacity))
+            except (ValueError, TypeError, AttributeError):
+                capacity = default_capacity
+            if capacity < 1:
+                capacity = default_capacity
+            out.append((parsed[0], parsed[1], capacity))
     return out
+
+
+def _expand_availability(
+    weekly_map: dict,
+    exceptions: dict[date_cls, Optional[list]],
+    tz: ZoneInfo,
+    today: date_cls,
+    min_notice: int,
+    days_ahead: int,
+    now: datetime,
+) -> list[tuple[datetime, datetime]]:
+    """Capacity-agnostic view of :func:`_expand_availability_cap` — used by the
+    worker-union path, which computes capacity from the set of declaring workers.
+    """
+    return [
+        (s, e)
+        for s, e, _ in _expand_availability_cap(
+            weekly_map, exceptions, tz, today, min_notice, days_ahead, now
+        )
+    ]
 
 
 async def _active_worker_rows(
@@ -278,6 +420,20 @@ async def _worker_exceptions(
     for exc in rows.scalars().all():
         by_worker[exc.user_id][exc.date] = exc.slots
     return by_worker
+
+
+async def _tenant_exceptions(
+    db: AsyncSession, tenant_id: uuid.UUID, today: date_cls
+) -> dict[date_cls, Optional[list]]:
+    """Tenant-wide date-specific overrides for the shared bookable schedule,
+    keyed by date. Only dates from ``today`` onward are relevant."""
+    rows = await db.execute(
+        select(CalendarAvailabilityException).where(
+            CalendarAvailabilityException.tenant_id == tenant_id,
+            CalendarAvailabilityException.date >= today,
+        )
+    )
+    return {exc.date: exc.slots for exc in rows.scalars().all()}
 
 
 async def _worker_available_slots(
@@ -429,47 +585,42 @@ async def get_available_slots(
         # (list form not expected, but guard anyway)
 
     min_notice = max(0, getattr(settings, "min_notice_days", 0))
+    # Tenant-wide date-specific overrides (from the calendar week-view editor).
+    # An override replaces that date's recurring/uniform slots entirely; an empty
+    # list closes the day; an override can open a weekend the schedule skips.
+    tenant_exceptions = await _tenant_exceptions(db, tenant_id, today)
 
-    if use_weekly and weekly_slots_map:
-        # Weekly schedule mode
-        for offset in range(min_notice + 1, days_ahead + 1):
-            day = today + timedelta(days=offset)
-            # Skip weekends (Saturday=5, Sunday=6)
-            if day.weekday() >= 5:
-                continue
-            day_key = str(day.weekday())  # "0" = Monday … "6" = Sunday
-            day_entries = weekly_slots_map.get(day_key) or []
-            for entry in day_entries:
-                raw_time = entry.get("time", "")
-                raw_end_time = entry.get("end_time")
-                capacity = int(entry.get("capacity", 1))
-                try:
-                    h, m = (int(x) for x in raw_time.split(":"))
-                except (ValueError, AttributeError):
-                    continue  # skip malformed entries
-                slot_start = datetime.combine(day, time(hour=h, minute=m), tzinfo=tz).astimezone(timezone.utc)
-                if raw_end_time:
-                    try:
-                        eh, em = (int(x) for x in raw_end_time.split(":"))
-                        slot_end = datetime.combine(day, time(hour=eh, minute=em), tzinfo=tz).astimezone(timezone.utc)
-                        if slot_end <= slot_start:
-                            slot_end = slot_start + timedelta(minutes=30)
-                    except (ValueError, AttributeError):
-                        slot_end = slot_start + timedelta(minutes=30)
-                else:
-                    slot_end = slot_start + timedelta(minutes=30)
-                if slot_start <= now:
-                    continue  # skip past slots
-                slots.append((slot_start, slot_end, capacity))
-                if window_start is None or slot_start < window_start:
-                    window_start = slot_start
-                if window_end is None or slot_end > window_end:
-                    window_end = slot_end
+    def _record(slot_start: datetime, slot_end: datetime, capacity: int) -> None:
+        nonlocal window_start, window_end
+        slots.append((slot_start, slot_end, capacity))
+        if window_start is None or slot_start < window_start:
+            window_start = slot_start
+        if window_end is None or slot_end > window_end:
+            window_end = slot_end
+
+    if use_weekly and (weekly_slots_map or tenant_exceptions):
+        # Weekly schedule mode, with date-specific overrides layered on top.
+        for slot_start, slot_end, capacity in _expand_availability_cap(
+            weekly_slots_map, tenant_exceptions, tz, today, min_notice, days_ahead, now
+        ):
+            _record(slot_start, slot_end, capacity)
     else:
-        # Legacy uniform-hours mode
+        # Legacy uniform-hours mode, with date-specific overrides layered on top.
         step = timedelta(minutes=settings.slot_minutes)
         for offset in range(min_notice + 1, days_ahead + 1):
             day = today + timedelta(days=offset)
+            if day in tenant_exceptions:
+                # Override: use the date-specific slots (empty/null list = closed).
+                for entry in (tenant_exceptions[day] or []):
+                    parsed = _parse_slot_entry(entry, day, tz, now)
+                    if parsed is None:
+                        continue
+                    try:
+                        capacity = int(entry.get("capacity", 1))
+                    except (ValueError, TypeError, AttributeError):
+                        capacity = 1
+                    _record(parsed[0], parsed[1], max(1, capacity))
+                continue
             if day.weekday() >= 5:
                 continue
             cursor = datetime.combine(day, time(hour=settings.work_start_hour), tzinfo=tz).astimezone(timezone.utc)
@@ -480,11 +631,7 @@ async def get_available_slots(
                 cursor = slot_end
                 if slot_start <= now:
                     continue  # skip past slots
-                slots.append((slot_start, slot_end, 0))  # 0 = unlimited
-                if window_start is None or slot_start < window_start:
-                    window_start = slot_start
-                if window_end is None or slot_end > window_end:
-                    window_end = slot_end
+                _record(slot_start, slot_end, 0)  # 0 = unlimited
 
     if not slots:
         return []

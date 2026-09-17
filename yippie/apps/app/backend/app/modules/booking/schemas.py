@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -146,6 +146,25 @@ class WorkerAvailabilityUpdate(BaseModel):
     weekly_slots: Optional[dict[str, list[WeeklySlotEntry]]] = None
     timezone: Optional[str] = None
     is_active: Optional[bool] = None
+
+
+# --------------------------------------------------------------------------- #
+# Date-specific availability overrides (calendar week-view editor)
+# --------------------------------------------------------------------------- #
+class DateSlotEntry(BaseModel):
+    time: str  # HH:MM start
+    end_time: str  # HH:MM end (required for date-specific slots)
+    capacity: int = Field(default=1, ge=1)
+
+
+class DateAvailabilityOut(BaseModel):
+    date: date
+    slots: list[DateSlotEntry]  # [] means "off that day" (explicit override)
+
+
+class DateAvailabilityUpsert(BaseModel):
+    # Replaces the date entirely; [] stores an explicit "off that day" override.
+    slots: list[DateSlotEntry]
 
 
 class WorkerSummary(BaseModel):
