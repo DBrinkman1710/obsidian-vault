@@ -1,8 +1,11 @@
 """wk1 — tenant-wide date-specific bookable availability overrides
 
-Revision ID: wk1_calendar_availability_exceptions
+Revision ID: wk1_cal_avail_exceptions
 Revises: schedsend_pending_scheduled
 Create Date: 2026-09-17
+
+NOTE: the revision id is kept <= 32 chars — alembic_version.version_num is
+VARCHAR(32), so a longer id overflows the version stamp and fails the deploy.
 
 calendar_availability_exceptions holds one-off date overrides for the SHARED
 (tenant-wide) bookable schedule — the mirror of worker_availability_exceptions
@@ -14,7 +17,7 @@ from typing import Sequence, Union
 
 from alembic import op
 
-revision: str = "wk1_calendar_availability_exceptions"
+revision: str = "wk1_cal_avail_exceptions"
 down_revision: Union[str, None] = "schedsend_pending_scheduled"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

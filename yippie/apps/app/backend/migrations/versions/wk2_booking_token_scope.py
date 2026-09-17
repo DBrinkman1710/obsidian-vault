@@ -1,7 +1,7 @@
 """wk2 — booking token scope (shared vs personal availability)
 
 Revision ID: wk2_booking_token_scope
-Revises: wk1_calendar_availability_exceptions
+Revises: wk1_cal_avail_exceptions
 Create Date: 2026-09-17
 
 A booking link can now be scoped to one user's personal availability. scope
@@ -14,7 +14,7 @@ from typing import Sequence, Union
 from alembic import op
 
 revision: str = "wk2_booking_token_scope"
-down_revision: Union[str, None] = "wk1_calendar_availability_exceptions"
+down_revision: Union[str, None] = "wk1_cal_avail_exceptions"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
