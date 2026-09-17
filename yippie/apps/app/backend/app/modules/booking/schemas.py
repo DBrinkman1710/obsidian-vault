@@ -67,6 +67,7 @@ class BookingTokenCreate(BaseModel):
     message: Optional[str] = None
     stage_id_override: Optional[uuid.UUID] = None
     from_email: Optional[str] = None
+    scope: Literal["shared", "personal"] = "shared"
 
     @model_validator(mode="after")
     def _propose_requires_slots(self) -> "BookingTokenCreate":
@@ -89,6 +90,7 @@ class BookingTokenOut(BaseModel):
     event_id: Optional[uuid.UUID] = None
     customer_proposed_slots: Optional[list] = None
     stage_id_override: Optional[uuid.UUID] = None
+    scope: str = "shared"
     created_at: datetime
     status: Literal["pending", "booked", "expired", "counter_proposed"]
 

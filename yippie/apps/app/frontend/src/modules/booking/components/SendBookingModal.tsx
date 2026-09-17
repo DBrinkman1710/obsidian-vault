@@ -75,6 +75,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
   const [message, setMessage] = useState('')
   const [stageIdOverride, setStageIdOverride] = useState<string>('')
   const [sendFromPersonal, setSendFromPersonal] = useState(false)
+  const [useMyAvailability, setUseMyAvailability] = useState(false)
   const [sending, setSending] = useState(false)
   const [year, setYear] = useState(today.getFullYear())
   const [month, setMonth] = useState(today.getMonth())
@@ -179,6 +180,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
           : undefined,
         stage_id_override: stageIdOverride || undefined,
         from_email: sendFromPersonal && user?.reply_from_email ? user.reply_from_email : undefined,
+        scope: useMyAvailability ? 'personal' : 'shared',
       }
       await Promise.all(
         effectiveContacts.map(c => api.post('/booking/send', { ...payload, contact_id: c.id })),
@@ -194,7 +196,7 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
   }
 
   function reset() {
-    setMode('open'); setMessage(''); setStageIdOverride(''); setSendFromPersonal(false); setSlots([]); setActiveDay(null)
+    setMode('open'); setMessage(''); setStageIdOverride(''); setSendFromPersonal(false); setUseMyAvailability(false); setSlots([]); setActiveDay(null)
     setYear(today.getFullYear()); setMonth(today.getMonth())
     setPickedContact(null); setContactQuery('')
   }
@@ -415,6 +417,20 @@ export default function SendBookingModal({ contacts = [], bulk = false, open, on
               />
               <span className="text-sm text-slate-700 font-medium">
                 {t('booking_send_from')} <span className="text-slate-500 font-normal">{user.reply_from_email}</span>
+              </span>
+            </label>
+          )}
+
+          {!bulk && mode === 'open' && (
+            <label className="flex items-center gap-2 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={useMyAvailability}
+                onChange={e => setUseMyAvailability(e.target.checked)}
+                className="h-4 w-4 rounded border-slate-300 text-yippie focus:ring-yippie/30 cursor-pointer"
+              />
+              <span className="text-sm text-slate-700 font-medium">
+                {t('booking_use_my_availability')}
               </span>
             </label>
           )}

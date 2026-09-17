@@ -10,7 +10,7 @@ from datetime import date as date_cls, datetime, time, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from typing import Optional
 
-from sqlalchemy import func as sa_func, select, text
+from sqlalchemy import func as sa_func, or_, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.email_html import render_email_html
@@ -531,23 +531,97 @@ async def _worker_available_slots(
     return out
 
 
+async def _single_user_available_slots(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    settings: CalendarSettings,
+    days_ahead: int,
+    user_id: uuid.UUID,
+) -> list[AvailableSlot]:
+    """Availability for a single user's personal booking link — only that user's
+    recurring WorkerAvailability + date-specific WorkerAvailabilityException,
+    minus that user's own events and synced external calendar. Independent of
+    the tenant/worker-union schedule so a personal link is never widened by it.
+    """
+    now = _now()
+    today = now.date()
+    min_notice = max(0, getattr(settings, "min_notice_days", 0))
+
+    avail = await db.scalar(
+        select(WorkerAvailability).where(
+            WorkerAvailability.tenant_id == tenant_id,
+            WorkerAvailability.user_id == user_id,
+        )
+    )
+    weekly_map = avail.weekly_slots if (avail and isinstance(avail.weekly_slots, dict)) else {}
+    tz = _resolve_tz((avail.timezone if avail else None) or getattr(settings, "timezone", None))
+    exc_map = await _worker_exceptions(db, tenant_id, [user_id], today)
+    exceptions = exc_map.get(user_id, {})
+
+    triples = _expand_availability_cap(weekly_map, exceptions, tz, today, min_notice, days_ahead, now)
+    if not triples:
+        return []
+    window_start = min(t[0] for t in triples)
+    window_end = max(t[1] for t in triples)
+
+    # Busy time: this user's own calendar events (created by or assigned to them)
+    # plus their synced external calendar.
+    ev_result = await db.execute(
+        select(CalendarEvent.start_at, CalendarEvent.end_at).where(
+            CalendarEvent.tenant_id == tenant_id,
+            or_(
+                CalendarEvent.created_by == user_id,
+                CalendarEvent.assigned_worker_id == user_id,
+            ),
+            CalendarEvent.start_at < window_end,
+            CalendarEvent.end_at > window_start,
+        )
+    )
+    events = [(r.start_at, r.end_at) for r in ev_result.all() if r.end_at is not None]
+
+    from app.modules.external_calendar.models import ExternalCalendarEvent
+    ext_result = await db.execute(
+        select(ExternalCalendarEvent.start_at, ExternalCalendarEvent.end_at).where(
+            ExternalCalendarEvent.tenant_id == tenant_id,
+            ExternalCalendarEvent.user_id == user_id,
+            ExternalCalendarEvent.start_at < window_end,
+            ExternalCalendarEvent.end_at > window_start,
+        )
+    )
+    events.extend((r.start_at, r.end_at) for r in ext_result.all() if r.end_at is not None)
+
+    out: list[AvailableSlot] = []
+    for slot_start, slot_end, _cap in triples:
+        overlap = any(es < slot_end and ee > slot_start for es, ee in events)
+        out.append(AvailableSlot(start=slot_start, end=slot_end, available=not overlap))
+    return out
+
+
 async def get_available_slots(
     db: AsyncSession,
     tenant_id: uuid.UUID,
     settings: CalendarSettings,
     days_ahead: int,
     agent_user_id: Optional[uuid.UUID] = None,
+    personal_user_id: Optional[uuid.UUID] = None,
 ) -> list[AvailableSlot]:
     """Generate open/closed slots for the next ``days_ahead`` weekdays.
 
-    When any contract workers have declared availability, slots come from the
-    union of those workers' schedules (capacity = number of free workers). When
-    no workers are configured the tenant-wide schedule is used instead:
-    weekly_slots JSONB (keyed "0"–"6" Mon–Sun) when use_weekly_slots is True,
-    else the legacy work_start_hour/work_end_hour/slot_minutes model.
+    When ``personal_user_id`` is set (a personal booking link) slots come solely
+    from that one user's schedule. Otherwise, when any contract workers have
+    declared availability, slots come from the union of those workers' schedules
+    (capacity = number of free workers); when no workers are configured the
+    tenant-wide schedule is used instead: weekly_slots JSONB (keyed "0"–"6"
+    Mon–Sun) when use_weekly_slots is True, else the legacy
+    work_start_hour/work_end_hour/slot_minutes model.
 
     Only availability (a boolean) is exposed — never event details.
     """
+    if personal_user_id is not None:
+        return await _single_user_available_slots(
+            db, tenant_id, settings, days_ahead, personal_user_id
+        )
+
     # Worker-driven availability takes precedence on every booking surface when
     # any worker has opted in. agent_user_id only matters for the legacy
     # single-calendar path below (its external-calendar filtering); in worker
@@ -1032,6 +1106,7 @@ async def create_booking_token(
         expires_at=_now() + timedelta(days=settings.booking_expiry_days),
         stage_id_override=data.stage_id_override,
         from_email=data.from_email or None,
+        scope=getattr(data, "scope", "shared") or "shared",
     )
     db.add(token)
     await db.commit()
@@ -1156,7 +1231,10 @@ async def confirm_booking(
     settings = await get_or_create_settings(db, token.tenant_id)
     assigned_worker_id: Optional[uuid.UUID] = None
     assigned_worker: Optional[User] = None
-    use_workers = await _has_active_workers(db, token.tenant_id)
+    is_personal = getattr(token, "scope", "shared") == "personal"
+    # A personal link always books against the sender's own calendar via the
+    # single-calendar path, never the shared worker pool.
+    use_workers = (not is_personal) and await _has_active_workers(db, token.tenant_id)
 
     if use_workers:
         # Serialise concurrent confirmations of the same slot (across all links)
@@ -1178,13 +1256,21 @@ async def confirm_booking(
         )
 
         # Re-check availability against current events (race-safe at confirm time).
-        conflict = await db.scalar(
-            select(CalendarEvent.id).where(
-                CalendarEvent.tenant_id == token.tenant_id,
-                CalendarEvent.start_at < slot_end,
-                CalendarEvent.end_at > slot_start,
-            )
+        # A personal link only conflicts with the sender's own events; a shared
+        # link conflicts with any tenant event (unchanged behaviour).
+        conflict_q = select(CalendarEvent.id).where(
+            CalendarEvent.tenant_id == token.tenant_id,
+            CalendarEvent.start_at < slot_end,
+            CalendarEvent.end_at > slot_start,
         )
+        if is_personal:
+            conflict_q = conflict_q.where(
+                or_(
+                    CalendarEvent.created_by == token.created_by,
+                    CalendarEvent.assigned_worker_id == token.created_by,
+                )
+            )
+        conflict = await db.scalar(conflict_q)
         if conflict is not None:
             raise ValueError("That time is no longer available. Please pick another slot.")
 
