@@ -30,7 +30,7 @@ class CalendarSettings(Base):
     # [FLOW8] post_booking_stage_id removed — the global post-booking stage move
     # is now a flow on the booking_created trigger. Column dropped by migration
     # flows8_builtin_migration.
-    weekly_slots: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    weekly_slots: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     use_weekly_slots: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )

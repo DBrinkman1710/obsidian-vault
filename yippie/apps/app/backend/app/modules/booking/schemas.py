@@ -21,7 +21,7 @@ class CalendarSettingsOut(BaseModel):
     slot_minutes: int
     booking_expiry_days: int
     booking_window_days: int = 60
-    weekly_slots: Optional[list] = None
+    weekly_slots: Optional[dict[str, list[WeeklySlotEntry]]] = None
     use_weekly_slots: bool = False
     cancel_edit_hours_before: int = 24
     min_notice_days: int = 0
@@ -39,7 +39,7 @@ class CalendarSettingsUpdate(BaseModel):
     slot_minutes: Optional[int] = Field(default=None, ge=5, le=240)
     booking_expiry_days: Optional[int] = Field(default=None, ge=1, le=60)
     booking_window_days: Optional[int] = Field(default=None, ge=7, le=365)
-    weekly_slots: Optional[list] = None
+    weekly_slots: Optional[dict[str, list[WeeklySlotEntry]]] = None
     use_weekly_slots: Optional[bool] = None
     cancel_edit_hours_before: Optional[int] = Field(default=None, ge=1, le=720)
     min_notice_days: Optional[int] = Field(default=None, ge=0, le=30)
