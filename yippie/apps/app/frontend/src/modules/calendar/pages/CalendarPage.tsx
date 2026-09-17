@@ -1588,6 +1588,19 @@ export default function CalendarPage() {
     return map
   }, [data])
 
+  // Bookable timeslots (from the week-view editor) shown as chips in the month grid.
+  const availBase = calendarTypeFilter === 'shared' ? '/booking/availability/exceptions' : '/worker/my-availability/exceptions'
+  const { data: availData } = useQuery<Array<{ date: string; slots: Array<{ time: string; end_time: string; capacity: number }> }>>({
+    queryKey: ['avail-exceptions-month', calendarTypeFilter, dateKey(rangeStart), dateKey(rangeEnd)],
+    queryFn: () => api.get(availBase, { params: { start: dateKey(rangeStart), end: dateKey(rangeEnd) } }).then((r: any) => r.data),
+    enabled: bookingEnabled && viewMode === 'month',
+  })
+  const availByDay = useMemo(() => {
+    const map = new Map<string, Array<{ time: string; end_time: string; capacity: number }>>()
+    for (const row of availData ?? []) map.set(row.date, row.slots ?? [])
+    return map
+  }, [availData])
+
   function shiftMonth(delta: number) {
     const d = new Date(year, month + delta, 1)
     setYear(d.getFullYear()); setMonth(d.getMonth())
@@ -1729,6 +1742,8 @@ export default function CalendarPage() {
           eventsByDay={itemsByDay}
           onNavWeek={delta => setWeekAnchor(w => new Date(w.getFullYear(), w.getMonth(), w.getDate() + delta * 7))}
           onToday={() => setWeekAnchor(new Date())}
+          onNewEvent={d => setModal({ open: true, event: null, defaultDate: d })}
+          onOpenEvent={id => { const item = (data ?? []).find((i: CalendarItem) => i.id === id); if (item) setModal({ open: true, event: item }) }}
         />
       ) : (
       <>
@@ -1783,6 +1798,14 @@ export default function CalendarPage() {
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
+                  {(availByDay.get(key) ?? []).map((slot, si) => (
+                    <button key={`ts-${si}`}
+                      onClick={e => { e.stopPropagation(); setWeekAnchor(day); setViewMode('week') }}
+                      title={`${t('cal_week_avail_legend')}: ${slot.time}–${slot.end_time}`}
+                      className="w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium truncate border bg-brand-50 text-brand-700 border-brand-100 hover:bg-brand-100 transition-colors">
+                      <span className="font-semibold mr-1">{slot.time}</span>{t('cal_timeslot_chip')}
+                    </button>
+                  ))}
                   {items.map(item => {
                     if (item.kind === 'deadline') {
                       const color = deadlineColor(item.start_at)
