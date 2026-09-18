@@ -154,34 +154,9 @@ function extractButtons(data: object): CampaignButton[] {
 }
 
 // ── Token insertion helpers ────────────────────────────────────────────────
-// GrapesJS serialises the component MODEL on export (getHtml), not the live
-// iframe DOM — so a token dropped straight into the DOM must be written back
-// into its owning component or it is lost on save.
 
 function isTextComponent(comp: any): boolean {
   return !!comp && (comp.is?.('text') || comp.get?.('type') === 'text')
-}
-
-/** Walk up from a DOM node to the GrapesJS component whose element owns it. */
-function componentForNode(editor: any, node: Node | null): any {
-  const wrapper = editor.getWrapper?.()
-  let el: HTMLElement | null =
-    node && node.nodeType === 1 ? (node as HTMLElement) : node?.parentElement ?? null
-  if (!wrapper || !el) return null
-  const search = (comp: any, target: HTMLElement): any => {
-    if (comp?.getEl?.() === target) return comp
-    const kids = comp?.components?.()
-    const arr = kids?.models ?? kids ?? []
-    for (const k of arr) { const r = search(k, target); if (r) return r }
-    return null
-  }
-  const body = editor.Canvas?.getBody?.()
-  while (el && el !== body) {
-    const found = search(wrapper, el)
-    if (found) return found
-    el = el.parentElement
-  }
-  return null
 }
 
 /** First text component anywhere in the design (fallback insert target). */
@@ -386,6 +361,15 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
     exportHtml(cb) {
       const editor = editorRef.current
       if (!editor) return
+      // Commit any in-progress rich-text edit into the model first. While a text
+      // block is being edited the RTE only syncs to the model on blur, so the
+      // first export after typing would otherwise capture stale content — the
+      // "have to press Save twice" bug. Blurring the focused canvas element makes
+      // the RTE flush before we read the html.
+      try {
+        const active = editor.Canvas.getDocument()?.activeElement as HTMLElement | null
+        active?.blur?.()
+      } catch { /* noop */ }
       const inlined = editor.runCommand('gjs-get-inlined-html') as string | undefined
       const html = inlined ?? editor.getHtml()
       const design = editor.getProjectData()
@@ -410,12 +394,10 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
       const win = (editor.Canvas as any).getWindow?.() as Window | undefined
       const sel = (win?.getSelection?.() ?? doc.getSelection?.()) as Selection | null
 
-      // Insert at the caret via the Selection API. Unlike execCommand('insertText')
-      // this does not need the canvas iframe to hold focus, so it works from a chip
-      // button in the parent document too (execCommand silently no-ops there — the
-      // "clicking {{}} does nothing" bug). We accept the live selection OR the last
-      // caret captured before the button stole focus, so pressing the chip behaves
-      // exactly like typing the token where the cursor was.
+      // Resolve the caret: the live selection if it is inside the canvas, else
+      // the last caret we captured before the chip was pressed. The chip button
+      // keeps the iframe focused (onMouseDown preventDefault), so the live
+      // selection is normally still valid.
       const liveRange =
         sel && sel.rangeCount > 0 && doc.body.contains(sel.getRangeAt(0).commonAncestorContainer)
           ? sel.getRangeAt(0)
@@ -427,33 +409,32 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
       const range = liveRange ?? savedRange
 
       if (range) {
-        range.deleteContents()
-        const node = doc.createTextNode(token)
-        range.insertNode(node)
-        range.setStartAfter(node)
-        range.collapse(true)
+        // Insert through the browser's native contentEditable path so the token
+        // lands exactly at the cursor and the GrapesJS RTE tracks it into the
+        // model itself. Do NOT rewrite the component content by hand — that
+        // dropped the block or ate its start.
+        win?.focus?.()
         if (sel) { sel.removeAllRanges(); sel.addRange(range) }
-        lastRangeRef.current = range.cloneRange()
-        // Persist by re-parsing the owning text component from its own element.
-        // Use components(), NOT set('content'): setting content on a text
-        // component that has child components makes GrapesJS drop the whole block
-        // on the next render. Only ever touch a real text component that actually
-        // contains the inserted node, so we never collapse a wrapper/table.
-        const selected = editor.getSelected() as any
-        let owner: any = null
-        if (isTextComponent(selected) && selected.getEl?.()?.contains?.(node)) {
-          owner = selected
-        } else {
-          const c = componentForNode(editor, node)
-          if (isTextComponent(c) && c.getEl?.()?.contains?.(node)) owner = c
+        let inserted = false
+        try { inserted = !!doc.execCommand('insertText', false, token) } catch { inserted = false }
+        if (!inserted) {
+          // Rare: execCommand unavailable. Insert by hand at the caret and nudge
+          // the RTE to sync via an input event (export also syncs on blur).
+          range.deleteContents()
+          const node = doc.createTextNode(token)
+          range.insertNode(node)
+          range.setStartAfter(node)
+          range.collapse(true)
+          if (sel) { sel.removeAllRanges(); sel.addRange(range) }
+          const host = (node.parentElement ?? doc.activeElement) as HTMLElement | null
+          host?.dispatchEvent(new InputEvent('input', { bubbles: true }))
         }
-        if (owner) { try { owner.components(owner.getEl().innerHTML) } catch { /* noop */ } }
+        if (sel && sel.rangeCount > 0) lastRangeRef.current = sel.getRangeAt(0).cloneRange()
         return
       }
 
-      // No caret anywhere yet — never a no-op. Append to the selected text block,
-      // else the first text block in the design, else drop a fresh line so the
-      // click always produces a visible result.
+      // No caret at all — never a no-op. Append to the selected text block, else
+      // the first text block, else drop a fresh line so the click always inserts.
       const selected = editor.getSelected() as any
       const target = selected && isTextComponent(selected) ? selected : firstTextComponent(editor)
       if (target) {
