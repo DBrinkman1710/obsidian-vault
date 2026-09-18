@@ -398,9 +398,11 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
       // the last caret we captured before the chip was pressed. The chip button
       // keeps the iframe focused (onMouseDown preventDefault), so the live
       // selection is normally still valid.
+      // Snapshot the caret: getRangeAt returns a range that stays live-linked to
+      // the selection, so it must be cloned before anything can collapse it.
       const liveRange =
         sel && sel.rangeCount > 0 && doc.body.contains(sel.getRangeAt(0).commonAncestorContainer)
-          ? sel.getRangeAt(0)
+          ? sel.getRangeAt(0).cloneRange()
           : null
       const savedRange =
         lastRangeRef.current && doc.body.contains(lastRangeRef.current.commonAncestorContainer)
@@ -412,8 +414,9 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
         // Insert through the browser's native contentEditable path so the token
         // lands exactly at the cursor and the GrapesJS RTE tracks it into the
         // model itself. Do NOT rewrite the component content by hand — that
-        // dropped the block or ate its start.
-        win?.focus?.()
+        // dropped the block or ate its start. No win.focus() here: the chip keeps
+        // the iframe focused, and focusing again collapses the caret to the start
+        // (which put the first token at the front of the block).
         if (sel) { sel.removeAllRanges(); sel.addRange(range) }
         let inserted = false
         try { inserted = !!doc.execCommand('insertText', false, token) } catch { inserted = false }
