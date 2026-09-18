@@ -410,13 +410,21 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
           : null
       const range = liveRange ?? savedRange
 
-      if (range) {
-        // Insert through the browser's native contentEditable path so the token
-        // lands exactly at the cursor and the GrapesJS RTE tracks it into the
-        // model itself. Do NOT rewrite the component content by hand — that
-        // dropped the block or ate its start. No win.focus() here: the chip keeps
-        // the iframe focused, and focusing again collapses the caret to the start
-        // (which put the first token at the front of the block).
+      // Only treat the range as a real caret when it actually sits inside the
+      // text component being edited. A stray range (e.g. the iframe body at
+      // offset 0, which is what we get when no text block is in edit mode) would
+      // otherwise dump the token at the very front of the block — the reported
+      // bug. When it is a real caret, insert through the browser's native
+      // contentEditable path so the token lands at the cursor and the RTE tracks
+      // it; do NOT rewrite the component content by hand (that dropped the block
+      // or ate its start).
+      const selectedComp = editor.getSelected() as any
+      const caretInEditedText =
+        !!range &&
+        isTextComponent(selectedComp) &&
+        !!selectedComp.getEl?.()?.contains?.(range.commonAncestorContainer)
+
+      if (range && caretInEditedText) {
         if (sel) { sel.removeAllRanges(); sel.addRange(range) }
         let inserted = false
         try { inserted = !!doc.execCommand('insertText', false, token) } catch { inserted = false }
@@ -436,8 +444,8 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
         return
       }
 
-      // No caret at all — never a no-op. Append to the selected text block, else
-      // the first text block, else drop a fresh line so the click always inserts.
+      // No reliable caret — append to the END of the selected/first text block
+      // (never the front), else drop a fresh line, so the click stays predictable.
       const selected = editor.getSelected() as any
       const target = selected && isTextComponent(selected) ? selected : firstTextComponent(editor)
       if (target) {
