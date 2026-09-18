@@ -231,6 +231,23 @@
     @apply border-danger-600 focus:ring-danger-600/30 focus:border-danger-600;
   }
 
+  /* ── Rich reply/compose editor (renders inline signature images) ───────── */
+  .rich-reply-editor {
+    @apply whitespace-pre-wrap break-words overflow-y-auto;
+    /* Unlike a <textarea rows=…>, an empty contentEditable has no intrinsic
+       height — guarantee a comfortable click/type area so it can't collapse. */
+    @apply min-h-[10rem];
+    overflow-wrap: anywhere;
+  }
+  .rich-reply-editor:empty::before {
+    content: attr(data-placeholder);
+    @apply text-slate-400;
+    pointer-events: none;
+  }
+  .rich-reply-editor img {
+    @apply my-1 rounded;
+  }
+
   /* ── Inline error text (below a field or in a form footer) ───────────── */
   .error-text {
     @apply text-xs text-danger-600;
