@@ -410,21 +410,20 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
           : null
       const range = liveRange ?? savedRange
 
-      // Only treat the range as a real caret when it actually sits inside the
-      // text component being edited. A stray range (e.g. the iframe body at
-      // offset 0, which is what we get when no text block is in edit mode) would
-      // otherwise dump the token at the very front of the block — the reported
-      // bug. When it is a real caret, insert through the browser's native
+      // Only treat the range as a real caret when it sits inside a contenteditable
+      // element — which is exactly what GrapesJS turns a text block into once you
+      // double-click to edit it. A stray range (e.g. the iframe body at offset 0,
+      // when nothing is in edit mode) would otherwise dump the token at the front
+      // of the block. When it is a real caret, insert through the browser's native
       // contentEditable path so the token lands at the cursor and the RTE tracks
-      // it; do NOT rewrite the component content by hand (that dropped the block
-      // or ate its start).
-      const selectedComp = editor.getSelected() as any
-      const caretInEditedText =
-        !!range &&
-        isTextComponent(selectedComp) &&
-        !!selectedComp.getEl?.()?.contains?.(range.commonAncestorContainer)
+      // it; do NOT rewrite the component content by hand (that dropped the block).
+      const container = range ? range.commonAncestorContainer : null
+      const containerEl: HTMLElement | null = container
+        ? (container.nodeType === 1 ? (container as HTMLElement) : container.parentElement)
+        : null
+      const editableHost = containerEl?.closest?.('[contenteditable="true"], [contenteditable=""]') ?? null
 
-      if (range && caretInEditedText) {
+      if (range && editableHost) {
         if (sel) { sel.removeAllRanges(); sel.addRange(range) }
         let inserted = false
         try { inserted = !!doc.execCommand('insertText', false, token) } catch { inserted = false }
