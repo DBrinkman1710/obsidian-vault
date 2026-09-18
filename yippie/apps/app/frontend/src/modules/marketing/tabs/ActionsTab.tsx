@@ -241,7 +241,22 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
       toast.success(t('mkt_actions_saved'))
       qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
     },
-    onError: () => toast.error(t('mkt_actions_save_err')),
+    onError: (err: any) => {
+      // Surface the real cause so we can diagnose the "fails the first time"
+      // report without needing the browser Network tab.
+      const status = err?.response?.status
+      const detail = err?.response?.data?.detail
+      const msg = typeof detail === 'string'
+        ? detail
+        : Array.isArray(detail)
+        ? detail.map((d: any) => d?.msg).filter(Boolean).join(', ')
+        : ''
+      // eslint-disable-next-line no-console
+      console.error('[marketing actions save failed]', status, err?.response?.data ?? err)
+      toast.error(
+        `${t('mkt_actions_save_err')}${status ? ` (${status})` : ''}${msg ? `: ${msg}` : ''}`,
+      )
+    },
   })
 
   const noActionLabel = t('mkt_no_action')
