@@ -13,6 +13,8 @@ import ContactPeekModal from '../../../components/ContactPeekModal'
 import TicketPeekModal from '../../../components/TicketPeekModal'
 import { useCompose } from '../../../hooks/useCompose'
 import { useT } from '../../../hooks/useT'
+import { useRbacPermissions } from '../../../hooks/useRbacPermissions'
+import WeekView from '../components/WeekView'
 
 interface CalendarItem {
   kind: 'event' | 'deadline'
@@ -1499,6 +1501,8 @@ function BookingSettingsModal({ onClose }: { onClose: () => void }) {
 
 export default function CalendarPage() {
   const navigate = useNavigate()
+  const t = useT()
+  const perms = useRbacPermissions()
   const ctx = useContextMenu()
   const qc = useQueryClient()
   const { openCompose } = useCompose()
@@ -1511,6 +1515,8 @@ export default function CalendarPage() {
   const [peekContactId, setPeekContactId] = useState<string | null>(null)
   const [peekTicketId, setPeekTicketId] = useState<string | null>(null)
   const [month, setMonth] = useState(today.getMonth()) // 0-based
+  const [viewMode, setViewMode] = useState<'month' | 'week'>('month')
+  const [weekAnchor, setWeekAnchor] = useState<Date>(new Date())
   const [modal, setModal] = useState<{ open: boolean; event: CalendarItem | null; defaultDate?: Date }>({ open: false, event: null })
 
   const deleteEventMut = useMutation({
@@ -1551,8 +1557,14 @@ export default function CalendarPage() {
   const pendingInvitationCount = invCountData?.count ?? 0
 
   const days = useMemo(() => monthGrid(year, month), [year, month])
-  const rangeStart = days[0]
-  const rangeEnd = new Date(days[41].getFullYear(), days[41].getMonth(), days[41].getDate() + 1)
+  const weekStart = useMemo(() => {
+    const d = weekAnchor
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() - ((d.getDay() + 6) % 7))
+  }, [weekAnchor])
+  const rangeStart = viewMode === 'week' ? weekStart : days[0]
+  const rangeEnd = viewMode === 'week'
+    ? new Date(weekStart.getFullYear(), weekStart.getMonth(), weekStart.getDate() + 7)
+    : new Date(days[41].getFullYear(), days[41].getMonth(), days[41].getDate() + 1)
 
   const { data, isLoading } = useQuery({
     queryKey: ['calendar-items', dateKey(rangeStart), dateKey(rangeEnd), calendarTypeFilter],
@@ -1575,6 +1587,19 @@ export default function CalendarPage() {
     }
     return map
   }, [data])
+
+  // Bookable timeslots (from the week-view editor) shown as chips in the month grid.
+  const availBase = calendarTypeFilter === 'shared' ? '/booking/availability/exceptions' : '/worker/my-availability/exceptions'
+  const { data: availData } = useQuery<Array<{ date: string; slots: Array<{ time: string; end_time: string; capacity: number }> }>>({
+    queryKey: ['avail-exceptions-month', calendarTypeFilter, dateKey(rangeStart), dateKey(rangeEnd)],
+    queryFn: () => api.get(availBase, { params: { start: dateKey(rangeStart), end: dateKey(rangeEnd) } }).then((r: any) => r.data),
+    enabled: bookingEnabled && viewMode === 'month',
+  })
+  const availByDay = useMemo(() => {
+    const map = new Map<string, Array<{ time: string; end_time: string; capacity: number }>>()
+    for (const row of availData ?? []) map.set(row.date, row.slots ?? [])
+    return map
+  }, [availData])
 
   function shiftMonth(delta: number) {
     const d = new Date(year, month + delta, 1)
@@ -1646,8 +1671,9 @@ export default function CalendarPage() {
         </div>
       </div>
 
-      {/* Shared / Personal slider */}
-      <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 mb-4 w-fit">
+      {/* Shared / Personal slider + Month / Week view toggle */}
+      <div className="flex items-center justify-between mb-4">
+      <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 w-fit">
         {([
           { value: 'shared' as CalendarTypeFilter, label: 'Shared', icon: <Users size={13} /> },
           { value: 'personal' as CalendarTypeFilter, label: 'Personal', icon: <User size={13} />, count: pendingInvitationCount },
@@ -1677,6 +1703,25 @@ export default function CalendarPage() {
         })}
       </div>
 
+        {/* Month / Week view toggle */}
+        <div className="flex rounded-lg border border-slate-200 bg-white p-0.5 w-fit">
+          {([
+            { value: 'month' as const, label: t('cal_view_month') },
+            { value: 'week' as const, label: t('cal_view_week') },
+          ]).map(v => (
+            <button
+              key={v.value}
+              onClick={() => { setViewMode(v.value); if (v.value === 'week') setWeekAnchor(new Date()) }}
+              className={`px-3 py-1.5 rounded-md text-xs font-semibold transition-colors ${
+                viewMode === v.value ? 'bg-blue-600 text-white' : 'text-slate-500 hover:bg-slate-50'
+              }`}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {bookingEnabled && bookingsOpen && (
         <BookingsPanel
           onClose={() => setBookingsOpen(false)}
@@ -1689,6 +1734,19 @@ export default function CalendarPage() {
         <InvitationsPanel onClose={() => setInvitationsOpen(false)} />
       )}
 
+      {viewMode === 'week' ? (
+        <WeekView
+          anchor={weekAnchor}
+          scope={calendarTypeFilter}
+          canEdit={calendarTypeFilter === 'personal' ? true : perms.booking === 'full'}
+          eventsByDay={itemsByDay}
+          onNavWeek={delta => setWeekAnchor(w => new Date(w.getFullYear(), w.getMonth(), w.getDate() + delta * 7))}
+          onToday={() => setWeekAnchor(new Date())}
+          onNewEvent={d => setModal({ open: true, event: null, defaultDate: d })}
+          onOpenEvent={id => { const item = (data ?? []).find((i: CalendarItem) => i.id === id); if (item) setModal({ open: true, event: item }) }}
+        />
+      ) : (
+      <>
       {/* Month card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {/* Month nav */}
@@ -1714,7 +1772,7 @@ export default function CalendarPage() {
         <div className="grid grid-cols-7 border-b border-gray-100">
           {WEEKDAYS.map(d => (
             <div key={d} className="px-2 py-2 text-center text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
-              {d}
+              {t(d)}
             </div>
           ))}
         </div>
@@ -1740,6 +1798,14 @@ export default function CalendarPage() {
                   </span>
                 </div>
                 <div className="flex flex-col gap-1">
+                  {(availByDay.get(key) ?? []).map((slot, si) => (
+                    <button key={`ts-${si}`}
+                      onClick={e => { e.stopPropagation(); setWeekAnchor(day); setViewMode('week') }}
+                      title={`${t('cal_week_avail_legend')}: ${slot.time}–${slot.end_time}`}
+                      className="w-full text-left px-1.5 py-0.5 rounded text-[11px] font-medium truncate border bg-brand-50 text-brand-700 border-brand-100 hover:bg-brand-100 transition-colors">
+                      <span className="font-semibold mr-1">{slot.time}</span>{t('cal_timeslot_chip')}
+                    </button>
+                  ))}
                   {items.map(item => {
                     if (item.kind === 'deadline') {
                       const color = deadlineColor(item.start_at)
@@ -1807,6 +1873,8 @@ export default function CalendarPage() {
           <span className="w-2.5 h-2.5 rounded-full bg-red-500" /> Due within 24h / overdue
         </span>
       </div>
+      </>
+      )}
 
       {modal.open && (
         <EventModal

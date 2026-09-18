@@ -30,7 +30,7 @@ class CalendarSettings(Base):
     # [FLOW8] post_booking_stage_id removed — the global post-booking stage move
     # is now a flow on the booking_created trigger. Column dropped by migration
     # flows8_builtin_migration.
-    weekly_slots: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    weekly_slots: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     use_weekly_slots: Mapped[bool] = mapped_column(
         Boolean, nullable=False, default=False, server_default="false"
     )
@@ -162,6 +162,28 @@ class WorkerAvailabilityException(Base):
     __table_args__ = (UniqueConstraint("tenant_id", "user_id", "date"),)
 
 
+class CalendarAvailabilityException(Base):
+    """Tenant-wide one-off date overrides for the shared bookable schedule.
+
+    Mirror of WorkerAvailabilityException without a user_id: it scopes the whole
+    tenant. An empty (or null) `slots` list means the tenant is closed that whole
+    day; a populated list replaces that weekday's recurring
+    CalendarSettings.weekly_slots for that date only.
+    """
+
+    __tablename__ = "calendar_availability_exceptions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False, index=True
+    )
+    date: Mapped[datetime] = mapped_column(Date, nullable=False)
+    slots: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("tenant_id", "date"),)
+
+
 class BookingToken(Base):
     __tablename__ = "booking_tokens"
 
@@ -194,6 +216,11 @@ class BookingToken(Base):
         nullable=True,
     )
     from_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # 'shared'   — availability comes from the tenant/worker-union schedule (default).
+    # 'personal' — availability is only the sender's (created_by) own schedule.
+    scope: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="shared", server_default="shared"
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

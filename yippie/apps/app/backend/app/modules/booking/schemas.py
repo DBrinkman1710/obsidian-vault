@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -21,7 +21,7 @@ class CalendarSettingsOut(BaseModel):
     slot_minutes: int
     booking_expiry_days: int
     booking_window_days: int = 60
-    weekly_slots: Optional[list] = None
+    weekly_slots: Optional[dict[str, list[WeeklySlotEntry]]] = None
     use_weekly_slots: bool = False
     cancel_edit_hours_before: int = 24
     min_notice_days: int = 0
@@ -39,7 +39,7 @@ class CalendarSettingsUpdate(BaseModel):
     slot_minutes: Optional[int] = Field(default=None, ge=5, le=240)
     booking_expiry_days: Optional[int] = Field(default=None, ge=1, le=60)
     booking_window_days: Optional[int] = Field(default=None, ge=7, le=365)
-    weekly_slots: Optional[list] = None
+    weekly_slots: Optional[dict[str, list[WeeklySlotEntry]]] = None
     use_weekly_slots: Optional[bool] = None
     cancel_edit_hours_before: Optional[int] = Field(default=None, ge=1, le=720)
     min_notice_days: Optional[int] = Field(default=None, ge=0, le=30)
@@ -67,6 +67,7 @@ class BookingTokenCreate(BaseModel):
     message: Optional[str] = None
     stage_id_override: Optional[uuid.UUID] = None
     from_email: Optional[str] = None
+    scope: Literal["shared", "personal"] = "shared"
 
     @model_validator(mode="after")
     def _propose_requires_slots(self) -> "BookingTokenCreate":
@@ -89,6 +90,7 @@ class BookingTokenOut(BaseModel):
     event_id: Optional[uuid.UUID] = None
     customer_proposed_slots: Optional[list] = None
     stage_id_override: Optional[uuid.UUID] = None
+    scope: str = "shared"
     created_at: datetime
     status: Literal["pending", "booked", "expired", "counter_proposed"]
 
@@ -146,6 +148,25 @@ class WorkerAvailabilityUpdate(BaseModel):
     weekly_slots: Optional[dict[str, list[WeeklySlotEntry]]] = None
     timezone: Optional[str] = None
     is_active: Optional[bool] = None
+
+
+# --------------------------------------------------------------------------- #
+# Date-specific availability overrides (calendar week-view editor)
+# --------------------------------------------------------------------------- #
+class DateSlotEntry(BaseModel):
+    time: str  # HH:MM start
+    end_time: str  # HH:MM end (required for date-specific slots)
+    capacity: int = Field(default=1, ge=1)
+
+
+class DateAvailabilityOut(BaseModel):
+    date: date
+    slots: list[DateSlotEntry]  # [] means "off that day" (explicit override)
+
+
+class DateAvailabilityUpsert(BaseModel):
+    # Replaces the date entirely; [] stores an explicit "off that day" override.
+    slots: list[DateSlotEntry]
 
 
 class WorkerSummary(BaseModel):

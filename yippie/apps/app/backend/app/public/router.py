@@ -1247,7 +1247,8 @@ async def public_get_manage(
 
     days_ahead = max(getattr(settings, "booking_window_days", 60) or 60, 14)
     available = await booking_service.get_available_slots(
-        db, token.tenant_id, settings, days_ahead, agent_user_id=token.created_by
+        db, token.tenant_id, settings, days_ahead, agent_user_id=token.created_by,
+        personal_user_id=token.created_by if getattr(token, "scope", "shared") == "personal" else None,
     )
 
     first_name = ((contact.full_name if contact else "") or "there").split(" ")[0]
@@ -1352,7 +1353,8 @@ async def public_get_booking(
     settings = await booking_service.get_or_create_settings(db, token.tenant_id)
     days_ahead = max(getattr(settings, "booking_window_days", 60) or 60, 14)
     available = await booking_service.get_available_slots(
-        db, token.tenant_id, settings, days_ahead, agent_user_id=token.created_by
+        db, token.tenant_id, settings, days_ahead, agent_user_id=token.created_by,
+        personal_user_id=token.created_by if getattr(token, "scope", "shared") == "personal" else None,
     )
 
     proposed = (

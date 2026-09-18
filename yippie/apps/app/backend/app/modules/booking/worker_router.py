@@ -9,14 +9,18 @@ from __future__ import annotations
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from datetime import date
 
 from app.auth.dependencies import CurrentUser
 from app.database import get_db
 from app.modules.booking import service
 from app.modules.booking.schemas import (
     ClaimRequest,
+    DateAvailabilityOut,
+    DateAvailabilityUpsert,
     WorkerAvailabilityOut,
     WorkerAvailabilityUpdate,
     WorkerContextOut,
@@ -41,6 +45,36 @@ async def update_my_availability(
 ):
     return await service.update_worker_availability(
         db, current_user.tenant_id, current_user.id, body
+    )
+
+
+@router.get("/my-availability/exceptions", response_model=list[DateAvailabilityOut])
+async def list_my_availability_exceptions(
+    current_user: CurrentUser,
+    db: DB,
+    start: date = Query(..., description="Range start (inclusive, YYYY-MM-DD)"),
+    end: date = Query(..., description="Range end (inclusive, YYYY-MM-DD)"),
+):
+    return await service.list_worker_exceptions_range(
+        db, current_user.tenant_id, current_user.id, start, end
+    )
+
+
+@router.put("/my-availability/exceptions/{day}", response_model=DateAvailabilityOut)
+async def upsert_my_availability_exception(
+    day: date, body: DateAvailabilityUpsert, current_user: CurrentUser, db: DB
+):
+    return await service.upsert_worker_exception(
+        db, current_user.tenant_id, current_user.id, day, body.slots
+    )
+
+
+@router.delete(
+    "/my-availability/exceptions/{day}", status_code=status.HTTP_204_NO_CONTENT
+)
+async def delete_my_availability_exception(day: date, current_user: CurrentUser, db: DB):
+    await service.delete_worker_exception(
+        db, current_user.tenant_id, current_user.id, day
     )
 
 
