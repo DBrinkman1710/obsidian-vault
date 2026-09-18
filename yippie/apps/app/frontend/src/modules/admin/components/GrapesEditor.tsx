@@ -434,13 +434,20 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
         range.collapse(true)
         if (sel) { sel.removeAllRanges(); sel.addRange(range) }
         lastRangeRef.current = range.cloneRange()
-        // Persist into the owning text component so the token survives export/save
-        // even if the block is never blurred before Save.
+        // Persist by re-parsing the owning text component from its own element.
+        // Use components(), NOT set('content'): setting content on a text
+        // component that has child components makes GrapesJS drop the whole block
+        // on the next render. Only ever touch a real text component that actually
+        // contains the inserted node, so we never collapse a wrapper/table.
         const selected = editor.getSelected() as any
-        const owner = selected?.getEl?.()?.contains?.(node)
-          ? selected
-          : componentForNode(editor, node)
-        if (owner?.getEl) { try { owner.set('content', owner.getEl().innerHTML) } catch { /* noop */ } }
+        let owner: any = null
+        if (isTextComponent(selected) && selected.getEl?.()?.contains?.(node)) {
+          owner = selected
+        } else {
+          const c = componentForNode(editor, node)
+          if (isTextComponent(c) && c.getEl?.()?.contains?.(node)) owner = c
+        }
+        if (owner) { try { owner.components(owner.getEl().innerHTML) } catch { /* noop */ } }
         return
       }
 
