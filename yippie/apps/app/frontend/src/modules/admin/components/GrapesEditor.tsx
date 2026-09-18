@@ -111,6 +111,20 @@ function buildSecondaryTrait(actionType: string, _stages: PipelineStage[], label
   }
 }
 
+// Visible text of a component subtree. GrapesJS keeps a button's label in `content`
+// when built from a block, but in child textnodes when parsed from imported HTML —
+// gather both so the button label is never lost (previously fell back to 'Button').
+function componentText(n: Record<string, unknown>): string {
+  let out = String((n.content as string) ?? '')
+  const kids = n.components
+  if (Array.isArray(kids)) {
+    for (const k of kids) {
+      if (k && typeof k === 'object') out += componentText(k as Record<string, unknown>)
+    }
+  }
+  return out
+}
+
 function extractButtons(data: object): CampaignButton[] {
   const found: CampaignButton[] = []
   function walk(node: unknown) {
@@ -123,7 +137,7 @@ function extractButtons(data: object): CampaignButton[] {
         if (!found.find(f => f.id === id)) {
           found.push({
             id,
-            text: String(n.content ?? '').replace(/<[^>]*>/g, '').trim() || 'Button',
+            text: componentText(n).replace(/<[^>]*>/g, '').trim() || 'Button',
             action_type: String(attrs['data-action-type'] ?? 'pipeline_stage'),
             stage_id: attrs['data-stage-id'] ? String(attrs['data-stage-id']) : null,
             label_id: attrs['data-label-id'] ? String(attrs['data-label-id']) : null,
@@ -139,12 +153,63 @@ function extractButtons(data: object): CampaignButton[] {
   return found
 }
 
+// ── Token insertion helpers ────────────────────────────────────────────────
+// GrapesJS serialises the component MODEL on export (getHtml), not the live
+// iframe DOM — so a token dropped straight into the DOM must be written back
+// into its owning component or it is lost on save.
+
+function isTextComponent(comp: any): boolean {
+  return !!comp && (comp.is?.('text') || comp.get?.('type') === 'text')
+}
+
+/** Walk up from a DOM node to the GrapesJS component whose element owns it. */
+function componentForNode(editor: any, node: Node | null): any {
+  const wrapper = editor.getWrapper?.()
+  let el: HTMLElement | null =
+    node && node.nodeType === 1 ? (node as HTMLElement) : node?.parentElement ?? null
+  if (!wrapper || !el) return null
+  const search = (comp: any, target: HTMLElement): any => {
+    if (comp?.getEl?.() === target) return comp
+    const kids = comp?.components?.()
+    const arr = kids?.models ?? kids ?? []
+    for (const k of arr) { const r = search(k, target); if (r) return r }
+    return null
+  }
+  const body = editor.Canvas?.getBody?.()
+  while (el && el !== body) {
+    const found = search(wrapper, el)
+    if (found) return found
+    el = el.parentElement
+  }
+  return null
+}
+
+/** First text component anywhere in the design (fallback insert target). */
+function firstTextComponent(editor: any): any {
+  const wrapper = editor.getWrapper?.()
+  if (!wrapper) return null
+  let found: any = null
+  const walk = (comp: any) => {
+    if (found) return
+    if (isTextComponent(comp)) { found = comp; return }
+    const kids = comp?.components?.()
+    const arr = kids?.models ?? kids ?? []
+    for (const k of arr) { walk(k); if (found) return }
+  }
+  walk(wrapper)
+  return found
+}
+
 const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages = [], labels = [], onReady }, ref) => {
   const t = useT()
   const tRef = useRef(t)
   tRef.current = t
   const containerRef = useRef<HTMLDivElement>(null)
   const editorRef = useRef<Editor | null>(null)
+  // Last caret position inside the canvas iframe. Captured continuously so a
+  // token chip in the parent toolbar can insert there even after the button
+  // click pulls focus out of the iframe.
+  const lastRangeRef = useRef<Range | null>(null)
   const stagesRef = useRef(stages)
   const labelsRef = useRef(labels)
   stagesRef.current = stages
@@ -286,6 +351,23 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
       </table>`,
     })
 
+    // Continuously remember the caret inside the canvas iframe so a token chip
+    // in the parent toolbar can insert at that spot after the button click has
+    // pulled focus out of the iframe.
+    editor.on('load', () => {
+      const cdoc = editor.Canvas.getDocument() as Document | undefined
+      if (!cdoc) return
+      const capture = () => {
+        const s = cdoc.getSelection?.()
+        if (s && s.rangeCount > 0 && cdoc.body.contains(s.getRangeAt(0).commonAncestorContainer)) {
+          lastRangeRef.current = s.getRangeAt(0).cloneRange()
+        }
+      }
+      cdoc.addEventListener('selectionchange', capture)
+      cdoc.addEventListener('mouseup', capture)
+      cdoc.addEventListener('keyup', capture)
+    })
+
     editorRef.current = editor
     onReadyRef.current?.()
 
@@ -323,12 +405,58 @@ const GrapesEditor = forwardRef<GrapesEditorHandle, GrapesEditorProps>(({ stages
     insertToken(token: string) {
       const editor = editorRef.current
       if (!editor) return
-      // Use execCommand on the canvas iframe document so the token is inserted
-      // at the cursor position inside the currently-active contenteditable block.
-      // mousedown preventDefault() on the caller's button keeps iframe focus alive.
       const doc = editor.Canvas.getDocument() as Document | undefined
       if (!doc) return
-      doc.execCommand('insertText', false, token)
+      const win = (editor.Canvas as any).getWindow?.() as Window | undefined
+      const sel = (win?.getSelection?.() ?? doc.getSelection?.()) as Selection | null
+
+      // Insert at the caret via the Selection API. Unlike execCommand('insertText')
+      // this does not need the canvas iframe to hold focus, so it works from a chip
+      // button in the parent document too (execCommand silently no-ops there — the
+      // "clicking {{}} does nothing" bug). We accept the live selection OR the last
+      // caret captured before the button stole focus, so pressing the chip behaves
+      // exactly like typing the token where the cursor was.
+      const liveRange =
+        sel && sel.rangeCount > 0 && doc.body.contains(sel.getRangeAt(0).commonAncestorContainer)
+          ? sel.getRangeAt(0)
+          : null
+      const savedRange =
+        lastRangeRef.current && doc.body.contains(lastRangeRef.current.commonAncestorContainer)
+          ? lastRangeRef.current
+          : null
+      const range = liveRange ?? savedRange
+
+      if (range) {
+        range.deleteContents()
+        const node = doc.createTextNode(token)
+        range.insertNode(node)
+        range.setStartAfter(node)
+        range.collapse(true)
+        if (sel) { sel.removeAllRanges(); sel.addRange(range) }
+        lastRangeRef.current = range.cloneRange()
+        // Persist into the owning text component so the token survives export/save
+        // even if the block is never blurred before Save.
+        const selected = editor.getSelected() as any
+        const owner = selected?.getEl?.()?.contains?.(node)
+          ? selected
+          : componentForNode(editor, node)
+        if (owner?.getEl) { try { owner.set('content', owner.getEl().innerHTML) } catch { /* noop */ } }
+        return
+      }
+
+      // No caret anywhere yet — never a no-op. Append to the selected text block,
+      // else the first text block in the design, else drop a fresh line so the
+      // click always produces a visible result.
+      const selected = editor.getSelected() as any
+      const target = selected && isTextComponent(selected) ? selected : firstTextComponent(editor)
+      if (target) {
+        const current = target.getInnerHTML?.() ?? String(target.get?.('content') ?? '')
+        target.components(current + token)
+        return
+      }
+      editor.getWrapper()?.append(
+        `<div data-gjs-type="text" style="font-family:Arial,sans-serif;font-size:14px;">${token}</div>`,
+      )
     },
   }))
 
