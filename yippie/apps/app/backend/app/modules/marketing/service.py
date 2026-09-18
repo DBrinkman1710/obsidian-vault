@@ -803,9 +803,14 @@ async def test_send_campaign(
     preview_html = preview_html.replace("{{company}}", "")
     preview_html = preview_html.replace("{{email}}", agent_email)
 
+    from app.core.models import Tenant
+    tenant = await db.get(Tenant, campaign.tenant_id)
     full_html = render_email_html(
         body_text=campaign.subject,
         prerendered_html=preview_html or f"<p>{campaign.subject}</p>",
+        tenant_name=tenant.name if tenant else None,
+        primary_color=tenant.primary_color if tenant else None,
+        logo_url=tenant.logo_url if tenant else None,
     )
     full_html += f'<div style="text-align:center;padding:8px 0;font-size:11px;color:#9ca3af;">Test send — not tracked</div>'
 
@@ -881,6 +886,9 @@ async def launch_campaign(
     campaign.dispatched_at = datetime.now(timezone.utc)
     await db.flush()
 
+    from app.core.models import Tenant
+    tenant = await db.get(Tenant, tenant_id)
+
     payloads: list[tuple[Contact, str, str, str]] = []  # (contact, html, to_email, unsub_url)
     for idx, contact in enumerate(dispatch_set):
         token = uuid.uuid4()
@@ -900,6 +908,9 @@ async def launch_campaign(
         full_html = render_email_html(
             body_text=campaign.subject,
             prerendered_html=body_html or f"<p>{campaign.subject}</p>",
+            tenant_name=tenant.name if tenant else None,
+            primary_color=tenant.primary_color if tenant else None,
+            logo_url=tenant.logo_url if tenant else None,
         )
 
         # Mint per-recipient tracking tokens for CRM-action buttons and inject hrefs.
@@ -1082,6 +1093,9 @@ async def ab_pick_winner(
     templates = {t.variant: t for t in await get_campaign_templates(db, campaign.id)}
     win_html = _select_variant_html(templates, winner)
 
+    from app.core.models import Tenant
+    tenant = await db.get(Tenant, campaign.tenant_id)
+
     payloads: list[tuple[Contact, str, str, str]] = []
     for contact in remaining:
         token = uuid.uuid4()
@@ -1089,6 +1103,9 @@ async def ab_pick_winner(
         full_html = render_email_html(
             body_text=campaign.subject,
             prerendered_html=personalized or f"<p>{campaign.subject}</p>",
+            tenant_name=tenant.name if tenant else None,
+            primary_color=tenant.primary_color if tenant else None,
+            logo_url=tenant.logo_url if tenant else None,
         )
         unsub_url = f"{base_url}/api/v1/track/unsubscribe/{token}"
         full_html += _open_pixel(base_url, token)
