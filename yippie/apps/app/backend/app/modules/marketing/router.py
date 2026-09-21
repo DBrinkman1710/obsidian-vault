@@ -69,6 +69,12 @@ async def update_campaign(
     campaign = await _require_campaign(db, current_user.tenant_id, campaign_id)
     campaign = await service.update_campaign(db, campaign, body)
     await db.commit()
+    # updated_at is set by a server-side now() in the UPDATE, so it is expired
+    # after commit. Reload it here, inside the async context, otherwise
+    # serializing CampaignOut.updated_at triggers lazy IO in FastAPI's sync
+    # response path and raises MissingGreenlet (500 even though the write
+    # committed — which is why a second, no-op save appeared to "work").
+    await db.refresh(campaign)
     return campaign
 
 
