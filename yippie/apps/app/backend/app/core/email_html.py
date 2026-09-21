@@ -230,7 +230,7 @@ def render_email_html(
     # Logo header: prefer tenant's logo_url, fall back to Yippie default
     safe_custom = _safe_logo_url(logo_url)
     effective_logo = safe_custom or FALLBACK_LOGO_URL
-    alt_text = html.escape(tenant_name or "Yippie")
+    alt_text = html.escape(tenant_name or "GetYippie")
     logo_img = (
         f'<img src="{effective_logo}" alt="{alt_text}" '
         f'style="height:44px;max-width:220px;border:0;display:inline-block;" />'
@@ -257,7 +257,7 @@ def render_email_html(
         f'{campaign_buttons_html}'
         '</div>'
         '<div style="text-align:center;padding:20px 0;font-size:12px;color:#94a3b8;">'
-        'Sent with Yippie'
+        'Sent with GetYippie'
         '</div>'
         '</div></body></html>'
     )
