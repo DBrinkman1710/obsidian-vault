@@ -133,7 +133,7 @@ async def _record_failure(db, account: EmailAccount, exc: ProviderAPIError) -> N
 
 
 def _should_skip(account: EmailAccount, msg: ProviderMessage) -> bool:
-    """Loop prevention: never re-ingest the account's own or Yippie-sent mail."""
+    """Loop prevention: never re-ingest the account's own or GetYippie-sent mail."""
     if msg.sender == account.email_address.lower():
         return True
     lower_headers = {k.lower() for k in msg.raw_headers}

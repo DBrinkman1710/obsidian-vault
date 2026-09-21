@@ -1,6 +1,6 @@
 """[FLOW8] The built-in automations catalogue.
 
-A static, read-only inventarisation of everything Yippie does automatically for a
+A static, read-only inventarisation of everything GetYippie does automatically for a
 tenant WITHOUT them wiring up a flow — the always-on platform automations. It's
 surfaced on the /flows page ("Platform automations") so the value is visible, and
 it's the counterpart to the four automations that FLOW8 migrated INTO editable
@@ -9,7 +9,7 @@ flows (those are gone from here — a flow now owns them).
 Each entry:
     key          snake_case, unique
     name         short human title
-    description  one plain sentence: what Yippie does automatically
+    description  one plain sentence: what GetYippie does automatically
     module       module id whose enablement shows the card (None → always shown)
     cadence      human string ("hourly", "on arrival", "realtime", …)
     settings_path (optional) frontend route to configure it, when one exists

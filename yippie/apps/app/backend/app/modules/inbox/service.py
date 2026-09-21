@@ -1119,7 +1119,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                         campaign_buttons_html = render_campaign_buttons_html(buttons, token_map=token_map)
 
                 # Unlayer templates are complete HTML documents — send them directly
-                # instead of nesting them inside the Yippie email shell wrapper,
+                # instead of nesting them inside the GetYippie email shell wrapper,
                 # which produces invalid double-nested HTML and breaks the template.
                 if c["prerendered_html"]:
                     html_body = c["prerendered_html"]

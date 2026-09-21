@@ -46,7 +46,7 @@ class Tenant(Base):
     )
     primary_color: Mapped[str] = mapped_column(String(20), nullable=False, default="#5BB8E8")
     logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
-    # SaaS plan tier for this tenant's own Yippie subscription. Plans govern
+    # SaaS plan tier for this tenant's own GetYippie subscription. Plans govern
     # user/contact limits; modules are à la carte add-ons (see app.core.plans).
     # Stored as the PlanTier value string; new tenants default to the founder tier.
     plan: Mapped[str] = mapped_column(String(20), nullable=False, server_default="founder")
@@ -112,7 +112,7 @@ class Tenant(Base):
     resend_domain_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     resend_domain_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
     resend_domain_records: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    # Stripe SaaS billing — Layer 1 (Yippie charges this tenant).
+    # Stripe SaaS billing — Layer 1 (GetYippie charges this tenant).
     stripe_customer_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     stripe_subscription_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     stripe_subscription_status: Mapped[str | None] = mapped_column(String(50), nullable=True)
@@ -180,7 +180,7 @@ class User(Base):
     role: Mapped[UserRole] = mapped_column(Enum(UserRole), nullable=False, default=UserRole.agent)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     reply_from_email: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    # Personal Yippie receiving address on the Resend domain (e.g. klimaatexamen-eddy@getyippie.com).
+    # Personal GetYippie receiving address on the Resend domain (e.g. klimaatexamen-eddy@getyippie.com).
     # Mail forwarded here lands in this user's personal inbox instead of the tenant's shared one.
     inbound_email: Mapped[str | None] = mapped_column(String(255), unique=True, nullable=True)
     # Personal signature appended to compose/reply (plain text; rendered into the HTML layout on send)

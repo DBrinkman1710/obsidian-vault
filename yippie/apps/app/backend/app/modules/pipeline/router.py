@@ -108,7 +108,7 @@ async def put_flowchart(body: FlowchartGraph, current_user: AdminUser, db: DB):
 
 # [KAN_FLOW2] Draft automation suggestions derived from the chart's edges. Each
 # maps a stage → stage transition (direct or via a decision diamond) to a
-# prefill the Flows builder can open — the chart teaches Yippie the pipeline and
+# prefill the Flows builder can open — the chart teaches GetYippie the pipeline and
 # offers to wire the automations the user already drew.
 @router.get("/flowchart/suggestions", response_model=list[FlowchartSuggestion])
 async def get_flowchart_suggestions(current_user: CurrentUser, db: DB):

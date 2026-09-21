@@ -56,7 +56,7 @@ class OrgSettingsUpdate(BaseModel):
 class WorkspacePrefsUpdate(BaseModel):
     # Pipeline staleness sidebar dot ([UX-PSYCH] nudge). None leaves it untouched.
     pipeline_nudge_enabled: Optional[bool] = None
-    # Shared inbox receiving address on the Yippie domain. None leaves it
+    # Shared inbox receiving address on the GetYippie domain. None leaves it
     # untouched; "" clears it back to the domain default.
     inbound_email: Optional[str] = None
 

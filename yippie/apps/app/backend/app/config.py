@@ -66,7 +66,7 @@ class Settings(BaseSettings):
     resend_api_key: str = ""
     resend_from: str = ""
     resend_webhook_secret: str = ""
-    # OAuth email linking (Gmail/Outlook) — one central Yippie owned app per
+    # OAuth email linking (Gmail/Outlook) — one central GetYippie owned app per
     # provider. Leave empty to hide the Connect buttons for that provider.
     google_oauth_client_id: str = ""
     google_oauth_client_secret: str = ""

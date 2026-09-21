@@ -1356,7 +1356,7 @@ async def _send_booking_invitation(
     try:
         if contact is None or not contact.email or not is_valid_email(contact.email):
             return
-        tenant_name = tenant.name if tenant else "Yippie"
+        tenant_name = tenant.name if tenant else "GetYippie"
         primary_color = tenant.primary_color if tenant else None
         agent_name = agent.full_name if agent else tenant_name
         booking_url = f"{CLIENT_BASE_URL}/book/{token.id}"
@@ -1377,7 +1377,7 @@ async def _send_booking_invitation(
             lines.append("Pick a time that works for you here:")
         else:
             lines.append("Choose a time that works for you here:")
-        lines += [booking_url, "", f"Sent by {tenant_name} via Yippie."]
+        lines += [booking_url, "", f"Sent by {tenant_name} via GetYippie."]
         body_text = "\n".join(lines)
 
         msg_html = (
@@ -1407,7 +1407,7 @@ async def _send_booking_invitation(
             f'{primary_color or "#5BB8E8"};color:#ffffff;border-radius:6px;'
             f'text-decoration:none;font-weight:600;">Book a time</a></p>'
             f'<p style="margin:18px 0 0 0;font-size:13px;color:#6b7280;">'
-            f"Sent by {_html.escape(tenant_name)} via Yippie.</p>"
+            f"Sent by {_html.escape(tenant_name)} via GetYippie.</p>"
         )
         html_body = render_email_html(
             body_text,
@@ -1439,7 +1439,7 @@ async def _notify_customer_confirmed(
     try:
         if contact is None or not contact.email or not is_valid_email(contact.email):
             return
-        tenant_name = tenant.name if tenant else "Yippie"
+        tenant_name = tenant.name if tenant else "GetYippie"
         primary_color = tenant.primary_color if tenant else None
         when = _format_slot(event.start_at, event.end_at, tz_name)
         subject = f"Your meeting with {tenant_name} is confirmed"
@@ -1468,7 +1468,7 @@ async def _notify_customer_confirmed(
             + manage_text_lines
             + [
                 "",
-                f"Confirmed via {tenant_name} on Yippie.",
+                f"Confirmed via {tenant_name} on GetYippie.",
             ]
         )
 
@@ -1488,7 +1488,7 @@ async def _notify_customer_confirmed(
             f'<p style="margin:0 0 14px 0;font-weight:600;color:#374151;">{_html.escape(when)}</p>'
             f"{manage_html}"
             f'<p style="margin:18px 0 0 0;font-size:13px;color:#6b7280;">'
-            f"Confirmed via {_html.escape(tenant_name)} on Yippie.</p>"
+            f"Confirmed via {_html.escape(tenant_name)} on GetYippie.</p>"
         )
         html_body = render_email_html(
             body_text,
@@ -1720,7 +1720,7 @@ async def _notify_customer_rescheduled(
     try:
         if contact is None or not contact.email or not is_valid_email(contact.email):
             return
-        tenant_name = tenant.name if tenant else "Yippie"
+        tenant_name = tenant.name if tenant else "GetYippie"
         primary_color = tenant.primary_color if tenant else None
         when = _format_slot(event.start_at, event.end_at)
         subject = f"Your meeting with {tenant_name} has been rescheduled"
@@ -1742,7 +1742,7 @@ async def _notify_customer_rescheduled(
             + manage_text_lines
             + [
                 "",
-                f"Via {tenant_name} on Yippie.",
+                f"Via {tenant_name} on GetYippie.",
             ]
         )
 
@@ -1762,7 +1762,7 @@ async def _notify_customer_rescheduled(
             f'New time: {_html.escape(when)}</p>'
             f"{manage_html}"
             f'<p style="margin:18px 0 0 0;font-size:13px;color:#6b7280;">'
-            f"Via {_html.escape(tenant_name)} on Yippie.</p>"
+            f"Via {_html.escape(tenant_name)} on GetYippie.</p>"
         )
         html_body = render_email_html(
             body_text,

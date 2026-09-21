@@ -205,7 +205,7 @@ TOOL_DEFS: list[dict] = [
         "type": "function",
         "function": {
             "name": "get_platform_manual",
-            "description": "Fetch the Yippie platform manual. Use it to answer how-do-I questions about the platform itself.",
+            "description": "Fetch the GetYippie platform manual. Use it to answer how-do-I questions about the platform itself.",
             "parameters": {"type": "object", "properties": {}},
         },
     },
@@ -565,7 +565,7 @@ def _build_system_prompt(
         screen += f" Current page: {route}"
 
     lines = [
-        f"You are Yip, the AI assistant inside the {tenant.name} workspace on the Yippie customer service platform.",
+        f"You are Yip, the AI assistant inside the {tenant.name} workspace on the GetYippie customer service platform.",
         f"You are talking to {ctx.user.full_name or 'an agent'} (role: {ctx.user.role.value if hasattr(ctx.user.role, 'value') else ctx.user.role}), a member of the {tenant.name} team — not an end customer.",
         f"The current UTC time is {now.isoformat()} ({now.strftime('%A')}).",
         screen,

@@ -94,12 +94,12 @@ async def saas_health_digest():
                     try:
                         await send_email(
                             to=admin.email,
-                            subject=f"[Yippie] {row.cnt} at-risk customers this week",
+                            subject=f"[GetYippie] {row.cnt} at-risk customers this week",
                             body=(
                                 f"Hi {admin.full_name},\n\n"
                                 f"{row.cnt} of your tracked customers have a health score below 40 this week. "
-                                f"Log in to Yippie and visit the SaaS module to see who needs attention.\n\n"
-                                f"The Yippie Team"
+                                f"Log in to GetYippie and visit the SaaS module to see who needs attention.\n\n"
+                                f"The GetYippie Team"
                             ),
                         )
                     except Exception:

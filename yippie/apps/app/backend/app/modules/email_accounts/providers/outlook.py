@@ -9,7 +9,7 @@ Sending posts raw base64 MIME to /me/sendMail (Content-Type: text/plain), which
 allows arbitrary threading headers — the JSON payload would restrict custom
 headers to x- prefixes.
 
-There is no delegated-token revoke endpoint; users revoke Yippie's access at
+There is no delegated-token revoke endpoint; users revoke GetYippie's access at
 account.microsoft.com → Privacy → Apps and services.
 """
 from __future__ import annotations

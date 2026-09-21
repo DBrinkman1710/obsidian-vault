@@ -109,7 +109,7 @@ class TenantConfigOut(BaseModel):
     stripe_publishable_key: str = ""
     ai_scans_used_this_period: int = 0
     # Tenant's tracking token — always present, used to auto-embed the saas.js
-    # snippet in every Yippie environment for internal platform usage tracking.
+    # snippet in every GetYippie environment for internal platform usage tracking.
     tracking_token: str | None = None
     # AI profile — set via Yip training or Settings -> AI & Yip.
     ai_profile: dict | None = None

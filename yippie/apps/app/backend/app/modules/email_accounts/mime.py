@@ -10,7 +10,7 @@ import base64
 from email.message import EmailMessage
 from email.utils import formataddr, make_msgid
 
-# Marks mail sent by Yippie so the inbound sync never re-ingests our own sends
+# Marks mail sent by GetYippie so the inbound sync never re-ingests our own sends
 YIPPIE_SENT_HEADER = "X-Yippie-Sent"
 
 

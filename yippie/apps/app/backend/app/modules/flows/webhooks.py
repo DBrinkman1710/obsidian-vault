@@ -157,7 +157,7 @@ async def deliver(raw_url: str, payload: dict, secret: str) -> int:
     headers = {
         "Content-Type": "application/json",
         SIGNATURE_HEADER: sign_payload(secret, body),
-        "User-Agent": "Yippie-Flows/1.0",
+        "User-Agent": "GetYippie-Flows/1.0",
     }
     transport = _PinnedTransport(host, pinned_ip, retries=0)
     async with httpx.AsyncClient(

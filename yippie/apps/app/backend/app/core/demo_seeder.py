@@ -247,14 +247,14 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
             db.add(Invoice(
                 tenant_id=tenant_id, contact_id=c1.id, invoice_number="INV-2024-001",
                 status=InvoiceStatus.paid,
-                line_items=[{"description": "Yippie Growth (jaarabonnement)", "quantity": 1, "unit_price_cents": 125000}],
+                line_items=[{"description": "GetYippie Growth (jaarabonnement)", "quantity": 1, "unit_price_cents": 125000}],
                 subtotal_cents=125000, tax_cents=26250, total_cents=151250, currency="EUR",
                 due_date=today - timedelta(days=60),
             ))
             db.add(Invoice(
                 tenant_id=tenant_id, contact_id=c3.id, invoice_number="INV-2024-002",
                 status=InvoiceStatus.sent,
-                line_items=[{"description": "Yippie Starter (3 maanden)", "quantity": 1, "unit_price_cents": 85000}],
+                line_items=[{"description": "GetYippie Starter (3 maanden)", "quantity": 1, "unit_price_cents": 85000}],
                 subtotal_cents=85000, tax_cents=17850, total_cents=102850, currency="EUR",
                 due_date=today + timedelta(days=14),
             ))
@@ -269,7 +269,7 @@ async def seed_demo_data(tenant_id: uuid.UUID, admin_user_id: uuid.UUID) -> None
                 tenant_id=tenant_id, contact_id=c5.id, invoice_number="INV-2024-004",
                 status=InvoiceStatus.draft,
                 line_items=[
-                    {"description": "Yippie Enterprise (jaarabonnement)", "quantity": 1, "unit_price_cents": 180000},
+                    {"description": "GetYippie Enterprise (jaarabonnement)", "quantity": 1, "unit_price_cents": 180000},
                     {"description": "Dedicated support SLA", "quantity": 1, "unit_price_cents": 30000},
                 ],
                 subtotal_cents=210000, tax_cents=44100, total_cents=254100, currency="EUR",
