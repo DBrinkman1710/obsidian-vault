@@ -320,13 +320,13 @@ export function Sidebar() {
             >
               <img
                 src="/logo-mark-tight.svg"
-                alt="Yippie"
+                alt="GetYippie"
                 className={`object-contain ${collapsed ? 'w-6 h-6' : 'w-7 h-7'}`}
               />
             </div>
             {!collapsed && (
               <div className="min-w-0">
-                <p className="font-display font-bold text-white text-sm leading-tight">Yippie</p>
+                <p className="font-display font-bold text-white text-sm leading-tight">GetYippie</p>
                 <p className="text-white/70 text-xs truncate leading-tight mt-0.5">{config.tenant_name}</p>
               </div>
             )}

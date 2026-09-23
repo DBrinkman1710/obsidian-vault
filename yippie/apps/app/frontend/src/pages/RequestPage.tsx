@@ -21,7 +21,7 @@ function Shell({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <div className="mb-6 text-center">
-          <img src="/logo-lockup-onLight.svg" alt="Yippie" className="w-56 mx-auto object-contain" />
+          <img src="/logo-lockup-onLight.svg" alt="GetYippie" className="w-56 mx-auto object-contain" />
         </div>
         <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8">
           {children}

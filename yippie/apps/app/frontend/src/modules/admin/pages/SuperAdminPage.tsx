@@ -1604,7 +1604,7 @@ function EvolutionDiagnosticPanel() {
   const sendMutation = useMutation({
     mutationFn: () => api.post('/admin/evolution-send-test', {
       number: testNumber.trim(),
-      message: 'Yippie diagnostics test',
+      message: 'GetYippie diagnostics test',
       instance: 'default',
     }).then((r: any) => r.data),
     onSuccess: (data: any) => setSendResult(data),

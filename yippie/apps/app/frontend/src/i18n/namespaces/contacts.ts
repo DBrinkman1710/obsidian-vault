@@ -68,7 +68,7 @@ export const contacts: { en: Record<string, string>; nl: Record<string, string> 
     contacts_undo:                    'Undo',
 
     // Import modal
-    contacts_import_map_hint:         'Match each column in your file to a Yippie field.',
+    contacts_import_map_hint:         'Match each column in your file to a GetYippie field.',
     contacts_skip_column:             '— skip —',
     contacts_map_full_name_required:  'Map one column to {field} to continue.',
     contacts_back:                    'Back',
@@ -328,7 +328,7 @@ export const contacts: { en: Record<string, string>; nl: Record<string, string> 
     contacts_undo:                    'Ongedaan maken',
 
     // Import modal
-    contacts_import_map_hint:         'Koppel elke kolom in je bestand aan een Yippie-veld.',
+    contacts_import_map_hint:         'Koppel elke kolom in je bestand aan een GetYippie-veld.',
     contacts_skip_column:             '— overslaan —',
     contacts_map_full_name_required:  'Koppel één kolom aan {field} om door te gaan.',
     contacts_back:                    'Terug',

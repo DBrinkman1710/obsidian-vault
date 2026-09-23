@@ -17,7 +17,7 @@ import { useT } from '../../../hooks/useT'
 import PipelineFlowchart from './PipelineFlowchart'
 
 // [KAN_FLOW1] The Kanban module has two views: the board (today's kanban) and a
-// flowchart that teaches Yippie how the pipeline works.
+// flowchart that teaches GetYippie how the pipeline works.
 type PipelineTab = 'board' | 'flowchart'
 
 interface PipelineStage {

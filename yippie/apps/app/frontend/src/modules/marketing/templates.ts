@@ -68,13 +68,13 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   },
   {
     id: 'yippie-professional',
-    name: 'Yippie Professional',
+    name: 'GetYippie Professional',
     description: 'Branded email with logo header and clean layout.',
     html: `<table align="center" width="100%" style="max-width:600px;margin:0 auto;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;background:#f1f5f9;border-spacing:0;">
   <!-- Logo header -->
   <tr>
     <td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-radius:8px 8px 0 0;">
-      <img src="https://getyippie.com/logo-white-bg.svg" alt="Yippie" style="height:36px;border:0;display:inline-block;" />
+      <img src="https://getyippie.com/logo-white-bg.svg" alt="GetYippie" style="height:36px;border:0;display:inline-block;" />
     </td>
   </tr>
   <!-- Accent bar -->
@@ -97,7 +97,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   <!-- Footer -->
   <tr>
     <td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">
-      Sent with Yippie
+      Sent with GetYippie
     </td>
   </tr>
 </table>`,
@@ -110,7 +110,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   <!-- Logo header -->
   <tr>
     <td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-radius:8px 8px 0 0;">
-      <img src="https://getyippie.com/logo-white-bg.svg" alt="Yippie" style="height:36px;border:0;display:inline-block;" />
+      <img src="https://getyippie.com/logo-white-bg.svg" alt="GetYippie" style="height:36px;border:0;display:inline-block;" />
     </td>
   </tr>
   <!-- Accent bar -->
@@ -155,7 +155,7 @@ export const STARTER_TEMPLATES: StarterTemplate[] = [
   <!-- Footer -->
   <tr>
     <td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">
-      Sent with Yippie &nbsp;·&nbsp; <a href="#" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a>
+      Sent with GetYippie &nbsp;·&nbsp; <a href="#" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a>
     </td>
   </tr>
 </table>`,

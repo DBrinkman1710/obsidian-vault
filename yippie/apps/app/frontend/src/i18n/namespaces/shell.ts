@@ -33,7 +33,7 @@ export const shell: { en: Record<string, string>; nl: Record<string, string> } =
     shell_contact_us:               'Contact us',
     // DesktopOnly
     shell_desktop_only_title:       'Best on desktop',
-    shell_desktop_only_desc:        'This feature is designed for larger screens. Open Yippie on your computer to access it.',
+    shell_desktop_only_desc:        'This feature is designed for larger screens. Open GetYippie on your computer to access it.',
     // BottomNav
     shell_settings:                 'Settings',
     // App — config error
@@ -103,7 +103,7 @@ export const shell: { en: Record<string, string>; nl: Record<string, string> } =
     shell_contact_us:               'Neem contact op',
     // DesktopOnly
     shell_desktop_only_title:       'Beste ervaring op desktop',
-    shell_desktop_only_desc:        'Deze functie is ontworpen voor grotere schermen. Open Yippie op je computer om het te gebruiken.',
+    shell_desktop_only_desc:        'Deze functie is ontworpen voor grotere schermen. Open GetYippie op je computer om het te gebruiken.',
     // BottomNav
     shell_settings:                 'Instellingen',
     // App — config error

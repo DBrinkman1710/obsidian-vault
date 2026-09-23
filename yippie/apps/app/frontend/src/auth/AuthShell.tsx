@@ -19,7 +19,7 @@ export function AuthShell({ subtitle, children }: { subtitle: string; children: 
       <div className="w-full max-w-sm relative z-10">
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-3">
-            <img src="/logo-lockup-onLight.svg" alt="Yippie" style={{ width: 200, height: 'auto' }} />
+            <img src="/logo-lockup-onLight.svg" alt="GetYippie" style={{ width: 200, height: 'auto' }} />
           </div>
           <p className="text-sm" style={{ color: 'var(--text-muted)' }}>{subtitle}</p>
         </div>

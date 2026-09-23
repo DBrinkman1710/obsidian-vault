@@ -4,7 +4,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
   en: {
     // FlowsPage — header & list
     flow_flows:                 'Flows',
-    flow_page_desc:             'Automations that connect your modules: when something happens, Yippie acts.',
+    flow_page_desc:             'Automations that connect your modules: when something happens, GetYippie acts.',
     flow_new_on_canvas:         'New on canvas',
     flow_new_flow:              'New flow',
     flow_ready_made_recipes:    'Ready-made recipes',
@@ -24,7 +24,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
     flow_no_flows_member:       'Ask an admin to set one up.',
     flow_browse_recipes:        'Browse recipes',
     flow_default_badge:         'Default',
-    flow_default_title:         'Included with Yippie — view it on the canvas, duplicate it to customise. Doesn\'t count toward your plan\'s flow limit.',
+    flow_default_title:         'Included with GetYippie — view it on the canvas, duplicate it to customise. Doesn\'t count toward your plan\'s flow limit.',
     flow_show_recent_runs:      'Show recent runs',
     flow_disable:               'Disable',
     flow_enable:                'Enable',
@@ -40,7 +40,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
     flow_duplicate_err:         'Could not duplicate',
     // PlatformAutomations
     flow_platform_automations:  'Platform automations',
-    flow_platform_desc:         'What Yippie already does for you automatically.',
+    flow_platform_desc:         'What GetYippie already does for you automatically.',
     flow_configure:             'Configure',
     // BuilderModal
     flow_edit_flow:             'Edit flow',
@@ -83,7 +83,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
     flow_rotate_secret:         'Rotate secret',
     flow_rotate_confirm:        'Rotate the signing secret? Receivers verifying signatures must be updated.',
     flow_new_secret_msg:        'New signing secret — update your receivers',
-    flow_signing_tip:           'Outbound requests are signed X-Yippie-Signature: sha256=… over the raw body.',
+    flow_signing_tip:           'Outbound requests are signed X-GetYippie-Signature: sha256=… over the raw body.',
     // RunsDrawer
     flow_filter_label:          'Filter',
     flow_loading_runs:          'Loading runs…',
@@ -108,7 +108,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
     // FlowCanvasPage — header
     flow_back_to_flows:         'Back to flows',
     flow_default_view_only:     'Default · view only',
-    flow_default_view_title:    'Included with Yippie — view only. Duplicate it from the Flows page to customise.',
+    flow_default_view_title:    'Included with GetYippie — view only. Duplicate it from the Flows page to customise.',
     flow_replaying_run:         'Replaying run from',
     flow_stop_replay:           'Stop replay',
     flow_reset_layout:          'Reset to auto-layout',
@@ -122,7 +122,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
     // FlowCanvasPage — inspector
     flow_inspect_tab:           'Inspect',
     flow_runs_tab:              'Runs',
-    flow_view_only_default:     'This default flow comes with Yippie and is view only — duplicate it from the Flows page to make your own editable version.',
+    flow_view_only_default:     'This default flow comes with GetYippie and is view only — duplicate it from the Flows page to make your own editable version.',
     flow_view_only_non_admin:   'Only admins can edit flows. Pick a run under Runs to replay it.',
     flow_drag_hint:             'Drag nodes to rearrange. Select a node to configure it, or add a step:',
     flow_add_action_btn:        'Add action',
@@ -190,7 +190,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
   nl: {
     // FlowsPage — header & list
     flow_flows:                 'Flows',
-    flow_page_desc:             'Automatiseringen die je modules verbinden: als er iets gebeurt, handelt Yippie.',
+    flow_page_desc:             'Automatiseringen die je modules verbinden: als er iets gebeurt, handelt GetYippie.',
     flow_new_on_canvas:         'Nieuw op canvas',
     flow_new_flow:              'Nieuwe flow',
     flow_ready_made_recipes:    'Kant-en-klare recepten',
@@ -210,7 +210,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
     flow_no_flows_member:       'Vraag een beheerder om er een in te stellen.',
     flow_browse_recipes:        'Recepten bekijken',
     flow_default_badge:         'Standaard',
-    flow_default_title:         'Inbegrepen bij Yippie — bekijk het op het canvas, dupliceer het om aan te passen. Telt niet mee voor de flowlimiet.',
+    flow_default_title:         'Inbegrepen bij GetYippie — bekijk het op het canvas, dupliceer het om aan te passen. Telt niet mee voor de flowlimiet.',
     flow_show_recent_runs:      'Recente uitvoeringen tonen',
     flow_disable:               'Uitschakelen',
     flow_enable:                'Inschakelen',
@@ -226,7 +226,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
     flow_duplicate_err:         'Kon niet dupliceren',
     // PlatformAutomations
     flow_platform_automations:  'Platformautomatiseringen',
-    flow_platform_desc:         'Wat Yippie al automatisch voor je doet.',
+    flow_platform_desc:         'Wat GetYippie al automatisch voor je doet.',
     flow_configure:             'Configureren',
     // BuilderModal
     flow_edit_flow:             'Flow bewerken',
@@ -269,7 +269,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
     flow_rotate_secret:         'Geheim roteren',
     flow_rotate_confirm:        'Het ondertekeningsgeheim roteren? Ontvangers die handtekeningen verifiëren moeten worden bijgewerkt.',
     flow_new_secret_msg:        'Nieuw ondertekeningsgeheim — werk je ontvangers bij',
-    flow_signing_tip:           'Uitgaande verzoeken worden ondertekend met X-Yippie-Signature: sha256=… over de raw body.',
+    flow_signing_tip:           'Uitgaande verzoeken worden ondertekend met X-GetYippie-Signature: sha256=… over de raw body.',
     // RunsDrawer
     flow_filter_label:          'Filter',
     flow_loading_runs:          'Uitvoeringen laden…',
@@ -294,7 +294,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
     // FlowCanvasPage — header
     flow_back_to_flows:         'Terug naar flows',
     flow_default_view_only:     'Standaard · alleen weergeven',
-    flow_default_view_title:    'Inbegrepen bij Yippie — alleen weergeven. Dupliceer het via de Flows-pagina om het aan te passen.',
+    flow_default_view_title:    'Inbegrepen bij GetYippie — alleen weergeven. Dupliceer het via de Flows-pagina om het aan te passen.',
     flow_replaying_run:         'Uitvoering afspelen van',
     flow_stop_replay:           'Afspelen stoppen',
     flow_reset_layout:          'Automatische indeling herstellen',
@@ -308,7 +308,7 @@ export const flows: { en: Record<string, string>; nl: Record<string, string> } =
     // FlowCanvasPage — inspector
     flow_inspect_tab:           'Inspecteren',
     flow_runs_tab:              'Uitvoeringen',
-    flow_view_only_default:     'Deze standaardflow wordt meegeleverd met Yippie en is alleen-lezen — dupliceer hem via de Flows-pagina om een eigen bewerkbare versie te maken.',
+    flow_view_only_default:     'Deze standaardflow wordt meegeleverd met GetYippie en is alleen-lezen — dupliceer hem via de Flows-pagina om een eigen bewerkbare versie te maken.',
     flow_view_only_non_admin:   'Alleen beheerders kunnen flows bewerken. Kies een uitvoering onder Uitvoeringen om hem opnieuw af te spelen.',
     flow_drag_hint:             'Sleep nodes om ze te herschikken. Selecteer een node om hem in te stellen, of voeg een stap toe:',
     flow_add_action_btn:        'Actie toevoegen',
