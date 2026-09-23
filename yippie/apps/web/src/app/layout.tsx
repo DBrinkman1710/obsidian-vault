@@ -32,9 +32,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Yippie | Je groeipartner in klantenservice",
+  title: "GetYippie | Je groeipartner in klantenservice",
   description:
-    "Yippie is het AI-gedreven klantenserviceplatform dat meegroeit met je bedrijf. Onbeperkte contacten op elk abonnement. Inbox, tickets, contacten en boekingen op één plek.",
+    "GetYippie is het AI-gedreven klantenserviceplatform dat meegroeit met je bedrijf. Onbeperkte contacten op elk abonnement. Inbox, tickets, contacten en boekingen op één plek.",
   metadataBase: new URL(SITE_URL),
   alternates: {
     canonical: "/",
@@ -61,24 +61,24 @@ export const metadata: Metadata = {
     shortcut: "/favicon.ico",
   },
   openGraph: {
-    title: "Yippie | Je groeipartner in klantenservice",
+    title: "GetYippie | Je groeipartner in klantenservice",
     description:
       "Onbeperkte contacten op elk abonnement. AI-inboxtriage, tickets en boekingen in één platform dat met je meegroeit.",
     type: "website",
     url: SITE_URL,
-    siteName: "Yippie",
+    siteName: "GetYippie",
     images: [
       {
         url: "/og.png",
         width: 1200,
         height: 630,
-        alt: "Yippie — AI-gedreven klantenserviceplatform",
+        alt: "GetYippie — AI-gedreven klantenserviceplatform",
       },
     ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Yippie | Je groeipartner in klantenservice",
+    title: "GetYippie | Je groeipartner in klantenservice",
     description:
       "Onbeperkte contacten op elk abonnement. AI-inboxtriage, tickets en boekingen in één platform dat met je meegroeit.",
     images: ["/og.png"],

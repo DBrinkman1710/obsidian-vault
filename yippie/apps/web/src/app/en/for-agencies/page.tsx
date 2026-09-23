@@ -6,12 +6,12 @@ import styles from "@/app/components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie for Agencies | Multi-client help desk & shared inbox software",
+  title: "GetYippie for Agencies | Multi-client help desk & shared inbox software",
   description:
-    "Manage client communication at scale with Yippie's multi-tenant help desk software. Shared inbox, contact labels, companies, and campaign emails keep every client account organized.",
+    "Manage client communication at scale with GetYippie's multi-tenant help desk software. Shared inbox, contact labels, companies, and campaign emails keep every client account organized.",
   alternates: { canonical: "/en/for-agencies" },
   openGraph: {
-    title: "Yippie for Agencies | Multi-client customer support software",
+    title: "GetYippie for Agencies | Multi-client customer support software",
     description:
       "Multi-tenant shared inbox, contact labels, and campaign emails for agencies managing customer support across many clients.",
     url: "https://getyippie.com/for-agencies",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 const painSolutions = [
   {
     pain: "Every client has their own inbox, login, and tool. Switching between five accounts a day kills your focus and your margins.",
-    solve: "Yippie is multi-tenant by design. Each client lives in its own isolated workspace, and your team manages them all from one customer support platform. No more password juggling.",
+    solve: "GetYippie is multi-tenant by design. Each client lives in its own isolated workspace, and your team manages them all from one customer support platform. No more password juggling.",
   },
   {
     pain: "Constant context switching means you forget where a conversation left off, and clients notice the dropped ball.",
@@ -54,7 +54,7 @@ export default function ForAgenciesPage() {
           Manage client communication at scale, without losing the personal touch
         </h1>
         <p className={styles.heroSub}>
-          Yippie is the multi-client help desk software agencies use to run
+          GetYippie is the multi-client help desk software agencies use to run
           customer support across every account. One shared inbox, clean tenant
           isolation, and AI doing the heavy lifting.
         </p>
@@ -69,7 +69,7 @@ export default function ForAgenciesPage() {
           <p className={styles.eyebrow}>The problem</p>
           <h2 className={styles.sectionTitle}>Agency support, without the chaos</h2>
           <p className={styles.sectionSub}>
-            The hidden costs of managing many clients, and how Yippie removes them.
+            The hidden costs of managing many clients, and how GetYippie removes them.
           </p>
           <div className={styles.rows}>
             {painSolutions.map((row, i) => (
@@ -79,7 +79,7 @@ export default function ForAgenciesPage() {
                   <p className={styles.painText}>{row.pain}</p>
                 </div>
                 <div className={styles.solveCard}>
-                  <div className={`${styles.painLabel} ${styles.painLabelGood}`}>With Yippie</div>
+                  <div className={`${styles.painLabel} ${styles.painLabelGood}`}>With GetYippie</div>
                   <p className={styles.painText}>{row.solve}</p>
                 </div>
               </div>
@@ -91,7 +91,7 @@ export default function ForAgenciesPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Run every client from one platform</h2>
         <p className={styles.ctaSub}>
-          See how agencies use Yippie to scale customer support without scaling
+          See how agencies use GetYippie to scale customer support without scaling
           headcount. Try the instant demo today.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>

@@ -1,6 +1,6 @@
 "use client";
 
-/* Live miniature Yippie workspace preview, used on /custom.
+/* Live miniature GetYippie workspace preview, used on /custom.
    The visitor personalises it (colour, logo, company name) and watches
    modules slot into the sidebar as they build their package. */
 

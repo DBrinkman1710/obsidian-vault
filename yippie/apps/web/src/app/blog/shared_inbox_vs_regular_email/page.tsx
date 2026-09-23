@@ -35,7 +35,7 @@ const articleJsonLd = {
   author: { "@type": "Person", name: "Diederik Brinkman" },
   publisher: {
     "@type": "Organization",
-    name: "Yippie",
+    name: "GetYippie",
     logo: { "@type": "ImageObject", url: "https://getyippie.com/logo.svg" },
   },
   mainEntityOfPage: { "@type": "WebPage", "@id": URL },

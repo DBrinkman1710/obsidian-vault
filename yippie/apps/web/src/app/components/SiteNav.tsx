@@ -19,7 +19,7 @@ const copy = {
     useCaseLinks: [
       { href: "/for-smbs", label: "Voor MKB" },
       { href: "/for-agencies", label: "Voor bureaus" },
-      { href: "/vs-zendesk", label: "Yippie vs Zendesk" },
+      { href: "/vs-zendesk", label: "GetYippie vs Zendesk" },
     ],
     useCases: "Toepassingen",
     login: "Inloggen",
@@ -38,7 +38,7 @@ const copy = {
     useCaseLinks: [
       { href: "/for-smbs", label: "For SMBs" },
       { href: "/for-agencies", label: "For agencies" },
-      { href: "/vs-zendesk", label: "Yippie vs Zendesk" },
+      { href: "/vs-zendesk", label: "GetYippie vs Zendesk" },
     ],
     useCases: "Use cases",
     login: "Log in",
@@ -75,9 +75,9 @@ export default function SiteNav() {
   return (
     <nav className={`${styles.nav} ${scrolled ? styles.navScrolled : ""}`}>
       <div className={styles.navInner}>
-        <a href={localizeHref("/", locale)} className={styles.brand} aria-label="Yippie home">
+        <a href={localizeHref("/", locale)} className={styles.brand} aria-label="GetYippie home">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/logo-white-bg-mark.svg" alt="Yippie" className={styles.navLogo} />
+          <img src="/logo-white-bg-mark.svg" alt="GetYippie" className={styles.navLogo} />
         </a>
 
         <ul className={styles.navLinks}>

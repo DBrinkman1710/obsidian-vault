@@ -12,14 +12,14 @@ const ORG_ID = `${SITE}/#organization`;
 const WEBSITE_ID = `${SITE}/#website`;
 
 const DESCRIPTION =
-  "Yippie is het AI-gedreven klantenserviceplatform voor het MKB. Beheer inbox, tickets, contacten en boekingen op één plek.";
+  "GetYippie is het AI-gedreven klantenserviceplatform voor het MKB. Beheer inbox, tickets, contacten en boekingen op één plek.";
 
 export const organizationJsonLd = {
   "@type": "Organization",
   "@id": ORG_ID,
-  name: "Yippie",
-  legalName: "Yippie",
-  alternateName: "Yippie Customer Support",
+  name: "GetYippie",
+  legalName: "GetYippie",
+  alternateName: "GetYippie Customer Support",
   url: SITE,
   logo: {
     "@type": "ImageObject",
@@ -48,7 +48,7 @@ export const organizationJsonLd = {
 export const websiteJsonLd = {
   "@type": "WebSite",
   "@id": WEBSITE_ID,
-  name: "Yippie",
+  name: "GetYippie",
   url: SITE,
   description: DESCRIPTION,
   inLanguage: "en",
@@ -72,7 +72,7 @@ const planOffer = (name: string, priceMonthly: number) => ({
 
 export const softwareApplicationJsonLd = {
   "@type": "SoftwareApplication",
-  name: "Yippie",
+  name: "GetYippie",
   applicationCategory: "BusinessApplication",
   operatingSystem: "Web",
   url: SITE,

@@ -6,7 +6,7 @@ import type { UseCaseContent } from "./useCaseContent";
 import styles from "./UseCaseFlow.module.css";
 
 /**
- * Interactive clickthrough of the installer workflow, driven by real Yippie
+ * Interactive clickthrough of the installer workflow, driven by real GetYippie
  * screenshots (in /public/usecase). Copy is passed in so the same component
  * serves NL (on /) and EN (on /en).
  */

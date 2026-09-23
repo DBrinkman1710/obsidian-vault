@@ -28,14 +28,14 @@ import {
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Modules | Yippie klantenserviceplatform",
+  title: "Modules | GetYippie klantenserviceplatform",
   description:
-    "Een diepgaande blik op elke Yippie module: inbox, tickets, contacten, agenda, pipeline, live chat, marketing, afdelingen, facturatie, contracten, sjablonen, activiteit, team, zendingtracking, sales en SaaS Analytics. Alles gebouwd voor MKB.",
+    "Een diepgaande blik op elke GetYippie module: inbox, tickets, contacten, agenda, pipeline, live chat, marketing, afdelingen, facturatie, contracten, sjablonen, activiteit, team, zendingtracking, sales en SaaS Analytics. Alles gebouwd voor MKB.",
   alternates: { canonical: "/modules" },
   openGraph: {
-    title: "Modules | Yippie klantenserviceplatform",
+    title: "Modules | GetYippie klantenserviceplatform",
     description:
-      "Een diepgaande blik op elke Yippie module: inbox, tickets, contacten, agenda, pipeline, live chat, marketing, afdelingen, facturatie, contracten, sjablonen, activiteit, team, zendingtracking, sales en SaaS Analytics. Alles gebouwd voor MKB.",
+      "Een diepgaande blik op elke GetYippie module: inbox, tickets, contacten, agenda, pipeline, live chat, marketing, afdelingen, facturatie, contracten, sjablonen, activiteit, team, zendingtracking, sales en SaaS Analytics. Alles gebouwd voor MKB.",
     url: "https://getyippie.com/modules",
     type: "website",
     images: ["/og.png"],
@@ -198,7 +198,7 @@ const modules: Module[] = [
     bullets: [
       "Contracten uploaden en koppelen aan elk contact of bedrijf",
       "Verlengingsdata en opzegtermijnen bijhouden met automatische herinneringen",
-      "Contracten ter ondertekening sturen zonder Yippie te verlaten",
+      "Contracten ter ondertekening sturen zonder GetYippie te verlaten",
       "Filteren op status: concept, verstuurd, ondertekend, verlopen",
     ],
     shot: "/shots/contracts.png",
@@ -254,7 +254,7 @@ const modules: Module[] = [
     id: "tracking",
     kicker: "ZENDINGTRACKING",
     title: "Zendingtracking: alle zendingen in één overzicht",
-    desc: "Koppel je ERP of webshop en Yippie maakt of bijgewerkte contacten automatisch aan bij elke bestelling. Live vervoerdersupdates voor DHL, UPS, PostNL en FedEx staan direct naast het ticket van de klant. Geen kopiëren en plakken.",
+    desc: "Koppel je ERP of webshop en GetYippie maakt of bijgewerkte contacten automatisch aan bij elke bestelling. Live vervoerdersupdates voor DHL, UPS, PostNL en FedEx staan direct naast het ticket van de klant. Geen kopiëren en plakken.",
     bullets: [
       "DHL, UPS, FedEx en PostNL tracking standaard ingebouwd",
       "Zendingen koppelen aan contacten en tickets voor volledige context",
@@ -440,7 +440,7 @@ export default function ModulesPage() {
             Zie elke module live in je inbox
           </h2>
           <p className={styles.ctaSub}>
-            Boek een persoonlijke demo en zie hoe Yippie je inbox,
+            Boek een persoonlijke demo en zie hoe GetYippie je inbox,
             tickets en pipeline verbindt in één overzichtelijke werkruimte.
           </p>
           <a href={DEMO_URL} className={styles.ctaBtn}>

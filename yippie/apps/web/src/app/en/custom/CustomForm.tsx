@@ -28,7 +28,7 @@ import {
 } from "@/app/components/icons";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
-// Booking page of the Yippie owner tenant (backend resolves the tenant by slug).
+// Booking page of the GetYippie owner tenant (backend resolves the tenant by slug).
 const TALK_PATH = `${APP_URL}/meet/yippie`;
 
 type PlanKey = "starter" | "growth" | "pro" | "enterprise";
@@ -57,9 +57,9 @@ const MODULE_CONFIG = [
   { key: "saas",        recName: "SaaS Analytics",   Icon: SaasIcon,      price: MODULE_PRICES.saas,        desc: "Recurring subscriptions, MRR and churn tracking, linked to contacts" },
 ] as const;
 
-/* Sidebar colour swatches for the mini workspace — Yippie blue first (smart default). */
+/* Sidebar colour swatches for the mini workspace — GetYippie blue first (smart default). */
 const BRAND_COLORS = [
-  "#5BA4F5", // Yippie blue
+  "#5BA4F5", // GetYippie blue
   "#0F766E", // teal
   "#7C3AED", // violet
   "#DB2777", // pink

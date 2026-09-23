@@ -64,7 +64,7 @@ const sliderDefs: Record<"nl" | "en", SliderConfig[]> = {
     },
     {
       key: "automatable",
-      label: "% automatiseerbaar door Yippie",
+      label: "% automatiseerbaar door GetYippie",
       min: 10,
       max: 90,
       step: 5,
@@ -106,7 +106,7 @@ const sliderDefs: Record<"nl" | "en", SliderConfig[]> = {
     },
     {
       key: "automatable",
-      label: "% automatable by Yippie",
+      label: "% automatable by GetYippie",
       min: 10,
       max: 90,
       step: 5,
@@ -118,7 +118,7 @@ const sliderDefs: Record<"nl" | "en", SliderConfig[]> = {
 const uiCopy = {
   nl: {
     eyebrow: "ROI Calculator",
-    title: "Zie hoeveel tijd Yippie je bespaart",
+    title: "Zie hoeveel tijd GetYippie je bespaart",
     sub: "Verbind je inbox voor een persoonlijke schatting, of beweeg de schuifregelaars zelf.",
     tabInbox: "Gebruik mijn inbox",
     tabManual: "Handmatige schatting",
@@ -144,7 +144,7 @@ const uiCopy = {
     customerConversations: "Klantgesprekken",
     newsletters: "Nieuwsbrieven / geautomatiseerd",
     internal: "Intern",
-    yippieSaves: "Yippie bespaart je",
+    yippieSaves: "GetYippie bespaart je",
     headersOnly: "Alleen headers · niets verlaat je browser",
     addToChrome: "Toevoegen aan Chrome — gratis →",
     extNote: "Gratis Chrome-extensie voor Gmail & Outlook. Leest alleen e-mailmetadata — nooit de inhoud — en opent deze calculator met je echte cijfers ingevuld.",
@@ -153,7 +153,7 @@ const uiCopy = {
   },
   en: {
     eyebrow: "ROI Calculator",
-    title: "See how much time Yippie saves you",
+    title: "See how much time GetYippie saves you",
     sub: "Connect your inbox for a personalised estimate, or move the sliders yourself.",
     tabInbox: "Use my inbox",
     tabManual: "Manual estimate",
@@ -179,7 +179,7 @@ const uiCopy = {
     customerConversations: "Customer conversations",
     newsletters: "Newsletters / automated",
     internal: "Internal",
-    yippieSaves: "Yippie saves you",
+    yippieSaves: "GetYippie saves you",
     headersOnly: "Headers only · nothing leaves your browser",
     addToChrome: "Add to Chrome — it’s free →",
     extNote: "Free Chrome extension for Gmail & Outlook. It reads email metadata only — never content — then opens this calculator with your real numbers pre-filled.",

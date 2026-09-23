@@ -49,14 +49,14 @@ const PHILOSOPHY = [
 ];
 
 export const metadata: Metadata = {
-  title: "About | Yippie customer service platform for SMBs",
+  title: "About | GetYippie customer service platform for SMBs",
   description:
-    "Why I built Yippie: years on the customer service frontlines, tired of shared-inbox chaos and enterprise bloat. Minimalist support software for SMBs.",
+    "Why I built GetYippie: years on the customer service frontlines, tired of shared-inbox chaos and enterprise bloat. Minimalist support software for SMBs.",
   alternates: { canonical: "/en/about" },
   openGraph: {
-    title: "About | Yippie customer service platform for SMBs",
+    title: "About | GetYippie customer service platform for SMBs",
     description:
-      "Why I built Yippie: customer support made easy for small and medium businesses.",
+      "Why I built GetYippie: customer support made easy for small and medium businesses.",
     url: "https://getyippie.com/about",
     type: "website",
   },
@@ -78,7 +78,7 @@ export default function AboutPage() {
           </h1>
           <p className={styles.heroSub}>
             I&rsquo;m Diederik, an industrial engineer with a slightly obsessive habit of
-            optimising things. Yippie is the tool I always wished existed.
+            optimising things. GetYippie is the tool I always wished existed.
           </p>
           <div className={aboutStyles.founderPill}>
             <FounderPhoto />
@@ -127,7 +127,7 @@ export default function AboutPage() {
             <p className={aboutStyles.thesis}>
               I knew it could be better. As an engineer, I knew{" "}
               <span className={aboutStyles.thesisAccent}>I</span> could build better.
-              So I did. I built Yippie.
+              So I did. I built GetYippie.
             </p>
           </Reveal>
         </div>
@@ -188,7 +188,7 @@ export default function AboutPage() {
         <Reveal>
           <h2 className={styles.ctaTitle}>Want to see what I built?</h2>
           <p className={styles.ctaSub}>
-            Request a demo and I&rsquo;ll walk you through Yippie myself, in under twenty minutes.
+            Request a demo and I&rsquo;ll walk you through GetYippie myself, in under twenty minutes.
           </p>
           <a href={DEMO_URL} className={styles.btnPrimary}>
             Request demo <ArrowRightIcon size={17} />

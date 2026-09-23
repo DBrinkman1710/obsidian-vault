@@ -142,7 +142,7 @@ export default function DemoForm() {
           <h2 className={styles.successTitle}>Demo sent</h2>
           <p className={styles.successSub}>
             Check your inbox. We&apos;ve emailed you a one-click link to enter your
-            Yippie demo workspace.
+            GetYippie demo workspace.
           </p>
         </div>
       </div>
@@ -260,7 +260,7 @@ export default function DemoForm() {
 
       <div className={styles.moduleSection}>
         <p className={styles.moduleSectionLabel}>
-          {hasAnyAnswer ? "Modules we'll show you" : "What's inside Yippie"}
+          {hasAnyAnswer ? "Modules we'll show you" : "What's inside GetYippie"}
         </p>
         <p className={styles.moduleSectionSub}>
           {hasAnyAnswer

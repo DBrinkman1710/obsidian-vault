@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
-  title: "Yippie | Klantenservice software voor MKB",
+  title: "GetYippie | Klantenservice software voor MKB",
   description:
-    "Yippie verwerkt elk support ticket automatisch vanuit je inbox. Gedeelde inbox, AI-tickets, onbeperkte contacten en live chat in één platform. Start je gratis proefperiode van 30 dagen.",
+    "GetYippie verwerkt elk support ticket automatisch vanuit je inbox. Gedeelde inbox, AI-tickets, onbeperkte contacten en live chat in één platform. Start je gratis proefperiode van 30 dagen.",
   alternates: {
     canonical: "/",
     languages: {
@@ -152,12 +153,12 @@ const steps = [
   {
     n: "01",
     title: "Klant stuurt een bericht",
-    desc: "Een e-mail of WhatsApp-bericht belandt automatisch in je Yippie-inbox.",
+    desc: "Een e-mail of WhatsApp-bericht belandt automatisch in je GetYippie-inbox.",
   },
   {
     n: "02",
     title: "AI stelt het ticket op",
-    desc: "Yippie leest het bericht en stelt onderwerp, prioriteit en omschrijving voor.",
+    desc: "GetYippie leest het bericht en stelt onderwerp, prioriteit en omschrijving voor.",
   },
   {
     n: "03",
@@ -172,6 +173,46 @@ const inboxItems = [
   { sender: "Nordex", subject: "Upgrade naar groter abonnement", dot: "green", badge: "done" },
   { sender: "Bloom Agency", subject: "Verzoek voor onboardingsgesprek", dot: "", badge: "review" },
 ];
+
+function ProductShot({
+  src,
+  url,
+  alt,
+  caption,
+  wide = false,
+  tilt = false,
+}: {
+  src: string;
+  url: string;
+  alt: string;
+  caption?: string;
+  wide?: boolean;
+  tilt?: boolean;
+}) {
+  return (
+    <div className={`${styles.frame} ${wide ? styles.frameWide : ""} ${tilt ? styles.frameTilt : ""}`}>
+      <div className={styles.frameBar}>
+        <span className={styles.dot} />
+        <span className={styles.dot} />
+        <span className={styles.dot} />
+        <span className={styles.frameUrl}>app.getyippie.com{url}</span>
+      </div>
+      <div className={styles.shotWrap}>
+        <Image
+          src={src}
+          alt={alt}
+          width={1440}
+          height={900}
+          unoptimized
+          className={styles.shotImg}
+          priority={!wide}
+        />
+        {caption && <span className={styles.shotScrim} aria-hidden="true" />}
+        {caption && <span className={styles.shotCaption}>{caption}</span>}
+      </div>
+    </div>
+  );
+}
 
 function ProductMockup({ wide = false }: { wide?: boolean }) {
   return (
@@ -252,20 +293,33 @@ export default function NlHomePage() {
               Neem de tijd terug<br />die ertoe doet.
             </h1>
             <p className={styles.heroSub}>
-              Yippie verwerkt elk support ticket automatisch vanuit je inbox en
+              GetYippie verwerkt elk support ticket automatisch vanuit je inbox en
               groeit mee met je bedrijf. Controleer, keur goed, klaar.
             </p>
             <div className={styles.heroActions}>
-              <a href="/signup" className={styles.btnPrimary}>
-                Start je gratis proefperiode van 30 dagen <ArrowRightIcon size={17} />
+              <div className={styles.heroActionsTop}>
+                <a href="/signup" className={styles.btnPrimary}>
+                  Start je gratis proefperiode van 30 dagen <ArrowRightIcon size={17} />
+                </a>
+                <a href={DEMO_URL} className={styles.btnGhost}>Demo aanvragen</a>
+              </div>
+              <a href="#hoe-het-werkt" className={styles.btnHow}>
+                Hoe het werkt? <span aria-hidden="true">↓</span>
               </a>
-              <a href={DEMO_URL} className={styles.btnGhost}>Demo aanvragen</a>
+              <a href="#calculator" className={styles.btnHow}>
+                Bereken je terugverdientijd <span aria-hidden="true">↓</span>
+              </a>
             </div>
             <p className={styles.heroMeta}>30 dagen gratis · Geen creditcard · Altijd opzegbaar</p>
           </Reveal>
 
           <Reveal className={styles.heroVisual} delay={120}>
-            <ProductMockup />
+            <ProductShot
+              src="/shots/inbox.png"
+              url="/inbox"
+              alt="GetYippie gedeelde inbox met AI-tickets"
+              tilt
+            />
           </Reveal>
         </div>
       </section>
@@ -288,6 +342,9 @@ export default function NlHomePage() {
       <div id="workflow" className={styles.workflowAnchor}>
         <UseCaseStories />
       </div>
+
+      {/* ROI calculator */}
+      <ROICalculator appUrl={DEMO_URL} />
 
       {/* Features */}
       <section id="functies" className={styles.section}>
@@ -325,7 +382,7 @@ export default function NlHomePage() {
           <p className={styles.eyebrow}>// Hoe het werkt</p>
           <h2 className={styles.sectionTitle}>Van e-mail naar opgelost in seconden</h2>
           <p className={styles.sectionSub}>
-            De AI van Yippie leest elk inkomend bericht en doet de administratie voor je.
+            De AI van GetYippie leest elk inkomend bericht en doet de administratie voor je.
           </p>
         </Reveal>
         <div className={styles.steps}>
@@ -386,9 +443,6 @@ export default function NlHomePage() {
         </div>
       </section>
 
-      {/* ROI calculator */}
-      <ROICalculator appUrl={DEMO_URL} />
-
       {/* Product moment (dark) */}
       <section className={`${styles.moment} bgDots`}>
         <Reveal className={styles.momentHead}>
@@ -435,7 +489,7 @@ export default function NlHomePage() {
         <Reveal className={styles.ctaCard}>
           <h2 className={styles.ctaTitle}>Klaar om je tijd terug te winnen?</h2>
           <p className={styles.ctaSub}>
-            Sluit je aan bij bedrijven die klantenservice in half de tijd afhandelen met Yippie.
+            Sluit je aan bij bedrijven die klantenservice in half de tijd afhandelen met GetYippie.
             30 dagen gratis, geen creditcard nodig.
           </p>
           <a href="/signup" className={styles.btnPrimaryLg}>

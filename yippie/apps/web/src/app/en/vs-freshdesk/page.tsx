@@ -6,12 +6,12 @@ import styles from "@/app/components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie vs Freshdesk | The SMB-Friendly Freshdesk Alternative",
+  title: "GetYippie vs Freshdesk | The SMB-Friendly Freshdesk Alternative",
   description:
-    "Looking for a Freshdesk alternative for small business? Yippie is purpose-built help desk software for SMBs with booking and flat workspace pricing from €19/month.",
+    "Looking for a Freshdesk alternative for small business? GetYippie is purpose-built help desk software for SMBs with booking and flat workspace pricing from €19/month.",
   alternates: { canonical: "/en/vs-freshdesk" },
   openGraph: {
-    title: "Yippie vs Freshdesk | The SMB-Friendly Alternative",
+    title: "GetYippie vs Freshdesk | The SMB-Friendly Alternative",
     description:
       "A simpler, flat-priced Freshdesk alternative built for SMBs. Booking and easy onboarding included, from €19/month.",
     url: "https://getyippie.com/vs-freshdesk",
@@ -44,18 +44,18 @@ export default function VsFreshdeskPage() {
         <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
-          Yippie vs Freshdesk
+          GetYippie vs Freshdesk
         </div>
-        <h1 className={styles.heroTitle}>Yippie vs Freshdesk: the SMB-friendly alternative</h1>
+        <h1 className={styles.heroTitle}>GetYippie vs Freshdesk: the SMB-friendly alternative</h1>
         <p className={styles.heroSub}>
           Freshdesk offers a broad feature set built for complex support
           operations, but that breadth comes with a learning curve and per-agent
-          pricing that grows with every new hire. Yippie is purpose-built for
+          pricing that grows with every new hire. GetYippie is purpose-built for
           small and medium businesses: simpler, faster to set up, and flat
           workspace pricing instead of per-agent fees.
         </p>
         <p className={styles.heroSub}>
-          In short: Yippie is a Freshdesk alternative for small teams with flat
+          In short: GetYippie is a Freshdesk alternative for small teams with flat
           workspace pricing from €19 per month, unlimited contacts on every plan,
           AI drafted tickets, and booking built in — while Freshdesk charges
           roughly €15 per agent per month and is designed with enterprise
@@ -70,7 +70,7 @@ export default function VsFreshdeskPage() {
       <section className={styles.section}>
         <div className={styles.sectionInner}>
           <p className={styles.eyebrow}>Side by side</p>
-          <h2 className={styles.sectionTitle}>How Yippie compares to Freshdesk</h2>
+          <h2 className={styles.sectionTitle}>How GetYippie compares to Freshdesk</h2>
           <p className={styles.sectionSub}>
             Same core help desk capabilities, without the per-agent pricing or
             setup overhead.
@@ -80,7 +80,7 @@ export default function VsFreshdeskPage() {
               <thead>
                 <tr>
                   <th>Feature</th>
-                  <th className={styles.colYippie}>Yippie</th>
+                  <th className={styles.colGetYippie}>GetYippie</th>
                   <th>Freshdesk</th>
                 </tr>
               </thead>
@@ -124,7 +124,7 @@ export default function VsFreshdeskPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Switch to support that fits your business</h2>
         <p className={styles.ctaSub}>
-          See why SMBs choose Yippie over Freshdesk. Try the instant demo. No
+          See why SMBs choose GetYippie over Freshdesk. Try the instant demo. No
           credit card required.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>

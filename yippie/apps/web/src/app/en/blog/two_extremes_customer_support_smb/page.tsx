@@ -35,7 +35,7 @@ const articleJsonLd = {
   author: { "@type": "Person", name: "Diederik Brinkman" },
   publisher: {
     "@type": "Organization",
-    name: "Yippie",
+    name: "GetYippie",
     logo: { "@type": "ImageObject", url: "https://getyippie.com/logo.svg" },
   },
   mainEntityOfPage: { "@type": "WebPage", "@id": URL },
@@ -74,7 +74,7 @@ export default function Post() {
             for 500-person support teams.
           </p>
           <p>
-            I built Yippie because I kept seeing the same situation play out. Let me explain what
+            I built GetYippie because I kept seeing the same situation play out. Let me explain what
             both extremes actually look like when they go wrong.
           </p>
 
@@ -145,7 +145,7 @@ export default function Post() {
             cost-centre with a dedicated procurement team.
           </p>
           <p>
-            That is the design brief for Yippie. Flat workspace pricing: one number, regardless of
+            That is the design brief for GetYippie. Flat workspace pricing: one number, regardless of
             how many agents you add. An inbox that brings email and WhatsApp together so one contact
             record exists per customer. AI that reads incoming messages and drafts the ticket
             write-up so your team reviews instead of types. No approval workflows, no skill-based

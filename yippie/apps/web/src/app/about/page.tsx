@@ -49,14 +49,14 @@ const PHILOSOPHY = [
 ];
 
 export const metadata: Metadata = {
-  title: "Over ons | Yippie klantenserviceplatform voor MKB",
+  title: "Over ons | GetYippie klantenserviceplatform voor MKB",
   description:
-    "Waarom ik Yippie heb gebouwd: jaren aan de frontlinie van klantenservice, klaar met gedeelde-inbox chaos en enterprise bloat. Minimalistische supportsoftware voor MKB.",
+    "Waarom ik GetYippie heb gebouwd: jaren aan de frontlinie van klantenservice, klaar met gedeelde-inbox chaos en enterprise bloat. Minimalistische supportsoftware voor MKB.",
   alternates: { canonical: "/about" },
   openGraph: {
-    title: "Over ons | Yippie klantenserviceplatform voor MKB",
+    title: "Over ons | GetYippie klantenserviceplatform voor MKB",
     description:
-      "Waarom ik Yippie heb gebouwd: klantenservice eenvoudig gemaakt voor het MKB.",
+      "Waarom ik GetYippie heb gebouwd: klantenservice eenvoudig gemaakt voor het MKB.",
     url: "https://getyippie.com/about",
     type: "website",
   },
@@ -78,7 +78,7 @@ export default function AboutPage() {
           </h1>
           <p className={styles.heroSub}>
             Ik ben Diederik, een industrieel ingenieur met een licht obsessieve gewoonte om
-            dingen te optimaliseren. Yippie is het hulpmiddel dat ik altijd al had gewild.
+            dingen te optimaliseren. GetYippie is het hulpmiddel dat ik altijd al had gewild.
           </p>
           <div className={aboutStyles.founderPill}>
             <FounderPhoto />
@@ -127,7 +127,7 @@ export default function AboutPage() {
             <p className={aboutStyles.thesis}>
               Ik wist dat het beter kon. Als engineer wist ik dat{" "}
               <span className={aboutStyles.thesisAccent}>ik</span> het beter kon bouwen.
-              Dus deed ik dat. Ik bouwde Yippie.
+              Dus deed ik dat. Ik bouwde GetYippie.
             </p>
           </Reveal>
         </div>
@@ -188,7 +188,7 @@ export default function AboutPage() {
         <Reveal>
           <h2 className={styles.ctaTitle}>Wil je zien wat ik heb gebouwd?</h2>
           <p className={styles.ctaSub}>
-            Vraag een demo aan en ik laat je Yippie zelf zien, in minder dan twintig minuten.
+            Vraag een demo aan en ik laat je GetYippie zelf zien, in minder dan twintig minuten.
           </p>
           <a href={DEMO_URL} className={styles.btnPrimary}>
             Demo aanvragen <ArrowRightIcon size={17} />

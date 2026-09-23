@@ -11,19 +11,19 @@ import DownloadPdfButton from "./DownloadPdfButton";
 import styles from "./docs.module.css";
 
 const MANUAL_RAW_URL =
-  "https://raw.githubusercontent.com/DBrinkman1710/obsidian-vault/sandbox/Yippie%20Platform%20Manual.md";
+  "https://raw.githubusercontent.com/DBrinkman1710/obsidian-vault/sandbox/GetYippie%20Platform%20Manual.md";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Documentation | Yippie",
+  title: "Documentation | GetYippie",
   description:
-    "Complete product manual for the Yippie customer service platform.",
+    "Complete product manual for the GetYippie customer service platform.",
   alternates: { canonical: "/en/docs" },
   openGraph: {
-    title: "Documentation | Yippie",
+    title: "Documentation | GetYippie",
     description:
-      "Complete product manual for the Yippie customer service platform.",
+      "Complete product manual for the GetYippie customer service platform.",
     url: "https://getyippie.com/docs",
     type: "website",
   },
@@ -53,9 +53,9 @@ export default async function DocsPage() {
       <main className={styles.main}>
         <div className={styles.header}>
           <p className={styles.eyebrow}>// documentation</p>
-          <h1 className={styles.title}>Yippie Platform Manual</h1>
+          <h1 className={styles.title}>GetYippie Platform Manual</h1>
           <p className={styles.sub}>
-            Complete reference for everything in the Yippie platform. Always
+            Complete reference for everything in the GetYippie platform. Always
             reflects the latest shipped version.
           </p>
           <DownloadPdfButton />

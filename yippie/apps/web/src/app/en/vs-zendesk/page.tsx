@@ -6,12 +6,12 @@ import styles from "@/app/components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie vs Zendesk | The SMB-Friendly Zendesk Alternative",
+  title: "GetYippie vs Zendesk | The SMB-Friendly Zendesk Alternative",
   description:
-    "Looking for a Zendesk alternative for small business? Yippie is purpose-built help desk software for SMBs with booking and flat workspace pricing from €19/month.",
+    "Looking for a Zendesk alternative for small business? GetYippie is purpose-built help desk software for SMBs with booking and flat workspace pricing from €19/month.",
   alternates: { canonical: "/en/vs-zendesk" },
   openGraph: {
-    title: "Yippie vs Zendesk | The SMB-Friendly Alternative",
+    title: "GetYippie vs Zendesk | The SMB-Friendly Alternative",
     description:
       "A simpler, flat-priced Zendesk alternative built for SMBs. Booking and easy onboarding included, from €19/month.",
     url: "https://getyippie.com/vs-zendesk",
@@ -44,17 +44,17 @@ export default function VsZendeskPage() {
         <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
-          Yippie vs Zendesk
+          GetYippie vs Zendesk
         </div>
-        <h1 className={styles.heroTitle}>Yippie vs Zendesk: the SMB-friendly alternative</h1>
+        <h1 className={styles.heroTitle}>GetYippie vs Zendesk: the SMB-friendly alternative</h1>
         <p className={styles.heroSub}>
           Zendesk is powerful, enterprise-grade customer support software, and
-          priced like it. Yippie is purpose-built for small and medium businesses:
+          priced like it. GetYippie is purpose-built for small and medium businesses:
           simpler, faster to set up, and flat workspace pricing instead of
           per-agent fees that climb as you grow.
         </p>
         <p className={styles.heroSub}>
-          In short: Yippie is a Zendesk alternative for small teams with flat
+          In short: GetYippie is a Zendesk alternative for small teams with flat
           workspace pricing from €19 per month, unlimited contacts on every plan,
           AI drafted tickets, and booking built in — while Zendesk charges roughly
           €55 per agent per month and is designed for enterprise support teams.
@@ -68,7 +68,7 @@ export default function VsZendeskPage() {
       <section className={styles.section}>
         <div className={styles.sectionInner}>
           <p className={styles.eyebrow}>Side by side</p>
-          <h2 className={styles.sectionTitle}>How Yippie compares to Zendesk</h2>
+          <h2 className={styles.sectionTitle}>How GetYippie compares to Zendesk</h2>
           <p className={styles.sectionSub}>
             Same core help desk capabilities, without the enterprise price tag or
             setup overhead.
@@ -78,7 +78,7 @@ export default function VsZendeskPage() {
               <thead>
                 <tr>
                   <th>Feature</th>
-                  <th className={styles.colYippie}>Yippie</th>
+                  <th className={styles.colGetYippie}>GetYippie</th>
                   <th>Zendesk</th>
                 </tr>
               </thead>
@@ -122,7 +122,7 @@ export default function VsZendeskPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Switch to support that fits your business</h2>
         <p className={styles.ctaSub}>
-          See why SMBs choose Yippie over Zendesk. Try the instant demo. No
+          See why SMBs choose GetYippie over Zendesk. Try the instant demo. No
           credit card required.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>

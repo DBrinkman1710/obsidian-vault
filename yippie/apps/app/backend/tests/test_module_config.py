@@ -45,7 +45,11 @@ def test_meta_covers_every_module():
 def test_plan_limits_coerce_to_plantier():
     for name in gen.PLAN_LIMITS:
         PlanTier(name)  # raises if a plan name is not a valid tier
-    assert set(PLAN_LIMITS.keys()) == {PlanTier(n) for n in gen.PLAN_LIMITS}
+    # PLAN_LIMITS mirrors the generated config, plus code-only tiers that are not
+    # in modules.json by design (e.g. the superadmin-only free Pilot tier, which
+    # is never billed and gets its limits assigned in plans.py).
+    CODE_ONLY_TIERS = {PlanTier.pilot}
+    assert set(PLAN_LIMITS.keys()) == {PlanTier(n) for n in gen.PLAN_LIMITS} | CODE_ONLY_TIERS
 
 
 def test_pipeline_billing_regression():

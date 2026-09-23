@@ -7,14 +7,14 @@ import customStyles from "../custom/custom.module.css";
 import OnboardingForm from "../custom/CustomForm";
 
 export const metadata: Metadata = {
-  title: "Start your free 30 day trial | Yippie",
+  title: "Start your free 30 day trial | GetYippie",
   description:
-    "Build your own Yippie workspace in minutes. First 30 days free, no payment details needed.",
+    "Build your own GetYippie workspace in minutes. First 30 days free, no payment details needed.",
   alternates: { canonical: "/en/signup" },
   openGraph: {
-    title: "Start your free 30 day trial | Yippie",
+    title: "Start your free 30 day trial | GetYippie",
     description:
-      "Build your own Yippie workspace in minutes. First 30 days free, no payment details needed.",
+      "Build your own GetYippie workspace in minutes. First 30 days free, no payment details needed.",
     url: "https://getyippie.com/signup",
     type: "website",
     images: ["/og.png"],

@@ -9,7 +9,7 @@ const copy = {
   nl: {
     eyebrow: "// Live demo",
     title: "Zie de AI in actie",
-    sub: "Plak hieronder een klant-e-mail en kijk hoe Yippie in seconden het ticketonderwerp, de prioriteit en de omschrijving opstelt.",
+    sub: "Plak hieronder een klant-e-mail en kijk hoe GetYippie in seconden het ticketonderwerp, de prioriteit en de omschrijving opstelt.",
     examples: [
       {
         label: "Factuurprobleem",
@@ -35,13 +35,13 @@ const copy = {
     edit: "Bewerken",
     ticketNote: "Dit is een live voorbeeld. Meld je aan om je inbox te verbinden.",
     placeholderText: "Je AI-conceptticket verschijnt hier",
-    loadingText: "Yippie AI leest het bericht…",
+    loadingText: "GetYippie AI leest het bericht…",
     cta: "Verbind je inbox. Gratis demo →",
   },
   en: {
     eyebrow: "// Live demo",
     title: "See the AI in action",
-    sub: "Paste any customer email below and watch Yippie draft the ticket subject, priority, and description in seconds.",
+    sub: "Paste any customer email below and watch GetYippie draft the ticket subject, priority, and description in seconds.",
     examples: [
       {
         label: "Invoice issue",
@@ -67,7 +67,7 @@ const copy = {
     edit: "Edit",
     ticketNote: "This is a live preview. Sign up to connect your inbox.",
     placeholderText: "Your AI-drafted ticket will appear here",
-    loadingText: "Yippie AI is reading the message…",
+    loadingText: "GetYippie AI is reading the message…",
     cta: "Connect your inbox. Free demo →",
   },
 } as const;

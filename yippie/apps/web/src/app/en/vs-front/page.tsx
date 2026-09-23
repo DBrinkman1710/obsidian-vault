@@ -6,12 +6,12 @@ import styles from "@/app/components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie vs Front | The SMB-Friendly Front Alternative",
+  title: "GetYippie vs Front | The SMB-Friendly Front Alternative",
   description:
-    "Looking for a Front alternative for small business? Yippie is purpose-built help desk software for SMBs with booking, AI ticket drafting, and flat workspace pricing from €19/month.",
+    "Looking for a Front alternative for small business? GetYippie is purpose-built help desk software for SMBs with booking, AI ticket drafting, and flat workspace pricing from €19/month.",
   alternates: { canonical: "/en/vs-front" },
   openGraph: {
-    title: "Yippie vs Front | The SMB-Friendly Alternative",
+    title: "GetYippie vs Front | The SMB-Friendly Alternative",
     description:
       "A deeper, flat-priced Front alternative built for SMBs. Full ticketing, booking, and AI drafting included, from €19/month.",
     url: "https://getyippie.com/vs-front",
@@ -44,18 +44,18 @@ export default function VsFrontPage() {
         <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
-          Yippie vs Front
+          GetYippie vs Front
         </div>
-        <h1 className={styles.heroTitle}>Yippie vs Front: the SMB-friendly alternative</h1>
+        <h1 className={styles.heroTitle}>GetYippie vs Front: the SMB-friendly alternative</h1>
         <p className={styles.heroSub}>
           Front is a polished shared inbox tool, but it stops there. If you need
           full support ticketing depth, a built-in booking system, or a kanban
           pipeline alongside your inbox, you will hit its limits quickly — and
-          its per-user pricing stacks up fast. Yippie is purpose-built for small
+          its per-user pricing stacks up fast. GetYippie is purpose-built for small
           and medium businesses that need more than a shared inbox.
         </p>
         <p className={styles.heroSub}>
-          In short: Yippie is a Front alternative for small teams with flat
+          In short: GetYippie is a Front alternative for small teams with flat
           workspace pricing from €19 per month, unlimited contacts on every plan,
           AI drafted tickets, and booking built in — while Front charges roughly
           €19 per user per month and focuses solely on the inbox experience.
@@ -69,7 +69,7 @@ export default function VsFrontPage() {
       <section className={styles.section}>
         <div className={styles.sectionInner}>
           <p className={styles.eyebrow}>Side by side</p>
-          <h2 className={styles.sectionTitle}>How Yippie compares to Front</h2>
+          <h2 className={styles.sectionTitle}>How GetYippie compares to Front</h2>
           <p className={styles.sectionSub}>
             All the inbox convenience of Front, plus full ticketing, booking,
             and AI drafting — at a flat workspace price.
@@ -79,7 +79,7 @@ export default function VsFrontPage() {
               <thead>
                 <tr>
                   <th>Feature</th>
-                  <th className={styles.colYippie}>Yippie</th>
+                  <th className={styles.colGetYippie}>GetYippie</th>
                   <th>Front</th>
                 </tr>
               </thead>
@@ -124,7 +124,7 @@ export default function VsFrontPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Switch to support that fits your business</h2>
         <p className={styles.ctaSub}>
-          See why SMBs choose Yippie over Front. Try the instant demo. No
+          See why SMBs choose GetYippie over Front. Try the instant demo. No
           credit card required.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>

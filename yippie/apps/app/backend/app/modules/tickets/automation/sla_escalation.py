@@ -510,6 +510,8 @@ async def trial_expiry_check():
                 # (The old code relied on is_active flipping to dedupe; now that we
                 # keep the tenant active, access_locked_at is the dedupe key.)
                 Tenant.access_locked_at.is_(None),
+                # Pilot tenants are free by design — never trial-lock them.
+                Tenant.plan != "pilot",
                 Tenant.trial_ends_at.isnot(None),
                 Tenant.trial_ends_at < now,
             )
@@ -587,6 +589,8 @@ async def subscription_expiry_check():
                 Tenant.is_active.is_(True),
                 # Skip already-locked tenants so the admin email fires once.
                 Tenant.access_locked_at.is_(None),
+                # Pilot tenants are free by design — never subscription-lock them.
+                Tenant.plan != "pilot",
                 Tenant.subscription_ends_at.isnot(None),
                 Tenant.subscription_ends_at < now,
             )

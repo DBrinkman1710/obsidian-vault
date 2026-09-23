@@ -7,14 +7,14 @@ import customStyles from "../custom/custom.module.css";
 import OnboardingForm from "../custom/CustomForm";
 
 export const metadata: Metadata = {
-  title: "Start je gratis proefperiode van 30 dagen | Yippie",
+  title: "Start je gratis proefperiode van 30 dagen | GetYippie",
   description:
-    "Bouw je eigen Yippie-werkruimte in een paar minuten. De eerste 30 dagen gratis, geen betaalgegevens nodig.",
+    "Bouw je eigen GetYippie-werkruimte in een paar minuten. De eerste 30 dagen gratis, geen betaalgegevens nodig.",
   alternates: { canonical: "/signup" },
   openGraph: {
-    title: "Start je gratis proefperiode van 30 dagen | Yippie",
+    title: "Start je gratis proefperiode van 30 dagen | GetYippie",
     description:
-      "Bouw je eigen Yippie-werkruimte in een paar minuten. De eerste 30 dagen gratis, geen betaalgegevens nodig.",
+      "Bouw je eigen GetYippie-werkruimte in een paar minuten. De eerste 30 dagen gratis, geen betaalgegevens nodig.",
     url: "https://getyippie.com/signup",
     type: "website",
     images: ["/og.png"],

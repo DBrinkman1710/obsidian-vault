@@ -6,12 +6,12 @@ import styles from "../components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie voor bureaus | Multiclient helpdesk & gedeelde inboxsoftware",
+  title: "GetYippie voor bureaus | Multiclient helpdesk & gedeelde inboxsoftware",
   description:
-    "Beheer klantcommunicatie op schaal met Yippie's multitenanthelpdesksoftware. Gedeelde inbox, contactlabels, bedrijven en campagne-e-mails houden elk klantaccount overzichtelijk.",
+    "Beheer klantcommunicatie op schaal met GetYippie's multitenanthelpdesksoftware. Gedeelde inbox, contactlabels, bedrijven en campagne-e-mails houden elk klantaccount overzichtelijk.",
   alternates: { canonical: "/for-agencies" },
   openGraph: {
-    title: "Yippie voor bureaus | Multiclient klantenservicesoftware",
+    title: "GetYippie voor bureaus | Multiclient klantenservicesoftware",
     description:
       "Multitenant gedeelde inbox, contactlabels en campagne-e-mails voor bureaus die klantenservice voor meerdere klanten beheren.",
     url: "https://getyippie.com/for-agencies",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
 const painSolutions = [
   {
     pain: "Elke klant heeft zijn eigen inbox, login en tool. Vijf keer per dag wisselen tussen accounts kost je focus en je marge.",
-    solve: "Yippie is van nature multitenant. Elke klant heeft zijn eigen geïsoleerde werkruimte en je team beheert ze allemaal vanuit één klantenserviceplatform. Geen gedoe meer met wachtwoorden.",
+    solve: "GetYippie is van nature multitenant. Elke klant heeft zijn eigen geïsoleerde werkruimte en je team beheert ze allemaal vanuit één klantenserviceplatform. Geen gedoe meer met wachtwoorden.",
   },
   {
     pain: "Voortdurend schakelen betekent dat je vergeet waar een gesprek was gebleven — en klanten merken dat je de draad kwijt bent.",
@@ -54,7 +54,7 @@ export default function ForAgenciesPage() {
           Beheer klantcommunicatie op schaal, zonder de persoonlijke touch te verliezen
         </h1>
         <p className={styles.heroSub}>
-          Yippie is de multiclienthelpdesksoftware die bureaus gebruiken om
+          GetYippie is de multiclienthelpdesksoftware die bureaus gebruiken om
           klantenservice voor elk account te runnen. Één gedeelde inbox, schone
           tenantisolatie en AI die het zware werk doet.
         </p>
@@ -69,7 +69,7 @@ export default function ForAgenciesPage() {
           <p className={styles.eyebrow}>Het probleem</p>
           <h2 className={styles.sectionTitle}>Bureausupport, zonder de chaos</h2>
           <p className={styles.sectionSub}>
-            De verborgen kosten van het beheren van veel klanten, en hoe Yippie ze wegneemt.
+            De verborgen kosten van het beheren van veel klanten, en hoe GetYippie ze wegneemt.
           </p>
           <div className={styles.rows}>
             {painSolutions.map((row, i) => (
@@ -79,7 +79,7 @@ export default function ForAgenciesPage() {
                   <p className={styles.painText}>{row.pain}</p>
                 </div>
                 <div className={styles.solveCard}>
-                  <div className={`${styles.painLabel} ${styles.painLabelGood}`}>Met Yippie</div>
+                  <div className={`${styles.painLabel} ${styles.painLabelGood}`}>Met GetYippie</div>
                   <p className={styles.painText}>{row.solve}</p>
                 </div>
               </div>
@@ -91,7 +91,7 @@ export default function ForAgenciesPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Beheer elk klantaccount vanuit één platform</h2>
         <p className={styles.ctaSub}>
-          Zie hoe bureaus Yippie gebruiken om klantenservice te schalen zonder
+          Zie hoe bureaus GetYippie gebruiken om klantenservice te schalen zonder
           meer personeel. Probeer de directe demo vandaag nog.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>
