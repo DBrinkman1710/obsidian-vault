@@ -715,12 +715,17 @@ def _apply_personalization(
     ticket_id: str | None = None,
     ticket_subject: str | None = None,
     agent_name: str | None = None,
+    escape: bool = True,
 ) -> str:
     """Replace personalisation tokens in HTML with contact/ticket values.
 
     Supported tokens: {{first_name}}, {{last_name}}, {{company}}, {{email}},
     {{phone}}, {{ticket_id}}, {{ticket_subject}}, {{agent_name}}.
     Unknown tokens are left as-is; missing optional context values become "".
+
+    ``escape`` HTML-escapes the substituted values (correct for an HTML body).
+    Pass ``escape=False`` for plain-text targets such as the email subject,
+    where '&' etc. must stay literal.
     """
     name_parts = (contact.full_name or "").split()
     first_name = name_parts[0] if name_parts else ""
@@ -729,18 +734,19 @@ def _apply_personalization(
         (contact.company_rel.name or "") if contact.company_rel is not None
         else (contact.company or "")
     )
-    from html import escape as _escape
+    from html import escape as _html_escape
+    esc = _html_escape if escape else (lambda s: s)
     replacements = {
-        "{{first_name}}": _escape(first_name),
-        "{{first name}}": _escape(first_name),
-        "{{last_name}}": _escape(last_name),
-        "{{last name}}": _escape(last_name),
-        "{{company}}": _escape(company_name),
-        "{{email}}": _escape(contact.email or ""),
-        "{{phone}}": _escape(contact.phone or ""),
-        "{{ticket_id}}": _escape(ticket_id or ""),
-        "{{ticket_subject}}": _escape(ticket_subject or ""),
-        "{{agent_name}}": _escape(agent_name or ""),
+        "{{first_name}}": esc(first_name),
+        "{{first name}}": esc(first_name),
+        "{{last_name}}": esc(last_name),
+        "{{last name}}": esc(last_name),
+        "{{company}}": esc(company_name),
+        "{{email}}": esc(contact.email or ""),
+        "{{phone}}": esc(contact.phone or ""),
+        "{{ticket_id}}": esc(ticket_id or ""),
+        "{{ticket_subject}}": esc(ticket_subject or ""),
+        "{{agent_name}}": esc(agent_name or ""),
     }
     for token, value in replacements.items():
         html = html.replace(token, value)
@@ -798,10 +804,16 @@ async def test_send_campaign(
 
     # Apply personalisation using the agent's own data.
     first_name = agent_name.split()[0] if agent_name else ""
-    preview_html = body_html
-    preview_html = preview_html.replace("{{first_name}}", first_name)
-    preview_html = preview_html.replace("{{company}}", "")
-    preview_html = preview_html.replace("{{email}}", agent_email)
+
+    def _personalize(text: str) -> str:
+        return (
+            text.replace("{{first_name}}", first_name)
+            .replace("{{company}}", "")
+            .replace("{{email}}", agent_email)
+        )
+
+    preview_html = _personalize(body_html)
+    preview_subject = _personalize(campaign.subject or "")
 
     from app.core.models import Tenant
     tenant = await db.get(Tenant, campaign.tenant_id)
@@ -818,8 +830,8 @@ async def test_send_campaign(
     try:
         await send_email(
             to=agent_email,
-            subject=f"[TEST] {campaign.subject}",
-            body=campaign.subject,
+            subject=f"[TEST] {preview_subject}",
+            body=preview_subject,
             html=full_html,
             from_email=agent_reply_from if agent_reply_from != agent_email else None,
         )
@@ -999,9 +1011,12 @@ async def _dispatch_email(
     for _contact, html, to_email, unsub_url in payloads:
         try:
             plain = re.sub(r"<[^>]+>", " ", html).strip() or campaign.subject
+            subject = _apply_personalization(
+                campaign.subject or campaign.name, _contact, escape=False
+            )
             await send_email(
                 to=to_email,
-                subject=campaign.subject or campaign.name,
+                subject=subject,
                 body=plain,
                 html=html,
                 from_email=sender_email,
