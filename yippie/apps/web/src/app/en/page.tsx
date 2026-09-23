@@ -4,9 +4,9 @@ import type { Metadata } from "next";
 import styles from "@/app/page.module.css";
 
 export const metadata: Metadata = {
-  title: "Yippie | Your growth partner in customer service",
+  title: "GetYippie | Your growth partner in customer service",
   description:
-    "Yippie is the AI-powered customer service platform that grows with your business. Unlimited contacts on every plan. Inbox, tickets, contacts, and bookings in one place.",
+    "GetYippie is the AI-powered customer service platform that grows with your business. Unlimited contacts on every plan. Inbox, tickets, contacts, and bookings in one place.",
   alternates: {
     canonical: "/en",
     languages: { nl: "/", en: "/en" },
@@ -141,7 +141,7 @@ const steps = [
   {
     n: "01",
     title: "Customer sends a message",
-    desc: "An email or WhatsApp message lands in your Yippie inbox automatically.",
+    desc: "An email or WhatsApp message lands in your GetYippie inbox automatically.",
   },
   {
     n: "02",
@@ -222,7 +222,7 @@ export default function HomePage() {
               Take back the time<br />that matters.
             </h1>
             <p className={styles.heroSub}>
-              Yippie brings your whole support inbox into one workspace and grows
+              GetYippie brings your whole support inbox into one workspace and grows
               alongside your business. Add the AI Inbox add-on and every support
               ticket is auto-drafted for you. Review, approve, done.
             </p>
@@ -244,7 +244,7 @@ export default function HomePage() {
             <ProductShot
               src="/shots/inbox.png"
               url="/inbox"
-              alt="Yippie shared inbox with AI-drafted tickets"
+              alt="GetYippie shared inbox with AI-drafted tickets"
               tilt
             />
           </Reveal>
@@ -271,6 +271,9 @@ export default function HomePage() {
       <div id="workflow" className={styles.workflowAnchor}>
         <UseCaseStories />
       </div>
+
+      {/* ROI calculator */}
+      <ROICalculator appUrl={DEMO_URL} />
 
       {/* Features */}
       <section id="features" className={styles.section}>
@@ -308,7 +311,7 @@ export default function HomePage() {
           <p className={styles.eyebrow}>// How it works</p>
           <h2 className={styles.sectionTitle}>From email to resolved in seconds</h2>
           <p className={styles.sectionSub}>
-            With the AI Inbox add-on, Yippie reads every incoming message and does the write-up for you.
+            With the AI Inbox add-on, GetYippie reads every incoming message and does the write-up for you.
           </p>
         </Reveal>
         <div className={styles.steps}>
@@ -369,9 +372,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* ROI calculator */}
-      <ROICalculator appUrl={DEMO_URL} />
-
       {/* Product moment (dark) */}
       <section className={`${styles.moment} bgDots`}>
         <Reveal className={styles.momentHead}>
@@ -424,7 +424,7 @@ export default function HomePage() {
         <Reveal className={styles.ctaCard}>
           <h2 className={styles.ctaTitle}>Ready to win back your time?</h2>
           <p className={styles.ctaSub}>
-            Join businesses that handle customer support in half the time with Yippie.
+            Join businesses that handle customer support in half the time with GetYippie.
             30 days free, no credit card required.
           </p>
           <a href="/en/signup" className={styles.btnPrimaryLg}>

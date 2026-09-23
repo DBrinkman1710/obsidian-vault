@@ -6,12 +6,12 @@ import styles from "../components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie voor het MKB | AI-klantenservice die uren bespaart",
+  title: "GetYippie voor het MKB | AI-klantenservice die uren bespaart",
   description:
     "Gebouwd voor kleine bedrijven die klantenservice serieus nemen. AI-inboxtriage, ticket-SLA's en boekingslinks helpen MKB-bedrijven 10+ uur per week te besparen.",
   alternates: { canonical: "/for-smbs" },
   openGraph: {
-    title: "Yippie voor het MKB",
+    title: "GetYippie voor het MKB",
     description:
       "AI-inboxtriage, ticket-SLA's en boekingslinks voor het MKB. Bespaar 10+ uur per week op klantenservice.",
     url: "https://getyippie.com/for-smbs",
@@ -38,7 +38,7 @@ const painSolutions = [
   },
   {
     pain: "Andere platforms beperken je contacten en rekenen meer naarmate je groeit — je wordt gestraft voor je eigen succes.",
-    solve: "Yippie heeft geen contactlimieten op welk abonnement dan ook. Je lijst groeit zo snel als je bedrijf, zonder gedwongen upgrade en zonder onverwachte kosten.",
+    solve: "GetYippie heeft geen contactlimieten op welk abonnement dan ook. Je lijst groeit zo snel als je bedrijf, zonder gedwongen upgrade en zonder onverwachte kosten.",
   },
 ];
 
@@ -58,7 +58,7 @@ export default function ForSmbsPage() {
           Gebouwd voor kleine bedrijven die klantenservice serieus nemen
         </h1>
         <p className={styles.heroSub}>
-          Je hebt geen supportteam van twintig man. Het ben jij. Yippie geeft
+          Je hebt geen supportteam van twintig man. Het ben jij. GetYippie geeft
           kleine bedrijven de AI-kracht om snelle, persoonlijke klantenservice
           te bieden zonder te verdrinken in de inbox.
         </p>
@@ -73,7 +73,7 @@ export default function ForSmbsPage() {
           <p className={styles.eyebrow}>Het probleem</p>
           <h2 className={styles.sectionTitle}>De dagelijkse uitdagingen, opgelost</h2>
           <p className={styles.sectionSub}>
-            Drie dingen remmen elk klein bedrijf. Zo lost Yippie ze elk op.
+            Drie dingen remmen elk klein bedrijf. Zo lost GetYippie ze elk op.
           </p>
           <div className={styles.rows}>
             {painSolutions.map((row, i) => (
@@ -83,7 +83,7 @@ export default function ForSmbsPage() {
                   <p className={styles.painText}>{row.pain}</p>
                 </div>
                 <div className={styles.solveCard}>
-                  <div className={`${styles.painLabel} ${styles.painLabelGood}`}>Met Yippie</div>
+                  <div className={`${styles.painLabel} ${styles.painLabelGood}`}>Met GetYippie</div>
                   <p className={styles.painText}>{row.solve}</p>
                 </div>
               </div>
@@ -93,7 +93,7 @@ export default function ForSmbsPage() {
           <div className={styles.proof}>
             <p className={styles.proofText}>Meer dan 100 MKB-bedrijven besparen 10+ uur per week</p>
             <p className={styles.proofSub}>
-              Duizenden uren klantenservice al geautomatiseerd door Yippie. En het telt door.
+              Duizenden uren klantenservice al geautomatiseerd door GetYippie. En het telt door.
             </p>
           </div>
         </div>
@@ -102,7 +102,7 @@ export default function ForSmbsPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Krijg je tijd terug</h2>
         <p className={styles.ctaSub}>
-          Zie hoe Yippie je echte supportinbox afhandelt. Probeer de directe demo.
+          Zie hoe GetYippie je echte supportinbox afhandelt. Probeer de directe demo.
           Geen creditcard nodig.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>

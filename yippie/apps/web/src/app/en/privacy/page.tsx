@@ -3,9 +3,9 @@ import SiteNav from "@/app/components/SiteNav";
 import SiteFooter from "@/app/components/SiteFooter";
 import styles from "@/app/components/content.module.css";
 
-const TITLE = "Privacy Policy | Yippie";
+const TITLE = "Privacy Policy | GetYippie";
 const DESCRIPTION =
-  "How Yippie collects, uses, and protects your data, including our use of cookies and Google Analytics with Consent Mode.";
+  "How GetYippie collects, uses, and protects your data, including our use of cookies and Google Analytics with Consent Mode.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -30,7 +30,7 @@ export default function PrivacyPage() {
 
         <div className={styles.articleBody}>
           <p>
-            At Yippie we value transparency. This policy explains what data we
+            At GetYippie we value transparency. This policy explains what data we
             collect when you visit getyippie.com, why we collect it, the legal
             basis for each purpose, and the choices you have. We only collect
             what we need to run and improve the site.
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
             (verwerkingsverantwoordelijke) is:
           </p>
           <p>
-            <strong>GetYippie</strong>
+            <strong>GetGetYippie</strong>
             <br />
             KVK nummer: 42124040
             <br />
@@ -105,7 +105,7 @@ export default function PrivacyPage() {
           <p>
             All analysis runs <strong>entirely inside your browser</strong>.
             Your email metadata is fetched directly from Gmail to your device
-            and is never transmitted to Yippie's servers, stored in any
+            and is never transmitted to GetYippie's servers, stored in any
             database, or shared with any third party. The extension has no
             backend and makes no outbound requests except to the Gmail API on
             your behalf.
@@ -144,26 +144,26 @@ export default function PrivacyPage() {
             data immediately. No data exists anywhere else.
           </p>
 
-          <h2>Yippie platform: Gmail and Outlook integration</h2>
+          <h2>GetYippie platform: Gmail and Outlook integration</h2>
           <p>
-            Within the Yippie customer service platform, users can optionally
+            Within the GetYippie customer service platform, users can optionally
             connect their Gmail or Microsoft Outlook mailbox so that incoming
             emails are handled alongside other support channels.
           </p>
 
           <h3>What we access</h3>
           <p>
-            When you connect a Gmail account, Yippie requests the following
+            When you connect a Gmail account, GetYippie requests the following
             OAuth scopes:
           </p>
           <ul>
             <li>
               <strong>gmail.readonly</strong>: to read incoming messages and
-              thread history so they can be shown in the Yippie inbox.
+              thread history so they can be shown in the GetYippie inbox.
             </li>
             <li>
               <strong>gmail.send</strong>: to send replies on your behalf
-              directly from the Yippie platform.
+              directly from the GetYippie platform.
             </li>
             <li>
               <strong>gmail.modify</strong>: to mark messages as read and
@@ -171,7 +171,7 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p>
-            When you connect a Microsoft Outlook account, Yippie requests
+            When you connect a Microsoft Outlook account, GetYippie requests
             equivalent Microsoft Graph permissions (
             <strong>Mail.Read</strong>, <strong>Mail.Send</strong>,{" "}
             <strong>Mail.ReadWrite</strong>) for the same purposes.
@@ -180,7 +180,7 @@ export default function PrivacyPage() {
           <h3>How we use your email data</h3>
           <p>
             Email content (sender, recipient, subject, and body) is processed
-            solely to display messages in the Yippie platform, generate
+            solely to display messages in the GetYippie platform, generate
             AI-assisted reply suggestions, and classify conversations. We do{" "}
             <strong>not</strong> use your email data to serve advertising, build
             profiles for third parties, or train AI models. Message content
@@ -190,7 +190,7 @@ export default function PrivacyPage() {
 
           <h3>Where your data is processed</h3>
           <p>
-            Email data is fetched from Gmail or Outlook to Yippie&apos;s
+            Email data is fetched from Gmail or Outlook to GetYippie&apos;s
             servers (hosted on Railway, EU region) and stored in your
             account&apos;s isolated database. It is not shared with other
             tenants and is not sold or transferred to third parties outside the
@@ -201,7 +201,7 @@ export default function PrivacyPage() {
           <p>
             Processing is based on your explicit consent (Art. 6(1)(a) GDPR),
             granted when you connect your mailbox via the OAuth consent screen.
-            You can disconnect your mailbox at any time from your Yippie account
+            You can disconnect your mailbox at any time from your GetYippie account
             settings, which immediately revokes our access token. You can also
             revoke access directly at{" "}
             <a
@@ -216,7 +216,7 @@ export default function PrivacyPage() {
 
           <h3>Data retention</h3>
           <p>
-            Email messages synced to Yippie are retained for as long as your
+            Email messages synced to GetYippie are retained for as long as your
             account is active. When you delete a conversation or close your
             account, the associated message data is deleted from our systems
             within 30 days.

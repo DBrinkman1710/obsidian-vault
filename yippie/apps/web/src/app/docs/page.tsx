@@ -11,19 +11,19 @@ import DownloadPdfButton from "./DownloadPdfButton";
 import styles from "./docs.module.css";
 
 const MANUAL_RAW_URL =
-  "https://raw.githubusercontent.com/DBrinkman1710/obsidian-vault/sandbox/Yippie%20Platform%20Manual.md";
+  "https://raw.githubusercontent.com/DBrinkman1710/obsidian-vault/sandbox/GetYippie%20Platform%20Manual.md";
 
 export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
-  title: "Documentatie | Yippie",
+  title: "Documentatie | GetYippie",
   description:
-    "Compleet producthandboek voor het Yippie klantenserviceplatform.",
+    "Compleet producthandboek voor het GetYippie klantenserviceplatform.",
   alternates: { canonical: "/docs" },
   openGraph: {
-    title: "Documentatie | Yippie",
+    title: "Documentatie | GetYippie",
     description:
-      "Compleet producthandboek voor het Yippie klantenserviceplatform.",
+      "Compleet producthandboek voor het GetYippie klantenserviceplatform.",
     url: "https://getyippie.com/docs",
     type: "website",
   },
@@ -53,9 +53,9 @@ export default async function DocsPage() {
       <main className={styles.main}>
         <div className={styles.header}>
           <p className={styles.eyebrow}>// documentatie</p>
-          <h1 className={styles.title}>Yippie Platformhandboek</h1>
+          <h1 className={styles.title}>GetYippie Platformhandboek</h1>
           <p className={styles.sub}>
-            Volledige referentie voor alles in het Yippie platform. Altijd
+            Volledige referentie voor alles in het GetYippie platform. Altijd
             bijgewerkt naar de laatste beschikbare versie.
           </p>
           <DownloadPdfButton />

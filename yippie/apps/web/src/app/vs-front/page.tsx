@@ -6,12 +6,12 @@ import styles from "../components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie vs Front | Het MKB-vriendelijke Front-alternatief",
+  title: "GetYippie vs Front | Het MKB-vriendelijke Front-alternatief",
   description:
-    "Op zoek naar een Front-alternatief voor je kleine bedrijf? Yippie is helpdesksoftware speciaal voor het MKB, met boekingen, AI-ticketopstelling en vaste werkruimteprijzen vanaf €19 per maand.",
+    "Op zoek naar een Front-alternatief voor je kleine bedrijf? GetYippie is helpdesksoftware speciaal voor het MKB, met boekingen, AI-ticketopstelling en vaste werkruimteprijzen vanaf €19 per maand.",
   alternates: { canonical: "/vs-front" },
   openGraph: {
-    title: "Yippie vs Front | Het MKB-vriendelijke alternatief",
+    title: "GetYippie vs Front | Het MKB-vriendelijke alternatief",
     description:
       "Een uitgebreider Front-alternatief met vaste prijs, gebouwd voor het MKB. Volledige ticketing, boekingen en AI-opstelling inbegrepen, vanaf €19 per maand.",
     url: "https://getyippie.com/vs-front",
@@ -44,19 +44,19 @@ export default function VsFrontPage() {
         <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
-          Yippie vs Front
+          GetYippie vs Front
         </div>
-        <h1 className={styles.heroTitle}>Yippie vs Front: het MKB-vriendelijke alternatief</h1>
+        <h1 className={styles.heroTitle}>GetYippie vs Front: het MKB-vriendelijke alternatief</h1>
         <p className={styles.heroSub}>
           Front is een verzorgde tool voor gedeelde inboxen, maar houdt daar ook
           op. Als je volledige supportticketing nodig hebt, een ingebouwd
           boekingssysteem of een kanban-pipeline naast je inbox, loop je snel
           tegen de grenzen aan — en de kosten per gebruiker stapelen zich snel op.
-          Yippie is speciaal gebouwd voor kleine en middelgrote bedrijven die meer
+          GetYippie is speciaal gebouwd voor kleine en middelgrote bedrijven die meer
           nodig hebben dan een gedeelde inbox.
         </p>
         <p className={styles.heroSub}>
-          Kortom: Yippie is een Front-alternatief voor kleine teams met een vaste
+          Kortom: GetYippie is een Front-alternatief voor kleine teams met een vaste
           werkruimteprijs vanaf €19 per maand, onbeperkte contacten op elk
           abonnement, AI-opgestelde tickets en boekingen ingebouwd — terwijl
           Front ongeveer €19 per gebruiker per maand rekent en zich uitsluitend
@@ -71,7 +71,7 @@ export default function VsFrontPage() {
       <section className={styles.section}>
         <div className={styles.sectionInner}>
           <p className={styles.eyebrow}>Naast elkaar</p>
-          <h2 className={styles.sectionTitle}>Hoe Yippie zich verhoudt tot Front</h2>
+          <h2 className={styles.sectionTitle}>Hoe GetYippie zich verhoudt tot Front</h2>
           <p className={styles.sectionSub}>
             Alle inboxgemak van Front, plus volledige ticketing, boekingen en
             AI-opstelling — voor een vaste werkruimteprijs.
@@ -81,7 +81,7 @@ export default function VsFrontPage() {
               <thead>
                 <tr>
                   <th>Functie</th>
-                  <th className={styles.colYippie}>Yippie</th>
+                  <th className={styles.colGetYippie}>GetYippie</th>
                   <th>Front</th>
                 </tr>
               </thead>
@@ -127,7 +127,7 @@ export default function VsFrontPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Stap over naar support die bij je bedrijf past</h2>
         <p className={styles.ctaSub}>
-          Zie waarom MKB-bedrijven kiezen voor Yippie boven Front. Probeer de
+          Zie waarom MKB-bedrijven kiezen voor GetYippie boven Front. Probeer de
           directe demo. Geen creditcard nodig.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>

@@ -6,12 +6,12 @@ import styles from "@/app/components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie for Small Businesses | AI customer service that saves hours",
+  title: "GetYippie for Small Businesses | AI customer service that saves hours",
   description:
     "Built for small businesses that take customer service seriously. AI inbox triage, ticket SLAs, and booking links help SMBs save 10+ hours a week.",
   alternates: { canonical: "/en/for-smbs" },
   openGraph: {
-    title: "Yippie for Small Businesses",
+    title: "GetYippie for Small Businesses",
     description:
       "AI inbox triage, ticket SLAs, and booking links built for SMBs. Save 10+ hours a week on customer service.",
     url: "https://getyippie.com/for-smbs",
@@ -38,7 +38,7 @@ const painSolutions = [
   },
   {
     pain: "Other platforms cap your contacts and charge you more as you grow, penalising your own success.",
-    solve: "Yippie has no contact limits on any plan. Your list grows as fast as your business, with no forced upgrade and no surprise fees.",
+    solve: "GetYippie has no contact limits on any plan. Your list grows as fast as your business, with no forced upgrade and no surprise fees.",
   },
 ];
 
@@ -58,7 +58,7 @@ export default function ForSmbsPage() {
           Built for small businesses that take customer service seriously
         </h1>
         <p className={styles.heroSub}>
-          You don&apos;t have a 20-person support team. It&apos;s just you. Yippie gives
+          You don&apos;t have a 20-person support team. It&apos;s just you. GetYippie gives
           small businesses the AI leverage to deliver fast, personal support
           without drowning in the inbox.
         </p>
@@ -73,7 +73,7 @@ export default function ForSmbsPage() {
           <p className={styles.eyebrow}>The problem</p>
           <h2 className={styles.sectionTitle}>The everyday struggles, solved</h2>
           <p className={styles.sectionSub}>
-            Three things slow every small business down. Here is how Yippie fixes
+            Three things slow every small business down. Here is how GetYippie fixes
             each one.
           </p>
           <div className={styles.rows}>
@@ -84,7 +84,7 @@ export default function ForSmbsPage() {
                   <p className={styles.painText}>{row.pain}</p>
                 </div>
                 <div className={styles.solveCard}>
-                  <div className={`${styles.painLabel} ${styles.painLabelGood}`}>With Yippie</div>
+                  <div className={`${styles.painLabel} ${styles.painLabelGood}`}>With GetYippie</div>
                   <p className={styles.painText}>{row.solve}</p>
                 </div>
               </div>
@@ -94,7 +94,7 @@ export default function ForSmbsPage() {
           <div className={styles.proof}>
             <p className={styles.proofText}>Join 100+ SMBs saving 10+ hours/week</p>
             <p className={styles.proofSub}>
-              Thousands of hours of customer service already automated by Yippie. And counting.
+              Thousands of hours of customer service already automated by GetYippie. And counting.
             </p>
           </div>
         </div>
@@ -103,7 +103,7 @@ export default function ForSmbsPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Get your time back</h2>
         <p className={styles.ctaSub}>
-          See how Yippie handles your real support inbox. Try the instant demo.
+          See how GetYippie handles your real support inbox. Try the instant demo.
           No credit card required.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>

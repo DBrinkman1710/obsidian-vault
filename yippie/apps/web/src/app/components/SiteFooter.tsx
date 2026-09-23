@@ -27,9 +27,9 @@ const copy = {
         links: [
           { href: "/for-smbs", label: "Voor MKB", external: false },
           { href: "/for-agencies", label: "Voor bureaus", external: false },
-          { href: "/vs-zendesk", label: "Yippie vs Zendesk", external: false },
-          { href: "/vs-front", label: "Yippie vs Front", external: false },
-          { href: "/vs-freshdesk", label: "Yippie vs Freshdesk", external: false },
+          { href: "/vs-zendesk", label: "GetYippie vs Zendesk", external: false },
+          { href: "/vs-front", label: "GetYippie vs Front", external: false },
+          { href: "/vs-freshdesk", label: "GetYippie vs Freshdesk", external: false },
         ],
       },
       {
@@ -63,9 +63,9 @@ const copy = {
         links: [
           { href: "/for-smbs", label: "For SMBs", external: false },
           { href: "/for-agencies", label: "For agencies", external: false },
-          { href: "/vs-zendesk", label: "Yippie vs Zendesk", external: false },
-          { href: "/vs-front", label: "Yippie vs Front", external: false },
-          { href: "/vs-freshdesk", label: "Yippie vs Freshdesk", external: false },
+          { href: "/vs-zendesk", label: "GetYippie vs Zendesk", external: false },
+          { href: "/vs-front", label: "GetYippie vs Front", external: false },
+          { href: "/vs-freshdesk", label: "GetYippie vs Freshdesk", external: false },
         ],
       },
       {
@@ -91,9 +91,9 @@ export default function SiteFooter() {
     <footer className={styles.footer}>
       <div className={styles.footerInner}>
         <div className={styles.footerBrand}>
-          <a href={localizeHref("/", locale)} aria-label="Yippie home">
+          <a href={localizeHref("/", locale)} aria-label="GetYippie home">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/logo-black-bg.svg" alt="Yippie" className={styles.footerLogo} />
+            <img src="/logo-black-bg.svg" alt="GetYippie" className={styles.footerLogo} />
           </a>
           <p className={styles.footerTagline}>{t.tagline}</p>
         </div>

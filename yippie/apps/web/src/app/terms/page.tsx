@@ -3,9 +3,9 @@ import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "../components/content.module.css";
 
-const TITLE = "Algemene Voorwaarden | Yippie";
+const TITLE = "Algemene Voorwaarden | GetYippie";
 const DESCRIPTION =
-  "Algemene voorwaarden voor het gebruik van Yippie, ons B2B SaaS-klantenserviceplatform. Inclusief abonnementsvoorwaarden, gegevensverwerking en aansprakelijkheid.";
+  "Algemene voorwaarden voor het gebruik van GetYippie, ons B2B SaaS-klantenserviceplatform. Inclusief abonnementsvoorwaarden, gegevensverwerking en aansprakelijkheid.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -33,8 +33,8 @@ export default function TermsPage() {
           <h2>Inleiding</h2>
           <p>
             Deze Algemene Voorwaarden (&quot;Voorwaarden&quot;) zijn van toepassing op
-            je toegang tot en gebruik van Yippie (getyippie.com), een B2B
-            klantenserviceplatform dat wordt beheerd door Yippie, een Nederlands
+            je toegang tot en gebruik van GetYippie (getyippie.com), een B2B
+            klantenserviceplatform dat wordt beheerd door GetYippie, een Nederlands
             bedrijf. Door het Platform te benaderen of te gebruiken, ga je
             akkoord met deze Voorwaarden. Als je niet akkoord gaat, mag je het
             Platform niet gebruiken.
@@ -44,7 +44,7 @@ export default function TermsPage() {
           <ul>
             <li>
               <strong>Platform</strong>: het software-as-a-service aanbod van
-              Yippie, toegankelijk via app.getyippie.com en aanverwante diensten.
+              GetYippie, toegankelijk via app.getyippie.com en aanverwante diensten.
             </li>
             <li>
               <strong>Tenant</strong>: de organisatie of rechtspersoon die een
@@ -52,7 +52,7 @@ export default function TermsPage() {
               betaling en naleving.
             </li>
             <li>
-              <strong>Diensten</strong>: de functionaliteit die Yippie biedt,
+              <strong>Diensten</strong>: de functionaliteit die GetYippie biedt,
               waaronder beheer van klantcommunicatie, ticketroutering en
               rapportage.
             </li>
@@ -116,7 +116,7 @@ export default function TermsPage() {
           <p>
             De Tenant kan persoonsgegevens van zijn eigen klanten en
             eindgebruikers opslaan binnen het Platform. In het kader van de AVG
-            (GDPR) is de Tenant de verwerkingsverantwoordelijke en is Yippie de
+            (GDPR) is de Tenant de verwerkingsverantwoordelijke en is GetYippie de
             verwerker. Een verwerkersovereenkomst (DPA) is beschikbaar op
             verzoek en regelt de verwerking van persoonsgegevens.
           </p>
@@ -129,7 +129,7 @@ export default function TermsPage() {
             worden niet gebruikt voor modeltraining.
           </p>
           <p>
-            Yippie maakt gebruik van industriestandaard beveiligingsmaatregelen
+            GetYippie maakt gebruik van industriestandaard beveiligingsmaatregelen
             om gegevens in rust en tijdens overdracht te beschermen. Geen enkel
             systeem is echter volledig veilig. De Tenant blijft verantwoordelijk
             voor de rechtmatigheid en geschiktheid van de persoonsgegevens die
@@ -138,7 +138,7 @@ export default function TermsPage() {
 
           <h2>Intellectueel eigendom</h2>
           <p>
-            Yippie behoudt alle intellectueel-eigendomsrechten op het Platform,
+            GetYippie behoudt alle intellectueel-eigendomsrechten op het Platform,
             waaronder de software, het ontwerp, de documentatie en verbeteringen.
             Aan de Tenant wordt een niet-exclusieve, niet-overdraagbare licentie
             verleend om het Platform te gebruiken gedurende de
@@ -168,15 +168,15 @@ export default function TermsPage() {
           </p>
           <ul>
             <li>
-              De totale aansprakelijkheid van Yippie die voortvloeit uit of
+              De totale aansprakelijkheid van GetYippie die voortvloeit uit of
               verband houdt met het Platform bedraagt niet meer dan de vergoedingen
               die de Tenant heeft betaald in de 3 maanden voorafgaand aan de
               claim.
             </li>
             <li>
-              Yippie is niet aansprakelijk voor indirecte, incidentele,
+              GetYippie is niet aansprakelijk voor indirecte, incidentele,
               gevolgschade, bijzondere of exemplaire schadevergoeding,
-              waaronder gederfde winst, ook niet als Yippie op de hoogte is
+              waaronder gederfde winst, ook niet als GetYippie op de hoogte is
               gesteld van de mogelijkheid van dergelijke schade.
             </li>
             <li>
@@ -190,7 +190,7 @@ export default function TermsPage() {
           <h2>Looptijd &amp; beëindiging</h2>
           <p>
             Abonnementen zijn maandelijks opzegbaar. Beide partijen kunnen het
-            abonnement beëindigen met een opzegtermijn van 30 dagen. Yippie kan
+            abonnement beëindigen met een opzegtermijn van 30 dagen. GetYippie kan
             het abonnement met onmiddellijke ingang beëindigen als de Tenant
             deze Voorwaarden schendt en de schending niet herstelt binnen 10
             dagen na kennisgeving.
@@ -212,7 +212,7 @@ export default function TermsPage() {
 
           <h2>Wijzigingen in deze Voorwaarden</h2>
           <p>
-            Yippie kan deze Voorwaarden op elk moment bijwerken. Wezenlijke
+            GetYippie kan deze Voorwaarden op elk moment bijwerken. Wezenlijke
             wijzigingen worden minimaal 30 dagen van tevoren aan de Tenant
             meegedeeld. Voortgezet gebruik van het Platform na een dergelijke
             kennisgeving geldt als aanvaarding. Als de Tenant bezwaar maakt,

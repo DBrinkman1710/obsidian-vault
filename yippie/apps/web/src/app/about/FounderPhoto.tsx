@@ -32,7 +32,7 @@ export default function FounderPhoto() {
         aria-label="Foto van Diederik Brinkman vergroten"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/founder.jpg" alt="Diederik Brinkman, oprichter van Yippie" />
+        <img src="/founder.jpg" alt="Diederik Brinkman, oprichter van GetYippie" />
       </button>
 
       {open && mounted &&
@@ -50,7 +50,7 @@ export default function FounderPhoto() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/founder.jpg"
-              alt="Diederik Brinkman, oprichter van Yippie"
+              alt="Diederik Brinkman, oprichter van GetYippie"
               className={styles.lightboxImg}
               onClick={(e) => e.stopPropagation()}
             />

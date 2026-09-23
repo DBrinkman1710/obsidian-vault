@@ -3,9 +3,9 @@ import SiteNav from "@/app/components/SiteNav";
 import SiteFooter from "@/app/components/SiteFooter";
 import styles from "@/app/components/content.module.css";
 
-const TITLE = "Terms of Service | Yippie";
+const TITLE = "Terms of Service | GetYippie";
 const DESCRIPTION =
-  "Terms and conditions for using Yippie, our B2B SaaS customer service platform. Including subscription terms, data processing, and liability.";
+  "Terms and conditions for using GetYippie, our B2B SaaS customer service platform. Including subscription terms, data processing, and liability.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -31,8 +31,8 @@ export default function TermsPage() {
         <div className={styles.articleBody}>
           <h2>Introduction</h2>
           <p>
-            These Terms of Service ("Terms") govern your access to and use of Yippie
-            (getyippie.com), a B2B customer service platform operated by Yippie,
+            These Terms of Service ("Terms") govern your access to and use of GetYippie
+            (getyippie.com), a B2B customer service platform operated by GetYippie,
             a Dutch company. By accessing or using the Platform, you agree to be bound
             by these Terms. If you do not agree, you may not use the Platform.
           </p>
@@ -40,7 +40,7 @@ export default function TermsPage() {
           <h2>Definitions</h2>
           <ul>
             <li>
-              <strong>Platform</strong>: the Yippie software-as-a-service offering
+              <strong>Platform</strong>: the GetYippie software-as-a-service offering
               accessible at app.getyippie.com and related services.
             </li>
             <li>
@@ -48,7 +48,7 @@ export default function TermsPage() {
               the Platform and responsible for payment and compliance.
             </li>
             <li>
-              <strong>Services</strong>: the functionality provided by Yippie,
+              <strong>Services</strong>: the functionality provided by GetYippie,
               including customer communication management, ticket routing, and reporting.
             </li>
             <li>
@@ -106,7 +106,7 @@ export default function TermsPage() {
           <p>
             The Tenant may store Personal Data of its own customers and end-users
             within the Platform. For GDPR / AVG compliance, the Tenant is the data
-            controller and Yippie is the data processor. A Data Processing Agreement
+            controller and GetYippie is the data processor. A Data Processing Agreement
             (DPA) is available upon request and governs the processing of Personal
             Data.
           </p>
@@ -118,7 +118,7 @@ export default function TermsPage() {
             Mistral AI and is not used for model training.
           </p>
           <p>
-            Yippie uses industry-standard security measures to protect data at rest
+            GetYippie uses industry-standard security measures to protect data at rest
             and in transit. However, no system is entirely secure. The Tenant remains
             responsible for the legality and appropriateness of the Personal Data it
             uploads.
@@ -126,7 +126,7 @@ export default function TermsPage() {
 
           <h2>Intellectual Property</h2>
           <p>
-            Yippie retains all intellectual property rights in the Platform, including
+            GetYippie retains all intellectual property rights in the Platform, including
             its software, design, documentation, and improvements. The Tenant is
             granted a non-exclusive, non-transferable license to use the Platform
             during the subscription term solely for its authorized business purposes.
@@ -152,12 +152,12 @@ export default function TermsPage() {
           </p>
           <ul>
             <li>
-              Yippie&apos;s total liability arising from or related to the Platform shall
+              GetYippie&apos;s total liability arising from or related to the Platform shall
               not exceed the fees paid by the Tenant in the 3 months preceding the
               claim.
             </li>
             <li>
-              Yippie is not liable for indirect, incidental, consequential, special,
+              GetYippie is not liable for indirect, incidental, consequential, special,
               or punitive damages, including lost profits, even if advised of the
               possibility of such damages.
             </li>
@@ -171,7 +171,7 @@ export default function TermsPage() {
           <h2>Term &amp; Termination</h2>
           <p>
             Subscriptions are month-to-month. Either party may terminate with
-            30 days&apos; written notice. Yippie may terminate immediately if the Tenant
+            30 days&apos; written notice. GetYippie may terminate immediately if the Tenant
             breaches these Terms and does not cure the breach within 10 days of notice.
           </p>
           <p>
@@ -189,7 +189,7 @@ export default function TermsPage() {
 
           <h2>Changes to These Terms</h2>
           <p>
-            Yippie may update these Terms at any time. Material changes will be
+            GetYippie may update these Terms at any time. Material changes will be
             communicated to the Tenant at least 30 days in advance. Continued use of
             the Platform following such notice constitutes acceptance. If the Tenant
             objects, it may terminate as outlined above.

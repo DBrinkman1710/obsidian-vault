@@ -6,14 +6,14 @@ import formStyles from "./request-demo.module.css";
 import DemoForm from "./DemoForm";
 
 export const metadata: Metadata = {
-  title: "Vraag een demo aan | Yippie",
+  title: "Vraag een demo aan | GetYippie",
   description:
-    "Zie Yippie in actie. Krijg direct toegang tot je eigen demoruimte en zie hoe AI een rommelige support-inbox in seconden omzet in opgeloste tickets.",
+    "Zie GetYippie in actie. Krijg direct toegang tot je eigen demoruimte en zie hoe AI een rommelige support-inbox in seconden omzet in opgeloste tickets.",
   alternates: { canonical: "/request-demo" },
   openGraph: {
-    title: "Vraag een demo aan | Yippie",
+    title: "Vraag een demo aan | GetYippie",
     description:
-      "Zie Yippie in actie. Krijg direct toegang tot je eigen demoruimte en zie hoe AI een rommelige support-inbox in seconden omzet in opgeloste tickets.",
+      "Zie GetYippie in actie. Krijg direct toegang tot je eigen demoruimte en zie hoe AI een rommelige support-inbox in seconden omzet in opgeloste tickets.",
     url: "https://getyippie.com/request-demo",
     type: "website",
     images: ["/og.png"],
@@ -32,11 +32,11 @@ export default function RequestDemoPage() {
           <span className={styles.heroTagDot} />
           Vraag een demo aan
         </div>
-        <h1 className={styles.heroTitle}>Zie Yippie in je eigen inbox</h1>
+        <h1 className={styles.heroTitle}>Zie GetYippie in je eigen inbox</h1>
         <p className={styles.heroSub}>
           Vul het formulier in en krijg direct toegang tot je eigen demoruimte,
           vooraf geladen met realistische data. Geen verkoopdruk, alleen een
-          eerlijke blik op hoe Yippie je team wekelijks uren bespaart.
+          eerlijke blik op hoe GetYippie je team wekelijks uren bespaart.
         </p>
       </section>
 

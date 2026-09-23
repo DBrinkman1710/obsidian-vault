@@ -35,7 +35,7 @@ const articleJsonLd = {
   author: { "@type": "Person", name: "Diederik Brinkman" },
   publisher: {
     "@type": "Organization",
-    name: "Yippie",
+    name: "GetYippie",
     logo: { "@type": "ImageObject", url: "https://getyippie.com/logo.svg" },
   },
   mainEntityOfPage: { "@type": "WebPage", "@id": URL },
@@ -133,7 +133,7 @@ export default function Post() {
         </div>
 
         <div className={styles.articleCta}>
-          <p className={styles.articleCtaTitle}>Meet every SLA with Yippie</p>
+          <p className={styles.articleCtaTitle}>Meet every SLA with GetYippie</p>
           <a href={DEMO_URL} className={styles.btnPrimary}>Request demo →</a>
         </div>
       </article>

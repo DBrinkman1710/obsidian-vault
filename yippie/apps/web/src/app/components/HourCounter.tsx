@@ -68,7 +68,7 @@ export default function HourCounter({ statsUrl }: { statsUrl: string }) {
   }, [statsUrl]);
 
   return (
-    <section className={styles.section} aria-label="Hours saved by Yippie">
+    <section className={styles.section} aria-label="Hours saved by GetYippie">
       <div className={styles.numberRow}>
         <span className={styles.number}>{formatHours(display)}</span>
         <span className={styles.counting}>and counting</span>
@@ -76,10 +76,10 @@ export default function HourCounter({ statsUrl }: { statsUrl: string }) {
       <p className={styles.label}>
         hours of customer service
         <br />
-        automated by Yippie
+        automated by GetYippie
       </p>
       <p className={styles.note}>
-        Updated live · based on tickets processed across all Yippie businesses.
+        Updated live · based on tickets processed across all GetYippie businesses.
       </p>
     </section>
   );

@@ -35,7 +35,7 @@ const articleJsonLd = {
   author: { "@type": "Person", name: "Diederik Brinkman" },
   publisher: {
     "@type": "Organization",
-    name: "Yippie",
+    name: "GetYippie",
     logo: { "@type": "ImageObject", url: "https://getyippie.com/logo.svg" },
   },
   mainEntityOfPage: { "@type": "WebPage", "@id": URL },
@@ -74,7 +74,7 @@ export default function Post() {
             die is gebouwd voor teams van vijfhonderd mensen.
           </p>
           <p>
-            Ik bouwde Yippie omdat ik deze situatie steeds opnieuw zag. Hieronder leg ik uit hoe
+            Ik bouwde GetYippie omdat ik deze situatie steeds opnieuw zag. Hieronder leg ik uit hoe
             beide extremen er in de praktijk uitzien als ze misgaan.
           </p>
 
@@ -147,7 +147,7 @@ export default function Post() {
             kostenplaats zijn met een eigen inkoopteam.
           </p>
           <p>
-            Dit is het ontwerp van Yippie. Vaste werkruimteprijzen: één bedrag, ongeacht hoeveel
+            Dit is het ontwerp van GetYippie. Vaste werkruimteprijzen: één bedrag, ongeacht hoeveel
             medewerkers je toevoegt. Een inbox die e-mail en WhatsApp samenvoegt zodat één
             contactrecord per klant bestaat. AI die inkomende berichten leest en de ticketomschrijving
             schrijft zodat je team controleert in plaats van typt. Geen goedkeuringsworkflows,

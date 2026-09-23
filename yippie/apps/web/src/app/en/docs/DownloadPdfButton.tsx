@@ -8,7 +8,7 @@ export default function DownloadPdfButton() {
       className={styles.downloadBtn}
       onClick={() => {
         const prev = document.title;
-        document.title = "Yippie Platform Manual";
+        document.title = "GetYippie Platform Manual";
         window.print();
         document.title = prev;
       }}

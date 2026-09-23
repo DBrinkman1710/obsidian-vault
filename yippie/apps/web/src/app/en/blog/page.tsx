@@ -4,12 +4,12 @@ import SiteFooter from "@/app/components/SiteFooter";
 import styles from "@/app/components/content.module.css";
 
 export const metadata: Metadata = {
-  title: "Yippie Blog | Customer support software tips for SMBs",
+  title: "GetYippie Blog | Customer support software tips for SMBs",
   description:
     "Practical guides on AI customer service, help desk software, response times, and shared inbox workflows for small businesses and agencies.",
   alternates: { canonical: "/en/blog" },
   openGraph: {
-    title: "Yippie Blog | Customer support software tips for SMBs",
+    title: "GetYippie Blog | Customer support software tips for SMBs",
     description:
       "Practical guides on AI customer service, help desk software, and faster response times for SMBs.",
     url: "https://getyippie.com/blog",
@@ -86,7 +86,7 @@ export default function BlogIndexPage() {
         <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
-          Yippie blog
+          GetYippie blog
         </div>
         <h1 className={styles.heroTitle}>Customer support, made smarter</h1>
         <p className={styles.heroSub}>

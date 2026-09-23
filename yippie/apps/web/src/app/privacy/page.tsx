@@ -3,9 +3,9 @@ import SiteNav from "../components/SiteNav";
 import SiteFooter from "../components/SiteFooter";
 import styles from "../components/content.module.css";
 
-const TITLE = "Privacybeleid | Yippie";
+const TITLE = "Privacybeleid | GetYippie";
 const DESCRIPTION =
-  "Hoe Yippie je gegevens verzamelt, gebruikt en beschermt, inclusief ons gebruik van cookies en Google Analytics met Consent Mode.";
+  "Hoe GetYippie je gegevens verzamelt, gebruikt en beschermt, inclusief ons gebruik van cookies en Google Analytics met Consent Mode.";
 
 export const metadata: Metadata = {
   title: TITLE,
@@ -31,7 +31,7 @@ export default function PrivacyPage() {
 
         <div className={styles.articleBody}>
           <p>
-            Bij Yippie hechten we waarde aan transparantie. Dit beleid legt uit
+            Bij GetYippie hechten we waarde aan transparantie. Dit beleid legt uit
             welke gegevens we verzamelen wanneer je getyippie.com bezoekt, waarom
             we dat doen, de wettelijke grondslag voor elk doel, en welke keuzes
             je hebt. We verzamelen alleen wat nodig is om de site te beheren en
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
           <p>
             Alle analyse vindt <strong>volledig in je browser</strong> plaats.
             Je e-mailmetadata wordt rechtstreeks van Gmail naar je apparaat
-            opgehaald en wordt nooit doorgezonden naar de servers van Yippie,
+            opgehaald en wordt nooit doorgezonden naar de servers van GetYippie,
             opgeslagen in een database, of gedeeld met derden. De extensie heeft
             geen backend en stuurt geen uitgaande verzoeken, behalve naar de
             Gmail API namens jou.
@@ -149,27 +149,27 @@ export default function PrivacyPage() {
             opgeslagen gegevens. Er bestaan nergens anders gegevens.
           </p>
 
-          <h2>Yippie-platform: Gmail- en Outlook-integratie</h2>
+          <h2>GetYippie-platform: Gmail- en Outlook-integratie</h2>
           <p>
-            Binnen het Yippie-klantenserviceplatform kunnen gebruikers optioneel
+            Binnen het GetYippie-klantenserviceplatform kunnen gebruikers optioneel
             hun Gmail- of Microsoft Outlook-mailbox koppelen, zodat inkomende
             e-mails samen met andere supportkanalen worden afgehandeld.
           </p>
 
           <h3>Waartoe we toegang hebben</h3>
           <p>
-            Wanneer je een Gmail-account koppelt, vraagt Yippie de volgende
+            Wanneer je een Gmail-account koppelt, vraagt GetYippie de volgende
             OAuth-scopes aan:
           </p>
           <ul>
             <li>
               <strong>gmail.readonly</strong>: om inkomende berichten en
-              gespreksgeschiedenis te lezen zodat deze in de Yippie-inbox kunnen
+              gespreksgeschiedenis te lezen zodat deze in de GetYippie-inbox kunnen
               worden weergegeven.
             </li>
             <li>
               <strong>gmail.send</strong>: om namens jou antwoorden te sturen
-              rechtstreeks vanuit het Yippie-platform.
+              rechtstreeks vanuit het GetYippie-platform.
             </li>
             <li>
               <strong>gmail.modify</strong>: om berichten als gelezen te markeren
@@ -177,7 +177,7 @@ export default function PrivacyPage() {
             </li>
           </ul>
           <p>
-            Wanneer je een Microsoft Outlook-account koppelt, vraagt Yippie
+            Wanneer je een Microsoft Outlook-account koppelt, vraagt GetYippie
             vergelijkbare Microsoft Graph-machtigingen aan (
             <strong>Mail.Read</strong>, <strong>Mail.Send</strong>,{" "}
             <strong>Mail.ReadWrite</strong>) voor dezelfde doeleinden.
@@ -186,7 +186,7 @@ export default function PrivacyPage() {
           <h3>Hoe we je e-mailgegevens gebruiken</h3>
           <p>
             E-mailinhoud (afzender, ontvanger, onderwerp en berichttekst) wordt
-            uitsluitend verwerkt om berichten in het Yippie-platform weer te
+            uitsluitend verwerkt om berichten in het GetYippie-platform weer te
             geven, door AI ondersteunde antwoordsuggesties te genereren en
             gesprekken te classificeren. We gebruiken je e-mailgegevens{" "}
             <strong>niet</strong> voor advertenties, voor het opbouwen van
@@ -199,7 +199,7 @@ export default function PrivacyPage() {
           <h3>Waar je gegevens worden verwerkt</h3>
           <p>
             E-mailgegevens worden van Gmail of Outlook opgehaald naar de servers
-            van Yippie (gehost op Railway, EU-regio) en opgeslagen in de
+            van GetYippie (gehost op Railway, EU-regio) en opgeslagen in de
             geïsoleerde database van je account. Ze worden niet gedeeld met
             andere tenants en niet verkocht of doorgegeven aan derden buiten de
             verwerkers die in dit beleid worden vermeld.
@@ -210,7 +210,7 @@ export default function PrivacyPage() {
             De verwerking is gebaseerd op je uitdrukkelijke toestemming (art. 6
             lid 1 onder a AVG), verleend wanneer je je mailbox koppelt via het
             OAuth-toestemmingsscherm. Je kunt je mailbox op elk moment loskoppelen
-            via je Yippie-accountinstellingen, waarmee onze toegangstoken
+            via je GetYippie-accountinstellingen, waarmee onze toegangstoken
             onmiddellijk wordt ingetrokken. Je kunt de toegang ook rechtstreeks
             intrekken via{" "}
             <a
@@ -226,7 +226,7 @@ export default function PrivacyPage() {
 
           <h3>Bewaartermijn</h3>
           <p>
-            E-mailberichten die naar Yippie zijn gesynchroniseerd, worden bewaard
+            E-mailberichten die naar GetYippie zijn gesynchroniseerd, worden bewaard
             zolang je account actief is. Wanneer je een gesprek verwijdert of je
             account sluit, worden de bijbehorende berichtgegevens binnen 30 dagen
             uit onze systemen verwijderd.

@@ -6,12 +6,12 @@ import styles from "../components/content.module.css";
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Yippie vs Freshdesk | Het MKB-vriendelijke Freshdesk-alternatief",
+  title: "GetYippie vs Freshdesk | Het MKB-vriendelijke Freshdesk-alternatief",
   description:
-    "Op zoek naar een Freshdesk-alternatief voor je kleine bedrijf? Yippie is helpdesksoftware speciaal voor het MKB, met boekingen en vaste werkruimteprijzen vanaf €19 per maand.",
+    "Op zoek naar een Freshdesk-alternatief voor je kleine bedrijf? GetYippie is helpdesksoftware speciaal voor het MKB, met boekingen en vaste werkruimteprijzen vanaf €19 per maand.",
   alternates: { canonical: "/vs-freshdesk" },
   openGraph: {
-    title: "Yippie vs Freshdesk | Het MKB-vriendelijke alternatief",
+    title: "GetYippie vs Freshdesk | Het MKB-vriendelijke alternatief",
     description:
       "Een eenvoudiger Freshdesk-alternatief met vaste prijs, gebouwd voor het MKB. Boekingen en eenvoudige onboarding inbegrepen, vanaf €19 per maand.",
     url: "https://getyippie.com/vs-freshdesk",
@@ -44,18 +44,18 @@ export default function VsFreshdeskPage() {
         <img src="/logo-white-bg-mark.svg" alt="" aria-hidden="true" className={styles.pageLogoMark} />
         <div className={styles.heroTag}>
           <span className={styles.heroTagDot} />
-          Yippie vs Freshdesk
+          GetYippie vs Freshdesk
         </div>
-        <h1 className={styles.heroTitle}>Yippie vs Freshdesk: het MKB-vriendelijke alternatief</h1>
+        <h1 className={styles.heroTitle}>GetYippie vs Freshdesk: het MKB-vriendelijke alternatief</h1>
         <p className={styles.heroSub}>
           Freshdesk biedt een breed functiepakket voor complexe supportoperaties,
           maar die breedte gaat gepaard met een leercurve en kosten per gebruiker
-          die toenemen bij elke nieuwe aanstelling. Yippie is speciaal gebouwd
+          die toenemen bij elke nieuwe aanstelling. GetYippie is speciaal gebouwd
           voor kleine en middelgrote bedrijven: eenvoudiger, sneller op te zetten
           en een vaste werkruimteprijs in plaats van kosten per gebruiker.
         </p>
         <p className={styles.heroSub}>
-          Kortom: Yippie is een Freshdesk-alternatief voor kleine teams met een
+          Kortom: GetYippie is een Freshdesk-alternatief voor kleine teams met een
           vaste werkruimteprijs vanaf €19 per maand, onbeperkte contacten op
           elk abonnement, AI-opgestelde tickets en boekingen ingebouwd — terwijl
           Freshdesk ongeveer €15 per gebruiker per maand rekent en is ontworpen
@@ -70,7 +70,7 @@ export default function VsFreshdeskPage() {
       <section className={styles.section}>
         <div className={styles.sectionInner}>
           <p className={styles.eyebrow}>Naast elkaar</p>
-          <h2 className={styles.sectionTitle}>Hoe Yippie zich verhoudt tot Freshdesk</h2>
+          <h2 className={styles.sectionTitle}>Hoe GetYippie zich verhoudt tot Freshdesk</h2>
           <p className={styles.sectionSub}>
             Dezelfde kernfunctionaliteit van een helpdesk, zonder de kosten per
             gebruiker of de installatielast.
@@ -80,7 +80,7 @@ export default function VsFreshdeskPage() {
               <thead>
                 <tr>
                   <th>Functie</th>
-                  <th className={styles.colYippie}>Yippie</th>
+                  <th className={styles.colGetYippie}>GetYippie</th>
                   <th>Freshdesk</th>
                 </tr>
               </thead>
@@ -125,7 +125,7 @@ export default function VsFreshdeskPage() {
       <section className={styles.ctaSection}>
         <h2 className={styles.ctaTitle}>Stap over naar support die bij je bedrijf past</h2>
         <p className={styles.ctaSub}>
-          Zie waarom MKB-bedrijven kiezen voor Yippie boven Freshdesk. Probeer
+          Zie waarom MKB-bedrijven kiezen voor GetYippie boven Freshdesk. Probeer
           de directe demo. Geen creditcard nodig.
         </p>
         <a href={DEMO_URL} className={styles.btnPrimary}>Demo aanvragen →</a>

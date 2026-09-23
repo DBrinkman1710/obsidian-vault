@@ -2,7 +2,7 @@
 // NL lives on `/` (default), EN lives under `/en` — same component, different content prop.
 
 export type EmailOverlay = {
-  /** "out" = Yippie sends it automatically; "in" = customer replies. */
+  /** "out" = GetYippie sends it automatically; "in" = customer replies. */
   direction: "out" | "in";
   from: string;
   subject: string;
@@ -40,7 +40,7 @@ export type UseCaseContent = {
 export const USECASE_EN: UseCaseContent = {
   eyebrow: "For installers & field service",
   heading: "From first click to loyal customer",
-  sub: "One flow, fully automatic. Here is how an installation company runs on Yippie.",
+  sub: "One flow, fully automatic. Here is how an installation company runs on GetYippie.",
   prev: "Back",
   next: "Next",
   sentLabel: "Sent automatically",
@@ -50,7 +50,7 @@ export const USECASE_EN: UseCaseContent = {
       tag: "Request",
       callout: "Website form submitted",
       title: "The request comes in",
-      desc: "A visitor fills in the form on your own website. The second they hit send, Yippie captures it, no copy-paste and no lost lead.",
+      desc: "A visitor fills in the form on your own website. The second they hit send, GetYippie captures it, no copy-paste and no lost lead.",
       img: "/usecase/step1_form.png",
       w: 2000,
       h: 1051,
@@ -60,7 +60,7 @@ export const USECASE_EN: UseCaseContent = {
       tag: "Interest",
       callout: "New contact → Interested",
       title: "Interest captured",
-      desc: "Yippie creates the contact and drops them straight into the pipeline under Interested. Nothing slips through the cracks.",
+      desc: "GetYippie creates the contact and drops them straight into the pipeline under Interested. Nothing slips through the cracks.",
       img: "/usecase/step2_kanban.png",
       w: 1440,
       h: 900,
@@ -69,7 +69,7 @@ export const USECASE_EN: UseCaseContent = {
       tag: "Follow up",
       callout: "Two action buttons",
       title: "One email, two choices",
-      desc: "Your rep sends a follow-up with two buttons: book an appointment, or remind me in a month. Built right in Yippie's email designer.",
+      desc: "Your rep sends a follow-up with two buttons: book an appointment, or remind me in a month. Built right in GetYippie's email designer.",
       img: "/usecase/step3_email.png",
       w: 1440,
       h: 600,
@@ -120,7 +120,7 @@ export const USECASE_EN: UseCaseContent = {
 export const USECASE2_EN: UseCaseContent = {
   eyebrow: "For installers & field service",
   heading: "One problem, zero dropped balls",
-  sub: "A customer hits a snag after the job. Watch Yippie carry it from WhatsApp to resolved, without the chaos.",
+  sub: "A customer hits a snag after the job. Watch GetYippie carry it from WhatsApp to resolved, without the chaos.",
   prev: "Back",
   next: "Next",
   sentLabel: "Sent automatically",
@@ -178,7 +178,7 @@ export const USECASE2_EN: UseCaseContent = {
       h: 900,
       email: {
         direction: "out",
-        from: "Yippie → Contractor",
+        from: "GetYippie → Contractor",
         subject: "You claimed: creaking noise (Jan de Vries)",
         body: "Ticket, address, the two answers and the full history, everything the contractor needs, sent the moment they claim it.",
       },
@@ -187,7 +187,7 @@ export const USECASE2_EN: UseCaseContent = {
       tag: "Resolved",
       callout: "Fixed → auto review request",
       title: "Fixed, confirmed, reviewed",
-      desc: "Jan confirms it's solved with one button and the contact returns to After sales. Yippie automatically asks him to rate the service, closing the loop.",
+      desc: "Jan confirms it's solved with one button and the contact returns to After sales. GetYippie automatically asks him to rate the service, closing the loop.",
       img: "/usecase2/s2_6_resolved.png",
       w: 1440,
       h: 900,
@@ -204,7 +204,7 @@ export const USECASE2_EN: UseCaseContent = {
 export const USECASE2_NL: UseCaseContent = {
   eyebrow: "Voor installatie & buitendienst",
   heading: "Eén probleem, nul gemiste kansen",
-  sub: "Een klant loopt vast na de klus. Kijk hoe Yippie het oppakt van WhatsApp tot opgelost, zonder de chaos.",
+  sub: "Een klant loopt vast na de klus. Kijk hoe GetYippie het oppakt van WhatsApp tot opgelost, zonder de chaos.",
   prev: "Terug",
   next: "Volgende",
   sentLabel: "Automatisch verstuurd",
@@ -262,7 +262,7 @@ export const USECASE2_NL: UseCaseContent = {
       h: 900,
       email: {
         direction: "out",
-        from: "Yippie → Monteur",
+        from: "GetYippie → Monteur",
         subject: "Jij hebt geclaimd: krakend geluid (Jan de Vries)",
         body: "Ticket, adres, de twee antwoorden en de volledige geschiedenis, alles wat de monteur nodig heeft, verstuurd op het moment dat hij het claimt.",
       },
@@ -271,7 +271,7 @@ export const USECASE2_NL: UseCaseContent = {
       tag: "Opgelost",
       callout: "Opgelost → automatisch reviewverzoek",
       title: "Opgelost, bevestigd, beoordeeld",
-      desc: "Jan bevestigt met één knop dat het is opgelost en het contact keert terug naar After sales. Yippie vraagt hem automatisch de service te beoordelen, waarmee de cirkel rond is.",
+      desc: "Jan bevestigt met één knop dat het is opgelost en het contact keert terug naar After sales. GetYippie vraagt hem automatisch de service te beoordelen, waarmee de cirkel rond is.",
       img: "/usecase2/s2_6_resolved.png",
       w: 1440,
       h: 900,
@@ -288,7 +288,7 @@ export const USECASE2_NL: UseCaseContent = {
 export const USECASE_NL: UseCaseContent = {
   eyebrow: "Voor installatie & buitendienst",
   heading: "Van eerste klik tot trouwe klant",
-  sub: "Eén flow, volledig automatisch. Zo draait een installatiebedrijf op Yippie.",
+  sub: "Eén flow, volledig automatisch. Zo draait een installatiebedrijf op GetYippie.",
   prev: "Terug",
   next: "Volgende",
   sentLabel: "Automatisch verstuurd",
@@ -298,7 +298,7 @@ export const USECASE_NL: UseCaseContent = {
       tag: "Aanvraag",
       callout: "Formulier verstuurd",
       title: "De aanvraag komt binnen",
-      desc: "Een bezoeker vult het formulier op je eigen website in. Zodra hij op verzenden klikt, vangt Yippie het op, geen overtypen en geen verloren lead.",
+      desc: "Een bezoeker vult het formulier op je eigen website in. Zodra hij op verzenden klikt, vangt GetYippie het op, geen overtypen en geen verloren lead.",
       img: "/usecase/step1_form.png",
       w: 2000,
       h: 1051,
@@ -308,7 +308,7 @@ export const USECASE_NL: UseCaseContent = {
       tag: "Interesse",
       callout: "Nieuw contact → Interested",
       title: "Interesse binnen",
-      desc: "Yippie maakt automatisch het contact aan en zet het direct in je pijplijn onder Interested. Niets glipt er doorheen.",
+      desc: "GetYippie maakt automatisch het contact aan en zet het direct in je pijplijn onder Interested. Niets glipt er doorheen.",
       img: "/usecase/step2_kanban.png",
       w: 1440,
       h: 900,
@@ -317,7 +317,7 @@ export const USECASE_NL: UseCaseContent = {
       tag: "Opvolging",
       callout: "Twee actieknoppen",
       title: "Eén mail, twee keuzes",
-      desc: "Je verkoper stuurt een opvolgmail met twee knoppen: plan een afspraak, of herinner mij over een maand. Gemaakt in de Yippie mailontwerper.",
+      desc: "Je verkoper stuurt een opvolgmail met twee knoppen: plan een afspraak, of herinner mij over een maand. Gemaakt in de GetYippie mailontwerper.",
       img: "/usecase/step3_email.png",
       w: 1440,
       h: 600,

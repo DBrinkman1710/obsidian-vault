@@ -2,12 +2,12 @@ import type { Metadata } from "next";
 import { faqs } from "./faqs";
 
 export const metadata: Metadata = {
-  title: "Prijzen — Yippie | Klantenservice Platform voor MKB",
+  title: "Prijzen — GetYippie | Klantenservice Platform voor MKB",
   description:
-    "Eenvoudige, transparante prijzen voor Yippie. Start gratis voor 30 dagen. Onbeperkte contacten op elk abonnement. Starter vanaf €19/mnd, Growth vanaf €39/mnd, Pro vanaf €69/mnd.",
+    "Eenvoudige, transparante prijzen voor GetYippie. Start gratis voor 30 dagen. Onbeperkte contacten op elk abonnement. Starter vanaf €19/mnd, Growth vanaf €39/mnd, Pro vanaf €69/mnd.",
   alternates: { canonical: "/pricing" },
   openGraph: {
-    title: "Yippie Prijzen — Start gratis, schaal naarmate je groeit",
+    title: "GetYippie Prijzen — Start gratis, schaal naarmate je groeit",
     description:
       "Onbeperkte contacten op elk abonnement. Gratis proefperiode van 30 dagen, geen creditcard vereist. Starter vanaf €19/mnd.",
     url: "https://getyippie.com/pricing",

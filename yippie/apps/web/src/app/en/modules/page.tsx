@@ -28,14 +28,14 @@ import {
 const DEMO_URL = process.env.NEXT_PUBLIC_DEMO_URL ?? "/request-demo";
 
 export const metadata: Metadata = {
-  title: "Modules | Yippie customer service platform",
+  title: "Modules | GetYippie customer service platform",
   description:
-    "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, contracts, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
+    "A deep look at every GetYippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, contracts, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
   alternates: { canonical: "/en/modules" },
   openGraph: {
-    title: "Modules | Yippie customer service platform",
+    title: "Modules | GetYippie customer service platform",
     description:
-      "A deep look at every Yippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, contracts, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
+      "A deep look at every GetYippie module: inbox, tickets, contacts, calendar, pipeline, live chat, marketing, departments, billing, contracts, templates, activity, team, tracking, sales, and SaaS analytics. All built for SMBs.",
     url: "https://getyippie.com/modules",
     type: "website",
     images: ["/og.png"],
@@ -198,7 +198,7 @@ const modules: Module[] = [
     bullets: [
       "Upload and attach contracts to any contact or company",
       "Track renewal dates and notice periods with automatic reminders",
-      "Send contracts for e-signing without leaving Yippie",
+      "Send contracts for e-signing without leaving GetYippie",
       "Filter by status: draft, sent, signed, expired",
     ],
     shot: "/shots/contracts.png",
@@ -254,7 +254,7 @@ const modules: Module[] = [
     id: "tracking",
     kicker: "TRACKING",
     title: "Tracking: shipments in one view",
-    desc: "Connect your ERP or shop and Yippie creates or updates contacts automatically on every order. Live carrier updates for DHL, UPS, PostNL, and FedEx sit right alongside the customer's ticket. No copy-pasting.",
+    desc: "Connect your ERP or shop and GetYippie creates or updates contacts automatically on every order. Live carrier updates for DHL, UPS, PostNL, and FedEx sit right alongside the customer's ticket. No copy-pasting.",
     bullets: [
       "DHL, UPS, FedEx, and PostNL tracking out of the box",
       "Link shipments to contacts and tickets for full context",
@@ -440,7 +440,7 @@ export default function ModulesPage() {
             See every module live in your inbox
           </h2>
           <p className={styles.ctaSub}>
-            Book a personalised demo and watch Yippie connect your inbox,
+            Book a personalised demo and watch GetYippie connect your inbox,
             tickets, and pipeline in one clean workspace.
           </p>
           <a href={DEMO_URL} className={styles.ctaBtn}>

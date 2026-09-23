@@ -147,7 +147,7 @@ export default function DemoForm() {
           <h2 className={styles.successTitle}>Demo verzonden</h2>
           <p className={styles.successSub}>
             Controleer je inbox. We hebben je een link gestuurd waarmee je met één klik
-            je Yippie-demoruimte kunt openen.
+            je GetYippie-demoruimte kunt openen.
           </p>
         </div>
       </div>
@@ -265,7 +265,7 @@ export default function DemoForm() {
 
       <div className={styles.moduleSection}>
         <p className={styles.moduleSectionLabel}>
-          {hasAnyAnswer ? "Modules die we je laten zien" : "Wat zit er in Yippie"}
+          {hasAnyAnswer ? "Modules die we je laten zien" : "Wat zit er in GetYippie"}
         </p>
         <p className={styles.moduleSectionSub}>
           {hasAnyAnswer

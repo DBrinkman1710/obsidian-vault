@@ -43,7 +43,7 @@ const DEMO_PATH = "/request-demo";
 const FOUNDER_SPOTS_TOTAL = 5;
 const FOUNDER_SPOTS_LEFT = parseInt(process.env.NEXT_PUBLIC_FOUNDER_SPOTS_LEFT ?? "5", 10);
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://app.getyippie.com";
-// Booking page of the Yippie owner tenant (backend resolves the tenant by slug).
+// Booking page of the GetYippie owner tenant (backend resolves the tenant by slug).
 const TALK_PATH = `${APP_URL}/meet/yippie`;
 
 type Plan = {

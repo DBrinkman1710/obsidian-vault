@@ -9,9 +9,9 @@ import styles from "./UseCaseStories.module.css";
 
 const copy = {
   nl: {
-    eyebrow: "Zie Yippie in actie",
+    eyebrow: "Zie GetYippie in actie",
     heading: "Twee trajecten, één platform",
-    sub: "Kies een verhaal en klik door hoe een echt installatiebedrijf op Yippie draait.",
+    sub: "Kies een verhaal en klik door hoe een echt installatiebedrijf op GetYippie draait.",
     stories: [
       {
         key: "new-customer",
@@ -32,9 +32,9 @@ const copy = {
     meta: "30 dagen gratis · Geen creditcard · Altijd opzegbaar",
   },
   en: {
-    eyebrow: "See Yippie in action",
+    eyebrow: "See GetYippie in action",
     heading: "Two journeys, one platform",
-    sub: "Pick a story and click through how a real installation company runs on Yippie.",
+    sub: "Pick a story and click through how a real installation company runs on GetYippie.",
     stories: [
       {
         key: "new-customer",
