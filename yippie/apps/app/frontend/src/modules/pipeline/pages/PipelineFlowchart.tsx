@@ -1,5 +1,5 @@
 // [KAN_FLOW1] Pipeline flowchart — the second Kanban view. Lets an admin lay out
-// stage nodes, decision diamonds and labelled arrows so Yippie later understands
+// stage nodes, decision diamonds and labelled arrows so GetYippie later understands
 // how the pipeline works (semantic wiring is KAN_FLOW2). The board remains the
 // source of truth for the stage list: adding a stage here creates a REAL stage
 // via the existing endpoint, renaming/deleting a stage node PATCHes/DELETEs the
@@ -224,7 +224,7 @@ const nodeTypes = {
 } as any
 
 // ──────────────────────────────────────────────────────────────
-// Delete-stage confirm modal — same size/shape as other Yippie modals
+// Delete-stage confirm modal — same size/shape as other GetYippie modals
 // ──────────────────────────────────────────────────────────────
 function DeleteStageModal({
   name, onConfirm, onClose,
@@ -258,7 +258,7 @@ function DeleteStageModal({
 
 // ──────────────────────────────────────────────────────────────
 // [KAN_FLOW2] Suggest automations — modal fed by GET /pipeline/flowchart/suggestions
-// Same size/shape as the other Yippie modals in this file.
+// Same size/shape as the other GetYippie modals in this file.
 // ──────────────────────────────────────────────────────────────
 function SuggestAutomationsModal({ onClose }: { onClose: () => void }) {
   const t = useT()
@@ -806,7 +806,7 @@ function FlowchartInner({ canEdit }: { canEdit: boolean }) {
             </div>
 
             {/* [KAN_FLOW2] Turn the drawn arrows into automations. Secondary
-                style with the Yippie brand accent. */}
+                style with the GetYippie brand accent. */}
             <button
               onClick={() => setShowSuggestions(true)}
               className="w-full flex items-center justify-center gap-1.5 px-3 py-2 border text-sm font-semibold rounded-xl transition-colors hover:bg-blue-50"

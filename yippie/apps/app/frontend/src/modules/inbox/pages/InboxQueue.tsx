@@ -1374,7 +1374,7 @@ export default function InboxQueue() {
         <div className="fixed bottom-5 right-5 z-[60] bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 w-72">
           <div className="flex items-center justify-between mb-3">
             <div>
-              <p className="font-bold text-slate-900 text-sm">Yippie</p>
+              <p className="font-bold text-slate-900 text-sm">GetYippie</p>
               <p className="text-xs text-slate-400">{pendingCompose.recipientCount === 1 ? t('inbox_sending_to_n').replace('{n}', '1') : t('inbox_sending_to_n_plural').replace('{n}', String(pendingCompose.recipientCount))}</p>
             </div>
             <button

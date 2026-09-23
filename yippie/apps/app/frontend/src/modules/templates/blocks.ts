@@ -83,7 +83,7 @@ export function starterBlocks(docType: DocType): BlockDoc {
         b('line_items'),
         b('totals'),
         b('notes', { label: 'BETALINGSINFORMATIE', source: 'document' }),
-        b('footer', { text: 'Gegenereerd met Yippie' }),
+        b('footer', { text: 'Gegenereerd met GetYippie' }),
       ],
     }
   }

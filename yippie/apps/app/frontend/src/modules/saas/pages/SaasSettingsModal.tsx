@@ -62,7 +62,7 @@ function OverviewTab() {
               <code className="text-xs bg-slate-200 px-1 rounded">
                 yippie.identify('user-id', {'{'} email: '…', name: '…', plan: '…' {'}'})
               </code>{' '}
-              right after a user logs in. Yippie links the browser session to a Yippie contact by email,
+              right after a user logs in. GetYippie links the browser session to a GetYippie contact by email,
               so all events are attributed to the right person.
             </p>
           </div>
@@ -90,7 +90,7 @@ function OverviewTab() {
           <div>
             <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('saas_overview_step4_title')}</p>
             <p className="text-sm text-slate-500">
-              Yippie computes a health score (0–100) for each tracked customer every hour, based on
+              GetYippie computes a health score (0–100) for each tracked customer every hour, based on
               how recently they were active, how many features they use, and how many errors they hit.
               The score and last 4 events appear in the <strong>Product usage</strong> card on every
               ticket, so agents walk into every conversation already informed.
@@ -119,7 +119,7 @@ function SnippetTab() {
 ${scriptTag}
 
 <script>
-  // After the user logs in — links events to a Yippie contact:
+  // After the user logs in — links events to a GetYippie contact:
   yippie.identify('user-123', {
     email: 'jan@acme.nl',
     name: 'Jan',

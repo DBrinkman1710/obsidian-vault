@@ -56,7 +56,7 @@ function Shell({ children }: { children: React.ReactNode }) {
         <div className="mb-6 text-center">
           <img
             src="/logo-lockup-onLight.svg"
-            alt="Yippie"
+            alt="GetYippie"
             className="w-56 mx-auto object-contain"
           />
         </div>

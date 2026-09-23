@@ -145,7 +145,7 @@ function BlockConfig({ block, docType, fields, onChange }: {
       return (
         <div>
           <label className={labelCls}>{t('tpl_text_label')}</label>
-          <input ref={titleRef} className="input-base" value={cfg.text ?? ''} placeholder="Gegenereerd met Yippie"
+          <input ref={titleRef} className="input-base" value={cfg.text ?? ''} placeholder="Gegenereerd met GetYippie"
             onChange={e => set({ text: e.target.value })} />
           <MergeFieldChips fields={fields} targetRef={titleRef} value={cfg.text ?? ''} onChange={text => set({ text })} />
         </div>

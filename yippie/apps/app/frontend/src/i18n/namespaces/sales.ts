@@ -4,7 +4,7 @@ export const sales: { en: Record<string, string>; nl: Record<string, string> } =
   en: {
     // SalesPage — header
     sales_title:                        'Sales Tracking',
-    sales_subtitle:                     'Track visitor behaviour on your clients\' websites and surface it inside Yippie contact cards.',
+    sales_subtitle:                     'Track visitor behaviour on your clients\' websites and surface it inside GetYippie contact cards.',
     sales_last_event:                   'Last event:',
     sales_settings_title:               'Settings',
 
@@ -43,13 +43,13 @@ export const sales: { en: Record<string, string>; nl: Record<string, string> } =
     sales_copy:                         'Copy',
 
     // OverviewTab
-    sales_overview_intro:               'The Sales tracking snippet collects visitor behaviour on your clients\' websites and surfaces it inside Yippie, so when a customer contacts support, agents already know what they browsed, clicked, or purchased.',
+    sales_overview_intro:               'The Sales tracking snippet collects visitor behaviour on your clients\' websites and surfaces it inside GetYippie, so when a customer contacts support, agents already know what they browsed, clicked, or purchased.',
     sales_overview_step1_title:         '1. Copy your snippet',
     sales_overview_step1_desc:          'Go to the Install snippet tab, copy the one-line {script} tag, and paste it inside the {head} of your client\'s website. Each tenant has a unique token. No code changes needed after installation.',
     sales_overview_step2_title:         '2. It tracks automatically',
     sales_overview_step2_desc:          'Once the tag is live, every page view is recorded automatically. No extra code needed. To track purchases or button clicks, call {call} anywhere on the page.',
     sales_overview_step3_title:         '3. Link visitors to contacts',
-    sales_overview_step3_desc:          'When a visitor logs in or places an order, call {call}. Yippie matches the anonymous session to an existing Yippie contact. From that moment, the "Website activity" card appears on their ticket detail page.',
+    sales_overview_step3_desc:          'When a visitor logs in or places an order, call {call}. GetYippie matches the anonymous session to an existing GetYippie contact. From that moment, the "Website activity" card appears on their ticket detail page.',
     sales_overview_step4_title:         '4. Agents see it on every ticket',
     sales_overview_step4_desc:          'The last 5 website events appear in the Website activity card on the right side of every ticket from that contact. Agents know what the customer browsed before they even read the first line.',
 
@@ -67,7 +67,7 @@ export const sales: { en: Record<string, string>; nl: Record<string, string> } =
   nl: {
     // SalesPage — header
     sales_title:                        'Verkoopanalytics',
-    sales_subtitle:                     'Volg bezoekersgedrag op de websites van je klanten en toon dit in Yippie-contactkaarten.',
+    sales_subtitle:                     'Volg bezoekersgedrag op de websites van je klanten en toon dit in GetYippie-contactkaarten.',
     sales_last_event:                   'Laatste event:',
     sales_settings_title:               'Instellingen',
 
@@ -106,13 +106,13 @@ export const sales: { en: Record<string, string>; nl: Record<string, string> } =
     sales_copy:                         'Kopieer',
 
     // OverviewTab
-    sales_overview_intro:               'De verkooptracking-snippet verzamelt bezoekersgedrag op de websites van je klanten en toont dit in Yippie, zodat medewerkers al weten wat een klant heeft bekeken, aangeklikt of gekocht wanneer die contact opneemt.',
+    sales_overview_intro:               'De verkooptracking-snippet verzamelt bezoekersgedrag op de websites van je klanten en toont dit in GetYippie, zodat medewerkers al weten wat een klant heeft bekeken, aangeklikt of gekocht wanneer die contact opneemt.',
     sales_overview_step1_title:         '1. Kopieer je snippet',
     sales_overview_step1_desc:          'Ga naar het tabblad Snippet installeren, kopieer de {script}-tag op één regel en plak die in de {head} van de website van je klant. Elke tenant heeft een uniek token. Na installatie zijn geen codewijzigingen meer nodig.',
     sales_overview_step2_title:         '2. Automatisch bijhouden',
     sales_overview_step2_desc:          'Zodra de tag live staat, wordt elke paginaweergave automatisch geregistreerd. Geen extra code nodig. Om aankopen of klikken bij te houden, roep je {call} aan op de pagina.',
     sales_overview_step3_title:         '3. Bezoekers koppelen aan contacten',
-    sales_overview_step3_desc:          'Wanneer een bezoeker inlogt of een bestelling plaatst, roep je {call} aan. Yippie koppelt de anonieme sessie aan een bestaand Yippie-contact. Vanaf dat moment verschijnt de kaart "Websiteactiviteit" op de ticketdetailpagina.',
+    sales_overview_step3_desc:          'Wanneer een bezoeker inlogt of een bestelling plaatst, roep je {call} aan. GetYippie koppelt de anonieme sessie aan een bestaand GetYippie-contact. Vanaf dat moment verschijnt de kaart "Websiteactiviteit" op de ticketdetailpagina.',
     sales_overview_step4_title:         '4. Medewerkers zien het bij elk ticket',
     sales_overview_step4_desc:          'De laatste 5 website-events verschijnen in de kaart Websiteactiviteit aan de rechterkant van elk ticket van dat contact. Medewerkers weten al wat de klant heeft bekeken voordat ze de eerste regel lezen.',
 

@@ -60,7 +60,7 @@ export default function LoginPage() {
       {/* Logo lockup above card */}
       <img
         src="/logo-lockup-onLight.svg"
-        alt="Yippie"
+        alt="GetYippie"
         className="mb-8 object-contain mx-auto" style={{ width: 480 }}
       />
 

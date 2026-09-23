@@ -75,7 +75,7 @@ export const useTenantConfig = () => useContext(TenantConfigContext)
 // owner can see cross-tenant feature adoption in their own Product Analytics page.
 const PLATFORM_TOKEN = import.meta.env.VITE_YIPPIE_PLATFORM_TOKEN
 
-function whenYippie(fn: (y: any) => void) {
+function whenGetYippie(fn: (y: any) => void) {
   const w = window as any
   if (w.yippie) { fn(w.yippie); return }
   let tries = 0
@@ -314,7 +314,7 @@ export default function App() {
   // Identify the logged-in user once we have both user and config loaded.
   useEffect(() => {
     if (!user || !config || !PLATFORM_TOKEN) return
-    whenYippie((y) => y.identify(user.id, {
+    whenGetYippie((y) => y.identify(user.id, {
       email:       user.email,
       name:        user.full_name,
       role:        user.role,
@@ -361,7 +361,7 @@ export default function App() {
     if (!user || !PLATFORM_TOKEN) return
     const module = location.pathname.split('/')[1]
     if (!module) return
-    whenYippie((y) => y.track('feature_used', { feature: module, path: location.pathname }))
+    whenGetYippie((y) => y.track('feature_used', { feature: module, path: location.pathname }))
   }, [location.pathname, user?.id])
 
   if (!user) {

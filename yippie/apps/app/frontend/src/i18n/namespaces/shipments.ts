@@ -20,12 +20,12 @@ export const shipments: { en: Record<string, string>; nl: Record<string, string>
     ship_overview_manual_title:         'Manual entry',
     ship_overview_manual_desc:          'Agents add shipments directly in this screen: tracking number, carrier, and order reference. Useful for one-offs or when automation isn\'t set up yet.',
     ship_overview_erp_title:            'ERP / order system webhook',
-    ship_overview_erp_desc:             'Your ERP or webshop (Exact, AFAS, WooCommerce, Shopify, …) posts an order event to a Yippie URL whenever a shipment is created or its status changes. Yippie matches on {order_number} and keeps the shipment in sync automatically. See the ERP webhook tab for the URL and payload format.',
+    ship_overview_erp_desc:             'Your ERP or webshop (Exact, AFAS, WooCommerce, Shopify, …) posts an order event to a GetYippie URL whenever a shipment is created or its status changes. GetYippie matches on {order_number} and keeps the shipment in sync automatically. See the ERP webhook tab for the URL and payload format.',
     ship_overview_sendcloud_title:      'Sendcloud (carrier events)',
-    ship_overview_sendcloud_desc:       'If you ship via Sendcloud, connect your account in the Sendcloud tab. Sendcloud pushes live carrier events (picked up, in transit, delivered) directly to Yippie — no polling needed. You can also manually refresh any shipment from its detail page.',
+    ship_overview_sendcloud_desc:       'If you ship via Sendcloud, connect your account in the Sendcloud tab. Sendcloud pushes live carrier events (picked up, in transit, delivered) directly to GetYippie — no polling needed. You can also manually refresh any shipment from its detail page.',
 
     // ErpTab
-    ship_erp_intro:                     'Give your ERP or webshop this webhook URL. It should POST a JSON body whenever an order is shipped or its status changes. Yippie creates or updates the matching shipment automatically.',
+    ship_erp_intro:                     'Give your ERP or webshop this webhook URL. It should POST a JSON body whenever an order is shipped or its status changes. GetYippie creates or updates the matching shipment automatically.',
     ship_erp_webhook_url_label:         'Webhook URL',
     ship_erp_secret_label:              'Shared secret (optional)',
     ship_erp_secret_configured:         'Configured',
@@ -45,7 +45,7 @@ export const shipments: { en: Record<string, string>; nl: Record<string, string>
     ship_sc_save:                       'Save',
     ship_sc_saving:                     'Saving…',
     ship_sc_webhook_url_label:          'Sendcloud webhook URL',
-    ship_sc_webhook_hint:               'Register this URL in Sendcloud under {path}. Sendcloud will POST carrier events to Yippie in real time.',
+    ship_sc_webhook_hint:               'Register this URL in Sendcloud under {path}. Sendcloud will POST carrier events to GetYippie in real time.',
     ship_sc_saved_toast:                'Sendcloud settings saved',
     ship_sc_save_error_toast:           'Failed to save Sendcloud settings',
 
@@ -167,12 +167,12 @@ export const shipments: { en: Record<string, string>; nl: Record<string, string>
     ship_overview_manual_title:         'Handmatige invoer',
     ship_overview_manual_desc:          'Medewerkers voegen zendingen rechtstreeks toe in dit scherm: trackingnummer, vervoerder en orderreferentie. Handig voor losse zendingen of wanneer automatisering nog niet is ingesteld.',
     ship_overview_erp_title:            'ERP / bestelsysteem-webhook',
-    ship_overview_erp_desc:             'Jouw ERP of webshop (Exact, AFAS, WooCommerce, Shopify, …) stuurt een ordergebeurtenis naar een Yippie-URL zodra een zending wordt aangemaakt of de status verandert. Yippie koppelt op {order_number} en houdt de zending automatisch gesynchroniseerd. Zie het tabblad ERP-webhook voor de URL en het berichtformaat.',
+    ship_overview_erp_desc:             'Jouw ERP of webshop (Exact, AFAS, WooCommerce, Shopify, …) stuurt een ordergebeurtenis naar een GetYippie-URL zodra een zending wordt aangemaakt of de status verandert. GetYippie koppelt op {order_number} en houdt de zending automatisch gesynchroniseerd. Zie het tabblad ERP-webhook voor de URL en het berichtformaat.',
     ship_overview_sendcloud_title:      'Sendcloud (vervoerdersgebeurtenissen)',
-    ship_overview_sendcloud_desc:       'Als je via Sendcloud verzendt, koppel je je account op het tabblad Sendcloud. Sendcloud stuurt live vervoerdersgebeurtenissen (opgehaald, onderweg, bezorgd) rechtstreeks naar Yippie — geen polling nodig. Je kunt ook elke zending handmatig vernieuwen via de detailpagina.',
+    ship_overview_sendcloud_desc:       'Als je via Sendcloud verzendt, koppel je je account op het tabblad Sendcloud. Sendcloud stuurt live vervoerdersgebeurtenissen (opgehaald, onderweg, bezorgd) rechtstreeks naar GetYippie — geen polling nodig. Je kunt ook elke zending handmatig vernieuwen via de detailpagina.',
 
     // ErpTab
-    ship_erp_intro:                     'Geef jouw ERP of webshop deze webhook-URL. Die moet een JSON-body POSTen wanneer een order is verzonden of de status verandert. Yippie maakt de bijbehorende zending automatisch aan of werkt die bij.',
+    ship_erp_intro:                     'Geef jouw ERP of webshop deze webhook-URL. Die moet een JSON-body POSTen wanneer een order is verzonden of de status verandert. GetYippie maakt de bijbehorende zending automatisch aan of werkt die bij.',
     ship_erp_webhook_url_label:         'Webhook-URL',
     ship_erp_secret_label:              'Gedeeld geheim (optioneel)',
     ship_erp_secret_configured:         'Geconfigureerd',
@@ -192,7 +192,7 @@ export const shipments: { en: Record<string, string>; nl: Record<string, string>
     ship_sc_save:                       'Opslaan',
     ship_sc_saving:                     'Opslaan…',
     ship_sc_webhook_url_label:          'Sendcloud webhook-URL',
-    ship_sc_webhook_hint:               'Registreer deze URL in Sendcloud onder {path}. Sendcloud stuurt vervoerdersgebeurtenissen in realtime naar Yippie.',
+    ship_sc_webhook_hint:               'Registreer deze URL in Sendcloud onder {path}. Sendcloud stuurt vervoerdersgebeurtenissen in realtime naar GetYippie.',
     ship_sc_saved_toast:                'Sendcloud-instellingen opgeslagen',
     ship_sc_save_error_toast:           'Opslaan van Sendcloud-instellingen mislukt',
 

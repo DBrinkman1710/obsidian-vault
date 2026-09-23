@@ -75,7 +75,7 @@ function OverviewTab() {
             <p className="text-sm text-slate-500">
               When a visitor logs in or places an order, call{' '}
               <code className="text-xs bg-slate-200 px-1 rounded">yippie.identify('email@example.com')</code>.
-              Yippie matches the anonymous session to an existing Yippie contact. From that moment,
+              GetYippie matches the anonymous session to an existing GetYippie contact. From that moment,
               the "Website activity" card appears on their ticket detail page.
             </p>
           </div>

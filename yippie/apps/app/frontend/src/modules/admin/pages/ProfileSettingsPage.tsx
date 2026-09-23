@@ -238,7 +238,7 @@ export default function ProfileSettingsPage() {
           <EmailAccountsCard level="user" />
           <div className="flex flex-col gap-6 flex-1">
             <ConnectedCalendarsCard />
-            <YippieCalendarFeedCard />
+            <GetYippieCalendarFeedCard />
           </div>
         </div>
       </div>
@@ -561,7 +561,7 @@ function SignatureEditor({ initial, saving, onSave, onCancel }: {
   )
 }
 
-// ── Connected Calendars (import: Apple / Outlook → Yippie) ───────────────────
+// ── Connected Calendars (import: Apple / Outlook → GetYippie) ───────────────────
 
 type Feed = {
   id: string
@@ -729,9 +729,9 @@ function ConnectedCalendarsCard() {
   )
 }
 
-// ── Yippie iCal Export Feed (Yippie → Apple Calendar / Outlook) ──────────────
+// ── GetYippie iCal Export Feed (GetYippie → Apple Calendar / Outlook) ──────────────
 
-function YippieCalendarFeedCard() {
+function GetYippieCalendarFeedCard() {
   const t = useT()
   const { copy: copyUrl, copied } = useCopy({ useToast: false })
   const [regenerating, setRegenerating] = useState(false)

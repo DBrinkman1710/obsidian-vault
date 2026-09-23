@@ -277,7 +277,7 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
 
     // ── Platform manual ───────────────────────────────────────────────────────
     settings_manual_heading:           'Platform Manual',
-    settings_manual_desc:              'Download the latest version of the Yippie Platform Manual as a PDF.',
+    settings_manual_desc:              'Download the latest version of the GetYippie Platform Manual as a PDF.',
     settings_manual_generating:        'Generating…',
     settings_manual_download:          'Download PDF',
 
@@ -327,9 +327,9 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
     settings_cal_error:                'Error',
     settings_cal_just_now:             'Just now',
 
-    // ── YippieCalendarFeedCard ────────────────────────────────────────────────
-    settings_feed_heading:             'Your Yippie Calendar Feed',
-    settings_feed_desc:                'Subscribe to this URL in Apple Calendar (File > New Calendar Subscription) or Outlook (Add Calendar > From internet) to see your Yippie events and bookings there.',
+    // ── GetYippieCalendarFeedCard ────────────────────────────────────────────────
+    settings_feed_heading:             'Your GetYippie Calendar Feed',
+    settings_feed_desc:                'Subscribe to this URL in Apple Calendar (File > New Calendar Subscription) or Outlook (Add Calendar > From internet) to see your GetYippie events and bookings there.',
     settings_feed_copy_title:          'Copy URL',
     settings_feed_regenerating:        'Regenerating…',
     settings_feed_regenerate:          'Regenerate URL',
@@ -613,7 +613,7 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
 
     // ── Platform manual ───────────────────────────────────────────────────────
     settings_manual_heading:           'Platform-handleiding',
-    settings_manual_desc:              'Download de nieuwste versie van de Yippie-platformhandleiding als PDF.',
+    settings_manual_desc:              'Download de nieuwste versie van de GetYippie-platformhandleiding als PDF.',
     settings_manual_generating:        'Genereren…',
     settings_manual_download:          'PDF downloaden',
 
@@ -663,9 +663,9 @@ export const adminSettings: { en: Record<string, string>; nl: Record<string, str
     settings_cal_error:                'Fout',
     settings_cal_just_now:             'Zojuist',
 
-    // ── YippieCalendarFeedCard ────────────────────────────────────────────────
-    settings_feed_heading:             'Jouw Yippie-agendafeed',
-    settings_feed_desc:                'Abonneer je op deze URL in Apple Agenda (Bestand > Nieuw agenda-abonnement) of Outlook (Agenda toevoegen > Via internet) om je Yippie-evenementen en boekingen daar te zien.',
+    // ── GetYippieCalendarFeedCard ────────────────────────────────────────────────
+    settings_feed_heading:             'Jouw GetYippie-agendafeed',
+    settings_feed_desc:                'Abonneer je op deze URL in Apple Agenda (Bestand > Nieuw agenda-abonnement) of Outlook (Agenda toevoegen > Via internet) om je GetYippie-evenementen en boekingen daar te zien.',
     settings_feed_copy_title:          'URL kopiëren',
     settings_feed_regenerating:        'Opnieuw genereren…',
     settings_feed_regenerate:          'URL opnieuw genereren',

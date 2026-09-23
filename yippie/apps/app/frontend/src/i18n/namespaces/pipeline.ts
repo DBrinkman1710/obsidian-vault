@@ -66,8 +66,8 @@ export const pipeline: { en: Record<string, string>; nl: Record<string, string> 
     pipeline_send_campaign_btn:      'Send campaign',
     pipeline_sending:                'Sending…',
     // PipelineFlowchart — empty canvas
-    pipeline_flowchart_teach:        'Teach Yippie how your pipeline works',
-    pipeline_flowchart_teach_desc:   'Lay out your stages, decisions and the arrows between them so Yippie understands how contacts should flow through the Kanban.',
+    pipeline_flowchart_teach:        'Teach GetYippie how your pipeline works',
+    pipeline_flowchart_teach_desc:   'Lay out your stages, decisions and the arrows between them so GetYippie understands how contacts should flow through the Kanban.',
     pipeline_start_from_stages:      'Start from your stages',
     // PipelineFlowchart — toolbar
     pipeline_add_label:              'Add',
@@ -86,7 +86,7 @@ export const pipeline: { en: Record<string, string>; nl: Record<string, string> 
     // PipelineFlowchart — suggest automations modal
     pipeline_suggestions_title:      'Suggested automations',
     pipeline_suggestions_empty:      'Nothing to suggest yet',
-    pipeline_suggestions_empty_desc: 'Draw arrows between your stages (directly, or through a decision) and Yippie will suggest automations that move contacts along for you.',
+    pipeline_suggestions_empty_desc: 'Draw arrows between your stages (directly, or through a decision) and GetYippie will suggest automations that move contacts along for you.',
     pipeline_suggestions_intro:      'Turn the arrows you drew into automations. Each opens in Flows prefilled — review and enable it there.',
     pipeline_create_in_flows:        'Create in Flows',
     pipeline_close_btn:              'Close',
@@ -185,8 +185,8 @@ export const pipeline: { en: Record<string, string>; nl: Record<string, string> 
     pipeline_send_campaign_btn:      'Campagne versturen',
     pipeline_sending:                'Versturen…',
     // PipelineFlowchart — empty canvas
-    pipeline_flowchart_teach:        'Leer Yippie hoe je pipeline werkt',
-    pipeline_flowchart_teach_desc:   'Leg je fasen, beslissingen en de pijlen ertussen vast zodat Yippie begrijpt hoe contacten door de Kanban moeten stromen.',
+    pipeline_flowchart_teach:        'Leer GetYippie hoe je pipeline werkt',
+    pipeline_flowchart_teach_desc:   'Leg je fasen, beslissingen en de pijlen ertussen vast zodat GetYippie begrijpt hoe contacten door de Kanban moeten stromen.',
     pipeline_start_from_stages:      'Beginnen met je fasen',
     // PipelineFlowchart — toolbar
     pipeline_add_label:              'Toevoegen',
@@ -205,7 +205,7 @@ export const pipeline: { en: Record<string, string>; nl: Record<string, string> 
     // PipelineFlowchart — suggest automations modal
     pipeline_suggestions_title:      'Voorgestelde automatiseringen',
     pipeline_suggestions_empty:      'Nog niets te suggereren',
-    pipeline_suggestions_empty_desc: 'Teken pijlen tussen je fasen (direct, of via een beslissing) en Yippie stelt automatiseringen voor die contacten automatisch doorschuiven.',
+    pipeline_suggestions_empty_desc: 'Teken pijlen tussen je fasen (direct, of via een beslissing) en GetYippie stelt automatiseringen voor die contacten automatisch doorschuiven.',
     pipeline_suggestions_intro:      'Zet de getekende pijlen om in automatiseringen. Elke opent in Flows — bekijk en activeer ze daar.',
     pipeline_create_in_flows:        'Aanmaken in Flows',
     pipeline_close_btn:              'Sluiten',

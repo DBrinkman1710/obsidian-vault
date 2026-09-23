@@ -16,7 +16,7 @@ export interface MetaTrigger { key: string; label: string; fields: MetaField[]; 
 export interface MetaAction { key: string; label: string; config_fields: MetaField[] }
 export interface MetaOption { id: string; name: string }
 // [FLOW8] a built-in platform automation — always-on, read-only. Surfaced on the
-// Flows page so tenants can see what Yippie already does automatically.
+// Flows page so tenants can see what GetYippie already does automatically.
 export interface Builtin {
   key: string
   name: string
@@ -47,7 +47,7 @@ export interface Flow {
   id: string
   name: string
   enabled: boolean
-  // [FLOW9] Yippie installed showcase flow: view only on the canvas (duplicate
+  // [FLOW9] GetYippie installed showcase flow: view only on the canvas (duplicate
   // to customise), deletable, exempt from the plan's active flow cap.
   is_default: boolean
   trigger_type: string

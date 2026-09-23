@@ -207,7 +207,7 @@ function WebhookPanel({ flowId }: { flowId: string | undefined }) {
               <button onClick={() => copy(data.signing_secret, 'Secret')} className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" title={t('flow_copy_secret')}><Copy size={13} /></button>
               <button onClick={() => { if (confirm(t('flow_rotate_confirm'))) rotateSecret.mutate() }} disabled={rotateSecret.isPending} className="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg disabled:opacity-50" title={t('flow_rotate_secret')}><RefreshCw size={13} /></button>
             </div>
-            <p className="text-[11px] text-slate-400 mt-1">{t('flow_signing_tip')} <span className="font-mono">X-Yippie-Signature: sha256=…</span></p>
+            <p className="text-[11px] text-slate-400 mt-1">{t('flow_signing_tip')} <span className="font-mono">X-GetYippie-Signature: sha256=…</span></p>
           </div>
         </>
       )}
@@ -756,7 +756,7 @@ function TestFireModal({
 
 /* ------------------------------------------------ [FLOW8] platform automations */
 
-// Read-only grid of the always-on automations Yippie runs for the tenant. Shown
+// Read-only grid of the always-on automations GetYippie runs for the tenant. Shown
 // to admins AND members — it's informational, nothing here is editable.
 function PlatformAutomations({ builtins }: { builtins: Builtin[] }) {
   const t = useT()

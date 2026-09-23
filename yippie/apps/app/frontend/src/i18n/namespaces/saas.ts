@@ -45,11 +45,11 @@ export const saas: { en: Record<string, string>; nl: Record<string, string> } = 
     saas_overview_step1_title:          '1. Add the snippet',
     saas_overview_step1_desc:           'Copy the one-line {script} tag from the Install snippet tab and paste it into your SaaS product\'s HTML, just before the closing {body} or inside {head}.',
     saas_overview_step2_title:          '2. Identify users after login',
-    saas_overview_step2_desc:           'Call {call} right after a user logs in. Yippie links the browser session to a Yippie contact by email, so all events are attributed to the right person.',
+    saas_overview_step2_desc:           'Call {call} right after a user logs in. GetYippie links the browser session to a GetYippie contact by email, so all events are attributed to the right person.',
     saas_overview_step3_title:          '3. Track what matters',
     saas_overview_step3_desc:           'Call {call} for the moments that matter: feature usage, onboarding steps completed or skipped, errors encountered, and upgrade intent (when a user visits your pricing page). The full event taxonomy is shown in the Install snippet tab.',
     saas_overview_step4_title:          '4. Health scores + agent context',
-    saas_overview_step4_desc:           'Yippie computes a health score (0–100) for each tracked customer every hour, based on how recently they were active, how many features they use, and how many errors they hit. The score and last 4 events appear in the Product usage card on every ticket, so agents walk into every conversation already informed.',
+    saas_overview_step4_desc:           'GetYippie computes a health score (0–100) for each tracked customer every hour, based on how recently they were active, how many features they use, and how many errors they hit. The score and last 4 events appear in the Product usage card on every ticket, so agents walk into every conversation already informed.',
 
     // SnippetTab
     saas_snippet_intro:                 'Copy the script tag and paste it into your SaaS product. Then call {identify} after login and {track} at key moments.',
@@ -103,11 +103,11 @@ export const saas: { en: Record<string, string>; nl: Record<string, string> } = 
     saas_overview_step1_title:          '1. Voeg de snippet toe',
     saas_overview_step1_desc:           'Kopieer de {script}-tag op één regel vanuit het tabblad Snippet installeren en plak die in de HTML van jouw SaaS-product, net voor het sluitende {body} of in {head}.',
     saas_overview_step2_title:          '2. Identificeer gebruikers na het inloggen',
-    saas_overview_step2_desc:           'Roep {call} aan direct nadat een gebruiker is ingelogd. Yippie koppelt de browsersessie via e-mail aan een Yippie-contact, zodat alle events aan de juiste persoon worden toegeschreven.',
+    saas_overview_step2_desc:           'Roep {call} aan direct nadat een gebruiker is ingelogd. GetYippie koppelt de browsersessie via e-mail aan een GetYippie-contact, zodat alle events aan de juiste persoon worden toegeschreven.',
     saas_overview_step3_title:          '3. Houd bij wat telt',
     saas_overview_step3_desc:           'Roep {call} aan voor de momenten die ertoe doen: feature-gebruik, voltooide of overgeslagen onboarding-stappen, fouten en upgrade-intentie (wanneer een gebruiker je prijspagina bezoekt). De volledige event-taxonomie staat in het tabblad Snippet installeren.',
     saas_overview_step4_title:          '4. Gezondheidsscores en agentcontext',
-    saas_overview_step4_desc:           'Yippie berekent elk uur een gezondheidsscore (0–100) voor elke bijgehouden klant, op basis van wanneer ze voor het laatst actief waren, hoeveel functies ze gebruiken en hoeveel fouten ze tegenkomen. De score en de laatste 4 events verschijnen in de kaart Productgebruik bij elk ticket, zodat medewerkers elke conversatie goed geïnformeerd beginnen.',
+    saas_overview_step4_desc:           'GetYippie berekent elk uur een gezondheidsscore (0–100) voor elke bijgehouden klant, op basis van wanneer ze voor het laatst actief waren, hoeveel functies ze gebruiken en hoeveel fouten ze tegenkomen. De score en de laatste 4 events verschijnen in de kaart Productgebruik bij elk ticket, zodat medewerkers elke conversatie goed geïnformeerd beginnen.',
 
     // SnippetTab
     saas_snippet_intro:                 'Kopieer de script-tag en plak die in jouw SaaS-product. Roep daarna {identify} aan na het inloggen en {track} op sleutelmomenten.',

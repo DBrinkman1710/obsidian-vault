@@ -54,8 +54,8 @@ function OverviewTab() {
           <div>
             <p className="text-sm font-semibold text-slate-800 mb-0.5">{t('ship_overview_erp_title')}</p>
             <p className="text-sm text-slate-500">
-              Your ERP or webshop (Exact, AFAS, WooCommerce, Shopify, …) posts an order event to a Yippie
-              URL whenever a shipment is created or its status changes. Yippie matches on{' '}
+              Your ERP or webshop (Exact, AFAS, WooCommerce, Shopify, …) posts an order event to a GetYippie
+              URL whenever a shipment is created or its status changes. GetYippie matches on{' '}
               <code className="text-xs bg-slate-200 px-1 rounded">order_number</code> and keeps the shipment
               in sync automatically. See the <strong>ERP webhook</strong> tab for the URL and payload format.
             </p>
@@ -161,7 +161,7 @@ function ErpTab() {
         </pre>
         <p className="text-xs text-slate-400 mt-2">
           Only <code className="bg-slate-100 px-1 rounded">order_number</code> is required.
-          When <code className="bg-slate-100 px-1 rounded">contact_email</code> is included, Yippie
+          When <code className="bg-slate-100 px-1 rounded">contact_email</code> is included, GetYippie
           creates the customer as a contact automatically (or updates blank fields if they already exist).
           Add <code className="bg-slate-100 px-1 rounded">contact_name</code> and{' '}
           <code className="bg-slate-100 px-1 rounded">contact_phone</code> for richer profiles.
@@ -275,7 +275,7 @@ function SendcloudTab() {
           <p className="text-xs text-slate-400 mt-2">
             Register this URL in Sendcloud under{' '}
             <span className="font-medium text-slate-600">Settings → Webhooks</span>.
-            Sendcloud will POST carrier events to Yippie in real time.
+            Sendcloud will POST carrier events to GetYippie in real time.
           </p>
         </div>
       )}
