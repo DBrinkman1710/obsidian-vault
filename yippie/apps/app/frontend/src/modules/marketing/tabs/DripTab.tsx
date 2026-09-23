@@ -12,6 +12,12 @@ import { useT } from '../../../hooks/useT'
 
 type PendingDesign = { type: 'design'; value: string } | { type: 'html'; value: string } | null
 
+// Standard template a fresh drip step opens with, so users make small edits
+// rather than start from a blank canvas. Body-only (no logo header/footer of its
+// own) since the drip send already wraps it in the branded shell.
+const DEFAULT_DRIP_TEMPLATE =
+  STARTER_TEMPLATES.find((t) => t.id === 'reengage') ?? STARTER_TEMPLATES[0]
+
 export function DripTab({ campaign }: { campaign: Campaign }) {
   const t = useT()
   const qc = useQueryClient()
@@ -61,7 +67,9 @@ export function DripTab({ campaign }: { campaign: Campaign }) {
     setEditingId(null)
     setDelay(3)
     setSubject('')
-    pendingDesignRef.current = null
+    pendingDesignRef.current = DEFAULT_DRIP_TEMPLATE
+      ? { type: 'html', value: DEFAULT_DRIP_TEMPLATE.html }
+      : null
     setEditorEverOpened(true)
     setEditorOpen(true)
   }
