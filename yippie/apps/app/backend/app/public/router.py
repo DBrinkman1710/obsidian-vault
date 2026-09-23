@@ -55,7 +55,7 @@ DEMO_RATE_WINDOW = 3600  # seconds
 # One generic 409 for every "this email already has something" case on the
 # public provisioning endpoints. Distinct messages ("already registered" vs
 # "demo already pending") let an attacker enumerate which addresses have a
-# Yippie account — every conflict cause must return this exact string.
+# GetYippie account — every conflict cause must return this exact string.
 GENERIC_CONFLICT_DETAIL = (
     "An account or demo already exists for this email address. "
     "Check your inbox, or contact support if you need help."
@@ -115,7 +115,7 @@ async def _record_global_provision(bucket: str) -> None:
 
 @router.get("/stats")
 async def get_public_stats(db: Annotated[AsyncSession, Depends(get_db)]) -> dict:
-    """Global, cross-tenant aggregate of hours saved by Yippie.
+    """Global, cross-tenant aggregate of hours saved by GetYippie.
 
     Intentionally NOT tenant-filtered: this powers the marketing site's
     "hours saved globally" counter, summed across all tenants.
@@ -239,7 +239,7 @@ DEMO_BYPASS_EMAILS = {e.strip().lower() for e in os.getenv("DEMO_BYPASS_EMAILS",
 
 
 async def _reject_active_user_email(db: AsyncSession, email: str) -> None:
-    """Block demo provisioning when the address already belongs to a Yippie account.
+    """Block demo provisioning when the address already belongs to a GetYippie account.
 
     Two cases are rejected — a live (non-demo) tenant, and a pending/active demo —
     but both return the same generic 409 (GENERIC_CONFLICT_DETAIL) so the endpoint
@@ -266,7 +266,7 @@ async def _reject_active_user_email(db: AsyncSession, email: str) -> None:
 
     # An existing demo tenant (pending or still within its lifetime) for this email.
     # NOTE: the 409 detail is deliberately identical for every conflict cause —
-    # distinct messages would reveal whether an address has a Yippie account.
+    # distinct messages would reveal whether an address has a GetYippie account.
     if tenant.is_demo:
         now = datetime.now(timezone.utc)
         active_demo = tenant.demo_expires_at is None or tenant.demo_expires_at > now
@@ -1254,7 +1254,7 @@ async def public_get_manage(
     first_name = ((contact.full_name if contact else "") or "there").split(" ")[0]
 
     return ManageBookingOut(
-        tenant_name=tenant.name if tenant else "Yippie",
+        tenant_name=tenant.name if tenant else "GetYippie",
         contact_first_name=first_name,
         start_at=event.start_at,
         end_at=event.end_at,
@@ -1365,7 +1365,7 @@ async def public_get_booking(
     first_name = ((contact.full_name if contact else "") or "there").split(" ")[0]
 
     return PublicBookingOut(
-        tenant_name=tenant.name if tenant else "Yippie",
+        tenant_name=tenant.name if tenant else "GetYippie",
         contact_first_name=first_name,
         mode=token.mode,
         proposed_slots=proposed,
@@ -1443,7 +1443,7 @@ async def export_user_calendar(
     feed_token: uuid.UUID,
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> Response:
-    """Personal iCal feed — unauthenticated. Returns the user's Yippie calendar events
+    """Personal iCal feed — unauthenticated. Returns the user's GetYippie calendar events
     and confirmed bookings as a .ics file for subscription in Apple Calendar / Outlook."""
     import icalendar as _ical
 
@@ -1460,10 +1460,10 @@ async def export_user_calendar(
     await set_tenant_context(db, str(user.tenant_id))
 
     cal = _ical.Calendar()
-    cal.add("PRODID", "-//Yippie//Calendar//EN")
+    cal.add("PRODID", "-//GetYippie//Calendar//EN")
     cal.add("VERSION", "2.0")
     cal.add("CALSCALE", "GREGORIAN")
-    cal.add("X-WR-CALNAME", f"{user.full_name} | Yippie")
+    cal.add("X-WR-CALNAME", f"{user.full_name} | GetYippie")
 
     # Own events + accepted invitations
     own_events_result = await db.execute(
@@ -2345,7 +2345,7 @@ async def public_get_contract(
     tenant = await db.get(Tenant, contract.tenant_id)
 
     return PublicContractOut(
-        tenant_name=tenant.name if tenant else "Yippie",
+        tenant_name=tenant.name if tenant else "GetYippie",
         title=contract.title,
         body=contract.body or "",
         counterparty_name=contract.counterparty_name,

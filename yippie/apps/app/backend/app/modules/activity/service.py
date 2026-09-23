@@ -341,7 +341,7 @@ async def _time_to_open_map(
     since: datetime,
     personal: bool,
 ) -> dict:
-    """Avg minutes from message received to first opened in the Yippie inbox
+    """Avg minutes from message received to first opened in the GetYippie inbox
     (draft.opened_at - inbound.received_at), grouped by the opener. ``personal``
     selects mail arriving at a user's own linked mailbox; otherwise the shared
     inbox. Attributed to whoever opened it."""

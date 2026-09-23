@@ -74,7 +74,7 @@ async def handle_signup_payment(
 
     line_items: list[LineItem] = [
         LineItem(
-            description=f"Yippie {plan.title()} plan for {company_name}",
+            description=f"GetYippie {plan.title()} plan for {company_name}",
             quantity=1,
             unit_price_cents=int(plan_price * 100),
         )

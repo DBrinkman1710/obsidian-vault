@@ -207,6 +207,6 @@ def generate_manual_pdf() -> bytes:
     pdf.set_y(-15)
     pdf.set_font("Helvetica", "", 7)
     pdf.set_text_color(*MUTED)
-    pdf.cell(W, 5, "Yippie Platform Manual  -  app.getyippie.com", align="C")
+    pdf.cell(W, 5, "GetYippie Platform Manual  -  app.getyippie.com", align="C")
 
     return bytes(pdf.output())

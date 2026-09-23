@@ -43,8 +43,18 @@ export interface SequenceStep {
   delay_days: number
   subject: string
   html_body: string
+  design_json?: string | null
+  campaign_buttons?: string | null
   sent_at: string | null
   created_at: string
+}
+
+export interface SequenceStepInput {
+  delay_days: number
+  subject: string
+  html_body: string
+  design_json?: string
+  campaign_buttons?: unknown[]
 }
 
 export interface AnalyticsRecipient {
@@ -134,8 +144,10 @@ export const marketingApi = {
 
   listSequences: (id: string) =>
     api.get<SequenceStep[]>(`/marketing/campaigns/${id}/sequences`).then((r: any) => r.data),
-  addSequence: (id: string, body: { delay_days: number; subject: string; html_body: string }) =>
+  addSequence: (id: string, body: SequenceStepInput) =>
     api.post<SequenceStep>(`/marketing/campaigns/${id}/sequences`, body).then((r: any) => r.data),
+  updateSequence: (id: string, seqId: string, body: SequenceStepInput) =>
+    api.put<SequenceStep>(`/marketing/campaigns/${id}/sequences/${seqId}`, body).then((r: any) => r.data),
   deleteSequence: (id: string, seqId: string) =>
     api.delete(`/marketing/campaigns/${id}/sequences/${seqId}`).then((r: any) => r.data),
 

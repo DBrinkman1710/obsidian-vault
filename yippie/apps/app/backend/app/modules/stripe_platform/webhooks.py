@@ -19,7 +19,7 @@ webhook_router = APIRouter(tags=["stripe-webhooks"])
 
 @webhook_router.post("/stripe/webhooks/platform", include_in_schema=False)
 async def stripe_platform_webhook(request: Request):
-    """Stripe webhook — Layer 1 (Yippie SaaS billing events).
+    """Stripe webhook — Layer 1 (GetYippie SaaS billing events).
     Mounted without auth middleware so Stripe can POST directly."""
     settings = get_settings()
     payload = await request.body()

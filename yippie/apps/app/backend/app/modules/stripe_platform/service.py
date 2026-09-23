@@ -15,7 +15,7 @@ from app.core.plans import PlanTier
 
 log = logging.getLogger(__name__)
 
-# Maps Stripe price lookup_keys → Yippie plan tier.
+# Maps Stripe price lookup_keys → GetYippie plan tier.
 PLAN_LOOKUP_KEYS: dict[str, PlanTier] = {
     "yippie_founder_monthly": PlanTier.founder,
     "yippie_founder_annual": PlanTier.founder,
@@ -27,7 +27,7 @@ PLAN_LOOKUP_KEYS: dict[str, PlanTier] = {
     "yippie_pro_annual":     PlanTier.pro,
 }
 
-# Maps Stripe price lookup_keys → Yippie module id. Canonical source:
+# Maps Stripe price lookup_keys → GetYippie module id. Canonical source:
 # packages/config/modules.json via ``_modules_gen`` (`pnpm sync:config`).
 from app.core._modules_gen import MODULE_STRIPE_KEYS as MODULE_LOOKUP_KEYS  # noqa: F401
 

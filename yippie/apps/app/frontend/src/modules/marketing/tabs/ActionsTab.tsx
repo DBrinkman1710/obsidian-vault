@@ -241,7 +241,25 @@ export function ActionsTab({ campaign }: { campaign: Campaign }) {
       toast.success(t('mkt_actions_saved'))
       qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
     },
-    onError: () => toast.error(t('mkt_actions_save_err')),
+    onError: (err: any) => {
+      // Surface the real cause so we can diagnose the "fails the first time"
+      // report without needing the browser Network tab. Covers both HTTP error
+      // responses (status + detail) and no-response failures (network / aborted
+      // request, which have no err.response — then show the raw axios message).
+      const status = err?.response?.status
+      const detail = err?.response?.data?.detail
+      const detailMsg = typeof detail === 'string'
+        ? detail
+        : Array.isArray(detail)
+        ? detail.map((d: any) => d?.msg).filter(Boolean).join(', ')
+        : ''
+      const tail = status
+        ? ` (${status})${detailMsg ? `: ${detailMsg}` : ''}`
+        : ` — ${err?.code || err?.message || 'no response'}`
+      // eslint-disable-next-line no-console
+      console.error('[marketing actions save failed]', status, err?.code, err?.message, err?.response?.data ?? err)
+      toast.error(`${t('mkt_actions_save_err')}${tail}`)
+    },
   })
 
   const noActionLabel = t('mkt_no_action')

@@ -150,7 +150,7 @@ async def create_tenant(db: AsyncSession, data: TenantCreate) -> dict:
         except ResendNotConfiguredError:
             pass  # tenant is created either way; invites can be re-sent later
 
-    # The product introduction lands in the client's own Yippie inbox — the
+    # The product introduction lands in the client's own GetYippie inbox — the
     # poller picks it up like any customer mail, so it's the first draft they see.
     if tenant.inbound_email:
         try:
@@ -385,7 +385,7 @@ async def invite_superadmin(
     tenant = await db.get(Tenant, current_user.tenant_id)
     await send_invite_email(
         to=email, full_name=full_name, tenant_id=current_user.tenant_id,
-        role=UserRole.superadmin.value, tenant_name=tenant.name if tenant else "Yippie",
+        role=UserRole.superadmin.value, tenant_name=tenant.name if tenant else "GetYippie",
     )
     return {"invited": True, "email": email}
 

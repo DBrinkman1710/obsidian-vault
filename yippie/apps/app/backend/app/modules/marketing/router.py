@@ -69,6 +69,12 @@ async def update_campaign(
     campaign = await _require_campaign(db, current_user.tenant_id, campaign_id)
     campaign = await service.update_campaign(db, campaign, body)
     await db.commit()
+    # updated_at is set by a server-side now() in the UPDATE, so it is expired
+    # after commit. Reload it here, inside the async context, otherwise
+    # serializing CampaignOut.updated_at triggers lazy IO in FastAPI's sync
+    # response path and raises MissingGreenlet (500 even though the write
+    # committed — which is why a second, no-op save appeared to "work").
+    await db.refresh(campaign)
     return campaign
 
 
@@ -212,6 +218,27 @@ async def add_sequence(
 ):
     await _require_campaign(db, current_user.tenant_id, campaign_id)
     seq = await service.add_sequence(db, current_user.tenant_id, campaign_id, body)
+    await db.commit()
+    return seq
+
+
+@router.put(
+    "/campaigns/{campaign_id}/sequences/{seq_id}",
+    response_model=CampaignSequenceOut,
+)
+async def edit_sequence(
+    campaign_id: uuid.UUID,
+    seq_id: uuid.UUID,
+    body: CampaignSequenceCreate,
+    current_user: CurrentUser,
+    db: DB,
+):
+    await _require_campaign(db, current_user.tenant_id, campaign_id)
+    seq = await service.update_sequence(
+        db, current_user.tenant_id, campaign_id, seq_id, body
+    )
+    if seq is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Step not found")
     await db.commit()
     return seq
 

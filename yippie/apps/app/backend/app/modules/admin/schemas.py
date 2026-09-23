@@ -186,7 +186,7 @@ class ProvisionDomainRequest(BaseModel):
 class BroadcastRequest(BaseModel):
     subject: str
     body: str  # plain text; HTML wrapper applied server-side
-    from_name: str = "Yippie"
+    from_name: str = "GetYippie"
 
 
 class BroadcastResult(BaseModel):

@@ -14,6 +14,7 @@ import { Skeleton } from '../../../shell/Skeleton'
 import { useMobile } from '../../../shell/useMobile'
 import { useSignatures, pickDefaultSignature, swapSignature, type Signature } from '../../../hooks/useSignatures'
 import { SignaturePicker } from '../components/SignaturePicker'
+import { RichReplyEditor } from '../components/RichReplyEditor'
 import { useLinkedEmailAccounts, PROVIDER_SHORT } from '../hooks/useLinkedEmailAccounts'
 import { useCopy } from '../../../hooks/useCopy'
 import { CloseButton } from '../../../shell/CloseButton'
@@ -438,7 +439,7 @@ export default function DraftReview() {
   const [undoCancelled, setUndoCancelled] = useState(false)
   const [demoNotice, setDemoNotice] = useState(false)
   const undoIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const replyTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const replyTextareaRef = useRef<HTMLDivElement>(null)
   const [replyFiles, setReplyFiles] = useState<File[]>([])
   const [fromEmail, setFromEmail] = useState<string | null>(null)
   const [actionError, setActionError] = useState('')
@@ -891,7 +892,7 @@ export default function DraftReview() {
                 )}
               </div>
               {msg?.subject && <p className="text-sm font-semibold text-slate-900 mb-2">{msg.subject}</p>}
-              <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">
+              <p className="text-sm text-slate-600 whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed">
                 {emailExpanded || !bodyIsLong ? bodyFull : bodyPreview + '…'}
               </p>
               {bodyIsLong && (
@@ -1414,7 +1415,7 @@ export default function DraftReview() {
               {msg?.subject && (
                 <p className="text-sm font-semibold text-slate-900 mb-3">{msg.subject}</p>
               )}
-              <p className="text-sm text-slate-600 whitespace-pre-wrap leading-relaxed">{msg?.raw_body}</p>
+              <p className="text-sm text-slate-600 whitespace-pre-wrap break-words [overflow-wrap:anywhere] leading-relaxed">{msg?.raw_body}</p>
               {ctx?.attachments && ctx.attachments.length > 0 && (
                 <div className="mt-4 pt-3 border-t border-slate-100">
                   <p className="text-[10px] font-bold tracking-widest text-slate-400 uppercase mb-2">Attachments</p>
@@ -1531,10 +1532,10 @@ export default function DraftReview() {
                   </div>
                 </div>
               )}
-              <textarea
+              <RichReplyEditor
                 ref={replyTextareaRef}
                 value={replyText}
-                onChange={e => { setReplyText(e.target.value); setSuggestions([]) }}
+                onChange={v => { setReplyText(v); setSuggestions([]) }}
                 onKeyDown={e => {
                   if (user?.hotkeys_enabled === false) return
                   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter' && !sending && !undoUntil && !sentTo && replyText.trim()) {
@@ -1543,7 +1544,7 @@ export default function DraftReview() {
                   }
                 }}
                 placeholder="Click 'Generate' to draft an AI reply, or write your own…"
-                className="flex-1 w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 resize-none focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie focus:bg-white transition-colors font-sans placeholder:text-slate-400 min-h-0"
+                className="flex-1 w-full px-3 py-2.5 text-sm border border-slate-200 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-yippie/30 focus:border-yippie focus:bg-white transition-colors font-sans min-h-0"
               />
 
               {suggestions.length > 0 && (

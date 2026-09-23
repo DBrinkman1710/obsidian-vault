@@ -331,6 +331,6 @@ def generate_invoice_pdf(
     pdf.set_y(-18)
     pdf.set_font("Helvetica", size=7)
     pdf.set_text_color(160, 160, 160)
-    pdf.cell(page_w, 5, f"Gegenereerd met Yippie  ·  {tenant.name or ''}", align="C")
+    pdf.cell(page_w, 5, f"Gegenereerd met GetYippie  ·  {tenant.name or ''}", align="C")
 
     return bytes(pdf.output())

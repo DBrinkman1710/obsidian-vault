@@ -83,7 +83,7 @@ async def invite_user(
             )
     await send_invite_email(
         to=email, full_name=full_name, tenant_id=tenant_id,
-        role=role_enum.value, tenant_name=tenant.name if tenant else "Yippie",
+        role=role_enum.value, tenant_name=tenant.name if tenant else "GetYippie",
         rbac_role_ids=[str(r) for r in rbac_role_ids] if rbac_role_ids else [],
     )
     return {"invited": True, "email": email, "role": role_enum.value}

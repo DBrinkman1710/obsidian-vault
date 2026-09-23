@@ -1119,7 +1119,7 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                         campaign_buttons_html = render_campaign_buttons_html(buttons, token_map=token_map)
 
                 # Unlayer templates are complete HTML documents — send them directly
-                # instead of nesting them inside the Yippie email shell wrapper,
+                # instead of nesting them inside the GetYippie email shell wrapper,
                 # which produces invalid double-nested HTML and breaks the template.
                 if c["prerendered_html"]:
                     html_body = c["prerendered_html"]
@@ -1222,9 +1222,21 @@ async def flush_pending_sends(db: AsyncSession) -> None:
                 "Pending send %s: linked account %s revoked — reconnect required (attempt %d/%d)",
                 c["id"], c["email_account_id"], c["attempts"] + 1, MAX_SEND_ATTEMPTS,
             )
-        except Exception:
+        except Exception as exc:
             await db.rollback()
-            if c["attempts"] + 1 >= MAX_SEND_ATTEMPTS:
+            import httpx  # lazy: only needed on the failure path
+            is_final = c["attempts"] + 1 >= MAX_SEND_ATTEMPTS
+            # A transient network timeout (Resend/Gmail/Outlook slow to answer) is
+            # expected and self-healing: the row is leased, so the next cycle retries.
+            # Downgrade it to a warning so it doesn't page as a Sentry error — same
+            # treatment as ResendNotConfiguredError. Only surface it if it also
+            # exhausts every attempt (a persistent problem, not a blip).
+            if isinstance(exc, httpx.TransportError) and not is_final:
+                log.warning(
+                    "Transient network error dispatching pending send %s (attempt %d/%d) — will retry: %r",
+                    c["id"], c["attempts"] + 1, MAX_SEND_ATTEMPTS, exc,
+                )
+            elif is_final:
                 log.error(
                     "Pending send %s to %s failed its final attempt (%d/%d) — dead-lettered",
                     c["id"], c["to_email"], c["attempts"] + 1, MAX_SEND_ATTEMPTS, exc_info=True,

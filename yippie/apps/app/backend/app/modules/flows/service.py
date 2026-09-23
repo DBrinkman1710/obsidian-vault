@@ -431,7 +431,7 @@ async def _validate_flow_capacity(
 ) -> None:
     """The plan's active-flow cap (PLAN_LIMITS["flows"], None == unlimited),
     checked whenever a flow is about to become enabled. Only ENABLED, non
-    default flows count — drafts are free, and the Yippie installed default
+    default flows count — drafts are free, and the GetYippie installed default
     flows never occupy a slot (deleting one frees nothing either)."""
     limit = limits_for_plan(tenant.plan).get("flows")
     if limit is None:

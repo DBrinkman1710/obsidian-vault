@@ -45,7 +45,7 @@ class ContactPipelineEntry(Base):
 # [KAN_FLOW1] One flowchart per tenant describing how the Kanban pipeline works:
 # stage nodes, decision diamonds and labelled arrows. The board (pipeline_stages)
 # stays the source of truth for the stage list — this table only stores the
-# visual/semantic layout so Yippie can later reason about the pipeline (KAN_FLOW2).
+# visual/semantic layout so GetYippie can later reason about the pipeline (KAN_FLOW2).
 class PipelineFlowchart(Base):
     __tablename__ = "pipeline_flowcharts"
 

@@ -22,7 +22,7 @@ log = logging.getLogger(__name__)
 MAX_PAGE_BYTES = 2_000_000  # refuse oversized pages — a FAQ page is not 2 MB
 MAX_CHUNKS = 200
 FETCH_TIMEOUT = 15.0
-_USER_AGENT = "YippieBot/1.0 (+https://getyippie.com)"
+_USER_AGENT = "GetYippieBot/1.0 (+https://getyippie.com)"
 
 
 # ── reads ─────────────────────────────────────────────────────────────────────

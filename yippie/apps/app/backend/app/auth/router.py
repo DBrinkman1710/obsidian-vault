@@ -293,7 +293,7 @@ async def forgot_password(body: ForgotPasswordRequest, request: Request, db: Ann
                 to=user.email,
                 subject=_t["subject"],
                 body=reset_body,
-                html=render_email_html(reset_body, tenant_name="Yippie"),
+                html=render_email_html(reset_body, tenant_name="GetYippie"),
             )
         except ResendNotConfiguredError:
             pass

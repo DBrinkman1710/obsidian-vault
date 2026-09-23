@@ -184,6 +184,13 @@ async def list_sequences(
     return list(result.scalars().all())
 
 
+def _serialise_buttons(buttons: object) -> Optional[str]:
+    """Store campaign_buttons as a JSON string (matches CampaignTemplate)."""
+    if buttons is None or isinstance(buttons, str):
+        return buttons  # type: ignore[return-value]
+    return _json.dumps(buttons)
+
+
 async def add_sequence(
     db: AsyncSession,
     tenant_id: uuid.UUID,
@@ -196,8 +203,36 @@ async def add_sequence(
         delay_days=data.delay_days,
         subject=data.subject,
         html_body=data.html_body,
+        design_json=data.design_json,
+        campaign_buttons=_serialise_buttons(data.campaign_buttons),
     )
     db.add(seq)
+    await db.flush()
+    return seq
+
+
+async def update_sequence(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    campaign_id: uuid.UUID,
+    seq_id: uuid.UUID,
+    data: CampaignSequenceCreate,
+) -> Optional[CampaignSequence]:
+    result = await db.execute(
+        select(CampaignSequence).where(
+            CampaignSequence.id == seq_id,
+            CampaignSequence.campaign_id == campaign_id,
+            CampaignSequence.tenant_id == tenant_id,
+        )
+    )
+    seq = result.scalar_one_or_none()
+    if seq is None:
+        return None
+    seq.delay_days = data.delay_days
+    seq.subject = data.subject
+    seq.html_body = data.html_body
+    seq.design_json = data.design_json
+    seq.campaign_buttons = _serialise_buttons(data.campaign_buttons)
     await db.flush()
     return seq
 
@@ -715,12 +750,17 @@ def _apply_personalization(
     ticket_id: str | None = None,
     ticket_subject: str | None = None,
     agent_name: str | None = None,
+    escape: bool = True,
 ) -> str:
     """Replace personalisation tokens in HTML with contact/ticket values.
 
     Supported tokens: {{first_name}}, {{last_name}}, {{company}}, {{email}},
     {{phone}}, {{ticket_id}}, {{ticket_subject}}, {{agent_name}}.
     Unknown tokens are left as-is; missing optional context values become "".
+
+    ``escape`` HTML-escapes the substituted values (correct for an HTML body).
+    Pass ``escape=False`` for plain-text targets such as the email subject,
+    where '&' etc. must stay literal.
     """
     name_parts = (contact.full_name or "").split()
     first_name = name_parts[0] if name_parts else ""
@@ -729,21 +769,67 @@ def _apply_personalization(
         (contact.company_rel.name or "") if contact.company_rel is not None
         else (contact.company or "")
     )
-    from html import escape as _escape
+    from html import escape as _html_escape
+    esc = _html_escape if escape else (lambda s: s)
     replacements = {
-        "{{first_name}}": _escape(first_name),
-        "{{first name}}": _escape(first_name),
-        "{{last_name}}": _escape(last_name),
-        "{{last name}}": _escape(last_name),
-        "{{company}}": _escape(company_name),
-        "{{email}}": _escape(contact.email or ""),
-        "{{phone}}": _escape(contact.phone or ""),
-        "{{ticket_id}}": _escape(ticket_id or ""),
-        "{{ticket_subject}}": _escape(ticket_subject or ""),
-        "{{agent_name}}": _escape(agent_name or ""),
+        "{{first_name}}": esc(first_name),
+        "{{first name}}": esc(first_name),
+        "{{last_name}}": esc(last_name),
+        "{{last name}}": esc(last_name),
+        "{{company}}": esc(company_name),
+        "{{email}}": esc(contact.email or ""),
+        "{{phone}}": esc(contact.phone or ""),
+        "{{ticket_id}}": esc(ticket_id or ""),
+        "{{ticket_subject}}": esc(ticket_subject or ""),
+        "{{agent_name}}": esc(agent_name or ""),
     }
     for token, value in replacements.items():
         html = html.replace(token, value)
+    return html
+
+
+async def apply_button_tracking(
+    db: AsyncSession,
+    html: str,
+    buttons_raw: object,
+    *,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    base_url: str,
+    stage_override: Optional[dict] = None,
+) -> str:
+    """Mint per-recipient click tokens for CRM-action buttons and inject the
+    tracking hrefs into ``html``. Shared by the campaign launch and the drip
+    steps so both get the same tracked pipeline/label buttons. No-op when there
+    are no trackable buttons."""
+    if not buttons_raw:
+        return html
+    from app.modules.tracking.models import LabelClickToken as _LCT
+
+    buttons = _json.loads(buttons_raw) if isinstance(buttons_raw, str) else (buttons_raw or [])
+    override = stage_override or {}
+    token_map: dict[str, str] = {}
+    for btn in buttons:
+        action = btn.get("action_type", "")
+        if action not in ("pipeline_stage", "apply_label"):
+            continue
+        btn_token = uuid.uuid4()
+        btn_id = str(btn.get("id", ""))
+        raw_stage = override[btn_id] if btn_id in override else btn.get("stage_id")
+        raw_label = btn.get("label_id")
+        db.add(_LCT(
+            token=btn_token,
+            tenant_id=tenant_id,
+            contact_id=contact_id,
+            action_type=action,
+            stage_id=uuid.UUID(str(raw_stage)) if raw_stage else None,
+            label_id=uuid.UUID(raw_label) if raw_label else None,
+            button_id=btn_id,
+            redirect_url=btn.get("redirect_url") or None,
+        ))
+        token_map[btn_id] = f"{base_url}/api/v1/track/click/{btn_token}"
+    if token_map:
+        html = inject_button_tracking(html, buttons, token_map)
     return html
 
 
@@ -798,14 +884,25 @@ async def test_send_campaign(
 
     # Apply personalisation using the agent's own data.
     first_name = agent_name.split()[0] if agent_name else ""
-    preview_html = body_html
-    preview_html = preview_html.replace("{{first_name}}", first_name)
-    preview_html = preview_html.replace("{{company}}", "")
-    preview_html = preview_html.replace("{{email}}", agent_email)
 
+    def _personalize(text: str) -> str:
+        return (
+            text.replace("{{first_name}}", first_name)
+            .replace("{{company}}", "")
+            .replace("{{email}}", agent_email)
+        )
+
+    preview_html = _personalize(body_html)
+    preview_subject = _personalize(campaign.subject or "")
+
+    from app.core.models import Tenant
+    tenant = await db.get(Tenant, campaign.tenant_id)
     full_html = render_email_html(
         body_text=campaign.subject,
         prerendered_html=preview_html or f"<p>{campaign.subject}</p>",
+        tenant_name=tenant.name if tenant else None,
+        primary_color=tenant.primary_color if tenant else None,
+        logo_url=tenant.logo_url if tenant else None,
     )
     full_html += f'<div style="text-align:center;padding:8px 0;font-size:11px;color:#9ca3af;">Test send — not tracked</div>'
 
@@ -813,8 +910,8 @@ async def test_send_campaign(
     try:
         await send_email(
             to=agent_email,
-            subject=f"[TEST] {campaign.subject}",
-            body=campaign.subject,
+            subject=f"[TEST] {preview_subject}",
+            body=preview_subject,
             html=full_html,
             from_email=agent_reply_from if agent_reply_from != agent_email else None,
         )
@@ -881,6 +978,9 @@ async def launch_campaign(
     campaign.dispatched_at = datetime.now(timezone.utc)
     await db.flush()
 
+    from app.core.models import Tenant
+    tenant = await db.get(Tenant, tenant_id)
+
     payloads: list[tuple[Contact, str, str, str]] = []  # (contact, html, to_email, unsub_url)
     for idx, contact in enumerate(dispatch_set):
         token = uuid.uuid4()
@@ -900,6 +1000,9 @@ async def launch_campaign(
         full_html = render_email_html(
             body_text=campaign.subject,
             prerendered_html=body_html or f"<p>{campaign.subject}</p>",
+            tenant_name=tenant.name if tenant else None,
+            primary_color=tenant.primary_color if tenant else None,
+            logo_url=tenant.logo_url if tenant else None,
         )
 
         # Mint per-recipient tracking tokens for CRM-action buttons and inject hrefs.
@@ -988,9 +1091,12 @@ async def _dispatch_email(
     for _contact, html, to_email, unsub_url in payloads:
         try:
             plain = re.sub(r"<[^>]+>", " ", html).strip() or campaign.subject
+            subject = _apply_personalization(
+                campaign.subject or campaign.name, _contact, escape=False
+            )
             await send_email(
                 to=to_email,
-                subject=campaign.subject or campaign.name,
+                subject=subject,
                 body=plain,
                 html=html,
                 from_email=sender_email,
@@ -1082,6 +1188,9 @@ async def ab_pick_winner(
     templates = {t.variant: t for t in await get_campaign_templates(db, campaign.id)}
     win_html = _select_variant_html(templates, winner)
 
+    from app.core.models import Tenant
+    tenant = await db.get(Tenant, campaign.tenant_id)
+
     payloads: list[tuple[Contact, str, str, str]] = []
     for contact in remaining:
         token = uuid.uuid4()
@@ -1089,6 +1198,9 @@ async def ab_pick_winner(
         full_html = render_email_html(
             body_text=campaign.subject,
             prerendered_html=personalized or f"<p>{campaign.subject}</p>",
+            tenant_name=tenant.name if tenant else None,
+            primary_color=tenant.primary_color if tenant else None,
+            logo_url=tenant.logo_url if tenant else None,
         )
         unsub_url = f"{base_url}/api/v1/track/unsubscribe/{token}"
         full_html += _open_pixel(base_url, token)

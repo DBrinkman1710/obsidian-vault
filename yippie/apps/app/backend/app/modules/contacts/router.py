@@ -34,7 +34,7 @@ from app.modules.contacts.schemas import (
     ImportResult,
 )
 
-# Yippie contact fields a file column can be mapped onto. full_name is required.
+# GetYippie contact fields a file column can be mapped onto. full_name is required.
 _IMPORT_TARGET_FIELDS = {"full_name", "email", "phone", "company", "notes"}
 
 router = APIRouter(prefix="/contacts", tags=["contacts"])

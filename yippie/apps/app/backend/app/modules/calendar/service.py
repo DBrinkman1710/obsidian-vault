@@ -278,7 +278,7 @@ async def _notify_contact(db: AsyncSession, event: CalendarEvent) -> None:
             return
 
         tenant = await db.get(Tenant, event.tenant_id)
-        tenant_name = tenant.name if tenant else "Yippie"
+        tenant_name = tenant.name if tenant else "GetYippie"
         primary_color = tenant.primary_color if tenant else None
         logo_url = tenant.logo_url if tenant else None
 
@@ -288,7 +288,7 @@ async def _notify_contact(db: AsyncSession, event: CalendarEvent) -> None:
         text_lines = [event.title, "", when]
         if event.description:
             text_lines += ["", event.description]
-        text_lines += ["", f"This invitation was sent by {tenant_name} via Yippie."]
+        text_lines += ["", f"This invitation was sent by {tenant_name} via GetYippie."]
         body_text = "\n".join(text_lines)
 
         desc_html = (
@@ -302,7 +302,7 @@ async def _notify_contact(db: AsyncSession, event: CalendarEvent) -> None:
             f'<p style="margin:0 0 14px 0;font-weight:600;color:#374151;">{_html.escape(when)}</p>'
             f"{desc_html}"
             f'<p style="margin:18px 0 0 0;font-size:13px;color:#6b7280;">'
-            f"This invitation was sent by {_html.escape(tenant_name)} via Yippie.</p>"
+            f"This invitation was sent by {_html.escape(tenant_name)} via GetYippie.</p>"
         )
         html_body = render_email_html(
             body_text,
@@ -542,7 +542,7 @@ async def _notify_invitee(
         )
         if event.description:
             body_text += f"\n\n{event.description}"
-        body_text += "\n\nLog in to Yippie to accept or decline."
+        body_text += "\n\nLog in to GetYippie to accept or decline."
         desc_html = (
             f'<p style="margin:0 0 14px 0;line-height:1.55;">'
             f'{_html.escape(event.description).replace(chr(10), "<br>")}</p>'
@@ -554,9 +554,9 @@ async def _notify_invitee(
             f'<p style="margin:0 0 14px 0;font-weight:600;color:#374151;">{_html.escape(when)}</p>'
             f"{desc_html}"
             f'<p style="margin:0 0 8px 0;font-size:13px;color:#6b7280;">'
-            f"Invited by {_html.escape(organiser_name)} via Yippie.</p>"
+            f"Invited by {_html.escape(organiser_name)} via GetYippie.</p>"
             f'<p style="margin:8px 0 0 0;font-size:13px;color:#6b7280;">'
-            f"Log in to Yippie to accept, decline, or propose a new time.</p>"
+            f"Log in to GetYippie to accept, decline, or propose a new time.</p>"
         )
         html_body = render_email_html(body_text, prerendered_html=content)
         await send_email(to=invitee.email, subject=subject, body=body_text, html=html_body)

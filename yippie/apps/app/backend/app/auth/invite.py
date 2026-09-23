@@ -38,7 +38,7 @@ async def send_invite_email(
     base = settings.client_base_url or settings.effective_base_url
     link = f"{base}/register?token={token}"
     # Short form on purpose (Diederik, 2026-06-10): just the activation link. The
-    # product introduction is a separate mail sent into the client's Yippie inbox
+    # product introduction is a separate mail sent into the client's GetYippie inbox
     # on tenant creation — see send_welcome_to_inbox().
     t = EMAILS["invite"][pick(lang)]
     body = (
@@ -52,7 +52,7 @@ async def send_invite_email(
         to=to,
         subject=t["subject"].format(tenant_name=tenant_name),
         body=body,
-        html=render_email_html(body, tenant_name="Yippie"),
+        html=render_email_html(body, tenant_name="GetYippie"),
     )
 
 
@@ -91,8 +91,8 @@ async def send_demo_ready_email(to: str, full_name: str, magic_link: str, lang: 
         to=to,
         subject=t["subject"],
         body=plain_body,
-        html=render_email_html(plain_body, prerendered_html=prerendered, tenant_name="Yippie"),
-        from_email="Diederik from Yippie <diederik@getyippie.com>",
+        html=render_email_html(plain_body, prerendered_html=prerendered, tenant_name="GetYippie"),
+        from_email="Diederik from GetYippie <diederik@getyippie.com>",
         reply_to="diederik@getyippie.com",
     )
 
@@ -145,14 +145,14 @@ async def send_verification_email(
         to=to,
         subject=t["subject"],
         body=plain_body,
-        html=render_email_html(plain_body, prerendered_html=prerendered, tenant_name="Yippie"),
-        from_email="Diederik from Yippie <diederik@getyippie.com>",
+        html=render_email_html(plain_body, prerendered_html=prerendered, tenant_name="GetYippie"),
+        from_email="Diederik from GetYippie <diederik@getyippie.com>",
         reply_to="diederik@getyippie.com",
     )
 
 
 async def send_welcome_to_inbox(tenant_inbound_email: str, tenant_name: str, lang: str = "nl") -> None:
-    """Send the welcome/introduction mail INTO the client's Yippie inbox (their
+    """Send the welcome/introduction mail INTO the client's GetYippie inbox (their
     tenant inbound address), so it's the first item they see in the product
     instead of being buried in the password mail."""
     t = EMAILS["welcome_inbox"][pick(lang)]
@@ -173,5 +173,5 @@ async def send_welcome_to_inbox(tenant_inbound_email: str, tenant_name: str, lan
         to=tenant_inbound_email,
         subject=t["subject"],
         body=body,
-        html=render_email_html(body, tenant_name="Yippie"),
+        html=render_email_html(body, tenant_name="GetYippie"),
     )

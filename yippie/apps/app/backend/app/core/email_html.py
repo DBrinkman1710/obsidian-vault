@@ -13,7 +13,7 @@ from __future__ import annotations
 import html
 import re
 
-DEFAULT_ACCENT = "#5BB8E8"  # Yippie default (Tenant.primary_color default)
+DEFAULT_ACCENT = "#5BB8E8"  # GetYippie default (Tenant.primary_color default)
 
 _HEX_RE = re.compile(r"^#[0-9a-fA-F]{3,8}$")
 
@@ -210,7 +210,7 @@ def render_email_html(
     prerendered_html: str | None = None,
     campaign_buttons_html: str = "",
 ) -> str:
-    """Render the plain-text body into the professional Yippie HTML email layout.
+    """Render the plain-text body into the professional GetYippie HTML email layout.
 
     When ``prerendered_html`` is set (Unlayer/GrapesJS template export), it is
     embedded directly in the white card instead of paragraph-escaping
@@ -220,17 +220,17 @@ def render_email_html(
     The layout:
       - Full-width #f1f5f9 background
       - 600px centered container
-      - White logo header (tenant logo or Yippie fallback) + 4px accent bar
+      - White logo header (tenant logo or GetYippie fallback) + 4px accent bar
       - White body card with 40px padding
       - Small gray footer
     """
     accent = _safe_color(primary_color)
     content = prerendered_html if prerendered_html is not None else _paragraphs(body_text)
 
-    # Logo header: prefer tenant's logo_url, fall back to Yippie default
+    # Logo header: prefer tenant's logo_url, fall back to GetYippie default
     safe_custom = _safe_logo_url(logo_url)
     effective_logo = safe_custom or FALLBACK_LOGO_URL
-    alt_text = html.escape(tenant_name or "Yippie")
+    alt_text = html.escape(tenant_name or "GetYippie")
     logo_img = (
         f'<img src="{effective_logo}" alt="{alt_text}" '
         f'style="height:44px;max-width:220px;border:0;display:inline-block;" />'
@@ -257,7 +257,7 @@ def render_email_html(
         f'{campaign_buttons_html}'
         '</div>'
         '<div style="text-align:center;padding:20px 0;font-size:12px;color:#94a3b8;">'
-        'Sent with Yippie'
+        'Sent with GetYippie'
         '</div>'
         '</div></body></html>'
     )

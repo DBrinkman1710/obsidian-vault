@@ -156,7 +156,7 @@ async def _send_demo_prospect_email(
     plain = (
         f"Hi {plain_name},\n\n{intro_plain}\n\n"
         f"Book a call: {book_url}\nStart your account: {signup_url}\n\n"
-        f"Best,\nDiederik\nFounder, Yippie"
+        f"Best,\nDiederik\nFounder, GetYippie"
     )
     prerendered = (
         f'<p style="margin:0 0 16px;">Hi {safe_name},</p>'
@@ -170,14 +170,14 @@ async def _send_demo_prospect_email(
         f'Start your account</a>'
         f'</div>'
         f'<p style="margin:16px 0 0;">Best,<br><strong>Diederik</strong><br>'
-        f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
+        f'<span style="color:#6b7280;font-size:13px;">Founder, GetYippie</span></p>'
     )
     await send_email(
         to=prospect_email,
         subject=subject,
         body=plain,
-        html=render_email_html(plain, prerendered_html=prerendered, tenant_name="Yippie"),
-        from_email="Diederik from Yippie <diederik@getyippie.com>",
+        html=render_email_html(plain, prerendered_html=prerendered, tenant_name="GetYippie"),
+        from_email="Diederik from GetYippie <diederik@getyippie.com>",
         reply_to="diederik@getyippie.com",
     )
 
@@ -234,7 +234,7 @@ async def demo_nudge_check():
             book_url, signup_url = _demo_cta_urls(tenant.name, questionnaire_json)
             intro = (
                 '<p style="margin:0 0 16px;">Just checking in. Have you had a chance to look around '
-                'your Yippie workspace yet?</p>'
+                'your GetYippie workspace yet?</p>'
                 '<p style="margin:0 0 16px;">If you have any questions or would like a quick walkthrough, '
                 "I'm happy to jump on a call. Or if you're ready to get started, you can sign up directly below.</p>"
             )
@@ -243,7 +243,7 @@ async def demo_nudge_check():
                     prospect_email=prospect_email,
                     prospect_name=prospect_full_name,
                     company_name=tenant.name,
-                    subject=f"Have you had time to explore Yippie, {prospect_full_name.split()[0]}?",
+                    subject=f"Have you had time to explore GetYippie, {prospect_full_name.split()[0]}?",
                     intro_html=intro,
                     book_url=book_url,
                     signup_url=signup_url,
@@ -302,7 +302,7 @@ async def demo_expiry_check():
                 questionnaire_json = await _get_prospect_questionnaire(db, prospect_email)
                 book_url, signup_url = _demo_cta_urls(tenant.name, questionnaire_json)
                 intro = (
-                    '<p style="margin:0 0 16px;">Your Yippie trial has ended. I hope you got a good feel for the product.</p>'
+                    '<p style="margin:0 0 16px;">Your GetYippie trial has ended. I hope you got a good feel for the product.</p>'
                     '<p style="margin:0 0 16px;">I\'d love to hear what you thought: what worked, what didn\'t, '
                     'and whether there\'s anything I can improve. Feel free to reply directly to this email.</p>'
                     '<p style="margin:0 0 16px;">If you\'re ready to continue, you can book a call or start your account below.</p>'
@@ -312,7 +312,7 @@ async def demo_expiry_check():
                         prospect_email=prospect_email,
                         prospect_name=prospect_full_name,
                         company_name=tenant.name,
-                        subject=f"How was your Yippie trial, {prospect_full_name.split()[0]}?",
+                        subject=f"How was your GetYippie trial, {prospect_full_name.split()[0]}?",
                         intro_html=intro,
                         book_url=book_url,
                         signup_url=signup_url,
@@ -372,7 +372,7 @@ async def _send_trial_email(
     plain = (
         f"Hi {plain_name},\n\n{intro_plain}\n\n"
         f"Book a call: {book_url}\nUpgrade your workspace: {upgrade_url}\n\n"
-        f"Best,\nDiederik\nFounder, Yippie"
+        f"Best,\nDiederik\nFounder, GetYippie"
     )
     prerendered = (
         f'<p style="margin:0 0 16px;">Hi {safe_name},</p>'
@@ -386,14 +386,14 @@ async def _send_trial_email(
         f'Upgrade now</a>'
         f'</div>'
         f'<p style="margin:16px 0 0;">Best,<br><strong>Diederik</strong><br>'
-        f'<span style="color:#6b7280;font-size:13px;">Founder, Yippie</span></p>'
+        f'<span style="color:#6b7280;font-size:13px;">Founder, GetYippie</span></p>'
     )
     await send_email(
         to=prospect_email,
         subject=subject,
         body=plain,
-        html=render_email_html(plain, prerendered_html=prerendered, tenant_name="Yippie"),
-        from_email="Diederik from Yippie <diederik@getyippie.com>",
+        html=render_email_html(plain, prerendered_html=prerendered, tenant_name="GetYippie"),
+        from_email="Diederik from GetYippie <diederik@getyippie.com>",
         reply_to="diederik@getyippie.com",
     )
 
@@ -443,7 +443,7 @@ async def trial_nudge_check():
             prospect_email, prospect_full_name = admin
             contacts, tickets = await _tenant_workspace_counts(db, tenant.id)
             if marker == "first":
-                subject = f"One week left on your Yippie trial, {prospect_full_name.split()[0]}"
+                subject = f"One week left on your GetYippie trial, {prospect_full_name.split()[0]}"
                 intro = (
                     f'<p style="margin:0 0 16px;">Your free trial has one week left, and your workspace '
                     f'is already doing real work: {contacts} contacts and {tickets} tickets live in it today.</p>'
@@ -452,7 +452,7 @@ async def trial_nudge_check():
                     'nothing changes on your side.</p>'
                 )
             else:
-                subject = f"Your Yippie trial ends in {max(days_left, 1)} day{'s' if days_left != 1 else ''}"
+                subject = f"Your GetYippie trial ends in {max(days_left, 1)} day{'s' if days_left != 1 else ''}"
                 intro = (
                     f'<p style="margin:0 0 16px;">Your free trial is almost over. Your {contacts} contacts, '
                     f'{tickets} tickets and all your settings stay exactly as they are when you upgrade. '
@@ -543,18 +543,18 @@ async def trial_expiry_check():
                 prospect_email, prospect_full_name = admin
                 contacts, tickets = await _tenant_workspace_counts(db, tenant.id)
                 intro = (
-                    '<p style="margin:0 0 16px;">Your 30 day Yippie trial has ended. Nothing is deleted: '
+                    '<p style="margin:0 0 16px;">Your 30 day GetYippie trial has ended. Nothing is deleted: '
                     'your '
                     f'{contacts} contacts, {tickets} tickets and settings are all kept safe. You can still '
                     'log in — just subscribe to unlock your workspace again.</p>'
                     '<p style="margin:0 0 16px;">Subscribe and everything is back exactly where you left it. '
-                    'If Yippie was not the right fit, I would genuinely value a one line reply about why.</p>'
+                    'If GetYippie was not the right fit, I would genuinely value a one line reply about why.</p>'
                 )
                 try:
                     await _send_trial_email(
                         prospect_email=prospect_email,
                         prospect_name=prospect_full_name,
-                        subject=f"Your Yippie trial has ended, {prospect_full_name.split()[0]}",
+                        subject=f"Your GetYippie trial has ended, {prospect_full_name.split()[0]}",
                         intro_html=intro,
                     )
                 except Exception:
@@ -702,15 +702,15 @@ async def onboarding_drip():
                 if missing:
                     from app.core.email_html import render_email_html
                     from app.core.mailer import send_email
-                    subject = f"Getting started with Yippie: {len(missing)} step{'s' if len(missing) > 1 else ''} left"
+                    subject = f"Getting started with GetYippie: {len(missing)} step{'s' if len(missing) > 1 else ''} left"
                     body = (
                         f"Hi {admin.full_name},\n\n"
-                        f"You set up {tenant.name} on Yippie 3 days ago. Great start!\n\n"
+                        f"You set up {tenant.name} on GetYippie 3 days ago. Great start!\n\n"
                         f"A few quick things to get the most out of it:\n\n"
                         + "\n".join(missing)
                         + "\n\nThese take less than 5 minutes and make a big difference.\n\n"
                         "Questions? Just reply. A real person reads it.\n\n"
-                        "Take back the time that matters,\nTeam Yippie"
+                        "Take back the time that matters,\nTeam GetYippie"
                     )
                     html = render_email_html(body, subject)
                     try:
@@ -723,7 +723,7 @@ async def onboarding_drip():
             if send_day7:
                 from app.core.email_html import render_email_html
                 from app.core.mailer import send_email
-                subject = f"One week on Yippie: tips for {tenant.name}"
+                subject = f"One week on GetYippie: tips for {tenant.name}"
                 tips = [
                     "  - Use keyboard shortcuts (j/k to move, r to reply, e to close). Enable in Settings → Profile.",
                     "  - Set up the Pipeline to track where each customer is in your sales flow",
@@ -733,10 +733,10 @@ async def onboarding_drip():
                     tips = ["Still to do:"] + ["  " + m.strip() for m in missing] + ["", "Pro tips once you're up:"] + tips
                 body = (
                     f"Hi {admin.full_name},\n\n"
-                    f"A week in. Here's how to get even more out of Yippie:\n\n"
+                    f"A week in. Here's how to get even more out of GetYippie:\n\n"
                     + "\n".join(tips)
                     + "\n\nReply any time with questions.\n\n"
-                    "Take back the time that matters,\nTeam Yippie"
+                    "Take back the time that matters,\nTeam GetYippie"
                 )
                 html = render_email_html(body, subject)
                 try:

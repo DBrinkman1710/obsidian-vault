@@ -1,8 +1,8 @@
 """Tenant SaaS plan tiers and the plan -> feature map (single source of truth).
 
-This is the *tenant's own* subscription to Yippie — distinct from the billing
+This is the *tenant's own* subscription to GetYippie — distinct from the billing
 module's ``Subscription.plan_name``, which models a customer's subscription that
-a tenant invoices. The two never mix: this file gates which Yippie features a
+a tenant invoices. The two never mix: this file gates which GetYippie features a
 tenant may use; billing tracks what that tenant charges its own customers.
 
 Gating layers ON TOP of the existing module system (``Tenant.enabled_modules``

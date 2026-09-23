@@ -130,7 +130,9 @@ async def send_drip_steps():
             )
         )
         campaigns = result.scalars().all()
+        from app.core.models import Tenant
         for campaign in campaigns:
+            tenant = await db.get(Tenant, campaign.tenant_id)
             dispatched = campaign.dispatched_at
             if dispatched and dispatched.tzinfo is None:
                 dispatched = dispatched.replace(tzinfo=timezone.utc)
@@ -194,21 +196,37 @@ async def send_drip_steps():
                     if contact is not None and contact.id in unsubscribed_ids:
                         continue
 
+                    subject = (
+                        service._apply_personalization(step.subject, contact, escape=False)
+                        if contact else step.subject
+                    )
                     body_html = service._apply_personalization(
                         step.html_body or "", contact
                     ) if contact else (step.html_body or "")
                     html = render_email_html(
                         body_text=step.subject,
                         prerendered_html=body_html,
+                        tenant_name=tenant.name if tenant else None,
+                        primary_color=tenant.primary_color if tenant else None,
+                        logo_url=tenant.logo_url if tenant else None,
                     )
+                    # Tracked pipeline/label buttons designed into the step. Persist
+                    # the click tokens before the mail goes out so a fast click resolves.
+                    if contact is not None and step.campaign_buttons:
+                        html = await service.apply_button_tracking(
+                            db, html, step.campaign_buttons,
+                            tenant_id=campaign.tenant_id, contact_id=contact.id,
+                            base_url=base_url, stage_override=campaign.button_stage_config or {},
+                        )
+                        await db.commit()
                     unsub_url = f"{base_url}/api/v1/track/unsubscribe/{row.tracking_token}"
                     html += service._open_pixel(base_url, row.tracking_token)
                     html += service._unsubscribe_footer(base_url, row.tracking_token)
                     try:
                         await send_email(
                             to=row.recipient_email,
-                            subject=step.subject,
-                            body=step.subject,
+                            subject=subject,
+                            body=subject,
                             html=html,
                             headers={
                                 "List-Unsubscribe": f"<{unsub_url}>",

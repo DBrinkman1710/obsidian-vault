@@ -46,7 +46,16 @@ def _prepare_db_url(raw: str) -> tuple[str, str | None, str | None]:
 
 
 def _make_engine(url: str, sslmode: str | None, sslrootcert: str | None, **kw):
-    connect_args = {}
+    # Disable asyncpg's prepared-statement cache (statement_cache_size=0, a valid
+    # asyncpg.connect arg). After a migration ALTERs a table, a pooled connection
+    # that cached a plan against the old schema raises InvalidCachedStatementError
+    # on its next use; SQLAlchemy treats that as a disconnect, so the request 500s
+    # and only the retry (on a recycled connection) succeeds — the "save fails the
+    # first time, works the second" report on marketing campaign saves. With the
+    # cache off, statements are re-prepared each execution (tiny planning cost, no
+    # correctness impact) and this class of error cannot occur. Also keeps us
+    # compatible with transaction-pooled Postgres.
+    connect_args = {"statement_cache_size": 0}
     if sslmode in _SSL_MODES:
         ctx = _ssl_module.create_default_context(cafile=sslrootcert)
         if sslmode == 'require':

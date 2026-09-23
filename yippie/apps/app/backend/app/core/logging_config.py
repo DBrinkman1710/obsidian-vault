@@ -1,4 +1,4 @@
-"""Structured JSON logging + per-request ID for the Yippie backend.
+"""Structured JSON logging + per-request ID for the GetYippie backend.
 
 Call configure_logging() once at startup (main.py) to replace all root
 logger handlers with a JSON stream handler.

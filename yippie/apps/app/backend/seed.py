@@ -25,7 +25,7 @@ _STANDARD_TEMPLATES = [
             "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"
             'background:#f1f5f9;border-spacing:0;">'
             '<tr><td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-radius:8px 8px 0 0;">'
-            '<img src="https://getyippie.com/logo-white-bg.svg" alt="Yippie" style="height:36px;border:0;display:inline-block;" />'
+            '<img src="https://getyippie.com/logo-white-bg.svg" alt="GetYippie" style="height:36px;border:0;display:inline-block;" />'
             '</td></tr>'
             '<tr><td style="height:4px;background:#5BA4F5;"></td></tr>'
             '<tr><td style="background:#ffffff;padding:40px 40px 32px;border-radius:0 0 8px 8px;">'
@@ -39,7 +39,7 @@ _STANDARD_TEMPLATES = [
             '<p style="margin:0 0 8px;text-align:center;">'
             '<a href="#" style="display:inline-block;padding:13px 32px;background:#5BA4F5;color:#ffffff;border-radius:8px;font-weight:600;text-decoration:none;font-size:15px;">Get started</a>'
             '</p></td></tr>'
-            '<tr><td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">Sent with Yippie</td></tr>'
+            '<tr><td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">Sent with GetYippie</td></tr>'
             '</table>'
         ),
     },
@@ -51,7 +51,7 @@ _STANDARD_TEMPLATES = [
             "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"
             'background:#f1f5f9;border-spacing:0;">'
             '<tr><td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-radius:8px 8px 0 0;">'
-            '<img src="https://getyippie.com/logo-white-bg.svg" alt="Yippie" style="height:36px;border:0;display:inline-block;" />'
+            '<img src="https://getyippie.com/logo-white-bg.svg" alt="GetYippie" style="height:36px;border:0;display:inline-block;" />'
             '</td></tr>'
             '<tr><td style="height:4px;background:#5BA4F5;"></td></tr>'
             '<tr><td style="background:#ffffff;padding:40px 40px 36px;border-radius:0 0 8px 8px;">'
@@ -66,7 +66,7 @@ _STANDARD_TEMPLATES = [
             '</td></tr></table>'
             '<p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 28px;">If you have anything to add, simply reply to this email. We\'ll keep you updated every step of the way.</p>'
             '</td></tr>'
-            '<tr><td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">Sent with Yippie</td></tr>'
+            '<tr><td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">Sent with GetYippie</td></tr>'
             '</table>'
         ),
     },
@@ -78,7 +78,7 @@ _STANDARD_TEMPLATES = [
             "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"
             'background:#f1f5f9;border-spacing:0;">'
             '<tr><td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-radius:8px 8px 0 0;">'
-            '<img src="https://getyippie.com/logo-white-bg.svg" alt="Yippie" style="height:36px;border:0;display:inline-block;" />'
+            '<img src="https://getyippie.com/logo-white-bg.svg" alt="GetYippie" style="height:36px;border:0;display:inline-block;" />'
             '</td></tr>'
             '<tr><td style="height:4px;background:#22c55e;"></td></tr>'
             '<tr><td style="background:#ffffff;padding:40px 40px 36px;border-radius:0 0 8px 8px;">'
@@ -93,7 +93,7 @@ _STANDARD_TEMPLATES = [
             '<p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 28px;">If you have follow-up questions or notice anything else, just reply — we\'re always here to help.</p>'
             '<p style="font-size:13px;line-height:1.5;color:#64748b;margin:0;">Best regards,<br/><strong>{{agent_name}}</strong></p>'
             '</td></tr>'
-            '<tr><td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">Sent with Yippie</td></tr>'
+            '<tr><td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">Sent with GetYippie</td></tr>'
             '</table>'
         ),
     },
@@ -105,7 +105,7 @@ _STANDARD_TEMPLATES = [
             "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"
             'background:#f1f5f9;border-spacing:0;">'
             '<tr><td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-radius:8px 8px 0 0;">'
-            '<img src="https://getyippie.com/logo-white-bg.svg" alt="Yippie" style="height:36px;border:0;display:inline-block;" />'
+            '<img src="https://getyippie.com/logo-white-bg.svg" alt="GetYippie" style="height:36px;border:0;display:inline-block;" />'
             '</td></tr>'
             '<tr><td style="height:4px;background:#5BA4F5;"></td></tr>'
             '<tr><td style="background:#ffffff;padding:40px 40px 36px;border-radius:0 0 8px 8px;">'
@@ -115,7 +115,7 @@ _STANDARD_TEMPLATES = [
             '<p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 28px;">If there\'s anything else on your mind or if you\'re running into trouble, just hit reply — we\'re here to help.</p>'
             '<p style="font-size:13px;line-height:1.5;color:#64748b;margin:0;">Best regards,<br/><strong>{{agent_name}}</strong></p>'
             '</td></tr>'
-            '<tr><td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">Sent with Yippie</td></tr>'
+            '<tr><td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">Sent with GetYippie</td></tr>'
             '</table>'
         ),
     },
@@ -127,7 +127,7 @@ _STANDARD_TEMPLATES = [
             "font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;"
             'background:#f1f5f9;border-spacing:0;">'
             '<tr><td style="background:#ffffff;padding:28px 40px 20px;text-align:center;border-radius:8px 8px 0 0;">'
-            '<img src="https://getyippie.com/logo-white-bg.svg" alt="Yippie" style="height:36px;border:0;display:inline-block;" />'
+            '<img src="https://getyippie.com/logo-white-bg.svg" alt="GetYippie" style="height:36px;border:0;display:inline-block;" />'
             '</td></tr>'
             '<tr><td style="height:4px;background:#5BA4F5;"></td></tr>'
             '<tr><td style="background:#ffffff;padding:40px 40px 36px;border-radius:0 0 8px 8px;">'
@@ -142,7 +142,7 @@ _STANDARD_TEMPLATES = [
             '<p style="font-size:15px;line-height:1.65;color:#374151;margin:0 0 28px;">If you have any follow-up questions, just reply to this email — we\'re happy to help.</p>'
             '<p style="font-size:13px;line-height:1.5;color:#64748b;margin:0;">Best regards,<br/><strong>{{agent_name}}</strong></p>'
             '</td></tr>'
-            '<tr><td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">Sent with Yippie &nbsp;·&nbsp; <a href="#" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a></td></tr>'
+            '<tr><td style="padding:20px 0;text-align:center;font-size:12px;color:#94a3b8;">Sent with GetYippie &nbsp;·&nbsp; <a href="#" style="color:#94a3b8;text-decoration:underline;">Unsubscribe</a></td></tr>'
             '</table>'
         ),
     },
@@ -154,7 +154,7 @@ async def main():
     # otherwise sourced from the DB row at runtime). These only seed the very first
     # tenant; later deploys hit the "already exists" guard and leave the row untouched.
     tenant_id = os.getenv("TENANT_ID", "default")
-    tenant_name = os.getenv("TENANT_NAME", "Yippie")
+    tenant_name = os.getenv("TENANT_NAME", "GetYippie")
     enabled_modules = os.getenv("ENABLED_MODULES", ",".join(ALL_MODULES)).split(",")
     primary_color = os.getenv("BRANDING_PRIMARY_COLOR", "#5BB8E8")
     logo_url = os.getenv("BRANDING_LOGO_URL") or None
