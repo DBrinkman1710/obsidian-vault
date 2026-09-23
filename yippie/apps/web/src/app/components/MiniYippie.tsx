@@ -5,7 +5,7 @@
    modules slot into the sidebar as they build their package. */
 
 import { usePathname } from "next/navigation";
-import styles from "./MiniGetYippie.module.css";
+import styles from "./MiniYippie.module.css";
 import { getLocale } from "@/lib/i18n";
 import {
   InboxIcon,
@@ -106,7 +106,7 @@ type Props = {
   modules: MiniModuleKey[];
 };
 
-export default function MiniGetYippie({ brandColor, logoUrl, companyName, modules }: Props) {
+export default function MiniYippie({ brandColor, logoUrl, companyName, modules }: Props) {
   const pathname = usePathname();
   const locale = getLocale(pathname);
   const t = miniCopy[locale];
