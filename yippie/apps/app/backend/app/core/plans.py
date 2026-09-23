@@ -20,6 +20,11 @@ class PlanTier(str, enum.Enum):
     growth = "growth"
     pro = "pro"          # legacy — existing tenants keep this value
     enterprise = "enterprise"
+    # Superadmin-only free tier for pilot/test tenants. Full features, never
+    # billed (no Stripe price) and permanently exempt from the trial/access
+    # lock. Deliberately absent from the public signup plan list so it can only
+    # be set from the superadmin "Klant bewerken" screen, never getyippie.com.
+    pilot = "pilot"
 
 
 DEFAULT_PLAN = PlanTier.enterprise
@@ -61,6 +66,7 @@ PLAN_FEATURES: dict[PlanTier, set[str]] = {
     PlanTier.growth: set(ALL_FEATURES),
     PlanTier.pro: set(ALL_FEATURES),
     PlanTier.enterprise: set(ALL_FEATURES),
+    PlanTier.pilot: set(ALL_FEATURES),
 }
 
 
@@ -79,6 +85,13 @@ from app.core import _modules_gen as _gen
 PLAN_LIMITS: dict[PlanTier, dict[str, "int | float | None"]] = {
     PlanTier(name): dict(limits) for name, limits in _gen.PLAN_LIMITS.items()
 }
+
+# Pilot is not in the generated config (it is superadmin-only and never billed).
+# Give it the most generous configured plan's limits so pilot/test tenants are
+# never capped.
+PLAN_LIMITS[PlanTier.pilot] = dict(
+    PLAN_LIMITS.get(PlanTier.enterprise) or PLAN_LIMITS[PlanTier.founder]
+)
 
 
 # À la carte module add-on prices (euros per month), keyed by the module id in

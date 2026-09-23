@@ -12,6 +12,7 @@ const PLAN_LABELS: Record<string, string> = {
   growth: 'Growth',
   pro: 'Pro',
   enterprise: 'Enterprise',
+  pilot: 'Pilot',  // superadmin-only free tier; display label only, not purchasable
 }
 
 // Prices/limits mirror packages/config/modules.json (the source Stripe is billed

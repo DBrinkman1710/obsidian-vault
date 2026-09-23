@@ -204,6 +204,12 @@ async def update_tenant(db: AsyncSession, tenant_id: uuid.UUID, data: TenantUpda
         # Going live is a conversion — clear any access lock so the subscribe
         # modal drops away and the workspace unlocks.
         tenant.access_locked_at = None
+    # Moving a tenant onto the free Pilot tier keeps it active indefinitely: end
+    # any trial and drop any existing lock so the subscribe modal never shows and
+    # the expiry jobs (which skip pilot) leave it alone.
+    if tenant.plan == PlanTier.pilot.value:
+        tenant.trial_ends_at = None
+        tenant.access_locked_at = None
     await db.commit()
     await db.refresh(tenant)
     # Bill (or stop billing) add-on modules the moment they change on a tenant

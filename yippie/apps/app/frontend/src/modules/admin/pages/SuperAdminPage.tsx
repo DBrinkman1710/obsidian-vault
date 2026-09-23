@@ -21,12 +21,14 @@ const MODULE_LABELS: Record<string, string> = { pipeline: 'Kanban', ai: 'AI', bo
 const moduleLabel = (mod: string) => MODULE_LABELS[mod] ?? mod
 
 // SaaS plan tiers — mirrors PlanTier on the backend (app/core/plans.py).
-const PLAN_TIERS = ['founder', 'starter', 'growth', 'pro'] as const
+// 'pilot' is the superadmin-only free tier for pilot/test tenants: full
+// features, never billed, never trial/access-locked. Not on getyippie.com.
+const PLAN_TIERS = ['founder', 'starter', 'growth', 'pro', 'pilot'] as const
 const planLabel = (p: string) => p.charAt(0).toUpperCase() + p.slice(1)
 
 // AI scan limits per plan — mirrors PLAN_LIMITS in app/core/plans.py.
 const PLAN_AI_LIMITS: Record<string, number | null> = {
-  founder: 500, starter: 2_000, growth: 5_000, pro: 10_000, enterprise: null,
+  founder: 500, starter: 2_000, growth: 5_000, pro: 10_000, enterprise: null, pilot: null,
 }
 
 // Per-plan badge color — distinct pill colors so plan distribution is visible at a glance.
@@ -36,6 +38,7 @@ const PLAN_BADGE: Record<string, string> = {
   growth:     'bg-emerald-100 text-emerald-700',
   pro:        'bg-amber-100 text-amber-700',
   enterprise: 'bg-slate-200 text-slate-700',
+  pilot:      'bg-pink-100 text-pink-700',
 }
 
 type FilterStatus = 'all' | 'active' | 'demo' | 'inactive'
