@@ -129,6 +129,8 @@ class CampaignSequenceCreate(BaseModel):
     delay_days: int = Field(ge=0, le=365)
     subject: str = Field(min_length=1, max_length=500)
     html_body: str = Field(min_length=1)
+    design_json: Optional[str] = None
+    campaign_buttons: Optional[Any] = None
 
 
 class CampaignSequenceOut(BaseModel):
@@ -139,6 +141,8 @@ class CampaignSequenceOut(BaseModel):
     delay_days: int
     subject: str
     html_body: str
+    design_json: Optional[str] = None
+    campaign_buttons: Optional[str] = None
     sent_at: Optional[datetime] = None
     created_at: datetime
 

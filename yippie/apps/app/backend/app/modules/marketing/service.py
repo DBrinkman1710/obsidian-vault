@@ -184,6 +184,13 @@ async def list_sequences(
     return list(result.scalars().all())
 
 
+def _serialise_buttons(buttons: object) -> Optional[str]:
+    """Store campaign_buttons as a JSON string (matches CampaignTemplate)."""
+    if buttons is None or isinstance(buttons, str):
+        return buttons  # type: ignore[return-value]
+    return _json.dumps(buttons)
+
+
 async def add_sequence(
     db: AsyncSession,
     tenant_id: uuid.UUID,
@@ -196,8 +203,36 @@ async def add_sequence(
         delay_days=data.delay_days,
         subject=data.subject,
         html_body=data.html_body,
+        design_json=data.design_json,
+        campaign_buttons=_serialise_buttons(data.campaign_buttons),
     )
     db.add(seq)
+    await db.flush()
+    return seq
+
+
+async def update_sequence(
+    db: AsyncSession,
+    tenant_id: uuid.UUID,
+    campaign_id: uuid.UUID,
+    seq_id: uuid.UUID,
+    data: CampaignSequenceCreate,
+) -> Optional[CampaignSequence]:
+    result = await db.execute(
+        select(CampaignSequence).where(
+            CampaignSequence.id == seq_id,
+            CampaignSequence.campaign_id == campaign_id,
+            CampaignSequence.tenant_id == tenant_id,
+        )
+    )
+    seq = result.scalar_one_or_none()
+    if seq is None:
+        return None
+    seq.delay_days = data.delay_days
+    seq.subject = data.subject
+    seq.html_body = data.html_body
+    seq.design_json = data.design_json
+    seq.campaign_buttons = _serialise_buttons(data.campaign_buttons)
     await db.flush()
     return seq
 
@@ -750,6 +785,51 @@ def _apply_personalization(
     }
     for token, value in replacements.items():
         html = html.replace(token, value)
+    return html
+
+
+async def apply_button_tracking(
+    db: AsyncSession,
+    html: str,
+    buttons_raw: object,
+    *,
+    tenant_id: uuid.UUID,
+    contact_id: uuid.UUID,
+    base_url: str,
+    stage_override: Optional[dict] = None,
+) -> str:
+    """Mint per-recipient click tokens for CRM-action buttons and inject the
+    tracking hrefs into ``html``. Shared by the campaign launch and the drip
+    steps so both get the same tracked pipeline/label buttons. No-op when there
+    are no trackable buttons."""
+    if not buttons_raw:
+        return html
+    from app.modules.tracking.models import LabelClickToken as _LCT
+
+    buttons = _json.loads(buttons_raw) if isinstance(buttons_raw, str) else (buttons_raw or [])
+    override = stage_override or {}
+    token_map: dict[str, str] = {}
+    for btn in buttons:
+        action = btn.get("action_type", "")
+        if action not in ("pipeline_stage", "apply_label"):
+            continue
+        btn_token = uuid.uuid4()
+        btn_id = str(btn.get("id", ""))
+        raw_stage = override[btn_id] if btn_id in override else btn.get("stage_id")
+        raw_label = btn.get("label_id")
+        db.add(_LCT(
+            token=btn_token,
+            tenant_id=tenant_id,
+            contact_id=contact_id,
+            action_type=action,
+            stage_id=uuid.UUID(str(raw_stage)) if raw_stage else None,
+            label_id=uuid.UUID(raw_label) if raw_label else None,
+            button_id=btn_id,
+            redirect_url=btn.get("redirect_url") or None,
+        ))
+        token_map[btn_id] = f"{base_url}/api/v1/track/click/{btn_token}"
+    if token_map:
+        html = inject_button_tracking(html, buttons, token_map)
     return html
 
 

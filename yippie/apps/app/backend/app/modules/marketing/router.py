@@ -222,6 +222,27 @@ async def add_sequence(
     return seq
 
 
+@router.put(
+    "/campaigns/{campaign_id}/sequences/{seq_id}",
+    response_model=CampaignSequenceOut,
+)
+async def edit_sequence(
+    campaign_id: uuid.UUID,
+    seq_id: uuid.UUID,
+    body: CampaignSequenceCreate,
+    current_user: CurrentUser,
+    db: DB,
+):
+    await _require_campaign(db, current_user.tenant_id, campaign_id)
+    seq = await service.update_sequence(
+        db, current_user.tenant_id, campaign_id, seq_id, body
+    )
+    if seq is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Step not found")
+    await db.commit()
+    return seq
+
+
 @router.delete(
     "/campaigns/{campaign_id}/sequences/{seq_id}",
     status_code=status.HTTP_204_NO_CONTENT,

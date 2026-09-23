@@ -106,6 +106,10 @@ class CampaignSequence(Base):
     delay_days: Mapped[int] = mapped_column(Integer, nullable=False)
     subject: Mapped[str] = mapped_column(Text, nullable=False)
     html_body: Mapped[str] = mapped_column(Text, nullable=False)
+    # GrapesJS project JSON — powers the visual editor for this drip step.
+    design_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Serialised CampaignButton[] extracted from the GrapesJS design.
+    campaign_buttons: Mapped[str | None] = mapped_column(Text, nullable=True)
     # Set once the step has been dispatched, so the drip job doesn't re-send it.
     sent_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
