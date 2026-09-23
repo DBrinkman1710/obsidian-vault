@@ -8,5 +8,6 @@
     "startCommand": "HOSTNAME=0.0.0.0 node .next/standalone/server.js",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
-  }
+  },
+  "watchPatterns": ["yippie/apps/web/**"]
 }
