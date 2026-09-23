@@ -59,10 +59,19 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
     }
   }, [templates])
 
+  // Variant A inherits the pre-A/B single (null) template, so enabling A/B keeps
+  // the current email on A instead of blanking the canvas.
+  function templateForVariant(v: Variant | null, list: any[] = templates): any {
+    const exact = list.find((t: any) => t.variant === v)
+    if (exact) return exact
+    if (v === 'a') return list.find((t: any) => t.variant === null) ?? null
+    return null
+  }
+
   // Reload canvas when variant switches or templates refresh
   useEffect(() => {
     const wantVariant: Variant | null = activeVariant === 'single' ? null : activeVariant
-    const tpl = templates.find((t: any) => t.variant === wantVariant)
+    const tpl = templateForVariant(wantVariant)
     if (editorRef.current) {
       if (tpl?.design_json) {
         editorRef.current.loadDesign(tpl.design_json)
@@ -77,7 +86,7 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
 
   function handleEditorReady() {
     const wantVariant: Variant | null = activeVariantRef.current === 'single' ? null : activeVariantRef.current
-    const tpl = templatesRef.current.find((t: any) => t.variant === wantVariant)
+    const tpl = templateForVariant(wantVariant, templatesRef.current)
     if (tpl?.design_json) {
       editorRef.current?.loadDesign(tpl.design_json)
     } else if (tpl?.raw_html) {
@@ -124,14 +133,21 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
     toast.message(t('mkt_template_loaded'))
   }
 
+  // Copy variant A's current design into B (optional starting point for B).
+  function copyVariantAtoB() {
+    const a = templateForVariant('a')
+    if (a?.design_json) editorRef.current?.loadDesign(a.design_json)
+    else if (a?.raw_html) editorRef.current?.loadDesign(JSON.stringify({ pages: [{ id: 'main', component: a.raw_html }] }))
+    else editorRef.current?.loadDesign(null)
+    toast.message(t('mkt_copied_from_a'))
+  }
+
   function openEditor() {
     setEditorEverOpened(true)
     setEditorOpen(true)
   }
 
-  const activeTemplate = templates.find(
-    (t: any) => t.variant === (activeVariant === 'single' ? null : activeVariant)
-  )
+  const activeTemplate = templateForVariant(activeVariant === 'single' ? null : activeVariant)
   const previewHtml = activeTemplate?.raw_html ?? null
 
   return (
@@ -230,6 +246,14 @@ export function DesignTab({ campaign }: { campaign: Campaign }) {
                   </button>
                 ))}
               </div>
+            )}
+            {abEnabled && activeVariant === 'b' && (
+              <button
+                onClick={copyVariantAtoB}
+                className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-50"
+              >
+                {t('mkt_copy_from_a')}
+              </button>
             )}
           </div>
           <div className="flex items-center gap-2">
