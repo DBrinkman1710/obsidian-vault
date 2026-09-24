@@ -756,6 +756,13 @@ def _apply_personalization(
 
     Supported tokens: {{first_name}}, {{last_name}}, {{company}}, {{email}},
     {{phone}}, {{ticket_id}}, {{ticket_subject}}, {{agent_name}}.
+
+    Fallback chains: separate several fields with ``|`` inside one token to use
+    the first one that has a value, e.g. ``{{first_name|company}}`` renders the
+    first name when known and otherwise the company name. Any number of fields
+    can be chained (``{{first_name|company|email}}``). Plain text may be used as
+    the final fallback (``{{first_name|there}}`` → "there" when no name).
+
     Unknown tokens are left as-is; missing optional context values become "".
 
     ``escape`` HTML-escapes the substituted values (correct for an HTML body).
@@ -771,21 +778,40 @@ def _apply_personalization(
     )
     from html import escape as _html_escape
     esc = _html_escape if escape else (lambda s: s)
-    replacements = {
-        "{{first_name}}": esc(first_name),
-        "{{first name}}": esc(first_name),
-        "{{last_name}}": esc(last_name),
-        "{{last name}}": esc(last_name),
-        "{{company}}": esc(company_name),
-        "{{email}}": esc(contact.email or ""),
-        "{{phone}}": esc(contact.phone or ""),
-        "{{ticket_id}}": esc(ticket_id or ""),
-        "{{ticket_subject}}": esc(ticket_subject or ""),
-        "{{agent_name}}": esc(agent_name or ""),
+    # Raw (unescaped) values, keyed by the field name as written in a token.
+    # Space variants let people write {{first name}} as well as {{first_name}}.
+    values = {
+        "first_name": first_name,
+        "first name": first_name,
+        "last_name": last_name,
+        "last name": last_name,
+        "company": company_name,
+        "email": contact.email or "",
+        "phone": contact.phone or "",
+        "ticket_id": ticket_id or "",
+        "ticket_subject": ticket_subject or "",
+        "agent_name": agent_name or "",
     }
-    for token, value in replacements.items():
-        html = html.replace(token, value)
-    return html
+
+    def _resolve(match: "re.Match[str]") -> str:
+        inner = match.group(1).strip()
+        # Split on | into a fallback chain: first field with a value wins.
+        parts = [p.strip() for p in inner.split("|")]
+        recognised = False
+        for part in parts:
+            key = part.lower()
+            if key in values:
+                recognised = True
+                if values[key]:
+                    return esc(values[key])
+            elif part:
+                # A literal (not a known field) is a valid final fallback.
+                return esc(part)
+        # All parts were known fields but empty → render "". If nothing in the
+        # token was ever a known field, leave the original text untouched.
+        return "" if recognised else match.group(0)
+
+    return re.sub(r"\{\{\s*([^{}]+?)\s*\}\}", _resolve, html)
 
 
 async def apply_button_tracking(
@@ -882,18 +908,19 @@ async def test_send_campaign(
     agent_name = getattr(agent, "full_name", "") or ""
     agent_reply_from = getattr(agent, "reply_from_email", None) or agent_email
 
-    # Apply personalisation using the agent's own data.
-    first_name = agent_name.split()[0] if agent_name else ""
-
-    def _personalize(text: str) -> str:
-        return (
-            text.replace("{{first_name}}", first_name)
-            .replace("{{company}}", "")
-            .replace("{{email}}", agent_email)
-        )
-
-    preview_html = _personalize(body_html)
-    preview_subject = _personalize(campaign.subject or "")
+    # Personalise using the agent's own data. Build a throwaway Contact so the
+    # preview goes through the exact same token engine (incl. {{a|b}} fallbacks)
+    # as a real send. No company on the agent, so {{first_name|company}} shows
+    # the agent's first name here.
+    preview_contact = Contact(
+        full_name=agent_name,
+        email=agent_email,
+        company=None,
+    )
+    preview_html = _apply_personalization(body_html, preview_contact)
+    preview_subject = _apply_personalization(
+        campaign.subject or "", preview_contact, escape=False
+    )
 
     from app.core.models import Tenant
     tenant = await db.get(Tenant, campaign.tenant_id)

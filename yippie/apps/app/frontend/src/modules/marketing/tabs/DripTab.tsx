@@ -194,7 +194,7 @@ export function DripTab({ campaign }: { campaign: Campaign }) {
         {/* Personalisation chips */}
         <div className="flex shrink-0 items-center gap-2 border-b border-slate-100 bg-slate-50 px-6 py-2">
           <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">{t('mkt_personalisation')}</span>
-          {(['{{first_name}}', '{{company}}', '{{email}}'] as const).map((token) => (
+          {(['{{first_name}}', '{{company}}', '{{email}}', '{{first_name|company}}', '{{first_name|there}}'] as const).map((token) => (
             <button
               key={token}
               onMouseDown={(e) => e.preventDefault()}
