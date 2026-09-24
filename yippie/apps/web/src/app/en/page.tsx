@@ -236,6 +236,9 @@ export default function HomePage() {
               <a href="#workflow" className={styles.btnHow}>
                 How does it work? <span aria-hidden="true">↓</span>
               </a>
+              <a href="#calculator" className={styles.btnHow}>
+                Calculate your ROI <span aria-hidden="true">↓</span>
+              </a>
             </div>
             <p className={styles.heroMeta}>30 days free · No credit card · Cancel anytime</p>
           </Reveal>
