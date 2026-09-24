@@ -170,6 +170,10 @@ export const contacts: { en: Record<string, string>; nl: Record<string, string> 
     contacts_no_companies_picker:     'No companies yet.',
     contacts_companies_settings_link: 'Settings > Companies',
     contacts_no_company_select:       'No company',
+    contacts_create_company_option:   '+ New company…',
+    contacts_new_company_ph:          'Company name',
+    contacts_create_company_btn:      'Add',
+    contacts_create_company_failed:   'Could not create company',
 
     // LabelChip / LabelPicker
     contacts_loading_labels:          'Loading labels…',
@@ -430,6 +434,10 @@ export const contacts: { en: Record<string, string>; nl: Record<string, string> 
     contacts_no_companies_picker:     'Nog geen bedrijven.',
     contacts_companies_settings_link: 'Instellingen > Bedrijven',
     contacts_no_company_select:       'Geen bedrijf',
+    contacts_create_company_option:   '+ Nieuw bedrijf…',
+    contacts_new_company_ph:          'Bedrijfsnaam',
+    contacts_create_company_btn:      'Toevoegen',
+    contacts_create_company_failed:   'Bedrijf aanmaken mislukt',
 
     // LabelChip / LabelPicker
     contacts_loading_labels:          'Labels laden…',
