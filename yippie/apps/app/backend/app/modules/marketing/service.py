@@ -640,6 +640,7 @@ async def get_button_analytics(
     result = await db.execute(
         select(LabelClickToken.button_id, func.count().label("click_count"))
         .where(LabelClickToken.tenant_id == tenant_id)
+        .where(LabelClickToken.used_at.isnot(None))
         .group_by(LabelClickToken.button_id)
     )
     rows = result.all()
@@ -794,7 +795,14 @@ def _apply_personalization(
     }
 
     def _resolve(match: "re.Match[str]") -> str:
-        inner = match.group(1).strip()
+        # Rich text editors (GrapesJS) often store spaces inside a typed token
+        # as non-breaking spaces — the literal entity "&nbsp;" or the \xa0 char.
+        # Normalise them to plain spaces so "{{first_name | company}}" still
+        # parses into its fields instead of "&nbsp;company" (an unknown field).
+        inner = match.group(1).replace("&nbsp;", " ").replace("\xa0", " ")
+        # Editors can also split a typed token with stray formatting tags
+        # (e.g. "first_name <span>|</span> company"); drop any tags inside it.
+        inner = re.sub(r"<[^>]+>", "", inner).strip()
         # Split on | into a fallback chain: first field with a value wins.
         parts = [p.strip() for p in inner.split("|")]
         recognised = False
