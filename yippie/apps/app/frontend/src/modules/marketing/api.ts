@@ -164,6 +164,8 @@ export const marketingApi = {
 
   duplicateCampaign: (id: string) =>
     api.post<Campaign>(`/marketing/campaigns/${id}/duplicate`).then((r: any) => r.data),
+  reopenCampaign: (id: string) =>
+    api.post<Campaign>(`/marketing/campaigns/${id}/reopen`).then((r: any) => r.data),
   testSend: (id: string) =>
     api.post<{ to: string; campaign_id: string }>(`/marketing/campaigns/${id}/test-send`).then((r: any) => r.data),
   getButtonAnalytics: (id: string) =>

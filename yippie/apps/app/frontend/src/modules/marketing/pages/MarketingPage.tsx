@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { BarChart2, Calendar, Copy, GitBranch, Megaphone, Pencil, Plus, Trash2, UserMinus, Users, Mail, MessageCircle, Zap } from 'lucide-react'
+import { BarChart2, Calendar, Copy, GitBranch, Megaphone, Pencil, Plus, RotateCcw, Trash2, UserMinus, Users, Mail, MessageCircle, Zap } from 'lucide-react'
 import { Campaign, CampaignStatus, Channel, marketingApi, Unsubscribe } from '../api'
 import { CloseButton } from '../../../shell/CloseButton'
 import { CampaignDetail, TabKey } from './CampaignDetail'
@@ -212,6 +212,16 @@ export default function MarketingPage() {
     onError: () => toast.error(t('mkt_delete_only_draft')),
   })
 
+  const reopenCampaign = useMutation({
+    mutationFn: (id: string) => marketingApi.reopenCampaign(id),
+    onSuccess: () => {
+      toast.success(t('mkt_reopen_success'))
+      qc.invalidateQueries({ queryKey: ['marketing', 'campaigns'] })
+      setContextMenu(null)
+    },
+    onError: () => toast.error(t('mkt_reopen_err')),
+  })
+
   useEffect(() => {
     function close(e: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
@@ -399,6 +409,15 @@ export default function MarketingPage() {
               {label}
             </button>
           ))}
+          {contextMenu.campaign.status !== 'draft' && (
+            <button
+              onClick={() => reopenCampaign.mutate(contextMenu.campaign.id)}
+              className="flex w-full items-center gap-2.5 px-3 py-2 text-left text-sm text-slate-700 hover:bg-slate-50"
+            >
+              <span className="text-slate-400"><RotateCcw size={13} /></span>
+              {t('mkt_ctx_reopen')}
+            </button>
+          )}
           <div className="my-1 border-t border-slate-100" />
           <button
             onClick={() => {

@@ -640,6 +640,7 @@ async def get_button_analytics(
     result = await db.execute(
         select(LabelClickToken.button_id, func.count().label("click_count"))
         .where(LabelClickToken.tenant_id == tenant_id)
+        .where(LabelClickToken.used_at.isnot(None))
         .group_by(LabelClickToken.button_id)
     )
     rows = result.all()

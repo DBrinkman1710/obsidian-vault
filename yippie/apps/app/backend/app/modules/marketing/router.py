@@ -98,6 +98,18 @@ async def duplicate_campaign(campaign_id: uuid.UUID, current_user: CurrentUser, 
     return new_campaign
 
 
+@router.post("/campaigns/{campaign_id}/reopen", response_model=CampaignOut)
+async def reopen_campaign(campaign_id: uuid.UUID, current_user: AdminUser, db: DB):
+    campaign = await _require_campaign(db, current_user.tenant_id, campaign_id)
+    if campaign.status == "draft":
+        return campaign
+    campaign.status = "draft"
+    campaign.scheduled_at = None
+    await db.commit()
+    await db.refresh(campaign)
+    return campaign
+
+
 @router.post("/campaigns/{campaign_id}/test-send", response_model=TestSendOut)
 async def test_send_campaign(campaign_id: uuid.UUID, current_user: CurrentUser, db: DB):
     campaign = await _require_campaign(db, current_user.tenant_id, campaign_id)
