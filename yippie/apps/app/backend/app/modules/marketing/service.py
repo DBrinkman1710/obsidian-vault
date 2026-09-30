@@ -636,10 +636,11 @@ async def get_button_analytics(
         except Exception:
             pass
 
-    # Count clicks per button_id for contacts in this tenant.
+    # Count clicks per button_id for this campaign only (tenant scoped).
     result = await db.execute(
         select(LabelClickToken.button_id, func.count().label("click_count"))
         .where(LabelClickToken.tenant_id == tenant_id)
+        .where(LabelClickToken.campaign_id == campaign_id)
         .where(LabelClickToken.used_at.isnot(None))
         .group_by(LabelClickToken.button_id)
     )
@@ -831,6 +832,7 @@ async def apply_button_tracking(
     contact_id: uuid.UUID,
     base_url: str,
     stage_override: Optional[dict] = None,
+    campaign_id: Optional[uuid.UUID] = None,
 ) -> str:
     """Mint per-recipient click tokens for CRM-action buttons and inject the
     tracking hrefs into ``html``. Shared by the campaign launch and the drip
@@ -854,6 +856,7 @@ async def apply_button_tracking(
         db.add(_LCT(
             token=btn_token,
             tenant_id=tenant_id,
+            campaign_id=campaign_id,
             contact_id=contact_id,
             action_type=action,
             stage_id=uuid.UUID(str(raw_stage)) if raw_stage else None,
@@ -1059,6 +1062,7 @@ async def launch_campaign(
                 db.add(_LCT(
                     token=btn_token,
                     tenant_id=tenant_id,
+                    campaign_id=campaign.id,
                     contact_id=contact.id,
                     action_type=action,
                     stage_id=uuid.UUID(str(raw_stage)) if raw_stage else None,

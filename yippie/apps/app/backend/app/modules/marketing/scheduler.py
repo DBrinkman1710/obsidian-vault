@@ -217,6 +217,7 @@ async def send_drip_steps():
                             db, html, step.campaign_buttons,
                             tenant_id=campaign.tenant_id, contact_id=contact.id,
                             base_url=base_url, stage_override=campaign.button_stage_config or {},
+                            campaign_id=campaign.id,
                         )
                         await db.commit()
                     unsub_url = f"{base_url}/api/v1/track/unsubscribe/{row.tracking_token}"
